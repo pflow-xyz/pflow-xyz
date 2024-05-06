@@ -1,0 +1,2 @@
+- [ ] refine and extract the ./app
+- [ ] it should also support CLI commands after moving to go-metamodel
