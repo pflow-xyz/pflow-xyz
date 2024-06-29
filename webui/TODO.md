@@ -1,0 +1,3 @@
+- [ ] add a pop-up to show as solidity source
+- [ ] include a link to the URL (generate via post) 
+- [ ] support a new route /p/<CID>.sol or support in page router

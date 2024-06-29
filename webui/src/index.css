@@ -1,0 +1,48 @@
+@font-face {
+    font-family: 'GT_America-Light';
+    src: local('GT_America-Light'), url(fonts/GT_America/GT-America-Standard-Light.woff) format('woff');
+    /* other formats include: 'woff2', 'truetype, 'opentype',
+     *                             'embedded-opentype', and 'svg' */
+}
+
+/*
+GT_America
+IBM_Plex_Mono
+Yarndings_20
+*/
+
+
+body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+    font-weight: normal;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+iframe {
+    cursor: default;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
+
+#pflow-logo text {
+    font-size: 16px;
+}
+
+#github-issue-link {
+    text-decoration: none;
+}
+
+svg text {
+    cursor: default;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    font-size: 12px;
+}
