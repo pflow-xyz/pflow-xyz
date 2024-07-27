@@ -1,4 +1,4 @@
-import {Dsl, Model, ModelType, newModel, TxNode} from "../protocol";
+import {ModelBuilder, Model, ModelType, newModel, TxNode} from "../protocol";
 
 interface Position {
     x: number;
@@ -24,7 +24,7 @@ function pos(x: number, y: number): Position {
 export function gamepadModel(): Model {
     return newModel({
         type: ModelType.petriNet,
-        declaration: ({fn, cell, role}: Dsl) => {
+        declaration: ({fn, cell, role}: ModelBuilder) => {
             gamepad({fn, cell, role});
         },
     });
@@ -37,7 +37,7 @@ export function konamiCodeModel(): Model {
     });
 }
 
-export function gamepad({fn, cell, role}: Dsl): Control {
+export function gamepad({fn, cell, role}: ModelBuilder): Control {
     let btn = role("button")
 
     return {
@@ -52,7 +52,7 @@ export function gamepad({fn, cell, role}: Dsl): Control {
     }
 }
 
-function konamiCode({fn, cell, role}: Dsl): void {
+function konamiCode({fn, cell, role}: ModelBuilder): void {
     let control: Control = gamepad({fn, cell, role});
 
     let up2: any = cell("up.up", 2, 2, pos(2, 2));
@@ -88,7 +88,7 @@ function konamiCode({fn, cell, role}: Dsl): void {
 }
 
 
-// function combo({fn: Fn, cell: Cell, role: Role}: Dsl): DeclarationFunction {
+// function combo({fn: Fn, cell: Cell, role: Role}: ModelBuilder): DeclarationFunction {
 //     let offsetX: number = 4;
 //     let offsetY: number = 4;
 //     let control: Control = gamepad({fn, cell, role});

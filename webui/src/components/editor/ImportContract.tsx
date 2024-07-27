@@ -24,16 +24,9 @@ export default function ImportContract(props: ContractQueryProps) {
                 address = DEFAULT_CONTRACT;
             }
 
-            const connectedAccount = props.metaModel.ethAccount;
-            const web3 = new Web3(window.ethereum);
-            const contract = new web3.eth.Contract(abi, address);
-            const result = await contract.methods.declaration().call({from: connectedAccount}) as unknown as DeclarationResult;
-            const m = contractDeclarationToJson(result)
-            props.metaModel.setImportedContract(address);
-            console.log(m)
-            return props.metaModel.loadJson(m).then(() => {
-                return props.metaModel.commit({action: "importContract"})
-            });
+            const def = await metaModel.loadFromAddress({address});
+            console.log(def, 'loaded')
+            return props.metaModel.commit({action: "importContract"})
         }
         catch (e) {
             const err = e as Error;

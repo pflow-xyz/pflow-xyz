@@ -1,10 +1,12 @@
 import React from "react";
 import * as mm from "../protocol";
-import {ModelDeclaration, ModelType} from "../protocol";
+import {FlowBuilder, ModelDeclaration, ModelType, newModel } from "../protocol";
 import {Action} from "./types";
 import {hideCanvas, showCanvas, snapshotSvg} from "./snapshot";
 import {compressBrotliEncode, decompressBrotliDecode, loadModelFromUrl} from "./compression";
 import {DEFAULT_CONTRACT} from "./contract";
+import {ethers, toBigInt} from "ethers";
+import {MyStateMachine__factory} from "../typechain-types";
 
 export type MaybeNode = mm.Place | mm.Transition | null
 export const keyToAction: Record<string, Action> = Object.freeze({
@@ -68,13 +70,26 @@ type ModelOptions = {
     superModel?: boolean
     schema?: string
 }
+const xScale = 80;
+const yScale = 80;
+const positionMargin = 22;
+
+function scaleX(x: number) {
+    return x * xScale + positionMargin;
+}
+
+function scaleY(y: number) {
+    return y * yScale + positionMargin;
+}
 
 export class MetaModel {
+    m: mm.Model = initialModel;
+    height: number = 600;
+    address: string = '';
+    provider: ethers.BrowserProvider = new ethers.BrowserProvider(window.ethereum);
     ethAccount: string = 'null';
     importedContract: string = 'null';
-    m: mm.Model = initialModel;
     urlLoaded: Promise<void> = Promise.resolve();
-    height: number = 600;
     selectedObject: mm.MetaObject | null = null;
     selectedId: string | null = null;
     mode: Action = 'select';
@@ -118,10 +133,6 @@ export class MetaModel {
 
     setConnectedAccount(account: string): void {
         this.ethAccount = account;
-    }
-
-    setImportedContract(address: string): void {
-        this.importedContract = address;
     }
 
     getContract(): string {
@@ -357,6 +368,61 @@ export class MetaModel {
         if (el) {
             el.blur();
         }
+    }
+
+    async loadFromAddress(opts:{ address: string }) {
+        if (!opts.address) {
+            console.error('no address provided');
+        }
+        this.address = opts.address;
+        const stateMachine = MyStateMachine__factory.connect(opts.address, this.provider)
+
+        const convert = (n: bigint) => parseInt(n.toString());
+        return stateMachine.context().then((ctx) => {
+            this.m = newModel({
+                declaration: (dsl: mm.ModelBuilder) => {
+                    const places:  string[] = []
+                    const transitions: string[] = []
+                    ctx.places.forEach((p) => {
+                        places[convert(p.offset)] = p.label
+                    })
+                    ctx.transitions.forEach((t) => {
+                        transitions[convert(t.offset)] = t.label
+                    })
+                    const { place, transition, arc, guard } = FlowBuilder({
+                        modelDsl: dsl,
+                        places,
+                        transitions
+                    });
+                    ctx.places.forEach((p) => {
+                        // NOTE: 'initial' value in this context is set based on  latest on-chain state
+                        place(p.label, convert(ctx.state[convert(p.offset)]), convert(p.capacity), scaleX(convert(p.position.x)), scaleY(convert(p.position.y)));
+                    });
+                    ctx.transitions.forEach((t) => {
+                        transition(t.label, convert(t.role), scaleX(convert(t.position.x)), scaleY(convert(t.position.y)));
+                        t.delta.forEach((d, i) => {
+                            if (d < 0) {
+                                arc(places[i], t.label, 0-convert(d));
+                            }
+                            if (d > 0) {
+                                arc(t.label, places[i], convert(d));
+                            }
+                        })
+                        t.guard.forEach((g, i) => {
+                            if (g < 0) {
+                                guard(places[i], t.label,0-convert(g));
+                            }
+                            if (g > 0) {
+                                guard(t.label, places[i], convert(g));
+                            }
+                        });
+                    });
+                },
+                type: ModelType.petriNet
+            })
+
+            return this.m.toObject('sparse')
+        })
     }
 
     async onKeyup(evt: KeyboardEvent): Promise<void> {

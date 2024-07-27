@@ -1,6 +1,4 @@
-import * as mm from "./index";
-
-type Version = "v0" | "v1";
+export type Version = "v0" | "v1";
 const version: Version = "v0";
 
 export interface RoleDef {
@@ -13,11 +11,11 @@ export interface Position {
     z?: number;
 }
 
-export type Dsl = { fn: Fn; cell: Cell; role: Role };
+export type ModelBuilder = { fn: Fn; cell: Cell; role: Role };
 export type Fn = (label: string, role: RoleDef, position: Position) => TxNode
 export type Cell = (label: string, initial: number, capacity: number, position: Position) => PlaceNode
 export type Role = (label: string) => RoleDef
-export type DeclarationFunction = ({fn, cell, role}: Dsl) => void
+export type DeclarationFunction = ({fn, cell, role}: ModelBuilder) => void
 export type Vector = number[];
 export type MetaType = "place" | "transition" | "arc";
 
@@ -45,15 +43,12 @@ export interface Guard {
 export interface Transition extends TypeAnnotation {
     metaType: "transition";
     label: string;
+    offset: number;
     role: RoleDef;
     delta: Vector;
     guards: Map<string, Guard>;
     allowReentry: boolean;
     position: Position;
-    subnet?: {
-        m: Model;
-        type: "entry" | "exit";
-    };
 }
 
 export interface Arc extends TypeAnnotation {
@@ -143,7 +138,7 @@ export interface Model {
 }
 
 export type ModelDeclaration = {
-    modelType: ModelType;
+    modelType: ModelType.petriNet | ModelType.elementary | ModelType.workflow;
     version: Version;
     places: {
         [key: string]: { offset: number; initial?: number; capacity?: number; x: number; y: number };
@@ -159,6 +154,76 @@ export type ModelDeclaration = {
         reentry?: boolean;
     }[];
 };
+
+export interface FlowDSL {
+    place(label: string, initial: number, capacity: number, x: number, y: number): void
+    transition(label: string, role: number, x: number, y: number): void
+    arc(from: string, to: string, weight: number, inhibit?: boolean): void
+    guard(from: string, to: string, weight: number): void
+}
+
+export interface DeclarationArgs{
+    modelDsl: ModelBuilder,
+    places: string[],
+    transitions: string[]
+}
+
+// use this  model constructor with a fluent interface to construct a model
+export function FlowBuilder({modelDsl, places, transitions}: DeclarationArgs): FlowDSL {
+    const _pl: PlaceNode[] = []
+    const _tx: TxNode[] = [];
+
+    function arc( from: string, to: string, weight: number = 1, inhibit: boolean = false) {
+        let _from = places.indexOf(from);
+        let _from_place = true;
+        if (_from < 0) {
+            _from_place = false;
+            _from = transitions.indexOf(from);
+        }
+        let _to = places.indexOf(to);
+        if (_to < 0) {
+            _to = transitions.indexOf(to);
+        }
+
+        if (inhibit)  {
+            if (_from_place) {
+                _pl[_from].guard(weight, _tx[_to])
+            } else {
+                _tx[_from].guard(weight, _pl[_to])
+            }
+        } else {
+            if (_from_place) {
+                _pl[_from].tx(weight, _tx[_to])
+            } else {
+                _tx[_from].tx(weight, _pl[_to])
+            }
+        }
+    }
+
+    function guard( from: string, to: string, weight: number = 1) {
+        arc(from, to, weight, true)
+    }
+
+    function place(label: string, initial: number, capacity: number, x: number, y: number) {
+        const i = places.indexOf(label);
+        if (i < 0) {
+            throw new Error("place not found: " + label)
+        } else {
+            _pl[i] = modelDsl.cell(label, initial, capacity, {x, y})
+        }
+    }
+
+    function transition(label: string, role: number, x: number, y: number) {
+        const i = transitions.indexOf(label);
+        if (i < 0) {
+            throw new Error("transition not found: " + label)
+        } else {
+            _tx[i] = modelDsl.fn(label, modelDsl.role("role"+role), {x, y})
+        }
+    }
+
+    return {place, transition, arc, guard}
+}
 
 export interface ModelOptions {
     declaration?: DeclarationFunction | ModelDeclaration;
@@ -180,6 +245,7 @@ export function newModel({declaration, type}: ModelOptions): Model {
         const transition: Transition = {
             metaType: "transition",
             allowReentry: false,
+            offset: def.transitions.size,
             label,
             role,
             position,
@@ -664,14 +730,14 @@ export function newModel({declaration, type}: ModelOptions): Model {
         }
 
         if (source.metaType === "place" && target.metaType === "transition") {
-            const place = source as mm.Place;
-            const transition = target as mm.Transition;
+            const place = source as Place;
+            const transition = target as Transition;
             transition.delta[place.offset] = 0;
             target.guards.delete(place.label);
         }
         if (source.metaType === "transition" && target.metaType === "place") {
-            const place = target as mm.Place;
-            const transition = source as mm.Transition;
+            const place = target as Place;
+            const transition = source as Transition;
             transition.delta[place.offset] = 0;
             source.guards.delete(place.label);
         }
@@ -862,10 +928,11 @@ export function newModel({declaration, type}: ModelOptions): Model {
         def.transitions.set(oid, {
             metaType: "transition",
             label: oid,
+            offset: def.transitions.size,
             role: {label: "default"},
             delta: emptyVector(),
             position: {x: coords.x, y: coords.y},
-            guards: new Map<string, mm.Guard>(),
+            guards: new Map<string, Guard>(),
             allowReentry: false,
         });
         return true;
@@ -880,24 +947,31 @@ export function newModel({declaration, type}: ModelOptions): Model {
         return def.places.get(id) || def.transitions.get(id);
     }
 
-    function newLabel(label: string, suffix?: number): string {
-        if (suffix) {
-            label = label + suffix;
-        }
-        if (!objectExists(label)) {
-            return label;
+function newLabel(label: string, suffix?: number): string {
+    const labelExists = (label: string): boolean => objectExists(label);
+
+    const incrementSuffix = (label: string): string => {
+        const match = label.match(/^(.*?)(\d+)$/);
+        if (match) {
+            const prefix = match[1];
+            const num = parseInt(match[2], 10) + 1;
+            return `${prefix}${num}`;
         } else {
-            // if last char is a number, increment it
-            // REVIEW: consider supporting multi-digit numbers
-            const lastChar = label.slice(-1);
-            if (lastChar >= "0" && lastChar <= "9") {
-                const newSuffix = parseInt(lastChar) + 1;
-                return newLabel(label.slice(0, -1), newSuffix);
-            } else {
-                return newLabel(label, 1);
-            }
+            return `${label}-1`;
         }
+    };
+
+    let newLabel = label;
+    if (suffix !== undefined) {
+        newLabel += suffix.toString();
     }
+
+    while (labelExists(newLabel)) {
+        newLabel = incrementSuffix(newLabel);
+    }
+
+    return newLabel;
+}
 
     function setArcWeight(offset: number, weight: number): boolean {
         const arc = def.arcs[offset];

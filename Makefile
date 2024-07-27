@@ -28,3 +28,7 @@ go-build:
 	$(eval CSS := $(shell echo $(MAIN_CSS) | cut -d'.' -f2))
 	@echo "FIXME: Set Webui Version: main.$(JS).js main.$(CSS).css"
 	go build -ldflags "-X 'github.com/pflow-dev/pflow-xyz/config.cssBuild=$(CSS)' -X 'github.com/pflow-dev/pflow-xyz/config.jsBuild=$(JS)' -s -w" -o pflow-xyz main.go
+
+.PHONY: archive
+archive:
+	git archive --format=zip --output=pflow-xyz.$$(date -I).zip main

@@ -1,0 +1,153 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="500" height="500">
+    <defs>
+        <marker id="a" markerHeight="13" markerWidth="23" orient="auto" refX="31" refY="6">
+            <path fill="#1c1c1d" stroke="#1c1c1d" d="M3 5h28v3H3z" class="arrowSpace1"/>
+            <path fill="#1c1c1d" stroke="#EBFF00" d="M2 2v9l8-5-8-4"/>
+        </marker>
+    </defs>
+    <path stroke="#ebff00" marker-end="url(#a)" d="m223.335 214.3 27.28-62.62" style="stroke-width:.62"/>
+    <text x="234.495" y="180.51" style="font-size:7.44px;stroke-width:.62">1</text>
+    <path stroke="#ebff00" marker-end="url(#a)" d="m276.655 211.82-26.04-60.14" style="stroke-width:.62"/>
+    <text x="261.155" y="179.27" style="font-size:7.44px;stroke-width:.62">1</text>
+    <path stroke="#ebff00" marker-end="url(#a)" d="m223.335 214.3-62.62 23.56" style="stroke-width:.62"/>
+    <text x="189.545" y="223.6" style="font-size:7.44px;stroke-width:.62">1</text>
+    <path stroke="#ebff00" marker-end="url(#a)" d="m214.655 262.04-53.94-24.18" style="stroke-width:.62"/>
+    <text x="185.205" y="247.47" style="font-size:7.44px;stroke-width:.62">1</text>
+    <path stroke="#ebff00" marker-end="url(#a)" d="m276.655 211.82 66.96 20.46" style="stroke-width:.62"/>
+    <text x="307.655" y="219.57" style="font-size:7.44px;stroke-width:.62">1</text>
+    <path stroke="#ebff00" marker-end="url(#a)" d="m289.675 263.28 53.94-31" style="stroke-width:.62"/>
+    <text x="314.165" y="245.3" style="font-size:7.44px;stroke-width:.62">1</text>
+    <path stroke="#ebff00" marker-end="url(#a)" d="m214.655 262.04-11.78 62.62" style="stroke-width:.62"/>
+    <text x="206.285" y="290.87" style="font-size:7.44px;stroke-width:.62">1</text>
+    <path stroke="#ebff00" marker-end="url(#a)" d="m249.995 298-47.12 26.66" style="stroke-width:.62"/>
+    <text x="223.955" y="308.85" style="font-size:7.44px;stroke-width:.62">1</text>
+    <path stroke="#ebff00" marker-end="url(#a)" d="m249.995 298 53.32 28.52" style="stroke-width:.62"/>
+    <text x="274.175" y="309.78" style="font-size:7.44px;stroke-width:.62">1</text>
+    <path stroke="#ebff00" marker-end="url(#a)" d="m289.675 263.28 13.64 63.24" style="stroke-width:.62"/>
+    <text x="294.015" y="292.42" style="font-size:7.44px;stroke-width:.62">1</text>
+    <path stroke="#ebff00" marker-end="url(#a)" d="m250.615 151.68-46.5-43.4" style="stroke-width:.62"/>
+    <text x="224.885" y="127.5" style="font-size:7.44px;stroke-width:.62">1</text>
+    <path stroke="#ebff00" marker-end="url(#a)" d="m250.615 151.68 46.5-43.4" style="stroke-width:.62"/>
+    <text x="271.385" y="127.5" style="font-size:7.44px;stroke-width:.62">1</text>
+    <path stroke="#ebff00" marker-end="url(#a)" d="m343.615 232.28 42.16-50.84" style="stroke-width:.62"/>
+    <text x="362.215" y="204.38" style="font-size:7.44px;stroke-width:.62">1</text>
+    <path stroke="#ebff00" marker-end="url(#a)" d="m343.615 232.28 56.42 37.82" style="stroke-width:.62"/>
+    <text x="369.345" y="248.71" style="font-size:7.44px;stroke-width:.62">1</text>
+    <path stroke="#ebff00" marker-end="url(#a)" d="m303.315 326.52 50.22-1.24" style="stroke-width:.62"/>
+    <text x="325.945" y="320.94" style="font-size:7.44px;stroke-width:.62">1</text>
+    <path stroke="#ebff00" marker-end="url(#a)" d="m303.315 326.52-5.58 57.66" style="stroke-width:.62"/>
+    <text x="295.565" y="352.87" style="font-size:7.44px;stroke-width:.62">1</text>
+    <path stroke="#ebff00" marker-end="url(#a)" d="M202.875 324.66h-52.7" style="stroke-width:.62"/>
+    <text x="174.045" y="322.18" style="font-size:7.44px;stroke-width:.62">1</text>
+    <path stroke="#ebff00" marker-end="url(#a)" d="m202.875 324.66 4.34 48.98" style="stroke-width:.62"/>
+    <text x="200.085" y="346.67" style="font-size:7.44px;stroke-width:.62">1</text>
+    <path stroke="#ebff00" marker-end="url(#a)" d="m160.715 237.86-52.08 33.48" style="stroke-width:.62"/>
+    <text x="132.195" y="252.12" style="font-size:7.44px;stroke-width:.62">1</text>
+    <path stroke="#ebff00" marker-end="url(#a)" d="m160.715 237.86-46.5-52.08" style="stroke-width:.62"/>
+    <text x="134.985" y="209.34" style="font-size:7.44px;stroke-width:.62">1</text>
+    <path stroke="#ebff00" marker-end="url(#a)" d="m204.115 108.28 46.5-37.2" style="stroke-width:.62"/>
+    <text x="224.885" y="87.2" style="font-size:7.44px;stroke-width:.62">1</text>
+    <path stroke="#ebff00" marker-end="url(#a)" d="m297.115 108.28-46.5-37.2" style="stroke-width:.62"/>
+    <text x="271.385" y="87.2" style="font-size:7.44px;stroke-width:.62">1</text>
+    <path stroke="#ebff00" marker-end="url(#a)" d="m385.775 181.44 55.8 37.2" style="stroke-width:.62"/>
+    <text x="411.195" y="197.56" style="font-size:7.44px;stroke-width:.62">1</text>
+    <path stroke="#ebff00" marker-end="url(#a)" d="m400.035 270.1 41.54-51.46" style="stroke-width:.62"/>
+    <text x="418.325" y="241.89" style="font-size:7.44px;stroke-width:.62">1</text>
+    <path stroke="#ebff00" marker-end="url(#a)" d="m353.535 325.28 20.46 73.78" style="stroke-width:.62"/>
+    <text x="361.285" y="359.69" style="font-size:7.44px;stroke-width:.62">1</text>
+    <path stroke="#ebff00" marker-end="url(#a)" d="m297.735 384.18 76.26 14.88" style="stroke-width:.62"/>
+    <text x="333.385" y="389.14" style="font-size:7.44px;stroke-width:.62">1</text>
+    <path stroke="#ebff00" marker-end="url(#a)" d="m114.215 185.78-58.9 34.1" style="stroke-width:.62"/>
+    <text x="82.285" y="200.35" style="font-size:7.44px;stroke-width:.62">1</text>
+    <path stroke="#ebff00" marker-end="url(#a)" d="m108.635 271.34-53.32-51.46" style="stroke-width:.62"/>
+    <text x="79.495" y="243.13" style="font-size:7.44px;stroke-width:.62">1</text>
+    <path stroke="#ebff00" marker-end="url(#a)" d="m150.175 324.66-17.98 71.92" style="stroke-width:.62"/>
+    <text x="138.705" y="358.14" style="font-size:7.44px;stroke-width:.62">1</text>
+    <path stroke="#ebff00" marker-end="url(#a)" d="m207.215 373.64-75.02 22.94" style="stroke-width:.62"/>
+    <text x="167.225" y="382.63" style="font-size:7.44px;stroke-width:.62">1</text>
+    <path stroke="#ebff00" marker-end="url(#a)" d="m55.315 219.88 168.02-5.58" style="stroke-width:.62"/>
+    <text x="136.845" y="212.13" style="font-size:7.44px;stroke-width:.62">1</text>
+    <path stroke="#ebff00" marker-end="url(#a)" d="m55.315 219.88 159.34 42.16" style="stroke-width:.62"/>
+    <text x="132.505" y="238.48" style="font-size:7.44px;stroke-width:.62">1</text>
+    <path stroke="#ebff00" marker-end="url(#a)" d="m250.615 71.08-27.28 143.22" style="stroke-width:.62"/>
+    <text x="234.495" y="140.21" style="font-size:7.44px;stroke-width:.62">1</text>
+    <path stroke="#ebff00" marker-end="url(#a)" d="m250.615 71.08 26.04 140.74" style="stroke-width:.62"/>
+    <text x="261.155" y="138.97" style="font-size:7.44px;stroke-width:.62">1</text>
+    <path stroke="#ebff00" marker-end="url(#a)" d="m441.575 218.64-164.92-6.82" style="stroke-width:.62"/>
+    <text x="356.635" y="210.27" style="font-size:7.44px;stroke-width:.62">1</text>
+    <path stroke="#ebff00" marker-end="url(#a)" d="m441.575 218.64-151.9 44.64" style="stroke-width:.62"/>
+    <text x="363.145" y="238.48" style="font-size:7.44px;stroke-width:.62">1</text>
+    <path stroke="#ebff00" marker-end="url(#a)" d="m373.995 399.06-84.32-135.78" style="stroke-width:.62"/>
+    <text x="329.355" y="328.69" style="font-size:7.44px;stroke-width:.62">1</text>
+    <path stroke="#ebff00" marker-end="url(#a)" d="m373.995 399.06-124-101.06" style="stroke-width:.62"/>
+    <text x="309.515" y="346.05" style="font-size:7.44px;stroke-width:.62">1</text>
+    <path stroke="#ebff00" marker-end="url(#a)" d="m132.195 396.58 82.46-134.54" style="stroke-width:.62"/>
+    <text x="170.945" y="326.83" style="font-size:7.44px;stroke-width:.62">1</text>
+    <path stroke="#ebff00" marker-end="url(#a)" d="m132.195 396.58 117.8-98.58" style="stroke-width:.62"/>
+    <text x="188.615" y="344.81" style="font-size:7.44px;stroke-width:.62">1</text>
+    <circle cx="223.335" cy="214.3" r="9.92" fill="#1c1c1d" stroke="#ebff00" stroke-width=".93" class="place"/>
+    <text x="212.175" y="201.9" style="font-size:7.44px;stroke-width:.62">place0</text>
+    <circle cx="276.655" cy="211.82" r="9.92" fill="#1c1c1d" stroke="#ebff00" stroke-width=".93" class="place"/>
+    <circle cx="276.655" cy="211.82" r="1.24" fill="#ebff00" stroke="#ebff00" class="tokens" style="stroke-width:.62"/>
+    <text x="265.495" y="199.42" style="font-size:7.44px;stroke-width:.62">place1</text>
+    <circle cx="214.655" cy="262.04" r="9.92" fill="#1c1c1d" stroke="#ebff00" stroke-width=".93" class="place"/>
+    <text x="203.495" y="249.64" style="font-size:7.44px;stroke-width:.62">place2</text>
+    <circle cx="289.675" cy="263.28" r="9.92" fill="#1c1c1d" stroke="#ebff00" stroke-width=".93" class="place"/>
+    <circle cx="289.675" cy="263.28" r="1.24" fill="#ebff00" stroke="#ebff00" class="tokens" style="stroke-width:.62"/>
+    <text x="278.515" y="250.88" style="font-size:7.44px;stroke-width:.62">place3</text>
+    <circle cx="249.995" cy="298" r="9.92" fill="#1c1c1d" stroke="#ebff00" stroke-width=".93" class="place"/>
+    <circle cx="249.995" cy="298" r="1.24" fill="#ebff00" stroke="#ebff00" class="tokens" style="stroke-width:.62"/>
+    <text x="238.835" y="285.6" style="font-size:7.44px;stroke-width:.62">place4</text>
+    <circle cx="204.115" cy="108.28" r="9.92" fill="#1c1c1d" stroke="#ebff00" stroke-width=".93" class="place"/>
+    <text x="192.955" y="95.88" style="font-size:7.44px;stroke-width:.62">place5</text>
+    <circle cx="297.115" cy="108.28" r="9.92" fill="#1c1c1d" stroke="#ebff00" stroke-width=".93" class="place"/>
+    <text x="285.955" y="95.88" style="font-size:7.44px;stroke-width:.62">place6</text>
+    <circle cx="385.775" cy="181.44" r="9.92" fill="#1c1c1d" stroke="#ebff00" stroke-width=".93" class="place"/>
+    <circle cx="398.485" cy="270.084" r="9.92" fill="#1c1c1d" stroke="#ebff00" stroke-width=".93" class="place"/>
+    <text x="374.615" y="169.04" style="font-size:7.44px;stroke-width:.62">place7</text>
+    <text x="388.875" y="257.7" style="font-size:7.44px;stroke-width:.62">place8</text>
+    <circle cx="353.535" cy="325.28" r="9.92" fill="#1c1c1d" stroke="#ebff00" stroke-width=".93" class="place"/>
+    <text x="342.375" y="312.88" style="font-size:7.44px;stroke-width:.62">place9</text>
+    <circle cx="297.735" cy="384.18" r="9.92" fill="#1c1c1d" stroke="#ebff00" stroke-width=".93" class="place"/>
+    <text x="286.575" y="371.78" style="font-size:7.44px;stroke-width:.62">place10</text>
+    <circle cx="207.215" cy="373.64" r="9.92" fill="#1c1c1d" stroke="#ebff00" stroke-width=".93" class="place"/>
+    <text x="196.055" y="361.24" style="font-size:7.44px;stroke-width:.62">place11</text>
+    <circle cx="150.175" cy="324.66" r="9.92" fill="#1c1c1d" stroke="#ebff00" stroke-width=".93" class="place"/>
+    <text x="139.015" y="312.26" style="font-size:7.44px;stroke-width:.62">place12</text>
+    <circle cx="108.635" cy="271.34" r="9.92" fill="#1c1c1d" stroke="#ebff00" stroke-width=".93" class="place"/>
+    <circle cx="108.635" cy="271.34" r="1.24" fill="#ebff00" stroke="#ebff00" class="tokens" style="stroke-width:.62"/>
+    <text x="97.475" y="258.94" style="font-size:7.44px;stroke-width:.62">place13</text>
+    <circle cx="114.215" cy="185.78" r="9.92" fill="#1c1c1d" stroke="#ebff00" stroke-width=".93" class="place"/>
+    <circle cx="114.215" cy="185.78" r="1.24" fill="#ebff00" stroke="#ebff00" class="tokens" style="stroke-width:.62"/>
+    <text x="103.055" y="173.38" style="font-size:7.44px;stroke-width:.62">place14</text>
+    <rect width="18.6" height="18.6" x="241.315" y="142.38" fill="#1c1c1d" stroke="#ebff00" class="transition" rx="2.48"
+          style="stroke-width:.62"/>
+    <text x="241.315" y="139.28" style="font-size:7.44px;stroke-width:.62">txn0</text>
+    <rect width="18.6" height="18.6" x="334.315" y="222.98" fill="#1c1c1d" stroke="#ebff00" class="transition" rx="2.48"
+          style="stroke-width:.62"/>
+    <text x="334.315" y="219.88" style="font-size:7.44px;stroke-width:.62">txn1</text>
+    <rect width="18.6" height="18.6" x="151.415" y="228.56" fill="#1c1c1d" stroke="#ebff00" class="transition" rx="2.48"
+          style="stroke-width:.62"/>
+    <text x="151.415" y="225.46" style="font-size:7.44px;stroke-width:.62">txn2</text>
+    <rect width="18.6" height="18.6" x="193.575" y="315.36" fill="#1c1c1d" stroke="#ebff00" class="transition" rx="2.48"
+          style="stroke-width:.62"/>
+    <text x="193.575" y="312.26" style="font-size:7.44px;stroke-width:.62">txn3</text>
+    <rect width="18.6" height="18.6" x="294.015" y="317.22" fill="#1c1c1d" stroke="#ebff00" class="transition" rx="2.48"
+          style="stroke-width:.62"/>
+    <text x="294.015" y="314.12" style="font-size:7.44px;stroke-width:.62">txn4</text>
+    <rect width="18.6" height="18.6" x="241.315" y="61.78" fill="#1c1c1d" stroke="#ebff00" class="transition" rx="2.48"
+          style="stroke-width:.62"/>
+    <text x="241.315" y="58.68" style="font-size:7.44px;stroke-width:.62">txn5</text>
+    <rect width="18.6" height="18.6" x="432.275" y="209.34" fill="#1c1c1d" stroke="#ebff00" class="transition" rx="2.48"
+          style="stroke-width:.62"/>
+    <text x="432.275" y="206.24" style="font-size:7.44px;stroke-width:.62">txn6</text>
+    <rect width="18.6" height="18.6" x="364.695" y="389.76" fill="#1c1c1d" stroke="#ebff00" class="transition" rx="2.48"
+          style="stroke-width:.62"/>
+    <text x="364.695" y="386.66" style="font-size:7.44px;stroke-width:.62">txn7</text>
+    <rect width="18.6" height="18.6" x="122.895" y="387.28" fill="#1c1c1d" stroke="#ebff00" class="transition" rx="2.48"
+          style="stroke-width:.62"/>
+    <text x="122.895" y="384.18" style="font-size:7.44px;stroke-width:.62">txn8</text>
+    <rect width="18.6" height="18.6" x="46.015" y="210.58" fill="#1c1c1d" stroke="#ebff00" class="transition" rx="2.48"
+          style="stroke-width:.62"/>
+    <text x="46.015" y="207.48" style="font-size:7.44px;stroke-width:.62">txn9</text>
+</svg>

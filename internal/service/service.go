@@ -128,6 +128,23 @@ func (s *Server) ServeHTTP(box *rice.Box) {
 		return
 	})
 
+	s.Router.HandleFunc("/{file}.mp4",
+		func(w http.ResponseWriter, r *http.Request) {
+			vars := mux.Vars(r)
+			f, boxErr := box.Open("/" + vars["file"] + ".mp4")
+			if boxErr != nil {
+				http.Error(w, boxErr.Error(), http.StatusNotFound)
+				return
+			}
+			fileInfo, fileErr := f.Stat()
+			if fileErr != nil {
+				http.Error(w, fileErr.Error(), http.StatusNotFound)
+				return
+			}
+			w.Header().Set("Cache-Control", "public, max-age=31536000")
+			http.ServeContent(w, r, vars["file"]+".mp4", fileInfo.ModTime(), f)
+		})
+
 	s.Router.HandleFunc("/{file}", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "public, max-age=31536000")
 		http.StripPrefix("/", http.FileServer(box.HTTPBox())).ServeHTTP(w, r)

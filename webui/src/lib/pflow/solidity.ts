@@ -237,7 +237,7 @@ const solidityFooter = `abstract contract MyStateMachine is MyModelContract {
             if (t.guard[i] != 0) {
                 if (t.guard[i] < 0) {
                     // inhibit unless condition is met
-                    if ((state[i] + t.guard[i]) > 0) {
+                    if ((state[i] + t.guard[i]) >= 0) {
                         return true;
                     }
                 } else {
