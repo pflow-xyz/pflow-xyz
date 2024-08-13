@@ -1,7 +1,6 @@
 import {Fragment} from 'react';
-import {Web3} from 'web3';
 import {MetaModel} from "../../lib/pflow";
-import {abi, contractDeclarationToJson, DeclarationResult, DEFAULT_CONTRACT} from "../../lib/pflow/contract";
+import {DEFAULT_CONTRACT} from "../../lib/pflow/contract";
 
 interface ContractQueryProps {
     metaModel: MetaModel;

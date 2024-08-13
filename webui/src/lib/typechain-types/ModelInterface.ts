@@ -2,205 +2,200 @@
 /* tslint:disable */
 /* eslint-disable */
 import type {
-    BaseContract,
-    BigNumberish,
-    BytesLike,
-    ContractMethod,
-    ContractRunner,
-    FunctionFragment,
-    Interface,
-    Listener,
-    Result,
+  BaseContract,
+  BigNumberish,
+  BytesLike,
+  FunctionFragment,
+  Result,
+  Interface,
+  ContractRunner,
+  ContractMethod,
+  Listener,
 } from "ethers";
 import type {
-    TypedContractEvent,
-    TypedContractMethod,
-    TypedDeferredTopicFilter,
-    TypedEventLog,
-    TypedListener,
+  TypedContractEvent,
+  TypedDeferredTopicFilter,
+  TypedEventLog,
+  TypedListener,
+  TypedContractMethod,
 } from "./common";
 
 export declare namespace Model {
-    export type PositionStruct = { x: BigNumberish; y: BigNumberish };
+  export type PositionStruct = { x: BigNumberish; y: BigNumberish };
 
-    export type PositionStructOutput = [x: bigint, y: bigint] & {
-        x: bigint;
-        y: bigint;
-    };
+  export type PositionStructOutput = [x: bigint, y: bigint] & {
+    x: bigint;
+    y: bigint;
+  };
 
-    export type PlaceStruct = {
-        label: string;
-        offset: BigNumberish;
-        position: Model.PositionStruct;
-        initial: BigNumberish;
-        capacity: BigNumberish;
-    };
+  export type PlaceStruct = {
+    label: string;
+    offset: BigNumberish;
+    position: Model.PositionStruct;
+    initial: BigNumberish;
+    capacity: BigNumberish;
+  };
 
-    export type PlaceStructOutput = [
-        label: string,
-        offset: bigint,
-        position: Model.PositionStructOutput,
-        initial: bigint,
-        capacity: bigint
-    ] & {
-        label: string;
-        offset: bigint;
-        position: Model.PositionStructOutput;
-        initial: bigint;
-        capacity: bigint;
-    };
+  export type PlaceStructOutput = [
+    label: string,
+    offset: bigint,
+    position: Model.PositionStructOutput,
+    initial: bigint,
+    capacity: bigint
+  ] & {
+    label: string;
+    offset: bigint;
+    position: Model.PositionStructOutput;
+    initial: bigint;
+    capacity: bigint;
+  };
 
-    export type TransitionStruct = {
-        label: string;
-        offset: BigNumberish;
-        position: Model.PositionStruct;
-        role: BigNumberish;
-        delta: BigNumberish[];
-        guard: BigNumberish[];
-    };
+  export type TransitionStruct = {
+    label: string;
+    offset: BigNumberish;
+    position: Model.PositionStruct;
+    role: BigNumberish;
+    delta: BigNumberish[];
+    guard: BigNumberish[];
+  };
 
-    export type TransitionStructOutput = [
-        label: string,
-        offset: bigint,
-        position: Model.PositionStructOutput,
-        role: bigint,
-        delta: bigint[],
-        guard: bigint[]
-    ] & {
-        label: string;
-        offset: bigint;
-        position: Model.PositionStructOutput;
-        role: bigint;
-        delta: bigint[];
-        guard: bigint[];
-    };
+  export type TransitionStructOutput = [
+    label: string,
+    offset: bigint,
+    position: Model.PositionStructOutput,
+    role: bigint,
+    delta: bigint[],
+    guard: bigint[]
+  ] & {
+    label: string;
+    offset: bigint;
+    position: Model.PositionStructOutput;
+    role: bigint;
+    delta: bigint[];
+    guard: bigint[];
+  };
 
-    export type ContextStruct = {
-        sequence: BigNumberish;
-        state: BigNumberish[];
-        places: Model.PlaceStruct[];
-        transitions: Model.TransitionStruct[];
-    };
+  export type HeadStruct = {
+    latestBlocks: BigNumberish[];
+    sequence: BigNumberish;
+    state: BigNumberish[];
+    places: Model.PlaceStruct[];
+    transitions: Model.TransitionStruct[];
+  };
 
-    export type ContextStructOutput = [
-        sequence: bigint,
-        state: bigint[],
-        places: Model.PlaceStructOutput[],
-        transitions: Model.TransitionStructOutput[]
-    ] & {
-        sequence: bigint;
-        state: bigint[];
-        places: Model.PlaceStructOutput[];
-        transitions: Model.TransitionStructOutput[];
-    };
+  export type HeadStructOutput = [
+    latestBlocks: bigint[],
+    sequence: bigint,
+    state: bigint[],
+    places: Model.PlaceStructOutput[],
+    transitions: Model.TransitionStructOutput[]
+  ] & {
+    latestBlocks: bigint[];
+    sequence: bigint;
+    state: bigint[];
+    places: Model.PlaceStructOutput[];
+    transitions: Model.TransitionStructOutput[];
+  };
 }
 
 export interface ModelInterfaceInterface extends Interface {
-    getFunction(
-        nameOrSignature: "context" | "signal" | "signalMany"
-    ): FunctionFragment;
+  getFunction(
+    nameOrSignature: "context" | "signal" | "signalMany"
+  ): FunctionFragment;
 
-    encodeFunctionData(functionFragment: "context", values?: undefined): string;
+  encodeFunctionData(functionFragment: "context", values?: undefined): string;
+  encodeFunctionData(
+    functionFragment: "signal",
+    values: [BigNumberish, BigNumberish]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "signalMany",
+    values: [BigNumberish[], BigNumberish[]]
+  ): string;
 
-    encodeFunctionData(
-        functionFragment: "signal",
-        values: [BigNumberish, BigNumberish]
-    ): string;
-
-    encodeFunctionData(
-        functionFragment: "signalMany",
-        values: [BigNumberish[], BigNumberish[]]
-    ): string;
-
-    decodeFunctionResult(functionFragment: "context", data: BytesLike): Result;
-
-    decodeFunctionResult(functionFragment: "signal", data: BytesLike): Result;
-
-    decodeFunctionResult(functionFragment: "signalMany", data: BytesLike): Result;
+  decodeFunctionResult(functionFragment: "context", data: BytesLike): Result;
+  decodeFunctionResult(functionFragment: "signal", data: BytesLike): Result;
+  decodeFunctionResult(functionFragment: "signalMany", data: BytesLike): Result;
 }
 
 export interface ModelInterface extends BaseContract {
-    interface: ModelInterfaceInterface;
-    context: TypedContractMethod<[], [Model.ContextStructOutput], "nonpayable">;
-    signal: TypedContractMethod<
-        [action: BigNumberish, scalar: BigNumberish],
-        [void],
-        "nonpayable"
-    >;
-    signalMany: TypedContractMethod<
-        [actions: BigNumberish[], scalars: BigNumberish[]],
-        [void],
-        "nonpayable"
-    >;
-    filters: {};
+  connect(runner?: ContractRunner | null): ModelInterface;
+  waitForDeployment(): Promise<this>;
 
-    connect(runner?: ContractRunner | null): ModelInterface;
+  interface: ModelInterfaceInterface;
 
-    waitForDeployment(): Promise<this>;
+  queryFilter<TCEvent extends TypedContractEvent>(
+    event: TCEvent,
+    fromBlockOrBlockhash?: string | number | undefined,
+    toBlock?: string | number | undefined
+  ): Promise<Array<TypedEventLog<TCEvent>>>;
+  queryFilter<TCEvent extends TypedContractEvent>(
+    filter: TypedDeferredTopicFilter<TCEvent>,
+    fromBlockOrBlockhash?: string | number | undefined,
+    toBlock?: string | number | undefined
+  ): Promise<Array<TypedEventLog<TCEvent>>>;
 
-    queryFilter<TCEvent extends TypedContractEvent>(
-        event: TCEvent,
-        fromBlockOrBlockhash?: string | number | undefined,
-        toBlock?: string | number | undefined
-    ): Promise<Array<TypedEventLog<TCEvent>>>;
+  on<TCEvent extends TypedContractEvent>(
+    event: TCEvent,
+    listener: TypedListener<TCEvent>
+  ): Promise<this>;
+  on<TCEvent extends TypedContractEvent>(
+    filter: TypedDeferredTopicFilter<TCEvent>,
+    listener: TypedListener<TCEvent>
+  ): Promise<this>;
 
-    queryFilter<TCEvent extends TypedContractEvent>(
-        filter: TypedDeferredTopicFilter<TCEvent>,
-        fromBlockOrBlockhash?: string | number | undefined,
-        toBlock?: string | number | undefined
-    ): Promise<Array<TypedEventLog<TCEvent>>>;
+  once<TCEvent extends TypedContractEvent>(
+    event: TCEvent,
+    listener: TypedListener<TCEvent>
+  ): Promise<this>;
+  once<TCEvent extends TypedContractEvent>(
+    filter: TypedDeferredTopicFilter<TCEvent>,
+    listener: TypedListener<TCEvent>
+  ): Promise<this>;
 
-    on<TCEvent extends TypedContractEvent>(
-        event: TCEvent,
-        listener: TypedListener<TCEvent>
-    ): Promise<this>;
+  listeners<TCEvent extends TypedContractEvent>(
+    event: TCEvent
+  ): Promise<Array<TypedListener<TCEvent>>>;
+  listeners(eventName?: string): Promise<Array<Listener>>;
+  removeAllListeners<TCEvent extends TypedContractEvent>(
+    event?: TCEvent
+  ): Promise<this>;
 
-    on<TCEvent extends TypedContractEvent>(
-        filter: TypedDeferredTopicFilter<TCEvent>,
-        listener: TypedListener<TCEvent>
-    ): Promise<this>;
+  context: TypedContractMethod<[], [Model.HeadStructOutput], "nonpayable">;
 
-    once<TCEvent extends TypedContractEvent>(
-        event: TCEvent,
-        listener: TypedListener<TCEvent>
-    ): Promise<this>;
+  signal: TypedContractMethod<
+    [action: BigNumberish, scalar: BigNumberish],
+    [void],
+    "nonpayable"
+  >;
 
-    once<TCEvent extends TypedContractEvent>(
-        filter: TypedDeferredTopicFilter<TCEvent>,
-        listener: TypedListener<TCEvent>
-    ): Promise<this>;
+  signalMany: TypedContractMethod<
+    [actions: BigNumberish[], scalars: BigNumberish[]],
+    [void],
+    "nonpayable"
+  >;
 
-    listeners<TCEvent extends TypedContractEvent>(
-        event: TCEvent
-    ): Promise<Array<TypedListener<TCEvent>>>;
+  getFunction<T extends ContractMethod = ContractMethod>(
+    key: string | FunctionFragment
+  ): T;
 
-    listeners(eventName?: string): Promise<Array<Listener>>;
+  getFunction(
+    nameOrSignature: "context"
+  ): TypedContractMethod<[], [Model.HeadStructOutput], "nonpayable">;
+  getFunction(
+    nameOrSignature: "signal"
+  ): TypedContractMethod<
+    [action: BigNumberish, scalar: BigNumberish],
+    [void],
+    "nonpayable"
+  >;
+  getFunction(
+    nameOrSignature: "signalMany"
+  ): TypedContractMethod<
+    [actions: BigNumberish[], scalars: BigNumberish[]],
+    [void],
+    "nonpayable"
+  >;
 
-    removeAllListeners<TCEvent extends TypedContractEvent>(
-        event?: TCEvent
-    ): Promise<this>;
-
-    getFunction<T extends ContractMethod = ContractMethod>(
-        key: string | FunctionFragment
-    ): T;
-
-    getFunction(
-        nameOrSignature: "context"
-    ): TypedContractMethod<[], [Model.ContextStructOutput], "nonpayable">;
-
-    getFunction(
-        nameOrSignature: "signal"
-    ): TypedContractMethod<
-        [action: BigNumberish, scalar: BigNumberish],
-        [void],
-        "nonpayable"
-    >;
-
-    getFunction(
-        nameOrSignature: "signalMany"
-    ): TypedContractMethod<
-        [actions: BigNumberish[], scalars: BigNumberish[]],
-        [void],
-        "nonpayable"
-    >;
+  filters: {};
 }

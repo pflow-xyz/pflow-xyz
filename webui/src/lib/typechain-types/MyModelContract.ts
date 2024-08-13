@@ -100,7 +100,7 @@ export declare namespace Model {
   };
 }
 
-export interface MyStateMachineInterface extends Interface {
+export interface MyModelContractInterface extends Interface {
   getFunction(
     nameOrSignature:
       | "context"
@@ -165,11 +165,11 @@ export namespace SignaledEventEvent {
   export type LogDescription = TypedLogDescription<Event>;
 }
 
-export interface MyStateMachine extends BaseContract {
-  connect(runner?: ContractRunner | null): MyStateMachine;
+export interface MyModelContract extends BaseContract {
+  connect(runner?: ContractRunner | null): MyModelContract;
   waitForDeployment(): Promise<this>;
 
-  interface: MyStateMachineInterface;
+  interface: MyModelContractInterface;
 
   queryFilter<TCEvent extends TypedContractEvent>(
     event: TCEvent,

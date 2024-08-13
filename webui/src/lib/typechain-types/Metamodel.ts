@@ -2,264 +2,273 @@
 /* tslint:disable */
 /* eslint-disable */
 import type {
-    BaseContract,
-    BigNumberish,
-    BytesLike,
-    ContractMethod,
-    ContractRunner,
-    EventFragment,
-    FunctionFragment,
-    Interface,
-    Listener,
-    Result,
+  BaseContract,
+  BigNumberish,
+  BytesLike,
+  FunctionFragment,
+  Result,
+  Interface,
+  EventFragment,
+  ContractRunner,
+  ContractMethod,
+  Listener,
 } from "ethers";
 import type {
-    TypedContractEvent,
-    TypedContractMethod,
-    TypedDeferredTopicFilter,
-    TypedEventLog,
-    TypedListener,
-    TypedLogDescription,
+  TypedContractEvent,
+  TypedDeferredTopicFilter,
+  TypedEventLog,
+  TypedLogDescription,
+  TypedListener,
+  TypedContractMethod,
 } from "./common";
 
 export declare namespace Model {
-    export type PositionStruct = { x: BigNumberish; y: BigNumberish };
+  export type PositionStruct = { x: BigNumberish; y: BigNumberish };
 
-    export type PositionStructOutput = [x: bigint, y: bigint] & {
-        x: bigint;
-        y: bigint;
-    };
+  export type PositionStructOutput = [x: bigint, y: bigint] & {
+    x: bigint;
+    y: bigint;
+  };
 
-    export type PlaceStruct = {
-        label: string;
-        offset: BigNumberish;
-        position: Model.PositionStruct;
-        initial: BigNumberish;
-        capacity: BigNumberish;
-    };
+  export type PlaceStruct = {
+    label: string;
+    offset: BigNumberish;
+    position: Model.PositionStruct;
+    initial: BigNumberish;
+    capacity: BigNumberish;
+  };
 
-    export type PlaceStructOutput = [
-        label: string,
-        offset: bigint,
-        position: Model.PositionStructOutput,
-        initial: bigint,
-        capacity: bigint
-    ] & {
-        label: string;
-        offset: bigint;
-        position: Model.PositionStructOutput;
-        initial: bigint;
-        capacity: bigint;
-    };
+  export type PlaceStructOutput = [
+    label: string,
+    offset: bigint,
+    position: Model.PositionStructOutput,
+    initial: bigint,
+    capacity: bigint
+  ] & {
+    label: string;
+    offset: bigint;
+    position: Model.PositionStructOutput;
+    initial: bigint;
+    capacity: bigint;
+  };
 
-    export type TransitionStruct = {
-        label: string;
-        offset: BigNumberish;
-        position: Model.PositionStruct;
-        role: BigNumberish;
-        delta: BigNumberish[];
-        guard: BigNumberish[];
-    };
+  export type TransitionStruct = {
+    label: string;
+    offset: BigNumberish;
+    position: Model.PositionStruct;
+    role: BigNumberish;
+    delta: BigNumberish[];
+    guard: BigNumberish[];
+  };
 
-    export type TransitionStructOutput = [
-        label: string,
-        offset: bigint,
-        position: Model.PositionStructOutput,
-        role: bigint,
-        delta: bigint[],
-        guard: bigint[]
-    ] & {
-        label: string;
-        offset: bigint;
-        position: Model.PositionStructOutput;
-        role: bigint;
-        delta: bigint[];
-        guard: bigint[];
-    };
+  export type TransitionStructOutput = [
+    label: string,
+    offset: bigint,
+    position: Model.PositionStructOutput,
+    role: bigint,
+    delta: bigint[],
+    guard: bigint[]
+  ] & {
+    label: string;
+    offset: bigint;
+    position: Model.PositionStructOutput;
+    role: bigint;
+    delta: bigint[];
+    guard: bigint[];
+  };
 
-    export type ContextStruct = {
-        sequence: BigNumberish;
-        state: BigNumberish[];
-        places: Model.PlaceStruct[];
-        transitions: Model.TransitionStruct[];
-    };
+  export type HeadStruct = {
+    latestBlocks: BigNumberish[];
+    sequence: BigNumberish;
+    state: BigNumberish[];
+    places: Model.PlaceStruct[];
+    transitions: Model.TransitionStruct[];
+  };
 
-    export type ContextStructOutput = [
-        sequence: bigint,
-        state: bigint[],
-        places: Model.PlaceStructOutput[],
-        transitions: Model.TransitionStructOutput[]
-    ] & {
-        sequence: bigint;
-        state: bigint[];
-        places: Model.PlaceStructOutput[];
-        transitions: Model.TransitionStructOutput[];
-    };
+  export type HeadStructOutput = [
+    latestBlocks: bigint[],
+    sequence: bigint,
+    state: bigint[],
+    places: Model.PlaceStructOutput[],
+    transitions: Model.TransitionStructOutput[]
+  ] & {
+    latestBlocks: bigint[];
+    sequence: bigint;
+    state: bigint[];
+    places: Model.PlaceStructOutput[];
+    transitions: Model.TransitionStructOutput[];
+  };
 }
 
 export interface MetamodelInterface extends Interface {
-    getFunction(
-        nameOrSignature: "context" | "sequence" | "signal" | "signalMany"
-    ): FunctionFragment;
+  getFunction(
+    nameOrSignature:
+      | "context"
+      | "latestBlocks"
+      | "sequence"
+      | "signal"
+      | "signalMany"
+  ): FunctionFragment;
 
-    getEvent(nameOrSignatureOrTopic: "SignaledEvent"): EventFragment;
+  getEvent(nameOrSignatureOrTopic: "SignaledEvent"): EventFragment;
 
-    encodeFunctionData(functionFragment: "context", values?: undefined): string;
+  encodeFunctionData(functionFragment: "context", values?: undefined): string;
+  encodeFunctionData(
+    functionFragment: "latestBlocks",
+    values: [BigNumberish]
+  ): string;
+  encodeFunctionData(functionFragment: "sequence", values?: undefined): string;
+  encodeFunctionData(
+    functionFragment: "signal",
+    values: [BigNumberish, BigNumberish]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "signalMany",
+    values: [BigNumberish[], BigNumberish[]]
+  ): string;
 
-    encodeFunctionData(functionFragment: "sequence", values?: undefined): string;
-
-    encodeFunctionData(
-        functionFragment: "signal",
-        values: [BigNumberish, BigNumberish]
-    ): string;
-
-    encodeFunctionData(
-        functionFragment: "signalMany",
-        values: [BigNumberish[], BigNumberish[]]
-    ): string;
-
-    decodeFunctionResult(functionFragment: "context", data: BytesLike): Result;
-
-    decodeFunctionResult(functionFragment: "sequence", data: BytesLike): Result;
-
-    decodeFunctionResult(functionFragment: "signal", data: BytesLike): Result;
-
-    decodeFunctionResult(functionFragment: "signalMany", data: BytesLike): Result;
+  decodeFunctionResult(functionFragment: "context", data: BytesLike): Result;
+  decodeFunctionResult(
+    functionFragment: "latestBlocks",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(functionFragment: "sequence", data: BytesLike): Result;
+  decodeFunctionResult(functionFragment: "signal", data: BytesLike): Result;
+  decodeFunctionResult(functionFragment: "signalMany", data: BytesLike): Result;
 }
 
 export namespace SignaledEventEvent {
-    export type InputTuple = [
-        role: BigNumberish,
-        actionId: BigNumberish,
-        scalar: BigNumberish,
-        sequence: BigNumberish
-    ];
-    export type OutputTuple = [
-        role: bigint,
-        actionId: bigint,
-        scalar: bigint,
-        sequence: bigint
-    ];
-
-    export interface OutputObject {
-        role: bigint;
-        actionId: bigint;
-        scalar: bigint;
-        sequence: bigint;
-    }
-
-    export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
-    export type Filter = TypedDeferredTopicFilter<Event>;
-    export type Log = TypedEventLog<Event>;
-    export type LogDescription = TypedLogDescription<Event>;
+  export type InputTuple = [
+    role: BigNumberish,
+    actionId: BigNumberish,
+    scalar: BigNumberish,
+    sequence: BigNumberish
+  ];
+  export type OutputTuple = [
+    role: bigint,
+    actionId: bigint,
+    scalar: bigint,
+    sequence: bigint
+  ];
+  export interface OutputObject {
+    role: bigint;
+    actionId: bigint;
+    scalar: bigint;
+    sequence: bigint;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
 }
 
 export interface Metamodel extends BaseContract {
-    interface: MetamodelInterface;
-    context: TypedContractMethod<[], [Model.ContextStructOutput], "view">;
-    sequence: TypedContractMethod<[], [bigint], "view">;
-    signal: TypedContractMethod<
-        [action: BigNumberish, scalar: BigNumberish],
-        [void],
-        "nonpayable"
+  connect(runner?: ContractRunner | null): Metamodel;
+  waitForDeployment(): Promise<this>;
+
+  interface: MetamodelInterface;
+
+  queryFilter<TCEvent extends TypedContractEvent>(
+    event: TCEvent,
+    fromBlockOrBlockhash?: string | number | undefined,
+    toBlock?: string | number | undefined
+  ): Promise<Array<TypedEventLog<TCEvent>>>;
+  queryFilter<TCEvent extends TypedContractEvent>(
+    filter: TypedDeferredTopicFilter<TCEvent>,
+    fromBlockOrBlockhash?: string | number | undefined,
+    toBlock?: string | number | undefined
+  ): Promise<Array<TypedEventLog<TCEvent>>>;
+
+  on<TCEvent extends TypedContractEvent>(
+    event: TCEvent,
+    listener: TypedListener<TCEvent>
+  ): Promise<this>;
+  on<TCEvent extends TypedContractEvent>(
+    filter: TypedDeferredTopicFilter<TCEvent>,
+    listener: TypedListener<TCEvent>
+  ): Promise<this>;
+
+  once<TCEvent extends TypedContractEvent>(
+    event: TCEvent,
+    listener: TypedListener<TCEvent>
+  ): Promise<this>;
+  once<TCEvent extends TypedContractEvent>(
+    filter: TypedDeferredTopicFilter<TCEvent>,
+    listener: TypedListener<TCEvent>
+  ): Promise<this>;
+
+  listeners<TCEvent extends TypedContractEvent>(
+    event: TCEvent
+  ): Promise<Array<TypedListener<TCEvent>>>;
+  listeners(eventName?: string): Promise<Array<Listener>>;
+  removeAllListeners<TCEvent extends TypedContractEvent>(
+    event?: TCEvent
+  ): Promise<this>;
+
+  context: TypedContractMethod<[], [Model.HeadStructOutput], "view">;
+
+  latestBlocks: TypedContractMethod<[arg0: BigNumberish], [bigint], "view">;
+
+  sequence: TypedContractMethod<[], [bigint], "view">;
+
+  signal: TypedContractMethod<
+    [action: BigNumberish, scalar: BigNumberish],
+    [void],
+    "nonpayable"
+  >;
+
+  signalMany: TypedContractMethod<
+    [actions: BigNumberish[], scalars: BigNumberish[]],
+    [void],
+    "nonpayable"
+  >;
+
+  getFunction<T extends ContractMethod = ContractMethod>(
+    key: string | FunctionFragment
+  ): T;
+
+  getFunction(
+    nameOrSignature: "context"
+  ): TypedContractMethod<[], [Model.HeadStructOutput], "view">;
+  getFunction(
+    nameOrSignature: "latestBlocks"
+  ): TypedContractMethod<[arg0: BigNumberish], [bigint], "view">;
+  getFunction(
+    nameOrSignature: "sequence"
+  ): TypedContractMethod<[], [bigint], "view">;
+  getFunction(
+    nameOrSignature: "signal"
+  ): TypedContractMethod<
+    [action: BigNumberish, scalar: BigNumberish],
+    [void],
+    "nonpayable"
+  >;
+  getFunction(
+    nameOrSignature: "signalMany"
+  ): TypedContractMethod<
+    [actions: BigNumberish[], scalars: BigNumberish[]],
+    [void],
+    "nonpayable"
+  >;
+
+  getEvent(
+    key: "SignaledEvent"
+  ): TypedContractEvent<
+    SignaledEventEvent.InputTuple,
+    SignaledEventEvent.OutputTuple,
+    SignaledEventEvent.OutputObject
+  >;
+
+  filters: {
+    "SignaledEvent(uint8,uint8,uint256,uint256)": TypedContractEvent<
+      SignaledEventEvent.InputTuple,
+      SignaledEventEvent.OutputTuple,
+      SignaledEventEvent.OutputObject
     >;
-    signalMany: TypedContractMethod<
-        [actions: BigNumberish[], scalars: BigNumberish[]],
-        [void],
-        "nonpayable"
+    SignaledEvent: TypedContractEvent<
+      SignaledEventEvent.InputTuple,
+      SignaledEventEvent.OutputTuple,
+      SignaledEventEvent.OutputObject
     >;
-    filters: {
-        "SignaledEvent(uint8,uint8,uint256,uint256)": TypedContractEvent<
-            SignaledEventEvent.InputTuple,
-            SignaledEventEvent.OutputTuple,
-            SignaledEventEvent.OutputObject
-        >;
-        SignaledEvent: TypedContractEvent<
-            SignaledEventEvent.InputTuple,
-            SignaledEventEvent.OutputTuple,
-            SignaledEventEvent.OutputObject
-        >;
-    };
-
-    connect(runner?: ContractRunner | null): Metamodel;
-
-    waitForDeployment(): Promise<this>;
-
-    queryFilter<TCEvent extends TypedContractEvent>(
-        event: TCEvent,
-        fromBlockOrBlockhash?: string | number | undefined,
-        toBlock?: string | number | undefined
-    ): Promise<Array<TypedEventLog<TCEvent>>>;
-
-    queryFilter<TCEvent extends TypedContractEvent>(
-        filter: TypedDeferredTopicFilter<TCEvent>,
-        fromBlockOrBlockhash?: string | number | undefined,
-        toBlock?: string | number | undefined
-    ): Promise<Array<TypedEventLog<TCEvent>>>;
-
-    on<TCEvent extends TypedContractEvent>(
-        event: TCEvent,
-        listener: TypedListener<TCEvent>
-    ): Promise<this>;
-
-    on<TCEvent extends TypedContractEvent>(
-        filter: TypedDeferredTopicFilter<TCEvent>,
-        listener: TypedListener<TCEvent>
-    ): Promise<this>;
-
-    once<TCEvent extends TypedContractEvent>(
-        event: TCEvent,
-        listener: TypedListener<TCEvent>
-    ): Promise<this>;
-
-    once<TCEvent extends TypedContractEvent>(
-        filter: TypedDeferredTopicFilter<TCEvent>,
-        listener: TypedListener<TCEvent>
-    ): Promise<this>;
-
-    listeners<TCEvent extends TypedContractEvent>(
-        event: TCEvent
-    ): Promise<Array<TypedListener<TCEvent>>>;
-
-    listeners(eventName?: string): Promise<Array<Listener>>;
-
-    removeAllListeners<TCEvent extends TypedContractEvent>(
-        event?: TCEvent
-    ): Promise<this>;
-
-    getFunction<T extends ContractMethod = ContractMethod>(
-        key: string | FunctionFragment
-    ): T;
-
-    getFunction(
-        nameOrSignature: "context"
-    ): TypedContractMethod<[], [Model.ContextStructOutput], "view">;
-
-    getFunction(
-        nameOrSignature: "sequence"
-    ): TypedContractMethod<[], [bigint], "view">;
-
-    getFunction(
-        nameOrSignature: "signal"
-    ): TypedContractMethod<
-        [action: BigNumberish, scalar: BigNumberish],
-        [void],
-        "nonpayable"
-    >;
-
-    getFunction(
-        nameOrSignature: "signalMany"
-    ): TypedContractMethod<
-        [actions: BigNumberish[], scalars: BigNumberish[]],
-        [void],
-        "nonpayable"
-    >;
-
-    getEvent(
-        key: "SignaledEvent"
-    ): TypedContractEvent<
-        SignaledEventEvent.InputTuple,
-        SignaledEventEvent.OutputTuple,
-        SignaledEventEvent.OutputObject
-    >;
+  };
 }

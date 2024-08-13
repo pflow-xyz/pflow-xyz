@@ -39,7 +39,8 @@ library Model {
         uint256 capacity;
     }
 
-    struct Context {
+    struct Head {
+        uint256[10] latestBlocks;
         uint256 sequence;
         int256[] state;
         Place[] places;
@@ -49,7 +50,7 @@ library Model {
 }
 
 interface ModelInterface {
-    function context() external returns (Model.Context memory);
+    function context() external returns (Model.Head memory);
 
     function signal(uint8 action, uint256 scalar) external;
 
@@ -101,6 +102,9 @@ abstract contract Metamodel is PflowDSL, ModelInterface {
     // sequence is a monotonically increasing counter for each signal
     uint256 public sequence = 0;
 
+    // latestBlocks stores the last 10 block numbers when a signal was received
+    uint256[10] public latestBlocks = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+
     // transform is a hook for derived contracts to implement state transitions
     function transform(uint8 i, Model.Transition memory t, uint256 scalar) internal virtual;
 
@@ -111,7 +115,7 @@ abstract contract Metamodel is PflowDSL, ModelInterface {
     function hasPermission(Model.Transition memory t) internal view virtual returns (bool);
 
     // context returns the current state of the model
-    function context() external view virtual returns (Model.Context memory);
+    function context() external view virtual returns (Model.Head memory);
 
     // signal is the main entry point for signaling transitions
     function _signal(uint8 action, uint256 scalar) internal {
@@ -125,8 +129,16 @@ abstract contract Metamodel is PflowDSL, ModelInterface {
         emit Model.SignaledEvent(t.role, action, scalar, sequence);
     }
 
+    function updateBlocks(uint256 blockNumber) internal {
+        for (uint8 i = 0; i < 9; i++) {
+            latestBlocks[i] = latestBlocks[i + 1];
+        }
+        latestBlocks[9] = blockNumber;
+    }
+
     function signal(uint8 action, uint256 scalar) external {
         _signal(action, scalar);
+        updateBlocks(block.number);
     }
 
     function signalMany(uint8[] calldata actions, uint256[] calldata scalars) external {
@@ -134,12 +146,13 @@ abstract contract Metamodel is PflowDSL, ModelInterface {
         for (uint256 i = 0; i < actions.length; i++) {
             _signal(actions[i], scalars[i]);
         }
+        updateBlocks(block.number);
     }
 
 }
 `;
 
-const solidityFooter = `abstract contract MyStateMachine is MyModelContract {
+const solidityFooter = `contract MyStateMachine is MyModelContract {
 
     function isInhibited(Model.Transition memory t) internal view override returns (bool) {
         for (uint8 i = 0; i < uint8(Properties.SIZE); i++) {
@@ -175,21 +188,8 @@ const solidityFooter = `abstract contract MyStateMachine is MyModelContract {
         }
     }
 
-    function context() external view override returns (Model.Context memory) {
-        return Model.Context(sequence, state, places, transitions);
-    }
-
-}
-
-contract MyContract is MyStateMachine {
-
-    function signalWrapperExample() external {
-        // NOTE: It may be useful to encapsulate multiple signals
-        // in an external function.
-        //
-        // Or, a wrapper can simply provide users a way to signal transitions
-        // without having to know the action id(s).
-        _signal(uint8(Actions.HALT), 1);
+    function context() external view override returns (Model.Head memory) {
+        return Model.Head(latestBlocks, sequence, state, places, transitions);
     }
 
 }`;
@@ -199,11 +199,11 @@ const ScaleY = 80;
 const Margin = 22;
 
 function scaleX(x: number) {
-    return Math.floor(x / ScaleX);
+    return Math.floor((x -Margin) / ScaleX);
 }
 
 function scaleY(y: number) {
-    return Math.floor(y / (ScaleY - Margin));
+    return Math.floor((y - Margin) / ScaleY);
 }
 
 export function jsonToSolidity(json: string) {

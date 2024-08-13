@@ -4,11 +4,42 @@
 
 import { Contract, Interface, type ContractRunner } from "ethers";
 import type {
-  ModelInterface,
-  ModelInterfaceInterface,
-} from "../ModelInterface";
+  MyModelContract,
+  MyModelContractInterface,
+} from "../MyModelContract";
 
 const _abi = [
+  {
+    anonymous: false,
+    inputs: [
+      {
+        indexed: true,
+        internalType: "uint8",
+        name: "role",
+        type: "uint8",
+      },
+      {
+        indexed: true,
+        internalType: "uint8",
+        name: "actionId",
+        type: "uint8",
+      },
+      {
+        indexed: true,
+        internalType: "uint256",
+        name: "scalar",
+        type: "uint256",
+      },
+      {
+        indexed: false,
+        internalType: "uint256",
+        name: "sequence",
+        type: "uint256",
+      },
+    ],
+    name: "SignaledEvent",
+    type: "event",
+  },
   {
     inputs: [],
     name: "context",
@@ -129,7 +160,39 @@ const _abi = [
         type: "tuple",
       },
     ],
-    stateMutability: "nonpayable",
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        internalType: "uint256",
+        name: "",
+        type: "uint256",
+      },
+    ],
+    name: "latestBlocks",
+    outputs: [
+      {
+        internalType: "uint256",
+        name: "",
+        type: "uint256",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [],
+    name: "sequence",
+    outputs: [
+      {
+        internalType: "uint256",
+        name: "",
+        type: "uint256",
+      },
+    ],
+    stateMutability: "view",
     type: "function",
   },
   {
@@ -168,17 +231,36 @@ const _abi = [
     stateMutability: "nonpayable",
     type: "function",
   },
+  {
+    inputs: [
+      {
+        internalType: "uint256",
+        name: "",
+        type: "uint256",
+      },
+    ],
+    name: "state",
+    outputs: [
+      {
+        internalType: "int256",
+        name: "",
+        type: "int256",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
 ] as const;
 
-export class ModelInterface__factory {
+export class MyModelContract__factory {
   static readonly abi = _abi;
-  static createInterface(): ModelInterfaceInterface {
-    return new Interface(_abi) as ModelInterfaceInterface;
+  static createInterface(): MyModelContractInterface {
+    return new Interface(_abi) as MyModelContractInterface;
   }
   static connect(
     address: string,
     runner?: ContractRunner | null
-  ): ModelInterface {
-    return new Contract(address, _abi, runner) as unknown as ModelInterface;
+  ): MyModelContract {
+    return new Contract(address, _abi, runner) as unknown as MyModelContract;
   }
 }

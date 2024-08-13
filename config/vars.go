@@ -1,7 +1,7 @@
 package config
 
 var ( // set at buildtime w/ ldflags
-	JsBuild  = `11172683` // update to match ./public/p/static/js/main.<JsBuild>.js
+	JsBuild  = `595fcdf2` // update to match ./public/p/static/js/main.<JsBuild>.js
 	CssBuild = `35f75858` // update to match ./public/p/static/css/main.<CssBuild>.css
 )
 
