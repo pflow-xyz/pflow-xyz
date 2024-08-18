@@ -48,17 +48,7 @@ export default function BottomNav() {
                                             <Link to="/app" style={{
                                                 color: "black",
                                             }}>
-                                                Editor-App
-                                            </Link>
-                                        </li>
-                                        <li>
-                                            <a href={"https://app.pflow.xyz"}
-                                               style={{color: "black",}}
-                                            >Explorer-Dapp </a>
-                                        </li>
-                                        <li>
-                                            <Link to="/docs" style={{color: "black",}}>
-                                                Documentation
+                                                Application
                                             </Link>
                                         </li>
                                         <ul>
@@ -69,6 +59,18 @@ export default function BottomNav() {
                                                     Manual
                                                 </Link>
                                             </li>
+                                            <li>
+                                                <a href={"ipns://pflow.eth"}
+                                                   style={{color: "black",}}
+                                                >Open on IPFS: Pflow.eth</a>
+                                            </li>
+                                        </ul>
+                                        <li>
+                                            <Link to="/docs" style={{color: "black",}}>
+                                                Documentation
+                                            </Link>
+                                        </li>
+                                        <ul>
                                             <li>
                                                 <Link to="/docs-petri-net-101" style={{color: "black",}}>
                                                     Petri-Net 101
@@ -121,4 +123,5 @@ export default function BottomNav() {
             </div>
         </Fragment>
     )
+
 }

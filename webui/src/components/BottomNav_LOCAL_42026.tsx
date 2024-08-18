@@ -63,13 +63,6 @@ export default function BottomNav() {
                                         </li>
                                         <ul>
                                             <li>
-                                                <Link to="/app-manual" style={{
-                                                    color: "black",
-                                                }}>
-                                                    Manual
-                                                </Link>
-                                            </li>
-                                            <li>
                                                 <Link to="/docs-petri-net-101" style={{color: "black",}}>
                                                     Petri-Net 101
                                                 </Link>
@@ -121,4 +114,5 @@ export default function BottomNav() {
             </div>
         </Fragment>
     )
+
 }

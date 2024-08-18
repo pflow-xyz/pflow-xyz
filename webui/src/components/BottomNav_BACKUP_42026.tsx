@@ -49,6 +49,22 @@ export default function BottomNav() {
                                                 color: "black",
                                             }}>
                                                 Editor-App
+<<<<<<< HEAD
+                                            </Link>
+                                        </li>
+                                        <li>
+                                            <a href={"https://app.pflow.xyz"}
+                                               style={{color: "black",}}
+                                            >Explorer-Dapp </a>
+                                        </li>
+                                        <li>
+                                            <Link to="/docs" style={{color: "black",}}>
+                                                Documentation
+                                            </Link>
+                                        </li>
+                                        <ul>
+                                            <li>
+=======
                                             </Link>
                                         </li>
                                         <li>
@@ -70,6 +86,7 @@ export default function BottomNav() {
                                                 </Link>
                                             </li>
                                             <li>
+>>>>>>> cf0f691 (adopt walletconnect)
                                                 <Link to="/docs-petri-net-101" style={{color: "black",}}>
                                                     Petri-Net 101
                                                 </Link>
@@ -121,4 +138,5 @@ export default function BottomNav() {
             </div>
         </Fragment>
     )
+
 }
