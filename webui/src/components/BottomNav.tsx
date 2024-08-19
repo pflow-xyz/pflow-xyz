@@ -48,23 +48,14 @@ export default function BottomNav() {
                                             <Link to="/app" style={{
                                                 color: "black",
                                             }}>
-                                                Application
+                                                Editor-App
                                             </Link>
                                         </li>
-                                        <ul>
-                                            <li>
-                                                <Link to="/app-manual" style={{
-                                                    color: "black",
-                                                }}>
-                                                    Manual
-                                                </Link>
-                                            </li>
-                                            <li>
-                                                <a href={"ipns://pflow.eth"}
-                                                   style={{color: "black",}}
-                                                >Open on IPFS: Pflow.eth</a>
-                                            </li>
-                                        </ul>
+                                        <li>
+                                            <a href={"https://app.pflow.xyz"}
+                                               style={{color: "black",}}
+                                            >Explorer-Dapp </a>
+                                        </li>
                                         <li>
                                             <Link to="/docs" style={{color: "black",}}>
                                                 Documentation

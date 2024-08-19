@@ -11,15 +11,17 @@ export default function TitleCard() {
             padding: "1em",
             textAlign: "center",
         }}>
-            <Typography sx={{
+            <div>
+
+            <div style={{
                 fontFamily: "GT_America-Light",
                 fontSize: "30px",
                 fontWeight: "600",
             }}>
                 Pflow is a&nbsp;
-                <Typography sx={{
+                <div style={{
                     display: "inline",
-                    bgcolor: "#EBFF00",
+                    backgroundColor: "#EBFF00",
                     color: "black",
                     borderRadius: "10px",
                     border: "3px solid #EBFF00",
@@ -28,8 +30,9 @@ export default function TitleCard() {
                     fontWeight: "900",
                 }}>
                     Web3&nbsp;SDK
-                </Typography>
-            </Typography>
+                </div>
+            </div>
+            </div>
             <Typography sx={{
                 fontFamily: "GT_America-Light",
                 fontSize: "30px",

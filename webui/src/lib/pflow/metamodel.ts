@@ -5,7 +5,7 @@ import {Action} from "./types";
 import {hideCanvas, showCanvas, snapshotSvg} from "./snapshot";
 import {compressBrotliEncode, decompressBrotliDecode, loadModelFromUrl} from "./compression";
 import {DEFAULT_CONTRACT} from "./contract";
-import {ethers, toBigInt} from "ethers";
+import {Eip1193Provider, ethers, toBigInt} from "ethers";
 import {MyStateMachine__factory} from "../typechain-types";
 
 export type MaybeNode = mm.Place | mm.Transition | null
@@ -86,7 +86,7 @@ export class MetaModel {
     m: mm.Model = initialModel;
     height: number = 600;
     address: string = '';
-    provider: ethers.BrowserProvider = new ethers.BrowserProvider(window.ethereum);
+    provider: ethers.BrowserProvider = new ethers.BrowserProvider(window.ethereum as unknown as Eip1193Provider);
     ethAccount: string = 'null';
     importedContract: string = 'null';
     urlLoaded: Promise<void> = Promise.resolve();

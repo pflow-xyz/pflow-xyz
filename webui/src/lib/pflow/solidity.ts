@@ -199,7 +199,7 @@ const ScaleY = 80;
 const Margin = 22;
 
 function scaleX(x: number) {
-    return Math.floor((x -Margin) / ScaleX);
+    return Math.floor((x - Margin) / ScaleX);
 }
 
 function scaleY(y: number) {
