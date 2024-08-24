@@ -68,11 +68,8 @@ export default function Header() {
                         <Button sx={{
                             borderRadius: "10px",
                             border: "1px solid #EBFF00",
-                            color: "#FFF",
+                            color: "#c4c8a6",
                             backgroundColor: "#333",
-                            '&:hover': {
-                                backgroundColor: "#cac0c0",
-                            },
                         }}>
                             <Typography variant="h6" noWrap>
                                 Editor
@@ -83,12 +80,9 @@ export default function Header() {
                         <Button sx={{
                             borderRadius: "10px",
                             border: "1px solid #EBFF00",
-                            color: "yellow",
+                            color: "#c4c8a6",
                             marginLeft: "3px",
                             backgroundColor: "#1C1C1D",
-                            '&:hover': {
-                                backgroundColor: "#333",
-                            },
                         }}>
                             <Typography variant="h6" noWrap>
                                 app

@@ -5,20 +5,21 @@
   "homepage": "./",
   "proxy": "http://localhost:8083",
   "dependencies": {
+    "@emotion/react": "^11.11.1",
+    "@emotion/styled": "^11.11.0",
+    "@mui/icons-material": "^5.14.8",
+    "@mui/material": "^5.14.8",
+    "@uiw/react-textarea-code-editor": "^2.1.7",
     "@web3modal/ethers": "5.1.1",
+    "brotli-wasm": "^2.0.1",
     "ethers": "^6.13.2",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "react-router-dom": "^6.23.0",
-    "brotli-wasm": "^2.0.1",
-    "@uiw/react-textarea-code-editor": "^2.1.7",
     "react-drag-drop-files": "^2.3.10",
-    "@mui/icons-material": "^5.14.8",
-    "@mui/material": "^5.14.8",
-    "@emotion/styled": "^11.11.0",
-    "@emotion/react": "^11.11.1"
+    "react-router-dom": "^6.23.0"
   },
   "devDependencies": {
+    "@babel/plugin-proposal-private-property-in-object": "^7.21.11",
     "@testing-library/jest-dom": "^5.17.0",
     "@testing-library/react": "^13.4.0",
     "@testing-library/user-event": "^13.5.0",

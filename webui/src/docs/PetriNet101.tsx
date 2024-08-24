@@ -236,12 +236,14 @@ export default function PetriNet101(): React.ReactElement {
                         border: "1px solid #000",
                     }}>
                         <h2>Put it all together</h2>
-                        <svg transform={"translate(0, -50)"} width={500} height={350}>
-                            <SvgModel width={500} height={350} modelJson={sources.testModelWithState([0])}/>
-                        </svg>
+                        <img width="400" src={"/petri-net-101.gif"}
+                             alt={"Animation of the petri-net that we discuss below"}/>
                         <p>
                             This is a simple Petri Net model with 1 place, 4 transitions, and 4 arcs.
                         </p>
+                        <svg transform={"translate(0, -50)"} width={500} height={350}>
+                            <SvgModel width={500} height={350} modelJson={sources.testModelWithState([0])}/>
+                        </svg>
                         <ul>
                             <li>
                                 In this state, txn0, and txn3 are enabled.

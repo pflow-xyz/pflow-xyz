@@ -7,8 +7,7 @@ import (
 )
 
 var (
-	InhibitorTest = InhibitorModel()
-	expectCid     = "zb2rhnR9pNtHa3jtNzJXV6c1g2MkQmXhbGyNaTsyAsUuquQ4k"
+	expectCid = "zb2rhnR9pNtHa3jtNzJXV6c1g2MkQmXhbGyNaTsyAsUuquQ4k"
 )
 
 func InhibitorModel() *model.Model {
