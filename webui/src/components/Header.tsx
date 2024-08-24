@@ -64,13 +64,37 @@ export default function Header() {
                         </div>
                     </Link>
                     &nbsp;
-                    <Link to={"/app"}>
-                        <Button sx={{borderRadius: "10px", border: "1px solid #EBFF00", color: "white"}}>
+                    <Link to={"/editor"}>
+                        <Button sx={{
+                            borderRadius: "10px",
+                            border: "1px solid #EBFF00",
+                            color: "#FFF",
+                            backgroundColor: "#333",
+                            '&:hover': {
+                                backgroundColor: "#cac0c0",
+                            },
+                        }}>
                             <Typography variant="h6" noWrap>
-                                App
+                                Editor
                             </Typography>
                         </Button>
                     </Link>
+                    <a href={"https://app.pflow.xyz"}>
+                        <Button sx={{
+                            borderRadius: "10px",
+                            border: "1px solid #EBFF00",
+                            color: "yellow",
+                            marginLeft: "3px",
+                            backgroundColor: "#1C1C1D",
+                            '&:hover': {
+                                backgroundColor: "#333",
+                            },
+                        }}>
+                            <Typography variant="h6" noWrap>
+                                app
+                            </Typography>
+                        </Button>
+                    </a>
                 </Toolbar>
             </AppBar>
         </div>

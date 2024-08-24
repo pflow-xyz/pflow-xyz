@@ -45,16 +45,16 @@ export default function BottomNav() {
                                 <div style={{}}>
                                     <ul>
                                         <li>
-                                            <Link to="/app" style={{
-                                                color: "black",
-                                            }}>
-                                                Editor-App
-                                            </Link>
-                                        </li>
-                                        <li>
                                             <a href={"https://app.pflow.xyz"}
                                                style={{color: "black",}}
-                                            >Explorer-Dapp </a>
+                                            > App </a>
+                                        </li>
+                                        <li>
+                                            <Link to="/editor" style={{
+                                                color: "black",
+                                            }}>
+                                                Editor
+                                            </Link>
                                         </li>
                                         <li>
                                             <Link to="/docs" style={{color: "black",}}>
@@ -63,7 +63,7 @@ export default function BottomNav() {
                                         </li>
                                         <ul>
                                             <li>
-                                                <Link to="/app-manual" style={{
+                                                <Link to="/editor-manual" style={{
                                                     color: "black",
                                                 }}>
                                                     Manual

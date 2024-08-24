@@ -1,5 +1,3 @@
-export const DEFAULT_CONTRACT = "0x5FbDB2315678afecb367f032d93F642f64180aa3";
-
 // Define the TypeScript interface
 export interface DeclarationResult {
     // Add the properties here according to the structure of the returned data

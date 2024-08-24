@@ -24,13 +24,12 @@ import {
     UploadFile
 } from "@mui/icons-material";
 import CameraIcon from "@mui/icons-material/Camera";
-import ConnectMetamask from "../components/editor/ConnectMetamask";
 import {MetaModel} from "../lib/pflow";
 import ImportContract from "../components/editor/ImportContract";
 import SourceCode from "../components/SourceCode";
 
 
-export default function AppManual(): React.ReactElement {
+export default function EditorManual(): React.ReactElement {
 
     return (<React.Fragment>
             <Header/>
@@ -284,7 +283,7 @@ export default function AppManual(): React.ReactElement {
                     <table>
                         <tr>
                             <td>
-                                <ConnectMetamask metaModel={(new MetaModel({editor: false}))}/>
+                                <w3m-button/>
                             </td>
                             <td>
                                 Connect to the Ethereum network to import a model.

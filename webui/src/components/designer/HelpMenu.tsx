@@ -37,7 +37,7 @@ export default function HelpMenu() {
             }}
         >
             <MenuItem onClick={handleClose}>
-                <IconButton><MenuBook/></IconButton>&nbsp;<Link to={"/app-manual"}>Manual</Link>
+                <IconButton><MenuBook/></IconButton>&nbsp;<Link to={"/editor-manual"}>Manual</Link>
             </MenuItem>
             <MenuItem onClick={handleClose}>
                 <IconButton><SourceOutlined/></IconButton>&nbsp;<Link to={"/docs"}>Documentation</Link>

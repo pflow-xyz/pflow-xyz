@@ -4,9 +4,15 @@ import {FlowBuilder, ModelDeclaration, ModelType, newModel } from "../protocol";
 import {Action} from "./types";
 import {hideCanvas, showCanvas, snapshotSvg} from "./snapshot";
 import {compressBrotliEncode, decompressBrotliDecode, loadModelFromUrl} from "./compression";
-import {DEFAULT_CONTRACT} from "./contract";
-import {Eip1193Provider, ethers, toBigInt} from "ethers";
+import {BrowserProvider} from "ethers";
 import {MyStateMachine__factory} from "../typechain-types";
+
+const defaultAddressesByChainId: { [chainId: number]: string } = {
+    1: '0x76a7c863b91e5b6a69e7e94280149ba6737916c5', // Ethereum Mainnet
+    10: '0xb746f05058697671d392dd1a4881f67dc5b006c5', // Optimism Mainnet
+    1337: '0x5FbDB2315678afecb367f032d93F642f64180aa3', // Hardhat
+    11155420: '0xd90e2a6aabb3415f820097be15c0801ac669827f' // Sepolia Optimism Testnet
+};
 
 export type MaybeNode = mm.Place | mm.Transition | null
 export const keyToAction: Record<string, Action> = Object.freeze({
@@ -86,8 +92,6 @@ export class MetaModel {
     m: mm.Model = initialModel;
     height: number = 600;
     address: string = '';
-    provider: ethers.BrowserProvider = new ethers.BrowserProvider(window.ethereum as unknown as Eip1193Provider);
-    ethAccount: string = 'null';
     importedContract: string = 'null';
     urlLoaded: Promise<void> = Promise.resolve();
     selectedObject: mm.MetaObject | null = null;
@@ -131,15 +135,12 @@ export class MetaModel {
         }
     }
 
-    setConnectedAccount(account: string): void {
-        this.ethAccount = account;
-    }
-
-    getContract(): string {
-        if (this.importedContract === 'null') {
-            return DEFAULT_CONTRACT;
+    async getContract(provider: BrowserProvider): Promise<string> {
+        if (provider && this.importedContract === 'null') {
+            const network = await provider.getNetwork();
+            return this.getAddressByNetwork(network.chainId);
         }
-        return this.importedContract;
+        return ''
     }
 
     isEditing() {
@@ -370,12 +371,16 @@ export class MetaModel {
         }
     }
 
-    async loadFromAddress(opts:{ address: string }) {
+    getAddressByNetwork(networkId: bigint): string {
+        return defaultAddressesByChainId[parseInt(networkId.toString(10))];
+    }
+
+    async loadFromAddress(opts:{ provider: BrowserProvider, address: string }) {
         if (!opts.address) {
             console.error('no address provided');
         }
         this.address = opts.address;
-        const stateMachine = MyStateMachine__factory.connect(opts.address, this.provider)
+        const stateMachine = MyStateMachine__factory.connect(opts.address, opts.provider)
 
         const convert = (n: bigint) => parseInt(n.toString());
         return stateMachine.context().then((ctx) => {

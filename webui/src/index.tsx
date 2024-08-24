@@ -14,7 +14,7 @@ import Hello from "./Hello";
 import H2Combustion from "./docs/H20";
 import PetriNet101 from "./docs/PetriNet101";
 import DiningPhilosophers from "./docs/DiningPhilosophers";
-import AppManual from "./docs/AppManual";
+import EditorManual from "./docs/EditorManual";
 import {createWeb3Modal, defaultConfig} from '@web3modal/ethers/react'
 
 declare global {
@@ -46,7 +46,6 @@ export const hardhat = {
     currency: 'ETH',
     explorerUrl: '',
     rpcUrl: 'http://localhost:8545',
-    defaultAddress: '0x5FbDB2315678afecb367f032d93F642f64180aa3',
 }
 
 export const sepoliaOptimism = {
@@ -81,13 +80,13 @@ const ethersConfig = defaultConfig({
     auth: {
         email: true,
         socials: ['github'],
-        showWallets: true,
+        showWallets: false,
         walletFeatures: true
     },
 
     enableEIP6963: true, // true by default
     enableInjected: true, // true by default
-    enableCoinbase: true, // true by default
+    enableCoinbase: false, // true by default
     defaultChainId: 1, // used for the Coinbase SDK
 })
 
@@ -109,7 +108,7 @@ const Page = () => {
     const location = useLocation();
     const [searchParams, _] = useSearchParams();
 
-    if (location.pathname.startsWith("/app")) {
+    if (location.pathname.startsWith("/editor")) {
         return <Pages.App/>;
     }
 
@@ -133,12 +132,12 @@ const router = createBrowserRouter([
         element: <Page/>,
     },
     {
-        path: "/app",
+        path: "/editor",
         element: <Page/>,
     },
     {
-        path: "/app-manual",
-        element: <AppManual/>,
+        path: "/editor-manual",
+        element: <EditorManual/>,
     },
     {
         path: "/docs",

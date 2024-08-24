@@ -34,7 +34,7 @@ export default function Docs(): React.ReactElement {
                     </tr>
                     <tr>
                         <td>
-                            <Link to="/app-manual">Application Manual</Link>
+                            <Link to="/editor-manual">Editor App Manual</Link>
                         </td>
                     </tr>
                     <tr>

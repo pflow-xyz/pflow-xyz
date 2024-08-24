@@ -311,7 +311,7 @@ func (s *Server) IndexTemplateSource() string {
 	out := `<!doctype html>
 	<html lang="en">
 	<head>
-		<title>pflow | metamodel explorer</title>
+		<title>pflow | metamodel editor</title>
         <meta charset="utf-8"/>
         <meta name="viewport" content="width=device-width,initial-scale=1"/>
         <link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon.png">

@@ -4,7 +4,7 @@ import {MetaModel} from "../../lib/pflow";
 import FileMenu from "./FileMenu";
 import EditMenu from "./EditMenu";
 import HelpMenu from "./HelpMenu";
-import ConnectMetamask from "../editor/ConnectMetamask";
+import ConnectWallet from "../editor/ConnectWallet";
 import ImportContract from "../editor/ImportContract";
 import {Link} from "react-router-dom";
 
@@ -51,7 +51,7 @@ export default function Designer(props: DesignerProps): React.ReactElement {
             <rect x={0} y={0} width={svgWidth} height={60} fill="#EBE9E5"/>
             <line x1={0} y1={60} x2={svgWidth} y2={60} stroke="#888888"/>
 
-            <foreignObject id="import-eth-contract" x={svgWidth / 2 - 200} y={-4} width={"600px"} height="42px">
+            <foreignObject id="import-eth-contract" x={svgWidth / 2 - 220} y={0} width={"600px"} height="42px">
                 <ImportContract metaModel={metaModel}/>
             </foreignObject>
 
@@ -99,9 +99,7 @@ export default function Designer(props: DesignerProps): React.ReactElement {
             <foreignObject id="editmenu-foreign" x={300} y={9} width={"200px"} height="40px">
                 <HelpMenu/>
             </foreignObject>
-            <foreignObject id="pflow-foreign" x={svgWidth - 163} y={12} width={"100%"} height="40px">
-                <ConnectMetamask metaModel={metaModel}/>
-            </foreignObject>
+            <ConnectWallet svgWidth={svgWidth} metaModel={metaModel}/>
         </svg>
     </React.Fragment>
         ;

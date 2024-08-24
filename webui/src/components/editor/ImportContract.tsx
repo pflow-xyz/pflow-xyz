@@ -1,31 +1,44 @@
-import {Fragment} from 'react';
+import {Fragment, useState, useEffect} from 'react';
 import {MetaModel} from "../../lib/pflow";
-import {DEFAULT_CONTRACT} from "../../lib/pflow/contract";
+import { useWeb3ModalProvider } from '@web3modal/ethers/react'
+import { BrowserProvider } from 'ethers'
 
 interface ContractQueryProps {
     metaModel: MetaModel;
 }
 
 export default function ImportContract(props: ContractQueryProps) {
-
     const {metaModel} = props;
+
+    const { walletProvider } = useWeb3ModalProvider()
+
+    const [provider, setProvider] = useState<BrowserProvider | null>(null);
+
+    const [address, setAddress] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (walletProvider) {
+            const p = new BrowserProvider(walletProvider);
+            p.getNetwork().then((network) => {
+                setAddress(metaModel.getAddressByNetwork(network.chainId));
+            }).finally(() => { setProvider(p) });
+        }
+    }, [walletProvider]);
+
+
 
     async function onSubmit(evt: any) {
         evt.preventDefault();
-        if (props.metaModel.ethAccount === 'null') {
-            alert("Connect to Metamask first");
-            return;
-        }
 
         try {
             let address = evt.target[0].value;
-            if (!address || address == "null") {
-                address = DEFAULT_CONTRACT;
-            }
 
-            const def = await metaModel.loadFromAddress({address});
-            console.log(def, 'loaded')
-            return props.metaModel.commit({action: "importContract"})
+            if (provider) {
+                console.log("Importing contract: "+address);
+                metaModel.loadFromAddress({address, provider})
+                    .then(() => console.log("Imported contract: "+address))
+                    .finally(() => metaModel.update())
+            }
         }
         catch (e) {
             const err = e as Error;
@@ -40,7 +53,7 @@ export default function ImportContract(props: ContractQueryProps) {
               onFocus={() => metaModel.beginEdit()}
               onBlur={() => metaModel.endEdit()}
         >
-            <input type="text" defaultValue={props.metaModel.getContract()} style={{width: "30em"}}/>
+            <input type="text" defaultValue={address || ''} style={{width: "30em"}}/>
             <input type="submit" value="Import ETH Contract"/>
         </form>
         <br/>
