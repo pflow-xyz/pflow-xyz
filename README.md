@@ -1,12 +1,11 @@
 pflow.xyz
 ---------
 
-Weaving the Web3 World with Precision
+Visual State Machine SDK for Web3
 
-- [pflow.xyz](https://pflow.zyx)
-- [pflow.ens](pflow.ens)
+[![pflow](https://pflow.dev/img/zb2rhfXKdFE5WtyuLRKuKSh183r6mjcEc1VHafxonastiQpSf.svg)](https://pflow.dev/p/zb2rhfXKdFE5WtyuLRKuKSh183r6mjcEc1VHafxonastiQpSf/)
 
 status
 ------
 
-pre-alpha: refining the Metamodel Protocol
+beta - first release (unaudited)
