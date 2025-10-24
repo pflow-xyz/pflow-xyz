@@ -811,9 +811,9 @@ class PetriView extends HTMLElement {
             ev.stopPropagation();
             this._onPlaceContext(id, ev);
         });
-        // Do not begin drag when in add-token, add-arc or delete modes
+        // Do not begin drag when in add-token, add-arc, delete or label-edit modes
         handle.addEventListener('pointerdown', (ev) => {
-            if (this._mode !== 'add-token' && this._mode !== 'add-arc' && this._mode !== 'delete') {
+            if (this._mode !== 'add-token' && this._mode !== 'add-arc' && this._mode !== 'delete' && !this._labelEditMode) {
                 this._beginDrag(ev, id, 'place');
             }
         });
@@ -841,9 +841,9 @@ class PetriView extends HTMLElement {
             ev.stopPropagation();
             this._onTransitionContext(id, ev);
         });
-        // Do not begin drag when in add-arc or delete modes
+        // Do not begin drag when in add-arc, delete or label-edit modes
         el.addEventListener('pointerdown', (ev) => {
-            if (this._mode !== 'add-arc' && this._mode !== 'delete') {
+            if (this._mode !== 'add-arc' && this._mode !== 'delete' && !this._labelEditMode) {
                 this._beginDrag(ev, id, 'transition');
             }
         });
