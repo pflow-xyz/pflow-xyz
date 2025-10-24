@@ -951,11 +951,11 @@ class PetriView extends HTMLElement {
                 return;
             }
 
-            const el = this._nodes[nextId];
-            if (el) el.classList.add('pv-firing');
-
             // Wait one animation frame so UI can update, then fire synchronously
             requestAnimationFrame(() => {
+                const el = this._nodes[nextId];
+                if (el) el.classList.add('pv-firing');
+
                 try {
                     // _fire updates model/UI synchronously and dispatches events
                     this._fire(nextId);
