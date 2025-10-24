@@ -951,23 +951,24 @@ class PetriView extends HTMLElement {
                 return;
             }
 
-            // Wait one animation frame so UI can update, then fire synchronously
-            requestAnimationFrame(() => {
-                const el = this._nodes[nextId];
-                if (el) el.classList.add('pv-firing');
+            const el = this._nodes[nextId];
+            if (el) el.classList.add('pv-firing');
 
-                try {
-                    // _fire updates model/UI synchronously and dispatches events
-                    this._fire(nextId);
-                } catch (err) {
-                    console.error('Error during _fire:', err);
-                } finally {
-                    if (el) el.classList.remove('pv-firing');
-                    this._firingSet.delete(nextId);
-                    // yield to event loop before next item
-                    setTimeout(processNext, 0);
-                }
-            });
+            try {
+                // _fire updates model/UI synchronously and dispatches events
+                this._fire(nextId);
+            } catch (err) {
+                console.error('Error during _fire:', err);
+            } finally {
+                if (el) el.classList.remove('pv-firing');
+            }
+            
+            // Schedule next item processing first, then remove from set
+            // This ensures the ID stays in the set during the setTimeout delay
+            setTimeout(() => {
+                this._firingSet.delete(nextId);
+                processNext();
+            }, 0);
         };
 
         processNext();
