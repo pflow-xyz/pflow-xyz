@@ -49,7 +49,9 @@ class PetriView extends HTMLElement {
         // fire queue to serialize rapid transition clicks
         this._fireQueue = [];
         this._processingFires = false;
-        this._firingSet = new Set(); // prevents duplicate enqueues / race
+
+        this._lastFireAt = Object.create(null);
+        this._fireDebounceMs = 600; // milliseconds
     }
 
     // observe compact flag and json editor toggle
@@ -933,55 +935,58 @@ class PetriView extends HTMLElement {
         }
     }
 
-    // New helper to serialize fire operations
-    _enqueueFire(id) {
-        if (!id) return;
-        // ignore duplicate enqueues for same transition id
-        if (this._firingSet.has(id)) return;
-        this._firingSet.add(id);
-        this._fireQueue.push(id);
-
+// NEW: drain the queue in strict order, exactly once at a time
+    async _drainFireQueue() {
+        // if already draining, just bail; the running drain will pick up new items
         if (this._processingFires) return;
         this._processingFires = true;
 
-        // Process queue completely synchronously
-        const processedIds = [];
-        while (this._fireQueue.length > 0) {
-            const nextId = this._fireQueue.shift();
-            processedIds.push(nextId);
-            
-            const el = this._nodes[nextId];
-            if (el) el.classList.add('pv-firing');
+        try {
+            while (this._fireQueue.length > 0) {
+                const tid = this._fireQueue.shift();
+                const el = this._nodes[tid];
+                if (el) el.classList.add('pv-firing');
 
-            try {
-                // _fire updates model/UI synchronously and dispatches events
-                this._fire(nextId);
-            } catch (err) {
-                console.error('Error during _fire:', err);
-            } finally {
+                // IMPORTANT: take the marking *at fire time*, not cached
+                // _fire() already:
+                //   - checks _enabled() using fresh marking
+                //   - updates marks
+                //   - redraws tokens/arcs
+                //   - dispatches events
+                this._fire(tid);
+
                 if (el) el.classList.remove('pv-firing');
+
+                // allow the browser a microtask to flush layout/paint
+                // before we possibly mutate again
+                await Promise.resolve();
             }
+        } finally {
+            this._processingFires = false;
         }
+    }
 
-        this._processingFires = false;
-
-        // Defer cleanup to allow any pending click events to be deduplicated
-        // This prevents rapid double-clicks from firing twice
-        setTimeout(() => {
-            for (const processedId of processedIds) {
-                this._firingSet.delete(processedId);
-            }
-        }, 100);
+    _enqueueFire(tid) {
+        if (!tid) return;
+        // push the request
+        this._fireQueue.push(tid);
+        // kick off the drain (if not already running)
+        this._drainFireQueue();
     }
 
     _onTransitionClick(id, ev) {
-        // Only allow firing when simulation (play) is running
+
         if (this._simRunning) {
-            // enqueue to ensure fires are applied sequentially and avoid out-of-order token updates
+            const now = performance.now();
+            const last = this._lastFireAt[id] || 0;
+            if (now - last < this._fireDebounceMs) return; // ignore spammy double-click
+            this._lastFireAt[id] = now;
+
             this._enqueueFire(id);
             return;
         }
-        // Preserve other behaviors (arc creation / deletion) regardless of simulation state
+
+        // normal edit behaviors
         if (this._mode === 'add-arc') {
             this._arcNodeClicked(id);
             return;
@@ -990,6 +995,7 @@ class PetriView extends HTMLElement {
             this._deleteNode(id);
         }
     }
+
 
     _onTransitionContext(id, ev) {
         if (this._mode === 'add-arc') {
