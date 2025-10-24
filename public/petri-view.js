@@ -28,6 +28,7 @@ class PetriView extends HTMLElement {
         this._mode = 'select';
         this._arcDraft = null;
         this._mouse = {x: 0, y: 0};
+        this._labelEditMode = false;
 
         // pan/zoom
         this._view = {scale: 1, tx: 0, ty: 0};
@@ -795,7 +796,7 @@ class PetriView extends HTMLElement {
         inner.className = 'pv-place-inner';
         const label = document.createElement('div');
         label.className = 'pv-label';
-        label.textContent = id;
+        label.textContent = p.label || id;
 
         el.appendChild(handle);
         el.appendChild(inner);
@@ -828,7 +829,7 @@ class PetriView extends HTMLElement {
         this._applyStyles(el, {position: 'absolute', left: `${(t.x || 0) - 15}px`, top: `${(t.y || 0) - 15}px`});
         const label = document.createElement('div');
         label.className = 'pv-label';
-        label.textContent = id;
+        label.textContent = t.label || id;
         el.appendChild(label);
 
         el.addEventListener('click', (ev) => {
@@ -889,6 +890,13 @@ class PetriView extends HTMLElement {
     _onPlaceClick(id, ev) {
         const p = this._model.places[id];
         if (!p) return;
+        
+        // Handle label-edit mode first
+        if (this._labelEditMode) {
+            this._openLabelEditor(id, p.label || id);
+            return;
+        }
+        
         if (this._mode === 'select') return;
         if (this._mode === 'add-token') {
             const arr = Array.isArray(p.initial) ? p.initial : [Number(p.initial || 0)];
@@ -983,6 +991,15 @@ class PetriView extends HTMLElement {
             this._lastFireAt[id] = now;
 
             this._enqueueFire(id);
+            return;
+        }
+
+        // Handle label-edit mode
+        if (this._labelEditMode) {
+            const t = this._model.transitions[id];
+            if (t) {
+                this._openLabelEditor(id, t.label || id);
+            }
             return;
         }
 
@@ -1105,6 +1122,7 @@ class PetriView extends HTMLElement {
             {mode: 'add-arc', label: '\u2192', title: 'Add Arc (4)'},
             {mode: 'add-token', label: '\u2022', title: 'Add / Remove Tokens (5)'},
             {mode: 'delete', label: '\u{1F5D1}', title: 'Delete element (6)'},
+            {mode: 'label-edit', label: '\u{1D4D0}', title: 'Edit Labels (7)', toggle: true},
         ];
 
         tools.forEach(t => {
@@ -1123,9 +1141,16 @@ class PetriView extends HTMLElement {
                 fontSize: '16px'
             });
             btn.dataset.mode = t.mode;
+            if (t.toggle) {
+                btn.dataset.toggle = 'true';
+            }
             btn.addEventListener('click', (ev) => {
                 ev.stopPropagation();
-                this._setMode(t.mode);
+                if (t.toggle) {
+                    this._toggleLabelEditMode();
+                } else {
+                    this._setMode(t.mode);
+                }
             });
             this._menu.appendChild(btn);
         });
@@ -1171,9 +1196,86 @@ class PetriView extends HTMLElement {
     _updateMenuActive() {
         if (!this._menu) return;
         this._menu.querySelectorAll('.pv-tool').forEach(btn => {
-            btn.style.background = (btn.dataset.mode === this._mode) ? 'rgba(0,0,0,0.08)' : 'transparent';
+            if (btn.dataset.toggle === 'true') {
+                // For toggle buttons, highlight based on toggle state
+                btn.style.background = this._labelEditMode ? 'rgba(0,0,0,0.08)' : 'transparent';
+            } else {
+                // For regular mode buttons
+                btn.style.background = (btn.dataset.mode === this._mode) ? 'rgba(0,0,0,0.08)' : 'transparent';
+            }
         });
+        // Update node highlights
+        this._updateLabelEditHighlights();
     }
+
+    _toggleLabelEditMode() {
+        this._labelEditMode = !this._labelEditMode;
+        this._updateMenuActive();
+    }
+
+    _updateLabelEditHighlights() {
+        if (!this._nodes) return;
+        for (const [id, el] of Object.entries(this._nodes)) {
+            const isPlaceOrTransition = el.classList.contains('pv-place') || el.classList.contains('pv-transition');
+            if (isPlaceOrTransition) {
+                el.classList.toggle('pv-label-editable', this._labelEditMode);
+            }
+        }
+    }
+
+    _validateLabel(text) {
+        if (!text || text.trim().length === 0) {
+            return 'Label cannot be empty';
+        }
+        if (text.length > 100) {
+            return 'Label must be 100 characters or fewer';
+        }
+        if (/[\r\n]/.test(text)) {
+            return 'Label must be a single line';
+        }
+        return null; // valid
+    }
+
+    _openLabelEditor(id, currentLabel) {
+        const input = prompt('Edit label', currentLabel || id);
+        if (input === null) return; // user cancelled
+        
+        const newLabel = input.trim();
+        const error = this._validateLabel(newLabel);
+        
+        if (error) {
+            alert(error);
+            return;
+        }
+        
+        // Update the label in the model
+        this._updateNodeLabel(id, newLabel);
+    }
+
+    _updateNodeLabel(id, newLabel) {
+        // Check if it's a place or transition
+        if (this._model.places && this._model.places[id]) {
+            this._model.places[id].label = newLabel;
+        } else if (this._model.transitions && this._model.transitions[id]) {
+            this._model.transitions[id].label = newLabel;
+        } else {
+            return; // node not found
+        }
+        
+        // Update the DOM element
+        const el = this._nodes[id];
+        if (el) {
+            const labelEl = el.querySelector('.pv-label');
+            if (labelEl) {
+                labelEl.textContent = newLabel;
+            }
+        }
+        
+        // Persist the change
+        this._syncLD();
+        this._pushHistory();
+    }
+
 
     _onRootClick(ev) {
         if (ev.target.closest('.pv-node') || ev.target.closest('.pv-weight') || ev.target.closest('.pv-menu')) return;
