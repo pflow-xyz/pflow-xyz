@@ -107,4 +107,4 @@ Include the module in a page (module script) or import it in your bundler:
 }
 </script>
 </petri-view>
-``
+```
