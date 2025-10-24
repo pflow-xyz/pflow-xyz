@@ -49,6 +49,9 @@ class PetriView extends HTMLElement {
         // fire queue to serialize rapid transition clicks
         this._fireQueue = [];
         this._processingFires = false;
+
+        this._lastFireAt = Object.create(null);
+        this._fireDebounceMs = 600; // milliseconds
     }
 
     // observe compact flag and json editor toggle
@@ -932,52 +935,58 @@ class PetriView extends HTMLElement {
         }
     }
 
-    // New helper to serialize fire operations
-    _enqueueFire(id) {
-        this._fireQueue.push(id);
+// NEW: drain the queue in strict order, exactly once at a time
+    async _drainFireQueue() {
+        // if already draining, just bail; the running drain will pick up new items
         if (this._processingFires) return;
         this._processingFires = true;
 
-        const processNext = () => {
-            const nextId = this._fireQueue.shift();
-            if (!nextId) {
-                this._processingFires = false;
-                return;
+        try {
+            while (this._fireQueue.length > 0) {
+                const tid = this._fireQueue.shift();
+                const el = this._nodes[tid];
+                if (el) el.classList.add('pv-firing');
+
+                // IMPORTANT: take the marking *at fire time*, not cached
+                // _fire() already:
+                //   - checks _enabled() using fresh marking
+                //   - updates marks
+                //   - redraws tokens/arcs
+                //   - dispatches events
+                this._fire(tid);
+
+                if (el) el.classList.remove('pv-firing');
+
+                // allow the browser a microtask to flush layout/paint
+                // before we possibly mutate again
+                await Promise.resolve();
             }
+        } finally {
+            this._processingFires = false;
+        }
+    }
 
-            // fire UI/animation + event, then execute the fire
-            const el = this._nodes[nextId];
-            if (el) {
-                this.dispatchEvent(new CustomEvent('transition-fired', {detail: {id: nextId}}));
-                try {
-                    el.animate(
-                        [{transform: 'scale(1)'}, {transform: 'scale(1.06)'}, {transform: 'scale(1)'}],
-                        {duration: 250}
-                    );
-                } catch {
-                    // ignore animation errors
-                }
-            }
-
-            // execute the actual firing synchronously to update model/UI
-            this._fire(nextId);
-
-            // schedule next to allow DOM to update and keep event loop responsive
-            // setTimeout(..., 0) yields to the browser to process other events between fires
-            setTimeout(processNext, 0);
-        };
-
-        processNext();
+    _enqueueFire(tid) {
+        if (!tid) return;
+        // push the request
+        this._fireQueue.push(tid);
+        // kick off the drain (if not already running)
+        this._drainFireQueue();
     }
 
     _onTransitionClick(id, ev) {
-        // Only allow firing when simulation (play) is running
+
         if (this._simRunning) {
-            // enqueue to ensure fires are applied sequentially and avoid out-of-order token updates
+            const now = performance.now();
+            const last = this._lastFireAt[id] || 0;
+            if (now - last < this._fireDebounceMs) return; // ignore spammy double-click
+            this._lastFireAt[id] = now;
+
             this._enqueueFire(id);
             return;
         }
-        // Preserve other behaviors (arc creation / deletion) regardless of simulation state
+
+        // normal edit behaviors
         if (this._mode === 'add-arc') {
             this._arcNodeClicked(id);
             return;
@@ -986,6 +995,7 @@ class PetriView extends HTMLElement {
             this._deleteNode(id);
         }
     }
+
 
     _onTransitionContext(id, ev) {
         if (this._mode === 'add-arc') {
