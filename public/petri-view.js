@@ -944,13 +944,12 @@ class PetriView extends HTMLElement {
         if (this._processingFires) return;
         this._processingFires = true;
 
-        const processNext = () => {
+        // Process queue completely synchronously
+        const processedIds = [];
+        while (this._fireQueue.length > 0) {
             const nextId = this._fireQueue.shift();
-            if (!nextId) {
-                this._processingFires = false;
-                return;
-            }
-
+            processedIds.push(nextId);
+            
             const el = this._nodes[nextId];
             if (el) el.classList.add('pv-firing');
 
@@ -962,16 +961,14 @@ class PetriView extends HTMLElement {
             } finally {
                 if (el) el.classList.remove('pv-firing');
             }
-            
-            // Schedule next item processing first, then remove from set
-            // This ensures the ID stays in the set during the setTimeout delay
-            setTimeout(() => {
-                this._firingSet.delete(nextId);
-                processNext();
-            }, 0);
-        };
+        }
 
-        processNext();
+        // Remove all processed IDs from firing set after all fires complete
+        for (const processedId of processedIds) {
+            this._firingSet.delete(processedId);
+        }
+        
+        this._processingFires = false;
     }
 
     _onTransitionClick(id, ev) {
