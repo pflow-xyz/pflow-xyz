@@ -692,10 +692,11 @@ class PetriView extends HTMLElement {
             if (a.inhibitTransition) {
                 // output inhibitor: transition disabled until target place tokens >= weight
                 if (tokens < w) return false;
-                // still fall through to capacity check for produced tokens
+                // inhibitor doesn't produce tokens, skip capacity check
+                continue;
             }
 
-            // output capacity must not overflow
+            // output capacity must not overflow (only for normal arcs that produce tokens)
             const cap = this._capacityOf(a.target);
             const cur = marks[a.target] ?? 0;
             if (cur + w > cap) return false;
@@ -856,6 +857,13 @@ class PetriView extends HTMLElement {
         badge.textContent = w > 1 ? `${w}` : '1';
         this._applyStyles(badge, {position: 'absolute'});
 
+        // mark inhibitor badges so CSS can target them
+        if (arc.inhibitTransition) {
+            badge.classList.add('pv-weight-inhibit');
+            badge.title = (badge.title ? badge.title + ' ' : '') + 'inhibitor';
+            badge.dataset.inhibit = '1';
+        }
+
         badge.addEventListener('click', (ev) => {
             ev.stopPropagation();
             this._onBadgeClick(badge, ev);
@@ -882,6 +890,7 @@ class PetriView extends HTMLElement {
             this._syncLD();
             this._pushHistory();
             this._renderTokens();
+            this._updateTransitionStates();
             this._draw();
             return;
         }
@@ -905,6 +914,7 @@ class PetriView extends HTMLElement {
             this._syncLD();
             this._pushHistory();
             this._renderTokens();
+            this._updateTransitionStates();
             this._draw();
             return;
         }
@@ -1326,6 +1336,8 @@ class PetriView extends HTMLElement {
         const viewTy = this._view.ty || 0;
 
         const arcs = this._model.arcs || [];
+        const marks = this._marking(); // current marking to evaluate arc/transition state
+
         arcs.forEach((arc, idx) => {
             const srcEl = this._nodes[arc.source];
             const trgEl = this._nodes[arc.target];
@@ -1357,14 +1369,15 @@ class PetriView extends HTMLElement {
             const ex = sx + ux * padSrc, ey = sy + uy * padSrc;
             const fx = tx - ux * (padTrg + tipOffset), fy = ty - uy * (padTrg + tipOffset);
 
-            if (arc.inhibitTransition) {
-                ctx.strokeStyle = '#c0392b';
-                ctx.setLineDash([6, 4]);
-            } else {
-                ctx.strokeStyle = '#000000';
-                ctx.setLineDash([]);
-            }
+            // Determine the related transition id for this arc so we can color by its enabled state
+            const relatedTransitionId = srcIsPlace ? arc.target : arc.source;
+            const active = !!this._enabled(relatedTransitionId, marks);
 
+            // set stroke/fill based on active state
+            ctx.strokeStyle = active ? '#2a6fb8' : '#cfcfcf';
+            ctx.fillStyle = active ? '#2a6fb8' : '#cfcfcf';
+
+            // draw the main line
             ctx.beginPath();
             ctx.moveTo(ex, ey);
             ctx.lineTo(fx, fy);
@@ -1372,36 +1385,47 @@ class PetriView extends HTMLElement {
 
             const tpx = fx, tpy = fy;
             if (arc.inhibitTransition) {
+                // draw inhibitor circle at the tip (works for both place-target and transition-target inhibitors)
                 ctx.beginPath();
-                ctx.fillStyle = '#c0392b';
-                ctx.setLineDash([]);
+                ctx.lineWidth = 1.3;
+                ctx.fillStyle = '#fff';
+                ctx.strokeStyle = active ? '#2a6fb8' : '#cfcfcf';
                 ctx.arc(tpx, tpy, inhibitRadius, 0, Math.PI * 2);
                 ctx.fill();
-                ctx.beginPath();
-                ctx.fillStyle = '#ffffff';
-                ctx.arc(tpx, tpy, 2.5, 0, Math.PI * 2);
-                ctx.fill();
+                ctx.stroke();
+                ctx.lineWidth = 1;
             } else {
-                const leftx = tpx - ux * ahSize - uy * (ahSize * 0.6);
-                const lefty = tpy - uy * ahSize + ux * (ahSize * 0.6);
-                const rightx = tpx - ux * ahSize + uy * (ahSize * 0.6);
-                const righty = tpy - uy * ahSize - ux * (ahSize * 0.6);
+                // draw normal arrowhead
+                const ahx = tpx + (-ux * ahSize - uy * ahSize * 0.45);
+                const ahy = tpy + (-uy * ahSize + ux * ahSize * 0.45);
+                const bhx = tpx + (-ux * ahSize + uy * ahSize * 0.45);
+                const bhy = tpy + (-uy * ahSize - ux * ahSize * 0.45);
                 ctx.beginPath();
-                ctx.fillStyle = '#000000';
-                ctx.setLineDash([]);
                 ctx.moveTo(tpx, tpy);
-                ctx.lineTo(leftx, lefty);
-                ctx.lineTo(rightx, righty);
+                ctx.lineTo(ahx, ahy);
+                ctx.lineTo(bhx, bhy);
                 ctx.closePath();
+                ctx.fillStyle = ctx.strokeStyle;
                 ctx.fill();
             }
 
+            // position weight badge if present
             const bx = (ex + fx) / 2;
             const by = (ey + fy) / 2;
             const badge = this._stage.querySelector(`.pv-weight[data-arc="${idx}"]`);
             if (badge) {
-                badge.style.left = `${bx - 12}px`;
-                badge.style.top = `${by - 10}px`;
+                const offX = (badge.offsetWidth || 20) / 2;
+                const offY = (badge.offsetHeight || 20) / 2;
+                badge.style.left = `${Math.round(bx - offX)}px`;
+                badge.style.top = `${Math.round(by - offY)}px`;
+                // optional: give badge a subtle tint if inhibitor
+                if (arc.inhibitTransition) {
+                    badge.style.background = active ? '#e8f0fb' : '#fafafa';
+                    badge.style.borderColor = active ? '#2a6fb8' : '#ddd';
+                } else {
+                    badge.style.background = '';
+                    badge.style.borderColor = '';
+                }
             }
         });
 
@@ -1778,138 +1802,6 @@ class PetriView extends HTMLElement {
     }
 
     // ---------------- global root events (mouse, wheel, pan, keys) ----------------
-    _wireRootEvents() {
-        // mouse tracking for arc draft
-        this._root.addEventListener('pointermove', (e) => {
-            const r = this._root.getBoundingClientRect();
-            this._mouse.x = Math.round(e.clientX - r.left);
-            this._mouse.y = Math.round(e.clientY - r.top);
-            if (this._arcDraft) this._draw();
-        });
-
-        // wheel zoom
-        this._root.addEventListener('wheel', (e) => {
-            e.preventDefault();
-            const r = this._root.getBoundingClientRect();
-            const mx = e.clientX - r.left, my = e.clientY - r.top;
-            const prev = this._view.scale;
-            const next = Math.max(this._minScale, Math.min(this._maxScale, prev * (e.deltaY < 0 ? 1.1 : 0.9)));
-            if (next === prev) return;
-            this._view.tx = mx - (mx - this._view.tx) * (next / prev);
-            this._view.ty = my - (my - this._view.ty) * (next / prev);
-            this._view.scale = next;
-            this._applyViewTransform();
-            this._draw();
-        }, {passive: false});
-
-        window.addEventListener('keydown', (e) => {
-            if (e.key === ' ') this._spaceDown = true;
-            if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z') {
-                e.preventDefault();
-                if (e.shiftKey) this._redoAction(); else this._undoAction();
-            }
-
-            if (e.key && e.key.toLowerCase() === 'x') {
-                e.preventDefault();
-                this._setSimulation(!this._simRunning);
-                return;
-            }
-
-            if (e.key === 'Escape') {
-                e.preventDefault();
-                this._setMode('select');
-                if (this._simRunning) {
-                    this._setSimulation(false);
-                    return;
-                }
-                if (this._arcDraft) {
-                    this._arcDraft = null;
-                    this._updateArcDraftHighlight();
-                    this._draw();
-                }
-                return;
-            }
-
-            const map = {
-                '1': 'select',
-                '2': 'add-place',
-                '3': 'add-transition',
-                '4': 'add-arc',
-                '5': 'add-token',
-                '6': 'delete'
-            };
-            if (map[e.key]) this._setMode(map[e.key]);
-        });
-        window.addEventListener('keyup', (e) => {
-            if (e.key === ' ') this._spaceDown = false;
-        });
-
-        // panning pointer down/move/up
-        this._root.addEventListener('pointerdown', (e) => {
-            // If so, allow left-button drag to pan even without modifiers.
-            const interactiveSelector = '.pv-node, .pv-weight, .pv-menu, .pv-json-editor, .pv-scale-meter, .pv-json-textarea, .pv-tool, .pv-play';
-            const clickedInteractive = !!e.target.closest && e.target.closest(interactiveSelector);
-            const leftButton = e.button === 0;
-
-            const isPan = this._spaceDown || e.button === 1 || e.altKey || e.ctrlKey || e.metaKey || (leftButton && !clickedInteractive);
-
-            if (isPan) {
-                e.preventDefault();
-                // start panning
-                this._panning = {
-                    x: e.clientX,
-                    y: e.clientY,
-                    tx: this._view.tx,
-                    ty: this._view.ty,
-                    pointerId: e.pointerId
-                };
-                // set grabbing cursor during pan (apply to root and body to ensure coverage)
-                try {
-                    this._root.style.cursor = 'grabbing';
-                    document.body.style.cursor = 'grabbing';
-                } catch { /* ignore */
-                }
-
-                // capture pointer on root so we receive move/up outside it
-                try {
-                    if (this._root.setPointerCapture) this._root.setPointerCapture(e.pointerId);
-                } catch { /* ignore */
-                }
-            }
-        });
-
-        this._root.addEventListener('pointermove', (e) => {
-            if (!this._panning) return;
-            this._view.tx = this._panning.tx + (e.clientX - this._panning.x);
-            this._view.ty = this._panning.ty + (e.clientY - this._panning.y);
-            this._applyViewTransform();
-            this._draw();
-        });
-
-        const endPan = (e) => {
-            if (!this._panning) return;
-            // release pointer capture if set
-            try {
-                if (this._root.releasePointerCapture) this._root.releasePointerCapture(this._panning.pointerId ?? e.pointerId);
-            } catch { /* ignore */
-            }
-
-            this._panning = null;
-            // restore cursor
-            try {
-                this._root.style.cursor = '';
-                document.body.style.cursor = '';
-            } catch { /* ignore */
-            }
-
-            // optionally push history or dispatch event if needed
-            // this._pushHistory();
-        };
-
-        this._root.addEventListener('pointerup', endPan);
-        this._root.addEventListener('pointercancel', endPan);
-    }
-
     _wireRootEvents() {
         // mouse tracking for arc draft
         this._root.addEventListener('pointermove', (e) => {

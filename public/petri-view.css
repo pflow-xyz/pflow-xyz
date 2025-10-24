@@ -141,4 +141,9 @@ canvas.pv-canvas {
     border-radius: 12px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
     pointer-events: none;
+    border: 1px solid transparent;
+}
+
+.pv-weight-inhibit {
+    font-style: italic;
 }
