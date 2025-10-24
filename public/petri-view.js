@@ -952,7 +952,7 @@ class PetriView extends HTMLElement {
                 try {
                     el.animate(
                         [{transform: 'scale(1)'}, {transform: 'scale(1.06)'}, {transform: 'scale(1)'}],
-                        {duration: 200}
+                        {duration: 250}
                     );
                 } catch {
                     // ignore animation errors
@@ -963,6 +963,7 @@ class PetriView extends HTMLElement {
             this._fire(nextId);
 
             // schedule next to allow DOM to update and keep event loop responsive
+            // setTimeout(..., 0) yields to the browser to process other events between fires
             setTimeout(processNext, 0);
         };
 
