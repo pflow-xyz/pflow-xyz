@@ -45,6 +45,10 @@ class PetriView extends HTMLElement {
         this._redo = [];
 
         this._ro = null;
+
+        // fire queue to serialize rapid transition clicks
+        this._fireQueue = [];
+        this._processingFires = false;
     }
 
     // observe compact flag and json editor toggle
@@ -721,7 +725,7 @@ class PetriView extends HTMLElement {
             const isPlace = !!this._model.places[a.target];
             if (!isPlace) continue;
             const w = Number(a.weight?.[0] ?? 1);
-            marks[a.target] = (marks[a.target] || 0) + w;
+            if (!a.inhibitTransition) marks[a.target] = (marks[a.target] || 0) + w;
         }
         this._setMarking(marks);
         this._renderTokens();
@@ -928,13 +932,49 @@ class PetriView extends HTMLElement {
         }
     }
 
+    // New helper to serialize fire operations
+    _enqueueFire(id) {
+        this._fireQueue.push(id);
+        if (this._processingFires) return;
+        this._processingFires = true;
+
+        const processNext = () => {
+            const nextId = this._fireQueue.shift();
+            if (!nextId) {
+                this._processingFires = false;
+                return;
+            }
+
+            // fire UI/animation + event, then execute the fire
+            const el = this._nodes[nextId];
+            if (el) {
+                this.dispatchEvent(new CustomEvent('transition-fired', {detail: {id: nextId}}));
+                try {
+                    el.animate(
+                        [{transform: 'scale(1)'}, {transform: 'scale(1.06)'}, {transform: 'scale(1)'}],
+                        {duration: 250}
+                    );
+                } catch {
+                    // ignore animation errors
+                }
+            }
+
+            // execute the actual firing synchronously to update model/UI
+            this._fire(nextId);
+
+            // schedule next to allow DOM to update and keep event loop responsive
+            // setTimeout(..., 0) yields to the browser to process other events between fires
+            setTimeout(processNext, 0);
+        };
+
+        processNext();
+    }
+
     _onTransitionClick(id, ev) {
         // Only allow firing when simulation (play) is running
         if (this._simRunning) {
-            const el = this._nodes[id];
-            this.dispatchEvent(new CustomEvent('transition-fired', {detail: {id}}));
-            el.animate([{transform: 'scale(1)'}, {transform: 'scale(1.06)'}, {transform: 'scale(1)'}], {duration: 250});
-            this._fire(id);
+            // enqueue to ensure fires are applied sequentially and avoid out-of-order token updates
+            this._enqueueFire(id);
             return;
         }
         // Preserve other behaviors (arc creation / deletion) regardless of simulation state
@@ -1418,13 +1458,13 @@ class PetriView extends HTMLElement {
                 const offY = (badge.offsetHeight || 20) / 2;
                 badge.style.left = `${Math.round(bx - offX)}px`;
                 badge.style.top = `${Math.round(by - offY)}px`;
-                // optional: give badge a subtle tint if inhibitor
+                // give badge a subtle tint and border (same treatment for both normal and inhibitor arcs)
                 if (arc.inhibitTransition) {
                     badge.style.background = active ? '#e8f0fb' : '#fafafa';
                     badge.style.borderColor = active ? '#2a6fb8' : '#ddd';
                 } else {
-                    badge.style.background = '';
-                    badge.style.borderColor = '';
+                    badge.style.background = active ? '#e8f0fb' : '#fafafa';
+                    badge.style.borderColor = active ? '#2a6fb8' : '#ddd';
                 }
             }
         });
