@@ -1,0 +1,260 @@
+{
+  "@context": {
+    "@version": 1.1,
+    "@vocab": "https://schema.org/",
+
+    "PetriNet": {
+      "@id": "https://pflow.xyz/schema#PetriNet",
+      "@type": "@id"
+    },
+    "Place": {
+      "@id": "https://pflow.xyz/schema#Place",
+      "@type": "@id"
+    },
+    "Transition": {
+      "@id": "https://pflow.xyz/schema#Transition",
+      "@type": "@id"
+    },
+    "Arrow": {
+      "@id": "https://pflow.xyz/schema#Arrow",
+      "@type": "@id"
+    },
+
+    "offset": {
+      "@id": "https://pflow.xyz/schema#offset",
+      "@type": "http://www.w3.org/2001/XMLSchema#integer"
+    },
+    "initial": {
+      "@id": "https://pflow.xyz/schema#initial",
+      "@container": "@list",
+      "@type": "http://www.w3.org/2001/XMLSchema#integer"
+    },
+    "capacity": {
+      "@id": "https://pflow.xyz/schema#capacity",
+      "@container": "@list",
+      "@type": "http://www.w3.org/2001/XMLSchema#integer"
+    },
+    "x": {
+      "@id": "https://pflow.xyz/schema#x",
+      "@type": "http://www.w3.org/2001/XMLSchema#integer"
+    },
+    "y": {
+      "@id": "https://pflow.xyz/schema#y",
+      "@type": "http://www.w3.org/2001/XMLSchema#integer"
+    },
+
+    "token": {
+      "@id": "https://pflow.xyz/schema#token",
+      "@type": "@id"
+    },
+    "ticker": {
+      "@id": "https://pflow.xyz/schema#ticker",
+      "@type": "http://www.w3.org/2001/XMLSchema#string"
+    },
+    "denomination": {
+      "@id": "https://pflow.xyz/schema#denomination",
+      "@type": "http://www.w3.org/2001/XMLSchema#string"
+    },
+
+    "inhibitTransition": {
+      "@id": "https://pflow.xyz/schema#inhibitTransition",
+      "@type": "http://www.w3.org/2001/XMLSchema#boolean"
+    },
+    "weight": {
+      "@id": "https://pflow.xyz/schema#weight",
+      "@container": "@list"
+    },
+    "arcType": {
+      "@id": "https://pflow.xyz/schema#arcType",
+      "@type": "http://www.w3.org/2001/XMLSchema#string"
+    },
+    "function": {
+      "@id": "https://pflow.xyz/schema#function",
+      "@type": "http://www.w3.org/2001/XMLSchema#string"
+    },
+    "priority": {
+      "@id": "https://pflow.xyz/schema#priority",
+      "@type": "http://www.w3.org/2001/XMLSchema#integer"
+    },
+
+    /* -------------------------------------------------
+     * Seal / provenance / verification layer
+     * ------------------------------------------------- */
+
+    "PetriNetSeal": {
+      "@id": "https://pflow.xyz/schema#PetriNetSeal",
+      "@type": "@id"
+    },
+
+    "model": {
+      "@id": "https://pflow.xyz/schema#model",
+      "@type": "https://pflow.xyz/schema#PetriNet"
+    },
+
+    "modelCID": {
+      "@id": "https://pflow.xyz/schema#modelCID",
+      "@type": "http://www.w3.org/2001/XMLSchema#string"
+    },
+
+    "createdBy": {
+      "@id": "https://pflow.xyz/schema#createdBy",
+      "@type": "@id"
+      /* we expect this to point at a schema.org Person / Organization
+         or a DID document */
+    },
+
+    "createdAt": {
+      "@id": "https://pflow.xyz/schema#createdAt",
+      "@type": "http://www.w3.org/2001/XMLSchema#dateTime"
+    },
+
+    "runtime": {
+      "@id": "https://pflow.xyz/schema#runtime",
+      "@type": "https://pflow.xyz/schema#PetriRuntime"
+    },
+
+    "invariants": {
+      "@id": "https://pflow.xyz/schema#invariants",
+      "@container": "@set",
+      "@type": "https://pflow.xyz/schema#InvariantClaim"
+    },
+
+    "signature": {
+      "@id": "https://pflow.xyz/schema#signature",
+      "@type": "https://pflow.xyz/schema#Signature"
+    },
+
+    /* -------------------------------------------------
+     * Runtime description
+     * ------------------------------------------------- */
+
+    "PetriRuntime": {
+      "@id": "https://pflow.xyz/schema#PetriRuntime",
+      "@type": "@id"
+    },
+
+    "impl": {
+      "@id": "https://pflow.xyz/schema#impl",
+      "@type": "http://www.w3.org/2001/XMLSchema#string"
+      /* e.g. "pflow.jl/discrete-v1" */
+    },
+
+    "implHash": {
+      "@id": "https://pflow.xyz/schema#implHash",
+      "@type": "http://www.w3.org/2001/XMLSchema#string"
+      /* sha256 or multihash of the runtime code */
+    },
+
+    "semantics": {
+      "@id": "https://pflow.xyz/schema#semantics",
+      "@type": "http://www.w3.org/2001/XMLSchema#string"
+      /* human/machine readable note like
+         "inhibitor-arcs-are-zero-checks-before-fire" */
+    },
+
+    /* -------------------------------------------------
+     * Invariants / safety claims
+     * ------------------------------------------------- */
+
+    "InvariantClaim": {
+      "@id": "https://pflow.xyz/schema#InvariantClaim",
+      "@type": "@id"
+    },
+
+    "description": {
+      "@id": "https://pflow.xyz/schema#description",
+      "@type": "http://www.w3.org/2001/XMLSchema#string"
+    },
+
+    "places": {
+      "@id": "https://pflow.xyz/schema#places",
+      "@container": "@list",
+      "@type": "http://www.w3.org/2001/XMLSchema#string"
+      /* list of place IDs the invariant refers to */
+    },
+
+    "maxTotal": {
+      "@id": "https://pflow.xyz/schema#maxTotal",
+      "@type": "http://www.w3.org/2001/XMLSchema#integer"
+    },
+
+    /* -------------------------------------------------
+     * Signature block
+     * ------------------------------------------------- */
+
+    "Signature": {
+      "@id": "https://pflow.xyz/schema#Signature",
+      "@type": "@id"
+    },
+
+    "publicKey": {
+      "@id": "https://pflow.xyz/schema#publicKey",
+      "@type": "http://www.w3.org/2001/XMLSchema#string"
+      /* DID key material, base58, bech32, etc. */
+    },
+
+    "sig": {
+      "@id": "https://pflow.xyz/schema#sig",
+      "@type": "http://www.w3.org/2001/XMLSchema#string"
+      /* detached signature bytes, encoded (base64/base58/etc.) */
+    },
+
+    "sigType": {
+      "@id": "https://pflow.xyz/schema#sigType",
+      "@type": "http://www.w3.org/2001/XMLSchema#string"
+      /* e.g. "Ed25519Signature2020" */
+    },
+
+    "signedFields": {
+      "@id": "https://pflow.xyz/schema#signedFields",
+      "@container": "@list",
+      "@type": "http://www.w3.org/2001/XMLSchema#string"
+      /* which top-level fields of the seal were covered */
+    },
+
+    /* -------------------------------------------------
+     * Execution log / replay events (optional but important)
+     * ------------------------------------------------- */
+
+    "TransitionFireEvent": {
+      "@id": "https://pflow.xyz/schema#TransitionFireEvent",
+      "@type": "@id"
+    },
+
+    "fired": {
+      "@id": "https://pflow.xyz/schema#fired",
+      "@type": "http://www.w3.org/2001/XMLSchema#string"
+      /* transition ID that fired */
+    },
+
+    "prevMarking": {
+      "@id": "https://pflow.xyz/schema#prevMarking",
+      "@type": "http://www.w3.org/2001/XMLSchema#string"
+      /* could also be a structured type later; keep string/JSON
+         blob for now to avoid recursion in the @context */
+    },
+
+    "nextMarking": {
+      "@id": "https://pflow.xyz/schema#nextMarking",
+      "@type": "http://www.w3.org/2001/XMLSchema#string"
+    },
+
+    "actor": {
+      "@id": "https://pflow.xyz/schema#actor",
+      "@type": "@id"
+      /* DID / address of whoever authorized the fire */
+    },
+
+    "runtimeHash": {
+      "@id": "https://pflow.xyz/schema#runtimeHash",
+      "@type": "http://www.w3.org/2001/XMLSchema#string"
+      /* snapshot hash of the runtime actually used
+         for this firing */
+    },
+
+    "timestamp": {
+      "@id": "https://pflow.xyz/schema#timestamp",
+      "@type": "http://www.w3.org/2001/XMLSchema#dateTime"
+    }
+  }
+}

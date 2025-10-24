@@ -1,0 +1,55 @@
+{
+  "@context": "https://pflow.xyz/schema",
+  "@type": "PetriNetSeal",
+  "modelCID": "bafy...abc",
+  "createdBy": {
+    "@type": "Person",
+    "name": "Matt York",
+    "id": "did:key:z6Mk..."
+  },
+  "createdAt": "2025-10-24T14:30:00Z",
+  "runtime": {
+    "@type": "PetriRuntime",
+    "impl": "pflow.jl/discrete-v1",
+    "implHash": "sha256-deadbeef...",
+    "semantics": "inhibitor-arcs-are-zero-checks-before-fire"
+  },
+  "invariants": [
+    {
+      "@type": "InvariantClaim",
+      "description": "place0 never holds more than capacity 3",
+      "places": [
+        "place0"
+      ],
+      "maxTotal": 3
+    }
+  ],
+  "signature": {
+    "@type": "Signature",
+    "sigType": "Ed25519Signature2020",
+    "publicKey": "z6MkhPublicKeyBase58...",
+    "sig": "z1A9ySignedBytes...",
+    "signedFields": [
+      "modelCID",
+      "createdAt",
+      "createdBy.id",
+      "runtime.implHash"
+    ]
+  },
+  "model": {
+    "@type": "PetriNet",
+    "@version": "1.1",
+    "arcs": [
+      /* ... */
+    ],
+    "places": {
+      /* ... */
+    },
+    "transitions": {
+      /* ... */
+    },
+    "token": [
+      "https://pflow.xyz/tokens/black"
+    ]
+  }
+}

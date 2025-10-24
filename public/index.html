@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1" name="viewport"/>
+    <title>{pflow}</title>
+    <link href="petri-view.css" rel="stylesheet"/>
+    <script src="petri-view.js" type="module"></script>
+    <style>
+        .fixed-title {
+            position: fixed;
+            top: 16px;
+            left: 8px;
+            width: 120px;
+            height: auto;
+            z-index: 1000;
+            pointer-events: auto;
+        }
+
+        .fixed-title img {
+            width: 100%;
+            height: auto;
+            display: block;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+<a class="fixed-title" href="https://pflow.xyz" rel="noopener noreferrer" target="_blank">
+    <img alt="Title" src="title.svg"/>
+</a>
+<petri-view data-json-editor>
+    <script type="application/ld+json">
+        {
+            "@context": "https://pflow.xyz/schema",
+            "@type": "PetriNet",
+            "@version": "1.1",
+            "arcs": [
+                {
+                    "@type": "Arrow",
+                    "inhibitTransition": false,
+                    "source": "txn0",
+                    "target": "place0",
+                    "weight": [
+                        1
+                    ]
+                },
+                {
+                    "@type": "Arrow",
+                    "inhibitTransition": false,
+                    "source": "place0",
+                    "target": "txn1",
+                    "weight": [
+                        3
+                    ]
+                },
+                {
+                    "@type": "Arrow",
+                    "inhibitTransition": true,
+                    "source": "txn2",
+                    "target": "place0",
+                    "weight": [
+                        3
+                    ]
+                },
+                {
+                    "@type": "Arrow",
+                    "inhibitTransition": true,
+                    "source": "place0",
+                    "target": "txn3",
+                    "weight": [
+                        1
+                    ]
+                }
+            ],
+            "places": {
+                "place0": {
+                    "@type": "Place",
+                    "capacity": [
+                        3
+                    ],
+                    "initial": [
+                        1
+                    ],
+                    "offset": 0,
+                    "x": 130,
+                    "y": 207
+                }
+            },
+            "token": [
+                "https://pflow.xyz/tokens/black"
+            ],
+            "transitions": {
+                "txn0": {
+                    "@type": "Transition",
+                    "x": 46,
+                    "y": 116
+                },
+                "txn1": {
+                    "@type": "Transition",
+                    "x": 227,
+                    "y": 112
+                },
+                "txn2": {
+                    "@type": "Transition",
+                    "x": 43,
+                    "y": 307
+                },
+                "txn3": {
+                    "@type": "Transition",
+                    "x": 235,
+                    "y": 306
+                }
+            }
+        }
+    </script>
+</petri-view>
+</body>
+</html>

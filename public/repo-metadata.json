@@ -1,0 +1,33 @@
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareSourceCode",
+  "name": "pflow-xyz",
+  "description": "Interactive web component for authoring, visualizing and simulating Petri nets. Exposes a JSON‑LD model, supports pan/zoom, editing (Ace optional), import/export, autosave and local persistence.",
+  "url": "pflow.xyz",
+  "codeRepository": "https://github.com/pflow-xyz/pflow-xyz",
+  "programmingLanguage": [
+    "JavaScript",
+    "Go"
+  ],
+  "license": "MIT",
+  "creator": {
+    "@type": "Person",
+    "name": "stackdump",
+    "url": "https://github.com/stackdump"
+  },
+  "keywords": "petri nets, web component, json-ld, visualization, simulation, editor, ace, pan, zoom, autosave",
+  "featureList": [
+    "Custom element `petri-view`",
+    "Model persisted as JSON‑LD and editable via embedded/ace JSON editor",
+    "Interactive arc/place/transition editing, token manipulation",
+    "Simulation mode with transition firing and state updates",
+    "Pan/zoom with scale meter and responsive canvas",
+    "Import/export and download of stable, sorted JSON"
+  ],
+  "distribution": {
+    "@type": "DataDownload",
+    "encodingFormat": "application/zip",
+    "contentUrl": "https://github.com/pflow-xyz/pflow-xyz/archive/refs/heads/main.zip"
+  },
+  "version": "1.0.0"
+}
