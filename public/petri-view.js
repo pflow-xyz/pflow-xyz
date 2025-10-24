@@ -856,6 +856,13 @@ class PetriView extends HTMLElement {
         badge.textContent = w > 1 ? `${w}` : '1';
         this._applyStyles(badge, {position: 'absolute'});
 
+        // mark inhibitor badges so CSS can target them
+        if (arc.inhibitTransition) {
+            badge.classList.add('pv-weight-inhibit');
+            badge.title = (badge.title ? badge.title + ' ' : '') + 'inhibitor';
+            badge.dataset.inhibit = '1';
+        }
+
         badge.addEventListener('click', (ev) => {
             ev.stopPropagation();
             this._onBadgeClick(badge, ev);
@@ -1326,6 +1333,8 @@ class PetriView extends HTMLElement {
         const viewTy = this._view.ty || 0;
 
         const arcs = this._model.arcs || [];
+        const marks = this._marking(); // current marking to evaluate arc/transition state
+
         arcs.forEach((arc, idx) => {
             const srcEl = this._nodes[arc.source];
             const trgEl = this._nodes[arc.target];
@@ -1357,14 +1366,15 @@ class PetriView extends HTMLElement {
             const ex = sx + ux * padSrc, ey = sy + uy * padSrc;
             const fx = tx - ux * (padTrg + tipOffset), fy = ty - uy * (padTrg + tipOffset);
 
-            if (arc.inhibitTransition) {
-                ctx.strokeStyle = '#c0392b';
-                ctx.setLineDash([6, 4]);
-            } else {
-                ctx.strokeStyle = '#000000';
-                ctx.setLineDash([]);
-            }
+            // Determine the related transition id for this arc so we can color by its enabled state
+            const relatedTransitionId = srcIsPlace ? arc.target : arc.source;
+            const active = !!this._enabled(relatedTransitionId, marks);
 
+            // set stroke/fill based on active state
+            ctx.strokeStyle = active ? '#2a6fb8' : '#cfcfcf';
+            ctx.fillStyle = active ? '#2a6fb8' : '#cfcfcf';
+
+            // draw the main line
             ctx.beginPath();
             ctx.moveTo(ex, ey);
             ctx.lineTo(fx, fy);
@@ -1372,36 +1382,47 @@ class PetriView extends HTMLElement {
 
             const tpx = fx, tpy = fy;
             if (arc.inhibitTransition) {
+                // draw inhibitor circle at the tip (works for both place-target and transition-target inhibitors)
                 ctx.beginPath();
-                ctx.fillStyle = '#c0392b';
-                ctx.setLineDash([]);
+                ctx.lineWidth = 1.3;
+                ctx.fillStyle = '#fff';
+                ctx.strokeStyle = active ? '#2a6fb8' : '#cfcfcf';
                 ctx.arc(tpx, tpy, inhibitRadius, 0, Math.PI * 2);
                 ctx.fill();
-                ctx.beginPath();
-                ctx.fillStyle = '#ffffff';
-                ctx.arc(tpx, tpy, 2.5, 0, Math.PI * 2);
-                ctx.fill();
+                ctx.stroke();
+                ctx.lineWidth = 1;
             } else {
-                const leftx = tpx - ux * ahSize - uy * (ahSize * 0.6);
-                const lefty = tpy - uy * ahSize + ux * (ahSize * 0.6);
-                const rightx = tpx - ux * ahSize + uy * (ahSize * 0.6);
-                const righty = tpy - uy * ahSize - ux * (ahSize * 0.6);
+                // draw normal arrowhead
+                const ahx = tpx + (-ux * ahSize - uy * ahSize * 0.45);
+                const ahy = tpy + (-uy * ahSize + ux * ahSize * 0.45);
+                const bhx = tpx + (-ux * ahSize + uy * ahSize * 0.45);
+                const bhy = tpy + (-uy * ahSize - ux * ahSize * 0.45);
                 ctx.beginPath();
-                ctx.fillStyle = '#000000';
-                ctx.setLineDash([]);
                 ctx.moveTo(tpx, tpy);
-                ctx.lineTo(leftx, lefty);
-                ctx.lineTo(rightx, righty);
+                ctx.lineTo(ahx, ahy);
+                ctx.lineTo(bhx, bhy);
                 ctx.closePath();
+                ctx.fillStyle = ctx.strokeStyle;
                 ctx.fill();
             }
 
+            // position weight badge if present
             const bx = (ex + fx) / 2;
             const by = (ey + fy) / 2;
             const badge = this._stage.querySelector(`.pv-weight[data-arc="${idx}"]`);
             if (badge) {
-                badge.style.left = `${bx - 12}px`;
-                badge.style.top = `${by - 10}px`;
+                const offX = (badge.offsetWidth || 20) / 2;
+                const offY = (badge.offsetHeight || 20) / 2;
+                badge.style.left = `${Math.round(bx - offX)}px`;
+                badge.style.top = `${Math.round(by - offY)}px`;
+                // optional: give badge a subtle tint if inhibitor
+                if (arc.inhibitTransition) {
+                    badge.style.background = active ? '#e8f0fb' : '#fafafa';
+                    badge.style.borderColor = active ? '#2a6fb8' : '#ddd';
+                } else {
+                    badge.style.background = '';
+                    badge.style.borderColor = '';
+                }
             }
         });
 
