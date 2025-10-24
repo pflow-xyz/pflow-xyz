@@ -23,21 +23,88 @@ Include the module in a page (module script) or import it in your bundler:
 
 <petri-view id="pv" data-json-editor>
 <script type="application/ld+json">
+{
+  "@context": "https://pflow.xyz/schema",
+  "@type": "PetriNet",
+  "@version": "1.1",
+  "arcs": [
     {
-      "@context": "https://pflow.xyz/schema",
-      "@type": "PetriNet",
-      "places": [
-        { "@id": "p1", "label": "Place 1", "tokens": 1 },
-        { "@id": "p2", "label": "Place 2", "tokens": 0 }
-      ],
-      "transitions": [
-        { "@id": "t1", "label": "Transition 1" }
-      ],
-      "arcs": [
-        { "@type": "Arc", "source": "p1", "target": "t1", "weight": 1 },
-        { "@type": "Arc", "source": "t1", "target": "p2", "weight": 1 }
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "txn0",
+      "target": "place0",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "place0",
+      "target": "txn1",
+      "weight": [
+        3
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": true,
+      "source": "txn2",
+      "target": "place0",
+      "weight": [
+        3
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": true,
+      "source": "place0",
+      "target": "txn3",
+      "weight": [
+        1
       ]
     }
+  ],
+  "places": {
+    "place0": {
+      "@type": "Place",
+      "capacity": [
+        3
+      ],
+      "initial": [
+        3
+      ],
+      "offset": 0,
+      "x": 130,
+      "y": 207
+    }
+  },
+  "token": [
+    "https://pflow.xyz/tokens/black"
+  ],
+  "transitions": {
+    "txn0": {
+      "@type": "Transition",
+      "x": 50,
+      "y": 120
+    },
+    "txn1": {
+      "@type": "Transition",
+      "x": 227,
+      "y": 112
+    },
+    "txn2": {
+      "@type": "Transition",
+      "x": 43,
+      "y": 307
+    },
+    "txn3": {
+      "@type": "Transition",
+      "x": 235,
+      "y": 306
+    }
+  }
+}
 </script>
 </petri-view>
 ``
