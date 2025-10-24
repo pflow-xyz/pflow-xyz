@@ -84,6 +84,11 @@ canvas.pv-canvas {
     background: #62fa75;
 }
 
+.pv-transition.pv-firing {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
 .pv-label {
     position: absolute;
     left: 50%;

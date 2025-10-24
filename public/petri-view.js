@@ -49,6 +49,7 @@ class PetriView extends HTMLElement {
         // fire queue to serialize rapid transition clicks
         this._fireQueue = [];
         this._processingFires = false;
+        this._firingSet = new Set(); // prevents duplicate enqueues / race
     }
 
     // observe compact flag and json editor toggle
@@ -934,7 +935,12 @@ class PetriView extends HTMLElement {
 
     // New helper to serialize fire operations
     _enqueueFire(id) {
+        if (!id) return;
+        // ignore duplicate enqueues for same transition id
+        if (this._firingSet.has(id)) return;
+        this._firingSet.add(id);
         this._fireQueue.push(id);
+
         if (this._processingFires) return;
         this._processingFires = true;
 
@@ -945,26 +951,23 @@ class PetriView extends HTMLElement {
                 return;
             }
 
-            // fire UI/animation + event, then execute the fire
             const el = this._nodes[nextId];
-            if (el) {
-                this.dispatchEvent(new CustomEvent('transition-fired', {detail: {id: nextId}}));
+            if (el) el.classList.add('pv-firing');
+
+            // Wait one animation frame so UI can update, then fire synchronously
+            requestAnimationFrame(() => {
                 try {
-                    el.animate(
-                        [{transform: 'scale(1)'}, {transform: 'scale(1.06)'}, {transform: 'scale(1)'}],
-                        {duration: 250}
-                    );
-                } catch {
-                    // ignore animation errors
+                    // _fire updates model/UI synchronously and dispatches events
+                    this._fire(nextId);
+                } catch (err) {
+                    console.error('Error during _fire:', err);
+                } finally {
+                    if (el) el.classList.remove('pv-firing');
+                    this._firingSet.delete(nextId);
+                    // yield to event loop before next item
+                    setTimeout(processNext, 0);
                 }
-            }
-
-            // execute the actual firing synchronously to update model/UI
-            this._fire(nextId);
-
-            // schedule next to allow DOM to update and keep event loop responsive
-            // setTimeout(..., 0) yields to the browser to process other events between fires
-            setTimeout(processNext, 0);
+            });
         };
 
         processNext();
