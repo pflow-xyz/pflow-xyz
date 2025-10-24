@@ -725,7 +725,7 @@ class PetriView extends HTMLElement {
             const isPlace = !!this._model.places[a.target];
             if (!isPlace) continue;
             const w = Number(a.weight?.[0] ?? 1);
-            marks[a.target] = (marks[a.target] || 0) + w;
+            if (!a.inhibitTransition) marks[a.target] = (marks[a.target] || 0) + w;
         }
         this._setMarking(marks);
         this._renderTokens();
