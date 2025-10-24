@@ -963,12 +963,15 @@ class PetriView extends HTMLElement {
             }
         }
 
-        // Remove all processed IDs from firing set after all fires complete
-        for (const processedId of processedIds) {
-            this._firingSet.delete(processedId);
-        }
-        
         this._processingFires = false;
+
+        // Defer cleanup to allow any pending click events to be deduplicated
+        // This prevents rapid double-clicks from firing twice
+        setTimeout(() => {
+            for (const processedId of processedIds) {
+                this._firingSet.delete(processedId);
+            }
+        }, 100);
     }
 
     _onTransitionClick(id, ev) {
