@@ -692,10 +692,11 @@ class PetriView extends HTMLElement {
             if (a.inhibitTransition) {
                 // output inhibitor: transition disabled until target place tokens >= weight
                 if (tokens < w) return false;
-                // still fall through to capacity check for produced tokens
+                // inhibitor doesn't produce tokens, skip capacity check
+                continue;
             }
 
-            // output capacity must not overflow
+            // output capacity must not overflow (only for normal arcs that produce tokens)
             const cap = this._capacityOf(a.target);
             const cur = marks[a.target] ?? 0;
             if (cur + w > cap) return false;
@@ -889,6 +890,7 @@ class PetriView extends HTMLElement {
             this._syncLD();
             this._pushHistory();
             this._renderTokens();
+            this._updateTransitionStates();
             this._draw();
             return;
         }
@@ -912,6 +914,7 @@ class PetriView extends HTMLElement {
             this._syncLD();
             this._pushHistory();
             this._renderTokens();
+            this._updateTransitionStates();
             this._draw();
             return;
         }
