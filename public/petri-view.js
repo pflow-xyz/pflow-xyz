@@ -54,8 +54,8 @@ class PetriView extends HTMLElement {
         this._lastFireAt = Object.create(null);
         this._fireDebounceMs = 600; // milliseconds
         
-        // layout breakpoint for responsive behavior
-        this._layoutBreakpoint = 800; // px - horizontal split above, vertical below
+        // layout orientation (vertical by default, horizontal when toggled)
+        this._layoutHorizontal = false;
     }
 
     // observe compact flag and json editor toggle
@@ -782,6 +782,9 @@ class PetriView extends HTMLElement {
         // Show the divider
         this._divider.style.display = 'flex';
 
+        // Create layout toggle button
+        this._createLayoutToggle();
+
         this._jsonEditor = container;
         this._jsonEditorTextarea = textarea;
         this._editingJson = false;
@@ -801,6 +804,64 @@ class PetriView extends HTMLElement {
         
         // Trigger resize to adjust canvas and editor
         this._onResize();
+    }
+
+    // ---------------- layout toggle ----------------
+    _createLayoutToggle() {
+        if (this._layoutToggle) return;
+        
+        const toggle = document.createElement('button');
+        toggle.type = 'button';
+        toggle.className = 'pv-layout-toggle';
+        toggle.title = 'Toggle horizontal/vertical layout';
+        toggle.textContent = '⇄'; // swap icon
+        
+        toggle.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this._toggleLayout();
+        });
+        
+        this._root.appendChild(toggle);
+        this._layoutToggle = toggle;
+    }
+
+    _toggleLayout() {
+        this._layoutHorizontal = !this._layoutHorizontal;
+        
+        if (this._layoutHorizontal) {
+            this._root.classList.add('pv-layout-horizontal');
+        } else {
+            this._root.classList.remove('pv-layout-horizontal');
+        }
+        
+        // Reset to 50/50 split on orientation change
+        this._canvasContainer.style.flex = '0 0 50%';
+        this._saveDividerPosition();
+        
+        // Update divider cursor and aria
+        this._updateDividerOrientation();
+        
+        // Trigger resize
+        this._onResize();
+        if (this._aceEditor) {
+            try {
+                this._aceEditor.resize();
+            } catch {
+                // ignore
+            }
+        }
+    }
+
+    _updateDividerOrientation() {
+        if (!this._divider) return;
+        
+        if (this._layoutHorizontal) {
+            this._divider.style.cursor = 'col-resize';
+            this._divider.setAttribute('aria-orientation', 'vertical');
+        } else {
+            this._divider.style.cursor = 'row-resize';
+            this._divider.setAttribute('aria-orientation', 'horizontal');
+        }
     }
 
     // ---------------- divider handling ----------------
@@ -838,7 +899,6 @@ class PetriView extends HTMLElement {
         if (!this._divider) return;
         
         let isDragging = false;
-        let isVertical = window.innerWidth >= this._layoutBreakpoint;
 
         const onPointerDown = (e) => {
             if (e.button !== 0) return; // left button only
@@ -846,25 +906,24 @@ class PetriView extends HTMLElement {
             isDragging = true;
             this._divider.setPointerCapture(e.pointerId);
             
-            // Update cursor
-            document.body.style.cursor = isVertical ? 'col-resize' : 'row-resize';
+            // Update cursor based on current layout
+            document.body.style.cursor = this._layoutHorizontal ? 'col-resize' : 'row-resize';
         };
 
         const onPointerMove = (e) => {
             if (!isDragging) return;
             
             const rootRect = this._root.getBoundingClientRect();
-            isVertical = window.innerWidth >= this._layoutBreakpoint;
             
-            if (isVertical) {
-                // Horizontal split (side-by-side)
+            if (this._layoutHorizontal) {
+                // Horizontal layout (side-by-side)
                 const offsetX = e.clientX - rootRect.left;
                 const minSize = 200;
                 const maxSize = rootRect.width - 200 - 8; // account for divider
                 const clamped = Math.max(minSize, Math.min(maxSize, offsetX));
                 this._canvasContainer.style.flex = `0 0 ${clamped}px`;
             } else {
-                // Vertical split (stacked)
+                // Vertical layout (stacked)
                 const offsetY = e.clientY - rootRect.top;
                 const minSize = 150;
                 const maxSize = rootRect.height - 150 - 8; // account for divider
@@ -907,31 +966,8 @@ class PetriView extends HTMLElement {
         window.addEventListener('pointerup', onPointerUp);
         window.addEventListener('pointercancel', onPointerUp);
         
-        // Handle window resize to update orientation
-        const handleResize = () => {
-            const newVertical = window.innerWidth >= this._layoutBreakpoint;
-            if (newVertical !== isVertical) {
-                isVertical = newVertical;
-                this._divider.style.cursor = isVertical ? 'col-resize' : 'row-resize';
-                this._divider.setAttribute('aria-orientation', isVertical ? 'vertical' : 'horizontal');
-                
-                // Reset to default split on orientation change
-                this._canvasContainer.style.flex = '0 0 50%';
-                this._saveDividerPosition();
-                this._onResize();
-                if (this._aceEditor) {
-                    try {
-                        this._aceEditor.resize();
-                    } catch {
-                        // ignore
-                    }
-                }
-            }
-        };
-        
-        // Store handler for cleanup
-        this._dividerResizeHandler = handleResize;
-        window.addEventListener('resize', handleResize);
+        // Set initial divider orientation
+        this._updateDividerOrientation();
     }
 
     // ---------------- lifecycle ----------------
@@ -963,12 +999,6 @@ class PetriView extends HTMLElement {
             this._jsonEditorTimer = null;
         }
         if (this._jsonEditor) this._removeJsonEditor();
-        
-        // Clean up divider resize handler
-        if (this._dividerResizeHandler) {
-            window.removeEventListener('resize', this._dividerResizeHandler);
-            this._dividerResizeHandler = null;
-        }
     }
 
     // ---------------- public API ----------------
@@ -2488,6 +2518,15 @@ class PetriView extends HTMLElement {
         } catch {
         }
         
+        // Remove layout toggle button
+        if (this._layoutToggle) {
+            try {
+                this._layoutToggle.remove();
+            } catch {
+            }
+            this._layoutToggle = null;
+        }
+        
         // Hide the divider
         if (this._divider) {
             this._divider.style.display = 'none';
@@ -2497,6 +2536,10 @@ class PetriView extends HTMLElement {
         if (this._canvasContainer) {
             this._canvasContainer.style.flex = '1 1 auto';
         }
+        
+        // Reset layout to default
+        this._layoutHorizontal = false;
+        this._root.classList.remove('pv-layout-horizontal');
         
         this._jsonEditor = null;
         this._jsonEditorTextarea = null;

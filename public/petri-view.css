@@ -13,14 +13,12 @@ petri-view {
     background: #fafafa;
     overflow: hidden;
     display: flex;
-    flex-direction: row;
+    flex-direction: column;
 }
 
-/* Responsive: stack vertically on small screens */
-@media (max-width: 800px) {
-    .pv-root {
-        flex-direction: column;
-    }
+/* Horizontal layout when toggled */
+.pv-root.pv-layout-horizontal {
+    flex-direction: row;
 }
 
 canvas.pv-canvas {
@@ -194,8 +192,8 @@ canvas.pv-canvas {
 /* Divider between canvas and editor */
 .pv-layout-divider {
     flex: 0 0 8px;
-    background: linear-gradient(90deg, #e0e0e0 0%, #f0f0f0 50%, #e0e0e0 100%);
-    cursor: col-resize;
+    background: linear-gradient(180deg, #e0e0e0 0%, #f0f0f0 50%, #e0e0e0 100%);
+    cursor: row-resize;
     position: relative;
     z-index: 50;
     transition: background 0.2s;
@@ -203,7 +201,7 @@ canvas.pv-canvas {
 
 .pv-layout-divider:hover,
 .pv-layout-divider:active {
-    background: linear-gradient(90deg, #c0c0c0 0%, #d0d0d0 50%, #c0c0c0 100%);
+    background: linear-gradient(180deg, #c0c0c0 0%, #d0d0d0 50%, #c0c0c0 100%);
 }
 
 .pv-layout-divider::before {
@@ -212,28 +210,26 @@ canvas.pv-canvas {
     left: 50%;
     top: 50%;
     transform: translate(-50%, -50%);
-    width: 3px;
-    height: 40px;
+    width: 40px;
+    height: 3px;
     background: rgba(0, 0, 0, 0.15);
     border-radius: 2px;
 }
 
-/* Vertical divider for stacked layout */
-@media (max-width: 800px) {
-    .pv-layout-divider {
-        flex: 0 0 8px;
-        cursor: row-resize;
-    }
-    
-    .pv-layout-divider::before {
-        width: 40px;
-        height: 3px;
-    }
-    
-    .pv-canvas-container {
-        min-height: 150px;
-        min-width: 100px;
-    }
+/* Horizontal divider when layout is horizontal */
+.pv-root.pv-layout-horizontal .pv-layout-divider {
+    background: linear-gradient(90deg, #e0e0e0 0%, #f0f0f0 50%, #e0e0e0 100%);
+    cursor: col-resize;
+}
+
+.pv-root.pv-layout-horizontal .pv-layout-divider:hover,
+.pv-root.pv-layout-horizontal .pv-layout-divider:active {
+    background: linear-gradient(90deg, #c0c0c0 0%, #d0d0d0 50%, #c0c0c0 100%);
+}
+
+.pv-root.pv-layout-horizontal .pv-layout-divider::before {
+    width: 3px;
+    height: 40px;
 }
 
 /* JSON Editor as peer component */
@@ -262,4 +258,33 @@ canvas.pv-canvas {
     bottom: auto;
     height: auto;
     max-height: none;
+}
+
+/* Layout toggle button */
+.pv-layout-toggle {
+    position: absolute;
+    top: 10px;
+    right: 70px;
+    width: 44px;
+    height: 36px;
+    border-radius: 6px;
+    border: none;
+    background: rgba(255, 255, 255, 0.9);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+    cursor: pointer;
+    font-size: 16px;
+    z-index: 1200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    user-select: none;
+    transition: background 0.2s;
+}
+
+.pv-layout-toggle:hover {
+    background: rgba(255, 255, 255, 1);
+}
+
+.pv-layout-toggle:active {
+    background: rgba(240, 240, 240, 1);
 }
