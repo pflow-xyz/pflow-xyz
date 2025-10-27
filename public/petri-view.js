@@ -752,29 +752,10 @@ class PetriView extends HTMLElement {
 
     _createJsonEditor() {
         if (this._jsonEditor) return;
+        if (!this._root) return; // Safety check
+        
         const container = document.createElement('div');
         container.className = 'pv-json-editor';
-        this._applyStyles(container, {
-            position: 'fixed',
-            left: '10px',
-            right: '10px',
-            bottom: '10px',
-            height: '45%',
-            minHeight: '160px',
-            maxHeight: '70%',
-            padding: '12px',
-            background: 'rgba(250,250,250,0.98)',
-            zIndex: 100,
-            boxSizing: 'border-box',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '8px',
-            overflow: 'auto',
-            borderRadius: '8px',
-            boxShadow: '0 2px 10px rgba(0,0,0,0.08)'
-        });
-
-        // Removed the JSON Editor title and header close button per request.
 
         const textarea = document.createElement('textarea');
         textarea.className = 'pv-json-textarea';
@@ -782,7 +763,7 @@ class PetriView extends HTMLElement {
             width: '100%',
             flex: '1 1 auto',
             boxSizing: 'border-box',
-            resize: 'vertical',
+            resize: 'none',
             fontFamily: 'monospace',
             fontSize: '13px',
             padding: '8px',
@@ -792,18 +773,167 @@ class PetriView extends HTMLElement {
         textarea.spellcheck = false;
         container.appendChild(textarea);
 
-        const hostDoc = this.ownerDocument || document;
-        hostDoc.body.appendChild(container);
+        // Add container to the root layout
+        this._root.appendChild(container);
+
+        // Show the divider
+        this._divider.style.display = 'flex';
 
         this._jsonEditor = container;
         this._jsonEditorTextarea = textarea;
         this._editingJson = false;
         this._jsonEditorTimer = null;
+        
+        // Initialize divider position from localStorage or default
+        this._initDividerPosition();
+        
+        // Setup divider drag handlers
+        this._setupDividerDrag();
+        
         this._updateJsonEditor();
         textarea.addEventListener('input', () => this._onJsonEditorInput());
         textarea.addEventListener('blur', () => this._onJsonEditorInput(true));
         this._initAceEditor().catch(() => {/* ignore */
         });
+        
+        // Trigger resize to adjust canvas and editor
+        this._onResize();
+    }
+
+    // ---------------- divider handling ----------------
+    _initDividerPosition() {
+        // Try to load saved position from localStorage
+        try {
+            const saved = localStorage.getItem('pv-divider-position');
+            if (saved) {
+                const pos = JSON.parse(saved);
+                if (pos && typeof pos.canvasFlex === 'string') {
+                    this._canvasContainer.style.flex = pos.canvasFlex;
+                    return;
+                }
+            }
+        } catch {
+            // ignore
+        }
+        
+        // Default: 50/50 split
+        const isVertical = window.innerWidth >= 800;
+        if (isVertical) {
+            this._canvasContainer.style.flex = '0 0 50%';
+        } else {
+            this._canvasContainer.style.flex = '0 0 50%';
+        }
+    }
+
+    _saveDividerPosition() {
+        try {
+            const pos = {
+                canvasFlex: this._canvasContainer.style.flex
+            };
+            localStorage.setItem('pv-divider-position', JSON.stringify(pos));
+        } catch {
+            // ignore
+        }
+    }
+
+    _setupDividerDrag() {
+        if (!this._divider) return;
+        
+        let isDragging = false;
+        let isVertical = window.innerWidth >= 800;
+
+        const onPointerDown = (e) => {
+            if (e.button !== 0) return; // left button only
+            e.preventDefault();
+            isDragging = true;
+            this._divider.setPointerCapture(e.pointerId);
+            
+            // Update cursor
+            document.body.style.cursor = isVertical ? 'col-resize' : 'row-resize';
+        };
+
+        const onPointerMove = (e) => {
+            if (!isDragging) return;
+            
+            const rootRect = this._root.getBoundingClientRect();
+            isVertical = window.innerWidth >= 800;
+            
+            if (isVertical) {
+                // Horizontal split (side-by-side)
+                const offsetX = e.clientX - rootRect.left;
+                const minSize = 200;
+                const maxSize = rootRect.width - 200 - 8; // account for divider
+                const clamped = Math.max(minSize, Math.min(maxSize, offsetX));
+                this._canvasContainer.style.flex = `0 0 ${clamped}px`;
+            } else {
+                // Vertical split (stacked)
+                const offsetY = e.clientY - rootRect.top;
+                const minSize = 150;
+                const maxSize = rootRect.height - 150 - 8; // account for divider
+                const clamped = Math.max(minSize, Math.min(maxSize, offsetY));
+                this._canvasContainer.style.flex = `0 0 ${clamped}px`;
+            }
+            
+            // Trigger resize for canvas and ace editor
+            requestAnimationFrame(() => {
+                this._onResize();
+                if (this._aceEditor) {
+                    try {
+                        this._aceEditor.resize();
+                    } catch {
+                        // ignore
+                    }
+                }
+            });
+        };
+
+        const onPointerUp = (e) => {
+            if (!isDragging) return;
+            isDragging = false;
+            
+            try {
+                this._divider.releasePointerCapture(e.pointerId);
+            } catch {
+                // ignore
+            }
+            
+            // Restore cursor
+            document.body.style.cursor = '';
+            
+            // Save position
+            this._saveDividerPosition();
+        };
+
+        this._divider.addEventListener('pointerdown', onPointerDown);
+        window.addEventListener('pointermove', onPointerMove);
+        window.addEventListener('pointerup', onPointerUp);
+        window.addEventListener('pointercancel', onPointerUp);
+        
+        // Handle window resize to update orientation
+        const handleResize = () => {
+            const newVertical = window.innerWidth >= 800;
+            if (newVertical !== isVertical) {
+                isVertical = newVertical;
+                this._divider.style.cursor = isVertical ? 'col-resize' : 'row-resize';
+                this._divider.setAttribute('aria-orientation', isVertical ? 'vertical' : 'horizontal');
+                
+                // Reset to default split on orientation change
+                this._canvasContainer.style.flex = '0 0 50%';
+                this._saveDividerPosition();
+                this._onResize();
+                if (this._aceEditor) {
+                    try {
+                        this._aceEditor.resize();
+                    } catch {
+                        // ignore
+                    }
+                }
+            }
+        };
+        
+        // Store handler for cleanup
+        this._dividerResizeHandler = handleResize;
+        window.addEventListener('resize', handleResize);
     }
 
     // ---------------- lifecycle ----------------
@@ -835,6 +965,12 @@ class PetriView extends HTMLElement {
             this._jsonEditorTimer = null;
         }
         if (this._jsonEditor) this._removeJsonEditor();
+        
+        // Clean up divider resize handler
+        if (this._dividerResizeHandler) {
+            window.removeEventListener('resize', this._dividerResizeHandler);
+            this._dividerResizeHandler = null;
+        }
     }
 
     // ---------------- public API ----------------
@@ -1189,21 +1325,33 @@ class PetriView extends HTMLElement {
     _buildRoot() {
         this._root = document.createElement('div');
         this._root.className = 'pv-root';
-        this._applyStyles(this._root, {position: 'relative', width: '100%', height: '100%'});
         this.appendChild(this._root);
+
+        // Canvas container (left/top pane)
+        this._canvasContainer = document.createElement('div');
+        this._canvasContainer.className = 'pv-canvas-container';
+        this._root.appendChild(this._canvasContainer);
 
         this._stage = document.createElement('div');
         this._stage.className = 'pv-stage';
-        this._applyStyles(this._stage, {
-            position: 'absolute', left: '0', top: '0', width: '100%', height: '100%', transformOrigin: '0 0'
-        });
-        this._root.appendChild(this._stage);
+        this._canvasContainer.appendChild(this._stage);
 
         this._canvas = document.createElement('canvas');
         this._canvas.className = 'pv-canvas';
-        this._applyStyles(this._canvas, {position: 'absolute', left: '0', top: '0'});
         this._stage.appendChild(this._canvas);
         this._ctx = this._canvas.getContext('2d');
+
+        // Divider (will be shown when editor is active)
+        this._divider = document.createElement('div');
+        this._divider.className = 'pv-layout-divider';
+        this._divider.style.display = 'none';
+        this._divider.setAttribute('role', 'separator');
+        this._divider.setAttribute('aria-orientation', 'vertical');
+        this._divider.setAttribute('tabindex', '0');
+        this._root.appendChild(this._divider);
+
+        // JSON editor container (right/bottom pane, created later if needed)
+        this._jsonEditorContainer = null;
     }
 
     _renderUI() {
@@ -1900,7 +2048,8 @@ class PetriView extends HTMLElement {
 
     // ---------------- drawing ----------------
     _onResize() {
-        const rect = this._root.getBoundingClientRect();
+        // Use canvas container rect instead of root rect
+        const rect = this._canvasContainer ? this._canvasContainer.getBoundingClientRect() : this._root.getBoundingClientRect();
         const w = Math.max(300, Math.floor(rect.width));
         const h = Math.max(200, Math.floor(rect.height));
         this._canvas.width = Math.floor(w * this._dpr);
@@ -1920,7 +2069,7 @@ class PetriView extends HTMLElement {
 
     _draw() {
         const ctx = this._ctx;
-        const rootRect = this._root.getBoundingClientRect();
+        const rootRect = this._canvasContainer ? this._canvasContainer.getBoundingClientRect() : this._root.getBoundingClientRect();
         const width = this._canvas.width / this._dpr;
         const height = this._canvas.height / this._dpr;
         ctx.clearRect(0, 0, width, height);
@@ -2340,9 +2489,23 @@ class PetriView extends HTMLElement {
             this._jsonEditor.remove();
         } catch {
         }
+        
+        // Hide the divider
+        if (this._divider) {
+            this._divider.style.display = 'none';
+        }
+        
+        // Reset canvas container to full size
+        if (this._canvasContainer) {
+            this._canvasContainer.style.flex = '1 1 auto';
+        }
+        
         this._jsonEditor = null;
         this._jsonEditorTextarea = null;
         this._editingJson = false;
+        
+        // Trigger resize
+        this._onResize();
     }
 
     _updateJsonEditor() {
@@ -2401,17 +2564,17 @@ class PetriView extends HTMLElement {
     // ---------------- global root events (mouse, wheel, pan, keys) ----------------
     _wireRootEvents() {
         // mouse tracking for arc draft
-        this._root.addEventListener('pointermove', (e) => {
-            const r = this._root.getBoundingClientRect();
+        this._canvasContainer.addEventListener('pointermove', (e) => {
+            const r = this._canvasContainer.getBoundingClientRect();
             this._mouse.x = Math.round(e.clientX - r.left);
             this._mouse.y = Math.round(e.clientY - r.top);
             if (this._arcDraft) this._draw();
         });
 
         // wheel zoom
-        this._root.addEventListener('wheel', (e) => {
+        this._canvasContainer.addEventListener('wheel', (e) => {
             e.preventDefault();
-            const r = this._root.getBoundingClientRect();
+            const r = this._canvasContainer.getBoundingClientRect();
             const mx = e.clientX - r.left, my = e.clientY - r.top;
             const prev = this._view.scale;
             const next = Math.max(this._minScale, Math.min(this._maxScale, prev * (e.deltaY < 0 ? 1.1 : 0.9)));
@@ -2478,9 +2641,9 @@ class PetriView extends HTMLElement {
         });
 
         // panning pointer down/move/up
-        this._root.addEventListener('pointerdown', (e) => {
+        this._canvasContainer.addEventListener('pointerdown', (e) => {
             // If so, allow left-button drag to pan even without modifiers.
-            const interactiveSelector = '.pv-node, .pv-weight, .pv-menu, .pv-json-editor, .pv-scale-meter, .pv-json-textarea, .pv-tool, .pv-play';
+            const interactiveSelector = '.pv-node, .pv-weight, .pv-menu, .pv-json-editor, .pv-scale-meter, .pv-json-textarea, .pv-tool, .pv-play, .pv-layout-divider';
             const clickedInteractive = !!e.target.closest && e.target.closest(interactiveSelector);
             const leftButton = e.button === 0;
 
@@ -2496,22 +2659,22 @@ class PetriView extends HTMLElement {
                     ty: this._view.ty,
                     pointerId: e.pointerId
                 };
-                // set grabbing cursor during pan (apply to root and body to ensure coverage)
+                // set grabbing cursor during pan (apply to canvas container and body to ensure coverage)
                 try {
-                    this._root.style.cursor = 'grabbing';
+                    this._canvasContainer.style.cursor = 'grabbing';
                     document.body.style.cursor = 'grabbing';
                 } catch { /* ignore */
                 }
 
-                // capture pointer on root so we receive move/up outside it
+                // capture pointer on canvas container so we receive move/up outside it
                 try {
-                    if (this._root.setPointerCapture) this._root.setPointerCapture(e.pointerId);
+                    if (this._canvasContainer.setPointerCapture) this._canvasContainer.setPointerCapture(e.pointerId);
                 } catch { /* ignore */
                 }
             }
         });
 
-        this._root.addEventListener('pointermove', (e) => {
+        this._canvasContainer.addEventListener('pointermove', (e) => {
             if (!this._panning) return;
             this._view.tx = this._panning.tx + (e.clientX - this._panning.x);
             this._view.ty = this._panning.ty + (e.clientY - this._panning.y);
@@ -2523,14 +2686,14 @@ class PetriView extends HTMLElement {
             if (!this._panning) return;
             // release pointer capture if set
             try {
-                if (this._root.releasePointerCapture) this._root.releasePointerCapture(this._panning.pointerId ?? e.pointerId);
+                if (this._canvasContainer.releasePointerCapture) this._canvasContainer.releasePointerCapture(this._panning.pointerId ?? e.pointerId);
             } catch { /* ignore */
             }
 
             this._panning = null;
             // restore cursor
             try {
-                this._root.style.cursor = '';
+                this._canvasContainer.style.cursor = '';
                 document.body.style.cursor = '';
             } catch { /* ignore */
             }
@@ -2539,8 +2702,8 @@ class PetriView extends HTMLElement {
             // this._pushHistory();
         };
 
-        this._root.addEventListener('pointerup', endPan);
-        this._root.addEventListener('pointercancel', endPan);
+        this._canvasContainer.addEventListener('pointerup', endPan);
+        this._canvasContainer.addEventListener('pointercancel', endPan);
     }
 
     _getStorageKey() {

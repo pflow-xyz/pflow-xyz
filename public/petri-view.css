@@ -12,6 +12,15 @@ petri-view {
     font-family: system-ui, Arial;
     background: #fafafa;
     overflow: hidden;
+    display: flex;
+    flex-direction: row;
+}
+
+/* Responsive: stack vertically on small screens */
+@media (max-width: 800px) {
+    .pv-root {
+        flex-direction: column;
+    }
 }
 
 canvas.pv-canvas {
@@ -161,4 +170,96 @@ canvas.pv-canvas {
 
 .pv-label-editable:hover {
     outline-color: rgba(0, 120, 215, 0.9);
+}
+
+/* Layout: Canvas container and JSON editor as peers */
+.pv-canvas-container {
+    flex: 1 1 auto;
+    min-width: 200px;
+    min-height: 150px;
+    position: relative;
+    overflow: hidden;
+    background: #fafafa;
+}
+
+.pv-stage {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    transform-origin: 0 0;
+}
+
+/* Divider between canvas and editor */
+.pv-layout-divider {
+    flex: 0 0 8px;
+    background: linear-gradient(90deg, #e0e0e0 0%, #f0f0f0 50%, #e0e0e0 100%);
+    cursor: col-resize;
+    position: relative;
+    z-index: 50;
+    transition: background 0.2s;
+}
+
+.pv-layout-divider:hover,
+.pv-layout-divider:active {
+    background: linear-gradient(90deg, #c0c0c0 0%, #d0d0d0 50%, #c0c0c0 100%);
+}
+
+.pv-layout-divider::before {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 3px;
+    height: 40px;
+    background: rgba(0, 0, 0, 0.15);
+    border-radius: 2px;
+}
+
+/* Vertical divider for stacked layout */
+@media (max-width: 800px) {
+    .pv-layout-divider {
+        flex: 0 0 8px;
+        cursor: row-resize;
+    }
+    
+    .pv-layout-divider::before {
+        width: 40px;
+        height: 3px;
+    }
+    
+    .pv-canvas-container {
+        min-height: 150px;
+        min-width: 100px;
+    }
+}
+
+/* JSON Editor as peer component */
+.pv-json-editor {
+    flex: 1 1 auto;
+    min-width: 200px;
+    min-height: 150px;
+    padding: 12px;
+    background: rgba(250, 250, 250, 0.98);
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    overflow: auto;
+    border-radius: 0;
+    box-shadow: none;
+    position: relative;
+    z-index: 10;
+}
+
+/* Override fixed positioning when in split layout */
+.pv-root .pv-json-editor {
+    position: relative;
+    left: auto;
+    right: auto;
+    bottom: auto;
+    height: auto;
+    max-height: none;
 }
