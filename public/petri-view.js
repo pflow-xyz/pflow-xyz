@@ -2343,16 +2343,28 @@ class PetriView extends HTMLElement {
         }, {passive: false});
 
         window.addEventListener('keydown', (e) => {
+            // Check if user is typing in an input/textarea to avoid interfering
+            const activeEl = document.activeElement;
+            const isTyping = activeEl && (
+                activeEl.tagName === 'INPUT' || 
+                activeEl.tagName === 'TEXTAREA' || 
+                activeEl.isContentEditable
+            );
+
             if (e.key === ' ') this._spaceDown = true;
             if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z') {
-                e.preventDefault();
-                if (e.shiftKey) this._redoAction(); else this._undoAction();
+                if (!isTyping) {
+                    e.preventDefault();
+                    if (e.shiftKey) this._redoAction(); else this._undoAction();
+                }
             }
 
             if (e.key && e.key.toLowerCase() === 'x') {
-                e.preventDefault();
-                this._setSimulation(!this._simRunning);
-                return;
+                if (!isTyping) {
+                    e.preventDefault();
+                    this._setSimulation(!this._simRunning);
+                    return;
+                }
             }
 
             if (e.key === 'Escape') {
@@ -2378,7 +2390,7 @@ class PetriView extends HTMLElement {
                 '5': 'add-token',
                 '6': 'delete'
             };
-            if (map[e.key]) this._setMode(map[e.key]);
+            if (map[e.key] && !isTyping) this._setMode(map[e.key]);
         });
         window.addEventListener('keyup', (e) => {
             if (e.key === ' ') this._spaceDown = false;
