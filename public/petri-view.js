@@ -661,40 +661,6 @@ class PetriView extends HTMLElement {
 
         // Removed the JSON Editor title and header close button per request.
 
-        // Add simple toolbar for when Ace is not available
-        const simpleToolbar = document.createElement('div');
-        simpleToolbar.className = 'pv-simple-toolbar';
-        this._applyStyles(simpleToolbar, {
-            display: 'flex',
-            gap: '6px',
-            marginBottom: '8px'
-        });
-
-        const makeSimpleBtn = (txt, title) => {
-            const b = document.createElement('button');
-            b.type = 'button';
-            b.textContent = txt;
-            b.title = title;
-            this._applyStyles(b, {
-                padding: '6px 10px',
-                borderRadius: '4px',
-                border: '1px solid #ddd',
-                background: '#fff',
-                cursor: 'pointer',
-                fontSize: '12px'
-            });
-            return b;
-        };
-
-        const openUrlBtnSimple = makeSimpleBtn('🌐 Open URL', 'Load JSON-LD from URL');
-        openUrlBtnSimple.addEventListener('click', (e) => {
-            e.stopPropagation();
-            this._showOpenUrlDialog(null);
-        });
-
-        simpleToolbar.appendChild(openUrlBtnSimple);
-        container.appendChild(simpleToolbar);
-
         const textarea = document.createElement('textarea');
         textarea.className = 'pv-json-textarea';
         this._applyStyles(textarea, {
