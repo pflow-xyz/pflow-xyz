@@ -384,8 +384,8 @@ class PetriView extends HTMLElement {
         // Compute SHA256 digest
         const digest = await sha256.digest(bytes);
         
-        // Create CIDv1 with raw codec (0x55)
-        const cid = CID.create(1, 0x55, digest);
+        // Create CIDv1 with dag-json codec (0x0129) for IPLD
+        const cid = CID.create(1, 0x0129, digest);
         
         // Encode as base58btc (starts with 'z')
         const cidStr = cid.toString(base58btc);
