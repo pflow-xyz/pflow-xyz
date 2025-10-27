@@ -340,83 +340,119 @@ class PetriView extends HTMLElement {
         this._aceEditorContainer = editorWrapper;
     }
 
-    // Load jsonld library if not already loaded
-    async _loadJsonLdLibrary() {
-        if (window.jsonld) return;
-        const jsonldCdn = 'https://cdn.jsdelivr.net/npm/jsonld@8.3.2/dist/jsonld.min.js';
-        await this._loadScript(jsonldCdn, 'jsonld');
-    }
+    // Base58 alphabet for base58btc encoding
+    _base58Alphabet = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
 
-    // Load multiformats library if not already loaded
-    async _loadMultiformatsLibrary() {
-        if (window.multiformats) return;
-        const multiformatsCdn = 'https://cdn.jsdelivr.net/npm/multiformats@13.1.0/dist/index.min.js';
-        await this._loadScript(multiformatsCdn, 'multiformats');
-    }
-
-    // Normalize JSON-LD document to N-Quads using URDNA2015
-    async _normalizeJsonLdToNQuads(doc) {
-        await this._loadJsonLdLibrary();
-        if (!window.jsonld) {
-            throw new Error('JSON-LD library not available');
-        }
-        const nquads = await window.jsonld.normalize(doc, {
-            algorithm: 'URDNA2015',
-            format: 'application/n-quads'
-        });
-        return nquads;
-    }
-
-    // Compute base58btc CID from N-Quads string
-    async _computeBase58CidFromNQuads(nquads) {
-        await this._loadMultiformatsLibrary();
-        if (!window.multiformats) {
-            throw new Error('Multiformats library not available');
+    // Encode bytes to base58btc
+    _encodeBase58(bytes) {
+        const alphabet = this._base58Alphabet;
+        let num = 0n;
+        
+        // Convert bytes to big integer
+        for (let i = 0; i < bytes.length; i++) {
+            num = num * 256n + BigInt(bytes[i]);
         }
         
-        const { sha256 } = window.multiformats.hashes;
-        const { CID } = window.multiformats;
-        const { base58btc } = window.multiformats.bases;
+        // Convert to base58
+        let encoded = '';
+        while (num > 0n) {
+            const remainder = num % 58n;
+            num = num / 58n;
+            encoded = alphabet[Number(remainder)] + encoded;
+        }
         
-        // Encode N-Quads to bytes
-        const bytes = new TextEncoder().encode(nquads);
+        // Add leading 1s for leading zero bytes
+        for (let i = 0; i < bytes.length && bytes[i] === 0; i++) {
+            encoded = '1' + encoded;
+        }
         
-        // Compute SHA256 digest
-        const digest = await sha256.digest(bytes);
+        return encoded;
+    }
+
+    // Compute SHA256 hash using Web Crypto API
+    async _sha256(data) {
+        const encoder = new TextEncoder();
+        const bytes = typeof data === 'string' ? encoder.encode(data) : data;
+        const hashBuffer = await crypto.subtle.digest('SHA-256', bytes);
+        return new Uint8Array(hashBuffer);
+    }
+
+    // Create CIDv1 bytes with multicodec and multihash
+    _createCIDv1Bytes(codec, hash) {
+        // CIDv1 format: <version><codec><multihash>
+        // version = 0x01
+        // codec = 0x0129 (dag-json) = [0x01, 0x29] in varint encoding
+        // multihash = <hash-type><hash-length><hash-bytes>
+        //   hash-type = 0x12 (sha2-256)
+        //   hash-length = 0x20 (32 bytes)
         
-        // Create CIDv1 with dag-json codec (0x0129) for IPLD
-        const cid = CID.create(1, 0x0129, digest);
+        const version = 0x01;
+        const codecBytes = codec === 0x0129 ? [0x01, 0x29] : [codec];
+        const hashType = 0x12; // sha2-256
+        const hashLength = hash.length;
         
-        // Encode as base58btc (starts with 'z')
-        const cidStr = cid.toString(base58btc);
-        return cidStr;
+        const cidBytes = new Uint8Array(1 + codecBytes.length + 2 + hash.length);
+        let offset = 0;
+        
+        cidBytes[offset++] = version;
+        for (const b of codecBytes) {
+            cidBytes[offset++] = b;
+        }
+        cidBytes[offset++] = hashType;
+        cidBytes[offset++] = hashLength;
+        for (let i = 0; i < hash.length; i++) {
+            cidBytes[offset++] = hash[i];
+        }
+        
+        return cidBytes;
+    }
+
+    // Canonicalize JSON document to deterministic string
+    _canonicalizeJSON(doc) {
+        // Simple canonical JSON serialization
+        // Sort object keys recursively and use consistent formatting
+        const canonicalize = (obj) => {
+            if (obj === null || typeof obj !== 'object') {
+                return JSON.stringify(obj);
+            }
+            
+            if (Array.isArray(obj)) {
+                return '[' + obj.map(item => canonicalize(item)).join(',') + ']';
+            }
+            
+            // Sort keys and build object
+            const keys = Object.keys(obj).sort();
+            const pairs = keys.map(key => {
+                return JSON.stringify(key) + ':' + canonicalize(obj[key]);
+            });
+            return '{' + pairs.join(',') + '}';
+        };
+        
+        return canonicalize(doc);
     }
 
     // Compute CID for a JSON-LD document
     async _computeCidForJsonLd(doc) {
-        const nquads = await this._normalizeJsonLdToNQuads(doc);
-        const cid = await this._computeBase58CidFromNQuads(nquads);
+        // 1. Canonicalize the JSON document
+        const canonical = this._canonicalizeJSON(doc);
+        
+        // 2. Compute SHA256 hash
+        const hash = await this._sha256(canonical);
+        
+        // 3. Create CIDv1 with dag-json codec (0x0129)
+        const cidBytes = this._createCIDv1Bytes(0x0129, hash);
+        
+        // 4. Encode as base58btc (prepend 'z' for base58btc multibase)
+        const base58 = this._encodeBase58(cidBytes);
+        const cid = 'z' + base58;
+        
         return cid;
     }
 
     // Validate if the given document is valid JSON-LD
     async _isValidJsonLd(doc) {
-        try {
-            await this._loadJsonLdLibrary();
-            if (window.jsonld) {
-                // Use jsonld.expand for strict validation when library is available
-                await window.jsonld.expand(doc);
-                return true;
-            } else {
-                // Fallback: basic structural validation when library is not available
-                console.warn('JSON-LD library not available, using basic validation');
-                return this._basicJsonLdValidation(doc);
-            }
-        } catch (err) {
-            console.error('JSON-LD validation error:', err);
-            // If expand fails, try basic validation as fallback
-            return this._basicJsonLdValidation(doc);
-        }
+        // Use basic structural validation
+        return this._basicJsonLdValidation(doc);
     }
 
     // Basic JSON-LD validation (fallback when jsonld library is not available)
