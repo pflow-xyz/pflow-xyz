@@ -212,20 +212,40 @@ class PetriView extends HTMLElement {
             this._showOpenUrlDialog(editor);
         });
 
-        // wire download button: download current editor text as JSON file
-        dlBtn.addEventListener('click', (e) => {
+        // wire download button: compute CID, inject @id, download as {cid}.jsonld
+        dlBtn.addEventListener('click', async (e) => {
             e.stopPropagation();
+            
+            // Disable button and show loading state
+            const originalText = dlBtn.textContent;
+            dlBtn.disabled = true;
+            dlBtn.textContent = '⏳ Computing CID...';
+            
             try {
                 const txt = editor.session.getValue();
-                const blob = new Blob([txt], {type: 'application/json'});
+                const doc = JSON.parse(txt);
+                
+                // Compute CID from the document (without @id to avoid self-reference)
+                const cid = await this._computeCidForJsonLd(doc);
+                
+                // Inject @id with ipfs:// scheme
+                const docWithId = { ...doc, '@id': `ipfs://${cid}` };
+                
+                // Create download blob
+                const blob = new Blob([JSON.stringify(docWithId, null, 2)], {
+                    type: 'application/ld+json'
+                });
                 const a = document.createElement('a');
-                const filename = (this.getAttribute('id') || 'petri-net') + '.json';
                 a.href = URL.createObjectURL(blob);
-                a.download = filename;
+                a.download = `${cid}.jsonld`;
                 a.click();
                 URL.revokeObjectURL(a.href);
             } catch (err) {
                 alert('Download failed: ' + (err && err.message ? err.message : String(err)));
+            } finally {
+                // Restore button state
+                dlBtn.disabled = false;
+                dlBtn.textContent = originalText;
             }
         });
 
@@ -318,6 +338,58 @@ class PetriView extends HTMLElement {
         if (window.jsonld) return;
         const jsonldCdn = 'https://cdn.jsdelivr.net/npm/jsonld@8.3.2/dist/jsonld.min.js';
         await this._loadScript(jsonldCdn);
+    }
+
+    // Load multiformats library if not already loaded
+    async _loadMultiformatsLibrary() {
+        if (window.multiformats) return;
+        const multiformatsCdn = 'https://cdn.jsdelivr.net/npm/multiformats@13.1.0/dist/index.min.js';
+        await this._loadScript(multiformatsCdn);
+    }
+
+    // Normalize JSON-LD document to N-Quads using URDNA2015
+    async _normalizeJsonLdToNQuads(doc) {
+        await this._loadJsonLdLibrary();
+        if (!window.jsonld) {
+            throw new Error('JSON-LD library not available');
+        }
+        const nquads = await window.jsonld.normalize(doc, {
+            algorithm: 'URDNA2015',
+            format: 'application/n-quads'
+        });
+        return nquads;
+    }
+
+    // Compute base58btc CID from N-Quads string
+    async _computeBase58CidFromNQuads(nquads) {
+        await this._loadMultiformatsLibrary();
+        if (!window.multiformats) {
+            throw new Error('Multiformats library not available');
+        }
+        
+        const { sha256 } = window.multiformats.hashes;
+        const { CID } = window.multiformats;
+        const { base58btc } = window.multiformats.bases;
+        
+        // Encode N-Quads to bytes
+        const bytes = new TextEncoder().encode(nquads);
+        
+        // Compute SHA256 digest
+        const digest = await sha256.digest(bytes);
+        
+        // Create CIDv1 with raw codec (0x55)
+        const cid = CID.create(1, 0x55, digest);
+        
+        // Encode as base58btc (starts with 'z')
+        const cidStr = cid.toString(base58btc);
+        return cidStr;
+    }
+
+    // Compute CID for a JSON-LD document
+    async _computeCidForJsonLd(doc) {
+        const nquads = await this._normalizeJsonLdToNQuads(doc);
+        const cid = await this._computeBase58CidFromNQuads(nquads);
+        return cid;
     }
 
     // Validate if the given document is valid JSON-LD
