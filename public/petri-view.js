@@ -232,8 +232,7 @@ class PetriView extends HTMLElement {
                 
                 // Compute CID from the document (without @id to avoid self-reference)
                 // Remove any existing @id before computing CID for consistency
-                const docForCid = { ...doc };
-                delete docForCid['@id'];
+                const { '@id': _, ...docForCid } = doc;
                 const cid = await this._computeCidForJsonLd(docForCid);
                 
                 // Inject @id with ipfs:// scheme
