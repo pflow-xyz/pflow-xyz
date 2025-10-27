@@ -1036,6 +1036,7 @@ class PetriView extends HTMLElement {
         this._pushHistory(true);
         this._createMenu();
         this._createScaleMeter();
+        this._createHamburgerMenu();
         if (this.hasAttribute('data-json-editor')) this._createJsonEditor();
 
         this._ro = new ResizeObserver(() => this._onResize());
@@ -2545,6 +2546,120 @@ class PetriView extends HTMLElement {
         this._scaleMeter._fill.style.height = `${pct}%`;
         this._scaleMeter._thumb.style.bottom = `${pct}%`;
         this._scaleMeter._label.textContent = `${s.toFixed(2)}x`;
+    }
+
+    // ---------------- hamburger menu ----------------
+    _createHamburgerMenu() {
+        if (this._hamburgerMenu) return;
+        
+        const menuBtn = document.createElement('button');
+        menuBtn.type = 'button';
+        menuBtn.className = 'pv-hamburger-btn';
+        menuBtn.innerHTML = '☰';
+        menuBtn.title = 'Menu';
+        this._applyStyles(menuBtn, {
+            position: 'absolute',
+            top: '10px',
+            right: '10px',
+            width: '40px',
+            height: '40px',
+            borderRadius: '6px',
+            border: 'none',
+            background: 'rgba(255, 255, 255, 0.9)',
+            boxShadow: '0 2px 6px rgba(0, 0, 0, 0.15)',
+            cursor: 'pointer',
+            fontSize: '20px',
+            zIndex: 1300,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            userSelect: 'none',
+            transition: 'background 0.2s'
+        });
+
+        const dropdown = document.createElement('div');
+        dropdown.className = 'pv-hamburger-dropdown';
+        dropdown.style.display = 'none';
+        this._applyStyles(dropdown, {
+            position: 'absolute',
+            top: '55px',
+            right: '10px',
+            minWidth: '180px',
+            background: 'rgba(255, 255, 255, 0.98)',
+            borderRadius: '8px',
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)',
+            zIndex: 1300,
+            padding: '6px 0',
+            userSelect: 'none'
+        });
+
+        const makeMenuItem = (text, onClick) => {
+            const item = document.createElement('div');
+            item.className = 'pv-menu-item';
+            item.textContent = text;
+            this._applyStyles(item, {
+                padding: '10px 16px',
+                cursor: 'pointer',
+                fontSize: '14px',
+                fontFamily: 'system-ui, Arial',
+                transition: 'background 0.15s'
+            });
+            item.addEventListener('mouseenter', () => {
+                item.style.background = 'rgba(0, 0, 0, 0.05)';
+            });
+            item.addEventListener('mouseleave', () => {
+                item.style.background = 'transparent';
+            });
+            item.addEventListener('click', (e) => {
+                e.stopPropagation();
+                onClick();
+                dropdown.style.display = 'none';
+            });
+            return item;
+        };
+
+        // Add menu items
+        const toggleEditorItem = makeMenuItem('📝 Toggle Editor', () => {
+            if (this.hasAttribute('data-json-editor')) {
+                this.removeAttribute('data-json-editor');
+            } else {
+                this.setAttribute('data-json-editor', '');
+            }
+        });
+        dropdown.appendChild(toggleEditorItem);
+
+        const downloadItem = makeMenuItem('📥 Download JSON', () => {
+            this.downloadJSON();
+        });
+        dropdown.appendChild(downloadItem);
+
+        // Toggle dropdown on button click
+        menuBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const isVisible = dropdown.style.display !== 'none';
+            dropdown.style.display = isVisible ? 'none' : 'block';
+        });
+
+        // Close dropdown when clicking outside
+        const closeDropdown = (e) => {
+            if (!menuBtn.contains(e.target) && !dropdown.contains(e.target)) {
+                dropdown.style.display = 'none';
+            }
+        };
+        document.addEventListener('click', closeDropdown);
+
+        menuBtn.addEventListener('mouseenter', () => {
+            menuBtn.style.background = 'rgba(255, 255, 255, 1)';
+        });
+        menuBtn.addEventListener('mouseleave', () => {
+            menuBtn.style.background = 'rgba(255, 255, 255, 0.9)';
+        });
+
+        this._root.appendChild(menuBtn);
+        this._root.appendChild(dropdown);
+        
+        this._hamburgerMenu = menuBtn;
+        this._hamburgerDropdown = dropdown;
     }
 
     _removeJsonEditor() {
