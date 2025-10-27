@@ -125,10 +125,12 @@ class PetriView extends HTMLElement {
         };
 
         const findBtn = makeBtn('🔍 Find', 'Open find ( Ace searchbox )');
+        const openUrlBtn = makeBtn('🌐 Open URL', 'Load JSON-LD from URL');
         const dlBtn = makeBtn('📥 Download', 'Download current JSON');
         const fsBtn = makeBtn('🔳 Full ⤢', 'Toggle fullscreen');
         const closeBtn = makeBtn('❌ Close', 'Close editor'); // moved close into ace toolbar
         toolbar.appendChild(findBtn);
+        toolbar.appendChild(openUrlBtn);
         toolbar.appendChild(dlBtn);
         toolbar.appendChild(fsBtn);
         toolbar.appendChild(closeBtn);
@@ -202,6 +204,12 @@ class PetriView extends HTMLElement {
             } catch {
                 alert('Find command unavailable');
             }
+        });
+
+        // wire Open URL button: show dialog to load JSON-LD from URL
+        openUrlBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this._showOpenUrlDialog(editor);
         });
 
         // wire download button: download current editor text as JSON file
@@ -303,6 +311,328 @@ class PetriView extends HTMLElement {
         // store refs for cleanup
         this._aceEditor = editor;
         this._aceEditorContainer = editorWrapper;
+    }
+
+    // Load jsonld library if not already loaded
+    async _loadJsonLdLibrary() {
+        if (window.jsonld) return;
+        const jsonldCdn = 'https://cdn.jsdelivr.net/npm/jsonld@8.3.2/dist/jsonld.min.js';
+        await this._loadScript(jsonldCdn);
+    }
+
+    // Validate if the given document is valid JSON-LD
+    async _isValidJsonLd(doc) {
+        try {
+            await this._loadJsonLdLibrary();
+            if (window.jsonld) {
+                // Use jsonld.expand for strict validation when library is available
+                await window.jsonld.expand(doc);
+                return true;
+            } else {
+                // Fallback: basic structural validation when library is not available
+                console.warn('JSON-LD library not available, using basic validation');
+                return this._basicJsonLdValidation(doc);
+            }
+        } catch (err) {
+            console.error('JSON-LD validation error:', err);
+            // If expand fails, try basic validation as fallback
+            return this._basicJsonLdValidation(doc);
+        }
+    }
+
+    // Basic JSON-LD validation (fallback when jsonld library is not available)
+    _basicJsonLdValidation(doc) {
+        if (!doc || typeof doc !== 'object') {
+            return false;
+        }
+        // Check for JSON-LD indicators: @context, @graph, @id, or @type
+        return !!(doc['@context'] || doc['@graph'] || doc['@id'] || doc['@type']);
+    }
+
+    // Fetch URL with custom headers
+    async _fetchWithHeaders(url, headers = {}) {
+        const res = await fetch(url, {
+            method: 'GET',
+            headers,
+            mode: 'cors',
+        });
+        if (!res.ok) {
+            const text = await res.text().catch(() => '');
+            throw new Error(`Fetch failed: ${res.status} ${res.statusText}${text ? ' - ' + text : ''}`);
+        }
+        const json = await res.json();
+        return json;
+    }
+
+    // Show dialog to open URL with optional headers
+    _showOpenUrlDialog(editor) {
+        // Create modal overlay
+        const overlay = document.createElement('div');
+        overlay.className = 'pv-url-dialog-overlay';
+        this._applyStyles(overlay, {
+            position: 'fixed',
+            left: '0',
+            top: '0',
+            right: '0',
+            bottom: '0',
+            background: 'rgba(0, 0, 0, 0.5)',
+            zIndex: 2147483646,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '20px'
+        });
+
+        // Create dialog
+        const dialog = document.createElement('div');
+        dialog.className = 'pv-url-dialog';
+        this._applyStyles(dialog, {
+            background: '#fff',
+            borderRadius: '8px',
+            padding: '20px',
+            maxWidth: '600px',
+            width: '100%',
+            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)',
+            maxHeight: '80vh',
+            overflow: 'auto'
+        });
+
+        // Title
+        const title = document.createElement('h3');
+        title.textContent = 'Open JSON-LD from URL';
+        this._applyStyles(title, {
+            margin: '0 0 16px 0',
+            fontSize: '18px',
+            fontWeight: 'bold'
+        });
+        dialog.appendChild(title);
+
+        // URL input
+        const urlLabel = document.createElement('label');
+        urlLabel.textContent = 'URL:';
+        this._applyStyles(urlLabel, {
+            display: 'block',
+            marginBottom: '6px',
+            fontSize: '14px',
+            fontWeight: '500'
+        });
+        dialog.appendChild(urlLabel);
+
+        const urlInput = document.createElement('input');
+        urlInput.type = 'text';
+        urlInput.placeholder = 'https://pflow.xyz/ld/data/test.jsonld';
+        this._applyStyles(urlInput, {
+            width: '100%',
+            padding: '8px',
+            fontSize: '14px',
+            border: '1px solid #ccc',
+            borderRadius: '4px',
+            boxSizing: 'border-box',
+            marginBottom: '16px'
+        });
+        dialog.appendChild(urlInput);
+
+        // Headers section
+        const headersLabel = document.createElement('label');
+        headersLabel.textContent = 'Custom Headers (optional):';
+        this._applyStyles(headersLabel, {
+            display: 'block',
+            marginBottom: '8px',
+            fontSize: '14px',
+            fontWeight: '500'
+        });
+        dialog.appendChild(headersLabel);
+
+        const headersContainer = document.createElement('div');
+        this._applyStyles(headersContainer, {
+            marginBottom: '16px'
+        });
+        dialog.appendChild(headersContainer);
+
+        // Array to track header inputs
+        const headerRows = [];
+
+        const addHeaderRow = (key = '', value = '') => {
+            const row = document.createElement('div');
+            this._applyStyles(row, {
+                display: 'flex',
+                gap: '8px',
+                marginBottom: '8px',
+                alignItems: 'center'
+            });
+
+            const keyInput = document.createElement('input');
+            keyInput.type = 'text';
+            keyInput.placeholder = 'Header name';
+            this._applyStyles(keyInput, {
+                flex: '1',
+                padding: '6px',
+                fontSize: '13px',
+                border: '1px solid #ccc',
+                borderRadius: '4px'
+            });
+            keyInput.value = key;
+
+            const valueInput = document.createElement('input');
+            valueInput.type = 'text';
+            valueInput.placeholder = 'Header value';
+            this._applyStyles(valueInput, {
+                flex: '1',
+                padding: '6px',
+                fontSize: '13px',
+                border: '1px solid #ccc',
+                borderRadius: '4px'
+            });
+            valueInput.value = value;
+
+            const removeBtn = document.createElement('button');
+            removeBtn.textContent = '✕';
+            removeBtn.type = 'button';
+            this._applyStyles(removeBtn, {
+                padding: '6px 10px',
+                border: '1px solid #ccc',
+                borderRadius: '4px',
+                background: '#f5f5f5',
+                cursor: 'pointer',
+                fontSize: '14px'
+            });
+            removeBtn.addEventListener('click', () => {
+                headersContainer.removeChild(row);
+                const idx = headerRows.indexOf(row);
+                if (idx > -1) headerRows.splice(idx, 1);
+            });
+
+            row.appendChild(keyInput);
+            row.appendChild(valueInput);
+            row.appendChild(removeBtn);
+            headersContainer.appendChild(row);
+            headerRows.push({row, keyInput, valueInput});
+            return row;
+        };
+
+        // Add initial empty header row
+        addHeaderRow();
+
+        // Add header button
+        const addHeaderBtn = document.createElement('button');
+        addHeaderBtn.textContent = '+ Add Header';
+        addHeaderBtn.type = 'button';
+        this._applyStyles(addHeaderBtn, {
+            padding: '6px 12px',
+            border: '1px solid #ccc',
+            borderRadius: '4px',
+            background: '#f5f5f5',
+            cursor: 'pointer',
+            fontSize: '13px',
+            marginBottom: '16px'
+        });
+        addHeaderBtn.addEventListener('click', () => addHeaderRow());
+        dialog.appendChild(addHeaderBtn);
+
+        // Buttons
+        const buttonContainer = document.createElement('div');
+        this._applyStyles(buttonContainer, {
+            display: 'flex',
+            gap: '10px',
+            justifyContent: 'flex-end'
+        });
+
+        const cancelBtn = document.createElement('button');
+        cancelBtn.textContent = 'Cancel';
+        cancelBtn.type = 'button';
+        this._applyStyles(cancelBtn, {
+            padding: '8px 16px',
+            border: '1px solid #ccc',
+            borderRadius: '4px',
+            background: '#f5f5f5',
+            cursor: 'pointer',
+            fontSize: '14px'
+        });
+        cancelBtn.addEventListener('click', () => {
+            document.body.removeChild(overlay);
+        });
+
+        const loadBtn = document.createElement('button');
+        loadBtn.textContent = 'Load';
+        loadBtn.type = 'button';
+        this._applyStyles(loadBtn, {
+            padding: '8px 16px',
+            border: '1px solid #007bff',
+            borderRadius: '4px',
+            background: '#007bff',
+            color: '#fff',
+            cursor: 'pointer',
+            fontSize: '14px'
+        });
+        loadBtn.addEventListener('click', async () => {
+            const url = urlInput.value.trim();
+            if (!url) {
+                alert('Please enter a URL');
+                return;
+            }
+
+            // Collect headers
+            const headers = {};
+            headerRows.forEach(({keyInput, valueInput}) => {
+                const k = keyInput.value.trim();
+                const v = valueInput.value.trim();
+                if (k && v) {
+                    headers[k] = v;
+                }
+            });
+
+            // Show loading state
+            loadBtn.disabled = true;
+            loadBtn.textContent = 'Loading...';
+
+            try {
+                // Fetch the URL
+                const json = await this._fetchWithHeaders(url, headers);
+
+                // Validate JSON-LD
+                const isValid = await this._isValidJsonLd(json);
+                if (!isValid) {
+                    alert('The fetched document is not valid JSON-LD. Please ensure the URL points to a valid JSON-LD document.');
+                    loadBtn.disabled = false;
+                    loadBtn.textContent = 'Load';
+                    return;
+                }
+
+                // Load into editor
+                const jsonStr = JSON.stringify(json, null, 2);
+                if (editor) {
+                    editor.session.setValue(jsonStr);
+                } else if (this._jsonEditorTextarea) {
+                    this._jsonEditorTextarea.value = jsonStr;
+                    this._onJsonEditorInput(false);
+                }
+
+                // Close dialog
+                document.body.removeChild(overlay);
+            } catch (err) {
+                const errorMsg = err && err.message ? err.message : String(err);
+                alert('Failed to load URL: ' + errorMsg + '\n\nNote: CORS restrictions may prevent loading from some URLs. The server must include appropriate Access-Control-Allow-Origin headers.');
+                loadBtn.disabled = false;
+                loadBtn.textContent = 'Load';
+            }
+        });
+
+        buttonContainer.appendChild(cancelBtn);
+        buttonContainer.appendChild(loadBtn);
+        dialog.appendChild(buttonContainer);
+
+        overlay.appendChild(dialog);
+        document.body.appendChild(overlay);
+
+        // Focus URL input
+        urlInput.focus();
+
+        // Close on overlay click
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) {
+                document.body.removeChild(overlay);
+            }
+        });
     }
 
     _createJsonEditor() {
@@ -1979,16 +2309,28 @@ class PetriView extends HTMLElement {
         }, {passive: false});
 
         window.addEventListener('keydown', (e) => {
+            // Check if user is typing in an input/textarea to avoid interfering
+            const activeEl = document.activeElement;
+            const isTyping = activeEl && (
+                activeEl.tagName === 'INPUT' || 
+                activeEl.tagName === 'TEXTAREA' || 
+                activeEl.isContentEditable
+            );
+
             if (e.key === ' ') this._spaceDown = true;
             if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z') {
-                e.preventDefault();
-                if (e.shiftKey) this._redoAction(); else this._undoAction();
+                if (!isTyping) {
+                    e.preventDefault();
+                    if (e.shiftKey) this._redoAction(); else this._undoAction();
+                }
             }
 
             if (e.key && e.key.toLowerCase() === 'x') {
-                e.preventDefault();
-                this._setSimulation(!this._simRunning);
-                return;
+                if (!isTyping) {
+                    e.preventDefault();
+                    this._setSimulation(!this._simRunning);
+                    return;
+                }
             }
 
             if (e.key === 'Escape') {
@@ -2014,7 +2356,7 @@ class PetriView extends HTMLElement {
                 '5': 'add-token',
                 '6': 'delete'
             };
-            if (map[e.key]) this._setMode(map[e.key]);
+            if (map[e.key] && !isTyping) this._setMode(map[e.key]);
         });
         window.addEventListener('keyup', (e) => {
             if (e.key === ' ') this._spaceDown = false;
