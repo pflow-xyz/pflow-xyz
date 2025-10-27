@@ -53,6 +53,9 @@ class PetriView extends HTMLElement {
 
         this._lastFireAt = Object.create(null);
         this._fireDebounceMs = 600; // milliseconds
+        
+        // layout breakpoint for responsive behavior
+        this._layoutBreakpoint = 800; // px - horizontal split above, vertical below
     }
 
     // observe compact flag and json editor toggle
@@ -817,12 +820,7 @@ class PetriView extends HTMLElement {
         }
         
         // Default: 50/50 split
-        const isVertical = window.innerWidth >= 800;
-        if (isVertical) {
-            this._canvasContainer.style.flex = '0 0 50%';
-        } else {
-            this._canvasContainer.style.flex = '0 0 50%';
-        }
+        this._canvasContainer.style.flex = '0 0 50%';
     }
 
     _saveDividerPosition() {
@@ -840,7 +838,7 @@ class PetriView extends HTMLElement {
         if (!this._divider) return;
         
         let isDragging = false;
-        let isVertical = window.innerWidth >= 800;
+        let isVertical = window.innerWidth >= this._layoutBreakpoint;
 
         const onPointerDown = (e) => {
             if (e.button !== 0) return; // left button only
@@ -856,7 +854,7 @@ class PetriView extends HTMLElement {
             if (!isDragging) return;
             
             const rootRect = this._root.getBoundingClientRect();
-            isVertical = window.innerWidth >= 800;
+            isVertical = window.innerWidth >= this._layoutBreakpoint;
             
             if (isVertical) {
                 // Horizontal split (side-by-side)
@@ -911,7 +909,7 @@ class PetriView extends HTMLElement {
         
         // Handle window resize to update orientation
         const handleResize = () => {
-            const newVertical = window.innerWidth >= 800;
+            const newVertical = window.innerWidth >= this._layoutBreakpoint;
             if (newVertical !== isVertical) {
                 isVertical = newVertical;
                 this._divider.style.cursor = isVertical ? 'col-resize' : 'row-resize';
