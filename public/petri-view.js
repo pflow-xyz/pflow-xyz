@@ -161,6 +161,11 @@ class PetriView extends HTMLElement {
         editorWrapper.appendChild(editorDiv);
         this._jsonEditorTextarea.parentNode.insertBefore(editorWrapper, this._jsonEditorTextarea.nextSibling);
 
+        // Hide fallback toolbar when ACE loads
+        if (this._editorToolbar) {
+            this._editorToolbar.style.display = 'none';
+        }
+
         // init ace
         const editor = window.ace.edit(editorDiv);
         editor.setTheme('ace/theme/textmate');
@@ -760,6 +765,53 @@ class PetriView extends HTMLElement {
         const container = document.createElement('div');
         container.className = 'pv-json-editor';
 
+        // Create editor toolbar (fallback, always visible)
+        const toolbar = document.createElement('div');
+        toolbar.className = 'pv-editor-toolbar';
+        this._applyStyles(toolbar, {
+            display: 'flex',
+            gap: '6px',
+            padding: '6px 8px',
+            background: 'rgba(255, 255, 255, 0.95)',
+            borderBottom: '1px solid #ddd',
+            alignItems: 'center',
+            flexWrap: 'wrap'
+        });
+
+        const makeToolbarBtn = (text, title) => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.textContent = text;
+            btn.title = title;
+            this._applyStyles(btn, {
+                padding: '6px 10px',
+                borderRadius: '4px',
+                border: '1px solid #ccc',
+                background: '#fff',
+                cursor: 'pointer',
+                fontSize: '12px',
+                fontFamily: 'system-ui, Arial'
+            });
+            return btn;
+        };
+
+        const downloadBtn = makeToolbarBtn('📥 Download', 'Download JSON');
+        downloadBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.downloadJSON();
+        });
+        toolbar.appendChild(downloadBtn);
+
+        const closeBtn = makeToolbarBtn('✖ Close', 'Close editor');
+        closeBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.removeAttribute('data-json-editor');
+        });
+        toolbar.appendChild(closeBtn);
+
+        container.appendChild(toolbar);
+        this._editorToolbar = toolbar;
+
         const textarea = document.createElement('textarea');
         textarea.className = 'pv-json-textarea';
         this._applyStyles(textarea, {
@@ -770,8 +822,9 @@ class PetriView extends HTMLElement {
             fontFamily: 'monospace',
             fontSize: '13px',
             padding: '8px',
-            borderRadius: '6px',
-            border: '1px solid #ccc'
+            borderRadius: '0',
+            border: 'none',
+            borderTop: '1px solid #ddd'
         });
         textarea.spellcheck = false;
         container.appendChild(textarea);
