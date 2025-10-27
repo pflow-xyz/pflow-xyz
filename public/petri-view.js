@@ -1080,13 +1080,29 @@ class PetriView extends HTMLElement {
         this._syncLD(true);
     }
 
-    downloadJSON(filename = 'petri-net.json') {
-        const blob = new Blob([this._stableStringify(this._model)], {type: 'application/json'});
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = filename;
-        a.click();
-        URL.revokeObjectURL(a.href);
+    async downloadJSON() {
+        try {
+            const doc = this._model;
+            
+            // Compute CID from the document (without @id to avoid self-reference)
+            const { '@id': _, ...docForCid } = doc;
+            const cid = await this._computeCidForJsonLd(docForCid);
+            
+            // Inject @id with ipfs:// scheme
+            const docWithId = { ...doc, '@id': `ipfs://${cid}` };
+            
+            // Create download blob
+            const blob = new Blob([JSON.stringify(docWithId, null, 2)], {
+                type: 'application/ld+json'
+            });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `${cid}.jsonld`;
+            a.click();
+            URL.revokeObjectURL(a.href);
+        } catch (err) {
+            alert('Download failed: ' + (err && err.message ? err.message : String(err)));
+        }
     }
 
     // ---------------- utilities ----------------
