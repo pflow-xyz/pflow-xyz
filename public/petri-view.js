@@ -324,16 +324,29 @@ class PetriView extends HTMLElement {
     async _isValidJsonLd(doc) {
         try {
             await this._loadJsonLdLibrary();
-            if (!window.jsonld) {
-                throw new Error('JSON-LD library not available');
+            if (window.jsonld) {
+                // Use jsonld.expand for strict validation when library is available
+                await window.jsonld.expand(doc);
+                return true;
+            } else {
+                // Fallback: basic structural validation when library is not available
+                console.warn('JSON-LD library not available, using basic validation');
+                return this._basicJsonLdValidation(doc);
             }
-            // jsonld.expand will throw on invalid JSON-LD
-            await window.jsonld.expand(doc);
-            return true;
         } catch (err) {
             console.error('JSON-LD validation error:', err);
+            // If expand fails, try basic validation as fallback
+            return this._basicJsonLdValidation(doc);
+        }
+    }
+
+    // Basic JSON-LD validation (fallback when jsonld library is not available)
+    _basicJsonLdValidation(doc) {
+        if (!doc || typeof doc !== 'object') {
             return false;
         }
+        // Check for JSON-LD indicators: @context, @graph, @id, or @type
+        return !!(doc['@context'] || doc['@graph'] || doc['@id'] || doc['@type']);
     }
 
     // Fetch URL with custom headers
@@ -647,6 +660,40 @@ class PetriView extends HTMLElement {
         });
 
         // Removed the JSON Editor title and header close button per request.
+
+        // Add simple toolbar for when Ace is not available
+        const simpleToolbar = document.createElement('div');
+        simpleToolbar.className = 'pv-simple-toolbar';
+        this._applyStyles(simpleToolbar, {
+            display: 'flex',
+            gap: '6px',
+            marginBottom: '8px'
+        });
+
+        const makeSimpleBtn = (txt, title) => {
+            const b = document.createElement('button');
+            b.type = 'button';
+            b.textContent = txt;
+            b.title = title;
+            this._applyStyles(b, {
+                padding: '6px 10px',
+                borderRadius: '4px',
+                border: '1px solid #ddd',
+                background: '#fff',
+                cursor: 'pointer',
+                fontSize: '12px'
+            });
+            return b;
+        };
+
+        const openUrlBtnSimple = makeSimpleBtn('🌐 Open URL', 'Load JSON-LD from URL');
+        openUrlBtnSimple.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this._showOpenUrlDialog(null);
+        });
+
+        simpleToolbar.appendChild(openUrlBtnSimple);
+        container.appendChild(simpleToolbar);
 
         const textarea = document.createElement('textarea');
         textarea.className = 'pv-json-textarea';
