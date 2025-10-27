@@ -1797,7 +1797,7 @@ class PetriView extends HTMLElement {
         this._menu.appendChild(playBtn);
         this._menuPlayBtn = playBtn;
 
-        this._root.appendChild(this._menu);
+        this._canvasContainer.appendChild(this._menu);
         this._root.addEventListener('click', (ev) => this._onRootClick(ev));
 
         // Ensure the menu reflects the current mode (e.g. default 'select') right after creation
@@ -2474,7 +2474,7 @@ class PetriView extends HTMLElement {
             dragging = false;
         });
 
-        this._root.appendChild(container);
+        this._canvasContainer.appendChild(container);
         this._scaleMeter = container;
         this._scaleMeter._label = label;
         this._scaleMeter._fill = fill;
