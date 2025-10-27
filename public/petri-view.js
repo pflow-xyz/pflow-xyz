@@ -67,12 +67,12 @@ class PetriView extends HTMLElement {
         }
     }
 
-    _loadScript(src) {
+    _loadScript(src, globalVar = 'ace') {
         return new Promise((resolve, reject) => {
-            if (window.ace) return resolve();
+            if (window[globalVar]) return resolve();
             if (document.querySelector(`script[src="${src}"]`)) {
                 // already injected but maybe not ready
-                const check = () => window.ace ? resolve() : setTimeout(check, 50);
+                const check = () => window[globalVar] ? resolve() : setTimeout(check, 50);
                 return check();
             }
             const s = document.createElement('script');
@@ -223,10 +223,18 @@ class PetriView extends HTMLElement {
             
             try {
                 const txt = editor.session.getValue();
-                const doc = JSON.parse(txt);
+                let doc;
+                try {
+                    doc = JSON.parse(txt);
+                } catch (parseErr) {
+                    throw new Error('Invalid JSON: ' + (parseErr.message || String(parseErr)));
+                }
                 
                 // Compute CID from the document (without @id to avoid self-reference)
-                const cid = await this._computeCidForJsonLd(doc);
+                // Remove any existing @id before computing CID for consistency
+                const docForCid = { ...doc };
+                delete docForCid['@id'];
+                const cid = await this._computeCidForJsonLd(docForCid);
                 
                 // Inject @id with ipfs:// scheme
                 const docWithId = { ...doc, '@id': `ipfs://${cid}` };
@@ -337,14 +345,14 @@ class PetriView extends HTMLElement {
     async _loadJsonLdLibrary() {
         if (window.jsonld) return;
         const jsonldCdn = 'https://cdn.jsdelivr.net/npm/jsonld@8.3.2/dist/jsonld.min.js';
-        await this._loadScript(jsonldCdn);
+        await this._loadScript(jsonldCdn, 'jsonld');
     }
 
     // Load multiformats library if not already loaded
     async _loadMultiformatsLibrary() {
         if (window.multiformats) return;
         const multiformatsCdn = 'https://cdn.jsdelivr.net/npm/multiformats@13.1.0/dist/index.min.js';
-        await this._loadScript(multiformatsCdn);
+        await this._loadScript(multiformatsCdn, 'multiformats');
     }
 
     // Normalize JSON-LD document to N-Quads using URDNA2015
