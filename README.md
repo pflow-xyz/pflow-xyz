@@ -2,7 +2,7 @@
 
 Lightweight web component for building, editing and simulating Petri nets in the browser.
 
-Try it out on github pages: https://pflow-xyz.github.io/pflow-xyz/
+Try it out on github pages: https://pflow-xyz.github.io/pflow-xyz/public/
 
 The component is implemented as an ES module (`public/petri-view.js`)
 and exposes a small API and events for integration.
