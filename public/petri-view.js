@@ -2631,7 +2631,7 @@ class PetriView extends HTMLElement {
                 <li><strong>⛶ Select:</strong> Default mode for panning and selecting elements</li>
                 <li><strong>◯ Place:</strong> Click to add places (token holders)</li>
                 <li><strong>▢ Transition:</strong> Click to add transitions (firing elements)</li>
-                <li><strong>→ Arc:</strong> Click source then target to create connections</li>
+                <li><strong>→ Arc:</strong> Click source then target to create connections. Right-click the target to create an inhibitor arc (prevents transition from firing when place has tokens)</li>
                 <li><strong>• Token:</strong> Click places to add/remove tokens</li>
                 <li><strong>🗑 Delete:</strong> Click elements to remove them</li>
                 <li><strong>𝓐 Label:</strong> Click elements to edit their labels</li>
@@ -2642,7 +2642,7 @@ class PetriView extends HTMLElement {
             <ul style="margin: 6px 0 12px 20px; padding: 0;">
                 <li><strong>Left-click transition:</strong> Fire it manually (if enabled)</li>
                 <li><strong>Right-click place:</strong> Add or remove tokens</li>
-                <li><strong>Right-click arc:</strong> Change weight or toggle to inhibitor arc (prevents transition from firing when place has tokens)</li>
+                <li><strong>Right-click arc:</strong> Change arc weight</li>
                 <li><strong>Drag elements:</strong> Reposition places and transitions</li>
                 <li><strong>Mouse wheel:</strong> Zoom in/out</li>
                 <li><strong>Space + drag:</strong> Pan the canvas</li>
