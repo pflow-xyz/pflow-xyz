@@ -2652,7 +2652,7 @@ class PetriView extends HTMLElement {
             <ul style="margin: 6px 0 12px 20px; padding: 0;">
                 <li><strong>JSON Editor:</strong> Toggle to edit the model as JSON-LD</li>
                 <li><strong>Scale Meter:</strong> Shows current zoom level (right side)</li>
-                <li><strong>Undo/Redo:</strong> Use Ctrl+Z / Ctrl+Y (or Cmd on Mac)</li>
+                <li><strong>Undo/Redo:</strong> Use Ctrl+Z/Ctrl+Y (Cmd+Z/Cmd+Y on Mac)</li>
                 <li><strong>Download:</strong> Export your Petri net as JSON</li>
                 <li><strong>Auto-save:</strong> Changes are saved to browser localStorage</li>
             </ul>
