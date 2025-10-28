@@ -2564,6 +2564,140 @@ class PetriView extends HTMLElement {
         this._scaleMeter._label.textContent = `${s.toFixed(2)}x`;
     }
 
+    // ---------------- help dialog ----------------
+    _showHelpDialog() {
+        // Create modal overlay
+        const overlay = document.createElement('div');
+        overlay.className = 'pv-help-dialog-overlay';
+        this._applyStyles(overlay, {
+            position: 'fixed',
+            left: '0',
+            top: '0',
+            right: '0',
+            bottom: '0',
+            background: 'rgba(0, 0, 0, 0.5)',
+            zIndex: 2147483646,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '20px'
+        });
+
+        // Create dialog
+        const dialog = document.createElement('div');
+        dialog.className = 'pv-help-dialog';
+        this._applyStyles(dialog, {
+            background: '#fff',
+            borderRadius: '8px',
+            padding: '24px',
+            maxWidth: '700px',
+            width: '100%',
+            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)',
+            maxHeight: '85vh',
+            overflow: 'auto'
+        });
+
+        // Title
+        const title = document.createElement('h2');
+        title.textContent = 'Help: Petri Net Editor';
+        this._applyStyles(title, {
+            margin: '0 0 16px 0',
+            fontSize: '22px',
+            fontWeight: 'bold',
+            color: '#333'
+        });
+        dialog.appendChild(title);
+
+        // Help content
+        const content = document.createElement('div');
+        this._applyStyles(content, {
+            fontSize: '14px',
+            lineHeight: '1.6',
+            color: '#444'
+        });
+
+        content.innerHTML = `
+            <h3 style="margin: 16px 0 8px 0; font-size: 16px; font-weight: 600; color: #000;">What are Petri Nets?</h3>
+            <p style="margin: 0 0 12px 0;">
+                Petri nets are mathematical models for describing distributed systems. They consist of <strong>places</strong> (circles) 
+                that hold tokens, <strong>transitions</strong> (rectangles) that fire to move tokens, and <strong>arcs</strong> (arrows) 
+                that connect them. When a transition fires, it consumes tokens from input places and produces tokens in output places.
+            </p>
+
+            <h3 style="margin: 16px 0 8px 0; font-size: 16px; font-weight: 600; color: #000;">Controls & Features</h3>
+            
+            <h4 style="margin: 12px 0 6px 0; font-size: 14px; font-weight: 600;">Toolbar Buttons:</h4>
+            <ul style="margin: 6px 0 12px 20px; padding: 0;">
+                <li><strong>⛶ Select:</strong> Default mode for panning and selecting elements</li>
+                <li><strong>◯ Place:</strong> Click to add places (token holders)</li>
+                <li><strong>▢ Transition:</strong> Click to add transitions (firing elements)</li>
+                <li><strong>→ Arc:</strong> Click source then target to create connections</li>
+                <li><strong>• Token:</strong> Click places to add/remove tokens</li>
+                <li><strong>🗑 Delete:</strong> Click elements to remove them</li>
+                <li><strong>𝓐 Label:</strong> Click elements to edit their labels</li>
+                <li><strong>▶ Play:</strong> Start/stop automatic simulation</li>
+            </ul>
+
+            <h4 style="margin: 12px 0 6px 0; font-size: 14px; font-weight: 600;">Mouse Actions:</h4>
+            <ul style="margin: 6px 0 12px 20px; padding: 0;">
+                <li><strong>Left-click transition:</strong> Fire it manually (if enabled)</li>
+                <li><strong>Right-click place:</strong> Add or remove tokens</li>
+                <li><strong>Right-click arc:</strong> Toggle inhibitor arc or change weight</li>
+                <li><strong>Drag elements:</strong> Reposition places and transitions</li>
+                <li><strong>Mouse wheel:</strong> Zoom in/out</li>
+                <li><strong>Space + drag:</strong> Pan the canvas</li>
+            </ul>
+
+            <h4 style="margin: 12px 0 6px 0; font-size: 14px; font-weight: 600;">Other Features:</h4>
+            <ul style="margin: 6px 0 12px 20px; padding: 0;">
+                <li><strong>JSON Editor:</strong> Toggle to edit the model as JSON-LD</li>
+                <li><strong>Scale Meter:</strong> Shows current zoom level (right side)</li>
+                <li><strong>Undo/Redo:</strong> Use Ctrl+Z / Ctrl+Y (or Cmd on Mac)</li>
+                <li><strong>Download:</strong> Export your Petri net as JSON</li>
+                <li><strong>Auto-save:</strong> Changes are saved to browser localStorage</li>
+            </ul>
+        `;
+
+        dialog.appendChild(content);
+
+        // Close button
+        const closeBtn = document.createElement('button');
+        closeBtn.textContent = 'Close';
+        closeBtn.type = 'button';
+        this._applyStyles(closeBtn, {
+            marginTop: '20px',
+            padding: '10px 24px',
+            fontSize: '14px',
+            fontWeight: '500',
+            background: '#007bff',
+            color: '#fff',
+            border: 'none',
+            borderRadius: '6px',
+            cursor: 'pointer',
+            transition: 'background 0.2s'
+        });
+        closeBtn.addEventListener('mouseenter', () => {
+            closeBtn.style.background = '#0056b3';
+        });
+        closeBtn.addEventListener('mouseleave', () => {
+            closeBtn.style.background = '#007bff';
+        });
+        closeBtn.addEventListener('click', () => {
+            document.body.removeChild(overlay);
+        });
+        dialog.appendChild(closeBtn);
+
+        overlay.appendChild(dialog);
+        document.body.appendChild(overlay);
+
+        // Close on overlay click
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) {
+                document.body.removeChild(overlay);
+            }
+        });
+    }
+
     // ---------------- hamburger menu ----------------
     _createHamburgerMenu() {
         if (this._hamburgerMenu) return;
@@ -2648,6 +2782,16 @@ class PetriView extends HTMLElement {
             this.downloadJSON();
         });
         dropdown.appendChild(downloadItem);
+
+        const helpItem = makeMenuItem('❓ Help', () => {
+            this._showHelpDialog();
+        });
+        dropdown.appendChild(helpItem);
+
+        const githubItem = makeMenuItem('🔗 GitHub', () => {
+            window.open('https://github.com/pflow-xyz/pflow-xyz', '_blank', 'noopener,noreferrer');
+        });
+        dropdown.appendChild(githubItem);
 
         // Toggle dropdown on button click
         menuBtn.addEventListener('click', (e) => {
