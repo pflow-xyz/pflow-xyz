@@ -1,8 +1,16 @@
+html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    overflow: hidden;
+}
+
 petri-view {
     display: block;
     width: 100%;
-    height: 700px;
+    height: 100vh;
     border: 1px solid #ddd;
+    box-sizing: border-box;
 }
 
 .pv-root {
@@ -12,6 +20,13 @@ petri-view {
     font-family: system-ui, Arial;
     background: #fafafa;
     overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Horizontal layout when toggled */
+.pv-root.pv-layout-horizontal {
+    flex-direction: row;
 }
 
 canvas.pv-canvas {
@@ -161,4 +176,123 @@ canvas.pv-canvas {
 
 .pv-label-editable:hover {
     outline-color: rgba(0, 120, 215, 0.9);
+}
+
+/* Layout: Canvas container and JSON editor as peers */
+.pv-canvas-container {
+    flex: 1 1 auto;
+    min-width: 200px;
+    min-height: 150px;
+    position: relative;
+    overflow: hidden;
+    background: #fafafa;
+}
+
+.pv-stage {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    transform-origin: 0 0;
+}
+
+/* Divider between canvas and editor */
+.pv-layout-divider {
+    flex: 0 0 8px;
+    background: linear-gradient(180deg, #e0e0e0 0%, #f0f0f0 50%, #e0e0e0 100%);
+    cursor: row-resize;
+    position: relative;
+    z-index: 50;
+    transition: background 0.2s;
+}
+
+.pv-layout-divider:hover,
+.pv-layout-divider:active {
+    background: linear-gradient(180deg, #c0c0c0 0%, #d0d0d0 50%, #c0c0c0 100%);
+}
+
+.pv-layout-divider::before {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 40px;
+    height: 3px;
+    background: rgba(0, 0, 0, 0.15);
+    border-radius: 2px;
+}
+
+/* Horizontal divider when layout is horizontal */
+.pv-root.pv-layout-horizontal .pv-layout-divider {
+    background: linear-gradient(90deg, #e0e0e0 0%, #f0f0f0 50%, #e0e0e0 100%);
+    cursor: col-resize;
+}
+
+.pv-root.pv-layout-horizontal .pv-layout-divider:hover,
+.pv-root.pv-layout-horizontal .pv-layout-divider:active {
+    background: linear-gradient(90deg, #c0c0c0 0%, #d0d0d0 50%, #c0c0c0 100%);
+}
+
+.pv-root.pv-layout-horizontal .pv-layout-divider::before {
+    width: 3px;
+    height: 40px;
+}
+
+/* JSON Editor as peer component */
+.pv-json-editor {
+    flex: 1 1 auto;
+    min-width: 200px;
+    min-height: 150px;
+    padding: 12px;
+    background: rgba(250, 250, 250, 0.98);
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    overflow: auto;
+    border-radius: 0;
+    box-shadow: none;
+    position: relative;
+    z-index: 10;
+}
+
+/* Override fixed positioning when in split layout */
+.pv-root .pv-json-editor {
+    position: relative;
+    left: auto;
+    right: auto;
+    bottom: auto;
+    height: auto;
+    max-height: none;
+}
+
+/* Layout toggle button */
+.pv-layout-toggle {
+    position: absolute;
+    top: 10px;
+    right: 70px;
+    width: 44px;
+    height: 36px;
+    border-radius: 6px;
+    border: none;
+    background: rgba(255, 255, 255, 0.9);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+    cursor: pointer;
+    font-size: 16px;
+    z-index: 1200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    user-select: none;
+    transition: background 0.2s;
+}
+
+.pv-layout-toggle:hover {
+    background: rgba(255, 255, 255, 1);
+}
+
+.pv-layout-toggle:active {
+    background: rgba(240, 240, 240, 1);
 }
