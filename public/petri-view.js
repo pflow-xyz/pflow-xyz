@@ -2619,7 +2619,7 @@ class PetriView extends HTMLElement {
         content.innerHTML = `
             <h3 style="margin: 16px 0 8px 0; font-size: 16px; font-weight: 600; color: #000;">What are Petri Nets?</h3>
             <p style="margin: 0 0 12px 0;">
-                Petri nets are mathematical models for describing distributed systems. They consist of <strong>places</strong> (circles) 
+                Petri nets are a formal model for representing state machines. They consist of <strong>places</strong> (circles) 
                 that hold tokens, <strong>transitions</strong> (rectangles) that fire to move tokens, and <strong>arcs</strong> (arrows) 
                 that connect them. When a transition fires, it consumes tokens from input places and produces tokens in output places.
             </p>
@@ -2642,7 +2642,7 @@ class PetriView extends HTMLElement {
             <ul style="margin: 6px 0 12px 20px; padding: 0;">
                 <li><strong>Left-click transition:</strong> Fire it manually (if enabled)</li>
                 <li><strong>Right-click place:</strong> Add or remove tokens</li>
-                <li><strong>Right-click arc:</strong> Toggle inhibitor arc or change weight</li>
+                <li><strong>Right-click arc:</strong> Change weight or toggle to inhibitor arc (prevents transition from firing when place has tokens)</li>
                 <li><strong>Drag elements:</strong> Reposition places and transitions</li>
                 <li><strong>Mouse wheel:</strong> Zoom in/out</li>
                 <li><strong>Space + drag:</strong> Pan the canvas</li>
@@ -2652,7 +2652,7 @@ class PetriView extends HTMLElement {
             <ul style="margin: 6px 0 12px 20px; padding: 0;">
                 <li><strong>JSON Editor:</strong> Toggle to edit the model as JSON-LD</li>
                 <li><strong>Scale Meter:</strong> Shows current zoom level (right side)</li>
-                <li><strong>Undo/Redo:</strong> Use Ctrl+Z/Ctrl+Y (Cmd+Z/Cmd+Y on Mac)</li>
+                <li><strong>Undo/Redo:</strong> Use Ctrl+Z/Ctrl+Y</li>
                 <li><strong>Download:</strong> Export your Petri net as JSON</li>
                 <li><strong>Auto-save:</strong> Changes are saved to browser localStorage</li>
             </ul>
