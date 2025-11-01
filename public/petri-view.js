@@ -1349,10 +1349,68 @@ class PetriView extends HTMLElement {
         }
     }
 
-    _deleteData() {
-        // Delete/clear current data
-        if (!confirm('Are you sure you want to clear all data? This cannot be undone.')) {
-            return;
+    async _deleteData() {
+        // Check if we have a CID in the URL (document loaded from server)
+        const urlParams = new URLSearchParams(window.location.search);
+        const cid = urlParams.get('cid');
+        const isTensCityMode = this.hasAttribute('data-tens-city-mode');
+
+        // If there's a CID, we need to delete from the server
+        if (cid && isTensCityMode) {
+            if (!confirm('Are you sure you want to delete this document from the server? This cannot be undone.')) {
+                return;
+            }
+
+            // Check if user is authenticated
+            if (!this._supabaseInitialized || !this._user) {
+                alert('You must be logged in to delete documents from the server.');
+                return;
+            }
+
+            try {
+                // Get the session token for authentication
+                const {data: {session}} = await this._supabase.auth.getSession();
+                const authToken = session?.access_token;
+
+                if (!authToken) {
+                    alert('Authentication required. Please log in.');
+                    return;
+                }
+
+                // Send DELETE request to server
+                const response = await fetch(`/o/${cid}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                    },
+                });
+
+                if (!response.ok) {
+                    if (response.status === 401) {
+                        alert('Authentication required. Please log in.');
+                    } else if (response.status === 403) {
+                        alert('You do not have permission to delete this document. Only the author can delete it.');
+                    } else if (response.status === 404) {
+                        alert('Document not found on server.');
+                    } else {
+                        const errorText = await response.text().catch(() => '');
+                        alert(`Failed to delete document: ${response.statusText}${errorText ? ' - ' + errorText : ''}`);
+                    }
+                    return;
+                }
+
+                // Successfully deleted from server
+                console.log('Document deleted from server:', cid);
+            } catch (err) {
+                console.error('Failed to delete from server:', err);
+                alert('Failed to delete document from server: ' + (err && err.message ? err.message : String(err)));
+                return;
+            }
+        } else {
+            // Local clear only - confirm with different message
+            if (!confirm('Are you sure you want to clear all data? This cannot be undone.')) {
+                return;
+            }
         }
 
         // Reset to empty model
@@ -1371,10 +1429,11 @@ class PetriView extends HTMLElement {
         this._syncLD(true);
         this._pushHistory();
 
-        // Clear URL parameter if in tens-city mode
-        if (this.hasAttribute('data-tens-city-mode')) {
+        // Clear URL parameters if in tens-city mode
+        if (isTensCityMode) {
             const url = new URL(window.location.href);
             url.searchParams.delete('data');
+            url.searchParams.delete('cid');
             window.history.replaceState({}, '', url.toString());
         }
 
@@ -3309,8 +3368,8 @@ class PetriView extends HTMLElement {
             });
             menuContainer._menuContent.appendChild(saveItem);
 
-            const deleteItem = makeMenuItem('🗑️ Delete', () => {
-                this._deleteData();
+            const deleteItem = makeMenuItem('🗑️ Delete', async () => {
+                await this._deleteData();
             });
             menuContainer._menuContent.appendChild(deleteItem);
 
