@@ -1,0 +1,61 @@
+# pflow-xyz Webserver
+
+This Go module provides a webserver that serves the pflow-xyz petri-view web component with a tens-city-compatible backend for saving and managing Petri net models.
+
+## Features
+
+- Serves static files from the `public` directory (embedded in the binary)
+- Provides API endpoints for saving, retrieving, and deleting JSON-LD objects
+- Uses the tens-city backend for CID computation and storage
+- Supports GitHub OAuth authentication via Supabase JWT tokens
+- CORS support for cross-origin requests
+
+## Building
+
+```bash
+go build -o webserver ./cmd/webserver
+```
+
+## Running
+
+```bash
+# Run with default settings (port 8080, data directory ./data)
+./webserver
+
+# Run with custom port and data directory
+./webserver -port 9000 -data /path/to/data
+```
+
+### Environment Variables
+
+- `SUPABASE_JWT_SECRET`: JWT secret for validating Supabase authentication tokens (required for authentication features)
+
+## API Endpoints
+
+### Static Files
+
+- `GET /` - Serves `index.html`
+- `GET /<file>` - Serves static files from the `public` directory
+
+### Object Storage
+
+- `GET /o/{cid}` - Get object by CID
+- `DELETE /o/{cid}` - Delete object by CID (requires authentication, author only)
+- `POST /api/save` - Save a JSON-LD object and get its CID
+- `GET /api/ownership/{cid}` - Check if current user owns an object
+
+## Architecture
+
+This server reuses the tens-city backend implementation for:
+- JSON-LD canonicalization (URDNA2015)
+- CID computation (IPFS CIDv1 with SHA2-256)
+- Object storage (filesystem-based)
+- Authentication (Supabase JWT validation)
+
+The main difference is that it serves the pflow-xyz `public` directory instead of the tens-city UI.
+
+## Development
+
+The webserver embeds the `public` directory at build time, so any changes to the frontend require rebuilding the binary.
+
+For development, you can use a file watcher to rebuild on changes, or run a separate static file server for the frontend.

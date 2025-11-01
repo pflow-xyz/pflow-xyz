@@ -1,0 +1,23 @@
+# Binaries
+cmd/webserver/webserver
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Test binaries
+*.test
+
+# Output directories
+dist/
+build/
+bin/
+
+# Data directories
+data/
+
+# Go workspace file
+go.work
+
+# Embedded public directory (copied from root during build)
+internal/static/public
