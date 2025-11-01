@@ -108,7 +108,7 @@ class PetriView extends HTMLElement {
             // Update layout orientation based on attribute
             const shouldBeHorizontal = newValue !== null;
             if (this._root && this._layoutHorizontal !== shouldBeHorizontal) {
-                this._toggleLayout();
+                this._setLayout(shouldBeHorizontal);
             }
         }
     }
@@ -1013,8 +1013,8 @@ class PetriView extends HTMLElement {
     }
 
     // ---------------- layout toggle ----------------
-    _toggleLayout() {
-        this._layoutHorizontal = !this._layoutHorizontal;
+    _setLayout(horizontal) {
+        this._layoutHorizontal = horizontal;
 
         if (this._layoutHorizontal) {
             this._root.classList.add('pv-layout-horizontal');
@@ -1042,6 +1042,10 @@ class PetriView extends HTMLElement {
                 // ignore
             }
         }
+    }
+
+    _toggleLayout() {
+        this._setLayout(!this._layoutHorizontal);
     }
 
     _updateDividerOrientation() {
