@@ -1441,6 +1441,264 @@ class PetriView extends HTMLElement {
         this.dispatchEvent(new CustomEvent('data-deleted'));
     }
 
+    async _showShareDialog() {
+        // First, ensure the document is saved
+        const urlParams = new URLSearchParams(window.location.search);
+        let cid = urlParams.get('cid');
+        
+        // If no CID in URL, we need to save first
+        if (!cid) {
+            try {
+                // Get the session token for authentication
+                const {data: {session}} = await this._supabase.auth.getSession();
+                const authToken = session?.access_token;
+
+                if (!authToken) {
+                    alert('Please log in to share data');
+                    return;
+                }
+
+                // Save the document
+                const canonicalData = JSON.stringify(this._model);
+
+                const response = await fetch('/api/save', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`,
+                    },
+                    body: canonicalData
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('Save failed with status', response.status, errorText);
+                    alert(`Failed to save before sharing: ${response.statusText}`);
+                    return;
+                }
+
+                const result = await response.json();
+                cid = result.cid;
+
+                // Update URL with CID
+                const url = new URL(window.location.origin + window.location.pathname);
+                url.searchParams.set('cid', cid);
+                window.history.pushState({}, '', url.toString());
+            } catch (err) {
+                console.error('Failed to save before sharing:', err);
+                alert('Failed to save document: ' + (err && err.message ? err.message : String(err)));
+                return;
+            }
+        }
+
+        // Generate markdown snippet
+        const currentUrl = window.location.origin;
+        const svgUrl = `${currentUrl}/img/${cid}.svg`;
+        const docUrl = `${currentUrl}/?cid=${cid}`;
+        const markdown = `[![pflow](${svgUrl})](${docUrl})`;
+
+        // Create modal overlay
+        const overlay = document.createElement('div');
+        this._applyStyles(overlay, {
+            position: 'fixed',
+            left: '0',
+            top: '0',
+            right: '0',
+            bottom: '0',
+            background: 'rgba(0, 0, 0, 0.5)',
+            zIndex: 2147483646,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '20px'
+        });
+
+        // Create dialog
+        const dialog = document.createElement('div');
+        this._applyStyles(dialog, {
+            background: '#fff',
+            borderRadius: '8px',
+            padding: '24px',
+            maxWidth: '600px',
+            width: '100%',
+            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)'
+        });
+
+        // Title
+        const title = document.createElement('h3');
+        title.textContent = 'Share Your Petri Net';
+        this._applyStyles(title, {
+            margin: '0 0 16px 0',
+            fontSize: '20px',
+            fontWeight: 'bold',
+            color: '#333'
+        });
+        dialog.appendChild(title);
+
+        // Description
+        const description = document.createElement('p');
+        description.textContent = 'Copy the markdown snippet below to share your Petri net:';
+        this._applyStyles(description, {
+            margin: '0 0 12px 0',
+            fontSize: '14px',
+            color: '#666'
+        });
+        dialog.appendChild(description);
+
+        // Markdown textarea
+        const textarea = document.createElement('textarea');
+        textarea.value = markdown;
+        textarea.readOnly = true;
+        this._applyStyles(textarea, {
+            width: '100%',
+            height: '80px',
+            padding: '10px',
+            fontSize: '13px',
+            fontFamily: 'monospace',
+            border: '1px solid #ddd',
+            borderRadius: '4px',
+            resize: 'vertical',
+            boxSizing: 'border-box'
+        });
+        dialog.appendChild(textarea);
+
+        // Preview section
+        const previewLabel = document.createElement('p');
+        previewLabel.textContent = 'Preview:';
+        this._applyStyles(previewLabel, {
+            margin: '16px 0 8px 0',
+            fontSize: '14px',
+            fontWeight: '500',
+            color: '#333'
+        });
+        dialog.appendChild(previewLabel);
+
+        const previewContainer = document.createElement('div');
+        this._applyStyles(previewContainer, {
+            padding: '12px',
+            background: '#f6f8fa',
+            borderRadius: '4px',
+            textAlign: 'center',
+            border: '1px solid #e1e4e8'
+        });
+        
+        const previewLink = document.createElement('a');
+        previewLink.href = docUrl;
+        previewLink.target = '_blank';
+        previewLink.rel = 'noopener noreferrer';
+        
+        const previewImg = document.createElement('img');
+        previewImg.src = svgUrl;
+        previewImg.alt = 'Petri Net Preview';
+        this._applyStyles(previewImg, {
+            maxWidth: '100%',
+            height: 'auto',
+            display: 'block',
+            margin: '0 auto'
+        });
+        
+        previewLink.appendChild(previewImg);
+        previewContainer.appendChild(previewLink);
+        dialog.appendChild(previewContainer);
+
+        // Button container
+        const buttonContainer = document.createElement('div');
+        this._applyStyles(buttonContainer, {
+            marginTop: '20px',
+            display: 'flex',
+            gap: '10px',
+            justifyContent: 'flex-end'
+        });
+
+        // Copy button
+        const copyButton = document.createElement('button');
+        copyButton.textContent = 'Copy to Clipboard';
+        copyButton.type = 'button';
+        this._applyStyles(copyButton, {
+            padding: '8px 16px',
+            fontSize: '14px',
+            fontWeight: '500',
+            color: '#fff',
+            background: '#2a6fb8',
+            border: 'none',
+            borderRadius: '4px',
+            cursor: 'pointer'
+        });
+        copyButton.addEventListener('click', () => {
+            textarea.select();
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(markdown).then(() => {
+                    copyButton.textContent = 'Copied!';
+                    setTimeout(() => {
+                        copyButton.textContent = 'Copy to Clipboard';
+                    }, 2000);
+                }).catch(() => {
+                    document.execCommand('copy');
+                    copyButton.textContent = 'Copied!';
+                    setTimeout(() => {
+                        copyButton.textContent = 'Copy to Clipboard';
+                    }, 2000);
+                });
+            } else {
+                document.execCommand('copy');
+                copyButton.textContent = 'Copied!';
+                setTimeout(() => {
+                    copyButton.textContent = 'Copy to Clipboard';
+                }, 2000);
+            }
+        });
+        buttonContainer.appendChild(copyButton);
+
+        // Close button
+        const closeButton = document.createElement('button');
+        closeButton.textContent = 'Close';
+        closeButton.type = 'button';
+        this._applyStyles(closeButton, {
+            padding: '8px 16px',
+            fontSize: '14px',
+            fontWeight: '500',
+            color: '#333',
+            background: '#f6f8fa',
+            border: '1px solid #ddd',
+            borderRadius: '4px',
+            cursor: 'pointer'
+        });
+        
+        // Helper function to safely close the dialog
+        const closeDialog = () => {
+            if (overlay.parentNode) {
+                document.body.removeChild(overlay);
+            }
+            document.removeEventListener('keydown', handleEscape);
+        };
+        
+        closeButton.addEventListener('click', closeDialog);
+        buttonContainer.appendChild(closeButton);
+
+        dialog.appendChild(buttonContainer);
+        overlay.appendChild(dialog);
+
+        // Close on overlay click
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) {
+                closeDialog();
+            }
+        });
+
+        // Close on Escape key
+        const handleEscape = (e) => {
+            if (e.key === 'Escape') {
+                closeDialog();
+            }
+        };
+        document.addEventListener('keydown', handleEscape);
+
+        document.body.appendChild(overlay);
+        
+        // Auto-select the textarea for easy copying
+        textarea.select();
+    }
+
     // ---------------- utilities ----------------
     _safeParse(text) {
         try {
@@ -3366,6 +3624,14 @@ class PetriView extends HTMLElement {
                 await this._deleteData();
             });
             menuContainer._menuContent.appendChild(deleteItem);
+
+            // Add Share button (only for logged-in users)
+            if (this._supabaseInitialized && this._user) {
+                const shareItem = makeMenuItem('🔗 Share', async () => {
+                    await this._showShareDialog();
+                });
+                menuContainer._menuContent.appendChild(shareItem);
+            }
 
             // Add separator
             const separator = document.createElement('div');

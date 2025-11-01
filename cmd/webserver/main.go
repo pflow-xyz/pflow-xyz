@@ -14,6 +14,7 @@ import (
 	"github.com/pflow-xyz/pflow-xyz/internal/seal"
 	"github.com/pflow-xyz/pflow-xyz/internal/static"
 	"github.com/pflow-xyz/pflow-xyz/internal/store"
+	"github.com/pflow-xyz/pflow-xyz/internal/svg"
 )
 
 // Storage interface abstracts filesystem backends
@@ -205,6 +206,46 @@ func (s *Server) handleGetObject(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/ld+json")
 	w.Write(data)
+}
+
+// Handler for GET /img/{cid}.svg - generate SVG representation of a Petri net
+func (s *Server) handleGetSVG(w http.ResponseWriter, r *http.Request) {
+	if s.handleCORS(w, r) {
+		return
+	}
+
+	// Extract CID from path - remove /img/ prefix and .svg suffix
+	path := strings.TrimPrefix(r.URL.Path, "/img/")
+	cid := strings.TrimSuffix(path, ".svg")
+	
+	if cid == "" {
+		http.Error(w, "CID required", http.StatusBadRequest)
+		return
+	}
+
+	// Get the object data
+	data, err := s.storage.GetObject(cid)
+	if err != nil {
+		if os.IsNotExist(err) {
+			http.Error(w, "Object not found", http.StatusNotFound)
+			return
+		}
+		log.Printf("Error getting object %s: %v", cid, err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	// Generate SVG from the JSON-LD data
+	svgContent, err := svg.GenerateSVG(data)
+	if err != nil {
+		log.Printf("Error generating SVG for %s: %v", cid, err)
+		http.Error(w, "Failed to generate SVG", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "image/svg+xml")
+	w.Header().Set("Cache-Control", "public, max-age=31536000") // Cache for 1 year
+	w.Write([]byte(svgContent))
 }
 
 // Handler for GET /api/ownership/{cid} - check if current user owns the object
@@ -418,6 +459,12 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	if strings.HasPrefix(r.URL.Path, "/api/ownership/") {
 		s.handleCheckOwnership(w, r)
+		return
+	}
+
+	// SVG generation route
+	if strings.HasPrefix(r.URL.Path, "/img/") && strings.HasSuffix(r.URL.Path, ".svg") {
+		s.handleGetSVG(w, r)
 		return
 	}
 
