@@ -7,6 +7,19 @@ import (
 	"math"
 )
 
+// Visual constants for rendering
+const (
+	placeRadius        = 16.0
+	transitionWidth    = 30.0
+	transitionHeight   = 10.0
+	placePadding       = 18.0  // placeRadius + 2
+	transitionPadding  = 17.0  // transitionHeight/2 + 2 + 15
+	arrowheadSize      = 8.0
+	inhibitorRadius    = 6.0
+	tipOffsetMultiplier = 0.9
+	minDistance        = 1.0   // Minimum distance to prevent division by zero
+)
+
 // PetriNet represents a Petri net JSON-LD structure
 type PetriNet struct {
 	Arcs        []Arc                 `json:"arcs"`
@@ -206,13 +219,12 @@ func calculateBounds(net PetriNet) (minX, minY, maxX, maxY float64) {
 }
 
 func drawPlace(buf *bytes.Buffer, x, y float64, tokenCount int, isFull bool) {
-	radius := 16.0
 	class := "place"
 	if isFull {
 		class += " place-cap-full"
 	}
 	
-	buf.WriteString(fmt.Sprintf(`<circle cx="%.1f" cy="%.1f" r="%.1f" class="%s"/>`, x, y, radius, class))
+	buf.WriteString(fmt.Sprintf(`<circle cx="%.1f" cy="%.1f" r="%.1f" class="%s"/>`, x, y, placeRadius, class))
 	buf.WriteString("\n")
 	
 	// Draw tokens
@@ -228,30 +240,25 @@ func drawPlace(buf *bytes.Buffer, x, y float64, tokenCount int, isFull bool) {
 }
 
 func drawTransition(buf *bytes.Buffer, x, y float64, active bool) {
-	width := 30.0
-	height := 10.0
 	class := "transition"
 	if active {
 		class += " transition-active"
 	}
 	
 	buf.WriteString(fmt.Sprintf(`<rect x="%.1f" y="%.1f" width="%.1f" height="%.1f" class="%s"/>`, 
-		x-width/2, y-height/2, width, height, class))
+		x-transitionWidth/2, y-transitionHeight/2, transitionWidth, transitionHeight, class))
 	buf.WriteString("\n")
 }
 
 func drawArc(buf *bytes.Buffer, src, trg NodePosition, arc Arc, active bool, arcIndex int) {
 	// Calculate padding based on node type
-	padPlace := 16.0 + 2.0
-	padTransition := 15.0 + 2.0
-	
-	padSrc := padPlace
+	padSrc := placePadding
 	if !src.IsPlace {
-		padSrc = padTransition
+		padSrc = transitionPadding
 	}
-	padTrg := padPlace
+	padTrg := placePadding
 	if !trg.IsPlace {
-		padTrg = padTransition
+		padTrg = transitionPadding
 	}
 	
 	// Calculate arc endpoints
@@ -259,16 +266,14 @@ func drawArc(buf *bytes.Buffer, src, trg NodePosition, arc Arc, active bool, arc
 	dy := trg.Y - src.Y
 	dist := math.Sqrt(dx*dx + dy*dy)
 	if dist == 0 {
-		dist = 1
+		dist = minDistance
 	}
 	ux := dx / dist
 	uy := dy / dist
 	
-	ahSize := 8.0
-	inhibitRadius := 6.0
-	tipOffset := ahSize * 0.9
+	tipOffset := arrowheadSize * tipOffsetMultiplier
 	if arc.InhibitTransition {
-		tipOffset = inhibitRadius + 2.0
+		tipOffset = inhibitorRadius + 2.0
 	}
 	
 	ex := src.X + ux*padSrc
@@ -290,14 +295,14 @@ func drawArc(buf *bytes.Buffer, src, trg NodePosition, arc Arc, active bool, arc
 		if active {
 			inhibitorClass += " inhibitor-active"
 		}
-		buf.WriteString(fmt.Sprintf(`<circle cx="%.1f" cy="%.1f" r="%.1f" class="%s"/>`, fx, fy, inhibitRadius, inhibitorClass))
+		buf.WriteString(fmt.Sprintf(`<circle cx="%.1f" cy="%.1f" r="%.1f" class="%s"/>`, fx, fy, inhibitorRadius, inhibitorClass))
 		buf.WriteString("\n")
 	} else {
 		// Draw arrowhead
-		ahx := fx + (-ux*ahSize - uy*ahSize*0.45)
-		ahy := fy + (-uy*ahSize + ux*ahSize*0.45)
-		bhx := fx + (-ux*ahSize + uy*ahSize*0.45)
-		bhy := fy + (-uy*ahSize - ux*ahSize*0.45)
+		ahx := fx + (-ux*arrowheadSize - uy*arrowheadSize*0.45)
+		ahy := fy + (-uy*arrowheadSize + ux*arrowheadSize*0.45)
+		bhx := fx + (-ux*arrowheadSize + uy*arrowheadSize*0.45)
+		bhy := fy + (-uy*arrowheadSize - ux*arrowheadSize*0.45)
 		
 		arrowClass := "arrowhead"
 		if active {

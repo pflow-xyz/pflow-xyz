@@ -1663,9 +1663,16 @@ class PetriView extends HTMLElement {
             borderRadius: '4px',
             cursor: 'pointer'
         });
-        closeButton.addEventListener('click', () => {
-            document.body.removeChild(overlay);
-        });
+        
+        // Helper function to safely close the dialog
+        const closeDialog = () => {
+            if (overlay.parentNode) {
+                document.body.removeChild(overlay);
+            }
+            document.removeEventListener('keydown', handleEscape);
+        };
+        
+        closeButton.addEventListener('click', closeDialog);
         buttonContainer.appendChild(closeButton);
 
         dialog.appendChild(buttonContainer);
@@ -1674,15 +1681,14 @@ class PetriView extends HTMLElement {
         // Close on overlay click
         overlay.addEventListener('click', (e) => {
             if (e.target === overlay) {
-                document.body.removeChild(overlay);
+                closeDialog();
             }
         });
 
         // Close on Escape key
         const handleEscape = (e) => {
             if (e.key === 'Escape') {
-                document.body.removeChild(overlay);
-                document.removeEventListener('keydown', handleEscape);
+                closeDialog();
             }
         };
         document.addEventListener('keydown', handleEscape);
