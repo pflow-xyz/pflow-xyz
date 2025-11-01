@@ -1698,17 +1698,11 @@ class PetriView extends HTMLElement {
             return;
         }
 
-        // In backend mode, don't update the script tag content - keep original
-        // This prevents JSON from appearing in the page when loading from URL
-        if (!this.hasAttribute('data-backend')) {
-            const pretty = !this.hasAttribute('data-compact');
-            const text = pretty ? this._stableStringify(this._model, 2) : JSON.stringify(this._model);
-            if (force || this._ldScript.textContent !== text) {
-                this._ldScript.textContent = text;
-                this.dispatchEvent(new CustomEvent('jsonld-updated', {detail: {json: this.exportJSON()}}));
-            }
-        } else {
-            // Still dispatch event for backend mode
+        // Update script tag to sync with current model
+        const pretty = !this.hasAttribute('data-compact');
+        const text = pretty ? this._stableStringify(this._model, 2) : JSON.stringify(this._model);
+        if (force || this._ldScript.textContent !== text) {
+            this._ldScript.textContent = text;
             this.dispatchEvent(new CustomEvent('jsonld-updated', {detail: {json: this.exportJSON()}}));
         }
 
