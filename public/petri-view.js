@@ -1562,6 +1562,82 @@ class PetriView extends HTMLElement {
         });
         dialog.appendChild(textarea);
 
+        // Image URL label
+        const imageUrlLabel = document.createElement('p');
+        imageUrlLabel.textContent = 'Image URL:';
+        this._applyStyles(imageUrlLabel, {
+            margin: '16px 0 8px 0',
+            fontSize: '14px',
+            fontWeight: '500',
+            color: '#333'
+        });
+        dialog.appendChild(imageUrlLabel);
+
+        // Image URL textarea
+        const imageUrlTextarea = document.createElement('textarea');
+        imageUrlTextarea.value = svgUrl;
+        imageUrlTextarea.readOnly = true;
+        this._applyStyles(imageUrlTextarea, {
+            width: '100%',
+            height: '50px',
+            padding: '10px',
+            fontSize: '13px',
+            fontFamily: 'monospace',
+            border: '1px solid #ddd',
+            borderRadius: '4px',
+            resize: 'vertical',
+            boxSizing: 'border-box'
+        });
+        dialog.appendChild(imageUrlTextarea);
+
+        // Image URL copy button container
+        const imageUrlButtonContainer = document.createElement('div');
+        this._applyStyles(imageUrlButtonContainer, {
+            marginTop: '8px',
+            display: 'flex',
+            justifyContent: 'flex-end'
+        });
+
+        // Image URL copy button
+        const copyImageUrlButton = document.createElement('button');
+        copyImageUrlButton.textContent = 'Copy Image URL';
+        copyImageUrlButton.type = 'button';
+        this._applyStyles(copyImageUrlButton, {
+            padding: '6px 12px',
+            fontSize: '13px',
+            fontWeight: '500',
+            color: '#fff',
+            background: '#2a6fb8',
+            border: 'none',
+            borderRadius: '4px',
+            cursor: 'pointer'
+        });
+        copyImageUrlButton.addEventListener('click', () => {
+            imageUrlTextarea.select();
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(svgUrl).then(() => {
+                    copyImageUrlButton.textContent = 'Copied!';
+                    setTimeout(() => {
+                        copyImageUrlButton.textContent = 'Copy Image URL';
+                    }, 2000);
+                }).catch(() => {
+                    document.execCommand('copy');
+                    copyImageUrlButton.textContent = 'Copied!';
+                    setTimeout(() => {
+                        copyImageUrlButton.textContent = 'Copy Image URL';
+                    }, 2000);
+                });
+            } else {
+                document.execCommand('copy');
+                copyImageUrlButton.textContent = 'Copied!';
+                setTimeout(() => {
+                    copyImageUrlButton.textContent = 'Copy Image URL';
+                }, 2000);
+            }
+        });
+        imageUrlButtonContainer.appendChild(copyImageUrlButton);
+        dialog.appendChild(imageUrlButtonContainer);
+
         // Preview section
         const previewLabel = document.createElement('p');
         previewLabel.textContent = 'Preview:';
