@@ -63,6 +63,11 @@ class PetriView extends HTMLElement {
         this._supabaseUrl = null;
         this._supabaseKey = null;
         this._supabaseInitialized = false;
+        
+        // UI buttons
+        this._hamburgerMenu = null;
+        this._hamburgerDropdown = null;
+        this._topRightButton = null;
     }
 
     // observe compact flag and json editor toggle
@@ -157,6 +162,13 @@ class PetriView extends HTMLElement {
             this._hamburgerDropdown = null;
         }
         this._createHamburgerMenu();
+        
+        // Re-create top-right button to reflect authentication state
+        if (this._topRightButton) {
+            this._topRightButton.remove();
+            this._topRightButton = null;
+        }
+        this._createTopRightButton();
     }
     
     async _loginWithGitHub() {
@@ -1159,6 +1171,7 @@ class PetriView extends HTMLElement {
         this._createMenu();
         this._createScaleMeter();
         this._createHamburgerMenu();
+        this._createTopRightButton();
         if (this.hasAttribute('data-json-editor')) this._createJsonEditor();
 
         this._ro = new ResizeObserver(() => this._onResize());
@@ -1184,6 +1197,12 @@ class PetriView extends HTMLElement {
         if (this._hamburgerDropdown) {
             this._hamburgerDropdown.remove();
             this._hamburgerDropdown = null;
+        }
+        
+        // Clean up top-right button
+        if (this._topRightButton) {
+            this._topRightButton.remove();
+            this._topRightButton = null;
         }
     }
 
@@ -1237,8 +1256,60 @@ class PetriView extends HTMLElement {
         }
     }
     
-    _saveToPermalink() {
-        // Save current data to permalink (update URL with data parameter)
+    async _saveToPermalink() {
+        const isTensCityMode = this.hasAttribute('data-tens-city-mode');
+        
+        // In tens-city mode with authenticated user, save to server
+        if (isTensCityMode && this._supabaseInitialized && this._user) {
+            try {
+                // Get the session token for authentication
+                const { data: { session } } = await this._supabase.auth.getSession();
+                const authToken = session?.access_token;
+                
+                if (!authToken) {
+                    alert('Please log in to save data');
+                    return;
+                }
+                
+                // Use canonical JSON encoding
+                const canonicalData = JSON.stringify(this._model);
+                
+                // POST to /api/save
+                const response = await fetch('/api/save', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`,
+                    },
+                    body: canonicalData
+                });
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('Save failed with status', response.status, errorText);
+                    alert(`Save failed: ${response.statusText}`);
+                    return;
+                }
+                
+                const result = await response.json();
+                const cid = result.cid;
+                
+                console.log('Save successful! CID:', cid);
+                
+                // Update URL with CID instead of data parameter
+                const url = new URL(window.location.origin + window.location.pathname);
+                url.searchParams.set('cid', cid);
+                window.history.pushState({}, '', url.toString());
+                
+                alert('Saved successfully! CID: ' + cid);
+            } catch (err) {
+                console.error('Failed to save to server:', err);
+                alert('Failed to save to server: ' + (err && err.message ? err.message : String(err)));
+            }
+            return;
+        }
+        
+        // Default behavior: Save to permalink (update URL with data parameter)
         try {
             this._updatePermalinkURL();
             
@@ -1533,12 +1604,21 @@ class PetriView extends HTMLElement {
             this._updatePermalinkURL();
             return;
         }
-        const pretty = !this.hasAttribute('data-compact');
-        const text = pretty ? this._stableStringify(this._model, 2) : JSON.stringify(this._model);
-        if (force || this._ldScript.textContent !== text) {
-            this._ldScript.textContent = text;
+        
+        // In tens-city mode, don't update the script tag content - keep original
+        // This prevents JSON from appearing in the page when loading from URL
+        if (!this.hasAttribute('data-tens-city-mode')) {
+            const pretty = !this.hasAttribute('data-compact');
+            const text = pretty ? this._stableStringify(this._model, 2) : JSON.stringify(this._model);
+            if (force || this._ldScript.textContent !== text) {
+                this._ldScript.textContent = text;
+                this.dispatchEvent(new CustomEvent('jsonld-updated', {detail: {json: this.exportJSON()}}));
+            }
+        } else {
+            // Still dispatch event for tens-city mode
             this.dispatchEvent(new CustomEvent('jsonld-updated', {detail: {json: this.exportJSON()}}));
         }
+        
         this._updateJsonEditor();
         // Update permalink URL in tens-city mode
         this._updatePermalinkURL();
@@ -3033,15 +3113,44 @@ class PetriView extends HTMLElement {
                 zIndex: 1300
             });
             
-            // Panel header
+            // Panel header - use full width for hamburger menu button
             const header = document.createElement('div');
             this._applyStyles(header, {
-                padding: '16px 24px',
+                // Left padding of 60px = 16px (left position) + 32px (button width) + 12px (margin)
+                padding: '16px 16px 16px 60px',
                 borderBottom: '1px solid #e1e4e8',
                 display: 'flex',
                 justifyContent: 'space-between',
-                alignItems: 'center'
+                alignItems: 'center',
+                position: 'relative'
             });
+            
+            // Hamburger button inside the panel on the left
+            const panelMenuBtn = document.createElement('button');
+            panelMenuBtn.type = 'button';
+            panelMenuBtn.innerHTML = '☰';
+            panelMenuBtn.title = 'Close Menu';
+            this._applyStyles(panelMenuBtn, {
+                position: 'absolute',
+                left: '16px',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                width: '32px',
+                height: '32px',
+                borderRadius: '4px',
+                border: 'none',
+                background: 'transparent',
+                cursor: 'pointer',
+                fontSize: '18px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#586069'
+            });
+            panelMenuBtn.addEventListener('click', () => {
+                menuContainer.style.display = 'none';
+            });
+            header.appendChild(panelMenuBtn);
             
             const title = document.createElement('h3');
             title.textContent = 'Menu';
@@ -3156,8 +3265,12 @@ class PetriView extends HTMLElement {
 
         // Add menu items based on mode
         if (isTensCityMode) {
-            // Tens City mode: Add Save and Delete buttons
-            const saveItem = makeMenuItem('💾 Save', () => {
+            // Tens City mode: Save button text changes based on auth state
+            const saveText = (this._supabaseInitialized && this._user) 
+                ? '💾 Save to Server' 
+                : '💾 Save Permalink';
+            
+            const saveItem = makeMenuItem(saveText, () => {
                 this._saveToPermalink();
             });
             menuContainer._menuContent.appendChild(saveItem);
@@ -3282,6 +3395,78 @@ class PetriView extends HTMLElement {
         
         this._hamburgerMenu = menuBtn;
         this._hamburgerDropdown = menuContainer;
+    }
+
+    // ---------------- top-right user/login button ----------------
+    _createTopRightButton() {
+        if (this._topRightButton) return;
+        if (!this._root) return;
+        
+        const isTensCityMode = this.hasAttribute('data-tens-city-mode');
+        
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'pv-top-right-btn';
+        
+        // Determine button content based on login state
+        if (isTensCityMode && this._supabaseInitialized && this._user) {
+            // Show username if logged in
+            const username = this._user.user_metadata?.user_name || 
+                           this._user.email?.split('@')[0] || 
+                           'User';
+            button.innerHTML = `👤 ${username}`;
+            button.title = `Logged in as ${this._user.email || username}`;
+        } else if (isTensCityMode && this._supabaseInitialized) {
+            // Show login button if not logged in
+            button.innerHTML = '🔑 Login';
+            button.title = 'Login with GitHub';
+        } else {
+            // In standard mode or when Supabase not initialized, don't show the button
+            return;
+        }
+        
+        this._applyStyles(button, {
+            position: 'absolute',
+            top: '10px',
+            right: '10px',
+            height: '40px',
+            padding: '0 16px',
+            borderRadius: '6px',
+            border: 'none',
+            background: 'rgba(255, 255, 255, 0.9)',
+            boxShadow: '0 2px 6px rgba(0, 0, 0, 0.15)',
+            cursor: 'pointer',
+            fontSize: '14px',
+            fontFamily: 'system-ui, Arial',
+            zIndex: 1300,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            userSelect: 'none',
+            transition: 'background 0.2s',
+            whiteSpace: 'nowrap'
+        });
+        
+        button.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (this._user) {
+                // If logged in, show logout option
+                this._logout();
+            } else {
+                // If not logged in, trigger login
+                this._loginWithGitHub();
+            }
+        });
+        
+        button.addEventListener('mouseenter', () => {
+            button.style.background = 'rgba(255, 255, 255, 1)';
+        });
+        button.addEventListener('mouseleave', () => {
+            button.style.background = 'rgba(255, 255, 255, 0.9)';
+        });
+        
+        this._root.appendChild(button);
+        this._topRightButton = button;
     }
 
     _removeJsonEditor() {
