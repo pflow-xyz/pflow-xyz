@@ -63,6 +63,11 @@ class PetriView extends HTMLElement {
         this._supabaseUrl = null;
         this._supabaseKey = null;
         this._supabaseInitialized = false;
+        
+        // UI buttons
+        this._hamburgerMenu = null;
+        this._hamburgerDropdown = null;
+        this._topRightButton = null;
     }
 
     // observe compact flag and json editor toggle
@@ -157,6 +162,13 @@ class PetriView extends HTMLElement {
             this._hamburgerDropdown = null;
         }
         this._createHamburgerMenu();
+        
+        // Re-create top-right button to reflect authentication state
+        if (this._topRightButton) {
+            this._topRightButton.remove();
+            this._topRightButton = null;
+        }
+        this._createTopRightButton();
     }
     
     async _loginWithGitHub() {
@@ -1159,6 +1171,7 @@ class PetriView extends HTMLElement {
         this._createMenu();
         this._createScaleMeter();
         this._createHamburgerMenu();
+        this._createTopRightButton();
         if (this.hasAttribute('data-json-editor')) this._createJsonEditor();
 
         this._ro = new ResizeObserver(() => this._onResize());
@@ -1184,6 +1197,12 @@ class PetriView extends HTMLElement {
         if (this._hamburgerDropdown) {
             this._hamburgerDropdown.remove();
             this._hamburgerDropdown = null;
+        }
+        
+        // Clean up top-right button
+        if (this._topRightButton) {
+            this._topRightButton.remove();
+            this._topRightButton = null;
         }
     }
 
@@ -3033,15 +3052,43 @@ class PetriView extends HTMLElement {
                 zIndex: 1300
             });
             
-            // Panel header
+            // Panel header - use full width for hamburger menu button
             const header = document.createElement('div');
             this._applyStyles(header, {
-                padding: '16px 24px',
+                padding: '16px 16px 16px 60px',
                 borderBottom: '1px solid #e1e4e8',
                 display: 'flex',
                 justifyContent: 'space-between',
-                alignItems: 'center'
+                alignItems: 'center',
+                position: 'relative'
             });
+            
+            // Hamburger button inside the panel on the left
+            const panelMenuBtn = document.createElement('button');
+            panelMenuBtn.type = 'button';
+            panelMenuBtn.innerHTML = '☰';
+            panelMenuBtn.title = 'Close Menu';
+            this._applyStyles(panelMenuBtn, {
+                position: 'absolute',
+                left: '16px',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                width: '32px',
+                height: '32px',
+                borderRadius: '4px',
+                border: 'none',
+                background: 'transparent',
+                cursor: 'pointer',
+                fontSize: '18px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#586069'
+            });
+            panelMenuBtn.addEventListener('click', () => {
+                menuContainer.style.display = 'none';
+            });
+            header.appendChild(panelMenuBtn);
             
             const title = document.createElement('h3');
             title.textContent = 'Menu';
@@ -3282,6 +3329,78 @@ class PetriView extends HTMLElement {
         
         this._hamburgerMenu = menuBtn;
         this._hamburgerDropdown = menuContainer;
+    }
+
+    // ---------------- top-right user/login button ----------------
+    _createTopRightButton() {
+        if (this._topRightButton) return;
+        if (!this._root) return;
+        
+        const isTensCityMode = this.hasAttribute('data-tens-city-mode');
+        
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'pv-top-right-btn';
+        
+        // Determine button content based on login state
+        if (isTensCityMode && this._supabaseInitialized && this._user) {
+            // Show username if logged in
+            const username = this._user.user_metadata?.user_name || 
+                           this._user.email?.split('@')[0] || 
+                           'User';
+            button.innerHTML = `👤 ${username}`;
+            button.title = `Logged in as ${this._user.email || username}`;
+        } else if (isTensCityMode && this._supabaseInitialized) {
+            // Show login button if not logged in
+            button.innerHTML = '🔑 Login';
+            button.title = 'Login with GitHub';
+        } else {
+            // In standard mode or when Supabase not initialized, don't show the button
+            return;
+        }
+        
+        this._applyStyles(button, {
+            position: 'absolute',
+            top: '10px',
+            right: '10px',
+            height: '40px',
+            padding: '0 16px',
+            borderRadius: '6px',
+            border: 'none',
+            background: 'rgba(255, 255, 255, 0.9)',
+            boxShadow: '0 2px 6px rgba(0, 0, 0, 0.15)',
+            cursor: 'pointer',
+            fontSize: '14px',
+            fontFamily: 'system-ui, Arial',
+            zIndex: 1300,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            userSelect: 'none',
+            transition: 'background 0.2s',
+            whiteSpace: 'nowrap'
+        });
+        
+        button.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (this._user) {
+                // If logged in, show logout option
+                this._logout();
+            } else {
+                // If not logged in, trigger login
+                this._loginWithGitHub();
+            }
+        });
+        
+        button.addEventListener('mouseenter', () => {
+            button.style.background = 'rgba(255, 255, 255, 1)';
+        });
+        button.addEventListener('mouseleave', () => {
+            button.style.background = 'rgba(255, 255, 255, 0.9)';
+        });
+        
+        this._root.appendChild(button);
+        this._topRightButton = button;
     }
 
     _removeJsonEditor() {
