@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1" name="viewport"/>
+    <title>Petri View - Tens City Mode Test</title>
+    <link href="petri-view.css" rel="stylesheet"/>
+    <script src="petri-view.js" type="module"></script>
+    <style>
+        .fixed-title {
+            position: fixed;
+            top: 16px;
+            left: 60px;
+            width: 120px;
+            height: auto;
+            z-index: 1000;
+            pointer-events: auto;
+        }
+
+        .fixed-title img {
+            width: 100%;
+            height: auto;
+            display: block;
+            pointer-events: none;
+        }
+
+        /* Reserve space for hamburger menu on the left */
+        .hamburger-placeholder {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            width: 40px;
+            height: 40px;
+            z-index: 1000;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+<div class="hamburger-placeholder"></div>
+<a class="fixed-title" href="https://pflow.xyz" rel="noopener noreferrer" target="_blank">
+    <img alt="Title" src="title.svg"/>
+</a>
+<petri-view data-json-editor data-tens-city-mode>
+<script type="application/ld+json">
+{
+  "@context": "https://pflow.xyz/schema",
+  "@type": "PetriNet",
+  "@version": "1.1",
+  "arcs": [
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "txn0",
+      "target": "place0",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "place0",
+      "target": "txn1",
+      "weight": [
+        3
+      ]
+    }
+  ],
+  "places": {
+    "place0": {
+      "@type": "Place",
+      "capacity": [
+        3
+      ],
+      "initial": [
+        1
+      ],
+      "offset": 0,
+      "x": 130,
+      "y": 207
+    }
+  },
+  "token": [
+    "https://pflow.xyz/tokens/black"
+  ],
+  "transitions": {
+    "txn0": {
+      "@type": "Transition",
+      "x": 46,
+      "y": 116
+    },
+    "txn1": {
+      "@type": "Transition",
+      "x": 227,
+      "y": 112
+    }
+  }
+}
+</script>
+</petri-view>
+</body>
+</html>

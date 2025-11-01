@@ -60,13 +60,23 @@ class PetriView extends HTMLElement {
 
     // observe compact flag and json editor toggle
     static get observedAttributes() {
-        return ['data-compact', 'data-json-editor'];
+        return ['data-compact', 'data-json-editor', 'data-tens-city-mode'];
     }
 
     attributeChangedCallback(name, oldValue, newValue) {
         if (name === 'data-json-editor' && this.isConnected) {
             if (newValue !== null) this._createJsonEditor();
             else this._removeJsonEditor();
+        }
+        if (name === 'data-tens-city-mode' && this.isConnected) {
+            // Re-create hamburger menu with new mode
+            if (this._hamburgerMenu) {
+                this._hamburgerMenu.remove();
+                this._hamburgerDropdown.remove();
+                this._hamburgerMenu = null;
+                this._hamburgerDropdown = null;
+            }
+            this._createHamburgerMenu();
         }
     }
 
@@ -1104,6 +1114,63 @@ class PetriView extends HTMLElement {
             alert('Download failed: ' + (err && err.message ? err.message : String(err)));
         }
     }
+    
+    _saveToPermalink() {
+        // Save current data to permalink (update URL with data parameter)
+        try {
+            this._updatePermalinkURL();
+            
+            // Show feedback to user
+            const currentUrl = window.location.href;
+            
+            // Copy to clipboard if available
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(currentUrl).then(() => {
+                    alert('Permalink saved! URL copied to clipboard.\n\n' + currentUrl);
+                }).catch(() => {
+                    alert('Permalink saved!\n\n' + currentUrl);
+                });
+            } else {
+                alert('Permalink saved!\n\n' + currentUrl);
+            }
+        } catch (err) {
+            console.error('Failed to save permalink:', err);
+            alert('Failed to save permalink: ' + (err && err.message ? err.message : String(err)));
+        }
+    }
+    
+    _deleteData() {
+        // Delete/clear current data
+        if (!confirm('Are you sure you want to clear all data? This cannot be undone.')) {
+            return;
+        }
+        
+        // Reset to empty model
+        this._model = {
+            '@context': 'https://pflow.xyz/schema',
+            '@type': 'PetriNet',
+            '@version': '1.1',
+            'token': ['https://pflow.xyz/tokens/black'],
+            'places': {},
+            'transitions': {},
+            'arcs': []
+        };
+        
+        this._normalizeModel();
+        this._renderUI();
+        this._syncLD(true);
+        this._pushHistory();
+        
+        // Clear URL parameter if in tens-city mode
+        if (this.hasAttribute('data-tens-city-mode')) {
+            const url = new URL(window.location.href);
+            url.searchParams.delete('data');
+            window.history.replaceState({}, '', url.toString());
+        }
+        
+        // Dispatch event
+        this.dispatchEvent(new CustomEvent('data-deleted'));
+    }
 
     // ---------------- utilities ----------------
     _safeParse(text) {
@@ -1242,15 +1309,82 @@ class PetriView extends HTMLElement {
     }
 
     _loadModelFromScriptOrAutosave() {
+        // Check for permalink data first (highest priority)
+        const urlParams = new URLSearchParams(window.location.search);
+        const encodedData = urlParams.get('data');
+        if (encodedData && this.hasAttribute('data-tens-city-mode')) {
+            const permalinkData = this._decodePermalinkData(encodedData);
+            if (permalinkData) {
+                this._model = permalinkData.data || {};
+                return;
+            }
+        }
+        
+        // Next, check script tag
         if (this._ldScript && this._ldScript.textContent) {
             const parsed = this._safeParse(this._ldScript.textContent);
             this._model = parsed || {};
             return;
         }
+        
+        // Finally, check localStorage
         try {
             const saved = localStorage.getItem(this._getStorageKey());
             if (saved) this._model = JSON.parse(saved);
         } catch {
+        }
+    }
+    
+    _decodePermalinkData(encodedData) {
+        // Decode URL-encoded JSON data (handles multiple levels of encoding)
+        if (!encodedData) return null;
+        
+        try {
+            let decodedData = encodedData;
+            
+            // Keep decoding until we can't decode anymore or get valid JSON
+            while (true) {
+                try {
+                    const nextDecoded = decodeURIComponent(decodedData);
+                    // If decoding doesn't change the string, we're done
+                    if (nextDecoded === decodedData) {
+                        break;
+                    }
+                    decodedData = nextDecoded;
+                    
+                    // Try to parse as JSON - if successful, we're done
+                    JSON.parse(decodedData);
+                    break;
+                } catch (jsonErr) {
+                    // Not valid JSON yet, continue decoding if possible
+                }
+            }
+            
+            const data = JSON.parse(decodedData);
+            return {
+                jsonString: JSON.stringify(data, null, 2),
+                data: data
+            };
+        } catch (err) {
+            console.error('Failed to parse permalink data:', err);
+            return null;
+        }
+    }
+    
+    _updatePermalinkURL() {
+        // Update the URL with current model data (only in tens-city mode)
+        if (!this.hasAttribute('data-tens-city-mode')) return;
+        
+        try {
+            const jsonString = JSON.stringify(this._model);
+            const encodedData = encodeURIComponent(jsonString);
+            const url = new URL(window.location.href);
+            url.searchParams.set('data', encodedData);
+            
+            // Update URL without reloading the page
+            window.history.replaceState({}, '', url.toString());
+        } catch (err) {
+            console.error('Failed to update permalink URL:', err);
         }
     }
 
@@ -1264,6 +1398,8 @@ class PetriView extends HTMLElement {
         if (!this._ldScript) {
             // still update editor if present
             this._updateJsonEditor();
+            // Update permalink URL in tens-city mode
+            this._updatePermalinkURL();
             return;
         }
         const pretty = !this.hasAttribute('data-compact');
@@ -1273,6 +1409,8 @@ class PetriView extends HTMLElement {
             this.dispatchEvent(new CustomEvent('jsonld-updated', {detail: {json: this.exportJSON()}}));
         }
         this._updateJsonEditor();
+        // Update permalink URL in tens-city mode
+        this._updatePermalinkURL();
     }
 
     _pushHistory(seed = false) {
@@ -2702,6 +2840,8 @@ class PetriView extends HTMLElement {
     _createHamburgerMenu() {
         if (this._hamburgerMenu) return;
         
+        const isTensCityMode = this.hasAttribute('data-tens-city-mode');
+        
         const menuBtn = document.createElement('button');
         menuBtn.type = 'button';
         menuBtn.className = 'pv-hamburger-btn';
@@ -2727,21 +2867,115 @@ class PetriView extends HTMLElement {
             transition: 'background 0.2s'
         });
 
-        const dropdown = document.createElement('div');
-        dropdown.className = 'pv-hamburger-dropdown';
-        dropdown.style.display = 'none';
-        this._applyStyles(dropdown, {
-            position: 'absolute',
-            top: '55px',
-            left: '10px',
-            minWidth: '180px',
-            background: 'rgba(255, 255, 255, 0.98)',
-            borderRadius: '8px',
-            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)',
-            zIndex: 1300,
-            padding: '6px 0',
-            userSelect: 'none'
-        });
+        // Use left-side panel in tens-city mode, dropdown otherwise
+        let menuContainer;
+        if (isTensCityMode) {
+            // Create overlay for left-side panel
+            menuContainer = document.createElement('div');
+            menuContainer.className = 'pv-hamburger-overlay';
+            menuContainer.style.display = 'none';
+            this._applyStyles(menuContainer, {
+                position: 'fixed',
+                top: '0',
+                left: '0',
+                width: '100%',
+                height: '100%',
+                background: 'rgba(0, 0, 0, 0.5)',
+                zIndex: 1299,
+                display: 'none'
+            });
+            
+            // Create left panel
+            const panel = document.createElement('div');
+            panel.className = 'pv-hamburger-panel';
+            this._applyStyles(panel, {
+                position: 'fixed',
+                top: '0',
+                left: '0',
+                width: '300px',
+                height: '100%',
+                background: '#fff',
+                boxShadow: '2px 0 8px rgba(0,0,0,0.1)',
+                display: 'flex',
+                flexDirection: 'column',
+                zIndex: 1300
+            });
+            
+            // Panel header
+            const header = document.createElement('div');
+            this._applyStyles(header, {
+                padding: '16px 24px',
+                borderBottom: '1px solid #e1e4e8',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center'
+            });
+            
+            const title = document.createElement('h3');
+            title.textContent = 'Menu';
+            this._applyStyles(title, {
+                margin: '0',
+                fontSize: '18px',
+                fontWeight: 'bold'
+            });
+            header.appendChild(title);
+            
+            const closeBtn = document.createElement('button');
+            closeBtn.textContent = '×';
+            closeBtn.type = 'button';
+            this._applyStyles(closeBtn, {
+                background: 'transparent',
+                border: 'none',
+                fontSize: '28px',
+                cursor: 'pointer',
+                padding: '0',
+                lineHeight: '1',
+                color: '#586069'
+            });
+            closeBtn.addEventListener('click', () => {
+                menuContainer.style.display = 'none';
+            });
+            header.appendChild(closeBtn);
+            
+            panel.appendChild(header);
+            
+            // Panel content
+            const content = document.createElement('div');
+            this._applyStyles(content, {
+                padding: '8px 0',
+                flex: '1 1 auto',
+                overflow: 'auto'
+            });
+            panel.appendChild(content);
+            
+            menuContainer.appendChild(panel);
+            menuContainer._menuContent = content;
+            
+            // Close on overlay click
+            menuContainer.addEventListener('click', (e) => {
+                if (e.target === menuContainer) {
+                    menuContainer.style.display = 'none';
+                }
+            });
+        } else {
+            // Use dropdown for standard mode
+            menuContainer = document.createElement('div');
+            menuContainer.className = 'pv-hamburger-dropdown';
+            menuContainer.style.display = 'none';
+            this._applyStyles(menuContainer, {
+                position: 'absolute',
+                top: '55px',
+                left: '10px',
+                minWidth: '180px',
+                background: 'rgba(255, 255, 255, 0.98)',
+                borderRadius: '8px',
+                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)',
+                zIndex: 1300,
+                padding: '6px 0',
+                userSelect: 'none'
+            });
+            menuContainer._menuContent = menuContainer;
+        }
 
         const makeMenuItem = (text, onClick, icon = null) => {
             const item = document.createElement('div');
@@ -2783,12 +3017,35 @@ class PetriView extends HTMLElement {
             item.addEventListener('click', (e) => {
                 e.stopPropagation();
                 onClick();
-                dropdown.style.display = 'none';
+                menuContainer.style.display = 'none';
             });
             return item;
         };
 
-        // Add menu items
+        // Add menu items based on mode
+        if (isTensCityMode) {
+            // Tens City mode: Add Save and Delete buttons
+            const saveItem = makeMenuItem('💾 Save', () => {
+                this._saveToPermalink();
+            });
+            menuContainer._menuContent.appendChild(saveItem);
+            
+            const deleteItem = makeMenuItem('🗑️ Delete', () => {
+                this._deleteData();
+            });
+            menuContainer._menuContent.appendChild(deleteItem);
+            
+            // Add separator
+            const separator = document.createElement('div');
+            this._applyStyles(separator, {
+                height: '1px',
+                background: '#e1e4e8',
+                margin: '8px 0'
+            });
+            menuContainer._menuContent.appendChild(separator);
+        }
+        
+        // Standard menu items
         const toggleEditorItem = makeMenuItem('📝 Toggle Editor', () => {
             if (this.hasAttribute('data-json-editor')) {
                 this.removeAttribute('data-json-editor');
@@ -2796,37 +3053,39 @@ class PetriView extends HTMLElement {
                 this.setAttribute('data-json-editor', '');
             }
         });
-        dropdown.appendChild(toggleEditorItem);
+        menuContainer._menuContent.appendChild(toggleEditorItem);
 
         const downloadItem = makeMenuItem('📥 Download JSON', () => {
             this.downloadJSON();
         });
-        dropdown.appendChild(downloadItem);
+        menuContainer._menuContent.appendChild(downloadItem);
 
         const helpItem = makeMenuItem('❓ Help', () => {
             this._showHelpDialog();
         });
-        dropdown.appendChild(helpItem);
+        menuContainer._menuContent.appendChild(helpItem);
 
         const githubItem = makeMenuItem('GitHub', () => {
             window.open('https://github.com/pflow-xyz/pflow-xyz', '_blank', 'noopener,noreferrer');
         }, '<svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path></svg>');
-        dropdown.appendChild(githubItem);
+        menuContainer._menuContent.appendChild(githubItem);
 
-        // Toggle dropdown on button click
+        // Toggle menu on button click
         menuBtn.addEventListener('click', (e) => {
             e.stopPropagation();
-            const isVisible = dropdown.style.display !== 'none';
-            dropdown.style.display = isVisible ? 'none' : 'block';
+            const isVisible = menuContainer.style.display !== 'none';
+            menuContainer.style.display = isVisible ? 'none' : (isTensCityMode ? 'block' : 'block');
         });
 
-        // Close dropdown when clicking outside
-        const closeDropdown = (e) => {
-            if (!menuBtn.contains(e.target) && !dropdown.contains(e.target)) {
-                dropdown.style.display = 'none';
-            }
-        };
-        document.addEventListener('click', closeDropdown);
+        // Close dropdown when clicking outside (only for non-tens-city mode)
+        if (!isTensCityMode) {
+            const closeDropdown = (e) => {
+                if (!menuBtn.contains(e.target) && !menuContainer.contains(e.target)) {
+                    menuContainer.style.display = 'none';
+                }
+            };
+            document.addEventListener('click', closeDropdown);
+        }
 
         menuBtn.addEventListener('mouseenter', () => {
             menuBtn.style.background = 'rgba(255, 255, 255, 1)';
@@ -2836,10 +3095,15 @@ class PetriView extends HTMLElement {
         });
 
         this._root.appendChild(menuBtn);
-        this._root.appendChild(dropdown);
+        if (isTensCityMode) {
+            // Append to body for full-screen overlay
+            document.body.appendChild(menuContainer);
+        } else {
+            this._root.appendChild(menuContainer);
+        }
         
         this._hamburgerMenu = menuBtn;
-        this._hamburgerDropdown = dropdown;
+        this._hamburgerDropdown = menuContainer;
     }
 
     _removeJsonEditor() {
