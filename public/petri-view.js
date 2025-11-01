@@ -1361,14 +1361,13 @@ class PetriView extends HTMLElement {
                 return;
             }
 
-            // Check if user is authenticated
-            if (!this._supabaseInitialized || !this._user) {
-                alert('You must be logged in to delete documents from the server.');
-                return;
-            }
-
             try {
-                // Get the session token for authentication
+                // Check if user is authenticated and get session token
+                if (!this._supabaseInitialized || !this._user) {
+                    alert('You must be logged in to delete documents from the server.');
+                    return;
+                }
+
                 const {data: {session}} = await this._supabase.auth.getSession();
                 const authToken = session?.access_token;
 
@@ -1394,7 +1393,8 @@ class PetriView extends HTMLElement {
                         alert('Document not found on server.');
                     } else {
                         const errorText = await response.text().catch(() => '');
-                        alert(`Failed to delete document: ${response.statusText}${errorText ? ' - ' + errorText : ''}`);
+                        const statusMsg = response.statusText || `HTTP ${response.status}`;
+                        alert(`Failed to delete document: ${statusMsg}${errorText ? '\n' + errorText : ''}`);
                     }
                     return;
                 }
