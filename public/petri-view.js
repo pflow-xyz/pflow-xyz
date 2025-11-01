@@ -1158,11 +1158,11 @@ class PetriView extends HTMLElement {
     }
 
     // ---------------- lifecycle ----------------
-    connectedCallback() {
+    async connectedCallback() {
         if (this._root) return;
         this._buildRoot();
         this._ldScript = this.querySelector('script[type="application/ld+json"]');
-        this._loadModelFromScriptOrAutosave();
+        await this._loadModelFromScriptOrAutosave();
         this._normalizeModel();
         this._renderUI();
         this._applyViewTransform();
@@ -1501,7 +1501,7 @@ class PetriView extends HTMLElement {
         }
     }
 
-    _loadModelFromScriptOrAutosave() {
+    async _loadModelFromScriptOrAutosave() {
         // Check for permalink data first (highest priority)
         const urlParams = new URLSearchParams(window.location.search);
         const encodedData = urlParams.get('data');
@@ -1510,6 +1510,21 @@ class PetriView extends HTMLElement {
             if (permalinkData) {
                 this._model = permalinkData.data || {};
                 return;
+            }
+        }
+
+        // Check for CID parameter in tens-city mode
+        const cid = urlParams.get('cid');
+        if (cid && this.hasAttribute('data-tens-city-mode')) {
+            try {
+                const response = await fetch(`/o/${cid}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    this._model = data || {};
+                    return;
+                }
+            } catch (err) {
+                console.error('Failed to load data from CID:', err);
             }
         }
 
