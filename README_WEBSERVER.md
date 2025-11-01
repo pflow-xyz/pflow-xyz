@@ -1,12 +1,12 @@
 # pflow-xyz Webserver
 
-This Go module provides a webserver that serves the pflow-xyz petri-view web component with a tens-city-compatible backend for saving and managing Petri net models.
+This Go module provides a webserver that serves the pflow-xyz petri-view web component with a compatible backend for saving and managing Petri net models.
 
 ## Features
 
 - Serves static files from the `public` directory (embedded in the binary)
 - Provides API endpoints for saving, retrieving, and deleting JSON-LD objects
-- Uses the tens-city backend for CID computation and storage
+- Uses a backend implementation for CID computation and storage
 - Supports GitHub OAuth authentication via Supabase JWT tokens
 - CORS support for cross-origin requests
 
@@ -46,13 +46,13 @@ go build -o webserver ./cmd/webserver
 
 ## Architecture
 
-This server reuses the tens-city backend implementation for:
+This server implements a backend for:
 - JSON-LD canonicalization (URDNA2015)
 - CID computation (IPFS CIDv1 with SHA2-256)
 - Object storage (filesystem-based)
 - Authentication (Supabase JWT validation)
 
-The main difference is that it serves the pflow-xyz `public` directory instead of the tens-city UI.
+The webserver embeds the pflow-xyz `public` directory and provides REST API endpoints for data persistence.
 
 ## Development
 

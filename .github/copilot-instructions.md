@@ -5,7 +5,7 @@
 pflow-xyz is a lightweight web component for building, editing, and simulating Petri nets in the browser. The project consists of:
 
 1. **Frontend**: An ES module web component (`public/petri-view.js`) that provides a visual editor and simulator for Petri nets
-2. **Backend**: A Go webserver that serves the frontend and provides API endpoints for saving/retrieving Petri net models using a tens-city-compatible backend
+2. **Backend**: A Go webserver that serves the frontend and provides API endpoints for saving/retrieving Petri net models using a compatible backend
 
 The component supports:
 - Visual editor for places, transitions and arcs
@@ -131,7 +131,7 @@ The webserver provides these endpoints:
 ## Dependencies
 
 The project uses:
-- `github.com/stackdump/tens-city` - Backend for CID computation and storage
+- `github.com/stackdump/tens-city` - Reference backend implementation for CID computation and storage
 - `github.com/piprate/json-gold` - JSON-LD processing
 - `github.com/golang-jwt/jwt/v5` - JWT validation
 - IPFS multiformats libraries - For CID handling
@@ -144,7 +144,7 @@ The project uses:
 
 3. **Data Storage**: Objects are stored in a filesystem-based store (default: `./data` directory)
 
-4. **CID Compatibility**: The project uses IPFS CIDv1 with SHA2-256 for content addressing, compatible with tens-city
+4. **CID Compatibility**: The project uses IPFS CIDv1 with SHA2-256 for content addressing
 
 ## When Making Changes
 

@@ -27,7 +27,7 @@ The component is implemented as an ES module (`public/petri-view.js`) and expose
 - **Download/Upload**: Import and export Petri nets as JSON-LD files
 
 ### Integration Features
-- **Tens-City Mode**: Integration with tens-city backend for persistence
+- **Backend Mode**: Integration with backend server for remote persistence
 - **Supabase Auth**: Optional GitHub OAuth authentication via Supabase
 - **Custom Events**: Rich event system for integration with your application
 - **Public API**: JavaScript methods for programmatic control
@@ -112,7 +112,7 @@ This example demonstrates all available features:
     <!-- 
         Attributes:
         - data-json-editor: Enable in-page JSON editor
-        - data-tens-city-mode: Enable tens-city backend integration
+        - data-backend: Enable backend server integration
         - data-layout-horizontal: Use horizontal layout (default is vertical)
         - data-compact: Minimize JSON output (no pretty printing)
         - supabase-url: Supabase project URL for authentication
@@ -121,7 +121,7 @@ This example demonstrates all available features:
     <petri-view 
         id="pv" 
         data-json-editor
-        data-tens-city-mode
+        data-backend
         supabase-url="https://zosuuhddfpcnlfphwrab.supabase.co"
         supabase-key="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inpvc3V1aGRkZnBjbmxmcGh3cmFiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE5OTQ0NzUsImV4cCI6MjA3NzU3MDQ3NX0.f99E42qLhMG9tWoPaoTfyG5koqQciKiaqerpA_7amS8">
         <script type="application/ld+json">
@@ -224,7 +224,7 @@ Configure the component using HTML attributes:
 | Attribute | Type | Description |
 |-----------|------|-------------|
 | `data-json-editor` | boolean | Enable in-page JSON editor with toolbar |
-| `data-tens-city-mode` | boolean | Enable tens-city backend integration with save/load features |
+| `data-backend` | boolean | Enable backend server integration with save/load features |
 | `data-layout-horizontal` | boolean | Use horizontal layout instead of vertical |
 | `data-compact` | boolean | Minimize JSON output (no pretty printing) |
 | `supabase-url` | string | Supabase project URL for authentication |
@@ -374,9 +374,9 @@ Petri nets are represented using JSON-LD format with the schema at `https://pflo
   - Open from URL
   - Toggle JSON Editor
   - Toggle Layout (Vertical/Horizontal)
-  - Save Permalink (tens-city mode)
-  - Delete Data (tens-city mode)
-  - Login/Logout (tens-city mode with Supabase)
+  - Save Permalink (backend mode)
+  - Delete Data (backend mode)
+  - Login/Logout (backend mode with Supabase)
 
 ## Integration Examples
 

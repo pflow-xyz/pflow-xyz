@@ -60,7 +60,7 @@ class PetriView extends HTMLElement {
         // layout orientation (vertical by default, horizontal when toggled)
         this._layoutHorizontal = false;
 
-        // Supabase support (tens-city mode)
+        // Supabase support (backend mode)
         this._supabase = null;
         this._user = null;
         this._supabaseUrl = null;
@@ -75,7 +75,7 @@ class PetriView extends HTMLElement {
 
     // observe compact flag and json editor toggle
     static get observedAttributes() {
-        return ['data-compact', 'data-json-editor', 'data-tens-city-mode', 'data-layout-horizontal', 'supabase-url', 'supabase-key'];
+        return ['data-compact', 'data-json-editor', 'data-backend', 'data-layout-horizontal', 'supabase-url', 'supabase-key'];
     }
 
     attributeChangedCallback(name, oldValue, newValue) {
@@ -83,7 +83,7 @@ class PetriView extends HTMLElement {
             if (newValue !== null) this._createJsonEditor();
             else this._removeJsonEditor();
         }
-        if (name === 'data-tens-city-mode' && this.isConnected) {
+        if (name === 'data-backend' && this.isConnected) {
             // Re-create hamburger menu with new mode
             if (this._hamburgerMenu) {
                 this._hamburgerMenu.remove();
@@ -100,7 +100,7 @@ class PetriView extends HTMLElement {
         }
         if ((name === 'supabase-url' || name === 'supabase-key') && this.isConnected) {
             // Re-initialize Supabase with new config
-            if (this.hasAttribute('data-tens-city-mode')) {
+            if (this.hasAttribute('data-backend')) {
                 this._initSupabase();
             }
         }
@@ -115,7 +115,7 @@ class PetriView extends HTMLElement {
 
     // ---------------- Supabase Integration ----------------
     async _initSupabase() {
-        if (!this.hasAttribute('data-tens-city-mode')) return;
+        if (!this.hasAttribute('data-backend')) return;
 
         const supabaseUrl = this.getAttribute('supabase-url');
         const supabaseKey = this.getAttribute('supabase-key');
@@ -1274,10 +1274,10 @@ class PetriView extends HTMLElement {
     }
 
     async _saveToPermalink() {
-        const isTensCityMode = this.hasAttribute('data-tens-city-mode');
+        const isBackendMode = this.hasAttribute('data-backend');
 
-        // In tens-city mode with authenticated user, save to server
-        if (isTensCityMode && this._supabaseInitialized && this._user) {
+        // In backend mode with authenticated user, save to server
+        if (isBackendMode && this._supabaseInitialized && this._user) {
             try {
                 // Get the session token for authentication
                 const {data: {session}} = await this._supabase.auth.getSession();
@@ -1353,10 +1353,10 @@ class PetriView extends HTMLElement {
         // Check if we have a CID in the URL (document loaded from server)
         const urlParams = new URLSearchParams(window.location.search);
         const cid = urlParams.get('cid');
-        const isTensCityMode = this.hasAttribute('data-tens-city-mode');
+        const isBackendMode = this.hasAttribute('data-backend');
 
         // If there's a CID, we need to delete from the server
-        if (cid && isTensCityMode) {
+        if (cid && isBackendMode) {
             if (!confirm('Are you sure you want to delete this document from the server? This cannot be undone.')) {
                 return;
             }
@@ -1429,8 +1429,8 @@ class PetriView extends HTMLElement {
         this._syncLD(true);
         this._pushHistory();
 
-        // Clear URL parameters if in tens-city mode
-        if (isTensCityMode) {
+        // Clear URL parameters if in backend mode
+        if (isBackendMode) {
             const url = new URL(window.location.href);
             url.searchParams.delete('data');
             url.searchParams.delete('cid');
@@ -1581,7 +1581,7 @@ class PetriView extends HTMLElement {
         // Check for permalink data first (highest priority)
         const urlParams = new URLSearchParams(window.location.search);
         const encodedData = urlParams.get('data');
-        if (encodedData && this.hasAttribute('data-tens-city-mode')) {
+        if (encodedData && this.hasAttribute('data-backend')) {
             const permalinkData = this._decodePermalinkData(encodedData);
             if (permalinkData) {
                 this._model = permalinkData.data || {};
@@ -1589,9 +1589,9 @@ class PetriView extends HTMLElement {
             }
         }
 
-        // Check for CID parameter in tens-city mode
+        // Check for CID parameter in backend mode
         const cid = urlParams.get('cid');
-        if (cid && this.hasAttribute('data-tens-city-mode')) {
+        if (cid && this.hasAttribute('data-backend')) {
             try {
                 const response = await fetch(`/o/${cid}`);
                 if (response.ok) {
@@ -1667,8 +1667,8 @@ class PetriView extends HTMLElement {
     }
 
     _updatePermalinkURL() {
-        // Update the URL with current model data (only in tens-city mode)
-        if (!this.hasAttribute('data-tens-city-mode')) return;
+        // Update the URL with current model data (only in backend mode)
+        if (!this.hasAttribute('data-backend')) return;
 
         try {
             const jsonString = JSON.stringify(this._model);
@@ -1693,14 +1693,14 @@ class PetriView extends HTMLElement {
         if (!this._ldScript) {
             // still update editor if present
             this._updateJsonEditor();
-            // Update permalink URL in tens-city mode
+            // Update permalink URL in backend mode
             this._updatePermalinkURL();
             return;
         }
 
-        // In tens-city mode, don't update the script tag content - keep original
+        // In backend mode, don't update the script tag content - keep original
         // This prevents JSON from appearing in the page when loading from URL
-        if (!this.hasAttribute('data-tens-city-mode')) {
+        if (!this.hasAttribute('data-backend')) {
             const pretty = !this.hasAttribute('data-compact');
             const text = pretty ? this._stableStringify(this._model, 2) : JSON.stringify(this._model);
             if (force || this._ldScript.textContent !== text) {
@@ -1708,12 +1708,12 @@ class PetriView extends HTMLElement {
                 this.dispatchEvent(new CustomEvent('jsonld-updated', {detail: {json: this.exportJSON()}}));
             }
         } else {
-            // Still dispatch event for tens-city mode
+            // Still dispatch event for backend mode
             this.dispatchEvent(new CustomEvent('jsonld-updated', {detail: {json: this.exportJSON()}}));
         }
 
         this._updateJsonEditor();
-        // Update permalink URL in tens-city mode
+        // Update permalink URL in backend mode
         this._updatePermalinkURL();
     }
 
@@ -3145,7 +3145,7 @@ class PetriView extends HTMLElement {
         if (this._hamburgerMenu) return;
         if (!this._root) return; // Safety check
 
-        const isTensCityMode = this.hasAttribute('data-tens-city-mode');
+        const isBackendMode = this.hasAttribute('data-backend');
 
         const menuBtn = document.createElement('button');
         menuBtn.type = 'button';
@@ -3172,9 +3172,9 @@ class PetriView extends HTMLElement {
             transition: 'background 0.2s'
         });
 
-        // Use left-side panel in tens-city mode, dropdown otherwise
+        // Use left-side panel in backend mode, dropdown otherwise
         let menuContainer;
-        if (isTensCityMode) {
+        if (isBackendMode) {
             // Create overlay for left-side panel
             menuContainer = document.createElement('div');
             menuContainer.className = 'pv-hamburger-overlay';
@@ -3357,8 +3357,8 @@ class PetriView extends HTMLElement {
         };
 
         // Add menu items based on mode
-        if (isTensCityMode) {
-            // Tens City mode: Save button text changes based on auth state
+        if (isBackendMode) {
+            // Backend mode: Save button text changes based on auth state
             const saveText = (this._supabaseInitialized && this._user)
                 ? '💾 Save to Server'
                 : '💾 Save Permalink';
@@ -3458,11 +3458,11 @@ class PetriView extends HTMLElement {
         menuBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             const isVisible = menuContainer.style.display !== 'none';
-            menuContainer.style.display = isVisible ? 'none' : (isTensCityMode ? 'block' : 'block');
+            menuContainer.style.display = isVisible ? 'none' : (isBackendMode ? 'block' : 'block');
         });
 
-        // Close dropdown when clicking outside (only for non-tens-city mode)
-        if (!isTensCityMode) {
+        // Close dropdown when clicking outside (only for non-backend mode)
+        if (!isBackendMode) {
             const closeDropdown = (e) => {
                 if (!menuBtn.contains(e.target) && !menuContainer.contains(e.target)) {
                     menuContainer.style.display = 'none';
@@ -3479,7 +3479,7 @@ class PetriView extends HTMLElement {
         });
 
         this._root.appendChild(menuBtn);
-        if (isTensCityMode) {
+        if (isBackendMode) {
             // Append to body for full-screen overlay
             document.body.appendChild(menuContainer);
         } else {
@@ -3495,21 +3495,21 @@ class PetriView extends HTMLElement {
         if (this._topRightButton) return;
         if (!this._root) return;
 
-        const isTensCityMode = this.hasAttribute('data-tens-city-mode');
+        const isBackendMode = this.hasAttribute('data-backend');
 
         const button = document.createElement('button');
         button.type = 'button';
         button.className = 'pv-top-right-btn';
 
         // Determine button content based on login state
-        if (isTensCityMode && this._supabaseInitialized && this._user) {
+        if (isBackendMode && this._supabaseInitialized && this._user) {
             // Show username if logged in
             const username = this._user.user_metadata?.user_name ||
                 this._user.email?.split('@')[0] ||
                 'User';
             button.innerHTML = `👤 ${username}`;
             button.title = `Logged in as ${this._user.email || username}`;
-        } else if (isTensCityMode && this._supabaseInitialized) {
+        } else if (isBackendMode && this._supabaseInitialized) {
             // Show login button if not logged in
             button.innerHTML = '🔑 Login';
             button.title = 'Login with GitHub';
