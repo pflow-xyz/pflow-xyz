@@ -96,8 +96,8 @@ func (s *FSStore) SaveObjectWithAuthor(cid string, raw []byte, canonical []byte,
 		return err
 	}
 
-	// Add the @id field with ipfs:// prefix
-	doc["@id"] = "ipfs://" + cid
+	// Add the @id field with CID
+	doc["@id"] = cid
 
 	// Add author information if we have at least username or GitHub ID
 	// Both are needed to provide meaningful provenance
