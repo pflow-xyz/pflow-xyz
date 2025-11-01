@@ -81,11 +81,11 @@ canvas.pv-canvas {
     pointer-events: auto;
 }
 
-/* transition: 30x30 rounded rect */
+/* transition: 30x30 square */
 .pv-transition {
     width: 30px;
     height: 30px;
-    border-radius: 4px;
+    border-radius: 0;
     display: flex;
     align-items: center;
     justify-content: center;
