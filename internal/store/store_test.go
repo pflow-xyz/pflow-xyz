@@ -272,50 +272,50 @@ func TestSignaturePath(t *testing.T) {
 }
 
 func TestPathSanitization(t *testing.T) {
-tmpDir := t.TempDir()
-st := NewFSStore(tmpDir)
+	tmpDir := t.TempDir()
+	st := NewFSStore(tmpDir)
 
-// Test path traversal attempts in CID
-_, err := st.ReadObject("../../../etc/passwd")
-if err == nil {
-t.Error("Expected error for path traversal in CID")
-}
+	// Test path traversal attempts in CID
+	_, err := st.ReadObject("../../../etc/passwd")
+	if err == nil {
+		t.Error("Expected error for path traversal in CID")
+	}
 
-_, err = st.ReadObject("test/../../../etc/passwd")
-if err == nil {
-t.Error("Expected error for path traversal in CID")
-}
+	_, err = st.ReadObject("test/../../../etc/passwd")
+	if err == nil {
+		t.Error("Expected error for path traversal in CID")
+	}
 
-// Test path traversal in user/slug
-_, err = st.ReadLatest("../../../etc", "passwd")
-if err == nil {
-t.Error("Expected error for path traversal in user")
-}
+	// Test path traversal in user/slug
+	_, err = st.ReadLatest("../../../etc", "passwd")
+	if err == nil {
+		t.Error("Expected error for path traversal in user")
+	}
 
-_, err = st.ReadLatest("testuser", "../../../etc/passwd")
-if err == nil {
-t.Error("Expected error for path traversal in slug")
-}
+	_, err = st.ReadLatest("testuser", "../../../etc/passwd")
+	if err == nil {
+		t.Error("Expected error for path traversal in slug")
+	}
 
-// Test valid inputs still work
-validCID := "z4EBG9jDcmuFgD2Vs1unB4caki8tPhKrdWeoEME9d35HmhBZfJQ"
-raw := []byte(`{"@context":"test","name":"test"}`)
-canonical := []byte(`canonical`)
+	// Test valid inputs still work
+	validCID := "z4EBG9jDcmuFgD2Vs1unB4caki8tPhKrdWeoEME9d35HmhBZfJQ"
+	raw := []byte(`{"@context":"test","name":"test"}`)
+	canonical := []byte(`canonical`)
 
-if err := st.SaveObject(validCID, raw, canonical); err != nil {
-t.Fatalf("Valid CID should work: %v", err)
-}
+	if err := st.SaveObject(validCID, raw, canonical); err != nil {
+		t.Fatalf("Valid CID should work: %v", err)
+	}
 
-if _, err := st.ReadObject(validCID); err != nil {
-t.Errorf("Reading valid CID should work: %v", err)
-}
+	if _, err := st.ReadObject(validCID); err != nil {
+		t.Errorf("Reading valid CID should work: %v", err)
+	}
 
-// Test valid user/slug
-if err := st.UpdateLatest("testuser", "testslug", validCID); err != nil {
-t.Fatalf("Valid user/slug should work: %v", err)
-}
+	// Test valid user/slug
+	if err := st.UpdateLatest("testuser", "testslug", validCID); err != nil {
+		t.Fatalf("Valid user/slug should work: %v", err)
+	}
 
-if _, err := st.ReadLatest("testuser", "testslug"); err != nil {
-t.Errorf("Reading valid user/slug should work: %v", err)
-}
+	if _, err := st.ReadLatest("testuser", "testslug"); err != nil {
+		t.Errorf("Reading valid user/slug should work: %v", err)
+	}
 }

@@ -41,91 +41,95 @@
 <a class="fixed-title" href="https://pflow.xyz" rel="noopener noreferrer" target="_blank">
     <img alt="Title" src="title.svg"/>
 </a>
-<petri-view data-json-editor>
+<petri-view
+        data-json-editor
+        data-tens-city-mode
+        supabase-key="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inpvc3V1aGRkZnBjbmxmcGh3cmFiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE5OTQ0NzUsImV4cCI6MjA3NzU3MDQ3NX0.f99E42qLhMG9tWoPaoTfyG5koqQciKiaqerpA_7amS8"
+        supabase-url="https://zosuuhddfpcnlfphwrab.supabase.co"
 <script type="application/ld+json">
-{
-  "@context": "https://pflow.xyz/schema",
-  "@type": "PetriNet",
-  "@version": "1.1",
-  "arcs": [
     {
-      "@type": "Arrow",
-      "inhibitTransition": false,
-      "source": "txn0",
-      "target": "place0",
-      "weight": [
-        1
-      ]
-    },
-    {
-      "@type": "Arrow",
-      "inhibitTransition": false,
-      "source": "place0",
-      "target": "txn1",
-      "weight": [
-        3
-      ]
-    },
-    {
-      "@type": "Arrow",
-      "inhibitTransition": true,
-      "source": "txn2",
-      "target": "place0",
-      "weight": [
-        3
-      ]
-    },
-    {
-      "@type": "Arrow",
-      "inhibitTransition": true,
-      "source": "place0",
-      "target": "txn3",
-      "weight": [
-        1
-      ]
+        "@context": "https://pflow.xyz/schema",
+        "@type": "PetriNet",
+        "@version": "1.1",
+        "arcs": [
+            {
+                "@type": "Arrow",
+                "inhibitTransition": false,
+                "source": "txn0",
+                "target": "place0",
+                "weight": [
+                    1
+                ]
+            },
+            {
+                "@type": "Arrow",
+                "inhibitTransition": false,
+                "source": "place0",
+                "target": "txn1",
+                "weight": [
+                    3
+                ]
+            },
+            {
+                "@type": "Arrow",
+                "inhibitTransition": true,
+                "source": "txn2",
+                "target": "place0",
+                "weight": [
+                    3
+                ]
+            },
+            {
+                "@type": "Arrow",
+                "inhibitTransition": true,
+                "source": "place0",
+                "target": "txn3",
+                "weight": [
+                    1
+                ]
+            }
+        ],
+        "places": {
+            "place0": {
+                "@type": "Place",
+                "capacity": [
+                    3
+                ],
+                "initial": [
+                    1
+                ],
+                "offset": 0,
+                "x": 130,
+                "y": 207
+            }
+        },
+        "token": [
+            "https://pflow.xyz/tokens/black"
+        ],
+        "transitions": {
+            "txn0": {
+                "@type": "Transition",
+                "x": 46,
+                "y": 116
+            },
+            "txn1": {
+                "@type": "Transition",
+                "x": 227,
+                "y": 112
+            },
+            "txn2": {
+                "@type": "Transition",
+                "x": 43,
+                "y": 307
+            },
+            "txn3": {
+                "@type": "Transition",
+                "x": 235,
+                "y": 306
+            }
+        },
+        "@id": "ipfs://z2xFpT8KDD7FU8tiWSMcB8n6dxJriy2PtZJrcyCwHkn9fmug732"
     }
-  ],
-  "places": {
-    "place0": {
-      "@type": "Place",
-      "capacity": [
-        3
-      ],
-      "initial": [
-        1
-      ],
-      "offset": 0,
-      "x": 130,
-      "y": 207
-    }
-  },
-  "token": [
-    "https://pflow.xyz/tokens/black"
-  ],
-  "transitions": {
-    "txn0": {
-      "@type": "Transition",
-      "x": 46,
-      "y": 116
-    },
-    "txn1": {
-      "@type": "Transition",
-      "x": 227,
-      "y": 112
-    },
-    "txn2": {
-      "@type": "Transition",
-      "x": 43,
-      "y": 307
-    },
-    "txn3": {
-      "@type": "Transition",
-      "x": 235,
-      "y": 306
-    }
-  },
-  "@id": "ipfs://z2xFpT8KDD7FU8tiWSMcB8n6dxJriy2PtZJrcyCwHkn9fmug732"
-}
 </script>
 </petri-view>
 </body>

@@ -40,7 +40,8 @@ func HashKeccak256(data []byte) []byte {
 
 // PersonalSignHash returns the keccak256 hash of the prefixed message according to
 // the personal_sign / EIP-191 scheme used by many wallets:
-//   keccak256("\x19Ethereum Signed Message:\n{len(message)}" || message)
+//
+//	keccak256("\x19Ethereum Signed Message:\n{len(message)}" || message)
 func PersonalSignHash(message []byte) []byte {
 	prefix := []byte("\x19Ethereum Signed Message:\n")
 	lenStr := []byte(strconv.Itoa(len(message)))

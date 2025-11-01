@@ -10,11 +10,11 @@ import (
 
 // GitHubUserInfo contains the GitHub user information from Supabase JWT
 type GitHubUserInfo struct {
-	ID       string `json:"sub"`           // Supabase user ID
-	Email    string `json:"email"`         // User email
-	UserName string `json:"user_name"`     // GitHub username from user_metadata
-	FullName string `json:"full_name"`     // GitHub full name from user_metadata
-	GitHubID string `json:"provider_id"`   // GitHub user ID
+	ID       string `json:"sub"`         // Supabase user ID
+	Email    string `json:"email"`       // User email
+	UserName string `json:"user_name"`   // GitHub username from user_metadata
+	FullName string `json:"full_name"`   // GitHub full name from user_metadata
+	GitHubID string `json:"provider_id"` // GitHub user ID
 }
 
 // SupabaseClaims represents the JWT claims from Supabase
@@ -30,13 +30,13 @@ type SupabaseClaims struct {
 func ExtractUserFromToken(tokenString string) (*GitHubUserInfo, error) {
 	// Remove "Bearer " prefix if present
 	tokenString = strings.TrimPrefix(tokenString, "Bearer ")
-	
+
 	// Get JWT secret from environment variable
 	jwtSecret := os.Getenv("SUPABASE_JWT_SECRET")
 	if jwtSecret == "" {
 		return nil, fmt.Errorf("SUPABASE_JWT_SECRET environment variable not set")
 	}
-	
+
 	// Parse and verify the JWT token
 	token, err := jwt.ParseWithClaims(tokenString, &SupabaseClaims{}, func(token *jwt.Token) (interface{}, error) {
 		// Verify the signing method is HMAC
@@ -45,23 +45,23 @@ func ExtractUserFromToken(tokenString string) (*GitHubUserInfo, error) {
 		}
 		return []byte(jwtSecret), nil
 	})
-	
+
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse JWT: %w", err)
 	}
-	
+
 	// Extract claims
 	claims, ok := token.Claims.(*SupabaseClaims)
 	if !ok || !token.Valid {
 		return nil, fmt.Errorf("invalid token claims")
 	}
-	
+
 	// Build user info from verified claims
 	userInfo := &GitHubUserInfo{
 		ID:    claims.Subject,
 		Email: claims.Email,
 	}
-	
+
 	// Extract user_metadata which contains GitHub info
 	if claims.UserMetadata != nil {
 		if userName, ok := claims.UserMetadata["user_name"].(string); ok {
@@ -79,7 +79,7 @@ func ExtractUserFromToken(tokenString string) (*GitHubUserInfo, error) {
 			userInfo.GitHubID = sub
 		}
 	}
-	
+
 	// Also try app_metadata for provider info
 	if claims.AppMetadata != nil {
 		if provider, ok := claims.AppMetadata["provider"].(string); ok {
@@ -88,11 +88,11 @@ func ExtractUserFromToken(tokenString string) (*GitHubUserInfo, error) {
 			}
 		}
 	}
-	
+
 	// Validate we have at least some user identification
 	if userInfo.ID == "" && userInfo.Email == "" && userInfo.UserName == "" {
 		return nil, fmt.Errorf("no user identification found in token")
 	}
-	
+
 	return userInfo, nil
 }

@@ -35,7 +35,7 @@ func marshalCanonical(v interface{}) ([]byte, error) {
 			}
 			buf.Write(keyJSON)
 			buf.WriteString(":")
-			
+
 			// Recursively marshal the value
 			valJSON, err := marshalCanonical(val[k])
 			if err != nil {

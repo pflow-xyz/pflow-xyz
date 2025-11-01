@@ -16,30 +16,31 @@ func sanitizePathComponent(component string) (string, error) {
 	if component == "" {
 		return "", fmt.Errorf("path component cannot be empty")
 	}
-	
+
 	// Disallow path separators and parent directory references
-	if strings.Contains(component, "/") || strings.Contains(component, "\\") || 
-	   strings.Contains(component, "..") || component == "." {
+	if strings.Contains(component, "/") || strings.Contains(component, "\\") ||
+		strings.Contains(component, "..") || component == "." {
 		return "", fmt.Errorf("invalid path component: %s", component)
 	}
-	
+
 	// Clean the path component
 	cleaned := filepath.Clean(component)
-	
+
 	// Verify it hasn't changed (would indicate suspicious input)
 	if cleaned != component {
 		return "", fmt.Errorf("path component contains invalid characters: %s", component)
 	}
-	
+
 	return cleaned, nil
 }
 
 // FSStore is a simple file-system-backed store for sealed objects and user containers.
 // Structure:
-//  {base}/o/{cid}              -> original JSON-LD bytes
-//  {base}/o/canonical/{cid}.nq -> canonical n-quads text
-//  {base}/u/{login}/g/{slug}/latest -> text file containing CID
-//  {base}/u/{login}/g/{slug}/_history -> JSON array of history entries
+//
+//	{base}/o/{cid}              -> original JSON-LD bytes
+//	{base}/o/canonical/{cid}.nq -> canonical n-quads text
+//	{base}/u/{login}/g/{slug}/latest -> text file containing CID
+//	{base}/u/{login}/g/{slug}/_history -> JSON array of history entries
 type FSStore struct {
 	base string
 	// mu protects concurrent access to files, especially for read-modify-write operations like AppendHistory
@@ -78,57 +79,57 @@ func (s *FSStore) SaveObject(cid string, raw []byte, canonical []byte) error {
 func (s *FSStore) SaveObjectWithAuthor(cid string, raw []byte, canonical []byte, githubUser, githubID string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	
+
 	cleanCID, err := sanitizePathComponent(cid)
 	if err != nil {
 		return fmt.Errorf("invalid cid: %w", err)
 	}
-	
+
 	objDir := filepath.Join(s.base, "o")
 	if err := os.MkdirAll(objDir, 0o755); err != nil {
 		return err
 	}
-	
+
 	// Inject the @id field into the JSON-LD before saving
 	var doc map[string]interface{}
 	if err := json.Unmarshal(raw, &doc); err != nil {
 		return err
 	}
-	
+
 	// Add the @id field with ipfs:// prefix
 	doc["@id"] = "ipfs://" + cid
-	
+
 	// Add author information if we have at least username or GitHub ID
 	// Both are needed to provide meaningful provenance
 	if githubUser != "" || githubID != "" {
 		author := make(map[string]interface{})
 		author["@type"] = "Person"
-		
+
 		// Only add username-based fields if username is present
 		if githubUser != "" {
 			author["name"] = githubUser
 			author["identifier"] = "https://github.com/" + githubUser
 		}
-		
+
 		// Add GitHub ID if present
 		if githubID != "" {
 			author["id"] = "github:" + githubID
 		}
-		
+
 		doc["author"] = author
 	}
-	
+
 	// Marshal back to JSON with indentation for readability
 	modifiedRaw, err := json.MarshalIndent(doc, "", "  ")
 	if err != nil {
 		return err
 	}
-	
+
 	// Save the modified JSON-LD with injected @id
 	if err := os.WriteFile(filepath.Join(objDir, cleanCID), modifiedRaw, 0o644); err != nil {
 		return err
 	}
-	
+
 	// canonical
 	canonDir := filepath.Join(objDir, "canonical")
 	if err := os.MkdirAll(canonDir, 0o755); err != nil {
@@ -150,7 +151,7 @@ func (s *FSStore) ensureGistDir(user, slug string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("invalid slug: %w", err)
 	}
-	
+
 	dir := filepath.Join(s.base, "u", cleanUser, "g", cleanSlug)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return "", err
@@ -162,7 +163,7 @@ func (s *FSStore) ensureGistDir(user, slug string) (string, error) {
 func (s *FSStore) UpdateLatest(user, slug, cid string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	
+
 	dir, err := s.ensureGistDir(user, slug)
 	if err != nil {
 		return err
@@ -175,7 +176,7 @@ func (s *FSStore) UpdateLatest(user, slug, cid string) error {
 func (s *FSStore) AppendHistory(user, slug, cidStr string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	
+
 	dir, err := s.ensureGistDir(user, slug)
 	if err != nil {
 		return err
@@ -209,7 +210,7 @@ func (s *FSStore) ReadLatest(user, slug string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("invalid slug: %w", err)
 	}
-	
+
 	dir := filepath.Join(s.base, "u", cleanUser, "g", cleanSlug)
 	latestPath := filepath.Join(dir, "latest")
 	b, err := os.ReadFile(latestPath)
@@ -229,7 +230,7 @@ func (s *FSStore) ReadHistory(user, slug string) ([]HistoryEntry, error) {
 	if err != nil {
 		return nil, fmt.Errorf("invalid slug: %w", err)
 	}
-	
+
 	dir := filepath.Join(s.base, "u", cleanUser, "g", cleanSlug)
 	historyPath := filepath.Join(dir, "_history")
 	b, err := os.ReadFile(historyPath)
@@ -249,7 +250,7 @@ func (s *FSStore) EnsureUserContainer(user string) error {
 	if err != nil {
 		return fmt.Errorf("invalid user: %w", err)
 	}
-	
+
 	dir := filepath.Join(s.base, "u", cleanUser)
 	return os.MkdirAll(dir, 0o755)
 }
@@ -270,7 +271,7 @@ func (s *FSStore) ReadObject(cid string) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("invalid cid: %w", err)
 	}
-	
+
 	path := filepath.Join(s.base, "o", cleanCID)
 	return os.ReadFile(path)
 }
@@ -281,7 +282,7 @@ func (s *FSStore) ReadCanonical(cid string) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("invalid cid: %w", err)
 	}
-	
+
 	path := filepath.Join(s.base, "o", "canonical", cleanCID+".nq")
 	return os.ReadFile(path)
 }
@@ -311,7 +312,7 @@ func (s *FSStore) SaveSignature(cid, signature, signerAddr string, usePersonalSi
 	if err != nil {
 		return fmt.Errorf("invalid cid: %w", err)
 	}
-	
+
 	sigDir := filepath.Join(s.base, "o", "signatures")
 	if err := os.MkdirAll(sigDir, 0o755); err != nil {
 		return err
@@ -338,7 +339,7 @@ func (s *FSStore) ReadSignature(cid string) (*SignatureMetadata, error) {
 	if err != nil {
 		return nil, fmt.Errorf("invalid cid: %w", err)
 	}
-	
+
 	sigPath := filepath.Join(s.base, "o", "signatures", cleanCID+".json")
 	data, err := os.ReadFile(sigPath)
 	if err != nil {
@@ -359,7 +360,7 @@ func (s *FSStore) GetObjectAuthor(cid string) (githubUser, githubID string, err 
 	if err != nil {
 		return "", "", fmt.Errorf("invalid cid: %w", err)
 	}
-	
+
 	path := filepath.Join(s.base, "o", cleanCID)
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -389,24 +390,24 @@ func (s *FSStore) GetObjectAuthor(cid string) (githubUser, githubID string, err 
 func (s *FSStore) DeleteObject(cid string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	
+
 	cleanCID, err := sanitizePathComponent(cid)
 	if err != nil {
 		return fmt.Errorf("invalid cid: %w", err)
 	}
-	
+
 	// Delete the main object file
 	objPath := filepath.Join(s.base, "o", cleanCID)
 	if err := os.Remove(objPath); err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("failed to delete object: %w", err)
 	}
-	
+
 	// Delete the canonical file
 	canonPath := filepath.Join(s.base, "o", "canonical", cleanCID+".nq")
 	if err := os.Remove(canonPath); err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("failed to delete canonical file: %w", err)
 	}
-	
+
 	// Delete the signature file if it exists
 	sigPath := filepath.Join(s.base, "o", "signatures", cleanCID+".json")
 	if err := os.Remove(sigPath); err != nil && !os.IsNotExist(err) {
@@ -415,6 +416,6 @@ func (s *FSStore) DeleteObject(cid string) error {
 		// Note: We can't use log here since this is internal/store package
 		// Callers should check if they need to log this
 	}
-	
+
 	return nil
 }

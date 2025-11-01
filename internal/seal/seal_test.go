@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	cid "github.com/ipfs/go-cid"
+	"github.com/ipfs/go-cid"
 	mh "github.com/multiformats/go-multihash"
 )
 

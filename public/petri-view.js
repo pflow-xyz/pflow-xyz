@@ -1,4 +1,7 @@
 class PetriView extends HTMLElement {
+    // Base58 alphabet for base58btc encoding
+    _base58Alphabet = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+
     constructor() {
         super();
         // DOM & rendering
@@ -53,17 +56,17 @@ class PetriView extends HTMLElement {
 
         this._lastFireAt = Object.create(null);
         this._fireDebounceMs = 600; // milliseconds
-        
+
         // layout orientation (vertical by default, horizontal when toggled)
         this._layoutHorizontal = false;
-        
+
         // Supabase support (tens-city mode)
         this._supabase = null;
         this._user = null;
         this._supabaseUrl = null;
         this._supabaseKey = null;
         this._supabaseInitialized = false;
-        
+
         // UI buttons
         this._hamburgerMenu = null;
         this._hamburgerDropdown = null;
@@ -89,7 +92,7 @@ class PetriView extends HTMLElement {
                 this._hamburgerDropdown = null;
             }
             this._createHamburgerMenu();
-            
+
             // Initialize Supabase if attributes are set
             if (newValue !== null) {
                 this._initSupabase();
@@ -106,31 +109,31 @@ class PetriView extends HTMLElement {
     // ---------------- Supabase Integration ----------------
     async _initSupabase() {
         if (!this.hasAttribute('data-tens-city-mode')) return;
-        
+
         const supabaseUrl = this.getAttribute('supabase-url');
         const supabaseKey = this.getAttribute('supabase-key');
-        
+
         // Check if credentials have changed
-        if (this._supabaseInitialized && 
-            this._supabaseUrl === supabaseUrl && 
+        if (this._supabaseInitialized &&
+            this._supabaseUrl === supabaseUrl &&
             this._supabaseKey === supabaseKey) {
             return; // Skip if same credentials
         }
-        
+
         if (!supabaseUrl || !supabaseKey) {
             console.log('Supabase credentials not configured. Login feature will be disabled.');
             return;
         }
-        
+
         try {
             // Dynamically import Supabase
-            const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm');
-            
+            const {createClient} = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm');
+
             this._supabase = createClient(supabaseUrl, supabaseKey);
             this._supabaseUrl = supabaseUrl;
             this._supabaseKey = supabaseKey;
             this._supabaseInitialized = true;
-            
+
             // Listen for auth state changes
             this._supabase.auth.onAuthStateChange(async (event, session) => {
                 if (session?.user) {
@@ -141,9 +144,9 @@ class PetriView extends HTMLElement {
                     this._updateMenuForAuth();
                 }
             });
-            
+
             // Check current session
-            const { data: { session } } = await this._supabase.auth.getSession();
+            const {data: {session}} = await this._supabase.auth.getSession();
             if (session?.user) {
                 this._user = session.user;
                 this._updateMenuForAuth();
@@ -152,7 +155,7 @@ class PetriView extends HTMLElement {
             console.error('Failed to initialize Supabase:', err);
         }
     }
-    
+
     _updateMenuForAuth() {
         // Re-create hamburger menu to reflect authentication state
         if (this._hamburgerMenu) {
@@ -162,7 +165,7 @@ class PetriView extends HTMLElement {
             this._hamburgerDropdown = null;
         }
         this._createHamburgerMenu();
-        
+
         // Re-create top-right button to reflect authentication state
         if (this._topRightButton) {
             this._topRightButton.remove();
@@ -170,15 +173,15 @@ class PetriView extends HTMLElement {
         }
         this._createTopRightButton();
     }
-    
+
     async _loginWithGitHub() {
         if (!this._supabase) {
             alert('Supabase is not configured. Please set supabase-url and supabase-key attributes.');
             return;
         }
-        
+
         try {
-            const { error } = await this._supabase.auth.signInWithOAuth({
+            const {error} = await this._supabase.auth.signInWithOAuth({
                 provider: 'github',
                 options: {
                     redirectTo: window.location.origin + window.location.pathname
@@ -193,16 +196,18 @@ class PetriView extends HTMLElement {
             alert('Login failed: ' + (err.message || String(err)));
         }
     }
-    
+
     async _logout() {
         if (!this._supabase) return;
-        
-        const { error } = await this._supabase.auth.signOut();
+
+        const {error} = await this._supabase.auth.signOut();
         if (error) {
             console.error('Logout error:', error);
             alert('Logout failed: ' + error.message);
         }
     }
+
+    // Updated _initAceEditor and _createJsonEditor in `public/petri-view.js`
 
     _loadScript(src, globalVar = 'ace') {
         return new Promise((resolve, reject) => {
@@ -219,8 +224,6 @@ class PetriView extends HTMLElement {
             document.head.appendChild(s);
         });
     }
-
-    // Updated _initAceEditor and _createJsonEditor in `public/petri-view.js`
 
     async _initAceEditor() {
         if (!this._jsonEditorTextarea || this._aceEditor) return;
@@ -357,12 +360,12 @@ class PetriView extends HTMLElement {
         // wire download button: compute CID, inject @id, download as {cid}.jsonld
         dlBtn.addEventListener('click', async (e) => {
             e.stopPropagation();
-            
+
             // Disable button and show loading state
             const originalText = dlBtn.textContent;
             dlBtn.disabled = true;
             dlBtn.textContent = '⏳ Computing CID...';
-            
+
             try {
                 const txt = editor.session.getValue();
                 let doc;
@@ -371,15 +374,15 @@ class PetriView extends HTMLElement {
                 } catch (parseErr) {
                     throw new Error('Invalid JSON: ' + (parseErr.message || String(parseErr)));
                 }
-                
+
                 // Compute CID from the document (without @id to avoid self-reference)
                 // Remove any existing @id before computing CID for consistency
-                const { '@id': _, ...docForCid } = doc;
+                const {'@id': _, ...docForCid} = doc;
                 const cid = await this._computeCidForJsonLd(docForCid);
-                
+
                 // Inject @id with ipfs:// scheme
-                const docWithId = { ...doc, '@id': `ipfs://${cid}` };
-                
+                const docWithId = {...doc, '@id': `ipfs://${cid}`};
+
                 // Create download blob
                 const blob = new Blob([JSON.stringify(docWithId, null, 2)], {
                     type: 'application/ld+json'
@@ -482,19 +485,16 @@ class PetriView extends HTMLElement {
         this._aceEditorContainer = editorWrapper;
     }
 
-    // Base58 alphabet for base58btc encoding
-    _base58Alphabet = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
-
     // Encode bytes to base58btc
     _encodeBase58(bytes) {
         const alphabet = this._base58Alphabet;
         let num = 0n;
-        
+
         // Convert bytes to big integer
         for (let i = 0; i < bytes.length; i++) {
             num = num * 256n + BigInt(bytes[i]);
         }
-        
+
         // Convert to base58
         let encoded = '';
         while (num > 0n) {
@@ -502,12 +502,12 @@ class PetriView extends HTMLElement {
             num = num / 58n;
             encoded = alphabet[Number(remainder)] + encoded;
         }
-        
+
         // Add leading 1s for leading zero bytes
         for (let i = 0; i < bytes.length && bytes[i] === 0; i++) {
             encoded = '1' + encoded;
         }
-        
+
         return encoded;
     }
 
@@ -527,15 +527,15 @@ class PetriView extends HTMLElement {
         // multihash = <hash-type><hash-length><hash-bytes>
         //   hash-type = 0x12 (sha2-256)
         //   hash-length = 0x20 (32 bytes)
-        
+
         const version = 0x01;
         const codecBytes = codec === 0x0129 ? [0x01, 0x29] : [codec];
         const hashType = 0x12; // sha2-256
         const hashLength = hash.length;
-        
+
         const cidBytes = new Uint8Array(1 + codecBytes.length + 2 + hash.length);
         let offset = 0;
-        
+
         cidBytes[offset++] = version;
         for (const b of codecBytes) {
             cidBytes[offset++] = b;
@@ -545,7 +545,7 @@ class PetriView extends HTMLElement {
         for (let i = 0; i < hash.length; i++) {
             cidBytes[offset++] = hash[i];
         }
-        
+
         return cidBytes;
     }
 
@@ -557,11 +557,11 @@ class PetriView extends HTMLElement {
             if (obj === null || typeof obj !== 'object') {
                 return JSON.stringify(obj);
             }
-            
+
             if (Array.isArray(obj)) {
                 return '[' + obj.map(item => canonicalize(item)).join(',') + ']';
             }
-            
+
             // Sort keys and build object
             const keys = Object.keys(obj).sort();
             const pairs = keys.map(key => {
@@ -569,7 +569,7 @@ class PetriView extends HTMLElement {
             });
             return '{' + pairs.join(',') + '}';
         };
-        
+
         return canonicalize(doc);
     }
 
@@ -577,17 +577,17 @@ class PetriView extends HTMLElement {
     async _computeCidForJsonLd(doc) {
         // 1. Canonicalize the JSON document
         const canonical = this._canonicalizeJSON(doc);
-        
+
         // 2. Compute SHA256 hash
         const hash = await this._sha256(canonical);
-        
+
         // 3. Create CIDv1 with dag-json codec (0x0129)
         const cidBytes = this._createCIDv1Bytes(0x0129, hash);
-        
+
         // 4. Encode as base58btc (prepend 'z' for base58btc multibase)
         const base58 = this._encodeBase58(cidBytes);
         const cid = 'z' + base58;
-        
+
         return cid;
     }
 
@@ -895,7 +895,7 @@ class PetriView extends HTMLElement {
     _createJsonEditor() {
         if (this._jsonEditor) return;
         if (!this._root) return; // Safety check
-        
+
         const container = document.createElement('div');
         container.className = 'pv-json-editor';
 
@@ -976,19 +976,19 @@ class PetriView extends HTMLElement {
         this._jsonEditorTextarea = textarea;
         this._editingJson = false;
         this._jsonEditorTimer = null;
-        
+
         // Initialize divider position from localStorage or default
         this._initDividerPosition();
-        
+
         // Setup divider drag handlers
         this._setupDividerDrag();
-        
+
         this._updateJsonEditor();
         textarea.addEventListener('input', () => this._onJsonEditorInput());
         textarea.addEventListener('blur', () => this._onJsonEditorInput(true));
         this._initAceEditor().catch(() => {/* ignore */
         });
-        
+
         // Trigger resize to adjust canvas and editor
         this._onResize();
     }
@@ -996,38 +996,38 @@ class PetriView extends HTMLElement {
     // ---------------- layout toggle ----------------
     _createLayoutToggle() {
         if (this._layoutToggle) return;
-        
+
         const toggle = document.createElement('button');
         toggle.type = 'button';
         toggle.className = 'pv-layout-toggle';
         toggle.title = 'Toggle horizontal/vertical layout';
         toggle.textContent = '⇄'; // swap icon
-        
+
         toggle.addEventListener('click', (e) => {
             e.stopPropagation();
             this._toggleLayout();
         });
-        
+
         this._root.appendChild(toggle);
         this._layoutToggle = toggle;
     }
 
     _toggleLayout() {
         this._layoutHorizontal = !this._layoutHorizontal;
-        
+
         if (this._layoutHorizontal) {
             this._root.classList.add('pv-layout-horizontal');
         } else {
             this._root.classList.remove('pv-layout-horizontal');
         }
-        
+
         // Reset to 50/50 split on orientation change
         this._canvasContainer.style.flex = '0 0 50%';
         this._saveDividerPosition();
-        
+
         // Update divider cursor and aria
         this._updateDividerOrientation();
-        
+
         // Trigger resize
         this._onResize();
         if (this._aceEditor) {
@@ -1041,7 +1041,7 @@ class PetriView extends HTMLElement {
 
     _updateDividerOrientation() {
         if (!this._divider) return;
-        
+
         if (this._layoutHorizontal) {
             this._divider.style.cursor = 'col-resize';
             this._divider.setAttribute('aria-orientation', 'vertical');
@@ -1066,7 +1066,7 @@ class PetriView extends HTMLElement {
         } catch {
             // ignore
         }
-        
+
         // Default: 50/50 split
         this._canvasContainer.style.flex = '0 0 50%';
     }
@@ -1084,7 +1084,7 @@ class PetriView extends HTMLElement {
 
     _setupDividerDrag() {
         if (!this._divider) return;
-        
+
         let isDragging = false;
 
         const onPointerDown = (e) => {
@@ -1092,16 +1092,16 @@ class PetriView extends HTMLElement {
             e.preventDefault();
             isDragging = true;
             this._divider.setPointerCapture(e.pointerId);
-            
+
             // Update cursor based on current layout
             document.body.style.cursor = this._layoutHorizontal ? 'col-resize' : 'row-resize';
         };
 
         const onPointerMove = (e) => {
             if (!isDragging) return;
-            
+
             const rootRect = this._root.getBoundingClientRect();
-            
+
             if (this._layoutHorizontal) {
                 // Horizontal layout (side-by-side)
                 const offsetX = e.clientX - rootRect.left;
@@ -1117,7 +1117,7 @@ class PetriView extends HTMLElement {
                 const clamped = Math.max(minSize, Math.min(maxSize, offsetY));
                 this._canvasContainer.style.flex = `0 0 ${clamped}px`;
             }
-            
+
             // Trigger resize for canvas and ace editor
             requestAnimationFrame(() => {
                 this._onResize();
@@ -1134,16 +1134,16 @@ class PetriView extends HTMLElement {
         const onPointerUp = (e) => {
             if (!isDragging) return;
             isDragging = false;
-            
+
             try {
                 this._divider.releasePointerCapture(e.pointerId);
             } catch {
                 // ignore
             }
-            
+
             // Restore cursor
             document.body.style.cursor = '';
-            
+
             // Save position
             this._saveDividerPosition();
         };
@@ -1152,7 +1152,7 @@ class PetriView extends HTMLElement {
         window.addEventListener('pointermove', onPointerMove);
         window.addEventListener('pointerup', onPointerUp);
         window.addEventListener('pointercancel', onPointerUp);
-        
+
         // Set initial divider orientation
         this._updateDividerOrientation();
     }
@@ -1188,7 +1188,7 @@ class PetriView extends HTMLElement {
             this._jsonEditorTimer = null;
         }
         if (this._jsonEditor) this._removeJsonEditor();
-        
+
         // Clean up hamburger menu
         if (this._hamburgerMenu) {
             this._hamburgerMenu.remove();
@@ -1198,7 +1198,7 @@ class PetriView extends HTMLElement {
             this._hamburgerDropdown.remove();
             this._hamburgerDropdown = null;
         }
-        
+
         // Clean up top-right button
         if (this._topRightButton) {
             this._topRightButton.remove();
@@ -1234,14 +1234,14 @@ class PetriView extends HTMLElement {
     async downloadJSON() {
         try {
             const doc = this._model;
-            
+
             // Compute CID from the document (without @id to avoid self-reference)
-            const { '@id': _, ...docForCid } = doc;
+            const {'@id': _, ...docForCid} = doc;
             const cid = await this._computeCidForJsonLd(docForCid);
-            
+
             // Inject @id with ipfs:// scheme
-            const docWithId = { ...doc, '@id': `ipfs://${cid}` };
-            
+            const docWithId = {...doc, '@id': `ipfs://${cid}`};
+
             // Create download blob
             const blob = new Blob([JSON.stringify(docWithId, null, 2)], {
                 type: 'application/ld+json'
@@ -1255,25 +1255,25 @@ class PetriView extends HTMLElement {
             alert('Download failed: ' + (err && err.message ? err.message : String(err)));
         }
     }
-    
+
     async _saveToPermalink() {
         const isTensCityMode = this.hasAttribute('data-tens-city-mode');
-        
+
         // In tens-city mode with authenticated user, save to server
         if (isTensCityMode && this._supabaseInitialized && this._user) {
             try {
                 // Get the session token for authentication
-                const { data: { session } } = await this._supabase.auth.getSession();
+                const {data: {session}} = await this._supabase.auth.getSession();
                 const authToken = session?.access_token;
-                
+
                 if (!authToken) {
                     alert('Please log in to save data');
                     return;
                 }
-                
+
                 // Use canonical JSON encoding
                 const canonicalData = JSON.stringify(this._model);
-                
+
                 // POST to /api/save
                 const response = await fetch('/api/save', {
                     method: 'POST',
@@ -1283,24 +1283,24 @@ class PetriView extends HTMLElement {
                     },
                     body: canonicalData
                 });
-                
+
                 if (!response.ok) {
                     const errorText = await response.text();
                     console.error('Save failed with status', response.status, errorText);
                     alert(`Save failed: ${response.statusText}`);
                     return;
                 }
-                
+
                 const result = await response.json();
                 const cid = result.cid;
-                
+
                 console.log('Save successful! CID:', cid);
-                
+
                 // Update URL with CID instead of data parameter
                 const url = new URL(window.location.origin + window.location.pathname);
                 url.searchParams.set('cid', cid);
                 window.history.pushState({}, '', url.toString());
-                
+
                 alert('Saved successfully! CID: ' + cid);
             } catch (err) {
                 console.error('Failed to save to server:', err);
@@ -1308,14 +1308,14 @@ class PetriView extends HTMLElement {
             }
             return;
         }
-        
+
         // Default behavior: Save to permalink (update URL with data parameter)
         try {
             this._updatePermalinkURL();
-            
+
             // Show feedback to user
             const currentUrl = window.location.href;
-            
+
             // Copy to clipboard if available
             if (navigator.clipboard && navigator.clipboard.writeText) {
                 navigator.clipboard.writeText(currentUrl).then(() => {
@@ -1331,13 +1331,13 @@ class PetriView extends HTMLElement {
             alert('Failed to save permalink: ' + (err && err.message ? err.message : String(err)));
         }
     }
-    
+
     _deleteData() {
         // Delete/clear current data
         if (!confirm('Are you sure you want to clear all data? This cannot be undone.')) {
             return;
         }
-        
+
         // Reset to empty model
         this._model = {
             '@context': 'https://pflow.xyz/schema',
@@ -1348,19 +1348,19 @@ class PetriView extends HTMLElement {
             'transitions': {},
             'arcs': []
         };
-        
+
         this._normalizeModel();
         this._renderUI();
         this._syncLD(true);
         this._pushHistory();
-        
+
         // Clear URL parameter if in tens-city mode
         if (this.hasAttribute('data-tens-city-mode')) {
             const url = new URL(window.location.href);
             url.searchParams.delete('data');
             window.history.replaceState({}, '', url.toString());
         }
-        
+
         // Dispatch event
         this.dispatchEvent(new CustomEvent('data-deleted'));
     }
@@ -1512,14 +1512,14 @@ class PetriView extends HTMLElement {
                 return;
             }
         }
-        
+
         // Next, check script tag
         if (this._ldScript && this._ldScript.textContent) {
             const parsed = this._safeParse(this._ldScript.textContent);
             this._model = parsed || {};
             return;
         }
-        
+
         // Finally, check localStorage
         try {
             const saved = localStorage.getItem(this._getStorageKey());
@@ -1527,22 +1527,22 @@ class PetriView extends HTMLElement {
         } catch {
         }
     }
-    
+
     _decodePermalinkData(encodedData) {
         // Decode URL-encoded JSON data (handles multiple levels of encoding)
         if (!encodedData) return null;
-        
+
         // Check size limit (max 1MB of encoded data)
         if (encodedData.length > 1024 * 1024) {
             console.error('Permalink data exceeds size limit');
             return null;
         }
-        
+
         try {
             let decodedData = encodedData;
             let iterations = 0;
             const maxIterations = 10; // Prevent infinite loop
-            
+
             // Keep decoding until we can't decode anymore or get valid JSON
             while (iterations < maxIterations) {
                 try {
@@ -1553,7 +1553,7 @@ class PetriView extends HTMLElement {
                     }
                     decodedData = nextDecoded;
                     iterations++;
-                    
+
                     // Try to parse as JSON - if successful, we're done
                     JSON.parse(decodedData);
                     break;
@@ -1561,7 +1561,7 @@ class PetriView extends HTMLElement {
                     // Not valid JSON yet, continue decoding if possible
                 }
             }
-            
+
             const data = JSON.parse(decodedData);
             return {
                 jsonString: JSON.stringify(data, null, 2),
@@ -1572,17 +1572,17 @@ class PetriView extends HTMLElement {
             return null;
         }
     }
-    
+
     _updatePermalinkURL() {
         // Update the URL with current model data (only in tens-city mode)
         if (!this.hasAttribute('data-tens-city-mode')) return;
-        
+
         try {
             const jsonString = JSON.stringify(this._model);
             const encodedData = encodeURIComponent(jsonString);
             const url = new URL(window.location.href);
             url.searchParams.set('data', encodedData);
-            
+
             // Update URL without reloading the page
             window.history.replaceState({}, '', url.toString());
         } catch (err) {
@@ -1604,7 +1604,7 @@ class PetriView extends HTMLElement {
             this._updatePermalinkURL();
             return;
         }
-        
+
         // In tens-city mode, don't update the script tag content - keep original
         // This prevents JSON from appearing in the page when loading from URL
         if (!this.hasAttribute('data-tens-city-mode')) {
@@ -1618,7 +1618,7 @@ class PetriView extends HTMLElement {
             // Still dispatch event for tens-city mode
             this.dispatchEvent(new CustomEvent('jsonld-updated', {detail: {json: this.exportJSON()}}));
         }
-        
+
         this._updateJsonEditor();
         // Update permalink URL in tens-city mode
         this._updatePermalinkURL();
@@ -1930,13 +1930,13 @@ class PetriView extends HTMLElement {
     _onPlaceClick(id, ev) {
         const p = this._model.places[id];
         if (!p) return;
-        
+
         // Handle label-edit mode first
         if (this._labelEditMode) {
             this._openLabelEditor(id, p.label || id);
             return;
         }
-        
+
         if (this._mode === 'select') return;
         if (this._mode === 'add-token') {
             const arr = Array.isArray(p.initial) ? p.initial : [Number(p.initial || 0)];
@@ -2279,15 +2279,15 @@ class PetriView extends HTMLElement {
     _openLabelEditor(id, currentLabel) {
         const input = prompt('Edit label', currentLabel || id);
         if (input === null) return; // user cancelled
-        
+
         const newLabel = input.trim();
         const error = this._validateLabel(newLabel);
-        
+
         if (error) {
             alert(error);
             return;
         }
-        
+
         // Update the label in the model
         this._updateNodeLabel(id, newLabel);
     }
@@ -2301,7 +2301,7 @@ class PetriView extends HTMLElement {
         } else {
             return; // node not found
         }
-        
+
         // Update the DOM element
         const el = this._nodes[id];
         if (el) {
@@ -2310,7 +2310,7 @@ class PetriView extends HTMLElement {
                 labelEl.textContent = newLabel;
             }
         }
-        
+
         // Persist the change
         this._syncLD();
         this._pushHistory();
@@ -3051,9 +3051,9 @@ class PetriView extends HTMLElement {
     _createHamburgerMenu() {
         if (this._hamburgerMenu) return;
         if (!this._root) return; // Safety check
-        
+
         const isTensCityMode = this.hasAttribute('data-tens-city-mode');
-        
+
         const menuBtn = document.createElement('button');
         menuBtn.type = 'button';
         menuBtn.className = 'pv-hamburger-btn';
@@ -3096,7 +3096,7 @@ class PetriView extends HTMLElement {
                 zIndex: 1299,
                 display: 'none'
             });
-            
+
             // Create left panel
             const panel = document.createElement('div');
             panel.className = 'pv-hamburger-panel';
@@ -3112,7 +3112,7 @@ class PetriView extends HTMLElement {
                 flexDirection: 'column',
                 zIndex: 1300
             });
-            
+
             // Panel header - use full width for hamburger menu button
             const header = document.createElement('div');
             this._applyStyles(header, {
@@ -3124,7 +3124,7 @@ class PetriView extends HTMLElement {
                 alignItems: 'center',
                 position: 'relative'
             });
-            
+
             // Hamburger button inside the panel on the left
             const panelMenuBtn = document.createElement('button');
             panelMenuBtn.type = 'button';
@@ -3151,7 +3151,7 @@ class PetriView extends HTMLElement {
                 menuContainer.style.display = 'none';
             });
             header.appendChild(panelMenuBtn);
-            
+
             const title = document.createElement('h3');
             title.textContent = 'Menu';
             this._applyStyles(title, {
@@ -3160,7 +3160,7 @@ class PetriView extends HTMLElement {
                 fontWeight: 'bold'
             });
             header.appendChild(title);
-            
+
             const closeBtn = document.createElement('button');
             closeBtn.textContent = '×';
             closeBtn.type = 'button';
@@ -3177,9 +3177,9 @@ class PetriView extends HTMLElement {
                 menuContainer.style.display = 'none';
             });
             header.appendChild(closeBtn);
-            
+
             panel.appendChild(header);
-            
+
             // Panel content
             const content = document.createElement('div');
             this._applyStyles(content, {
@@ -3188,10 +3188,10 @@ class PetriView extends HTMLElement {
                 overflow: 'auto'
             });
             panel.appendChild(content);
-            
+
             menuContainer.appendChild(panel);
             menuContainer._menuContent = content;
-            
+
             // Close on overlay click
             menuContainer.addEventListener('click', (e) => {
                 if (e.target === menuContainer) {
@@ -3231,7 +3231,7 @@ class PetriView extends HTMLElement {
                 alignItems: 'center',
                 gap: '8px'
             });
-            
+
             if (icon) {
                 const iconEl = document.createElement('span');
                 iconEl.innerHTML = icon;
@@ -3244,11 +3244,11 @@ class PetriView extends HTMLElement {
                 });
                 item.appendChild(iconEl);
             }
-            
+
             const textEl = document.createElement('span');
             textEl.textContent = text;
             item.appendChild(textEl);
-            
+
             item.addEventListener('mouseenter', () => {
                 item.style.background = 'rgba(0, 0, 0, 0.05)';
             });
@@ -3266,20 +3266,20 @@ class PetriView extends HTMLElement {
         // Add menu items based on mode
         if (isTensCityMode) {
             // Tens City mode: Save button text changes based on auth state
-            const saveText = (this._supabaseInitialized && this._user) 
-                ? '💾 Save to Server' 
+            const saveText = (this._supabaseInitialized && this._user)
+                ? '💾 Save to Server'
                 : '💾 Save Permalink';
-            
+
             const saveItem = makeMenuItem(saveText, () => {
                 this._saveToPermalink();
             });
             menuContainer._menuContent.appendChild(saveItem);
-            
+
             const deleteItem = makeMenuItem('🗑️ Delete', () => {
                 this._deleteData();
             });
             menuContainer._menuContent.appendChild(deleteItem);
-            
+
             // Add separator
             const separator = document.createElement('div');
             this._applyStyles(separator, {
@@ -3288,7 +3288,7 @@ class PetriView extends HTMLElement {
                 margin: '8px 0'
             });
             menuContainer._menuContent.appendChild(separator);
-            
+
             // Add Login/Logout if Supabase is configured
             if (this._supabaseInitialized) {
                 if (this._user) {
@@ -3303,12 +3303,12 @@ class PetriView extends HTMLElement {
                     const userEmail = this._user.email || this._user.user_metadata?.user_name || 'User';
                     userInfo.textContent = `Logged in as: ${userEmail}`;
                     menuContainer._menuContent.appendChild(userInfo);
-                    
+
                     const logoutItem = makeMenuItem('🚪 Logout', () => {
                         this._logout();
                     });
                     menuContainer._menuContent.appendChild(logoutItem);
-                    
+
                     // Add separator
                     const separator2 = document.createElement('div');
                     this._applyStyles(separator2, {
@@ -3323,7 +3323,7 @@ class PetriView extends HTMLElement {
                         this._loginWithGitHub();
                     });
                     menuContainer._menuContent.appendChild(loginItem);
-                    
+
                     // Add separator
                     const separator2 = document.createElement('div');
                     this._applyStyles(separator2, {
@@ -3335,7 +3335,7 @@ class PetriView extends HTMLElement {
                 }
             }
         }
-        
+
         // Standard menu items
         const toggleEditorItem = makeMenuItem('📝 Toggle Editor', () => {
             if (this.hasAttribute('data-json-editor')) {
@@ -3392,7 +3392,7 @@ class PetriView extends HTMLElement {
         } else {
             this._root.appendChild(menuContainer);
         }
-        
+
         this._hamburgerMenu = menuBtn;
         this._hamburgerDropdown = menuContainer;
     }
@@ -3401,19 +3401,19 @@ class PetriView extends HTMLElement {
     _createTopRightButton() {
         if (this._topRightButton) return;
         if (!this._root) return;
-        
+
         const isTensCityMode = this.hasAttribute('data-tens-city-mode');
-        
+
         const button = document.createElement('button');
         button.type = 'button';
         button.className = 'pv-top-right-btn';
-        
+
         // Determine button content based on login state
         if (isTensCityMode && this._supabaseInitialized && this._user) {
             // Show username if logged in
-            const username = this._user.user_metadata?.user_name || 
-                           this._user.email?.split('@')[0] || 
-                           'User';
+            const username = this._user.user_metadata?.user_name ||
+                this._user.email?.split('@')[0] ||
+                'User';
             button.innerHTML = `👤 ${username}`;
             button.title = `Logged in as ${this._user.email || username}`;
         } else if (isTensCityMode && this._supabaseInitialized) {
@@ -3424,7 +3424,7 @@ class PetriView extends HTMLElement {
             // In standard mode or when Supabase not initialized, don't show the button
             return;
         }
-        
+
         this._applyStyles(button, {
             position: 'absolute',
             top: '10px',
@@ -3446,7 +3446,7 @@ class PetriView extends HTMLElement {
             transition: 'background 0.2s',
             whiteSpace: 'nowrap'
         });
-        
+
         button.addEventListener('click', (e) => {
             e.stopPropagation();
             if (this._user) {
@@ -3457,14 +3457,14 @@ class PetriView extends HTMLElement {
                 this._loginWithGitHub();
             }
         });
-        
+
         button.addEventListener('mouseenter', () => {
             button.style.background = 'rgba(255, 255, 255, 1)';
         });
         button.addEventListener('mouseleave', () => {
             button.style.background = 'rgba(255, 255, 255, 0.9)';
         });
-        
+
         this._root.appendChild(button);
         this._topRightButton = button;
     }
@@ -3492,7 +3492,7 @@ class PetriView extends HTMLElement {
             this._jsonEditor.remove();
         } catch {
         }
-        
+
         // Remove layout toggle button
         if (this._layoutToggle) {
             try {
@@ -3501,25 +3501,25 @@ class PetriView extends HTMLElement {
             }
             this._layoutToggle = null;
         }
-        
+
         // Hide the divider
         if (this._divider) {
             this._divider.style.display = 'none';
         }
-        
+
         // Reset canvas container to full size
         if (this._canvasContainer) {
             this._canvasContainer.style.flex = '1 1 auto';
         }
-        
+
         // Reset layout to default
         this._layoutHorizontal = false;
         this._root.classList.remove('pv-layout-horizontal');
-        
+
         this._jsonEditor = null;
         this._jsonEditorTextarea = null;
         this._editingJson = false;
-        
+
         // Trigger resize
         this._onResize();
     }
@@ -3606,8 +3606,8 @@ class PetriView extends HTMLElement {
             // Check if user is typing in an input/textarea to avoid interfering
             const activeEl = document.activeElement;
             const isTyping = activeEl && (
-                activeEl.tagName === 'INPUT' || 
-                activeEl.tagName === 'TEXTAREA' || 
+                activeEl.tagName === 'INPUT' ||
+                activeEl.tagName === 'TEXTAREA' ||
                 activeEl.isContentEditable
             );
 

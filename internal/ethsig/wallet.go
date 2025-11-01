@@ -82,11 +82,11 @@ func GetAddressFromPrivateKey(key *ecdsa.PrivateKey) string {
 func CreateKeystore(key *ecdsa.PrivateKey, passphrase, outputPath string) error {
 	// Create a unique ID for the key using a deterministic hash
 	hashBytes := crypto.Keccak256(crypto.FromECDSA(key))
-	
+
 	// Convert the hash to a UUID format (take first 16 bytes)
 	var keyID [16]byte
 	copy(keyID[:], hashBytes[:16])
-	
+
 	// Encrypt the key with the passphrase using the standard scrypt parameters
 	keyJSON, err := keystore.EncryptKey(&keystore.Key{
 		Id:         keyID,

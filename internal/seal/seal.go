@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"sync"
 
-	cid "github.com/ipfs/go-cid"
+	"github.com/ipfs/go-cid"
 	"github.com/multiformats/go-multibase"
 	mh "github.com/multiformats/go-multihash"
 	"github.com/piprate/json-gold/ld"
