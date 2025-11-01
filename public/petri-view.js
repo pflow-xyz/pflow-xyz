@@ -75,7 +75,7 @@ class PetriView extends HTMLElement {
 
     // observe compact flag and json editor toggle
     static get observedAttributes() {
-        return ['data-compact', 'data-json-editor', 'data-tens-city-mode', 'supabase-url', 'supabase-key'];
+        return ['data-compact', 'data-json-editor', 'data-tens-city-mode', 'data-layout-horizontal', 'supabase-url', 'supabase-key'];
     }
 
     attributeChangedCallback(name, oldValue, newValue) {
@@ -102,6 +102,13 @@ class PetriView extends HTMLElement {
             // Re-initialize Supabase with new config
             if (this.hasAttribute('data-tens-city-mode')) {
                 this._initSupabase();
+            }
+        }
+        if (name === 'data-layout-horizontal' && this.isConnected) {
+            // Update layout orientation based on attribute
+            const shouldBeHorizontal = newValue !== null;
+            if (this._root && this._layoutHorizontal !== shouldBeHorizontal) {
+                this._setLayout(shouldBeHorizontal);
             }
         }
     }
@@ -268,11 +275,13 @@ class PetriView extends HTMLElement {
         const openUrlBtn = makeBtn('🌐 Open URL', 'Load JSON-LD from URL');
         const dlBtn = makeBtn('📥 Download', 'Download current JSON');
         const fsBtn = makeBtn('🔳 Full ⤢', 'Toggle fullscreen');
+        const layoutToggleBtn = makeBtn('⇄', 'Toggle horizontal/vertical layout');
         const closeBtn = makeBtn('❌ Close', 'Close editor'); // moved close into ace toolbar
         toolbar.appendChild(findBtn);
         toolbar.appendChild(openUrlBtn);
         toolbar.appendChild(dlBtn);
         toolbar.appendChild(fsBtn);
+        toolbar.appendChild(layoutToggleBtn);
         toolbar.appendChild(closeBtn);
 
         // container for Ace
@@ -405,6 +414,12 @@ class PetriView extends HTMLElement {
         closeBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             this._removeJsonEditor();
+        });
+
+        // wire layout toggle button
+        layoutToggleBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this._toggleLayout();
         });
 
         // CSS-only fullscreen: apply fixed overlay to container (does NOT call Fullscreen API)
@@ -998,13 +1013,17 @@ class PetriView extends HTMLElement {
     }
 
     // ---------------- layout toggle ----------------
-    _toggleLayout() {
-        this._layoutHorizontal = !this._layoutHorizontal;
+    _setLayout(horizontal) {
+        this._layoutHorizontal = horizontal;
 
         if (this._layoutHorizontal) {
             this._root.classList.add('pv-layout-horizontal');
+            // Update attribute to reflect current state
+            this.setAttribute('data-layout-horizontal', '');
         } else {
             this._root.classList.remove('pv-layout-horizontal');
+            // Remove attribute when switching back to vertical
+            this.removeAttribute('data-layout-horizontal');
         }
 
         // Reset to 50/50 split on orientation change
@@ -1023,6 +1042,10 @@ class PetriView extends HTMLElement {
                 // ignore
             }
         }
+    }
+
+    _toggleLayout() {
+        this._setLayout(!this._layoutHorizontal);
     }
 
     _updateDividerOrientation() {
@@ -1158,6 +1181,14 @@ class PetriView extends HTMLElement {
         this._createScaleMeter();
         this._createHamburgerMenu();
         this._createTopRightButton();
+        
+        // Initialize layout orientation from attribute
+        if (this.hasAttribute('data-layout-horizontal')) {
+            this._layoutHorizontal = true;
+            this._root.classList.add('pv-layout-horizontal');
+            this._updateDividerOrientation();
+        }
+        
         if (this.hasAttribute('data-json-editor')) this._createJsonEditor();
 
         this._ro = new ResizeObserver(() => this._onResize());
