@@ -56,11 +56,16 @@ class PetriView extends HTMLElement {
         
         // layout orientation (vertical by default, horizontal when toggled)
         this._layoutHorizontal = false;
+        
+        // Supabase support (tens-city mode)
+        this._supabase = null;
+        this._user = null;
+        this._supabaseInitialized = false;
     }
 
     // observe compact flag and json editor toggle
     static get observedAttributes() {
-        return ['data-compact', 'data-json-editor', 'data-tens-city-mode'];
+        return ['data-compact', 'data-json-editor', 'data-tens-city-mode', 'supabase-url', 'supabase-key'];
     }
 
     attributeChangedCallback(name, oldValue, newValue) {
@@ -77,6 +82,104 @@ class PetriView extends HTMLElement {
                 this._hamburgerDropdown = null;
             }
             this._createHamburgerMenu();
+            
+            // Initialize Supabase if attributes are set
+            if (newValue !== null) {
+                this._initSupabase();
+            }
+        }
+        if ((name === 'supabase-url' || name === 'supabase-key') && this.isConnected) {
+            // Re-initialize Supabase with new config
+            if (this.hasAttribute('data-tens-city-mode')) {
+                this._initSupabase();
+            }
+        }
+    }
+
+    // ---------------- Supabase Integration ----------------
+    async _initSupabase() {
+        if (!this.hasAttribute('data-tens-city-mode')) return;
+        if (this._supabaseInitialized) return; // Prevent re-initialization
+        
+        const supabaseUrl = this.getAttribute('supabase-url');
+        const supabaseKey = this.getAttribute('supabase-key');
+        
+        if (!supabaseUrl || !supabaseKey) {
+            console.log('Supabase credentials not configured. Login feature will be disabled.');
+            return;
+        }
+        
+        try {
+            // Dynamically import Supabase
+            const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm');
+            
+            this._supabase = createClient(supabaseUrl, supabaseKey);
+            this._supabaseInitialized = true;
+            
+            // Listen for auth state changes
+            this._supabase.auth.onAuthStateChange(async (event, session) => {
+                console.log('Auth state changed:', event);
+                if (session?.user) {
+                    this._user = session.user;
+                    this._updateMenuForAuth();
+                } else {
+                    this._user = null;
+                    this._updateMenuForAuth();
+                }
+            });
+            
+            // Check current session
+            const { data: { session } } = await this._supabase.auth.getSession();
+            if (session?.user) {
+                this._user = session.user;
+                this._updateMenuForAuth();
+            }
+        } catch (err) {
+            console.error('Failed to initialize Supabase:', err);
+        }
+    }
+    
+    _updateMenuForAuth() {
+        // Re-create hamburger menu to reflect authentication state
+        if (this._hamburgerMenu) {
+            this._hamburgerMenu.remove();
+            this._hamburgerDropdown.remove();
+            this._hamburgerMenu = null;
+            this._hamburgerDropdown = null;
+        }
+        this._createHamburgerMenu();
+    }
+    
+    async _loginWithGitHub() {
+        if (!this._supabase) {
+            alert('Supabase is not configured. Please set supabase-url and supabase-key attributes.');
+            return;
+        }
+        
+        try {
+            const { error } = await this._supabase.auth.signInWithOAuth({
+                provider: 'github',
+                options: {
+                    redirectTo: window.location.origin + window.location.pathname
+                }
+            });
+            if (error) {
+                console.error('Login error:', error);
+                alert('Login failed: ' + error.message);
+            }
+        } catch (err) {
+            console.error('Login exception:', err);
+            alert('Login failed: ' + (err.message || String(err)));
+        }
+    }
+    
+    async _logout() {
+        if (!this._supabase) return;
+        
+        const { error } = await this._supabase.auth.signOut();
+        if (error) {
+            console.error('Logout error:', error);
+            alert('Logout failed: ' + error.message);
         }
     }
 
@@ -1063,6 +1166,16 @@ class PetriView extends HTMLElement {
             this._jsonEditorTimer = null;
         }
         if (this._jsonEditor) this._removeJsonEditor();
+        
+        // Clean up hamburger menu
+        if (this._hamburgerMenu) {
+            this._hamburgerMenu.remove();
+            this._hamburgerMenu = null;
+        }
+        if (this._hamburgerDropdown) {
+            this._hamburgerDropdown.remove();
+            this._hamburgerDropdown = null;
+        }
     }
 
     // ---------------- public API ----------------
@@ -2839,6 +2952,7 @@ class PetriView extends HTMLElement {
     // ---------------- hamburger menu ----------------
     _createHamburgerMenu() {
         if (this._hamburgerMenu) return;
+        if (!this._root) return; // Safety check
         
         const isTensCityMode = this.hasAttribute('data-tens-city-mode');
         
@@ -3043,6 +3157,52 @@ class PetriView extends HTMLElement {
                 margin: '8px 0'
             });
             menuContainer._menuContent.appendChild(separator);
+            
+            // Add Login/Logout if Supabase is configured
+            if (this._supabaseInitialized) {
+                if (this._user) {
+                    // Show user info and logout button
+                    const userInfo = document.createElement('div');
+                    this._applyStyles(userInfo, {
+                        padding: '10px 16px',
+                        fontSize: '13px',
+                        color: '#586069',
+                        borderBottom: '1px solid #e1e4e8'
+                    });
+                    const userEmail = this._user.email || this._user.user_metadata?.user_name || 'User';
+                    userInfo.textContent = `Logged in as: ${userEmail}`;
+                    menuContainer._menuContent.appendChild(userInfo);
+                    
+                    const logoutItem = makeMenuItem('🚪 Logout', () => {
+                        this._logout();
+                    });
+                    menuContainer._menuContent.appendChild(logoutItem);
+                    
+                    // Add separator
+                    const separator2 = document.createElement('div');
+                    this._applyStyles(separator2, {
+                        height: '1px',
+                        background: '#e1e4e8',
+                        margin: '8px 0'
+                    });
+                    menuContainer._menuContent.appendChild(separator2);
+                } else {
+                    // Show login button
+                    const loginItem = makeMenuItem('🔑 Login with GitHub', () => {
+                        this._loginWithGitHub();
+                    });
+                    menuContainer._menuContent.appendChild(loginItem);
+                    
+                    // Add separator
+                    const separator2 = document.createElement('div');
+                    this._applyStyles(separator2, {
+                        height: '1px',
+                        background: '#e1e4e8',
+                        margin: '8px 0'
+                    });
+                    menuContainer._menuContent.appendChild(separator2);
+                }
+            }
         }
         
         // Standard menu items
