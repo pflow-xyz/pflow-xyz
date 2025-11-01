@@ -60,6 +60,8 @@ class PetriView extends HTMLElement {
         // Supabase support (tens-city mode)
         this._supabase = null;
         this._user = null;
+        this._supabaseUrl = null;
+        this._supabaseKey = null;
         this._supabaseInitialized = false;
     }
 
@@ -99,10 +101,16 @@ class PetriView extends HTMLElement {
     // ---------------- Supabase Integration ----------------
     async _initSupabase() {
         if (!this.hasAttribute('data-tens-city-mode')) return;
-        if (this._supabaseInitialized) return; // Prevent re-initialization
         
         const supabaseUrl = this.getAttribute('supabase-url');
         const supabaseKey = this.getAttribute('supabase-key');
+        
+        // Check if credentials have changed
+        if (this._supabaseInitialized && 
+            this._supabaseUrl === supabaseUrl && 
+            this._supabaseKey === supabaseKey) {
+            return; // Skip if same credentials
+        }
         
         if (!supabaseUrl || !supabaseKey) {
             console.log('Supabase credentials not configured. Login feature will be disabled.');
@@ -114,11 +122,12 @@ class PetriView extends HTMLElement {
             const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm');
             
             this._supabase = createClient(supabaseUrl, supabaseKey);
+            this._supabaseUrl = supabaseUrl;
+            this._supabaseKey = supabaseKey;
             this._supabaseInitialized = true;
             
             // Listen for auth state changes
             this._supabase.auth.onAuthStateChange(async (event, session) => {
-                console.log('Auth state changed:', event);
                 if (session?.user) {
                     this._user = session.user;
                     this._updateMenuForAuth();
@@ -1452,11 +1461,19 @@ class PetriView extends HTMLElement {
         // Decode URL-encoded JSON data (handles multiple levels of encoding)
         if (!encodedData) return null;
         
+        // Check size limit (max 1MB of encoded data)
+        if (encodedData.length > 1024 * 1024) {
+            console.error('Permalink data exceeds size limit');
+            return null;
+        }
+        
         try {
             let decodedData = encodedData;
+            let iterations = 0;
+            const maxIterations = 10; // Prevent infinite loop
             
             // Keep decoding until we can't decode anymore or get valid JSON
-            while (true) {
+            while (iterations < maxIterations) {
                 try {
                     const nextDecoded = decodeURIComponent(decodedData);
                     // If decoding doesn't change the string, we're done
@@ -1464,6 +1481,7 @@ class PetriView extends HTMLElement {
                         break;
                     }
                     decodedData = nextDecoded;
+                    iterations++;
                     
                     // Try to parse as JSON - if successful, we're done
                     JSON.parse(decodedData);
