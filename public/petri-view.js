@@ -1508,6 +1508,8 @@ class PetriView extends HTMLElement {
                     const data = await response.json();
                     this._model = data || {};
                     return;
+                } else {
+                    console.error(`Failed to load data from CID: ${response.status} ${response.statusText}`);
                 }
             } catch (err) {
                 console.error('Failed to load data from CID:', err);
