@@ -3055,6 +3055,7 @@ class PetriView extends HTMLElement {
             // Panel header - use full width for hamburger menu button
             const header = document.createElement('div');
             this._applyStyles(header, {
+                // Left padding of 60px = 16px (left position) + 32px (button width) + 12px (margin)
                 padding: '16px 16px 16px 60px',
                 borderBottom: '1px solid #e1e4e8',
                 display: 'flex',
