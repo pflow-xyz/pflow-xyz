@@ -11,13 +11,14 @@ import (
 const (
 	placeRadius        = 16.0
 	transitionWidth    = 30.0
-	transitionHeight   = 10.0
+	transitionHeight   = 30.0
 	placePadding       = 18.0  // placeRadius + 2
-	transitionPadding  = 17.0  // transitionHeight/2 + 2 + 15
+	transitionPadding  = 17.0  // transitionWidth/2 + 2
 	arrowheadSize      = 8.0
 	inhibitorRadius    = 6.0
 	tipOffsetMultiplier = 0.9
 	minDistance        = 1.0   // Minimum distance to prevent division by zero
+	transitionRadius   = 4.0   // Border radius for rounded corners
 )
 
 // PetriNet represents a Petri net JSON-LD structure
@@ -101,8 +102,8 @@ func GenerateSVG(jsonData []byte) (string, error) {
 	buf.WriteString(`<style>`)
 	buf.WriteString(`.place { fill: #fff; stroke: #333; stroke-width: 2; }`)
 	buf.WriteString(`.place-cap-full { fill: #ffebee; }`)
-	buf.WriteString(`.transition { fill: #333; stroke: #333; stroke-width: 2; }`)
-	buf.WriteString(`.transition-active { fill: #2a6fb8; stroke: #2a6fb8; }`)
+	buf.WriteString(`.transition { fill: #ffffff; stroke: #000; stroke-width: 1; }`)
+	buf.WriteString(`.transition-active { fill: #62fa75; stroke: #000; }`)
 	buf.WriteString(`.arc { stroke: #cfcfcf; stroke-width: 1; fill: none; }`)
 	buf.WriteString(`.arc-active { stroke: #2a6fb8; }`)
 	buf.WriteString(`.arrowhead { fill: #cfcfcf; }`)
@@ -245,8 +246,8 @@ func drawTransition(buf *bytes.Buffer, x, y float64, active bool) {
 		class += " transition-active"
 	}
 	
-	buf.WriteString(fmt.Sprintf(`<rect x="%.1f" y="%.1f" width="%.1f" height="%.1f" class="%s"/>`, 
-		x-transitionWidth/2, y-transitionHeight/2, transitionWidth, transitionHeight, class))
+	buf.WriteString(fmt.Sprintf(`<rect x="%.1f" y="%.1f" width="%.1f" height="%.1f" rx="%.1f" ry="%.1f" class="%s"/>`, 
+		x-transitionWidth/2, y-transitionHeight/2, transitionWidth, transitionHeight, transitionRadius, transitionRadius, class))
 	buf.WriteString("\n")
 }
 
