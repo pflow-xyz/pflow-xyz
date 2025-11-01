@@ -405,13 +405,13 @@ func isEnabled(transitionID string, net PetriNet, marks map[string]int) bool {
 				}
 			} else if arc.Source == transitionID {
 				// Output inhibitor (from transition to place)
-				// Transition is disabled when target place tokens < weight
+				// Transition is disabled when target place has fewer than 'weight' tokens
 				if tokens, ok := marks[arc.Target]; ok {
 					if tokens < weight {
-						return false // Not enough tokens in target place
+						return false // Target place doesn't have enough tokens
 					}
 				} else {
-					return false // Place doesn't exist or has no tokens
+					return false // Target place not in marking
 				}
 			}
 		} else {
