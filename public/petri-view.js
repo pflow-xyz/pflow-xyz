@@ -1256,8 +1256,60 @@ class PetriView extends HTMLElement {
         }
     }
     
-    _saveToPermalink() {
-        // Save current data to permalink (update URL with data parameter)
+    async _saveToPermalink() {
+        const isTensCityMode = this.hasAttribute('data-tens-city-mode');
+        
+        // In tens-city mode with authenticated user, save to server
+        if (isTensCityMode && this._supabaseInitialized && this._user) {
+            try {
+                // Get the session token for authentication
+                const { data: { session } } = await this._supabase.auth.getSession();
+                const authToken = session?.access_token;
+                
+                if (!authToken) {
+                    alert('Please log in to save data');
+                    return;
+                }
+                
+                // Use canonical JSON encoding
+                const canonicalData = JSON.stringify(this._model);
+                
+                // POST to /api/save
+                const response = await fetch('/api/save', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`,
+                    },
+                    body: canonicalData
+                });
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('Save failed with status', response.status, errorText);
+                    alert(`Save failed: ${response.statusText}`);
+                    return;
+                }
+                
+                const result = await response.json();
+                const cid = result.cid;
+                
+                console.log('Save successful! CID:', cid);
+                
+                // Update URL with CID instead of data parameter
+                const url = new URL(window.location.origin + window.location.pathname);
+                url.searchParams.set('cid', cid);
+                window.history.pushState({}, '', url.toString());
+                
+                alert('Saved successfully! CID: ' + cid);
+            } catch (err) {
+                console.error('Failed to save to server:', err);
+                alert('Failed to save to server: ' + (err && err.message ? err.message : String(err)));
+            }
+            return;
+        }
+        
+        // Default behavior: Save to permalink (update URL with data parameter)
         try {
             this._updatePermalinkURL();
             
@@ -1552,12 +1604,21 @@ class PetriView extends HTMLElement {
             this._updatePermalinkURL();
             return;
         }
-        const pretty = !this.hasAttribute('data-compact');
-        const text = pretty ? this._stableStringify(this._model, 2) : JSON.stringify(this._model);
-        if (force || this._ldScript.textContent !== text) {
-            this._ldScript.textContent = text;
+        
+        // In tens-city mode, don't update the script tag content - keep original
+        // This prevents JSON from appearing in the page when loading from URL
+        if (!this.hasAttribute('data-tens-city-mode')) {
+            const pretty = !this.hasAttribute('data-compact');
+            const text = pretty ? this._stableStringify(this._model, 2) : JSON.stringify(this._model);
+            if (force || this._ldScript.textContent !== text) {
+                this._ldScript.textContent = text;
+                this.dispatchEvent(new CustomEvent('jsonld-updated', {detail: {json: this.exportJSON()}}));
+            }
+        } else {
+            // Still dispatch event for tens-city mode
             this.dispatchEvent(new CustomEvent('jsonld-updated', {detail: {json: this.exportJSON()}}));
         }
+        
         this._updateJsonEditor();
         // Update permalink URL in tens-city mode
         this._updatePermalinkURL();
@@ -3204,8 +3265,12 @@ class PetriView extends HTMLElement {
 
         // Add menu items based on mode
         if (isTensCityMode) {
-            // Tens City mode: Add Save and Delete buttons
-            const saveItem = makeMenuItem('💾 Save', () => {
+            // Tens City mode: Save button text changes based on auth state
+            const saveText = (this._supabaseInitialized && this._user) 
+                ? '💾 Save to Server' 
+                : '💾 Save Permalink';
+            
+            const saveItem = makeMenuItem(saveText, () => {
                 this._saveToPermalink();
             });
             menuContainer._menuContent.appendChild(saveItem);
