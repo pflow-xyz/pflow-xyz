@@ -263,7 +263,7 @@ func drawPlace(buf *bytes.Buffer, x, y float64, tokenCount int, isFull bool, lab
 	
 	// Draw label below the place
 	if label != "" {
-		labelY := y + placeRadius + 4
+		labelY := y + placeRadius + 6
 		buf.WriteString(fmt.Sprintf(`<text x="%.1f" y="%.1f" class="label-text">%s</text>`, x, labelY, escapeXML(label)))
 		buf.WriteString("\n")
 	}
@@ -281,7 +281,7 @@ func drawTransition(buf *bytes.Buffer, x, y float64, active bool, label string) 
 	
 	// Draw label below the transition
 	if label != "" {
-		labelY := y + transitionHeight/2 + 4
+		labelY := y + transitionHeight/2 + 6
 		buf.WriteString(fmt.Sprintf(`<text x="%.1f" y="%.1f" class="label-text">%s</text>`, x, labelY, escapeXML(label)))
 		buf.WriteString("\n")
 	}
