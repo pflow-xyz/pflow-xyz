@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"strings"
 )
 
 // Visual constants for rendering
@@ -29,6 +30,22 @@ type PetriNet struct {
 	Token       []string              `json:"token"`
 }
 
+// Label returns the label for a place, falling back to the ID if no label is set
+func (p Place) Label(id string) string {
+	if p.LabelText != "" {
+		return p.LabelText
+	}
+	return id
+}
+
+// Label returns the label for a transition, falling back to the ID if no label is set
+func (t Transition) Label(id string) string {
+	if t.LabelText != "" {
+		return t.LabelText
+	}
+	return id
+}
+
 // Arc represents an arrow in the Petri net
 type Arc struct {
 	Type              string  `json:"@type"`
@@ -40,19 +57,21 @@ type Arc struct {
 
 // Place represents a place in the Petri net
 type Place struct {
-	Type     string    `json:"@type"`
-	Initial  []int     `json:"initial"`
-	Capacity []float64 `json:"capacity"`
-	Offset   int       `json:"offset"`
-	X        float64   `json:"x"`
-	Y        float64   `json:"y"`
+	Type      string    `json:"@type"`
+	Initial   []int     `json:"initial"`
+	Capacity  []float64 `json:"capacity"`
+	Offset    int       `json:"offset"`
+	X         float64   `json:"x"`
+	Y         float64   `json:"y"`
+	LabelText string    `json:"label,omitempty"`
 }
 
 // Transition represents a transition in the Petri net
 type Transition struct {
-	Type string  `json:"@type"`
-	X    float64 `json:"x"`
-	Y    float64 `json:"y"`
+	Type      string  `json:"@type"`
+	X         float64 `json:"x"`
+	Y         float64 `json:"y"`
+	LabelText string  `json:"label,omitempty"`
 }
 
 // NodePosition represents the position and type of a node
@@ -115,6 +134,7 @@ func GenerateSVG(jsonData []byte) (string, error) {
 	buf.WriteString(`.weight-badge { font-family: system-ui, Arial; font-size: 10px; fill: #666; text-anchor: middle; dominant-baseline: middle; }`)
 	buf.WriteString(`.weight-bg { fill: #fafafa; stroke: #ddd; stroke-width: 1; }`)
 	buf.WriteString(`.weight-bg-active { fill: #e8f0fb; stroke: #2a6fb8; }`)
+	buf.WriteString(`.label-text { font-family: system-ui, Arial; font-size: 11px; fill: #333; text-anchor: middle; dominant-baseline: hanging; }`)
 	buf.WriteString(`</style>`)
 	buf.WriteString(`</defs>`)
 	buf.WriteString("\n")
@@ -150,20 +170,22 @@ func GenerateSVG(jsonData []byte) (string, error) {
 	}
 	
 	// Draw places
-	for _, place := range petriNet.Places {
+	for id, place := range petriNet.Places {
 		tokenCount := 0
 		for _, count := range place.Initial {
 			tokenCount += count
 		}
 		capacity := getCapacity(place)
 		isFull := capacity != math.Inf(1) && float64(tokenCount) >= capacity
-		drawPlace(&buf, place.X, place.Y, tokenCount, isFull)
+		label := place.Label(id)
+		drawPlace(&buf, place.X, place.Y, tokenCount, isFull, label)
 	}
 	
 	// Draw transitions
 	for id, transition := range petriNet.Transitions {
 		active := isEnabled(id, petriNet, marks)
-		drawTransition(&buf, transition.X, transition.Y, active)
+		label := transition.Label(id)
+		drawTransition(&buf, transition.X, transition.Y, active, label)
 	}
 	
 	buf.WriteString("</svg>\n")
@@ -219,7 +241,7 @@ func calculateBounds(net PetriNet) (minX, minY, maxX, maxY float64) {
 	return
 }
 
-func drawPlace(buf *bytes.Buffer, x, y float64, tokenCount int, isFull bool) {
+func drawPlace(buf *bytes.Buffer, x, y float64, tokenCount int, isFull bool, label string) {
 	class := "place"
 	if isFull {
 		class += " place-cap-full"
@@ -238,9 +260,16 @@ func drawPlace(buf *bytes.Buffer, x, y float64, tokenCount int, isFull bool) {
 		buf.WriteString(fmt.Sprintf(`<circle cx="%.1f" cy="%.1f" r="3" class="token-dot"/>`, x, y))
 		buf.WriteString("\n")
 	}
+	
+	// Draw label below the place
+	if label != "" {
+		labelY := y + placeRadius + 4
+		buf.WriteString(fmt.Sprintf(`<text x="%.1f" y="%.1f" class="label-text">%s</text>`, x, labelY, escapeXML(label)))
+		buf.WriteString("\n")
+	}
 }
 
-func drawTransition(buf *bytes.Buffer, x, y float64, active bool) {
+func drawTransition(buf *bytes.Buffer, x, y float64, active bool, label string) {
 	class := "transition"
 	if active {
 		class += " transition-active"
@@ -249,6 +278,13 @@ func drawTransition(buf *bytes.Buffer, x, y float64, active bool) {
 	buf.WriteString(fmt.Sprintf(`<rect x="%.1f" y="%.1f" width="%.1f" height="%.1f" rx="%.1f" ry="%.1f" class="%s"/>`, 
 		x-transitionWidth/2, y-transitionHeight/2, transitionWidth, transitionHeight, transitionRadius, transitionRadius, class))
 	buf.WriteString("\n")
+	
+	// Draw label below the transition
+	if label != "" {
+		labelY := y + transitionHeight/2 + 4
+		buf.WriteString(fmt.Sprintf(`<text x="%.1f" y="%.1f" class="label-text">%s</text>`, x, labelY, escapeXML(label)))
+		buf.WriteString("\n")
+	}
 }
 
 func drawArc(buf *bytes.Buffer, src, trg NodePosition, arc Arc, active bool, arcIndex int) {
@@ -314,28 +350,27 @@ func drawArc(buf *bytes.Buffer, src, trg NodePosition, arc Arc, active bool, arc
 		buf.WriteString("\n")
 	}
 	
-	// Draw weight badge if weight > 1
+	// Draw weight badge (always show weight, including 1)
 	weight := 1
 	if len(arc.Weight) > 0 {
 		weight = arc.Weight[0]
 	}
-	if weight > 1 {
-		bx := (ex + fx) / 2
-		by := (ey + fy) / 2
-		
-		badgeBgClass := "weight-bg"
-		if active {
-			badgeBgClass += " weight-bg-active"
-		}
-		
-		// Draw badge background
-		buf.WriteString(fmt.Sprintf(`<circle cx="%.1f" cy="%.1f" r="10" class="%s"/>`, bx, by, badgeBgClass))
-		buf.WriteString("\n")
-		
-		// Draw weight text
-		buf.WriteString(fmt.Sprintf(`<text x="%.1f" y="%.1f" class="weight-badge">%d</text>`, bx, by, weight))
-		buf.WriteString("\n")
+	
+	bx := (ex + fx) / 2
+	by := (ey + fy) / 2
+	
+	badgeBgClass := "weight-bg"
+	if active {
+		badgeBgClass += " weight-bg-active"
 	}
+	
+	// Draw badge background
+	buf.WriteString(fmt.Sprintf(`<circle cx="%.1f" cy="%.1f" r="10" class="%s"/>`, bx, by, badgeBgClass))
+	buf.WriteString("\n")
+	
+	// Draw weight text
+	buf.WriteString(fmt.Sprintf(`<text x="%.1f" y="%.1f" class="weight-badge">%d</text>`, bx, by, weight))
+	buf.WriteString("\n")
 }
 
 func calculateMarking(net PetriNet) map[string]int {
@@ -359,9 +394,10 @@ func isEnabled(transitionID string, net PetriNet, marks map[string]int) bool {
 		}
 		
 		if arc.InhibitTransition {
-			// Inhibitor arc logic
+			// Inhibitor arc logic (matches JavaScript implementation)
 			if arc.Target == transitionID {
 				// Input inhibitor (from place to transition)
+				// Transition is disabled when source place tokens >= weight
 				if tokens, ok := marks[arc.Source]; ok {
 					if tokens >= weight {
 						return false // Inhibited
@@ -369,10 +405,13 @@ func isEnabled(transitionID string, net PetriNet, marks map[string]int) bool {
 				}
 			} else if arc.Source == transitionID {
 				// Output inhibitor (from transition to place)
+				// Transition is disabled when target place has fewer than 'weight' tokens
 				if tokens, ok := marks[arc.Target]; ok {
-					if tokens >= weight {
-						return false // Inhibited
+					if tokens < weight {
+						return false // Target place doesn't have enough tokens
 					}
+				} else {
+					return false // Target place not in marking
 				}
 			}
 		} else {
@@ -408,4 +447,14 @@ func getCapacity(place Place) float64 {
 		return place.Capacity[0]
 	}
 	return math.Inf(1)
+}
+
+// escapeXML escapes special XML characters in text
+func escapeXML(s string) string {
+	s = strings.ReplaceAll(s, "&", "&amp;")
+	s = strings.ReplaceAll(s, "<", "&lt;")
+	s = strings.ReplaceAll(s, ">", "&gt;")
+	s = strings.ReplaceAll(s, "\"", "&quot;")
+	s = strings.ReplaceAll(s, "'", "&apos;")
+	return s
 }

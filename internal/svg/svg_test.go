@@ -120,6 +120,150 @@ func TestGenerateSVGWithInhibitor(t *testing.T) {
 	if !strings.Contains(svg, "class=\"inhibitor") {
 		t.Error("SVG missing inhibitor element")
 	}
+	
+	// txn0 should NOT be active because place0 has 3 tokens >= weight 2
+	// Check that the rect element has only "transition" class, not "transition transition-active"
+	if strings.Contains(svg, `class="transition transition-active"`) {
+		t.Errorf("Transition should not be active when inhibited by input inhibitor")
+	}
+}
+
+func TestGenerateSVGWithOutputInhibitor(t *testing.T) {
+	// Test output inhibitor (transition -> place)
+	// Transition is disabled when target place tokens < weight
+	jsonData := []byte(`{
+		"@context": "https://pflow.xyz/schema",
+		"@type": "PetriNet",
+		"@version": "1.1",
+		"arcs": [
+			{
+				"@type": "Arrow",
+				"inhibitTransition": true,
+				"source": "txn0",
+				"target": "place0",
+				"weight": [3]
+			}
+		],
+		"places": {
+			"place0": {
+				"@type": "Place",
+				"capacity": [10],
+				"initial": [1],
+				"offset": 0,
+				"x": 200,
+				"y": 100
+			}
+		},
+		"token": ["https://pflow.xyz/tokens/black"],
+		"transitions": {
+			"txn0": {
+				"@type": "Transition",
+				"x": 100,
+				"y": 100
+			}
+		}
+	}`)
+
+	svg, err := GenerateSVG(jsonData)
+	if err != nil {
+		t.Fatalf("GenerateSVG failed: %v", err)
+	}
+
+	// txn0 should NOT be active because place0 has 1 token < weight 3
+	// Check that the rect element has only "transition" class, not "transition transition-active"
+	if strings.Contains(svg, `class="transition transition-active"`) {
+		t.Error("Transition should not be active when disabled by output inhibitor")
+	}
+}
+
+func TestGenerateSVGWithLabels(t *testing.T) {
+	jsonData := []byte(`{
+		"@context": "https://pflow.xyz/schema",
+		"@type": "PetriNet",
+		"@version": "1.1",
+		"arcs": [],
+		"places": {
+			"place0": {
+				"@type": "Place",
+				"capacity": [10],
+				"initial": [0],
+				"offset": 0,
+				"x": 100,
+				"y": 100,
+				"label": "Input Place"
+			}
+		},
+		"token": ["https://pflow.xyz/tokens/black"],
+		"transitions": {
+			"txn0": {
+				"@type": "Transition",
+				"x": 200,
+				"y": 100,
+				"label": "Process"
+			}
+		}
+	}`)
+
+	svg, err := GenerateSVG(jsonData)
+	if err != nil {
+		t.Fatalf("GenerateSVG failed: %v", err)
+	}
+
+	// Check for labels
+	if !strings.Contains(svg, "Input Place") {
+		t.Error("SVG missing place label")
+	}
+	if !strings.Contains(svg, "Process") {
+		t.Error("SVG missing transition label")
+	}
+	if !strings.Contains(svg, "class=\"label-text\"") {
+		t.Error("SVG missing label-text class")
+	}
+}
+
+func TestGenerateSVGWeightDisplay(t *testing.T) {
+	jsonData := []byte(`{
+		"@context": "https://pflow.xyz/schema",
+		"@type": "PetriNet",
+		"@version": "1.1",
+		"arcs": [
+			{
+				"@type": "Arrow",
+				"inhibitTransition": false,
+				"source": "place0",
+				"target": "txn0",
+				"weight": [1]
+			}
+		],
+		"places": {
+			"place0": {
+				"@type": "Place",
+				"capacity": [10],
+				"initial": [5],
+				"offset": 0,
+				"x": 100,
+				"y": 100
+			}
+		},
+		"token": ["https://pflow.xyz/tokens/black"],
+		"transitions": {
+			"txn0": {
+				"@type": "Transition",
+				"x": 200,
+				"y": 100
+			}
+		}
+	}`)
+
+	svg, err := GenerateSVG(jsonData)
+	if err != nil {
+		t.Fatalf("GenerateSVG failed: %v", err)
+	}
+
+	// Weight 1 should now be displayed
+	if !strings.Contains(svg, "class=\"weight-badge\">1</text>") {
+		t.Error("SVG should display weight of 1")
+	}
 }
 
 func TestGenerateSVGInvalidJSON(t *testing.T) {
