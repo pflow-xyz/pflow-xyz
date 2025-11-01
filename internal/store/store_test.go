@@ -52,7 +52,7 @@ func TestSaveObject_InjectsID(t *testing.T) {
 		t.Errorf("@id field was not injected into saved object")
 	}
 
-	expectedID := "ipfs://" + cid
+	expectedID := cid
 	if idValue != expectedID {
 		t.Errorf("Expected @id to be %q, got %q", expectedID, idValue)
 	}
@@ -163,7 +163,7 @@ func TestReadObject(t *testing.T) {
 		t.Fatalf("Failed to parse read data: %v", err)
 	}
 
-	expectedID := "ipfs://" + cid
+	expectedID := cid
 	if doc["@id"] != expectedID {
 		t.Errorf("Expected @id to be %q, got %q", expectedID, doc["@id"])
 	}

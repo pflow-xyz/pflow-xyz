@@ -380,8 +380,8 @@ class PetriView extends HTMLElement {
                 const {'@id': _, ...docForCid} = doc;
                 const cid = await this._computeCidForJsonLd(docForCid);
 
-                // Inject @id with ipfs:// scheme
-                const docWithId = {...doc, '@id': `ipfs://${cid}`};
+                // Inject @id with CID
+                const docWithId = {...doc, '@id': cid};
 
                 // Create download blob
                 const blob = new Blob([JSON.stringify(docWithId, null, 2)], {
@@ -936,6 +936,13 @@ class PetriView extends HTMLElement {
         });
         toolbar.appendChild(downloadBtn);
 
+        const layoutToggleBtn = makeToolbarBtn('⇄', 'Toggle horizontal/vertical layout');
+        layoutToggleBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this._toggleLayout();
+        });
+        toolbar.appendChild(layoutToggleBtn);
+
         const closeBtn = makeToolbarBtn('✖ Close', 'Close editor');
         closeBtn.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -969,9 +976,6 @@ class PetriView extends HTMLElement {
         // Show the divider
         this._divider.style.display = 'flex';
 
-        // Create layout toggle button
-        this._createLayoutToggle();
-
         this._jsonEditor = container;
         this._jsonEditorTextarea = textarea;
         this._editingJson = false;
@@ -994,24 +998,6 @@ class PetriView extends HTMLElement {
     }
 
     // ---------------- layout toggle ----------------
-    _createLayoutToggle() {
-        if (this._layoutToggle) return;
-
-        const toggle = document.createElement('button');
-        toggle.type = 'button';
-        toggle.className = 'pv-layout-toggle';
-        toggle.title = 'Toggle horizontal/vertical layout';
-        toggle.textContent = '⇄'; // swap icon
-
-        toggle.addEventListener('click', (e) => {
-            e.stopPropagation();
-            this._toggleLayout();
-        });
-
-        this._root.appendChild(toggle);
-        this._layoutToggle = toggle;
-    }
-
     _toggleLayout() {
         this._layoutHorizontal = !this._layoutHorizontal;
 
@@ -1158,11 +1144,11 @@ class PetriView extends HTMLElement {
     }
 
     // ---------------- lifecycle ----------------
-    connectedCallback() {
+    async connectedCallback() {
         if (this._root) return;
         this._buildRoot();
         this._ldScript = this.querySelector('script[type="application/ld+json"]');
-        this._loadModelFromScriptOrAutosave();
+        await this._loadModelFromScriptOrAutosave();
         this._normalizeModel();
         this._renderUI();
         this._applyViewTransform();
@@ -1239,8 +1225,8 @@ class PetriView extends HTMLElement {
             const {'@id': _, ...docForCid} = doc;
             const cid = await this._computeCidForJsonLd(docForCid);
 
-            // Inject @id with ipfs:// scheme
-            const docWithId = {...doc, '@id': `ipfs://${cid}`};
+            // Inject @id with CID
+            const docWithId = {...doc, '@id': cid};
 
             // Create download blob
             const blob = new Blob([JSON.stringify(docWithId, null, 2)], {
@@ -1501,7 +1487,7 @@ class PetriView extends HTMLElement {
         }
     }
 
-    _loadModelFromScriptOrAutosave() {
+    async _loadModelFromScriptOrAutosave() {
         // Check for permalink data first (highest priority)
         const urlParams = new URLSearchParams(window.location.search);
         const encodedData = urlParams.get('data');
@@ -1510,6 +1496,23 @@ class PetriView extends HTMLElement {
             if (permalinkData) {
                 this._model = permalinkData.data || {};
                 return;
+            }
+        }
+
+        // Check for CID parameter in tens-city mode
+        const cid = urlParams.get('cid');
+        if (cid && this.hasAttribute('data-tens-city-mode')) {
+            try {
+                const response = await fetch(`/o/${cid}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    this._model = data || {};
+                    return;
+                } else {
+                    console.error(`Failed to load data from CID: ${response.status} ${response.statusText}`);
+                }
+            } catch (err) {
+                console.error('Failed to load data from CID:', err);
             }
         }
 
@@ -3491,15 +3494,6 @@ class PetriView extends HTMLElement {
             }
             this._jsonEditor.remove();
         } catch {
-        }
-
-        // Remove layout toggle button
-        if (this._layoutToggle) {
-            try {
-                this._layoutToggle.remove();
-            } catch {
-            }
-            this._layoutToggle = null;
         }
 
         // Hide the divider
