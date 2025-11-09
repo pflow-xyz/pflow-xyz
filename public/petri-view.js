@@ -3940,6 +3940,9 @@ class PetriView extends HTMLElement {
         this._jsonEditorTextarea = null;
         this._editingJson = false;
 
+        // Remove the attribute to keep state consistent
+        this.removeAttribute('data-json-editor');
+
         // Trigger resize
         this._onResize();
     }
