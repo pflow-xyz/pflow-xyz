@@ -178,6 +178,16 @@ canvas.pv-canvas {
     outline-color: rgba(0, 120, 215, 0.9);
 }
 
+/* Group-select mode highlighting */
+.pv-group-selected {
+    outline: 3px solid rgba(255, 165, 0, 0.8);
+    box-shadow: 0 0 8px rgba(255, 165, 0, 0.5);
+}
+
+.pv-group-selected:hover {
+    outline-color: rgba(255, 140, 0, 1);
+}
+
 /* Layout: Canvas container and JSON editor as peers */
 .pv-canvas-container {
     flex: 1 1 auto;
