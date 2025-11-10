@@ -2275,11 +2275,9 @@ class PetriView extends HTMLElement {
         });
         // Do not begin drag when in add-token, add-arc, delete or label-edit modes
         handle.addEventListener('pointerdown', (ev) => {
-            if (this._mode === 'group-select') {
-                // In group-select mode, drag all selected nodes
-                if (this._selectedNodes.size > 0 && this._selectedNodes.has(id)) {
-                    this._beginGroupDrag(ev, id);
-                }
+            if (this._selectedNodes.size > 0 && this._selectedNodes.has(id) && this._mode === 'select') {
+                // In select mode with selected nodes, drag all selected nodes
+                this._beginGroupDrag(ev, id);
             } else if (this._mode !== 'add-token' && this._mode !== 'add-arc' && this._mode !== 'delete' && !this._labelEditMode) {
                 this._beginDrag(ev, id, 'place');
             }
@@ -2310,11 +2308,9 @@ class PetriView extends HTMLElement {
         });
         // Do not begin drag when in add-arc, delete or label-edit modes
         el.addEventListener('pointerdown', (ev) => {
-            if (this._mode === 'group-select') {
-                // In group-select mode, drag all selected nodes
-                if (this._selectedNodes.size > 0 && this._selectedNodes.has(id)) {
-                    this._beginGroupDrag(ev, id);
-                }
+            if (this._selectedNodes.size > 0 && this._selectedNodes.has(id) && this._mode === 'select') {
+                // In select mode with selected nodes, drag all selected nodes
+                this._beginGroupDrag(ev, id);
             } else if (this._mode !== 'add-arc' && this._mode !== 'delete' && !this._labelEditMode) {
                 this._beginDrag(ev, id, 'transition');
             }
@@ -2369,10 +2365,17 @@ class PetriView extends HTMLElement {
             return;
         }
 
-        // Handle group-select mode
-        if (this._mode === 'group-select') {
+        // Handle shift+click for group selection in compatible modes
+        if (ev.shiftKey && (this._mode === 'select' || this._mode === 'add-token' || this._mode === 'delete')) {
             this._toggleNodeSelection(id);
             return;
+        }
+
+        // Clear selection on regular click in compatible modes (unless clicking a selected node)
+        if (!ev.shiftKey && (this._mode === 'select' || this._mode === 'add-token' || this._mode === 'delete')) {
+            if (!this._selectedNodes.has(id)) {
+                this._clearSelection();
+            }
         }
 
         if (this._mode === 'select') return;
@@ -2481,10 +2484,17 @@ class PetriView extends HTMLElement {
             return;
         }
 
-        // Handle group-select mode
-        if (this._mode === 'group-select') {
+        // Handle shift+click for group selection in compatible modes
+        if (ev.shiftKey && (this._mode === 'select' || this._mode === 'delete')) {
             this._toggleNodeSelection(id);
             return;
+        }
+
+        // Clear selection on regular click in compatible modes (unless clicking a selected node)
+        if (!ev.shiftKey && (this._mode === 'select' || this._mode === 'delete')) {
+            if (!this._selectedNodes.has(id)) {
+                this._clearSelection();
+            }
         }
 
         // normal edit behaviors
@@ -2607,7 +2617,6 @@ class PetriView extends HTMLElement {
             {mode: 'add-token', label: '\u2022', title: 'Add / Remove Tokens (5)'},
             {mode: 'delete', label: '\u{1F5D1}', title: 'Delete element (6)'},
             {mode: 'label-edit', label: '\u{1D4D0}', title: 'Edit Labels (7)', toggle: true},
-            {mode: 'group-select', label: '\u{1F5F9}', title: 'Group Select (8)'},
         ];
 
         tools.forEach(t => {
@@ -2670,10 +2679,6 @@ class PetriView extends HTMLElement {
 
     _setMode(mode) {
         if (this._simRunning && mode !== 'select') return;
-        // Clear selection when leaving group-select mode
-        if (this._mode === 'group-select' && mode !== 'group-select') {
-            this._clearSelection();
-        }
         this._mode = mode;
         if (mode !== 'add-arc' && this._arcDraft) {
             this._arcDraft = null;
@@ -4211,8 +4216,7 @@ class PetriView extends HTMLElement {
                 '3': 'add-transition',
                 '4': 'add-arc',
                 '5': 'add-token',
-                '6': 'delete',
-                '8': 'group-select'
+                '6': 'delete'
             };
             if (map[e.key] && !isTyping) this._setMode(map[e.key]);
         });
