@@ -32,6 +32,7 @@ class PetriView extends HTMLElement {
         this._arcDraft = null;
         this._mouse = {x: 0, y: 0};
         this._labelEditMode = false;
+        this._selectedNodes = new Set(); // for group-select mode
 
         // pan/zoom
         this._view = {scale: 1, tx: 0, ty: 0};
@@ -2274,7 +2275,12 @@ class PetriView extends HTMLElement {
         });
         // Do not begin drag when in add-token, add-arc, delete or label-edit modes
         handle.addEventListener('pointerdown', (ev) => {
-            if (this._mode !== 'add-token' && this._mode !== 'add-arc' && this._mode !== 'delete' && !this._labelEditMode) {
+            if (this._mode === 'group-select') {
+                // In group-select mode, drag all selected nodes
+                if (this._selectedNodes.size > 0 && this._selectedNodes.has(id)) {
+                    this._beginGroupDrag(ev, id);
+                }
+            } else if (this._mode !== 'add-token' && this._mode !== 'add-arc' && this._mode !== 'delete' && !this._labelEditMode) {
                 this._beginDrag(ev, id, 'place');
             }
         });
@@ -2304,7 +2310,12 @@ class PetriView extends HTMLElement {
         });
         // Do not begin drag when in add-arc, delete or label-edit modes
         el.addEventListener('pointerdown', (ev) => {
-            if (this._mode !== 'add-arc' && this._mode !== 'delete' && !this._labelEditMode) {
+            if (this._mode === 'group-select') {
+                // In group-select mode, drag all selected nodes
+                if (this._selectedNodes.size > 0 && this._selectedNodes.has(id)) {
+                    this._beginGroupDrag(ev, id);
+                }
+            } else if (this._mode !== 'add-arc' && this._mode !== 'delete' && !this._labelEditMode) {
                 this._beginDrag(ev, id, 'transition');
             }
         });
@@ -2355,6 +2366,12 @@ class PetriView extends HTMLElement {
         // Handle label-edit mode first
         if (this._labelEditMode) {
             this._openLabelEditor(id, p.label || id);
+            return;
+        }
+
+        // Handle group-select mode
+        if (this._mode === 'group-select') {
+            this._toggleNodeSelection(id);
             return;
         }
 
@@ -2461,6 +2478,12 @@ class PetriView extends HTMLElement {
             if (t) {
                 this._openLabelEditor(id, t.label || id);
             }
+            return;
+        }
+
+        // Handle group-select mode
+        if (this._mode === 'group-select') {
+            this._toggleNodeSelection(id);
             return;
         }
 
@@ -2584,6 +2607,7 @@ class PetriView extends HTMLElement {
             {mode: 'add-token', label: '\u2022', title: 'Add / Remove Tokens (5)'},
             {mode: 'delete', label: '\u{1F5D1}', title: 'Delete element (6)'},
             {mode: 'label-edit', label: '\u{1D4D0}', title: 'Edit Labels (7)', toggle: true},
+            {mode: 'group-select', label: '\u{1F5F9}', title: 'Group Select (8)'},
         ];
 
         tools.forEach(t => {
@@ -2646,6 +2670,10 @@ class PetriView extends HTMLElement {
 
     _setMode(mode) {
         if (this._simRunning && mode !== 'select') return;
+        // Clear selection when leaving group-select mode
+        if (this._mode === 'group-select' && mode !== 'group-select') {
+            this._clearSelection();
+        }
         this._mode = mode;
         if (mode !== 'add-arc' && this._arcDraft) {
             this._arcDraft = null;
@@ -2680,6 +2708,30 @@ class PetriView extends HTMLElement {
             const isPlaceOrTransition = el.classList.contains('pv-place') || el.classList.contains('pv-transition');
             if (isPlaceOrTransition) {
                 el.classList.toggle('pv-label-editable', this._labelEditMode);
+            }
+        }
+    }
+
+    _clearSelection() {
+        this._selectedNodes.clear();
+        this._updateSelectionHighlights();
+    }
+
+    _toggleNodeSelection(id) {
+        if (this._selectedNodes.has(id)) {
+            this._selectedNodes.delete(id);
+        } else {
+            this._selectedNodes.add(id);
+        }
+        this._updateSelectionHighlights();
+    }
+
+    _updateSelectionHighlights() {
+        if (!this._nodes) return;
+        for (const [id, el] of Object.entries(this._nodes)) {
+            const isPlaceOrTransition = el.classList.contains('pv-place') || el.classList.contains('pv-transition');
+            if (isPlaceOrTransition) {
+                el.classList.toggle('pv-group-selected', this._selectedNodes.has(id));
             }
         }
     }
@@ -2907,6 +2959,94 @@ class PetriView extends HTMLElement {
             this._syncLD();
             this._pushHistory();
             this.dispatchEvent(new CustomEvent('node-moved', {detail: {id, kind}}));
+        };
+
+        window.addEventListener('pointermove', move);
+        window.addEventListener('pointerup', up);
+        window.addEventListener('pointercancel', up);
+    }
+
+    _beginGroupDrag(ev, clickedId) {
+        // Prevent dragging while simulation (play) is running
+        if (this._simRunning) return;
+
+        ev.preventDefault();
+        
+        const scale = this._view.scale || 1;
+        const startX = ev.clientX;
+        const startY = ev.clientY;
+
+        // Store initial positions for all selected nodes
+        const initialPositions = new Map();
+        for (const id of this._selectedNodes) {
+            const el = this._nodes[id];
+            if (!el) continue;
+
+            const isPlace = el.classList.contains('pv-place');
+            const offset = isPlace ? 40 : 15;
+            const node = isPlace ? this._model.places[id] : this._model.transitions[id];
+            if (node) {
+                initialPositions.set(id, {
+                    x: node.x || 0,
+                    y: node.y || 0,
+                    offset: offset,
+                    isPlace: isPlace,
+                    element: el
+                });
+            }
+        }
+
+        // Set grabbing cursor
+        try {
+            document.body.style.cursor = 'grabbing';
+        } catch { /* ignore */ }
+
+        const move = (e) => {
+            const dxLocal = (e.clientX - startX) / scale;
+            const dyLocal = (e.clientY - startY) / scale;
+
+            // Update all selected nodes
+            for (const [id, initial] of initialPositions) {
+                const newX = initial.x + dxLocal;
+                const newY = initial.y + dyLocal;
+                
+                // Update element position (subtract offset for rendering)
+                initial.element.style.left = `${newX - initial.offset}px`;
+                initial.element.style.top = `${newY - initial.offset}px`;
+                
+                // Update model
+                const node = initial.isPlace ? this._model.places[id] : this._model.transitions[id];
+                if (node) {
+                    node.x = Math.round(newX);
+                    node.y = Math.round(newY);
+                }
+            }
+            this._draw();
+        };
+
+        const up = (e) => {
+            window.removeEventListener('pointermove', move);
+            window.removeEventListener('pointerup', up);
+            window.removeEventListener('pointercancel', up);
+
+            // Restore cursor
+            try {
+                document.body.style.cursor = '';
+            } catch { /* ignore */ }
+
+            // Snap all nodes to grid and finalize
+            for (const [id, initial] of initialPositions) {
+                const node = initial.isPlace ? this._model.places[id] : this._model.transitions[id];
+                if (node) {
+                    node.x = this._snap(node.x);
+                    node.y = this._snap(node.y);
+                }
+            }
+
+            this._renderUI();
+            this._syncLD();
+            this._pushHistory();
+            this.dispatchEvent(new CustomEvent('group-moved', {detail: {ids: Array.from(this._selectedNodes)}}));
         };
 
         window.addEventListener('pointermove', move);
@@ -4071,7 +4211,8 @@ class PetriView extends HTMLElement {
                 '3': 'add-transition',
                 '4': 'add-arc',
                 '5': 'add-token',
-                '6': 'delete'
+                '6': 'delete',
+                '8': 'group-select'
             };
             if (map[e.key] && !isTyping) this._setMode(map[e.key]);
         });
