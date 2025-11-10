@@ -2275,6 +2275,10 @@ class PetriView extends HTMLElement {
         });
         // Do not begin drag when in add-token, add-arc, delete or label-edit modes
         handle.addEventListener('pointerdown', (ev) => {
+            // Skip drag when shift is held (for multi-select)
+            if (ev.shiftKey && (this._mode === 'select' || this._mode === 'add-token' || this._mode === 'delete')) {
+                return;
+            }
             if (this._selectedNodes.size > 0 && this._selectedNodes.has(id) && this._mode === 'select') {
                 // In select mode with selected nodes, drag all selected nodes
                 this._beginGroupDrag(ev, id);
@@ -2308,6 +2312,10 @@ class PetriView extends HTMLElement {
         });
         // Do not begin drag when in add-arc, delete or label-edit modes
         el.addEventListener('pointerdown', (ev) => {
+            // Skip drag when shift is held (for multi-select)
+            if (ev.shiftKey && (this._mode === 'select' || this._mode === 'delete')) {
+                return;
+            }
             if (this._selectedNodes.size > 0 && this._selectedNodes.has(id) && this._mode === 'select') {
                 // In select mode with selected nodes, drag all selected nodes
                 this._beginGroupDrag(ev, id);
