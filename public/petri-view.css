@@ -306,3 +306,16 @@ canvas.pv-canvas {
 .pv-layout-toggle:active {
     background: rgba(240, 240, 240, 1);
 }
+
+/* Remove focus outline on toolbar buttons to avoid visual inconsistency */
+.pv-tool:focus,
+.pv-play:focus {
+    outline: none;
+}
+
+/* Keep keyboard navigation accessible with visible focus for keyboard users */
+.pv-tool:focus-visible,
+.pv-play:focus-visible {
+    outline: 2px solid rgba(42, 111, 184, 0.5);
+    outline-offset: 2px;
+}

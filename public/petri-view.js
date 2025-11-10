@@ -4206,7 +4206,15 @@ class PetriView extends HTMLElement {
 
             if (e.key === 'Escape') {
                 e.preventDefault();
+                // Exit label-edit mode if active
+                if (this._labelEditMode) {
+                    this._labelEditMode = false;
+                }
                 this._setMode('select');
+                // Blur any focused button to remove focus outline
+                if (document.activeElement && document.activeElement.classList.contains('pv-tool')) {
+                    document.activeElement.blur();
+                }
                 if (this._simRunning) {
                     this._setSimulation(false);
                     return;
