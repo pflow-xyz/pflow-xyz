@@ -2604,6 +2604,45 @@ class PetriView extends HTMLElement {
         this.dispatchEvent(new CustomEvent('node-deleted', {detail: {id}}));
     }
 
+    _deleteNodes(ids) {
+        if (!this._model || !ids || ids.length === 0) return;
+        let changed = false;
+        
+        // Delete all nodes from the model
+        for (const id of ids) {
+            if (this._model.places && this._model.places[id]) {
+                delete this._model.places[id];
+                changed = true;
+            }
+            if (this._model.transitions && this._model.transitions[id]) {
+                delete this._model.transitions[id];
+                changed = true;
+            }
+        }
+        
+        if (!changed) return;
+        
+        // Filter arcs connected to any deleted node
+        const idsSet = new Set(ids);
+        this._model.arcs = (this._model.arcs || []).filter(a => !idsSet.has(a.source) && !idsSet.has(a.target));
+        
+        // Clear arc draft if it references any deleted node
+        if (this._arcDraft && idsSet.has(this._arcDraft.source)) {
+            this._arcDraft = null;
+        }
+        
+        // Only render/sync/history once after all deletions
+        this._normalizeModel();
+        this._renderUI();
+        this._syncLD();
+        this._pushHistory();
+        
+        // Dispatch events for each deleted node
+        for (const id of ids) {
+            this.dispatchEvent(new CustomEvent('node-deleted', {detail: {id}}));
+        }
+    }
+
     // ---------------- editing menu & modes ----------------
 
     _createMenu() {
@@ -4231,10 +4270,8 @@ class PetriView extends HTMLElement {
             if ((e.key === 'Backspace' || e.key === 'Delete') && !isTyping) {
                 if (this._selectedNodes && this._selectedNodes.size > 0) {
                     e.preventDefault();
-                    // Delete all selected nodes
-                    for (const id of this._selectedNodes) {
-                        this._deleteNode(id);
-                    }
+                    // Delete all selected nodes at once (batch operation)
+                    this._deleteNodes(Array.from(this._selectedNodes));
                     // Clear selection after deletion
                     this._clearSelection();
                     return;
