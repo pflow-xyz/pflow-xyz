@@ -4227,6 +4227,20 @@ class PetriView extends HTMLElement {
                 return;
             }
 
+            // Handle Backspace/Delete to delete selected nodes without changing mode
+            if ((e.key === 'Backspace' || e.key === 'Delete') && !isTyping) {
+                if (this._selectedNodes && this._selectedNodes.size > 0) {
+                    e.preventDefault();
+                    // Delete all selected nodes
+                    for (const id of this._selectedNodes) {
+                        this._deleteNode(id);
+                    }
+                    // Clear selection after deletion
+                    this._clearSelection();
+                    return;
+                }
+            }
+
             const map = {
                 '1': 'select',
                 '2': 'add-place',
