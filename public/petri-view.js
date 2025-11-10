@@ -3558,6 +3558,7 @@ class PetriView extends HTMLElement {
                 <li><strong>Left-click transition:</strong> Fire it manually (if enabled)</li>
                 <li><strong>Right-click place:</strong> Add or remove tokens</li>
                 <li><strong>Right-click arc:</strong> Change arc weight</li>
+                <li><strong>Shift + click:</strong> Select/deselect multiple nodes (in Select, Token, and Delete modes). Drag to move group together</li>
                 <li><strong>Drag elements:</strong> Reposition places and transitions</li>
                 <li><strong>Mouse wheel:</strong> Zoom in/out</li>
                 <li><strong>Space + drag:</strong> Pan the canvas</li>
