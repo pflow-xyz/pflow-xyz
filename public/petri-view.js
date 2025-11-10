@@ -3661,6 +3661,491 @@ class PetriView extends HTMLElement {
         });
     }
 
+    // ---------------- layout algorithms dialog ----------------
+    _showLayoutAlgorithmsDialog() {
+        // Create modal overlay
+        const overlay = document.createElement('div');
+        overlay.className = 'pv-layout-dialog-overlay';
+        this._applyStyles(overlay, {
+            position: 'fixed',
+            left: '0',
+            top: '0',
+            right: '0',
+            bottom: '0',
+            background: 'rgba(0, 0, 0, 0.5)',
+            zIndex: 2147483646,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '20px'
+        });
+
+        // Create dialog
+        const dialog = document.createElement('div');
+        dialog.className = 'pv-layout-dialog';
+        this._applyStyles(dialog, {
+            background: '#fff',
+            borderRadius: '8px',
+            padding: '24px',
+            maxWidth: '500px',
+            width: '100%',
+            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)',
+            maxHeight: '85vh',
+            overflow: 'auto'
+        });
+
+        // Title
+        const title = document.createElement('h2');
+        title.textContent = 'Layout Algorithms';
+        this._applyStyles(title, {
+            margin: '0 0 16px 0',
+            fontSize: '22px',
+            fontWeight: 'bold',
+            color: '#333'
+        });
+        dialog.appendChild(title);
+
+        // Description
+        const desc = document.createElement('p');
+        desc.textContent = 'Apply a layout algorithm to automatically arrange your Petri net nodes:';
+        this._applyStyles(desc, {
+            margin: '0 0 16px 0',
+            fontSize: '14px',
+            color: '#666'
+        });
+        dialog.appendChild(desc);
+
+        // Layout options container
+        const optionsContainer = document.createElement('div');
+        this._applyStyles(optionsContainer, {
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '12px'
+        });
+
+        const createLayoutButton = (name, description, iconEmoji, onClick) => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            this._applyStyles(button, {
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'flex-start',
+                padding: '16px',
+                background: '#f8f9fa',
+                border: '2px solid #e1e4e8',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                textAlign: 'left'
+            });
+
+            const header = document.createElement('div');
+            this._applyStyles(header, {
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                marginBottom: '8px'
+            });
+
+            const icon = document.createElement('span');
+            icon.textContent = iconEmoji;
+            this._applyStyles(icon, {
+                fontSize: '20px'
+            });
+            header.appendChild(icon);
+
+            const nameEl = document.createElement('span');
+            nameEl.textContent = name;
+            this._applyStyles(nameEl, {
+                fontSize: '16px',
+                fontWeight: '600',
+                color: '#333'
+            });
+            header.appendChild(nameEl);
+
+            button.appendChild(header);
+
+            const descEl = document.createElement('div');
+            descEl.textContent = description;
+            this._applyStyles(descEl, {
+                fontSize: '13px',
+                color: '#666',
+                lineHeight: '1.4'
+            });
+            button.appendChild(descEl);
+
+            button.addEventListener('mouseenter', () => {
+                button.style.background = '#e9ecef';
+                button.style.borderColor = '#007bff';
+            });
+            button.addEventListener('mouseleave', () => {
+                button.style.background = '#f8f9fa';
+                button.style.borderColor = '#e1e4e8';
+            });
+            button.addEventListener('click', () => {
+                onClick();
+                document.body.removeChild(overlay);
+            });
+
+            return button;
+        };
+
+        // Add layout algorithm buttons
+        const forceAtlasBtn = createLayoutButton(
+            'Force-Atlas 2',
+            'Physics-based force-directed layout that creates natural-looking graphs with even spacing',
+            '⚛️',
+            () => this._applyForceAtlas2Layout()
+        );
+        optionsContainer.appendChild(forceAtlasBtn);
+
+        const hierarchicalBtn = createLayoutButton(
+            'Hierarchical',
+            'Arranges nodes in layers from top to bottom, ideal for workflows and directed graphs',
+            '📊',
+            () => this._applyHierarchicalLayout()
+        );
+        optionsContainer.appendChild(hierarchicalBtn);
+
+        const circularBtn = createLayoutButton(
+            'Circular',
+            'Arranges all nodes in a circle, good for visualizing cyclic relationships',
+            '⭕',
+            () => this._applyCircularLayout()
+        );
+        optionsContainer.appendChild(circularBtn);
+
+        dialog.appendChild(optionsContainer);
+
+        // Close button
+        const closeBtn = document.createElement('button');
+        closeBtn.textContent = 'Cancel';
+        closeBtn.type = 'button';
+        this._applyStyles(closeBtn, {
+            marginTop: '20px',
+            padding: '10px 24px',
+            fontSize: '14px',
+            fontWeight: '500',
+            background: '#6c757d',
+            color: '#fff',
+            border: 'none',
+            borderRadius: '6px',
+            cursor: 'pointer',
+            transition: 'background 0.2s'
+        });
+        closeBtn.addEventListener('mouseenter', () => {
+            closeBtn.style.background = '#5a6268';
+        });
+        closeBtn.addEventListener('mouseleave', () => {
+            closeBtn.style.background = '#6c757d';
+        });
+        closeBtn.addEventListener('click', () => {
+            document.body.removeChild(overlay);
+        });
+        dialog.appendChild(closeBtn);
+
+        overlay.appendChild(dialog);
+        document.body.appendChild(overlay);
+
+        // Close on overlay click
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) {
+                document.body.removeChild(overlay);
+            }
+        });
+    }
+
+    // ---------------- layout algorithm implementations ----------------
+
+    _applyForceAtlas2Layout() {
+        // Save state for undo
+        this._pushHistory();
+
+        // Get all nodes (places and transitions)
+        const nodes = [];
+        const nodeMap = new Map();
+        
+        // Add places
+        for (const [id, place] of Object.entries(this._model.places || {})) {
+            const node = { id, x: place.x || 0, y: place.y || 0, type: 'place' };
+            nodes.push(node);
+            nodeMap.set(id, node);
+        }
+        
+        // Add transitions
+        for (const [id, transition] of Object.entries(this._model.transitions || {})) {
+            const node = { id, x: transition.x || 0, y: transition.y || 0, type: 'transition' };
+            nodes.push(node);
+            nodeMap.set(id, node);
+        }
+
+        if (nodes.length === 0) return;
+
+        // Build edge list from arcs
+        const edges = [];
+        for (const arc of (this._model.arcs || [])) {
+            const source = nodeMap.get(arc.source);
+            const target = nodeMap.get(arc.target);
+            if (source && target) {
+                edges.push({ source, target });
+            }
+        }
+
+        // Force-Atlas 2 parameters
+        const iterations = 500;
+        const gravity = 0.5;
+        const scalingRatio = 50;
+        const edgeWeightInfluence = 1.0;
+
+        // Initialize velocities
+        nodes.forEach(node => {
+            node.vx = 0;
+            node.vy = 0;
+        });
+
+        // Run simulation
+        for (let iter = 0; iter < iterations; iter++) {
+            // Calculate repulsive forces (all pairs)
+            for (let i = 0; i < nodes.length; i++) {
+                for (let j = i + 1; j < nodes.length; j++) {
+                    const n1 = nodes[i];
+                    const n2 = nodes[j];
+                    const dx = n2.x - n1.x;
+                    const dy = n2.y - n1.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy) || 0.01;
+                    
+                    // Repulsion force (inverse square)
+                    const force = scalingRatio * scalingRatio / dist;
+                    const fx = (dx / dist) * force;
+                    const fy = (dy / dist) * force;
+                    
+                    n1.vx -= fx;
+                    n1.vy -= fy;
+                    n2.vx += fx;
+                    n2.vy += fy;
+                }
+            }
+
+            // Calculate attractive forces (edges)
+            for (const edge of edges) {
+                const dx = edge.target.x - edge.source.x;
+                const dy = edge.target.y - edge.source.y;
+                const dist = Math.sqrt(dx * dx + dy * dy) || 0.01;
+                
+                // Attraction force (proportional to distance)
+                const force = (dist / scalingRatio) * edgeWeightInfluence;
+                const fx = (dx / dist) * force;
+                const fy = (dy / dist) * force;
+                
+                edge.source.vx += fx;
+                edge.source.vy += fy;
+                edge.target.vx -= fx;
+                edge.target.vy -= fy;
+            }
+
+            // Apply gravity toward center
+            const centerX = nodes.reduce((sum, n) => sum + n.x, 0) / nodes.length;
+            const centerY = nodes.reduce((sum, n) => sum + n.y, 0) / nodes.length;
+            
+            for (const node of nodes) {
+                const dx = centerX - node.x;
+                const dy = centerY - node.y;
+                node.vx += dx * gravity;
+                node.vy += dy * gravity;
+            }
+
+            // Update positions with damping
+            const damping = 0.5;
+            for (const node of nodes) {
+                node.x += node.vx * damping;
+                node.y += node.vy * damping;
+                node.vx *= 0.9; // velocity decay
+                node.vy *= 0.9;
+            }
+        }
+
+        // Find bounds and scale to reasonable size
+        let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+        for (const node of nodes) {
+            minX = Math.min(minX, node.x);
+            maxX = Math.max(maxX, node.x);
+            minY = Math.min(minY, node.y);
+            maxY = Math.max(maxY, node.y);
+        }
+
+        const width = maxX - minX || 1;
+        const height = maxY - minY || 1;
+        const targetWidth = 800;
+        const targetHeight = 600;
+        const scale = Math.min(targetWidth / width, targetHeight / height);
+
+        // Apply positions back to model
+        for (const node of nodes) {
+            const scaledX = Math.round((node.x - minX) * scale + 100);
+            const scaledY = Math.round((node.y - minY) * scale + 100);
+            
+            if (node.type === 'place') {
+                this._model.places[node.id].x = scaledX;
+                this._model.places[node.id].y = scaledY;
+            } else {
+                this._model.transitions[node.id].x = scaledX;
+                this._model.transitions[node.id].y = scaledY;
+            }
+        }
+
+        // Update the view
+        this._renderUI();
+        this._syncLD();
+    }
+
+    _applyHierarchicalLayout() {
+        // Save state for undo
+        this._pushHistory();
+
+        // Get all nodes
+        const nodes = new Map();
+        for (const [id, place] of Object.entries(this._model.places || {})) {
+            nodes.set(id, { id, type: 'place', level: -1, inDegree: 0, outDegree: 0 });
+        }
+        for (const [id, transition] of Object.entries(this._model.transitions || {})) {
+            nodes.set(id, { id, type: 'transition', level: -1, inDegree: 0, outDegree: 0 });
+        }
+
+        if (nodes.size === 0) return;
+
+        // Build adjacency information
+        const outgoing = new Map();
+        const incoming = new Map();
+        for (const [id] of nodes) {
+            outgoing.set(id, []);
+            incoming.set(id, []);
+        }
+
+        for (const arc of (this._model.arcs || [])) {
+            if (nodes.has(arc.source) && nodes.has(arc.target)) {
+                outgoing.get(arc.source).push(arc.target);
+                incoming.get(arc.target).push(arc.source);
+                nodes.get(arc.source).outDegree++;
+                nodes.get(arc.target).inDegree++;
+            }
+        }
+
+        // Topological sort to assign levels (Kahn's algorithm)
+        const queue = [];
+        const inDegreeMap = new Map();
+        
+        for (const [id, node] of nodes) {
+            inDegreeMap.set(id, node.inDegree);
+            if (node.inDegree === 0) {
+                node.level = 0;
+                queue.push(id);
+            }
+        }
+
+        while (queue.length > 0) {
+            const currentId = queue.shift();
+            const currentLevel = nodes.get(currentId).level;
+
+            for (const targetId of outgoing.get(currentId)) {
+                const targetNode = nodes.get(targetId);
+                inDegreeMap.set(targetId, inDegreeMap.get(targetId) - 1);
+                
+                if (inDegreeMap.get(targetId) === 0) {
+                    targetNode.level = currentLevel + 1;
+                    queue.push(targetId);
+                }
+            }
+        }
+
+        // Assign level 0 to any remaining unassigned nodes (cycles)
+        for (const [id, node] of nodes) {
+            if (node.level === -1) {
+                node.level = 0;
+            }
+        }
+
+        // Group nodes by level
+        const levels = new Map();
+        let maxLevel = 0;
+        for (const [id, node] of nodes) {
+            if (!levels.has(node.level)) {
+                levels.set(node.level, []);
+            }
+            levels.get(node.level).push(node);
+            maxLevel = Math.max(maxLevel, node.level);
+        }
+
+        // Layout parameters
+        const levelHeight = 150;
+        const nodeSpacing = 100;
+        const startX = 100;
+        const startY = 100;
+
+        // Position nodes
+        for (let level = 0; level <= maxLevel; level++) {
+            const nodesAtLevel = levels.get(level) || [];
+            const levelWidth = nodesAtLevel.length * nodeSpacing;
+            const startXForLevel = startX + (800 - levelWidth) / 2;
+
+            nodesAtLevel.forEach((node, index) => {
+                const x = Math.round(startXForLevel + index * nodeSpacing);
+                const y = Math.round(startY + level * levelHeight);
+
+                if (node.type === 'place') {
+                    this._model.places[node.id].x = x;
+                    this._model.places[node.id].y = y;
+                } else {
+                    this._model.transitions[node.id].x = x;
+                    this._model.transitions[node.id].y = y;
+                }
+            });
+        }
+
+        // Update the view
+        this._renderUI();
+        this._syncLD();
+    }
+
+    _applyCircularLayout() {
+        // Save state for undo
+        this._pushHistory();
+
+        // Get all nodes
+        const nodes = [];
+        for (const id of Object.keys(this._model.places || {})) {
+            nodes.push({ id, type: 'place' });
+        }
+        for (const id of Object.keys(this._model.transitions || {})) {
+            nodes.push({ id, type: 'transition' });
+        }
+
+        if (nodes.length === 0) return;
+
+        // Layout parameters
+        const centerX = 500;
+        const centerY = 400;
+        const radius = Math.min(300, 50 + nodes.length * 15);
+
+        // Position nodes in a circle
+        nodes.forEach((node, index) => {
+            const angle = (2 * Math.PI * index) / nodes.length - Math.PI / 2; // Start at top
+            const x = Math.round(centerX + radius * Math.cos(angle));
+            const y = Math.round(centerY + radius * Math.sin(angle));
+
+            if (node.type === 'place') {
+                this._model.places[node.id].x = x;
+                this._model.places[node.id].y = y;
+            } else {
+                this._model.transitions[node.id].x = x;
+                this._model.transitions[node.id].y = y;
+            }
+        });
+
+        // Update the view
+        this._renderUI();
+        this._syncLD();
+    }
+
     // ---------------- hamburger menu ----------------
     _createHamburgerMenu() {
         if (this._hamburgerMenu) return;
@@ -3959,6 +4444,11 @@ class PetriView extends HTMLElement {
         }
 
         // Standard menu items
+        const layoutAlgoItem = makeMenuItem('🎨 Layout Algorithms', () => {
+            this._showLayoutAlgorithmsDialog();
+        });
+        menuContainer._menuContent.appendChild(layoutAlgoItem);
+
         const toggleEditorItem = makeMenuItem('📝 Toggle Editor', () => {
             if (this.hasAttribute('data-json-editor')) {
                 this.removeAttribute('data-json-editor');
