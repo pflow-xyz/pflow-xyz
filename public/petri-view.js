@@ -3148,16 +3148,15 @@ class PetriView extends HTMLElement {
             const srcEl = this._nodes[arc.source];
             const trgEl = this._nodes[arc.target];
             if (!srcEl || !trgEl) return;
+            
+            // Use offsetLeft/offsetTop to get stage-local coordinates
+            // These are already in the stage's coordinate system
             const srcRect = srcEl.getBoundingClientRect();
             const trgRect = trgEl.getBoundingClientRect();
-            const sxScreen = (srcRect.left + srcRect.width / 2) - rootRect.left;
-            const syScreen = (srcRect.top + srcRect.height / 2) - rootRect.top;
-            const txScreen = (trgRect.left + trgRect.width / 2) - rootRect.left;
-            const tyScreen = (trgRect.top + trgRect.height / 2) - rootRect.top;
-            const sx = (sxScreen - viewTx) / scale;
-            const sy = (syScreen - viewTy) / scale;
-            const tx = (txScreen - viewTx) / scale;
-            const ty = (tyScreen - viewTy) / scale;
+            const sx = srcEl.offsetLeft + srcRect.width / 2;
+            const sy = srcEl.offsetTop + srcRect.height / 2;
+            const tx = trgEl.offsetLeft + trgRect.width / 2;
+            const ty = trgEl.offsetTop + trgRect.height / 2;
 
             const srcIsPlace = srcEl.classList.contains('pv-place');
             const trgIsPlace = trgEl.classList.contains('pv-place');
@@ -3240,10 +3239,9 @@ class PetriView extends HTMLElement {
             const srcEl = this._nodes[this._arcDraft.source];
             if (srcEl) {
                 const srcRect = srcEl.getBoundingClientRect();
-                const sxScreen = (srcRect.left + srcRect.width / 2) - rootRect.left;
-                const syScreen = (srcRect.top + srcRect.height / 2) - rootRect.top;
-                const sx = (sxScreen - viewTx) / scale;
-                const sy = (syScreen - viewTy) / scale;
+                const sx = srcEl.offsetLeft + srcRect.width / 2;
+                const sy = srcEl.offsetTop + srcRect.height / 2;
+                // Convert mouse position from canvas-container space to stage-local space
                 const mx = (this._mouse.x - viewTx) / scale;
                 const my = (this._mouse.y - viewTy) / scale;
                 ctx.setLineDash([4, 4]);
