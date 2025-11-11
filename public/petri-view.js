@@ -3144,6 +3144,11 @@ class PetriView extends HTMLElement {
         const arcs = this._model.arcs || [];
         const marks = this._marking(); // current marking to evaluate arc/transition state
 
+        // Apply view transformation to canvas context for arc rendering
+        ctx.save();
+        ctx.translate(viewTx, viewTy);
+        ctx.scale(scale, scale);
+
         arcs.forEach((arc, idx) => {
             const srcEl = this._nodes[arc.source];
             const trgEl = this._nodes[arc.target];
@@ -3234,11 +3239,19 @@ class PetriView extends HTMLElement {
             }
         });
 
+        // Restore canvas context after arc rendering
+        ctx.restore();
+
         // live arc draft preview
         if (this._arcDraft && this._arcDraft.source) {
             const srcEl = this._nodes[this._arcDraft.source];
             if (srcEl) {
                 const srcRect = srcEl.getBoundingClientRect();
+                // Apply transformation for arc draft as well
+                ctx.save();
+                ctx.translate(viewTx, viewTy);
+                ctx.scale(scale, scale);
+                
                 const sx = srcEl.offsetLeft + srcRect.width / 2;
                 const sy = srcEl.offsetTop + srcRect.height / 2;
                 // Convert mouse position from canvas-container space to stage-local space
@@ -3251,6 +3264,7 @@ class PetriView extends HTMLElement {
                 ctx.lineTo(mx, my);
                 ctx.stroke();
                 ctx.setLineDash([]);
+                ctx.restore();
             }
         }
     }
