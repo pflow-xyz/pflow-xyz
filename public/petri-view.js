@@ -3144,6 +3144,106 @@ class PetriView extends HTMLElement {
         window.addEventListener('pointercancel', up);
     }
 
+    _beginCanvasGroupDrag(ev) {
+        // Prevent dragging while simulation (play) is running
+        if (this._simRunning) return;
+
+        ev.preventDefault();
+        
+        const scale = this._view.scale || 1;
+        const startX = ev.clientX;
+        const startY = ev.clientY;
+
+        // Store initial positions for all selected nodes
+        const initialPositions = new Map();
+        for (const id of this._selectedNodes) {
+            const el = this._nodes[id];
+            if (!el) continue;
+
+            const isPlace = el.classList.contains('pv-place');
+            const offset = isPlace ? 40 : 15;
+            const node = isPlace ? this._model.places[id] : this._model.transitions[id];
+            if (node) {
+                initialPositions.set(id, {
+                    x: node.x || 0,
+                    y: node.y || 0,
+                    offset: offset,
+                    isPlace: isPlace,
+                    element: el
+                });
+            }
+        }
+
+        // Set grabbing cursor
+        try {
+            document.body.style.cursor = 'grabbing';
+            this._canvasContainer.style.cursor = 'grabbing';
+        } catch { /* ignore */ }
+
+        // capture pointer on canvas container so we receive move/up outside it
+        try {
+            if (this._canvasContainer.setPointerCapture) this._canvasContainer.setPointerCapture(ev.pointerId);
+        } catch { /* ignore */ }
+
+        const move = (e) => {
+            const dxLocal = (e.clientX - startX) / scale;
+            const dyLocal = (e.clientY - startY) / scale;
+
+            // Update all selected nodes
+            for (const [id, initial] of initialPositions) {
+                const newX = initial.x + dxLocal;
+                const newY = initial.y + dyLocal;
+                
+                // Update element position (subtract offset for rendering)
+                initial.element.style.left = `${newX - initial.offset}px`;
+                initial.element.style.top = `${newY - initial.offset}px`;
+                
+                // Update model
+                const node = initial.isPlace ? this._model.places[id] : this._model.transitions[id];
+                if (node) {
+                    node.x = Math.round(newX);
+                    node.y = Math.round(newY);
+                }
+            }
+            this._draw();
+        };
+
+        const up = (e) => {
+            window.removeEventListener('pointermove', move);
+            window.removeEventListener('pointerup', up);
+            window.removeEventListener('pointercancel', up);
+
+            // release pointer capture if set
+            try {
+                if (this._canvasContainer.releasePointerCapture) this._canvasContainer.releasePointerCapture(ev.pointerId);
+            } catch { /* ignore */ }
+
+            // Restore cursor
+            try {
+                document.body.style.cursor = '';
+                this._canvasContainer.style.cursor = '';
+            } catch { /* ignore */ }
+
+            // Snap all nodes to grid and finalize
+            for (const [id, initial] of initialPositions) {
+                const node = initial.isPlace ? this._model.places[id] : this._model.transitions[id];
+                if (node) {
+                    node.x = this._snap(node.x);
+                    node.y = this._snap(node.y);
+                }
+            }
+
+            this._renderUI();
+            this._syncLD();
+            this._pushHistory();
+            this.dispatchEvent(new CustomEvent('group-moved', {detail: {ids: Array.from(this._selectedNodes)}}));
+        };
+
+        window.addEventListener('pointermove', move);
+        window.addEventListener('pointerup', up);
+        window.addEventListener('pointercancel', up);
+    }
+
     // ---------------- drawing ----------------
     _onResize() {
         // Use canvas container rect instead of root rect
@@ -5138,6 +5238,10 @@ class PetriView extends HTMLElement {
                     this._boxSelect = null;
                     this._draw();
                 }
+                // Clear selected nodes if any are selected
+                if (this._selectedNodes && this._selectedNodes.size > 0) {
+                    this._clearSelection();
+                }
                 return;
             }
 
@@ -5199,6 +5303,14 @@ class PetriView extends HTMLElement {
                     if (this._canvasContainer.setPointerCapture) this._canvasContainer.setPointerCapture(e.pointerId);
                 } catch { /* ignore */
                 }
+                return;
+            }
+
+            // Check if we have selected nodes and clicking on canvas (not shift, not on elements)
+            // In this case, start a canvas-based group drag instead of panning
+            if (!e.shiftKey && leftButton && !clickedInteractive && this._selectedNodes.size > 0 && this._mode === 'select') {
+                e.preventDefault();
+                this._beginCanvasGroupDrag(e);
                 return;
             }
 
