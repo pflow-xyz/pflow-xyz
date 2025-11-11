@@ -356,6 +356,8 @@ Petri nets are represented using JSON-LD format with the schema at `https://pflo
 - **Click transition**: Fire transition (if enabled)
 - **Right-click node**: Open context menu (add arcs, delete)
 - **Drag node**: Move node
+- **Shift + Click node**: Add/remove node from selection (multi-select)
+- **Shift + Drag on canvas**: Draw bounding box to select multiple nodes
 - **Mouse wheel**: Zoom in/out
 - **Space + drag**: Pan the canvas
 - **Double-click transition**: Toggle between normal and inhibitor arc mode
@@ -363,7 +365,17 @@ Petri nets are represented using JSON-LD format with the schema at `https://pflo
 ### Keyboard Shortcuts
 - **Ctrl/Cmd + Z**: Undo
 - **Ctrl/Cmd + Shift + Z**: Redo
+- **Escape**: Cancel current operation (arc draft, bounding box selection)
+- **Delete/Backspace**: Delete selected nodes
 - **Space**: Enable pan mode (hold)
+- **1-6**: Switch modes (1=select, 2=add place, 3=add transition, 4=add arc, 5=add token, 6=delete)
+- **X**: Start/stop simulation
+
+### Selection Features
+- **Multi-select**: Hold Shift and click individual nodes to add/remove them from the selection
+- **Bounding Box**: Hold Shift and drag on empty canvas to draw a bounding box. All nodes whose centers fall within the box will be selected when you release the mouse
+- **Visual Feedback**: Selected nodes are highlighted with an orange outline and shadow
+- **Batch Operations**: Delete all selected nodes at once with Delete/Backspace key
 
 ### Toolbar
 - **Play/Stop**: Start/stop automatic simulation
