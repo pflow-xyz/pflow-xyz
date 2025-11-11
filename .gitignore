@@ -15,6 +15,7 @@ bin/
 
 # Data directories
 data/
+test-data/
 
 # Go workspace file
 go.work
@@ -25,3 +26,4 @@ data-dev/
 
 # Temporary files
 tmp/
+*.log
