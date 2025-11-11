@@ -3144,38 +3144,38 @@ class PetriView extends HTMLElement {
         const arcs = this._model.arcs || [];
         const marks = this._marking(); // current marking to evaluate arc/transition state
 
-        // Apply view transformation to canvas context for arc rendering
-        ctx.save();
-        ctx.translate(viewTx, viewTy);
-        ctx.scale(scale, scale);
-
         arcs.forEach((arc, idx) => {
             const srcEl = this._nodes[arc.source];
             const trgEl = this._nodes[arc.target];
             if (!srcEl || !trgEl) return;
             
-            // Use offsetLeft/offsetTop to get stage-local coordinates
-            // These are already in the stage's coordinate system
+            // Get stage-local coordinates (offsetLeft/offsetTop are in untransformed stage space)
             const srcRect = srcEl.getBoundingClientRect();
             const trgRect = trgEl.getBoundingClientRect();
-            const sx = srcEl.offsetLeft + srcRect.width / 2;
-            const sy = srcEl.offsetTop + srcRect.height / 2;
-            const tx = trgEl.offsetLeft + trgRect.width / 2;
-            const ty = trgEl.offsetTop + trgRect.height / 2;
+            const srcX = srcEl.offsetLeft + srcRect.width / 2;
+            const srcY = srcEl.offsetTop + srcRect.height / 2;
+            const trgX = trgEl.offsetLeft + trgRect.width / 2;
+            const trgY = trgEl.offsetTop + trgRect.height / 2;
+            
+            // Transform stage coordinates to canvas/viewport coordinates
+            const sx = srcX * scale + viewTx;
+            const sy = srcY * scale + viewTy;
+            const tx = trgX * scale + viewTx;
+            const ty = trgY * scale + viewTy;
 
             const srcIsPlace = srcEl.classList.contains('pv-place');
             const trgIsPlace = trgEl.classList.contains('pv-place');
-            const padPlace = 16 + 2;
-            const padTransition = 15 + 2;
+            const padPlace = (16 + 2) * scale;  // Scale padding
+            const padTransition = (15 + 2) * scale;
             const padSrc = srcIsPlace ? padPlace : padTransition;
             const padTrg = trgIsPlace ? padPlace : padTransition;
 
             const dx = tx - sx, dy = ty - sy;
             const dist = Math.hypot(dx, dy) || 1;
             const ux = dx / dist, uy = dy / dist;
-            const ahSize = 8;
-            const inhibitRadius = 6;
-            const tipOffset = arc.inhibitTransition ? (inhibitRadius + 2) : (ahSize * 0.9);
+            const ahSize = 8 * scale;  // Scale arrowhead size
+            const inhibitRadius = 6 * scale;  // Scale inhibitor radius
+            const tipOffset = arc.inhibitTransition ? (inhibitRadius + 2 * scale) : (ahSize * 0.9);
             const ex = sx + ux * padSrc, ey = sy + uy * padSrc;
             const fx = tx - ux * (padTrg + tipOffset), fy = ty - uy * (padTrg + tipOffset);
 
@@ -3197,13 +3197,13 @@ class PetriView extends HTMLElement {
             if (arc.inhibitTransition) {
                 // draw inhibitor circle at the tip (works for both place-target and transition-target inhibitors)
                 ctx.beginPath();
-                ctx.lineWidth = 1.3;
+                ctx.lineWidth = 1.3 * scale;
                 ctx.fillStyle = '#fff';
                 ctx.strokeStyle = active ? '#2a6fb8' : '#cfcfcf';
                 ctx.arc(tpx, tpy, inhibitRadius, 0, Math.PI * 2);
                 ctx.fill();
                 ctx.stroke();
-                ctx.lineWidth = 1;
+                ctx.lineWidth = 1 * scale;
             } else {
                 // draw normal arrowhead
                 const ahx = tpx + (-ux * ahSize - uy * ahSize * 0.45);
@@ -3219,9 +3219,9 @@ class PetriView extends HTMLElement {
                 ctx.fill();
             }
 
-            // position weight badge if present
-            const bx = (ex + fx) / 2;
-            const by = (ey + fy) / 2;
+            // position weight badge if present (badges are in stage-local coordinates)
+            const bx = (srcX + trgX) / 2;  // Midpoint in stage coordinates
+            const by = (srcY + trgY) / 2;
             const badge = this._stage.querySelector(`.pv-weight[data-arc="${idx}"]`);
             if (badge) {
                 const offX = (badge.offsetWidth || 20) / 2;
@@ -3239,24 +3239,22 @@ class PetriView extends HTMLElement {
             }
         });
 
-        // Restore canvas context after arc rendering
-        ctx.restore();
-
         // live arc draft preview
         if (this._arcDraft && this._arcDraft.source) {
             const srcEl = this._nodes[this._arcDraft.source];
             if (srcEl) {
                 const srcRect = srcEl.getBoundingClientRect();
-                // Apply transformation for arc draft as well
-                ctx.save();
-                ctx.translate(viewTx, viewTy);
-                ctx.scale(scale, scale);
+                const srcX = srcEl.offsetLeft + srcRect.width / 2;
+                const srcY = srcEl.offsetTop + srcRect.height / 2;
                 
-                const sx = srcEl.offsetLeft + srcRect.width / 2;
-                const sy = srcEl.offsetTop + srcRect.height / 2;
-                // Convert mouse position from canvas-container space to stage-local space
-                const mx = (this._mouse.x - viewTx) / scale;
-                const my = (this._mouse.y - viewTy) / scale;
+                // Transform to canvas coordinates
+                const sx = srcX * scale + viewTx;
+                const sy = srcY * scale + viewTy;
+                
+                // Mouse position is already in canvas/viewport space
+                const mx = this._mouse.x;
+                const my = this._mouse.y;
+                
                 ctx.setLineDash([4, 4]);
                 ctx.strokeStyle = '#666';
                 ctx.beginPath();
@@ -3264,7 +3262,6 @@ class PetriView extends HTMLElement {
                 ctx.lineTo(mx, my);
                 ctx.stroke();
                 ctx.setLineDash([]);
-                ctx.restore();
             }
         }
     }
