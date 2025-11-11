@@ -5237,6 +5237,14 @@ class PetriView extends HTMLElement {
                 if (this._labelEditMode) {
                     this._labelEditMode = false;
                 }
+                // If currently drawing an arc, clear the draft but stay in add-arc mode
+                if (this._arcDraft) {
+                    this._arcDraft = null;
+                    this._updateArcDraftHighlight();
+                    this._draw();
+                    return;
+                }
+                // If not drawing an arc, proceed with mode change
                 this._setMode('select');
                 // Blur any focused button to remove focus outline
                 if (document.activeElement && document.activeElement.classList.contains('pv-tool')) {
@@ -5245,11 +5253,6 @@ class PetriView extends HTMLElement {
                 if (this._simRunning) {
                     this._setSimulation(false);
                     return;
-                }
-                if (this._arcDraft) {
-                    this._arcDraft = null;
-                    this._updateArcDraftHighlight();
-                    this._draw();
                 }
                 // Cancel bounding box selection if active
                 if (this._boxSelect) {
