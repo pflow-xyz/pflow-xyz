@@ -3133,13 +3133,14 @@ class PetriView extends HTMLElement {
         const width = this._canvas.width / this._dpr;
         const height = this._canvas.height / this._dpr;
         ctx.clearRect(0, 0, width, height);
-        ctx.lineWidth = 1;
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
 
         const scale = this._view.scale || 1;
         const viewTx = this._view.tx || 0;
         const viewTy = this._view.ty || 0;
+        
+        ctx.lineWidth = 1 * scale;  // Scale line width
 
         const arcs = this._model.arcs || [];
         const marks = this._marking(); // current marking to evaluate arc/transition state
