@@ -4,8 +4,7 @@ Lightweight web component for building, editing, and simulating Petri nets in th
 
 [![](https://data.jsdelivr.com/v1/package/gh/pflow-xyz/pflow-xyz/badge)](https://www.jsdelivr.com/package/gh/pflow-xyz/pflow-xyz)
 
-**Try it out:** https://pflow-xyz.github.io/pflow-xyz/public/
-
+**Try it out:** https://pflow.xyz
 The component is implemented as an ES module (`public/petri-view.js`) and exposes a clean API and events for integration.
 
 ## Features
