@@ -3116,9 +3116,9 @@ class PetriView extends HTMLElement {
         // Calculate bounds of all nodes in the diagram
         const bounds = this._calculateDiagramBounds();
         
-        // Canvas should be large enough to contain both the viewport and the diagram
-        // Use the larger of viewport size or diagram bounds (with padding)
-        const padding = 100; // Extra space around diagram
+        // Canvas should be large enough to contain the entire diagram bounds
+        // Use diagram bounds with padding, but at least viewport size
+        const padding = 100;
         const w = Math.max(viewportW, bounds.maxX + padding);
         const h = Math.max(viewportH, bounds.maxY + padding);
         
@@ -3126,7 +3126,6 @@ class PetriView extends HTMLElement {
         this._canvas.height = Math.floor(h * this._dpr);
         this._canvas.style.width = `${w}px`;
         this._canvas.style.height = `${h}px`;
-        
         this._ctx.setTransform(this._dpr, 0, 0, this._dpr, 0, 0);
         this._draw();
     }
@@ -3143,7 +3142,7 @@ class PetriView extends HTMLElement {
             if (p.x !== undefined && p.y !== undefined) {
                 const x = p.x || 0;
                 const y = p.y || 0;
-                minX = hasNodes ? Math.min(minX, x - 40) : x - 40; // place radius is 40
+                minX = hasNodes ? Math.min(minX, x - 40) : x - 40;
                 minY = hasNodes ? Math.min(minY, y - 40) : y - 40;
                 maxX = hasNodes ? Math.max(maxX, x + 40) : x + 40;
                 maxY = hasNodes ? Math.max(maxY, y + 40) : y + 40;
@@ -3156,7 +3155,7 @@ class PetriView extends HTMLElement {
             if (t.x !== undefined && t.y !== undefined) {
                 const x = t.x || 0;
                 const y = t.y || 0;
-                minX = hasNodes ? Math.min(minX, x - 15) : x - 15; // transition is 30x30
+                minX = hasNodes ? Math.min(minX, x - 15) : x - 15;
                 minY = hasNodes ? Math.min(minY, y - 15) : y - 15;
                 maxX = hasNodes ? Math.max(maxX, x + 15) : x + 15;
                 maxY = hasNodes ? Math.max(maxY, y + 15) : y + 15;
@@ -3198,18 +3197,12 @@ class PetriView extends HTMLElement {
             if (!srcEl || !trgEl) return;
             
             // Get stage-local coordinates (offsetLeft/offsetTop are in untransformed stage space)
-            // Use fixed dimensions instead of getBoundingClientRect to avoid parallax with scaling
-            const srcIsPlace = srcEl.classList.contains('pv-place');
-            const trgIsPlace = trgEl.classList.contains('pv-place');
-            const srcHalfWidth = srcIsPlace ? 40 : 15;  // place is 80x80, transition is 30x30
-            const srcHalfHeight = srcIsPlace ? 40 : 15;
-            const trgHalfWidth = trgIsPlace ? 40 : 15;
-            const trgHalfHeight = trgIsPlace ? 40 : 15;
-            
-            const srcX = srcEl.offsetLeft + srcHalfWidth;
-            const srcY = srcEl.offsetTop + srcHalfHeight;
-            const trgX = trgEl.offsetLeft + trgHalfWidth;
-            const trgY = trgEl.offsetTop + trgHalfHeight;
+            const srcRect = srcEl.getBoundingClientRect();
+            const trgRect = trgEl.getBoundingClientRect();
+            const srcX = srcEl.offsetLeft + srcRect.width / 2;
+            const srcY = srcEl.offsetTop + srcRect.height / 2;
+            const trgX = trgEl.offsetLeft + trgRect.width / 2;
+            const trgY = trgEl.offsetTop + trgRect.height / 2;
             
             // Transform stage coordinates to canvas/viewport coordinates
             const sx = srcX * scale + viewTx;
@@ -3217,6 +3210,8 @@ class PetriView extends HTMLElement {
             const tx = trgX * scale + viewTx;
             const ty = trgY * scale + viewTy;
 
+            const srcIsPlace = srcEl.classList.contains('pv-place');
+            const trgIsPlace = trgEl.classList.contains('pv-place');
             const padPlace = (16 + 2) * scale;  // Scale padding
             const padTransition = (15 + 2) * scale;
             const padSrc = srcIsPlace ? padPlace : padTransition;
@@ -3295,12 +3290,9 @@ class PetriView extends HTMLElement {
         if (this._arcDraft && this._arcDraft.source) {
             const srcEl = this._nodes[this._arcDraft.source];
             if (srcEl) {
-                // Use fixed dimensions instead of getBoundingClientRect to avoid parallax with scaling
-                const srcIsPlace = srcEl.classList.contains('pv-place');
-                const srcHalfWidth = srcIsPlace ? 40 : 15;  // place is 80x80, transition is 30x30
-                const srcHalfHeight = srcIsPlace ? 40 : 15;
-                const srcX = srcEl.offsetLeft + srcHalfWidth;
-                const srcY = srcEl.offsetTop + srcHalfHeight;
+                const srcRect = srcEl.getBoundingClientRect();
+                const srcX = srcEl.offsetLeft + srcRect.width / 2;
+                const srcY = srcEl.offsetTop + srcRect.height / 2;
                 
                 // Transform to canvas coordinates
                 const sx = srcX * scale + viewTx;
