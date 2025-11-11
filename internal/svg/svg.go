@@ -27,7 +27,7 @@ type PetriNet struct {
 	Arcs        []Arc                 `json:"arcs"`
 	Places      map[string]Place      `json:"places"`
 	Transitions map[string]Transition `json:"transitions"`
-	Token       []string              `json:"token"`
+	Token       []string              `json:"token"` // Array of token color URLs or hex colors
 }
 
 // Label returns the label for a place, falling back to the ID if no label is set
@@ -166,7 +166,7 @@ func GenerateSVG(jsonData []byte) (string, error) {
 		}
 		active := isEnabled(relatedTransitionID, petriNet, marks)
 
-		drawArc(&buf, srcNode, trgNode, arc, active, i)
+		drawArc(&buf, srcNode, trgNode, arc, active, i, petriNet.Token)
 	}
 
 	// Draw places
@@ -287,7 +287,7 @@ func drawTransition(buf *bytes.Buffer, x, y float64, active bool, label string) 
 	}
 }
 
-func drawArc(buf *bytes.Buffer, src, trg NodePosition, arc Arc, active bool, arcIndex int) {
+func drawArc(buf *bytes.Buffer, src, trg NodePosition, arc Arc, active bool, arcIndex int, tokens []string) {
 	// Calculate padding based on node type
 	padSrc := placePadding
 	if !src.IsPlace {
@@ -318,21 +318,16 @@ func drawArc(buf *bytes.Buffer, src, trg NodePosition, arc Arc, active bool, arc
 	fx := trg.X - ux*(padTrg+tipOffset)
 	fy := trg.Y - uy*(padTrg+tipOffset)
 
-	// Draw line
-	arcClass := "arc"
-	if active {
-		arcClass += " arc-active"
-	}
-	buf.WriteString(fmt.Sprintf(`<line x1="%.1f" y1="%.1f" x2="%.1f" y2="%.1f" class="%s"/>`, ex, ey, fx, fy, arcClass))
+	// Get arc color based on token colors
+	arcColor := getArcColor(arc, tokens, active)
+
+	// Draw line with inline style
+	buf.WriteString(fmt.Sprintf(`<line x1="%.1f" y1="%.1f" x2="%.1f" y2="%.1f" stroke="%s" stroke-width="1" fill="none"/>`, ex, ey, fx, fy, arcColor))
 	buf.WriteString("\n")
 
 	// Draw arrowhead or inhibitor
 	if arc.InhibitTransition {
-		inhibitorClass := "inhibitor"
-		if active {
-			inhibitorClass += " inhibitor-active"
-		}
-		buf.WriteString(fmt.Sprintf(`<circle cx="%.1f" cy="%.1f" r="%.1f" class="%s"/>`, fx, fy, inhibitorRadius, inhibitorClass))
+		buf.WriteString(fmt.Sprintf(`<circle cx="%.1f" cy="%.1f" r="%.1f" fill="#fff" stroke="%s" stroke-width="1.3"/>`, fx, fy, inhibitorRadius, arcColor))
 		buf.WriteString("\n")
 	} else {
 		// Draw arrowhead
@@ -341,12 +336,8 @@ func drawArc(buf *bytes.Buffer, src, trg NodePosition, arc Arc, active bool, arc
 		bhx := fx + (-ux*arrowheadSize + uy*arrowheadSize*0.45)
 		bhy := fy + (-uy*arrowheadSize - ux*arrowheadSize*0.45)
 
-		arrowClass := "arrowhead"
-		if active {
-			arrowClass += " arrowhead-active"
-		}
-		buf.WriteString(fmt.Sprintf(`<path d="M %.1f %.1f L %.1f %.1f L %.1f %.1f Z" class="%s"/>`,
-			fx, fy, ahx, ahy, bhx, bhy, arrowClass))
+		buf.WriteString(fmt.Sprintf(`<path d="M %.1f %.1f L %.1f %.1f L %.1f %.1f Z" fill="%s"/>`,
+			fx, fy, ahx, ahy, bhx, bhy, arcColor))
 		buf.WriteString("\n")
 	}
 
@@ -359,17 +350,21 @@ func drawArc(buf *bytes.Buffer, src, trg NodePosition, arc Arc, active bool, arc
 	bx := (ex + fx) / 2
 	by := (ey + fy) / 2
 
-	badgeBgClass := "weight-bg"
+	// Determine badge background color based on arc color
+	badgeBgColor := "#fafafa"
+	badgeBorderColor := arcColor
+	badgeTextColor := "#666"
 	if active {
-		badgeBgClass += " weight-bg-active"
+		badgeBgColor = lightenColor(arcColor, 0.85)
+		badgeTextColor = arcColor
 	}
 
 	// Draw badge background
-	buf.WriteString(fmt.Sprintf(`<circle cx="%.1f" cy="%.1f" r="10" class="%s"/>`, bx, by, badgeBgClass))
+	buf.WriteString(fmt.Sprintf(`<circle cx="%.1f" cy="%.1f" r="10" fill="%s" stroke="%s" stroke-width="1"/>`, bx, by, badgeBgColor, badgeBorderColor))
 	buf.WriteString("\n")
 
 	// Draw weight text
-	buf.WriteString(fmt.Sprintf(`<text x="%.1f" y="%.1f" class="weight-badge">%d</text>`, bx, by, weight))
+	buf.WriteString(fmt.Sprintf(`<text x="%.1f" y="%.1f" font-family="system-ui, Arial" font-size="10px" fill="%s" text-anchor="middle" dominant-baseline="middle">%d</text>`, bx, by, badgeTextColor, weight))
 	buf.WriteString("\n")
 }
 
@@ -462,4 +457,109 @@ func escapeXML(s string) string {
 	s = strings.ReplaceAll(s, "\"", "&quot;")
 	s = strings.ReplaceAll(s, "'", "&apos;")
 	return s
+}
+
+// getColorDictionary returns a map of color names to hex values
+func getColorDictionary() map[string]string {
+	return map[string]string{
+		"black":  "#000000",
+		"red":    "#dc3545",
+		"blue":   "#007bff",
+		"green":  "#28a745",
+		"yellow": "#ffc107",
+		"orange": "#fd7e14",
+		"purple": "#6f42c1",
+		"pink":   "#e83e8c",
+		"brown":  "#8b4513",
+		"cyan":   "#17a2b8",
+		"gray":   "#6c757d",
+		"grey":   "#6c757d",
+		"white":  "#ffffff",
+	}
+}
+
+// extractColor extracts a color from a token URL or hex color string
+func extractColor(tokenURL string) string {
+	if tokenURL == "" {
+		return ""
+	}
+
+	// Check if it's already a hex color
+	if strings.HasPrefix(tokenURL, "#") {
+		return tokenURL
+	}
+
+	// Extract color name from URL like "https://pflow.xyz/tokens/red"
+	parts := strings.Split(tokenURL, "/")
+	if len(parts) > 0 {
+		colorName := strings.ToLower(parts[len(parts)-1])
+		colorDict := getColorDictionary()
+		if color, ok := colorDict[colorName]; ok {
+			return color
+		}
+	}
+
+	return ""
+}
+
+// lightenColor lightens a hex color by a factor (0-1)
+func lightenColor(hexColor string, factor float64) string {
+	if !strings.HasPrefix(hexColor, "#") || len(hexColor) != 7 {
+		return hexColor
+	}
+
+	// Parse hex color
+	r := parseHexByte(hexColor[1:3])
+	g := parseHexByte(hexColor[3:5])
+	b := parseHexByte(hexColor[5:7])
+
+	// Lighten by moving toward white
+	newR := int(float64(r) + float64(255-r)*factor)
+	newG := int(float64(g) + float64(255-g)*factor)
+	newB := int(float64(b) + float64(255-b)*factor)
+
+	// Convert back to hex
+	return fmt.Sprintf("#%02x%02x%02x", newR, newG, newB)
+}
+
+// parseHexByte parses a two-character hex string to a byte value
+func parseHexByte(hex string) int {
+	var result int
+	fmt.Sscanf(hex, "%x", &result)
+	return result
+}
+
+// getArcColor determines the arc color based on weight array and token colors
+func getArcColor(arc Arc, tokens []string, active bool) string {
+	weight := arc.Weight
+	if len(weight) == 0 {
+		weight = []int{1}
+	}
+
+	// Find which token colors are used (non-zero weights)
+	var usedColors []string
+	for i := 0; i < len(weight); i++ {
+		w := weight[i]
+		if w > 0 && i < len(tokens) {
+			color := extractColor(tokens[i])
+			if color != "" {
+				usedColors = append(usedColors, color)
+			}
+		}
+	}
+
+	// If no token colors found, use default behavior
+	if len(usedColors) == 0 {
+		if active {
+			return "#2a6fb8"
+		}
+		return "#cfcfcf"
+	}
+
+	// Use the first color (for simplicity, matching JS implementation)
+	color := usedColors[0]
+	if active {
+		return color
+	}
+	return lightenColor(color, 0.6)
 }

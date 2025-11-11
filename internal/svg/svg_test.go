@@ -72,7 +72,7 @@ func TestGenerateSVG(t *testing.T) {
 	if !strings.Contains(svg, "class=\"transition") {
 		t.Error("SVG missing transition element")
 	}
-	if !strings.Contains(svg, "class=\"arc") {
+	if !strings.Contains(svg, "<line") && !strings.Contains(svg, "stroke=") {
 		t.Error("SVG missing arc element")
 	}
 }
@@ -116,8 +116,8 @@ func TestGenerateSVGWithInhibitor(t *testing.T) {
 		t.Fatalf("GenerateSVG failed: %v", err)
 	}
 
-	// Check for inhibitor circle
-	if !strings.Contains(svg, "class=\"inhibitor") {
+	// Check for inhibitor circle (now uses inline stroke instead of class)
+	if !strings.Contains(svg, "<circle") || !strings.Contains(svg, `fill="#fff"`) {
 		t.Error("SVG missing inhibitor element")
 	}
 
@@ -261,7 +261,7 @@ func TestGenerateSVGWeightDisplay(t *testing.T) {
 	}
 
 	// Weight 1 should now be displayed
-	if !strings.Contains(svg, "class=\"weight-badge\">1</text>") {
+	if !strings.Contains(svg, ">1</text>") {
 		t.Error("SVG should display weight of 1")
 	}
 }
@@ -360,6 +360,194 @@ func TestGenerateSVGWithZeroCapacity(t *testing.T) {
 	// - place1 has capacity=0 which should be treated as unlimited (not block the transition)
 	if !strings.Contains(svg, `class="transition transition-active"`) {
 		t.Error("Transition should be active when output place has capacity=0 (unlimited)")
+	}
+}
+
+func TestGenerateSVGWithColoredTokens(t *testing.T) {
+	// Test colored Petri nets with multiple token types
+	jsonData := []byte(`{
+		"@context": "https://pflow.xyz/schema",
+		"@type": "PetriNet",
+		"@version": "1.1",
+		"arcs": [
+			{
+				"@type": "Arrow",
+				"inhibitTransition": false,
+				"source": "place0",
+				"target": "txn0",
+				"weight": [1, 0, 0]
+			},
+			{
+				"@type": "Arrow",
+				"inhibitTransition": false,
+				"source": "place1",
+				"target": "txn0",
+				"weight": [0, 1, 0]
+			},
+			{
+				"@type": "Arrow",
+				"inhibitTransition": false,
+				"source": "txn0",
+				"target": "place2",
+				"weight": [0, 0, 1]
+			}
+		],
+		"places": {
+			"place0": {
+				"@type": "Place",
+				"capacity": [10, 0, 0],
+				"initial": [2, 0, 0],
+				"offset": 0,
+				"x": 100,
+				"y": 100
+			},
+			"place1": {
+				"@type": "Place",
+				"capacity": [0, 10, 0],
+				"initial": [0, 3, 0],
+				"offset": 0,
+				"x": 100,
+				"y": 200
+			},
+			"place2": {
+				"@type": "Place",
+				"capacity": [0, 0, 10],
+				"initial": [0, 0, 0],
+				"offset": 0,
+				"x": 300,
+				"y": 150
+			}
+		},
+		"token": [
+			"https://pflow.xyz/tokens/red",
+			"https://pflow.xyz/tokens/blue",
+			"https://pflow.xyz/tokens/green"
+		],
+		"transitions": {
+			"txn0": {
+				"@type": "Transition",
+				"x": 200,
+				"y": 150
+			}
+		}
+	}`)
+
+	svg, err := GenerateSVG(jsonData)
+	if err != nil {
+		t.Fatalf("GenerateSVG failed: %v", err)
+	}
+
+	// Check that SVG contains expected elements
+	if !strings.Contains(svg, "<svg xmlns") {
+		t.Error("SVG missing opening tag")
+	}
+
+	// Check for arcs with colored strokes
+	// The first arc should use red color (#dc3545)
+	if !strings.Contains(svg, "#dc3545") {
+		t.Error("SVG should contain red color for red token arcs")
+	}
+
+	// Check that arcs exist
+	arcCount := strings.Count(svg, "<line")
+	if arcCount != 3 {
+		t.Errorf("Expected 3 arcs, got %d", arcCount)
+	}
+
+	// Check that transition is active (has tokens in both input places)
+	if !strings.Contains(svg, `class="transition transition-active"`) {
+		t.Error("Transition should be active when all input places have sufficient tokens")
+	}
+}
+
+func TestGenerateSVGWithHexColorTokens(t *testing.T) {
+	// Test that hex colors work as token URLs
+	jsonData := []byte(`{
+		"@context": "https://pflow.xyz/schema",
+		"@type": "PetriNet",
+		"@version": "1.1",
+		"arcs": [
+			{
+				"@type": "Arrow",
+				"inhibitTransition": false,
+				"source": "place0",
+				"target": "txn0",
+				"weight": [1]
+			}
+		],
+		"places": {
+			"place0": {
+				"@type": "Place",
+				"capacity": [10],
+				"initial": [1],
+				"offset": 0,
+				"x": 100,
+				"y": 100
+			}
+		},
+		"token": ["#ff5500"],
+		"transitions": {
+			"txn0": {
+				"@type": "Transition",
+				"x": 200,
+				"y": 100
+			}
+		}
+	}`)
+
+	svg, err := GenerateSVG(jsonData)
+	if err != nil {
+		t.Fatalf("GenerateSVG failed: %v", err)
+	}
+
+	// Check that the custom hex color is used
+	if !strings.Contains(svg, "#ff5500") {
+		t.Error("SVG should contain custom hex color #ff5500")
+	}
+}
+
+func TestColorExtraction(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{"Red token URL", "https://pflow.xyz/tokens/red", "#dc3545"},
+		{"Blue token URL", "https://pflow.xyz/tokens/blue", "#007bff"},
+		{"Green token URL", "https://pflow.xyz/tokens/green", "#28a745"},
+		{"Hex color", "#ff5500", "#ff5500"},
+		{"Black token", "https://pflow.xyz/tokens/black", "#000000"},
+		{"Unknown color", "https://pflow.xyz/tokens/unknown", ""},
+		{"Empty string", "", ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := extractColor(tt.input)
+			if result != tt.expected {
+				t.Errorf("extractColor(%q) = %q, want %q", tt.input, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestLightenColor(t *testing.T) {
+	// Test color lightening
+	result := lightenColor("#000000", 0.5)
+	if result != "#7f7f7f" && result != "#808080" {
+		t.Errorf("lightenColor(#000000, 0.5) = %s, want #7f7f7f or #808080", result)
+	}
+
+	// Test with red
+	result = lightenColor("#dc3545", 0.6)
+	if !strings.HasPrefix(result, "#") || len(result) != 7 {
+		t.Errorf("lightenColor should return valid hex color, got %s", result)
+	}
+
+	// Test with invalid input
+	result = lightenColor("invalid", 0.5)
+	if result != "invalid" {
+		t.Errorf("lightenColor(invalid) should return input unchanged, got %s", result)
 	}
 }
 
