@@ -1,0 +1,202 @@
+{
+  "@context": "https://pflow.xyz/schema",
+  "@type": "PetriNet",
+  "@version": "1.1",
+  "arcs": [
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "WaitingCustomers",
+      "target": "BrewCoffee",
+      "weight": [
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "CoffeeBeans",
+      "target": "BrewCoffee",
+      "weight": [
+        0,
+        1,
+        0
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "EmptyCups",
+      "target": "BrewCoffee",
+      "weight": [
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "BrewCoffee",
+      "target": "ServedCoffee",
+      "weight": [
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "ServedCoffee",
+      "target": "CustomerLeaves",
+      "weight": [
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "CustomerArrives",
+      "target": "WaitingCustomers",
+      "weight": [
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "RestockBeans",
+      "target": "CoffeeBeans",
+      "weight": [
+        0,
+        3,
+        0
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "RestockCups",
+      "target": "EmptyCups",
+      "weight": [
+        0,
+        0,
+        3
+      ]
+    }
+  ],
+  "places": {
+    "WaitingCustomers": {
+      "@type": "Place",
+      "capacity": [
+        10,
+        0,
+        0
+      ],
+      "initial": [
+        2,
+        0,
+        0
+      ],
+      "offset": 0,
+      "x": 200,
+      "y": 150,
+      "label": "Waiting Customers"
+    },
+    "CoffeeBeans": {
+      "@type": "Place",
+      "capacity": [
+        0,
+        10,
+        0
+      ],
+      "initial": [
+        0,
+        5,
+        0
+      ],
+      "offset": 0,
+      "x": 200,
+      "y": 300,
+      "label": "Coffee Beans"
+    },
+    "EmptyCups": {
+      "@type": "Place",
+      "capacity": [
+        0,
+        0,
+        10
+      ],
+      "initial": [
+        0,
+        0,
+        5
+      ],
+      "offset": 0,
+      "x": 200,
+      "y": 450,
+      "label": "Empty Cups"
+    },
+    "ServedCoffee": {
+      "@type": "Place",
+      "capacity": [
+        5,
+        0,
+        0
+      ],
+      "initial": [
+        0,
+        0,
+        0
+      ],
+      "offset": 0,
+      "x": 500,
+      "y": 300,
+      "label": "Served Coffee"
+    }
+  },
+  "token": [
+    "https://pflow.xyz/tokens/red",
+    "https://pflow.xyz/tokens/brown",
+    "https://pflow.xyz/tokens/blue"
+  ],
+  "transitions": {
+    "CustomerArrives": {
+      "@type": "Transition",
+      "x": 50,
+      "y": 150,
+      "label": "Customer Arrives"
+    },
+    "BrewCoffee": {
+      "@type": "Transition",
+      "x": 350,
+      "y": 300,
+      "label": "Brew Coffee"
+    },
+    "CustomerLeaves": {
+      "@type": "Transition",
+      "x": 650,
+      "y": 300,
+      "label": "Customer Leaves"
+    },
+    "RestockBeans": {
+      "@type": "Transition",
+      "x": 50,
+      "y": 300,
+      "label": "Restock Beans"
+    },
+    "RestockCups": {
+      "@type": "Transition",
+      "x": 50,
+      "y": 450,
+      "label": "Restock Cups"
+    }
+  }
+}
