@@ -3619,6 +3619,40 @@ class PetriView extends HTMLElement {
                 <li><strong>Download:</strong> Export your Petri net as JSON</li>
                 <li><strong>Auto-save:</strong> Changes are saved to browser localStorage</li>
             </ul>
+
+            <h3 style="margin: 16px 0 8px 0; font-size: 16px; font-weight: 600; color: #000;">Layout Algorithms</h3>
+            <p style="margin: 0 0 12px 0;">
+                Use the <strong>🎨 Layout Algorithms</strong> menu to automatically arrange your Petri net nodes:
+            </p>
+            
+            <h4 style="margin: 12px 0 6px 0; font-size: 14px; font-weight: 600;">Available Layouts:</h4>
+            <ul style="margin: 6px 0 12px 20px; padding: 0;">
+                <li><strong>⚛️ Force-Atlas 2:</strong> Physics-based force-directed layout. Creates natural-looking graphs with even spacing. 
+                Nodes repel each other while connected nodes are pulled together, creating an organic arrangement. 
+                Best for general-purpose visualization and exploring graph structure.</li>
+                
+                <li><strong>📊 Hierarchical:</strong> Simple top-to-bottom layered layout using topological sorting. 
+                Works well for linear workflows and simple directed acyclic graphs (DAGs). 
+                Nodes with no incoming edges are placed at the top, and each subsequent layer contains nodes whose predecessors have been placed. 
+                <em>Note: May place all nodes on one level if the graph contains cycles.</em></li>
+                
+                <li><strong>🔷 Layered (DAG):</strong> Advanced hierarchical layout that handles complex graphs and cycles. 
+                Uses cycle-breaking to convert cyclic graphs into DAGs, then applies layered layout. 
+                Identifies feedback edges (back edges that create cycles) and ignores them during layout, 
+                placing nodes in clear hierarchical layers. Best for large, complex Petri nets with cycles.</li>
+                
+                <li><strong>⭕ Circular:</strong> Arranges all nodes evenly spaced around a circle. 
+                Good for visualizing cyclic relationships and symmetric structures. 
+                Makes it easy to see all nodes at once and identify connection patterns.</li>
+            </ul>
+            
+            <h4 style="margin: 12px 0 6px 0; font-size: 14px; font-weight: 600;">Which Layout to Choose?</h4>
+            <ul style="margin: 6px 0 12px 20px; padding: 0;">
+                <li><strong>Simple linear workflow:</strong> Use Hierarchical</li>
+                <li><strong>Complex workflow with cycles:</strong> Use Layered (DAG)</li>
+                <li><strong>Explore structure/connections:</strong> Use Force-Atlas 2</li>
+                <li><strong>Cyclic or symmetric patterns:</strong> Use Circular</li>
+            </ul>
         `;
 
         dialog.appendChild(content);
@@ -3801,11 +3835,19 @@ class PetriView extends HTMLElement {
 
         const hierarchicalBtn = createLayoutButton(
             'Hierarchical',
-            'Arranges nodes in layers from top to bottom, ideal for workflows and directed graphs',
+            'Arranges nodes in layers from top to bottom, ideal for simple linear workflows',
             '📊',
             () => this._applyHierarchicalLayout()
         );
         optionsContainer.appendChild(hierarchicalBtn);
+
+        const dagBtn = createLayoutButton(
+            'Layered (DAG)',
+            'Advanced hierarchical layout that handles complex graphs and cycles by breaking feedback edges',
+            '🔷',
+            () => this._applySugiyamaLayout()
+        );
+        optionsContainer.appendChild(dagBtn);
 
         const circularBtn = createLayoutButton(
             'Circular',
@@ -4089,6 +4131,155 @@ class PetriView extends HTMLElement {
 
             nodesAtLevel.forEach((node, index) => {
                 const x = Math.round(startXForLevel + index * nodeSpacing);
+                const y = Math.round(startY + level * levelHeight);
+
+                if (node.type === 'place') {
+                    this._model.places[node.id].x = x;
+                    this._model.places[node.id].y = y;
+                } else {
+                    this._model.transitions[node.id].x = x;
+                    this._model.transitions[node.id].y = y;
+                }
+            });
+        }
+
+        // Update the view
+        this._renderUI();
+        this._syncLD();
+    }
+
+    _applySugiyamaLayout() {
+        // Save state for undo
+        this._pushHistory();
+
+        // Get all nodes
+        const nodes = new Map();
+        for (const [id, place] of Object.entries(this._model.places || {})) {
+            nodes.set(id, { id, type: 'place', level: -1, inDegree: 0, outDegree: 0 });
+        }
+        for (const [id, transition] of Object.entries(this._model.transitions || {})) {
+            nodes.set(id, { id, type: 'transition', level: -1, inDegree: 0, outDegree: 0 });
+        }
+
+        if (nodes.size === 0) return;
+
+        // Build adjacency information
+        const outgoing = new Map();
+        const incoming = new Map();
+        for (const [id] of nodes) {
+            outgoing.set(id, []);
+            incoming.set(id, []);
+        }
+
+        const edges = [];
+        for (const arc of (this._model.arcs || [])) {
+            if (nodes.has(arc.source) && nodes.has(arc.target)) {
+                edges.push({ source: arc.source, target: arc.target });
+                outgoing.get(arc.source).push(arc.target);
+                incoming.get(arc.target).push(arc.source);
+                nodes.get(arc.source).outDegree++;
+                nodes.get(arc.target).inDegree++;
+            }
+        }
+
+        // Phase 1: Break cycles using DFS to identify back edges
+        const visited = new Set();
+        const recursionStack = new Set();
+        const backEdges = new Set();
+        
+        const dfs = (nodeId) => {
+            visited.add(nodeId);
+            recursionStack.add(nodeId);
+            
+            for (const targetId of outgoing.get(nodeId)) {
+                if (!visited.has(targetId)) {
+                    dfs(targetId);
+                } else if (recursionStack.has(targetId)) {
+                    // Back edge found (creates a cycle)
+                    backEdges.add(`${nodeId}->${targetId}`);
+                }
+            }
+            
+            recursionStack.delete(nodeId);
+        };
+
+        // Run DFS from all unvisited nodes
+        for (const [id] of nodes) {
+            if (!visited.has(id)) {
+                dfs(id);
+            }
+        }
+
+        // Phase 2: Assign levels using modified topological sort (ignoring back edges)
+        const queue = [];
+        const inDegreeMap = new Map();
+        
+        for (const [id, node] of nodes) {
+            let effectiveInDegree = 0;
+            for (const sourceId of incoming.get(id)) {
+                const edgeKey = `${sourceId}->${id}`;
+                if (!backEdges.has(edgeKey)) {
+                    effectiveInDegree++;
+                }
+            }
+            inDegreeMap.set(id, effectiveInDegree);
+            if (effectiveInDegree === 0) {
+                node.level = 0;
+                queue.push(id);
+            }
+        }
+
+        let maxLevel = 0;
+        while (queue.length > 0) {
+            const currentId = queue.shift();
+            const currentLevel = nodes.get(currentId).level;
+            maxLevel = Math.max(maxLevel, currentLevel);
+
+            for (const targetId of outgoing.get(currentId)) {
+                const edgeKey = `${currentId}->${targetId}`;
+                if (!backEdges.has(edgeKey)) {
+                    const targetNode = nodes.get(targetId);
+                    inDegreeMap.set(targetId, inDegreeMap.get(targetId) - 1);
+                    
+                    if (inDegreeMap.get(targetId) === 0) {
+                        targetNode.level = currentLevel + 1;
+                        queue.push(targetId);
+                    }
+                }
+            }
+        }
+
+        // Assign remaining nodes (part of strongly connected components)
+        // Place them at the level after the maximum level found
+        for (const [id, node] of nodes) {
+            if (node.level === -1) {
+                node.level = maxLevel + 1;
+            }
+        }
+
+        // Phase 3: Group nodes by level
+        const levels = new Map();
+        maxLevel = 0;
+        for (const [id, node] of nodes) {
+            if (!levels.has(node.level)) {
+                levels.set(node.level, []);
+            }
+            levels.get(node.level).push(node);
+            maxLevel = Math.max(maxLevel, node.level);
+        }
+
+        // Phase 4: Position nodes
+        const levelHeight = 150;
+        const nodeSpacing = 100;
+        const startY = 100;
+
+        for (let level = 0; level <= maxLevel; level++) {
+            const nodesAtLevel = levels.get(level) || [];
+            const levelWidth = nodesAtLevel.length * nodeSpacing;
+            const startXForLevel = 100 - levelWidth / 2;
+
+            nodesAtLevel.forEach((node, index) => {
+                const x = Math.round(startXForLevel + index * nodeSpacing + 500);
                 const y = Math.round(startY + level * levelHeight);
 
                 if (node.type === 'place') {
