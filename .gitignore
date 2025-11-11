@@ -22,3 +22,6 @@ go.work
 # Embedded public directory (copied from root during build)
 internal/static/public
 data-dev/
+
+# Temporary files
+tmp/

@@ -2249,6 +2249,7 @@ class PetriView extends HTMLElement {
         this._syncLD();
         this._updateArcDraftHighlight();
         this._updateMenuActive();
+        this._updateSelectionHighlights();
     }
 
     _createPlaceElement(id, p) {
