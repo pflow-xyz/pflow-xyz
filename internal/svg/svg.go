@@ -10,16 +10,16 @@ import (
 
 // Visual constants for rendering
 const (
-	placeRadius        = 16.0
-	transitionWidth    = 30.0
-	transitionHeight   = 30.0
-	placePadding       = 18.0  // placeRadius + 2
-	transitionPadding  = 17.0  // transitionWidth/2 + 2
-	arrowheadSize      = 8.0
-	inhibitorRadius    = 6.0
+	placeRadius         = 16.0
+	transitionWidth     = 30.0
+	transitionHeight    = 30.0
+	placePadding        = 18.0 // placeRadius + 2
+	transitionPadding   = 17.0 // transitionWidth/2 + 2
+	arrowheadSize       = 8.0
+	inhibitorRadius     = 6.0
 	tipOffsetMultiplier = 0.9
-	minDistance        = 1.0   // Minimum distance to prevent division by zero
-	transitionRadius   = 4.0   // Border radius for rounded corners
+	minDistance         = 1.0 // Minimum distance to prevent division by zero
+	transitionRadius    = 4.0 // Border radius for rounded corners
 )
 
 // PetriNet represents a Petri net JSON-LD structure
@@ -48,11 +48,11 @@ func (t Transition) Label(id string) string {
 
 // Arc represents an arrow in the Petri net
 type Arc struct {
-	Type              string  `json:"@type"`
-	Source            string  `json:"source"`
-	Target            string  `json:"target"`
-	Weight            []int   `json:"weight"`
-	InhibitTransition bool    `json:"inhibitTransition"`
+	Type              string `json:"@type"`
+	Source            string `json:"source"`
+	Target            string `json:"target"`
+	Weight            []int  `json:"weight"`
+	InhibitTransition bool   `json:"inhibitTransition"`
 }
 
 // Place represents a place in the Petri net
@@ -90,17 +90,17 @@ func GenerateSVG(jsonData []byte) (string, error) {
 
 	// Calculate bounds
 	minX, minY, maxX, maxY := calculateBounds(petriNet)
-	
+
 	// Add padding
 	padding := 30.0
 	minX -= padding
 	minY -= padding
 	maxX += padding
 	maxY += padding
-	
+
 	width := maxX - minX
 	height := maxY - minY
-	
+
 	// Minimum size
 	if width < 100 {
 		width = 100
@@ -110,12 +110,12 @@ func GenerateSVG(jsonData []byte) (string, error) {
 	}
 
 	var buf bytes.Buffer
-	
+
 	// SVG header
-	buf.WriteString(fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="%.1f %.1f %.1f %.1f" width="%.0f" height="%.0f">`, 
+	buf.WriteString(fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="%.1f %.1f %.1f %.1f" width="%.0f" height="%.0f">`,
 		minX, minY, width, height, width, height))
 	buf.WriteString("\n")
-	
+
 	// Define styles
 	buf.WriteString(`<defs>`)
 	buf.WriteString(`<style>`)
@@ -138,7 +138,7 @@ func GenerateSVG(jsonData []byte) (string, error) {
 	buf.WriteString(`</style>`)
 	buf.WriteString(`</defs>`)
 	buf.WriteString("\n")
-	
+
 	// Create node position map
 	nodes := make(map[string]NodePosition)
 	for id, place := range petriNet.Places {
@@ -147,10 +147,10 @@ func GenerateSVG(jsonData []byte) (string, error) {
 	for id, transition := range petriNet.Transitions {
 		nodes[id] = NodePosition{X: transition.X, Y: transition.Y, IsPlace: false}
 	}
-	
+
 	// Calculate marking for determining enabled transitions
 	marks := calculateMarking(petriNet)
-	
+
 	// Draw arcs
 	for i, arc := range petriNet.Arcs {
 		srcNode, srcOk := nodes[arc.Source]
@@ -158,17 +158,17 @@ func GenerateSVG(jsonData []byte) (string, error) {
 		if !srcOk || !trgOk {
 			continue
 		}
-		
+
 		// Determine if this arc's related transition is active
 		relatedTransitionID := arc.Source
 		if srcNode.IsPlace {
 			relatedTransitionID = arc.Target
 		}
 		active := isEnabled(relatedTransitionID, petriNet, marks)
-		
+
 		drawArc(&buf, srcNode, trgNode, arc, active, i)
 	}
-	
+
 	// Draw places
 	for id, place := range petriNet.Places {
 		tokenCount := 0
@@ -180,22 +180,22 @@ func GenerateSVG(jsonData []byte) (string, error) {
 		label := place.Label(id)
 		drawPlace(&buf, place.X, place.Y, tokenCount, isFull, label)
 	}
-	
+
 	// Draw transitions
 	for id, transition := range petriNet.Transitions {
 		active := isEnabled(id, petriNet, marks)
 		label := transition.Label(id)
 		drawTransition(&buf, transition.X, transition.Y, active, label)
 	}
-	
+
 	buf.WriteString("</svg>\n")
-	
+
 	return buf.String(), nil
 }
 
 func calculateBounds(net PetriNet) (minX, minY, maxX, maxY float64) {
 	first := true
-	
+
 	for _, place := range net.Places {
 		if first {
 			minX, maxX = place.X, place.X
@@ -216,7 +216,7 @@ func calculateBounds(net PetriNet) (minX, minY, maxX, maxY float64) {
 			}
 		}
 	}
-	
+
 	for _, transition := range net.Transitions {
 		if first {
 			minX, maxX = transition.X, transition.X
@@ -237,7 +237,7 @@ func calculateBounds(net PetriNet) (minX, minY, maxX, maxY float64) {
 			}
 		}
 	}
-	
+
 	return
 }
 
@@ -246,10 +246,10 @@ func drawPlace(buf *bytes.Buffer, x, y float64, tokenCount int, isFull bool, lab
 	if isFull {
 		class += " place-cap-full"
 	}
-	
+
 	buf.WriteString(fmt.Sprintf(`<circle cx="%.1f" cy="%.1f" r="%.1f" class="%s"/>`, x, y, placeRadius, class))
 	buf.WriteString("\n")
-	
+
 	// Draw tokens
 	if tokenCount > 1 {
 		// Draw count as text
@@ -260,7 +260,7 @@ func drawPlace(buf *bytes.Buffer, x, y float64, tokenCount int, isFull bool, lab
 		buf.WriteString(fmt.Sprintf(`<circle cx="%.1f" cy="%.1f" r="3" class="token-dot"/>`, x, y))
 		buf.WriteString("\n")
 	}
-	
+
 	// Draw label below the place
 	if label != "" {
 		labelY := y + placeRadius + 6
@@ -274,11 +274,11 @@ func drawTransition(buf *bytes.Buffer, x, y float64, active bool, label string) 
 	if active {
 		class += " transition-active"
 	}
-	
-	buf.WriteString(fmt.Sprintf(`<rect x="%.1f" y="%.1f" width="%.1f" height="%.1f" rx="%.1f" ry="%.1f" class="%s"/>`, 
+
+	buf.WriteString(fmt.Sprintf(`<rect x="%.1f" y="%.1f" width="%.1f" height="%.1f" rx="%.1f" ry="%.1f" class="%s"/>`,
 		x-transitionWidth/2, y-transitionHeight/2, transitionWidth, transitionHeight, transitionRadius, transitionRadius, class))
 	buf.WriteString("\n")
-	
+
 	// Draw label below the transition
 	if label != "" {
 		labelY := y + transitionHeight/2 + 6
@@ -297,7 +297,7 @@ func drawArc(buf *bytes.Buffer, src, trg NodePosition, arc Arc, active bool, arc
 	if !trg.IsPlace {
 		padTrg = transitionPadding
 	}
-	
+
 	// Calculate arc endpoints
 	dx := trg.X - src.X
 	dy := trg.Y - src.Y
@@ -307,17 +307,17 @@ func drawArc(buf *bytes.Buffer, src, trg NodePosition, arc Arc, active bool, arc
 	}
 	ux := dx / dist
 	uy := dy / dist
-	
+
 	tipOffset := arrowheadSize * tipOffsetMultiplier
 	if arc.InhibitTransition {
 		tipOffset = inhibitorRadius + 2.0
 	}
-	
+
 	ex := src.X + ux*padSrc
 	ey := src.Y + uy*padSrc
 	fx := trg.X - ux*(padTrg+tipOffset)
 	fy := trg.Y - uy*(padTrg+tipOffset)
-	
+
 	// Draw line
 	arcClass := "arc"
 	if active {
@@ -325,7 +325,7 @@ func drawArc(buf *bytes.Buffer, src, trg NodePosition, arc Arc, active bool, arc
 	}
 	buf.WriteString(fmt.Sprintf(`<line x1="%.1f" y1="%.1f" x2="%.1f" y2="%.1f" class="%s"/>`, ex, ey, fx, fy, arcClass))
 	buf.WriteString("\n")
-	
+
 	// Draw arrowhead or inhibitor
 	if arc.InhibitTransition {
 		inhibitorClass := "inhibitor"
@@ -340,34 +340,34 @@ func drawArc(buf *bytes.Buffer, src, trg NodePosition, arc Arc, active bool, arc
 		ahy := fy + (-uy*arrowheadSize + ux*arrowheadSize*0.45)
 		bhx := fx + (-ux*arrowheadSize + uy*arrowheadSize*0.45)
 		bhy := fy + (-uy*arrowheadSize - ux*arrowheadSize*0.45)
-		
+
 		arrowClass := "arrowhead"
 		if active {
 			arrowClass += " arrowhead-active"
 		}
-		buf.WriteString(fmt.Sprintf(`<path d="M %.1f %.1f L %.1f %.1f L %.1f %.1f Z" class="%s"/>`, 
+		buf.WriteString(fmt.Sprintf(`<path d="M %.1f %.1f L %.1f %.1f L %.1f %.1f Z" class="%s"/>`,
 			fx, fy, ahx, ahy, bhx, bhy, arrowClass))
 		buf.WriteString("\n")
 	}
-	
+
 	// Draw weight badge (always show weight, including 1)
 	weight := 1
 	if len(arc.Weight) > 0 {
 		weight = arc.Weight[0]
 	}
-	
+
 	bx := (ex + fx) / 2
 	by := (ey + fy) / 2
-	
+
 	badgeBgClass := "weight-bg"
 	if active {
 		badgeBgClass += " weight-bg-active"
 	}
-	
+
 	// Draw badge background
 	buf.WriteString(fmt.Sprintf(`<circle cx="%.1f" cy="%.1f" r="10" class="%s"/>`, bx, by, badgeBgClass))
 	buf.WriteString("\n")
-	
+
 	// Draw weight text
 	buf.WriteString(fmt.Sprintf(`<text x="%.1f" y="%.1f" class="weight-badge">%d</text>`, bx, by, weight))
 	buf.WriteString("\n")
@@ -392,7 +392,7 @@ func isEnabled(transitionID string, net PetriNet, marks map[string]int) bool {
 		if len(arc.Weight) > 0 {
 			weight = arc.Weight[0]
 		}
-		
+
 		if arc.InhibitTransition {
 			// Inhibitor arc logic (matches JavaScript implementation)
 			if arc.Target == transitionID {
@@ -438,7 +438,7 @@ func isEnabled(transitionID string, net PetriNet, marks map[string]int) bool {
 			}
 		}
 	}
-	
+
 	return true
 }
 
