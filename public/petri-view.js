@@ -73,6 +73,9 @@ class PetriView extends HTMLElement {
         this._hamburgerMenu = null;
         this._hamburgerDropdown = null;
         this._topRightButton = null;
+        
+        // Original CID from URL (for revert functionality)
+        this._originalCid = null;
     }
 
     // observe compact flag and json editor toggle
@@ -1935,6 +1938,8 @@ class PetriView extends HTMLElement {
                 if (response.ok) {
                     const data = await response.json();
                     this._model = data || {};
+                    // Store the original CID for revert functionality
+                    this._originalCid = cid;
                     return;
                 } else {
                     console.error(`Failed to load data from CID: ${response.status} ${response.statusText}`);
@@ -2730,6 +2735,33 @@ class PetriView extends HTMLElement {
             this._menu.appendChild(btn);
         });
 
+        // Add revert button if we loaded from a CID
+        if (this._originalCid) {
+            const revertBtn = document.createElement('button');
+            revertBtn.type = 'button';
+            revertBtn.className = 'pv-revert';
+            // Show last 8 characters of CID
+            const shortCid = this._originalCid.slice(-8);
+            revertBtn.textContent = `⟲ ${shortCid}`;
+            revertBtn.title = `Revert to revision ${this._originalCid}`;
+            this._applyStyles(revertBtn, {
+                height: '36px',
+                padding: '0 12px',
+                borderRadius: '6px',
+                border: 'none',
+                background: 'linear-gradient(180deg,#fff,#f3f3f3)',
+                cursor: 'pointer',
+                fontSize: '14px',
+                fontFamily: 'system-ui, monospace',
+                whiteSpace: 'nowrap'
+            });
+            revertBtn.addEventListener('click', async (ev) => {
+                ev.stopPropagation();
+                await this._revertToOriginalCid();
+            });
+            this._menu.appendChild(revertBtn);
+        }
+
         const playBtn = document.createElement('button');
         playBtn.type = 'button';
         playBtn.className = 'pv-play';
@@ -2756,6 +2788,30 @@ class PetriView extends HTMLElement {
 
         // Ensure the menu reflects the current mode (e.g. default 'select') right after creation
         this._updateMenuActive();
+    }
+
+    async _revertToOriginalCid() {
+        if (!this._originalCid) return;
+
+        try {
+            const response = await fetch(`/o/${this._originalCid}`);
+            if (!response.ok) {
+                throw new Error(`Failed to load revision: ${response.status} ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            this._model = data || {};
+            this._normalizeModel();
+            this._renderUI();
+            this._syncLD(true);
+            this._pushHistory();
+
+            // Show feedback to user
+            alert(`Reverted to revision ${this._originalCid}`);
+        } catch (err) {
+            console.error('Failed to revert to original CID:', err);
+            alert('Failed to revert to original revision: ' + (err && err.message ? err.message : String(err)));
+        }
     }
 
     _setMode(mode) {
