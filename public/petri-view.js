@@ -1821,7 +1821,9 @@ class PetriView extends HTMLElement {
         const v = arr[0];
         if (v === Infinity) return Infinity;
         const n = Number(v);
-        return Number.isFinite(n) ? n : Infinity;
+        const cap = Number.isFinite(n) ? n : Infinity;
+        // Treat capacity=0 as unlimited (Infinity)
+        return cap === 0 ? Infinity : cap;
     }
 
     _isCapacityPath(pathArr) {
@@ -2107,7 +2109,9 @@ class PetriView extends HTMLElement {
         const p = this._model.places[pid];
         if (!p) return Infinity;
         const arr = Array.isArray(p.capacity) ? p.capacity : [Number(p.capacity || Infinity)];
-        return Number.isFinite(arr[0]) ? arr[0] : Infinity;
+        const cap = Number.isFinite(arr[0]) ? arr[0] : Infinity;
+        // Treat capacity=0 as unlimited (Infinity)
+        return cap === 0 ? Infinity : cap;
     }
 
     _inArcsOf(tid) {

@@ -444,7 +444,12 @@ func isEnabled(transitionID string, net PetriNet, marks map[string]int) bool {
 
 func getCapacity(place Place) float64 {
 	if len(place.Capacity) > 0 {
-		return place.Capacity[0]
+		cap := place.Capacity[0]
+		// Treat capacity=0 as unlimited (Infinity)
+		if cap == 0 {
+			return math.Inf(1)
+		}
+		return cap
 	}
 	return math.Inf(1)
 }
