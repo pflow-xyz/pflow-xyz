@@ -3202,12 +3202,18 @@ class PetriView extends HTMLElement {
             if (!srcEl || !trgEl) return;
             
             // Get stage-local coordinates (offsetLeft/offsetTop are in untransformed stage space)
-            const srcRect = srcEl.getBoundingClientRect();
-            const trgRect = trgEl.getBoundingClientRect();
-            const srcX = srcEl.offsetLeft + srcRect.width / 2;
-            const srcY = srcEl.offsetTop + srcRect.height / 2;
-            const trgX = trgEl.offsetLeft + trgRect.width / 2;
-            const trgY = trgEl.offsetTop + trgRect.height / 2;
+            // Use fixed dimensions instead of getBoundingClientRect to avoid parallax with scaling
+            const srcIsPlace = srcEl.classList.contains('pv-place');
+            const trgIsPlace = trgEl.classList.contains('pv-place');
+            const srcHalfWidth = srcIsPlace ? 40 : 15;  // place is 80x80, transition is 30x30
+            const srcHalfHeight = srcIsPlace ? 40 : 15;
+            const trgHalfWidth = trgIsPlace ? 40 : 15;
+            const trgHalfHeight = trgIsPlace ? 40 : 15;
+            
+            const srcX = srcEl.offsetLeft + srcHalfWidth;
+            const srcY = srcEl.offsetTop + srcHalfHeight;
+            const trgX = trgEl.offsetLeft + trgHalfWidth;
+            const trgY = trgEl.offsetTop + trgHalfHeight;
             
             // Transform stage coordinates to canvas/viewport coordinates
             const sx = srcX * scale + viewTx;
@@ -3215,8 +3221,6 @@ class PetriView extends HTMLElement {
             const tx = trgX * scale + viewTx;
             const ty = trgY * scale + viewTy;
 
-            const srcIsPlace = srcEl.classList.contains('pv-place');
-            const trgIsPlace = trgEl.classList.contains('pv-place');
             const padPlace = (16 + 2) * scale;  // Scale padding
             const padTransition = (15 + 2) * scale;
             const padSrc = srcIsPlace ? padPlace : padTransition;
@@ -3295,9 +3299,12 @@ class PetriView extends HTMLElement {
         if (this._arcDraft && this._arcDraft.source) {
             const srcEl = this._nodes[this._arcDraft.source];
             if (srcEl) {
-                const srcRect = srcEl.getBoundingClientRect();
-                const srcX = srcEl.offsetLeft + srcRect.width / 2;
-                const srcY = srcEl.offsetTop + srcRect.height / 2;
+                // Use fixed dimensions instead of getBoundingClientRect to avoid parallax with scaling
+                const srcIsPlace = srcEl.classList.contains('pv-place');
+                const srcHalfWidth = srcIsPlace ? 40 : 15;  // place is 80x80, transition is 30x30
+                const srcHalfHeight = srcIsPlace ? 40 : 15;
+                const srcX = srcEl.offsetLeft + srcHalfWidth;
+                const srcY = srcEl.offsetTop + srcHalfHeight;
                 
                 // Transform to canvas coordinates
                 const sx = srcX * scale + viewTx;
