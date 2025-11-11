@@ -3127,10 +3127,6 @@ class PetriView extends HTMLElement {
         this._canvas.style.width = `${w}px`;
         this._canvas.style.height = `${h}px`;
         
-        // Update stage size to match canvas
-        this._stage.style.width = `${w}px`;
-        this._stage.style.height = `${h}px`;
-        
         this._ctx.setTransform(this._dpr, 0, 0, this._dpr, 0, 0);
         this._draw();
     }
