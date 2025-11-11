@@ -1,0 +1,917 @@
+{
+  "@context": "https://pflow.xyz/schema",
+  "@id": "z2xFpT8ETRc2A6NLSviZL59fMgo7cJhHrMTo3VDyxSUQwnJwWT5",
+  "@type": "PetriNet",
+  "@version": "1.1",
+  "arcs": [
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "Idle",
+      "target": "OpenEditor",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "OpenEditor",
+      "target": "JsonEditorOpen",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "JsonEditorOpen",
+      "target": "CloseEditor",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "CloseEditor",
+      "target": "Idle",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": true,
+      "source": "JsonEditorOpen",
+      "target": "TypingInEditor",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "TypingInEditor",
+      "target": "JsonEditorOpen",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "SelectMode",
+      "target": "Key2_AddPlace",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "Key2_AddPlace",
+      "target": "AddPlaceMode",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "AddPlaceMode",
+      "target": "Key3_AddTransition",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "Key3_AddTransition",
+      "target": "AddTransitionMode",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "AddTransitionMode",
+      "target": "Key4_AddArc",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "Key4_AddArc",
+      "target": "AddArcMode",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "AddArcMode",
+      "target": "Key5_AddToken",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "Key5_AddToken",
+      "target": "AddTokenMode",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "AddTokenMode",
+      "target": "Key6_Delete",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "Key6_Delete",
+      "target": "DeleteMode",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "DeleteMode",
+      "target": "Key1_Select",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "Key1_Select",
+      "target": "SelectMode",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": true,
+      "source": "TypingInEditor",
+      "target": "Key1_Select",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": true,
+      "source": "TypingInEditor",
+      "target": "Key2_AddPlace",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": true,
+      "source": "TypingInEditor",
+      "target": "Key3_AddTransition",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": true,
+      "source": "TypingInEditor",
+      "target": "Key4_AddArc",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": true,
+      "source": "TypingInEditor",
+      "target": "Key5_AddToken",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": true,
+      "source": "TypingInEditor",
+      "target": "Key6_Delete",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "Idle",
+      "target": "StartPan",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "StartPan",
+      "target": "Panning",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "Panning",
+      "target": "EndPan",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "EndPan",
+      "target": "Idle",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "LayoutHorizontal",
+      "target": "ToggleLayout",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "ToggleLayout",
+      "target": "Idle",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "Idle",
+      "target": "ToggleLayout",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "ToggleLayout",
+      "target": "LayoutHorizontal",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "Idle",
+      "target": "PlaySim",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "PlaySim",
+      "target": "SimRunning",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "SimRunning",
+      "target": "PauseSim",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "PauseSim",
+      "target": "Idle",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "AddArcMode",
+      "target": "StartArcDraft",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "StartArcDraft",
+      "target": "ArcDraftActive",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "ArcDraftActive",
+      "target": "FinishArc",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "FinishArc",
+      "target": "AddArcMode",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "ArcDraftActive",
+      "target": "CancelArcDraft",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "CancelArcDraft",
+      "target": "AddArcMode",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "SelectMode",
+      "target": "DeleteSelected",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "HasSelection",
+      "target": "DeleteSelected",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "DeleteSelected",
+      "target": "SelectMode",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "AddPlaceMode",
+      "target": "AddPlace",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "AddTransitionMode",
+      "target": "AddTransition",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "AddTokenMode",
+      "target": "AddToken",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "SelectMode",
+      "target": "SetMarking",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "JsonEditorOpen",
+      "target": "ImportModel",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "AddPlace",
+      "target": "ModelSyncedAndVersioned",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "AddTransition",
+      "target": "ModelSyncedAndVersioned",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "AddToken",
+      "target": "ModelSyncedAndVersioned",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "DeleteSelected",
+      "target": "ModelSyncedAndVersioned",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "SetMarking",
+      "target": "ModelSyncedAndVersioned",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "FinishArc",
+      "target": "ModelSyncedAndVersioned",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "ImportModel",
+      "target": "ModelSyncedAndVersioned",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "HistoryReady",
+      "target": "Undo",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "Undo",
+      "target": "RedoAvailable",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "RedoAvailable",
+      "target": "Redo",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "Redo",
+      "target": "HistoryReady",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "ModelSyncedAndVersioned",
+      "target": "HistoryReady",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "ModelSyncedAndVersioned",
+      "target": "Version",
+      "weight": [
+        1
+      ]
+    }
+  ],
+  "author": {
+    "@type": "Person",
+    "id": "github:243500",
+    "identifier": "https://github.com/stackdump",
+    "name": "stackdump"
+  },
+  "places": {
+    "AddArcMode": {
+      "@type": "Place",
+      "capacity": [
+        1
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 450,
+      "y": 100
+    },
+    "AddPlaceMode": {
+      "@type": "Place",
+      "capacity": [
+        1
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 550,
+      "y": 1750
+    },
+    "AddTokenMode": {
+      "@type": "Place",
+      "capacity": [
+        1
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 550,
+      "y": 850
+    },
+    "AddTransitionMode": {
+      "@type": "Place",
+      "capacity": [
+        1
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 550,
+      "y": 2050
+    },
+    "ArcDraftActive": {
+      "@type": "Place",
+      "capacity": [
+        1
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 350,
+      "y": 400
+    },
+    "DeleteMode": {
+      "@type": "Place",
+      "capacity": [
+        1
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 550,
+      "y": 1150
+    },
+    "HasSelection": {
+      "@type": "Place",
+      "capacity": [
+        1
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 550,
+      "y": 100
+    },
+    "HistoryReady": {
+      "@type": "Place",
+      "capacity": [
+        1
+      ],
+      "initial": [
+        1
+      ],
+      "offset": 0,
+      "x": 500,
+      "y": 2500
+    },
+    "Idle": {
+      "@type": "Place",
+      "capacity": [
+        1
+      ],
+      "initial": [
+        1
+      ],
+      "offset": 0,
+      "x": 650,
+      "y": 100
+    },
+    "JsonEditorOpen": {
+      "@type": "Place",
+      "capacity": [
+        1
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 450,
+      "y": 400
+    },
+    "LayoutHorizontal": {
+      "@type": "Place",
+      "capacity": [
+        1
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 550,
+      "y": 400
+    },
+    "Panning": {
+      "@type": "Place",
+      "capacity": [
+        1
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 650,
+      "y": 400
+    },
+    "RedoAvailable": {
+      "@type": "Place",
+      "capacity": [
+        1
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 550,
+      "y": 2800
+    },
+    "SelectMode": {
+      "@type": "Place",
+      "capacity": [
+        1
+      ],
+      "initial": [
+        1
+      ],
+      "offset": 0,
+      "x": 550,
+      "y": 1450
+    },
+    "SimRunning": {
+      "@type": "Place",
+      "capacity": [
+        1
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 750,
+      "y": 400
+    },
+    "TypingInEditor": {
+      "@type": "Place",
+      "capacity": [
+        1
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 250,
+      "y": 550
+    },
+    "Version": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 600,
+      "y": 2500
+    }
+  },
+  "token": [
+    "https://pflow.xyz/tokens/black"
+  ],
+  "transitions": {
+    "AddPlace": {
+      "@type": "Transition",
+      "x": 500,
+      "y": 1900
+    },
+    "AddToken": {
+      "@type": "Transition",
+      "x": 500,
+      "y": 1000
+    },
+    "AddTransition": {
+      "@type": "Transition",
+      "x": 500,
+      "y": 2200
+    },
+    "CancelArcDraft": {
+      "@type": "Transition",
+      "x": 350,
+      "y": 550
+    },
+    "CloseEditor": {
+      "@type": "Transition",
+      "x": 450,
+      "y": 550
+    },
+    "DeleteSelected": {
+      "@type": "Transition",
+      "x": 450,
+      "y": 1600
+    },
+    "EndPan": {
+      "@type": "Transition",
+      "x": 550,
+      "y": 550
+    },
+    "FinishArc": {
+      "@type": "Transition",
+      "x": 650,
+      "y": 550
+    },
+    "ImportModel": {
+      "@type": "Transition",
+      "x": 750,
+      "y": 550
+    },
+    "Key1_Select": {
+      "@type": "Transition",
+      "x": 550,
+      "y": 1300
+    },
+    "Key2_AddPlace": {
+      "@type": "Transition",
+      "x": 550,
+      "y": 1600
+    },
+    "Key3_AddTransition": {
+      "@type": "Transition",
+      "x": 600,
+      "y": 1900
+    },
+    "Key4_AddArc": {
+      "@type": "Transition",
+      "x": 600,
+      "y": 2200
+    },
+    "Key5_AddToken": {
+      "@type": "Transition",
+      "x": 550,
+      "y": 700
+    },
+    "Key6_Delete": {
+      "@type": "Transition",
+      "x": 600,
+      "y": 1000
+    },
+    "ModelSyncedAndVersioned": {
+      "@type": "Transition",
+      "x": 550,
+      "y": 2350
+    },
+    "OpenEditor": {
+      "@type": "Transition",
+      "x": 350,
+      "y": 250
+    },
+    "PauseSim": {
+      "@type": "Transition",
+      "x": 850,
+      "y": 550
+    },
+    "PlaySim": {
+      "@type": "Transition",
+      "x": 450,
+      "y": 250
+    },
+    "Redo": {
+      "@type": "Transition",
+      "x": 550,
+      "y": 2950
+    },
+    "SetMarking": {
+      "@type": "Transition",
+      "x": 650,
+      "y": 1600
+    },
+    "StartArcDraft": {
+      "@type": "Transition",
+      "x": 550,
+      "y": 250
+    },
+    "StartPan": {
+      "@type": "Transition",
+      "x": 650,
+      "y": 250
+    },
+    "ToggleLayout": {
+      "@type": "Transition",
+      "x": 750,
+      "y": 250
+    },
+    "Undo": {
+      "@type": "Transition",
+      "x": 550,
+      "y": 2650
+    }
+  }
+}
