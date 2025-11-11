@@ -299,3 +299,67 @@ func TestGenerateSVGEmptyNet(t *testing.T) {
 		t.Error("SVG missing closing tag")
 	}
 }
+
+func TestGenerateSVGWithZeroCapacity(t *testing.T) {
+	// Test that capacity=0 is treated as unlimited (Infinity)
+	jsonData := []byte(`{
+		"@context": "https://pflow.xyz/schema",
+		"@type": "PetriNet",
+		"@version": "1.1",
+		"arcs": [
+			{
+				"@type": "Arrow",
+				"inhibitTransition": false,
+				"source": "place0",
+				"target": "txn0",
+				"weight": [1]
+			},
+			{
+				"@type": "Arrow",
+				"inhibitTransition": false,
+				"source": "txn0",
+				"target": "place1",
+				"weight": [1]
+			}
+		],
+		"places": {
+			"place0": {
+				"@type": "Place",
+				"capacity": [10],
+				"initial": [1],
+				"offset": 0,
+				"x": 100,
+				"y": 100
+			},
+			"place1": {
+				"@type": "Place",
+				"capacity": [0],
+				"initial": [0],
+				"offset": 1,
+				"x": 300,
+				"y": 100
+			}
+		},
+		"token": ["https://pflow.xyz/tokens/black"],
+		"transitions": {
+			"txn0": {
+				"@type": "Transition",
+				"x": 200,
+				"y": 100
+			}
+		}
+	}`)
+
+	svg, err := GenerateSVG(jsonData)
+	if err != nil {
+		t.Fatalf("GenerateSVG failed: %v", err)
+	}
+
+	// txn0 should be active because:
+	// - place0 has 1 token >= weight 1
+	// - place1 has capacity=0 which should be treated as unlimited (not block the transition)
+	if !strings.Contains(svg, `class="transition transition-active"`) {
+		t.Error("Transition should be active when output place has capacity=0 (unlimited)")
+	}
+}
+
