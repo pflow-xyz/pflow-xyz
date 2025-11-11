@@ -2718,7 +2718,13 @@ class PetriView extends HTMLElement {
                 if (t.toggle) {
                     this._toggleLabelEditMode();
                 } else {
-                    this._setMode(t.mode);
+                    // If delete mode button is clicked and items are selected, delete them
+                    if (t.mode === 'delete' && this._selectedNodes && this._selectedNodes.size > 0) {
+                        this._deleteNodes(Array.from(this._selectedNodes));
+                        this._clearSelection();
+                    } else {
+                        this._setMode(t.mode);
+                    }
                 }
             });
             this._menu.appendChild(btn);
