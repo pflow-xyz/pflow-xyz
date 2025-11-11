@@ -120,7 +120,7 @@ func TestGenerateSVGWithInhibitor(t *testing.T) {
 	if !strings.Contains(svg, "class=\"inhibitor") {
 		t.Error("SVG missing inhibitor element")
 	}
-	
+
 	// txn0 should NOT be active because place0 has 3 tokens >= weight 2
 	// Check that the rect element has only "transition" class, not "transition transition-active"
 	if strings.Contains(svg, `class="transition transition-active"`) {

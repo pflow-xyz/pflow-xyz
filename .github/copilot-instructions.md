@@ -1,5 +1,14 @@
 # Copilot Instructions for pflow-xyz
 
+## Working with Copilot
+
+This repository uses GitHub Copilot coding agent to assist with development tasks. When working on issues:
+
+1. **Issue Assignment**: Copilot can be assigned to issues directly. Ensure issues have clear acceptance criteria.
+2. **Pull Request Review**: After opening a PR, review the changes and mention `@copilot` in comments to request modifications or clarifications.
+3. **Iterative Feedback**: Treat Copilot like a team member - provide specific feedback on changes that need adjustment.
+4. **Code Review**: All Copilot-generated code must be reviewed by a human before merging.
+
 ## Project Overview
 
 pflow-xyz is a lightweight web component for building, editing, and simulating Petri nets in the browser. The project consists of:
@@ -80,9 +89,15 @@ make test
 go test ./...
 ```
 
+**Testing Requirements**:
+- **ALWAYS** run tests before committing changes: `make test`
+- **ALWAYS** build the project before testing to ensure static files are embedded: `make build`
+- Write tests for new functionality following the existing test patterns in the repository
+- All tests must pass before a PR can be merged
+
 **Note**: Some tests may fail if:
 - The `public` directory hasn't been copied to `internal/static/public` (run `make build` first)
-- Missing Ethereum dependencies for `internal/ethsig` package (this is a known issue)
+- Missing Ethereum dependencies for `internal/ethsig` package (this is a known issue - tests for this package may be skipped)
 
 The following packages have test coverage:
 - `internal/auth` - JWT authentication tests
@@ -122,11 +137,16 @@ The webserver provides these endpoints:
 - Use standard Go project layout with `cmd/` and `internal/` directories
 - Keep packages focused on single responsibilities
 - Write tests for new functionality
+- **Linting**: Run `go fmt` on all Go files before committing
+- **Error Handling**: Always check and handle errors appropriately
+- **Documentation**: Add package and function comments following Go documentation standards
 
 ### JavaScript/Frontend
 - ES module syntax
 - Web Components for UI encapsulation
 - JSON-LD format for Petri net data (schema: https://pflow.xyz/schema)
+- Keep code compatible with modern browsers (ES6+)
+- Avoid external dependencies where possible to keep the component lightweight
 
 ## Dependencies
 
@@ -146,13 +166,38 @@ The project uses:
 
 4. **CID Compatibility**: The project uses IPFS CIDv1 with SHA2-256 for content addressing
 
+## Security Best Practices
+
+When working on this repository:
+
+1. **No Secrets in Code**: Never commit secrets, API keys, or authentication tokens to the repository
+2. **JWT Validation**: Always validate JWT tokens using the configured `SUPABASE_JWT_SECRET` environment variable
+3. **Authentication**: DELETE operations require authentication - ensure proper JWT validation is in place
+4. **Input Validation**: Validate and sanitize all user inputs, especially in API endpoints
+5. **CID Verification**: When working with CIDs, ensure proper validation to prevent path traversal or injection attacks
+6. **Dependencies**: Review security advisories for Go dependencies periodically using `go list -m all`
+7. **CORS**: Be mindful of CORS settings if modifying API endpoints
+8. **File Operations**: Validate file paths to prevent directory traversal in storage operations
+
 ## When Making Changes
 
-- **Frontend changes**: Modify files in `public/`, then `make build` to embed changes
-- **Backend API changes**: Update handler code in `cmd/webserver/`, add tests, rebuild
+- **Frontend changes**: Modify files in `public/`, then run `make build` to embed changes into the binary
+- **Backend API changes**: Update handler code in `cmd/webserver/`, add tests, rebuild and test
 - **Storage/CID logic**: Changes in `internal/seal/` or `internal/store/` should include tests
 - **Authentication**: Changes in `internal/auth/` require JWT validation tests
 - **Documentation**: Update README.md for user-facing changes
+
+### Change Validation Checklist
+
+Before requesting review on a PR:
+
+1. **Build**: Run `make build` and ensure it completes without errors
+2. **Test**: Run `make test` and ensure all tests pass
+3. **Format**: Run `go fmt ./...` to format Go code
+4. **Functionality**: Manually test changed functionality if applicable
+5. **Documentation**: Update relevant documentation if behavior changes
+6. **Security**: Review changes for potential security issues
+7. **Git**: Ensure no build artifacts or temporary files are committed (check `.gitignore`)
 
 ## Best Practices
 
@@ -160,5 +205,18 @@ The project uses:
 2. Maintain JSON-LD schema compatibility for Petri net data
 3. Ensure CID computation remains consistent with IPFS standards
 4. Write tests for new functionality (except ethsig package which has dependency issues)
-5. Use meaningful commit messages
+5. Use meaningful commit messages that describe what changed and why
 6. Update documentation when adding features or changing APIs
+7. Keep PRs focused and small - address one concern per PR
+8. Test edge cases and error conditions
+9. Follow the existing code style and patterns in the repository
+10. Ask questions if requirements are unclear - clarity before code
+
+## Common Pitfalls to Avoid
+
+1. **Forgetting to rebuild**: Always run `make build` after changing frontend files in `public/`
+2. **Missing embedded files**: Running tests before building will cause "no matching files found" errors
+3. **Breaking CID compatibility**: Changes to canonicalization or hashing will break existing CIDs
+4. **Authentication bypass**: Ensure DELETE endpoints validate JWT tokens
+5. **Ignoring test failures**: Don't assume existing test failures are unrelated without investigation
+6. **Large commits**: Avoid committing `node_modules`, `bin/`, `data/`, or other build artifacts

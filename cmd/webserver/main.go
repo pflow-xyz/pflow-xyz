@@ -217,7 +217,7 @@ func (s *Server) handleGetSVG(w http.ResponseWriter, r *http.Request) {
 	// Extract CID from path - remove /img/ prefix and .svg suffix
 	path := strings.TrimPrefix(r.URL.Path, "/img/")
 	cid := strings.TrimSuffix(path, ".svg")
-	
+
 	if cid == "" {
 		http.Error(w, "CID required", http.StatusBadRequest)
 		return
