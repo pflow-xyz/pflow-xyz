@@ -2269,6 +2269,17 @@ class PetriView extends HTMLElement {
         el.appendChild(inner);
         el.appendChild(label);
 
+        // Add double-click event handler to label
+        label.addEventListener('dblclick', (ev) => {
+            ev.stopPropagation();
+            // Toggle into label-edit mode if not already
+            if (!this._labelEditMode) {
+                this._setMode('label-edit');
+            }
+            // Open label editor
+            this._openLabelEditor(id, p.label || id);
+        });
+
         el.addEventListener('click', (ev) => {
             ev.stopPropagation();
             this._onPlaceClick(id, ev);
@@ -2305,6 +2316,17 @@ class PetriView extends HTMLElement {
         label.className = 'pv-label';
         label.textContent = t.label || id;
         el.appendChild(label);
+
+        // Add double-click event handler to label
+        label.addEventListener('dblclick', (ev) => {
+            ev.stopPropagation();
+            // Toggle into label-edit mode if not already
+            if (!this._labelEditMode) {
+                this._setMode('label-edit');
+            }
+            // Open label editor
+            this._openLabelEditor(id, t.label || id);
+        });
 
         el.addEventListener('click', (ev) => {
             ev.stopPropagation();
@@ -5322,6 +5344,12 @@ class PetriView extends HTMLElement {
                 if (this._boxSelect) {
                     this._boxSelect = null;
                 }
+                
+                // Clear selection when panning starts (since orange highlight will not be visible)
+                if (this._selectedNodes.size > 0) {
+                    this._clearSelection();
+                }
+                
                 // start panning
                 this._panning = {
                     x: e.clientX,
