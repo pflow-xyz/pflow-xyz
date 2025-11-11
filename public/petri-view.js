@@ -3110,14 +3110,65 @@ class PetriView extends HTMLElement {
     _onResize() {
         // Use canvas container rect instead of root rect
         const rect = this._canvasContainer ? this._canvasContainer.getBoundingClientRect() : this._root.getBoundingClientRect();
-        const w = Math.max(300, Math.floor(rect.width));
-        const h = Math.max(200, Math.floor(rect.height));
+        const viewportW = Math.max(300, Math.floor(rect.width));
+        const viewportH = Math.max(200, Math.floor(rect.height));
+        
+        // Calculate bounds of all nodes in the diagram
+        const bounds = this._calculateDiagramBounds();
+        
+        // Canvas should be large enough to contain both the viewport and the diagram
+        // Use the larger of viewport size or diagram bounds (with padding)
+        const padding = 100; // Extra space around diagram
+        const w = Math.max(viewportW, bounds.maxX + padding);
+        const h = Math.max(viewportH, bounds.maxY + padding);
+        
         this._canvas.width = Math.floor(w * this._dpr);
         this._canvas.height = Math.floor(h * this._dpr);
         this._canvas.style.width = `${w}px`;
         this._canvas.style.height = `${h}px`;
+        
+        // Update stage size to match canvas
+        this._stage.style.width = `${w}px`;
+        this._stage.style.height = `${h}px`;
+        
         this._ctx.setTransform(this._dpr, 0, 0, this._dpr, 0, 0);
         this._draw();
+    }
+
+    _calculateDiagramBounds() {
+        const places = this._model.places || {};
+        const transitions = this._model.transitions || {};
+        
+        let minX = 0, minY = 0, maxX = 0, maxY = 0;
+        let hasNodes = false;
+        
+        // Check all places
+        for (const p of Object.values(places)) {
+            if (p.x !== undefined && p.y !== undefined) {
+                const x = p.x || 0;
+                const y = p.y || 0;
+                minX = hasNodes ? Math.min(minX, x - 40) : x - 40; // place radius is 40
+                minY = hasNodes ? Math.min(minY, y - 40) : y - 40;
+                maxX = hasNodes ? Math.max(maxX, x + 40) : x + 40;
+                maxY = hasNodes ? Math.max(maxY, y + 40) : y + 40;
+                hasNodes = true;
+            }
+        }
+        
+        // Check all transitions
+        for (const t of Object.values(transitions)) {
+            if (t.x !== undefined && t.y !== undefined) {
+                const x = t.x || 0;
+                const y = t.y || 0;
+                minX = hasNodes ? Math.min(minX, x - 15) : x - 15; // transition is 30x30
+                minY = hasNodes ? Math.min(minY, y - 15) : y - 15;
+                maxX = hasNodes ? Math.max(maxX, x + 15) : x + 15;
+                maxY = hasNodes ? Math.max(maxY, y + 15) : y + 15;
+                hasNodes = true;
+            }
+        }
+        
+        return { minX, minY, maxX, maxY, hasNodes };
     }
 
     _applyViewTransform() {
