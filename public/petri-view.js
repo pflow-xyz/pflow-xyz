@@ -3382,6 +3382,97 @@ class PetriView extends HTMLElement {
         this._updateScaleMeter();
     }
 
+    // ---------------- token color helpers ----------------
+    // Color dictionary mapping common color names to hex values
+    _getColorDictionary() {
+        return {
+            'black': '#000000',
+            'red': '#dc3545',
+            'blue': '#007bff',
+            'green': '#28a745',
+            'yellow': '#ffc107',
+            'orange': '#fd7e14',
+            'purple': '#6f42c1',
+            'pink': '#e83e8c',
+            'brown': '#8b4513',
+            'cyan': '#17a2b8',
+            'gray': '#6c757d',
+            'grey': '#6c757d',
+            'white': '#ffffff'
+        };
+    }
+
+    // Extract color from token URL or hex color string
+    _extractColor(tokenUrl) {
+        if (!tokenUrl) return null;
+        
+        // Check if it's already a hex color
+        if (tokenUrl.startsWith('#')) {
+            return tokenUrl;
+        }
+        
+        // Extract color name from URL like "https://pflow.xyz/tokens/red"
+        const match = tokenUrl.match(/\/tokens\/([a-zA-Z0-9]+)$/i);
+        if (match) {
+            const colorName = match[1].toLowerCase();
+            const colorDict = this._getColorDictionary();
+            return colorDict[colorName] || null;
+        }
+        
+        return null;
+    }
+
+    // Determine arc color based on weight array and token colors
+    _getArcColor(arc, active) {
+        const tokens = this._model.token || [];
+        const weight = arc.weight || [1];
+        
+        // Find which token colors are used (non-zero weights)
+        const usedColors = [];
+        for (let i = 0; i < weight.length; i++) {
+            const w = Number(weight[i] || 0);
+            if (w > 0 && i < tokens.length) {
+                const color = this._extractColor(tokens[i]);
+                if (color) {
+                    usedColors.push(color);
+                }
+            }
+        }
+        
+        // If no token colors found, use default behavior
+        if (usedColors.length === 0) {
+            return active ? '#2a6fb8' : '#cfcfcf';
+        }
+        
+        // If only one token color, use it
+        if (usedColors.length === 1) {
+            return active ? usedColors[0] : this._lightenColor(usedColors[0], 0.6);
+        }
+        
+        // If multiple colors, blend them or use the first one
+        // For simplicity, we'll use the first color
+        return active ? usedColors[0] : this._lightenColor(usedColors[0], 0.6);
+    }
+
+    // Lighten a color by a factor (0-1)
+    _lightenColor(hex, factor) {
+        // Convert hex to RGB
+        const r = parseInt(hex.slice(1, 3), 16);
+        const g = parseInt(hex.slice(3, 5), 16);
+        const b = parseInt(hex.slice(5, 7), 16);
+        
+        // Lighten by moving toward white
+        const newR = Math.round(r + (255 - r) * factor);
+        const newG = Math.round(g + (255 - g) * factor);
+        const newB = Math.round(b + (255 - b) * factor);
+        
+        // Convert back to hex
+        return '#' + 
+            newR.toString(16).padStart(2, '0') + 
+            newG.toString(16).padStart(2, '0') + 
+            newB.toString(16).padStart(2, '0');
+    }
+
     _draw() {
         const ctx = this._ctx;
         const rootRect = this._canvasContainer ? this._canvasContainer.getBoundingClientRect() : this._root.getBoundingClientRect();
@@ -3439,9 +3530,10 @@ class PetriView extends HTMLElement {
             const relatedTransitionId = srcIsPlace ? arc.target : arc.source;
             const active = !!this._enabled(relatedTransitionId, marks);
 
-            // set stroke/fill based on active state
-            ctx.strokeStyle = active ? '#2a6fb8' : '#cfcfcf';
-            ctx.fillStyle = active ? '#2a6fb8' : '#cfcfcf';
+            // Get arc color based on token colors
+            const arcColor = this._getArcColor(arc, active);
+            ctx.strokeStyle = arcColor;
+            ctx.fillStyle = arcColor;
 
             // draw the main line
             ctx.beginPath();
@@ -3455,7 +3547,7 @@ class PetriView extends HTMLElement {
                 ctx.beginPath();
                 ctx.lineWidth = 1.3;
                 ctx.fillStyle = '#fff';
-                ctx.strokeStyle = active ? '#2a6fb8' : '#cfcfcf';
+                ctx.strokeStyle = arcColor;
                 ctx.arc(tpx, tpy, inhibitRadius, 0, Math.PI * 2);
                 ctx.fill();
                 ctx.stroke();
@@ -3471,7 +3563,7 @@ class PetriView extends HTMLElement {
                 ctx.lineTo(ahx, ahy);
                 ctx.lineTo(bhx, bhy);
                 ctx.closePath();
-                ctx.fillStyle = ctx.strokeStyle;
+                ctx.fillStyle = arcColor;
                 ctx.fill();
             }
 
@@ -3484,14 +3576,12 @@ class PetriView extends HTMLElement {
                 const offY = (badge.offsetHeight || 20) / 2;
                 badge.style.left = `${Math.round(bx - offX)}px`;
                 badge.style.top = `${Math.round(by - offY)}px`;
-                // give badge a subtle tint and border (same treatment for both normal and inhibitor arcs)
-                if (arc.inhibitTransition) {
-                    badge.style.background = active ? '#e8f0fb' : '#fafafa';
-                    badge.style.borderColor = active ? '#2a6fb8' : '#ddd';
-                } else {
-                    badge.style.background = active ? '#e8f0fb' : '#fafafa';
-                    badge.style.borderColor = active ? '#2a6fb8' : '#ddd';
-                }
+                
+                // Set badge background and border color based on arc color
+                const bgColor = active ? this._lightenColor(arcColor, 0.85) : '#fafafa';
+                badge.style.background = bgColor;
+                badge.style.borderColor = arcColor;
+                badge.style.color = active ? arcColor : '#999';
             }
         });
 
