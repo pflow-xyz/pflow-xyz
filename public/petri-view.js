@@ -3110,14 +3110,60 @@ class PetriView extends HTMLElement {
     _onResize() {
         // Use canvas container rect instead of root rect
         const rect = this._canvasContainer ? this._canvasContainer.getBoundingClientRect() : this._root.getBoundingClientRect();
-        const w = Math.max(300, Math.floor(rect.width));
-        const h = Math.max(200, Math.floor(rect.height));
+        const viewportW = Math.max(300, Math.floor(rect.width));
+        const viewportH = Math.max(200, Math.floor(rect.height));
+        
+        // Calculate bounds of all nodes in the diagram
+        const bounds = this._calculateDiagramBounds();
+        
+        // Canvas should be large enough to contain the entire diagram bounds
+        // Use diagram bounds with padding, but at least viewport size
+        const padding = 100;
+        const w = Math.max(viewportW, bounds.maxX + padding);
+        const h = Math.max(viewportH, bounds.maxY + padding);
+        
         this._canvas.width = Math.floor(w * this._dpr);
         this._canvas.height = Math.floor(h * this._dpr);
         this._canvas.style.width = `${w}px`;
         this._canvas.style.height = `${h}px`;
         this._ctx.setTransform(this._dpr, 0, 0, this._dpr, 0, 0);
         this._draw();
+    }
+
+    _calculateDiagramBounds() {
+        const places = this._model.places || {};
+        const transitions = this._model.transitions || {};
+        
+        let minX = 0, minY = 0, maxX = 0, maxY = 0;
+        let hasNodes = false;
+        
+        // Check all places
+        for (const p of Object.values(places)) {
+            if (p.x !== undefined && p.y !== undefined) {
+                const x = p.x || 0;
+                const y = p.y || 0;
+                minX = hasNodes ? Math.min(minX, x - 40) : x - 40;
+                minY = hasNodes ? Math.min(minY, y - 40) : y - 40;
+                maxX = hasNodes ? Math.max(maxX, x + 40) : x + 40;
+                maxY = hasNodes ? Math.max(maxY, y + 40) : y + 40;
+                hasNodes = true;
+            }
+        }
+        
+        // Check all transitions
+        for (const t of Object.values(transitions)) {
+            if (t.x !== undefined && t.y !== undefined) {
+                const x = t.x || 0;
+                const y = t.y || 0;
+                minX = hasNodes ? Math.min(minX, x - 15) : x - 15;
+                minY = hasNodes ? Math.min(minY, y - 15) : y - 15;
+                maxX = hasNodes ? Math.max(maxX, x + 15) : x + 15;
+                maxY = hasNodes ? Math.max(maxY, y + 15) : y + 15;
+                hasNodes = true;
+            }
+        }
+        
+        return { minX, minY, maxX, maxY, hasNodes };
     }
 
     _applyViewTransform() {
@@ -3140,7 +3186,7 @@ class PetriView extends HTMLElement {
         const viewTx = this._view.tx || 0;
         const viewTy = this._view.ty || 0;
         
-        ctx.lineWidth = 1 * scale;  // Scale line width
+        ctx.lineWidth = 1;
 
         const arcs = this._model.arcs || [];
         const marks = this._marking(); // current marking to evaluate arc/transition state
@@ -3150,33 +3196,33 @@ class PetriView extends HTMLElement {
             const trgEl = this._nodes[arc.target];
             if (!srcEl || !trgEl) return;
             
-            // Get stage-local coordinates (offsetLeft/offsetTop are in untransformed stage space)
+            // Get screen coordinates and convert to root-relative coordinates
             const srcRect = srcEl.getBoundingClientRect();
             const trgRect = trgEl.getBoundingClientRect();
-            const srcX = srcEl.offsetLeft + srcRect.width / 2;
-            const srcY = srcEl.offsetTop + srcRect.height / 2;
-            const trgX = trgEl.offsetLeft + trgRect.width / 2;
-            const trgY = trgEl.offsetTop + trgRect.height / 2;
+            const sxScreen = (srcRect.left + srcRect.width / 2) - rootRect.left;
+            const syScreen = (srcRect.top + srcRect.height / 2) - rootRect.top;
+            const txScreen = (trgRect.left + trgRect.width / 2) - rootRect.left;
+            const tyScreen = (trgRect.top + trgRect.height / 2) - rootRect.top;
             
-            // Transform stage coordinates to canvas/viewport coordinates
-            const sx = srcX * scale + viewTx;
-            const sy = srcY * scale + viewTy;
-            const tx = trgX * scale + viewTx;
-            const ty = trgY * scale + viewTy;
+            // Transform back to untransformed stage coordinates
+            const sx = (sxScreen - viewTx) / scale;
+            const sy = (syScreen - viewTy) / scale;
+            const tx = (txScreen - viewTx) / scale;
+            const ty = (tyScreen - viewTy) / scale;
 
             const srcIsPlace = srcEl.classList.contains('pv-place');
             const trgIsPlace = trgEl.classList.contains('pv-place');
-            const padPlace = (16 + 2) * scale;  // Scale padding
-            const padTransition = (15 + 2) * scale;
+            const padPlace = 16 + 2;
+            const padTransition = 15 + 2;
             const padSrc = srcIsPlace ? padPlace : padTransition;
             const padTrg = trgIsPlace ? padPlace : padTransition;
 
             const dx = tx - sx, dy = ty - sy;
             const dist = Math.hypot(dx, dy) || 1;
             const ux = dx / dist, uy = dy / dist;
-            const ahSize = 8 * scale;  // Scale arrowhead size
-            const inhibitRadius = 6 * scale;  // Scale inhibitor radius
-            const tipOffset = arc.inhibitTransition ? (inhibitRadius + 2 * scale) : (ahSize * 0.9);
+            const ahSize = 8;
+            const inhibitRadius = 6;
+            const tipOffset = arc.inhibitTransition ? (inhibitRadius + 2) : (ahSize * 0.9);
             const ex = sx + ux * padSrc, ey = sy + uy * padSrc;
             const fx = tx - ux * (padTrg + tipOffset), fy = ty - uy * (padTrg + tipOffset);
 
@@ -3198,13 +3244,13 @@ class PetriView extends HTMLElement {
             if (arc.inhibitTransition) {
                 // draw inhibitor circle at the tip (works for both place-target and transition-target inhibitors)
                 ctx.beginPath();
-                ctx.lineWidth = 1.3 * scale;
+                ctx.lineWidth = 1.3;
                 ctx.fillStyle = '#fff';
                 ctx.strokeStyle = active ? '#2a6fb8' : '#cfcfcf';
                 ctx.arc(tpx, tpy, inhibitRadius, 0, Math.PI * 2);
                 ctx.fill();
                 ctx.stroke();
-                ctx.lineWidth = 1 * scale;
+                ctx.lineWidth = 1;
             } else {
                 // draw normal arrowhead
                 const ahx = tpx + (-ux * ahSize - uy * ahSize * 0.45);
@@ -3220,9 +3266,9 @@ class PetriView extends HTMLElement {
                 ctx.fill();
             }
 
-            // position weight badge if present (badges are in stage-local coordinates)
-            const bx = (srcX + trgX) / 2;  // Midpoint in stage coordinates
-            const by = (srcY + trgY) / 2;
+            // position weight badge if present
+            const bx = (ex + fx) / 2;
+            const by = (ey + fy) / 2;
             const badge = this._stage.querySelector(`.pv-weight[data-arc="${idx}"]`);
             if (badge) {
                 const offX = (badge.offsetWidth || 20) / 2;
@@ -3245,16 +3291,12 @@ class PetriView extends HTMLElement {
             const srcEl = this._nodes[this._arcDraft.source];
             if (srcEl) {
                 const srcRect = srcEl.getBoundingClientRect();
-                const srcX = srcEl.offsetLeft + srcRect.width / 2;
-                const srcY = srcEl.offsetTop + srcRect.height / 2;
-                
-                // Transform to canvas coordinates
-                const sx = srcX * scale + viewTx;
-                const sy = srcY * scale + viewTy;
-                
-                // Mouse position is already in canvas/viewport space
-                const mx = this._mouse.x;
-                const my = this._mouse.y;
+                const sxScreen = (srcRect.left + srcRect.width / 2) - rootRect.left;
+                const syScreen = (srcRect.top + srcRect.height / 2) - rootRect.top;
+                const sx = (sxScreen - viewTx) / scale;
+                const sy = (syScreen - viewTy) / scale;
+                const mx = (this._mouse.x - viewTx) / scale;
+                const my = (this._mouse.y - viewTy) / scale;
                 
                 ctx.setLineDash([4, 4]);
                 ctx.strokeStyle = '#666';
