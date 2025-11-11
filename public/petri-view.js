@@ -287,6 +287,19 @@ class PetriView extends HTMLElement {
         toolbar.appendChild(dlBtn);
         toolbar.appendChild(fsBtn);
         toolbar.appendChild(layoutToggleBtn);
+        
+        // Add revert button if we loaded from a CID
+        if (this._originalCid) {
+            // Show last 8 characters of CID
+            const shortCid = this._originalCid.slice(-8);
+            const revertBtn = makeBtn(`⟲ ${shortCid}`, `Revert to revision ${this._originalCid}`);
+            revertBtn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                await this._revertToOriginalCid();
+            });
+            toolbar.appendChild(revertBtn);
+        }
+        
         toolbar.appendChild(closeBtn);
 
         // container for Ace
@@ -2734,33 +2747,6 @@ class PetriView extends HTMLElement {
             });
             this._menu.appendChild(btn);
         });
-
-        // Add revert button if we loaded from a CID
-        if (this._originalCid) {
-            const revertBtn = document.createElement('button');
-            revertBtn.type = 'button';
-            revertBtn.className = 'pv-revert';
-            // Show last 8 characters of CID
-            const shortCid = this._originalCid.slice(-8);
-            revertBtn.textContent = `⟲ ${shortCid}`;
-            revertBtn.title = `Revert to revision ${this._originalCid}`;
-            this._applyStyles(revertBtn, {
-                height: '36px',
-                padding: '0 12px',
-                borderRadius: '6px',
-                border: 'none',
-                background: 'linear-gradient(180deg,#fff,#f3f3f3)',
-                cursor: 'pointer',
-                fontSize: '14px',
-                fontFamily: 'system-ui, monospace',
-                whiteSpace: 'nowrap'
-            });
-            revertBtn.addEventListener('click', async (ev) => {
-                ev.stopPropagation();
-                await this._revertToOriginalCid();
-            });
-            this._menu.appendChild(revertBtn);
-        }
 
         const playBtn = document.createElement('button');
         playBtn.type = 'button';
