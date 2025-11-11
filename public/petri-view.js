@@ -3716,17 +3716,38 @@ class PetriView extends HTMLElement {
                 <li><strong>Left-click transition:</strong> Fire it manually (if enabled)</li>
                 <li><strong>Right-click place:</strong> Add or remove tokens</li>
                 <li><strong>Right-click arc:</strong> Change arc weight</li>
-                <li><strong>Shift + click:</strong> Select/deselect multiple nodes (in Select, Token, and Delete modes). Drag to move group together</li>
                 <li><strong>Drag elements:</strong> Reposition places and transitions</li>
                 <li><strong>Mouse wheel:</strong> Zoom in/out</li>
                 <li><strong>Space + drag:</strong> Pan the canvas</li>
+            </ul>
+
+            <h4 style="margin: 12px 0 6px 0; font-size: 14px; font-weight: 600;">Selection & Multi-Select:</h4>
+            <ul style="margin: 6px 0 12px 20px; padding: 0;">
+                <li><strong>Shift + click node:</strong> Add/remove individual nodes from selection (in Select, Token, and Delete modes)</li>
+                <li><strong>Shift + drag on canvas:</strong> Draw a bounding box to select all nodes within it. A dashed orange rectangle shows the selection area as you drag</li>
+                <li><strong>Selected nodes:</strong> Highlighted with orange outline and shadow. Can be dragged together or deleted as a group</li>
+            </ul>
+
+            <h4 style="margin: 12px 0 6px 0; font-size: 14px; font-weight: 600;">Keyboard Shortcuts:</h4>
+            <ul style="margin: 6px 0 12px 20px; padding: 0;">
+                <li><strong>Ctrl/Cmd + Z:</strong> Undo last action</li>
+                <li><strong>Ctrl/Cmd + Shift + Z:</strong> Redo previously undone action</li>
+                <li><strong>Delete or Backspace:</strong> Delete all selected nodes</li>
+                <li><strong>Escape:</strong> Cancel current operation (arc draft, bounding box selection)</li>
+                <li><strong>Space (hold):</strong> Enable pan mode temporarily</li>
+                <li><strong>X:</strong> Start/stop automatic simulation</li>
+                <li><strong>1:</strong> Switch to Select mode</li>
+                <li><strong>2:</strong> Switch to Add Place mode</li>
+                <li><strong>3:</strong> Switch to Add Transition mode</li>
+                <li><strong>4:</strong> Switch to Add Arc mode</li>
+                <li><strong>5:</strong> Switch to Add Token mode</li>
+                <li><strong>6:</strong> Switch to Delete mode</li>
             </ul>
 
             <h4 style="margin: 12px 0 6px 0; font-size: 14px; font-weight: 600;">Other Features:</h4>
             <ul style="margin: 6px 0 12px 20px; padding: 0;">
                 <li><strong>JSON Editor:</strong> Toggle to edit the model as JSON-LD</li>
                 <li><strong>Scale Meter:</strong> Shows current zoom level (right side)</li>
-                <li><strong>Undo/Redo:</strong> Use Ctrl+Z/Ctrl+Y</li>
                 <li><strong>Download:</strong> Export your Petri net as JSON</li>
                 <li><strong>Auto-save:</strong> Changes are saved to browser localStorage</li>
             </ul>
