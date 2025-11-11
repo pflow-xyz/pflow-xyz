@@ -33,6 +33,7 @@ class PetriView extends HTMLElement {
         this._mouse = {x: 0, y: 0};
         this._labelEditMode = false;
         this._selectedNodes = new Set(); // for group-select mode
+        this._boxSelect = null; // for bounding box selection: {startX, startY, endX, endY}
 
         // pan/zoom
         this._view = {scale: 1, tx: 0, ty: 0};
@@ -2788,6 +2789,39 @@ class PetriView extends HTMLElement {
         }
     }
 
+    _selectNodesInBox() {
+        if (!this._boxSelect) return;
+        
+        const rootRect = this._canvasContainer ? this._canvasContainer.getBoundingClientRect() : this._root.getBoundingClientRect();
+        const scale = this._view.scale || 1;
+        const viewTx = this._view.tx || 0;
+        const viewTy = this._view.ty || 0;
+
+        // Calculate bounding box in screen coordinates
+        const minX = Math.min(this._boxSelect.startX, this._boxSelect.endX);
+        const maxX = Math.max(this._boxSelect.startX, this._boxSelect.endX);
+        const minY = Math.min(this._boxSelect.startY, this._boxSelect.endY);
+        const maxY = Math.max(this._boxSelect.startY, this._boxSelect.endY);
+
+        // Check each node to see if it's inside the bounding box
+        for (const [id, el] of Object.entries(this._nodes)) {
+            const isPlaceOrTransition = el.classList.contains('pv-place') || el.classList.contains('pv-transition');
+            if (!isPlaceOrTransition) continue;
+
+            // Get node's position in screen coordinates
+            const nodeRect = el.getBoundingClientRect();
+            const nodeCenterX = (nodeRect.left + nodeRect.width / 2) - rootRect.left;
+            const nodeCenterY = (nodeRect.top + nodeRect.height / 2) - rootRect.top;
+
+            // Check if node center is inside the bounding box
+            if (nodeCenterX >= minX && nodeCenterX <= maxX && nodeCenterY >= minY && nodeCenterY <= maxY) {
+                this._selectedNodes.add(id);
+            }
+        }
+
+        this._updateSelectionHighlights();
+    }
+
     _validateLabel(text) {
         if (!text || text.trim().length === 0) {
             return 'Label cannot be empty';
@@ -3307,6 +3341,31 @@ class PetriView extends HTMLElement {
                 ctx.setLineDash([]);
             }
         }
+
+        // bounding box selection preview
+        if (this._boxSelect) {
+            const minX = Math.min(this._boxSelect.startX, this._boxSelect.endX);
+            const maxX = Math.max(this._boxSelect.startX, this._boxSelect.endX);
+            const minY = Math.min(this._boxSelect.startY, this._boxSelect.endY);
+            const maxY = Math.max(this._boxSelect.startY, this._boxSelect.endY);
+
+            // Convert to untransformed stage coordinates for drawing
+            const x1 = (minX - viewTx) / scale;
+            const y1 = (minY - viewTy) / scale;
+            const x2 = (maxX - viewTx) / scale;
+            const y2 = (maxY - viewTy) / scale;
+
+            ctx.setLineDash([4, 4]);
+            ctx.strokeStyle = 'rgba(255, 165, 0, 0.8)';
+            ctx.fillStyle = 'rgba(255, 165, 0, 0.1)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.rect(x1, y1, x2 - x1, y2 - y1);
+            ctx.fill();
+            ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.lineWidth = 1;
+        }
     }
 
     // ---------------- tokens & transitions states ----------------
@@ -3657,17 +3716,38 @@ class PetriView extends HTMLElement {
                 <li><strong>Left-click transition:</strong> Fire it manually (if enabled)</li>
                 <li><strong>Right-click place:</strong> Add or remove tokens</li>
                 <li><strong>Right-click arc:</strong> Change arc weight</li>
-                <li><strong>Shift + click:</strong> Select/deselect multiple nodes (in Select, Token, and Delete modes). Drag to move group together</li>
                 <li><strong>Drag elements:</strong> Reposition places and transitions</li>
                 <li><strong>Mouse wheel:</strong> Zoom in/out</li>
                 <li><strong>Space + drag:</strong> Pan the canvas</li>
+            </ul>
+
+            <h4 style="margin: 12px 0 6px 0; font-size: 14px; font-weight: 600;">Selection & Multi-Select:</h4>
+            <ul style="margin: 6px 0 12px 20px; padding: 0;">
+                <li><strong>Shift + click node:</strong> Add/remove individual nodes from selection (in Select, Token, and Delete modes)</li>
+                <li><strong>Shift + drag on canvas:</strong> Draw a bounding box to select all nodes within it. A dashed orange rectangle shows the selection area as you drag</li>
+                <li><strong>Selected nodes:</strong> Highlighted with orange outline and shadow. Can be dragged together or deleted as a group</li>
+            </ul>
+
+            <h4 style="margin: 12px 0 6px 0; font-size: 14px; font-weight: 600;">Keyboard Shortcuts:</h4>
+            <ul style="margin: 6px 0 12px 20px; padding: 0;">
+                <li><strong>Ctrl/Cmd + Z:</strong> Undo last action</li>
+                <li><strong>Ctrl/Cmd + Shift + Z:</strong> Redo previously undone action</li>
+                <li><strong>Delete or Backspace:</strong> Delete all selected nodes</li>
+                <li><strong>Escape:</strong> Cancel current operation (arc draft, bounding box selection)</li>
+                <li><strong>Space (hold):</strong> Enable pan mode temporarily</li>
+                <li><strong>X:</strong> Start/stop automatic simulation</li>
+                <li><strong>1:</strong> Switch to Select mode</li>
+                <li><strong>2:</strong> Switch to Add Place mode</li>
+                <li><strong>3:</strong> Switch to Add Transition mode</li>
+                <li><strong>4:</strong> Switch to Add Arc mode</li>
+                <li><strong>5:</strong> Switch to Add Token mode</li>
+                <li><strong>6:</strong> Switch to Delete mode</li>
             </ul>
 
             <h4 style="margin: 12px 0 6px 0; font-size: 14px; font-weight: 600;">Other Features:</h4>
             <ul style="margin: 6px 0 12px 20px; padding: 0;">
                 <li><strong>JSON Editor:</strong> Toggle to edit the model as JSON-LD</li>
                 <li><strong>Scale Meter:</strong> Shows current zoom level (right side)</li>
-                <li><strong>Undo/Redo:</strong> Use Ctrl+Z/Ctrl+Y</li>
                 <li><strong>Download:</strong> Export your Petri net as JSON</li>
                 <li><strong>Auto-save:</strong> Changes are saved to browser localStorage</li>
             </ul>
@@ -4996,6 +5076,16 @@ class PetriView extends HTMLElement {
                     this._updateArcDraftHighlight();
                     this._draw();
                 }
+                // Cancel bounding box selection if active
+                if (this._boxSelect) {
+                    // release pointer capture if set
+                    try {
+                        if (this._canvasContainer.releasePointerCapture) this._canvasContainer.releasePointerCapture(this._boxSelect.pointerId);
+                    } catch { /* ignore */
+                    }
+                    this._boxSelect = null;
+                    this._draw();
+                }
                 return;
             }
 
@@ -5032,10 +5122,42 @@ class PetriView extends HTMLElement {
             const clickedInteractive = !!e.target.closest && e.target.closest(interactiveSelector);
             const leftButton = e.button === 0;
 
+            // Check for shift+click on canvas (not on elements) to start bounding box selection
+            if (e.shiftKey && leftButton && !clickedInteractive && (this._mode === 'select' || this._mode === 'add-token' || this._mode === 'delete')) {
+                e.preventDefault();
+                // Safety: ensure we're not in a conflicting state
+                if (this._panning) {
+                    this._panning = null;
+                    try {
+                        this._canvasContainer.style.cursor = '';
+                        document.body.style.cursor = '';
+                    } catch { /* ignore */
+                    }
+                }
+                const r = this._canvasContainer.getBoundingClientRect();
+                this._boxSelect = {
+                    startX: e.clientX - r.left,
+                    startY: e.clientY - r.top,
+                    endX: e.clientX - r.left,
+                    endY: e.clientY - r.top,
+                    pointerId: e.pointerId
+                };
+                // capture pointer on canvas container so we receive move/up outside it
+                try {
+                    if (this._canvasContainer.setPointerCapture) this._canvasContainer.setPointerCapture(e.pointerId);
+                } catch { /* ignore */
+                }
+                return;
+            }
+
             const isPan = this._spaceDown || e.button === 1 || e.altKey || e.ctrlKey || e.metaKey || (leftButton && !clickedInteractive);
 
             if (isPan) {
                 e.preventDefault();
+                // Safety: ensure we're not in a conflicting state
+                if (this._boxSelect) {
+                    this._boxSelect = null;
+                }
                 // start panning
                 this._panning = {
                     x: e.clientX,
@@ -5060,6 +5182,15 @@ class PetriView extends HTMLElement {
         });
 
         this._canvasContainer.addEventListener('pointermove', (e) => {
+            // Handle bounding box selection drag
+            if (this._boxSelect) {
+                const r = this._canvasContainer.getBoundingClientRect();
+                this._boxSelect.endX = e.clientX - r.left;
+                this._boxSelect.endY = e.clientY - r.top;
+                this._draw();
+                return;
+            }
+            
             if (!this._panning) return;
             this._view.tx = this._panning.tx + (e.clientX - this._panning.x);
             this._view.ty = this._panning.ty + (e.clientY - this._panning.y);
@@ -5068,6 +5199,21 @@ class PetriView extends HTMLElement {
         });
 
         const endPan = (e) => {
+            // Handle end of bounding box selection
+            if (this._boxSelect) {
+                // release pointer capture if set
+                try {
+                    if (this._canvasContainer.releasePointerCapture) this._canvasContainer.releasePointerCapture(this._boxSelect.pointerId ?? e.pointerId);
+                } catch { /* ignore */
+                }
+
+                // Find nodes inside the bounding box
+                this._selectNodesInBox();
+                this._boxSelect = null;
+                this._draw(); // redraw to clear the bounding box
+                return;
+            }
+
             if (!this._panning) return;
             // release pointer capture if set
             try {
