@@ -4035,6 +4035,42 @@ class PetriView extends HTMLElement {
 
     // ---------------- layout algorithm implementations ----------------
 
+    /**
+     * Normalize node positions to ensure all coordinates are >= minMargin
+     * @param {number} minMargin - Minimum margin from 0 (default: 100)
+     */
+    _normalizeNodePositions(minMargin = 100) {
+        // Find current bounds
+        let minX = Infinity, minY = Infinity;
+        
+        for (const place of Object.values(this._model.places || {})) {
+            if (place.x !== undefined) minX = Math.min(minX, place.x);
+            if (place.y !== undefined) minY = Math.min(minY, place.y);
+        }
+        
+        for (const transition of Object.values(this._model.transitions || {})) {
+            if (transition.x !== undefined) minX = Math.min(minX, transition.x);
+            if (transition.y !== undefined) minY = Math.min(minY, transition.y);
+        }
+        
+        // Calculate offset needed to ensure minimum margin
+        const offsetX = minX < minMargin ? minMargin - minX : 0;
+        const offsetY = minY < minMargin ? minMargin - minY : 0;
+        
+        // Apply offset if needed
+        if (offsetX > 0 || offsetY > 0) {
+            for (const place of Object.values(this._model.places || {})) {
+                if (place.x !== undefined) place.x += offsetX;
+                if (place.y !== undefined) place.y += offsetY;
+            }
+            
+            for (const transition of Object.values(this._model.transitions || {})) {
+                if (transition.x !== undefined) transition.x += offsetX;
+                if (transition.y !== undefined) transition.y += offsetY;
+            }
+        }
+    }
+
     _applyForceAtlas2Layout() {
         // Save state for undo
         this._pushHistory();
@@ -4171,6 +4207,9 @@ class PetriView extends HTMLElement {
             }
         }
 
+        // Ensure all coordinates are non-negative
+        this._normalizeNodePositions(100);
+
         // Update the view
         this._renderUI();
         this._syncLD();
@@ -4278,6 +4317,9 @@ class PetriView extends HTMLElement {
                 }
             });
         }
+
+        // Ensure all coordinates are non-negative
+        this._normalizeNodePositions(100);
 
         // Update the view
         this._renderUI();
@@ -4428,6 +4470,9 @@ class PetriView extends HTMLElement {
             });
         }
 
+        // Ensure all coordinates are non-negative
+        this._normalizeNodePositions(100);
+
         // Update the view
         this._renderUI();
         this._syncLD();
@@ -4467,6 +4512,9 @@ class PetriView extends HTMLElement {
                 this._model.transitions[node.id].y = y;
             }
         });
+
+        // Ensure all coordinates are non-negative
+        this._normalizeNodePositions(100);
 
         // Update the view
         this._renderUI();
