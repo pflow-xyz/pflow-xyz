@@ -2645,14 +2645,23 @@ class PetriView extends HTMLElement {
         if (this._mode === 'select' || this._mode === 'add-token') {
             try {
                 const cur = this._getArcWeight(a);
-                const ans = prompt('Arc weight (positive integer)', String(cur));
-                const parsed = Number(ans);
-                if (!Number.isNaN(parsed) && parsed > 0) {
-                    a.weight = [Math.floor(parsed)];
-                    this._normalizeModel();
-                    this._renderUI();
-                    this._syncLD();
-                    this._pushHistory();
+                // Display weight vector as comma-separated values
+                const curStr = cur.join(',');
+                const ans = prompt('Arc weight (comma-separated for colored nets, e.g., "1,0,0")', curStr);
+                if (ans && ans.trim()) {
+                    // Parse comma-separated values into an array
+                    const values = ans.split(',').map(v => {
+                        const num = Number(v.trim());
+                        return Number.isNaN(num) ? 0 : Math.max(0, Math.floor(num));
+                    });
+                    // Ensure at least one positive value
+                    if (values.some(v => v > 0)) {
+                        a.weight = values;
+                        this._normalizeModel();
+                        this._renderUI();
+                        this._syncLD();
+                        this._pushHistory();
+                    }
                 }
             } catch {
             }
@@ -2665,8 +2674,16 @@ class PetriView extends HTMLElement {
         if (!a) return;
         if (this._mode === 'add-token') {
             const cur = this._getArcWeight(a);
-            const nw = Math.max(1, cur - 1);
-            a.weight = [nw];
+            // Decrement the first non-zero weight in the vector
+            const newWeight = cur.map(w => {
+                const val = Number(w) || 0;
+                return val > 0 ? Math.max(0, val - 1) : 0;
+            });
+            // Ensure at least one weight is 1 if all became 0
+            if (newWeight.every(w => w === 0)) {
+                newWeight[0] = 1;
+            }
+            a.weight = newWeight;
             this._normalizeModel();
             this._renderUI();
             this._syncLD();
