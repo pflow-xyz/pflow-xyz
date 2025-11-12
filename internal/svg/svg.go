@@ -91,8 +91,8 @@ func GenerateSVG(jsonData []byte) (string, error) {
 	// Calculate bounds
 	minX, minY, maxX, maxY := calculateBounds(petriNet)
 
-	// Add padding
-	padding := 30.0
+	// Add padding (increased to accommodate labels)
+	padding := 50.0
 	minX -= padding
 	minY -= padding
 	maxX += padding

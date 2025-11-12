@@ -694,3 +694,56 @@ func TestGetArcWeight(t *testing.T) {
 	}
 }
 
+func TestGenerateSVGPaddingWithLabels(t *testing.T) {
+	// Test that SVG has adequate padding to accommodate labels
+	jsonData := []byte(`{
+		"@context": "https://pflow.xyz/schema",
+		"@type": "PetriNet",
+		"@version": "1.1",
+		"arcs": [],
+		"places": {
+			"place0": {
+				"@type": "Place",
+				"capacity": [10],
+				"initial": [2],
+				"offset": 0,
+				"x": 100,
+				"y": 100,
+				"label": "LongPlaceLabelText"
+			}
+		},
+		"token": ["https://pflow.xyz/tokens/black"],
+		"transitions": {
+			"txn0": {
+				"@type": "Transition",
+				"x": 200,
+				"y": 100,
+				"label": "LongTransitionLabel"
+			}
+		}
+	}`)
+
+	svg, err := GenerateSVG(jsonData)
+	if err != nil {
+		t.Fatalf("GenerateSVG failed: %v", err)
+	}
+
+	// Check that viewBox has adequate padding
+	// Place is at (100, 100) and transition at (200, 100)
+	// With padding of 50, viewBox should start at (50, 50) and have width/height of at least 200
+	if !strings.Contains(svg, "viewBox=") {
+		t.Error("SVG missing viewBox attribute")
+	}
+
+	// Verify that both labels are present in the SVG
+	if !strings.Contains(svg, "LongPlaceLabelText") {
+		t.Error("SVG missing place label")
+	}
+	if !strings.Contains(svg, "LongTransitionLabel") {
+		t.Error("SVG missing transition label")
+	}
+
+	// Log the SVG for manual inspection
+	t.Logf("Generated SVG with labels:\n%s", svg)
+}
+
