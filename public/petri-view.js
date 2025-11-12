@@ -2102,34 +2102,31 @@ class PetriView extends HTMLElement {
 
     // ---------------- marking & firing ----------------
     _getArcWeight(arc) {
-        // For colored Petri nets, find the first non-zero weight value
-        if (arc.weight == null) return 1;
-        if (!Array.isArray(arc.weight)) return Number(arc.weight) || 1;
-        
-        for (const w of arc.weight) {
-            const val = Number(w) || 0;
-            if (val > 0) return val;
-        }
-        return 1; // Default if all weights are zero
+        // For colored Petri nets, return the full weight vector
+        if (arc.weight == null) return [1];
+        if (!Array.isArray(arc.weight)) return [Number(arc.weight) || 1];
+        return arc.weight.map(w => Number(w) || 0);
     }
 
     _marking() {
         const marks = {};
         for (const [pid, p] of Object.entries(this._model.places)) {
-            const sum = (Array.isArray(p.initial) ? p.initial : [Number(p.initial || 0)])
-                .reduce((s, v) => s + (Number(v) || 0), 0);
-            marks[pid] = sum;
+            // Return the full vector of token counts (one per color)
+            marks[pid] = Array.isArray(p.initial) 
+                ? p.initial.map(v => Number(v) || 0)
+                : [Number(p.initial || 0)];
         }
         return marks;
     }
 
     _setMarking(marks) {
-        for (const [pid, count] of Object.entries(marks)) {
+        for (const [pid, tokenVector] of Object.entries(marks)) {
             const p = this._model.places[pid];
             if (!p) continue;
-            const arr = Array.isArray(p.initial) ? p.initial : [Number(p.initial || 0)];
-            arr[0] = Math.max(0, Number(count) || 0);
-            p.initial = arr;
+            // Update all elements of the initial array (all token colors)
+            p.initial = Array.isArray(tokenVector)
+                ? tokenVector.map(v => Math.max(0, Number(v) || 0))
+                : [Math.max(0, Number(tokenVector) || 0)];
         }
         this._syncLD();
         this._pushHistory();
@@ -2137,11 +2134,14 @@ class PetriView extends HTMLElement {
 
     _capacityOf(pid) {
         const p = this._model.places[pid];
-        if (!p) return Infinity;
+        if (!p) return [Infinity];
+        // Return the full capacity vector (one per color)
         const arr = Array.isArray(p.capacity) ? p.capacity : [Number(p.capacity || Infinity)];
-        const cap = Number.isFinite(arr[0]) ? arr[0] : Infinity;
-        // Treat capacity=0 as unlimited (Infinity)
-        return cap === 0 ? Infinity : cap;
+        return arr.map(cap => {
+            const c = Number(cap);
+            // Treat capacity=0 as unlimited (Infinity)
+            return (c === 0 || !Number.isFinite(c)) ? Infinity : c;
+        });
     }
 
     _inArcsOf(tid) {
@@ -2161,17 +2161,25 @@ class PetriView extends HTMLElement {
             const fromPlace = this._model.places[a.source];
             if (!fromPlace) continue;
             const w = this._getArcWeight(a);
-            const tokens = marks[a.source] ?? 0;
+            const tokens = marks[a.source] ?? [0];
 
             if (a.inhibitTransition) {
-                // input inhibitor: transition disabled while source place tokens >= weight
-                if (tokens >= w) return false;
+                // input inhibitor: transition disabled while source place has enough tokens of ANY color >= weight
+                for (let i = 0; i < Math.max(w.length, tokens.length); i++) {
+                    const wVal = w[i] ?? 0;
+                    const tVal = tokens[i] ?? 0;
+                    if (wVal > 0 && tVal >= wVal) return false;
+                }
                 // inhibitor doesn't consume tokens
                 continue;
             }
 
-            // normal input arc must have enough tokens
-            if (tokens < w) return false;
+            // normal input arc must have enough tokens of EACH color
+            for (let i = 0; i < Math.max(w.length, tokens.length); i++) {
+                const wVal = w[i] ?? 0;
+                const tVal = tokens[i] ?? 0;
+                if (tVal < wVal) return false;
+            }
         }
 
         // output arcs (transition -> place)
@@ -2180,19 +2188,27 @@ class PetriView extends HTMLElement {
             const toPlace = this._model.places[a.target];
             if (!toPlace) continue;
             const w = this._getArcWeight(a);
-            const tokens = marks[a.target] ?? 0;
+            const tokens = marks[a.target] ?? [0];
 
             if (a.inhibitTransition) {
-                // output inhibitor: transition disabled until target place tokens >= weight
-                if (tokens < w) return false;
+                // output inhibitor: transition disabled until target place has enough tokens
+                for (let i = 0; i < Math.max(w.length, tokens.length); i++) {
+                    const wVal = w[i] ?? 0;
+                    const tVal = tokens[i] ?? 0;
+                    if (wVal > 0 && tVal < wVal) return false;
+                }
                 // inhibitor doesn't produce tokens, skip capacity check
                 continue;
             }
 
-            // output capacity must not overflow (only for normal arcs that produce tokens)
+            // output capacity must not overflow (check each color separately)
             const cap = this._capacityOf(a.target);
-            const cur = marks[a.target] ?? 0;
-            if (cur + w > cap) return false;
+            for (let i = 0; i < Math.max(w.length, tokens.length, cap.length); i++) {
+                const wVal = w[i] ?? 0;
+                const tVal = tokens[i] ?? 0;
+                const capVal = cap[i] ?? Infinity;
+                if (tVal + wVal > capVal) return false;
+            }
         }
 
         return true;
@@ -2204,18 +2220,37 @@ class PetriView extends HTMLElement {
             this.dispatchEvent(new CustomEvent('transition-fired-blocked', {detail: {id: tid}}));
             return false;
         }
+        
+        // Process input arcs (consume tokens)
         for (const a of this._inArcsOf(tid)) {
             const isPlace = !!this._model.places[a.source];
             if (!isPlace) continue;
+            if (a.inhibitTransition) continue; // inhibitor arcs don't consume tokens
+            
             const w = this._getArcWeight(a);
-            if (!a.inhibitTransition) marks[a.source] = Math.max(0, (marks[a.source] || 0) - w);
+            const tokens = marks[a.source] ?? [0];
+            
+            // Element-wise subtraction: tokens[i] -= w[i] for each color i
+            marks[a.source] = tokens.map((t, i) => Math.max(0, t - (w[i] ?? 0)));
         }
+        
+        // Process output arcs (produce tokens)
         for (const a of this._outArcsOf(tid)) {
             const isPlace = !!this._model.places[a.target];
             if (!isPlace) continue;
+            if (a.inhibitTransition) continue; // inhibitor arcs don't produce tokens
+            
             const w = this._getArcWeight(a);
-            if (!a.inhibitTransition) marks[a.target] = (marks[a.target] || 0) + w;
+            const tokens = marks[a.target] ?? [0];
+            
+            // Element-wise addition: tokens[i] += w[i] for each color i
+            // Ensure result array is at least as long as the weight vector
+            const maxLen = Math.max(tokens.length, w.length);
+            marks[a.target] = Array.from({length: maxLen}, (_, i) => 
+                (tokens[i] ?? 0) + (w[i] ?? 0)
+            );
         }
+        
         this._setMarking(marks);
         this._renderTokens();
         this._updateTransitionStates();
