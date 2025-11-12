@@ -342,10 +342,8 @@ func drawArc(buf *bytes.Buffer, src, trg NodePosition, arc Arc, active bool, arc
 	}
 
 	// Draw weight badge (always show weight, including 1)
-	weight := 1
-	if len(arc.Weight) > 0 {
-		weight = arc.Weight[0]
-	}
+	// For colored Petri nets, find the non-zero weight value
+	weight := getArcWeight(arc)
 
 	bx := (ex + fx) / 2
 	by := (ey + fy) / 2
@@ -383,10 +381,7 @@ func calculateMarking(net PetriNet) map[string]int {
 func isEnabled(transitionID string, net PetriNet, marks map[string]int) bool {
 	// Check all arcs connected to this transition
 	for _, arc := range net.Arcs {
-		weight := 1
-		if len(arc.Weight) > 0 {
-			weight = arc.Weight[0]
-		}
+		weight := getArcWeight(arc)
 
 		if arc.InhibitTransition {
 			// Inhibitor arc logic (matches JavaScript implementation)
@@ -562,4 +557,23 @@ func getArcColor(arc Arc, tokens []string, active bool) string {
 		return color
 	}
 	return lightenColor(color, 0.6)
+}
+
+// getArcWeight returns the weight to display for an arc
+// For colored Petri nets with weight vectors, it returns the first non-zero value
+// If all values are zero or the array is empty, it returns 1
+func getArcWeight(arc Arc) int {
+	if len(arc.Weight) == 0 {
+		return 1
+	}
+	
+	// Find the first non-zero weight value
+	for _, w := range arc.Weight {
+		if w > 0 {
+			return w
+		}
+	}
+	
+	// If all weights are zero, default to 1
+	return 1
 }

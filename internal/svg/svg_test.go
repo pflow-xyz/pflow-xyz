@@ -551,3 +551,146 @@ func TestLightenColor(t *testing.T) {
 	}
 }
 
+func TestGenerateSVGCoffeeShop(t *testing.T) {
+	// Test with the actual coffee shop example from the issue
+	jsonData := []byte(`{
+  "@context": "https://pflow.xyz/schema",
+  "@type": "PetriNet",
+  "@version": "1.1",
+  "arcs": [
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "WaitingCustomers",
+      "target": "BrewCoffee",
+      "weight": [1, 0, 0]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "CoffeeBeans",
+      "target": "BrewCoffee",
+      "weight": [0, 1, 0]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "RestockBeans",
+      "target": "CoffeeBeans",
+      "weight": [0, 3, 0]
+    }
+  ],
+  "places": {
+    "WaitingCustomers": {
+      "@type": "Place",
+      "capacity": [10, 0, 0],
+      "initial": [2, 0, 0],
+      "offset": 0,
+      "x": 200,
+      "y": 150
+    },
+    "CoffeeBeans": {
+      "@type": "Place",
+      "capacity": [0, 10, 0],
+      "initial": [0, 5, 0],
+      "offset": 0,
+      "x": 200,
+      "y": 300
+    }
+  },
+  "token": [
+    "https://pflow.xyz/tokens/red",
+    "https://pflow.xyz/tokens/brown",
+    "https://pflow.xyz/tokens/blue"
+  ],
+  "transitions": {
+    "BrewCoffee": {
+      "@type": "Transition",
+      "x": 350,
+      "y": 300
+    },
+    "RestockBeans": {
+      "@type": "Transition",
+      "x": 50,
+      "y": 300
+    }
+  }
+}`)
+
+	svg, err := GenerateSVG(jsonData)
+	if err != nil {
+		t.Fatalf("GenerateSVG failed: %v", err)
+	}
+
+	// Log the SVG for inspection
+	t.Logf("Generated SVG:\n%s", svg)
+
+	// Check that weights are displayed correctly
+	// The arc from WaitingCustomers->BrewCoffee has weight [1,0,0], should show 1
+	// The arc from CoffeeBeans->BrewCoffee has weight [0,1,0], should show 1 (not 0!)
+	// The arc from RestockBeans->CoffeeBeans has weight [0,3,0], should show 3 (not 0!)
+	
+	// Count weight badges - should not show 0
+	if strings.Contains(svg, ">0</text>") {
+		t.Error("SVG contains weight badge with value 0, which is incorrect for colored Petri nets")
+	}
+}
+
+func TestGetArcWeight(t *testing.T) {
+	tests := []struct {
+		name     string
+		arc      Arc
+		expected int
+	}{
+		{
+			name:     "Empty weight array",
+			arc:      Arc{Weight: []int{}},
+			expected: 1,
+		},
+		{
+			name:     "Weight [1]",
+			arc:      Arc{Weight: []int{1}},
+			expected: 1,
+		},
+		{
+			name:     "Weight [3]",
+			arc:      Arc{Weight: []int{3}},
+			expected: 3,
+		},
+		{
+			name:     "Colored weight [1, 0, 0]",
+			arc:      Arc{Weight: []int{1, 0, 0}},
+			expected: 1,
+		},
+		{
+			name:     "Colored weight [0, 1, 0]",
+			arc:      Arc{Weight: []int{0, 1, 0}},
+			expected: 1,
+		},
+		{
+			name:     "Colored weight [0, 3, 0]",
+			arc:      Arc{Weight: []int{0, 3, 0}},
+			expected: 3,
+		},
+		{
+			name:     "Colored weight [0, 0, 5]",
+			arc:      Arc{Weight: []int{0, 0, 5}},
+			expected: 5,
+		},
+		{
+			name:     "All zeros defaults to 1",
+			arc:      Arc{Weight: []int{0, 0, 0}},
+			expected: 1,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := getArcWeight(tt.arc)
+			if result != tt.expected {
+				t.Errorf("getArcWeight(%v) = %d, want %d", tt.arc.Weight, result, tt.expected)
+			}
+		})
+	}
+}
+
