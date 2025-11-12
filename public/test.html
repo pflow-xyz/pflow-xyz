@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Colored Petri Net</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+        }
+        #status {
+            margin-bottom: 20px;
+            padding: 10px;
+            background: #f0f0f0;
+            border-radius: 4px;
+        }
+        petri-view {
+            display: block;
+            width: 100%;
+            height: 600px;
+            border: 1px solid #ccc;
+        }
+    </style>
+</head>
+<body>
+    <div id="status">
+        <h2>Colored Petri Net Simulation Test</h2>
+        <p>Testing the coffee shop example with vectorized weights.</p>
+        <div id="test-results"></div>
+    </div>
+    
+    <petri-view id="petri" data-json-editor>
+        <script type="application/ld+json">
+{
+  "@context": "https://pflow.xyz/schema",
+  "@type": "PetriNet",
+  "@version": "1.1",
+  "arcs": [
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "WaitingCustomers",
+      "target": "BrewCoffee",
+      "weight": [1, 0, 0]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "CoffeeBeans",
+      "target": "BrewCoffee",
+      "weight": [0, 1, 0]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "EmptyCups",
+      "target": "BrewCoffee",
+      "weight": [0, 0, 1]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "BrewCoffee",
+      "target": "ServedCoffee",
+      "weight": [1, 0, 0]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "ServedCoffee",
+      "target": "CustomerLeaves",
+      "weight": [1, 0, 0]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "CustomerArrives",
+      "target": "WaitingCustomers",
+      "weight": [1, 0, 0]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "RestockBeans",
+      "target": "CoffeeBeans",
+      "weight": [0, 3, 0]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "RestockCups",
+      "target": "EmptyCups",
+      "weight": [0, 0, 3]
+    }
+  ],
+  "places": {
+    "WaitingCustomers": {
+      "@type": "Place",
+      "capacity": [10, 0, 0],
+      "initial": [2, 0, 0],
+      "offset": 0,
+      "x": 200,
+      "y": 150,
+      "label": "Waiting Customers"
+    },
+    "CoffeeBeans": {
+      "@type": "Place",
+      "capacity": [0, 10, 0],
+      "initial": [0, 5, 0],
+      "offset": 0,
+      "x": 200,
+      "y": 300,
+      "label": "Coffee Beans"
+    },
+    "EmptyCups": {
+      "@type": "Place",
+      "capacity": [0, 0, 10],
+      "initial": [0, 0, 5],
+      "offset": 0,
+      "x": 200,
+      "y": 450,
+      "label": "Empty Cups"
+    },
+    "ServedCoffee": {
+      "@type": "Place",
+      "capacity": [5, 0, 0],
+      "initial": [0, 0, 0],
+      "offset": 0,
+      "x": 500,
+      "y": 300,
+      "label": "Served Coffee"
+    }
+  },
+  "token": [
+    "https://pflow.xyz/tokens/red",
+    "https://pflow.xyz/tokens/brown",
+    "https://pflow.xyz/tokens/blue"
+  ],
+  "transitions": {
+    "CustomerArrives": {
+      "@type": "Transition",
+      "x": 50,
+      "y": 150,
+      "label": "Customer Arrives"
+    },
+    "BrewCoffee": {
+      "@type": "Transition",
+      "x": 350,
+      "y": 300,
+      "label": "Brew Coffee"
+    },
+    "CustomerLeaves": {
+      "@type": "Transition",
+      "x": 650,
+      "y": 300,
+      "label": "Customer Leaves"
+    },
+    "RestockBeans": {
+      "@type": "Transition",
+      "x": 50,
+      "y": 300,
+      "label": "Restock Beans"
+    },
+    "RestockCups": {
+      "@type": "Transition",
+      "x": 50,
+      "y": 450,
+      "label": "Restock Cups"
+    }
+  }
+}
+        </script>
+    </petri-view>
+
+    <script type="module">
+        import { PetriView } from '/petri-view.js';
+        
+        const petriView = document.getElementById('petri');
+        const results = document.getElementById('test-results');
+        
+        // Wait for component to initialize
+        setTimeout(() => {
+            const model = petriView.getModel();
+            
+            // Test initial state
+            results.innerHTML += '<h3>Initial State:</h3>';
+            results.innerHTML += `<p>WaitingCustomers: [${model.places.WaitingCustomers.initial.join(', ')}] (should be [2, 0, 0])</p>`;
+            results.innerHTML += `<p>CoffeeBeans: [${model.places.CoffeeBeans.initial.join(', ')}] (should be [0, 5, 0])</p>`;
+            results.innerHTML += `<p>EmptyCups: [${model.places.EmptyCups.initial.join(', ')}] (should be [0, 0, 5])</p>`;
+            results.innerHTML += `<p>ServedCoffee: [${model.places.ServedCoffee.initial.join(', ')}] (should be [0, 0, 0])</p>`;
+            
+            // Listen for transition firing
+            let fireCount = 0;
+            petriView.addEventListener('transition-fired-success', (e) => {
+                fireCount++;
+                const updatedModel = petriView.getModel();
+                results.innerHTML += `<h3>After firing "${e.detail.id}" (${fireCount}):</h3>`;
+                results.innerHTML += `<p>WaitingCustomers: [${updatedModel.places.WaitingCustomers.initial.join(', ')}]</p>`;
+                results.innerHTML += `<p>CoffeeBeans: [${updatedModel.places.CoffeeBeans.initial.join(', ')}]</p>`;
+                results.innerHTML += `<p>EmptyCups: [${updatedModel.places.EmptyCups.initial.join(', ')}]</p>`;
+                results.innerHTML += `<p>ServedCoffee: [${updatedModel.places.ServedCoffee.initial.join(', ')}]</p>`;
+                
+                // Verify RestockBeans behavior
+                if (e.detail.id === 'RestockBeans') {
+                    const beans = updatedModel.places.CoffeeBeans.initial;
+                    const customers = updatedModel.places.WaitingCustomers.initial;
+                    const cups = updatedModel.places.EmptyCups.initial;
+                    
+                    // Expected: only brown tokens (index 1) should increase by 3
+                    const beansOk = beans[1] >= 5; // Should have increased
+                    const customersOk = customers[0] === 2; // Should not change
+                    const cupsOk = cups[2] === 5; // Should not change
+                    
+                    if (beansOk && customersOk && cupsOk) {
+                        results.innerHTML += '<p style="color: green; font-weight: bold;">✓ RestockBeans works correctly! Only brown tokens increased.</p>';
+                    } else {
+                        results.innerHTML += '<p style="color: red; font-weight: bold;">✗ RestockBeans FAILED! Wrong tokens were affected.</p>';
+                    }
+                }
+            });
+            
+            results.innerHTML += '<p style="margin-top: 20px;"><strong>Test Instructions:</strong> Click on "Restock Beans" transition to test if only brown tokens (coffee beans) increase by 3.</p>';
+        }, 1000);
+    </script>
+</body>
+</html>
