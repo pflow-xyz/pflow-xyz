@@ -1915,6 +1915,20 @@ class PetriView extends HTMLElement {
                 const n = Number(v);
                 return Number.isFinite(n) ? n : Infinity;
             });
+
+            // Validate: initial tokens should not exceed capacity for each color
+            // Clamp initial tokens to capacity to fix invalid states
+            const maxLen = Math.max(p.initial.length, p.capacity.length);
+            while (p.initial.length < maxLen) p.initial.push(0);
+            while (p.capacity.length < maxLen) p.capacity.push(Infinity);
+            
+            for (let i = 0; i < maxLen; i++) {
+                const cap = p.capacity[i];
+                if (Number.isFinite(cap) && p.initial[i] > cap) {
+                    console.warn(`Place ${id}: initial[${i}]=${p.initial[i]} exceeds capacity[${i}]=${cap}. Clamping to capacity.`);
+                    p.initial[i] = cap;
+                }
+            }
         }
 
 
@@ -2139,8 +2153,9 @@ class PetriView extends HTMLElement {
         const arr = Array.isArray(p.capacity) ? p.capacity : [Number(p.capacity || Infinity)];
         return arr.map(cap => {
             const c = Number(cap);
-            // Treat capacity=0 as unlimited (Infinity)
-            return (c === 0 || !Number.isFinite(c)) ? Infinity : c;
+            // Only non-finite values are treated as unlimited (Infinity)
+            // capacity=0 means zero capacity (useful for colored nets)
+            return Number.isFinite(c) ? c : Infinity;
         });
     }
 
