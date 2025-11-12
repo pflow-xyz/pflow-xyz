@@ -2101,6 +2101,18 @@ class PetriView extends HTMLElement {
     }
 
     // ---------------- marking & firing ----------------
+    _getArcWeight(arc) {
+        // For colored Petri nets, find the first non-zero weight value
+        if (arc.weight == null) return 1;
+        if (!Array.isArray(arc.weight)) return Number(arc.weight) || 1;
+        
+        for (const w of arc.weight) {
+            const val = Number(w) || 0;
+            if (val > 0) return val;
+        }
+        return 1; // Default if all weights are zero
+    }
+
     _marking() {
         const marks = {};
         for (const [pid, p] of Object.entries(this._model.places)) {
@@ -2148,7 +2160,7 @@ class PetriView extends HTMLElement {
         for (const a of inArcs) {
             const fromPlace = this._model.places[a.source];
             if (!fromPlace) continue;
-            const w = Number(a.weight?.[0] ?? 1);
+            const w = this._getArcWeight(a);
             const tokens = marks[a.source] ?? 0;
 
             if (a.inhibitTransition) {
@@ -2167,7 +2179,7 @@ class PetriView extends HTMLElement {
         for (const a of outArcs) {
             const toPlace = this._model.places[a.target];
             if (!toPlace) continue;
-            const w = Number(a.weight?.[0] ?? 1);
+            const w = this._getArcWeight(a);
             const tokens = marks[a.target] ?? 0;
 
             if (a.inhibitTransition) {
@@ -2195,13 +2207,13 @@ class PetriView extends HTMLElement {
         for (const a of this._inArcsOf(tid)) {
             const isPlace = !!this._model.places[a.source];
             if (!isPlace) continue;
-            const w = Number(a.weight?.[0] ?? 1);
+            const w = this._getArcWeight(a);
             if (!a.inhibitTransition) marks[a.source] = Math.max(0, (marks[a.source] || 0) - w);
         }
         for (const a of this._outArcsOf(tid)) {
             const isPlace = !!this._model.places[a.target];
             if (!isPlace) continue;
-            const w = Number(a.weight?.[0] ?? 1);
+            const w = this._getArcWeight(a);
             if (!a.inhibitTransition) marks[a.target] = (marks[a.target] || 0) + w;
         }
         this._setMarking(marks);
@@ -2377,7 +2389,14 @@ class PetriView extends HTMLElement {
     _createWeightBadge(arc, idx) {
         const w = (() => {
             if (arc.weight == null) return 1;
-            if (Array.isArray(arc.weight)) return Number(arc.weight[0]) || 1;
+            if (Array.isArray(arc.weight)) {
+                // For colored Petri nets, find the first non-zero weight
+                for (const weight of arc.weight) {
+                    const val = Number(weight) || 0;
+                    if (val > 0) return val;
+                }
+                return 1; // Default to 1 if all weights are zero
+            }
             return Number(arc.weight) || 1;
         })();
         const badge = document.createElement('div');
@@ -2590,7 +2609,7 @@ class PetriView extends HTMLElement {
         // Allow editing in select and add-token modes
         if (this._mode === 'select' || this._mode === 'add-token') {
             try {
-                const cur = Number(a.weight?.[0] || 1);
+                const cur = this._getArcWeight(a);
                 const ans = prompt('Arc weight (positive integer)', String(cur));
                 const parsed = Number(ans);
                 if (!Number.isNaN(parsed) && parsed > 0) {
@@ -2610,7 +2629,7 @@ class PetriView extends HTMLElement {
         const a = this._model.arcs && this._model.arcs[i];
         if (!a) return;
         if (this._mode === 'add-token') {
-            const cur = Number(a.weight?.[0] || 1);
+            const cur = this._getArcWeight(a);
             const nw = Math.max(1, cur - 1);
             a.weight = [nw];
             this._normalizeModel();

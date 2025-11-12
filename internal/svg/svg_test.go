@@ -636,3 +636,61 @@ func TestGenerateSVGCoffeeShop(t *testing.T) {
 	}
 }
 
+func TestGetArcWeight(t *testing.T) {
+	tests := []struct {
+		name     string
+		arc      Arc
+		expected int
+	}{
+		{
+			name:     "Empty weight array",
+			arc:      Arc{Weight: []int{}},
+			expected: 1,
+		},
+		{
+			name:     "Weight [1]",
+			arc:      Arc{Weight: []int{1}},
+			expected: 1,
+		},
+		{
+			name:     "Weight [3]",
+			arc:      Arc{Weight: []int{3}},
+			expected: 3,
+		},
+		{
+			name:     "Colored weight [1, 0, 0]",
+			arc:      Arc{Weight: []int{1, 0, 0}},
+			expected: 1,
+		},
+		{
+			name:     "Colored weight [0, 1, 0]",
+			arc:      Arc{Weight: []int{0, 1, 0}},
+			expected: 1,
+		},
+		{
+			name:     "Colored weight [0, 3, 0]",
+			arc:      Arc{Weight: []int{0, 3, 0}},
+			expected: 3,
+		},
+		{
+			name:     "Colored weight [0, 0, 5]",
+			arc:      Arc{Weight: []int{0, 0, 5}},
+			expected: 5,
+		},
+		{
+			name:     "All zeros defaults to 1",
+			arc:      Arc{Weight: []int{0, 0, 0}},
+			expected: 1,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := getArcWeight(tt.arc)
+			if result != tt.expected {
+				t.Errorf("getArcWeight(%v) = %d, want %d", tt.arc.Weight, result, tt.expected)
+			}
+		})
+	}
+}
+
