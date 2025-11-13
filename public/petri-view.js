@@ -3515,6 +3515,26 @@ class PetriView extends HTMLElement {
         return null;
     }
 
+    // Calculate contrasting text color (black or white) based on background color brightness
+    _getContrastingTextColor(bgColor) {
+        if (!bgColor) return '#000000';
+        
+        // Remove # if present
+        const color = bgColor.startsWith('#') ? bgColor.substring(1) : bgColor;
+        
+        // Parse RGB values
+        const r = parseInt(color.substring(0, 2), 16);
+        const g = parseInt(color.substring(2, 4), 16);
+        const b = parseInt(color.substring(4, 6), 16);
+        
+        // Calculate relative luminance using the formula from WCAG
+        // https://www.w3.org/WAI/GL/wiki/Relative_luminance
+        const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+        
+        // Return black text for light backgrounds, white for dark backgrounds
+        return luminance > 0.5 ? '#000000' : '#ffffff';
+    }
+
     // Determine arc color based on weight array and token colors
     _getArcColor(arc, active) {
         const tokens = this._model.token || [];
@@ -3950,7 +3970,10 @@ class PetriView extends HTMLElement {
             const countLabel = document.createElement('div');
             countLabel.className = 'pv-token-breakdown-count';
             countLabel.textContent = tokenInfo.count;
-            countLabel.style.color = tokenInfo.color;
+            // Set background color to match the token color
+            countLabel.style.backgroundColor = tokenInfo.color;
+            // Use contrasting text color based on background
+            countLabel.style.color = this._getContrastingTextColor(tokenInfo.color);
             
             tokenDiv.appendChild(circle);
             tokenDiv.appendChild(countLabel);
