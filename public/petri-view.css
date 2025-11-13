@@ -190,8 +190,10 @@ canvas.pv-canvas {
     min-width: auto;
     text-align: center;
     pointer-events: none;
-    color: #fff !important;
-    text-shadow: 0 0 2px rgba(0, 0, 0, 0.5);
+    /* Text color is set dynamically based on background color brightness */
+    text-shadow: 
+        0 0 3px rgba(255, 255, 255, 0.8),
+        0 0 3px rgba(0, 0, 0, 0.8);
 }
 
 .pv-inhibit {
