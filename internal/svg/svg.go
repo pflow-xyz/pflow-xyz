@@ -151,6 +151,9 @@ func GenerateSVG(jsonData []byte) (string, error) {
 	// Calculate marking for determining enabled transitions
 	marks := calculateMarking(petriNet)
 
+	// Group arcs by node pairs to detect overlapping arcs
+	arcGroups := groupArcsByNodePair(petriNet.Arcs)
+
 	// Draw arcs
 	for i, arc := range petriNet.Arcs {
 		srcNode, srcOk := nodes[arc.Source]
@@ -166,7 +169,10 @@ func GenerateSVG(jsonData []byte) (string, error) {
 		}
 		active := isEnabled(relatedTransitionID, petriNet, marks)
 
-		drawArc(&buf, srcNode, trgNode, arc, active, i, petriNet.Token)
+		// Calculate curve offset for this arc
+		curveOffset := getArcCurveOffset(arc, i, arcGroups)
+
+		drawArc(&buf, srcNode, trgNode, arc, active, i, petriNet.Token, curveOffset)
 	}
 
 	// Draw places
@@ -287,7 +293,88 @@ func drawTransition(buf *bytes.Buffer, x, y float64, active bool, label string) 
 	}
 }
 
-func drawArc(buf *bytes.Buffer, src, trg NodePosition, arc Arc, active bool, arcIndex int, tokens []string) {
+// groupArcsByNodePair groups arcs by their source->target pairs
+// Returns a map where keys are "source->target" strings and values are slices of arc indices
+func groupArcsByNodePair(arcs []Arc) map[string][]int {
+	groups := make(map[string][]int)
+	
+	for idx, arc := range arcs {
+		// Create a key for the node pair (order matters for direction)
+		key := fmt.Sprintf("%s->%s", arc.Source, arc.Target)
+		groups[key] = append(groups[key], idx)
+	}
+	
+	return groups
+}
+
+// getArcCurveOffset calculates the curve offset for an arc based on its position in a group
+// This matches the JavaScript implementation in petri-view.js
+func getArcCurveOffset(arc Arc, arcIdx int, arcGroups map[string][]int) float64 {
+	key := fmt.Sprintf("%s->%s", arc.Source, arc.Target)
+	reverseKey := fmt.Sprintf("%s->%s", arc.Target, arc.Source)
+	
+	group := arcGroups[key]
+	reverseGroup := arcGroups[reverseKey]
+	
+	// If there's only one arc in this direction and no reverse arc, no curve needed
+	if len(group) == 1 && len(reverseGroup) == 0 {
+		return 0
+	}
+	
+	// Find this arc's position in its group
+	posInGroup := -1
+	for i, idx := range group {
+		if idx == arcIdx {
+			posInGroup = i
+			break
+		}
+	}
+	if posInGroup == -1 {
+		return 0
+	}
+	
+	// Calculate curve offset
+	totalArcs := len(group)
+	baseOffset := 30.0 // Base curve offset in pixels
+	
+	if len(reverseGroup) > 0 {
+		// Bidirectional case: curve away from each other
+		// Arcs in one direction curve one way, arcs in reverse curve the other way
+		if totalArcs == 1 {
+			// Single arc in this direction, curve it
+			return baseOffset
+		} else {
+			// Multiple arcs in this direction, spread them out
+			// Calculate offset so arcs form layers
+			layerOffset := baseOffset * float64(1+posInGroup)
+			return layerOffset
+		}
+	} else {
+		// Multiple arcs in same direction, no reverse arcs
+		// Spread them in alternating directions to form shells
+		if totalArcs == 2 {
+			// Two arcs: one curves left, one curves right
+			if posInGroup == 0 {
+				return baseOffset
+			}
+			return -baseOffset
+		} else {
+			// Three or more arcs: alternate and increase radius
+			// Pattern: 0, +offset, -offset, +2*offset, -2*offset, ...
+			if posInGroup == 0 {
+				return 0
+			}
+			layer := math.Ceil(float64(posInGroup) / 2.0)
+			direction := 1.0
+			if posInGroup%2 == 0 {
+				direction = -1.0
+			}
+			return direction * baseOffset * layer
+		}
+	}
+}
+
+func drawArc(buf *bytes.Buffer, src, trg NodePosition, arc Arc, active bool, arcIndex int, tokens []string, curveOffset float64) {
 	// Calculate padding based on node type
 	padSrc := placePadding
 	if !src.IsPlace {
@@ -321,20 +408,56 @@ func drawArc(buf *bytes.Buffer, src, trg NodePosition, arc Arc, active bool, arc
 	// Get arc color based on token colors
 	arcColor := getArcColor(arc, tokens, active)
 
-	// Draw line with inline style
-	buf.WriteString(fmt.Sprintf(`<line x1="%.1f" y1="%.1f" x2="%.1f" y2="%.1f" stroke="%s" stroke-width="1" fill="none"/>`, ex, ey, fx, fy, arcColor))
-	buf.WriteString("\n")
+	// Draw arc path (curved or straight)
+	var endDirX, endDirY float64 // Direction at the end point for arrowhead
+	
+	if curveOffset != 0 {
+		// Draw a quadratic Bézier curve
+		// Calculate control point perpendicular to the line
+		midX := (ex + fx) / 2
+		midY := (ey + fy) / 2
+		// Perpendicular vector: rotate direction vector 90 degrees
+		perpX := -uy
+		perpY := ux
+		controlX := midX + perpX*curveOffset
+		controlY := midY + perpY*curveOffset
+		
+		// Draw path with quadratic curve
+		buf.WriteString(fmt.Sprintf(`<path d="M %.1f %.1f Q %.1f %.1f %.1f %.1f" stroke="%s" stroke-width="1" fill="none"/>`,
+			ex, ey, controlX, controlY, fx, fy, arcColor))
+		buf.WriteString("\n")
+		
+		// Calculate tangent at end point for arrowhead
+		// Tangent at end point: direction from control point to end point
+		tdx := fx - controlX
+		tdy := fy - controlY
+		tDist := math.Sqrt(tdx*tdx + tdy*tdy)
+		if tDist == 0 {
+			tDist = minDistance
+		}
+		endDirX = tdx / tDist
+		endDirY = tdy / tDist
+	} else {
+		// Draw a straight line
+		buf.WriteString(fmt.Sprintf(`<line x1="%.1f" y1="%.1f" x2="%.1f" y2="%.1f" stroke="%s" stroke-width="1" fill="none"/>`,
+			ex, ey, fx, fy, arcColor))
+		buf.WriteString("\n")
+		
+		// For straight lines, use the original direction
+		endDirX = ux
+		endDirY = uy
+	}
 
 	// Draw arrowhead or inhibitor
 	if arc.InhibitTransition {
 		buf.WriteString(fmt.Sprintf(`<circle cx="%.1f" cy="%.1f" r="%.1f" fill="#fff" stroke="%s" stroke-width="1.3"/>`, fx, fy, inhibitorRadius, arcColor))
 		buf.WriteString("\n")
 	} else {
-		// Draw arrowhead
-		ahx := fx + (-ux*arrowheadSize - uy*arrowheadSize*0.45)
-		ahy := fy + (-uy*arrowheadSize + ux*arrowheadSize*0.45)
-		bhx := fx + (-ux*arrowheadSize + uy*arrowheadSize*0.45)
-		bhy := fy + (-uy*arrowheadSize - ux*arrowheadSize*0.45)
+		// Draw arrowhead using the end direction
+		ahx := fx + (-endDirX*arrowheadSize - endDirY*arrowheadSize*0.45)
+		ahy := fy + (-endDirY*arrowheadSize + endDirX*arrowheadSize*0.45)
+		bhx := fx + (-endDirX*arrowheadSize + endDirY*arrowheadSize*0.45)
+		bhy := fy + (-endDirY*arrowheadSize - endDirX*arrowheadSize*0.45)
 
 		buf.WriteString(fmt.Sprintf(`<path d="M %.1f %.1f L %.1f %.1f L %.1f %.1f Z" fill="%s"/>`,
 			fx, fy, ahx, ahy, bhx, bhy, arcColor))
@@ -345,8 +468,27 @@ func drawArc(buf *bytes.Buffer, src, trg NodePosition, arc Arc, active bool, arc
 	// For colored Petri nets, find the non-zero weight value
 	weight := getArcWeight(arc)
 
-	bx := (ex + fx) / 2
-	by := (ey + fy) / 2
+	// Calculate badge position
+	var bx, by float64
+	if curveOffset != 0 {
+		// For quadratic Bézier curves, position badge on the curve at t=0.5
+		// Calculate control point
+		midX := (ex + fx) / 2
+		midY := (ey + fy) / 2
+		perpX := -uy
+		perpY := ux
+		controlX := midX + perpX*curveOffset
+		controlY := midY + perpY*curveOffset
+		
+		// Quadratic Bézier point at t=0.5: B(t) = (1-t)²*P0 + 2(1-t)t*P1 + t²*P2
+		t := 0.5
+		bx = (1-t)*(1-t)*ex + 2*(1-t)*t*controlX + t*t*fx
+		by = (1-t)*(1-t)*ey + 2*(1-t)*t*controlY + t*t*fy
+	} else {
+		// For straight arcs, use midpoint
+		bx = (ex + fx) / 2
+		by = (ey + fy) / 2
+	}
 
 	// Determine badge background color based on arc color
 	badgeBgColor := "#fafafa"
