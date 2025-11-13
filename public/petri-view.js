@@ -3970,6 +3970,8 @@ class PetriView extends HTMLElement {
             const countLabel = document.createElement('div');
             countLabel.className = 'pv-token-breakdown-count';
             countLabel.textContent = tokenInfo.count;
+            // Set background color to match the token color
+            countLabel.style.backgroundColor = tokenInfo.color;
             // Use contrasting text color based on background
             countLabel.style.color = this._getContrastingTextColor(tokenInfo.color);
             
