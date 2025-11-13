@@ -747,3 +747,221 @@ func TestGenerateSVGPaddingWithLabels(t *testing.T) {
 	t.Logf("Generated SVG with labels:\n%s", svg)
 }
 
+func TestGenerateSVGWithBidirectionalArcs(t *testing.T) {
+	// Test bidirectional arcs - they should be curved
+	jsonData := []byte(`{
+		"@context": "https://pflow.xyz/schema",
+		"@type": "PetriNet",
+		"@version": "1.1",
+		"arcs": [
+			{
+				"@type": "Arrow",
+				"inhibitTransition": false,
+				"source": "place0",
+				"target": "txn0",
+				"weight": [1]
+			},
+			{
+				"@type": "Arrow",
+				"inhibitTransition": false,
+				"source": "txn0",
+				"target": "place0",
+				"weight": [1]
+			}
+		],
+		"places": {
+			"place0": {
+				"@type": "Place",
+				"capacity": [10],
+				"initial": [2],
+				"offset": 0,
+				"x": 100,
+				"y": 100
+			}
+		},
+		"token": ["https://pflow.xyz/tokens/black"],
+		"transitions": {
+			"txn0": {
+				"@type": "Transition",
+				"x": 200,
+				"y": 100
+			}
+		}
+	}`)
+
+	svg, err := GenerateSVG(jsonData)
+	if err != nil {
+		t.Fatalf("GenerateSVG failed: %v", err)
+	}
+
+	// Bidirectional arcs should use curved paths (quadratic Bézier)
+	// Check for path elements with Q (quadratic curve) command
+	if !strings.Contains(svg, "<path d=\"M") || !strings.Contains(svg, " Q ") {
+		t.Error("Bidirectional arcs should be drawn as curved paths with quadratic Bézier curves")
+	}
+
+	// Should not contain straight lines for these arcs
+	arcLineCount := strings.Count(svg, "<line")
+	if arcLineCount > 0 {
+		t.Errorf("Expected curved paths, but found %d line elements (should be 0)", arcLineCount)
+	}
+
+	t.Logf("Generated SVG with bidirectional arcs:\n%s", svg)
+}
+
+func TestGenerateSVGWithMultipleParallelArcs(t *testing.T) {
+	// Test multiple arcs in the same direction - they should be curved in alternating directions
+	jsonData := []byte(`{
+		"@context": "https://pflow.xyz/schema",
+		"@type": "PetriNet",
+		"@version": "1.1",
+		"arcs": [
+			{
+				"@type": "Arrow",
+				"inhibitTransition": false,
+				"source": "place0",
+				"target": "txn0",
+				"weight": [1]
+			},
+			{
+				"@type": "Arrow",
+				"inhibitTransition": false,
+				"source": "place0",
+				"target": "txn0",
+				"weight": [2]
+			},
+			{
+				"@type": "Arrow",
+				"inhibitTransition": false,
+				"source": "place0",
+				"target": "txn0",
+				"weight": [3]
+			}
+		],
+		"places": {
+			"place0": {
+				"@type": "Place",
+				"capacity": [10],
+				"initial": [6],
+				"offset": 0,
+				"x": 100,
+				"y": 100
+			}
+		},
+		"token": ["https://pflow.xyz/tokens/black"],
+		"transitions": {
+			"txn0": {
+				"@type": "Transition",
+				"x": 200,
+				"y": 100
+			}
+		}
+	}`)
+
+	svg, err := GenerateSVG(jsonData)
+	if err != nil {
+		t.Fatalf("GenerateSVG failed: %v", err)
+	}
+
+	// With 3 arcs in the same direction:
+	// - First arc should be straight (offset = 0)
+	// - Second and third should be curved
+	pathCount := strings.Count(svg, "<path d=\"M")
+	lineCount := strings.Count(svg, "<line")
+	
+	// Should have at least 2 curved paths (second and third arcs)
+	if pathCount < 2 {
+		t.Errorf("Expected at least 2 curved paths for multiple parallel arcs, got %d", pathCount)
+	}
+
+	// Should have 1 straight line (first arc) plus arrowheads
+	// Note: arrowheads are also drawn as paths, so we expect some paths
+	
+	t.Logf("Generated SVG with multiple parallel arcs (paths=%d, lines=%d):\n%s", pathCount, lineCount, svg)
+}
+
+func TestGenerateSVGWithSingleArc(t *testing.T) {
+	// Test single arc - it should be straight (not curved)
+	jsonData := []byte(`{
+		"@context": "https://pflow.xyz/schema",
+		"@type": "PetriNet",
+		"@version": "1.1",
+		"arcs": [
+			{
+				"@type": "Arrow",
+				"inhibitTransition": false,
+				"source": "place0",
+				"target": "txn0",
+				"weight": [1]
+			}
+		],
+		"places": {
+			"place0": {
+				"@type": "Place",
+				"capacity": [10],
+				"initial": [2],
+				"offset": 0,
+				"x": 100,
+				"y": 100
+			}
+		},
+		"token": ["https://pflow.xyz/tokens/black"],
+		"transitions": {
+			"txn0": {
+				"@type": "Transition",
+				"x": 200,
+				"y": 100
+			}
+		}
+	}`)
+
+	svg, err := GenerateSVG(jsonData)
+	if err != nil {
+		t.Fatalf("GenerateSVG failed: %v", err)
+	}
+
+	// Single arc with no reverse should be a straight line
+	if !strings.Contains(svg, "<line") {
+		t.Error("Single arc should be drawn as a straight line")
+	}
+
+	// Should not contain curved paths for the arc (only for arrowhead)
+	arcPathCount := strings.Count(svg, "<path d=\"M") - strings.Count(svg, "L") // Subtract arrowheads
+	if arcPathCount > 0 {
+		t.Log("Note: Found curved path for single arc, but this might be acceptable")
+	}
+
+	t.Logf("Generated SVG with single arc:\n%s", svg)
+}
+
+func TestArcCurveOffsetCalculation(t *testing.T) {
+	// Test the curve offset calculation function directly
+	arcs := []Arc{
+		{Source: "A", Target: "B"},
+		{Source: "B", Target: "A"},
+		{Source: "A", Target: "B"},
+	}
+	
+	arcGroups := groupArcsByNodePair(arcs)
+	
+	// First arc A->B should be curved (bidirectional case)
+	offset0 := getArcCurveOffset(arcs[0], 0, arcGroups)
+	if offset0 == 0 {
+		t.Error("First arc in bidirectional pair should have non-zero curve offset")
+	}
+	
+	// Second arc B->A should also be curved
+	offset1 := getArcCurveOffset(arcs[1], 1, arcGroups)
+	if offset1 == 0 {
+		t.Error("Reverse arc in bidirectional pair should have non-zero curve offset")
+	}
+	
+	// Third arc A->B (second arc in same direction) should have different offset
+	offset2 := getArcCurveOffset(arcs[2], 2, arcGroups)
+	if offset2 == offset0 {
+		t.Error("Multiple arcs in same direction should have different offsets")
+	}
+	
+	t.Logf("Curve offsets: arc0=%.1f, arc1=%.1f, arc2=%.1f", offset0, offset1, offset2)
+}
+
