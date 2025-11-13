@@ -149,6 +149,45 @@ canvas.pv-canvas {
     pointer-events: none;
 }
 
+/* Token breakdown on hover */
+.pv-token-breakdown {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    z-index: 1000;
+}
+
+.pv-token-breakdown-item {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+}
+
+.pv-token-breakdown-circle {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: 2px solid;
+    background: #fff;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.pv-token-breakdown-count {
+    font-size: 11px;
+    font-weight: 600;
+    background: #fff;
+    padding: 2px 6px;
+    border-radius: 8px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+    min-width: 16px;
+    text-align: center;
+}
+
 .pv-inhibit {
     stroke: #c0392b;
 }

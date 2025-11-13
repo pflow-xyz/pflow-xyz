@@ -2370,6 +2370,13 @@ class PetriView extends HTMLElement {
             ev.stopPropagation();
             this._onPlaceContext(id, ev);
         });
+        // Add hover event handlers to show token breakdown
+        el.addEventListener('mouseenter', () => {
+            this._showTokenBreakdown(id, el);
+        });
+        el.addEventListener('mouseleave', () => {
+            this._hideTokenBreakdown(id);
+        });
         // Do not begin drag when in add-token, add-arc, delete or label-edit modes
         handle.addEventListener('pointerdown', (ev) => {
             // Skip drag when shift is held (for multi-select)
@@ -3883,6 +3890,82 @@ class PetriView extends HTMLElement {
             const on = this._enabled(id, marks);
             el.classList.toggle('pv-active', !!on);
         }
+    }
+
+    // ---------------- token breakdown on hover ----------------
+    _showTokenBreakdown(placeId, placeEl) {
+        const p = this._model.places[placeId];
+        if (!p) return;
+        
+        const tokens = this._model.token || [];
+        const initial = Array.isArray(p.initial) ? p.initial : [p.initial || 0];
+        
+        // Count how many different token colors have non-zero counts
+        const nonZeroColors = [];
+        for (let i = 0; i < initial.length; i++) {
+            const count = Number(initial[i] || 0);
+            if (count > 0 && i < tokens.length) {
+                nonZeroColors.push({
+                    index: i,
+                    count: count,
+                    color: this._extractColor(tokens[i]) || '#000000',
+                    tokenUrl: tokens[i]
+                });
+            }
+        }
+        
+        // Only show breakdown if there are multiple token colors
+        if (nonZeroColors.length <= 1) return;
+        
+        // Remove any existing breakdown
+        this._hideTokenBreakdown(placeId);
+        
+        // Create breakdown container
+        const breakdown = document.createElement('div');
+        breakdown.className = 'pv-token-breakdown';
+        breakdown.dataset.placeId = placeId;
+        
+        // Calculate positions in a circle around the place
+        const radius = 50; // Distance from center
+        const angleStep = (2 * Math.PI) / nonZeroColors.length;
+        const startAngle = -Math.PI / 2; // Start at top
+        
+        nonZeroColors.forEach((tokenInfo, idx) => {
+            const angle = startAngle + (angleStep * idx);
+            const x = Math.cos(angle) * radius;
+            const y = Math.sin(angle) * radius;
+            
+            const tokenDiv = document.createElement('div');
+            tokenDiv.className = 'pv-token-breakdown-item';
+            tokenDiv.style.left = `${x}px`;
+            tokenDiv.style.top = `${y}px`;
+            
+            // Create inner circle with color
+            const circle = document.createElement('div');
+            circle.className = 'pv-token-breakdown-circle';
+            circle.style.backgroundColor = tokenInfo.color;
+            circle.style.borderColor = tokenInfo.color;
+            
+            // Create count label
+            const countLabel = document.createElement('div');
+            countLabel.className = 'pv-token-breakdown-count';
+            countLabel.textContent = tokenInfo.count;
+            countLabel.style.color = tokenInfo.color;
+            
+            tokenDiv.appendChild(circle);
+            tokenDiv.appendChild(countLabel);
+            breakdown.appendChild(tokenDiv);
+        });
+        
+        placeEl.appendChild(breakdown);
+    }
+
+    _hideTokenBreakdown(placeId) {
+        // Remove breakdown from all places if placeId is not specified
+        const selector = placeId 
+            ? `.pv-token-breakdown[data-place-id="${placeId}"]`
+            : '.pv-token-breakdown';
+        document.querySelectorAll(selector).forEach(el => el.remove());
     }
 
     // ---------------- arc creation UX ----------------
