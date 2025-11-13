@@ -3712,50 +3712,16 @@ class PetriView extends HTMLElement {
             ctx.moveTo(ex, ey);
             
             if (curveOffset !== 0) {
-                // Draw an elliptical arc using SVG-style arc
-                // We'll approximate it with arcTo for simplicity, or use a proper elliptical arc calculation
-                
-                // Calculate distance and perpendicular offset
-                const arcDist = Math.hypot(fx - ex, fy - ey);
-                
-                // For an elliptical arc, we need radius in both directions
-                // radiusX is half the distance between points
-                // radiusY is based on the curve offset (how much the arc bulges)
-                const radiusX = arcDist / 2;
-                const radiusY = Math.abs(curveOffset);
-                
-                // Calculate the center and angles for the ellipse
-                const centerX = (ex + fx) / 2;
-                const centerY = (ey + fy) / 2;
-                
-                // Angle of the line from start to end
-                const lineAngle = Math.atan2(fy - ey, fx - ex);
-                
-                // Draw elliptical arc by sampling points along the ellipse
-                const steps = 20;
-                for (let i = 1; i <= steps; i++) {
-                    const t = i / steps;
-                    
-                    // Parametric ellipse equations
-                    // We want to go from one end to the other along the ellipse
-                    const angle = Math.PI * (1 - t); // From PI to 0
-                    
-                    // Point on the ellipse in its local coordinate system
-                    let px = radiusX * Math.cos(angle);
-                    let py = radiusY * Math.sin(angle) * (curveOffset > 0 ? 1 : -1);
-                    
-                    // Rotate to align with the line direction
-                    const cos = Math.cos(lineAngle);
-                    const sin = Math.sin(lineAngle);
-                    const rotX = px * cos - py * sin;
-                    const rotY = px * sin + py * cos;
-                    
-                    // Translate to center position
-                    const finalX = centerX + rotX;
-                    const finalY = centerY + rotY;
-                    
-                    ctx.lineTo(finalX, finalY);
-                }
+                // Draw a quadratic Bézier curve
+                // Calculate control point perpendicular to the line
+                const midX = (ex + fx) / 2;
+                const midY = (ey + fy) / 2;
+                // Perpendicular vector: rotate direction vector 90 degrees
+                const perpX = -uy;
+                const perpY = ux;
+                const controlX = midX + perpX * curveOffset;
+                const controlY = midY + perpY * curveOffset;
+                ctx.quadraticCurveTo(controlX, controlY, fx, fy);
             } else {
                 // Draw a straight line
                 ctx.lineTo(fx, fy);
@@ -3765,29 +3731,19 @@ class PetriView extends HTMLElement {
             // Calculate direction at the end point for arrowhead
             let endDirX = ux, endDirY = uy;
             if (curveOffset !== 0) {
-                // For elliptical arc, calculate the tangent at the end point
-                // The tangent at the end of the arc (t=1, angle=0)
-                const arcDist = Math.hypot(fx - ex, fy - ey);
-                const radiusX = arcDist / 2;
-                const radiusY = Math.abs(curveOffset);
-                const lineAngle = Math.atan2(fy - ey, fx - ex);
-                
-                // At angle=0 (end point), derivative of ellipse parametric form:
-                // dx/dθ = -radiusX * sin(θ) = 0
-                // dy/dθ = radiusY * cos(θ) = radiusY
-                let tangentX = 0;
-                let tangentY = radiusY * (curveOffset > 0 ? 1 : -1);
-                
-                // Rotate tangent to align with line direction
-                const cos = Math.cos(lineAngle);
-                const sin = Math.sin(lineAngle);
-                const rotTangentX = tangentX * cos - tangentY * sin;
-                const rotTangentY = tangentX * sin + tangentY * cos;
-                
-                // Normalize
-                const tDist = Math.hypot(rotTangentX, rotTangentY) || 1;
-                endDirX = rotTangentX / tDist;
-                endDirY = rotTangentY / tDist;
+                // For quadratic Bézier curve, calculate the tangent at the end point
+                const midX = (ex + fx) / 2;
+                const midY = (ey + fy) / 2;
+                const perpX = -uy;
+                const perpY = ux;
+                const controlX = midX + perpX * curveOffset;
+                const controlY = midY + perpY * curveOffset;
+                // Tangent at end point: direction from control point to end point
+                const tdx = fx - controlX;
+                const tdy = fy - controlY;
+                const tDist = Math.hypot(tdx, tdy) || 1;
+                endDirX = tdx / tDist;
+                endDirY = tdy / tDist;
             }
             
             const tpx = fx, tpy = fy;
@@ -3819,28 +3775,17 @@ class PetriView extends HTMLElement {
             // position weight badge if present
             let bx, by;
             if (curveOffset !== 0) {
-                // For elliptical arcs, position badge at the midpoint of the ellipse (t=0.5, angle=PI/2)
-                const arcDist = Math.hypot(fx - ex, fy - ey);
-                const radiusX = arcDist / 2;
-                const radiusY = Math.abs(curveOffset);
-                const lineAngle = Math.atan2(fy - ey, fx - ex);
-                const centerX = (ex + fx) / 2;
-                const centerY = (ey + fy) / 2;
-                
-                // Point on ellipse at angle = PI/2 (top/bottom of the arc)
-                const angle = Math.PI / 2;
-                let px = radiusX * Math.cos(angle);
-                let py = radiusY * Math.sin(angle) * (curveOffset > 0 ? 1 : -1);
-                
-                // Rotate to align with line direction
-                const cos = Math.cos(lineAngle);
-                const sin = Math.sin(lineAngle);
-                const rotX = px * cos - py * sin;
-                const rotY = px * sin + py * cos;
-                
-                // Translate to center position
-                bx = centerX + rotX;
-                by = centerY + rotY;
+                // For quadratic Bézier curves, position badge on the curve at t=0.5
+                const midX = (ex + fx) / 2;
+                const midY = (ey + fy) / 2;
+                const perpX = -uy;
+                const perpY = ux;
+                const controlX = midX + perpX * curveOffset;
+                const controlY = midY + perpY * curveOffset;
+                // Quadratic Bézier point at t=0.5: B(t) = (1-t)²*P0 + 2(1-t)t*P1 + t²*P2
+                const t = 0.5;
+                bx = (1-t)*(1-t)*ex + 2*(1-t)*t*controlX + t*t*fx;
+                by = (1-t)*(1-t)*ey + 2*(1-t)*t*controlY + t*t*fy;
             } else {
                 // For straight arcs, use midpoint
                 bx = (ex + fx) / 2;
