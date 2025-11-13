@@ -3559,6 +3559,72 @@ class PetriView extends HTMLElement {
             newB.toString(16).padStart(2, '0');
     }
 
+    // Group arcs by node pairs to detect multiple arcs between same nodes
+    _groupArcsByNodePair(arcs) {
+        const groups = new Map();
+        
+        arcs.forEach((arc, idx) => {
+            // Create a key for the node pair (order matters for direction)
+            const key = `${arc.source}->${arc.target}`;
+            if (!groups.has(key)) {
+                groups.set(key, []);
+            }
+            groups.get(key).push(idx);
+        });
+        
+        return groups;
+    }
+
+    // Calculate curve offset for an arc based on its position in a group
+    _getArcCurveOffset(arc, arcIdx, arcGroups) {
+        const key = `${arc.source}->${arc.target}`;
+        const reverseKey = `${arc.target}->${arc.source}`;
+        
+        const group = arcGroups.get(key) || [];
+        const reverseGroup = arcGroups.get(reverseKey) || [];
+        
+        // If there's only one arc in this direction and no reverse arc, no curve needed
+        if (group.length === 1 && reverseGroup.length === 0) {
+            return 0;
+        }
+        
+        // Find this arc's position in its group
+        const posInGroup = group.indexOf(arcIdx);
+        if (posInGroup === -1) return 0;
+        
+        // Calculate curve offset
+        const totalArcs = group.length;
+        const baseOffset = 30; // Base curve offset in pixels
+        
+        if (reverseGroup.length > 0) {
+            // Bidirectional case: curve away from each other
+            // Arcs in one direction curve one way, arcs in reverse curve the other way
+            if (totalArcs === 1) {
+                // Single arc in this direction, curve it
+                return baseOffset;
+            } else {
+                // Multiple arcs in this direction, spread them out
+                // Calculate offset so arcs form layers
+                const layerOffset = baseOffset * (1 + posInGroup);
+                return layerOffset;
+            }
+        } else {
+            // Multiple arcs in same direction, no reverse arcs
+            // Spread them in alternating directions to form shells
+            if (totalArcs === 2) {
+                // Two arcs: one curves left, one curves right
+                return posInGroup === 0 ? baseOffset : -baseOffset;
+            } else {
+                // Three or more arcs: alternate and increase radius
+                // Pattern: 0, +offset, -offset, +2*offset, -2*offset, ...
+                if (posInGroup === 0) return 0;
+                const layer = Math.ceil(posInGroup / 2);
+                const direction = posInGroup % 2 === 1 ? 1 : -1;
+                return direction * baseOffset * layer;
+            }
+        }
+    }
+
     _draw() {
         const ctx = this._ctx;
         const rootRect = this._canvasContainer ? this._canvasContainer.getBoundingClientRect() : this._root.getBoundingClientRect();
@@ -3576,6 +3642,9 @@ class PetriView extends HTMLElement {
 
         const arcs = this._model.arcs || [];
         const marks = this._marking(); // current marking to evaluate arc/transition state
+
+        // Group arcs by node pairs to calculate curve offsets
+        const arcGroups = this._groupArcsByNodePair(arcs);
 
         arcs.forEach((arc, idx) => {
             const srcEl = this._nodes[arc.source];
@@ -3609,8 +3678,25 @@ class PetriView extends HTMLElement {
             const ahSize = 8;
             const inhibitRadius = 6;
             const tipOffset = arc.inhibitTransition ? (inhibitRadius + 2) : (ahSize * 0.9);
-            const ex = sx + ux * padSrc, ey = sy + uy * padSrc;
-            const fx = tx - ux * (padTrg + tipOffset), fy = ty - uy * (padTrg + tipOffset);
+            
+            // Calculate curve offset for this arc
+            const curveOffset = this._getArcCurveOffset(arc, idx, arcGroups);
+            
+            // Calculate start and end points, accounting for curve
+            let ex, ey, fx, fy;
+            if (curveOffset !== 0) {
+                // For curved arcs, adjust the start/end points to account for the curve
+                ex = sx + ux * padSrc;
+                ey = sy + uy * padSrc;
+                fx = tx - ux * (padTrg + tipOffset);
+                fy = ty - uy * (padTrg + tipOffset);
+            } else {
+                // For straight arcs, use original logic
+                ex = sx + ux * padSrc;
+                ey = sy + uy * padSrc;
+                fx = tx - ux * (padTrg + tipOffset);
+                fy = ty - uy * (padTrg + tipOffset);
+            }
 
             // Determine the related transition id for this arc so we can color by its enabled state
             const relatedTransitionId = srcIsPlace ? arc.target : arc.source;
@@ -3621,12 +3707,45 @@ class PetriView extends HTMLElement {
             ctx.strokeStyle = arcColor;
             ctx.fillStyle = arcColor;
 
-            // draw the main line
+            // draw the main line (curved or straight)
             ctx.beginPath();
             ctx.moveTo(ex, ey);
-            ctx.lineTo(fx, fy);
+            
+            if (curveOffset !== 0) {
+                // Draw a quadratic Bézier curve
+                // Calculate control point perpendicular to the line
+                const midX = (ex + fx) / 2;
+                const midY = (ey + fy) / 2;
+                // Perpendicular vector: rotate direction vector 90 degrees
+                const perpX = -uy;
+                const perpY = ux;
+                const controlX = midX + perpX * curveOffset;
+                const controlY = midY + perpY * curveOffset;
+                ctx.quadraticCurveTo(controlX, controlY, fx, fy);
+            } else {
+                // Draw a straight line
+                ctx.lineTo(fx, fy);
+            }
             ctx.stroke();
 
+            // Calculate direction at the end point for arrowhead
+            let endDirX = ux, endDirY = uy;
+            if (curveOffset !== 0) {
+                // For quadratic Bézier curve, calculate the tangent at the end point
+                const midX = (ex + fx) / 2;
+                const midY = (ey + fy) / 2;
+                const perpX = -uy;
+                const perpY = ux;
+                const controlX = midX + perpX * curveOffset;
+                const controlY = midY + perpY * curveOffset;
+                // Tangent at end point: direction from control point to end point
+                const tdx = fx - controlX;
+                const tdy = fy - controlY;
+                const tDist = Math.hypot(tdx, tdy) || 1;
+                endDirX = tdx / tDist;
+                endDirY = tdy / tDist;
+            }
+            
             const tpx = fx, tpy = fy;
             if (arc.inhibitTransition) {
                 // draw inhibitor circle at the tip (works for both place-target and transition-target inhibitors)
@@ -3639,11 +3758,11 @@ class PetriView extends HTMLElement {
                 ctx.stroke();
                 ctx.lineWidth = 1;
             } else {
-                // draw normal arrowhead
-                const ahx = tpx + (-ux * ahSize - uy * ahSize * 0.45);
-                const ahy = tpy + (-uy * ahSize + ux * ahSize * 0.45);
-                const bhx = tpx + (-ux * ahSize + uy * ahSize * 0.45);
-                const bhy = tpy + (-uy * ahSize - ux * ahSize * 0.45);
+                // draw normal arrowhead using the end direction
+                const ahx = tpx + (-endDirX * ahSize - endDirY * ahSize * 0.45);
+                const ahy = tpy + (-endDirY * ahSize + endDirX * ahSize * 0.45);
+                const bhx = tpx + (-endDirX * ahSize + endDirY * ahSize * 0.45);
+                const bhy = tpy + (-endDirY * ahSize - endDirX * ahSize * 0.45);
                 ctx.beginPath();
                 ctx.moveTo(tpx, tpy);
                 ctx.lineTo(ahx, ahy);
@@ -3654,8 +3773,24 @@ class PetriView extends HTMLElement {
             }
 
             // position weight badge if present
-            const bx = (ex + fx) / 2;
-            const by = (ey + fy) / 2;
+            let bx, by;
+            if (curveOffset !== 0) {
+                // For quadratic Bézier curves, position badge on the curve at t=0.5
+                const midX = (ex + fx) / 2;
+                const midY = (ey + fy) / 2;
+                const perpX = -uy;
+                const perpY = ux;
+                const controlX = midX + perpX * curveOffset;
+                const controlY = midY + perpY * curveOffset;
+                // Quadratic Bézier point at t=0.5: B(t) = (1-t)²*P0 + 2(1-t)t*P1 + t²*P2
+                const t = 0.5;
+                bx = (1-t)*(1-t)*ex + 2*(1-t)*t*controlX + t*t*fx;
+                by = (1-t)*(1-t)*ey + 2*(1-t)*t*controlY + t*t*fy;
+            } else {
+                // For straight arcs, use midpoint
+                bx = (ex + fx) / 2;
+                by = (ey + fy) / 2;
+            }
             const badge = this._stage.querySelector(`.pv-weight[data-arc="${idx}"]`);
             if (badge) {
                 const offX = (badge.offsetWidth || 20) / 2;
