@@ -68,6 +68,8 @@ class PetriView extends HTMLElement {
         this._supabaseUrl = null;
         this._supabaseKey = null;
         this._supabaseInitialized = false;
+        this._supabaseAuthSubscription = null;
+        this._supabaseInitializing = false;
 
         // UI buttons
         this._hamburgerMenu = null;
@@ -132,12 +134,25 @@ class PetriView extends HTMLElement {
             return; // Skip if same credentials
         }
 
+        // Prevent concurrent initializations
+        if (this._supabaseInitializing) {
+            return;
+        }
+
         if (!supabaseUrl || !supabaseKey) {
             console.log('Supabase credentials not configured. Login feature will be disabled.');
             return;
         }
 
         try {
+            this._supabaseInitializing = true;
+
+            // Clean up existing subscription if any
+            if (this._supabaseAuthSubscription) {
+                this._supabaseAuthSubscription.subscription.unsubscribe();
+                this._supabaseAuthSubscription = null;
+            }
+
             // Dynamically import Supabase
             const {createClient} = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm');
 
@@ -146,8 +161,8 @@ class PetriView extends HTMLElement {
             this._supabaseKey = supabaseKey;
             this._supabaseInitialized = true;
 
-            // Listen for auth state changes
-            this._supabase.auth.onAuthStateChange(async (event, session) => {
+            // Listen for auth state changes and store the subscription
+            this._supabaseAuthSubscription = this._supabase.auth.onAuthStateChange(async (event, session) => {
                 if (session?.user) {
                     this._user = session.user;
                     this._updateMenuForAuth();
@@ -165,6 +180,8 @@ class PetriView extends HTMLElement {
             }
         } catch (err) {
             console.error('Failed to initialize Supabase:', err);
+        } finally {
+            this._supabaseInitializing = false;
         }
     }
 
@@ -196,7 +213,8 @@ class PetriView extends HTMLElement {
             const {error} = await this._supabase.auth.signInWithOAuth({
                 provider: 'github',
                 options: {
-                    redirectTo: window.location.origin + window.location.pathname
+                    redirectTo: window.location.origin + window.location.pathname,
+                    scopes: 'gist'
                 }
             });
             if (error) {
@@ -1224,6 +1242,12 @@ class PetriView extends HTMLElement {
         }
         if (this._jsonEditor) this._removeJsonEditor();
 
+        // Clean up Supabase auth subscription
+        if (this._supabaseAuthSubscription) {
+            this._supabaseAuthSubscription.subscription.unsubscribe();
+            this._supabaseAuthSubscription = null;
+        }
+
         // Clean up hamburger menu
         if (this._hamburgerMenu) {
             this._hamburgerMenu.remove();
@@ -1883,8 +1907,8 @@ class PetriView extends HTMLElement {
                 const errorData = await gistResponse.json().catch(() => ({}));
                 console.error('Gist creation failed:', errorData);
                 
-                if (gistResponse.status === 401) {
-                    alert('GitHub authentication failed. You may need to log out and log in again to grant Gist permissions.');
+                if (gistResponse.status === 401 || gistResponse.status === 404) {
+                    alert('GitHub authentication failed or expired. Please log out and log in again to grant Gist permissions.\n\nNote: Make sure to authorize the GitHub provider with gist scope when logging in.');
                 } else {
                     alert(`Failed to create Gist: ${errorData.message || gistResponse.statusText}`);
                 }
