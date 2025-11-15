@@ -1793,6 +1793,126 @@ class PetriView extends HTMLElement {
         textarea.select();
     }
 
+    async _saveAsGist() {
+        // First, ensure the document is saved and we have a CID
+        const urlParams = new URLSearchParams(window.location.search);
+        let cid = urlParams.get('cid');
+        
+        // If no CID in URL, we need to save first
+        if (!cid) {
+            try {
+                // Get the session token for authentication
+                const {data: {session}} = await this._supabase.auth.getSession();
+                const authToken = session?.access_token;
+
+                if (!authToken) {
+                    alert('Please log in to save as Gist');
+                    return;
+                }
+
+                // Save the document
+                const canonicalData = JSON.stringify(this._model);
+
+                const response = await fetch('/api/save', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`,
+                    },
+                    body: canonicalData
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('Save failed with status', response.status, errorText);
+                    alert(`Failed to save before creating Gist: ${response.statusText}`);
+                    return;
+                }
+
+                const result = await response.json();
+                cid = result.cid;
+
+                // Update URL with CID
+                const url = new URL(window.location.origin + window.location.pathname);
+                url.searchParams.set('cid', cid);
+                window.history.pushState({}, '', url.toString());
+            } catch (err) {
+                console.error('Failed to save before creating Gist:', err);
+                alert('Failed to save document: ' + (err && err.message ? err.message : String(err)));
+                return;
+            }
+        }
+
+        // Generate markdown content
+        const currentUrl = window.location.origin;
+        const svgUrl = `${currentUrl}/img/${cid}.svg`;
+        const docUrl = `${currentUrl}/?cid=${cid}`;
+        const markdown = `[![pflow](${svgUrl})](${docUrl})`;
+
+        try {
+            // Get GitHub OAuth token from Supabase session
+            const {data: {session}} = await this._supabase.auth.getSession();
+            
+            if (!session || !session.provider_token) {
+                alert('GitHub authentication required. Please log out and log in again to grant Gist permissions.');
+                return;
+            }
+
+            const githubToken = session.provider_token;
+
+            // Create Gist via GitHub API
+            const gistResponse = await fetch('https://api.github.com/gists', {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/vnd.github+json',
+                    'Authorization': `Bearer ${githubToken}`,
+                    'X-GitHub-Api-Version': '2022-11-28'
+                },
+                body: JSON.stringify({
+                    description: `Petri net diagram - CID: ${cid}`,
+                    public: true,
+                    files: {
+                        [`${cid}.md`]: {
+                            content: markdown
+                        }
+                    }
+                })
+            });
+
+            if (!gistResponse.ok) {
+                const errorData = await gistResponse.json().catch(() => ({}));
+                console.error('Gist creation failed:', errorData);
+                
+                if (gistResponse.status === 401) {
+                    alert('GitHub authentication failed. You may need to log out and log in again to grant Gist permissions.');
+                } else {
+                    alert(`Failed to create Gist: ${errorData.message || gistResponse.statusText}`);
+                }
+                return;
+            }
+
+            const gistData = await gistResponse.json();
+            const gistUrl = gistData.html_url;
+
+            // Show success message with Gist URL
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(gistUrl).then(() => {
+                    alert(`Gist created successfully!\nURL copied to clipboard.\n\n${gistUrl}`);
+                }).catch(() => {
+                    alert(`Gist created successfully!\n\n${gistUrl}`);
+                });
+            } else {
+                alert(`Gist created successfully!\n\n${gistUrl}`);
+            }
+
+            // Optionally open the Gist in a new tab
+            window.open(gistUrl, '_blank', 'noopener,noreferrer');
+        } catch (err) {
+            console.error('Failed to create Gist:', err);
+            alert('Failed to create Gist: ' + (err && err.message ? err.message : String(err)));
+        }
+    }
+
     // ---------------- utilities ----------------
     _safeParse(text) {
         try {
@@ -5514,6 +5634,12 @@ class PetriView extends HTMLElement {
                     await this._showShareDialog();
                 });
                 menuContainer._menuContent.appendChild(shareItem);
+
+                // Add Save As Gist button (only for logged-in users)
+                const saveAsGistItem = makeMenuItem('📝 Save As Gist', async () => {
+                    await this._saveAsGist();
+                });
+                menuContainer._menuContent.appendChild(saveAsGistItem);
             }
 
             // Add separator
