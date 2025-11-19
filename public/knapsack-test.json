@@ -1,0 +1,261 @@
+{
+  "@context": "https://pflow.xyz/schema",
+  "@id": "z4d8db741874e39e3d17ac9f6b3278105826a0fc6",
+  "@type": "PetriNet",
+  "@version": "1.1",
+  "arcs": [
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "txn0",
+      "target": "weight",
+      "weight": [
+        2
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "txn0",
+      "target": "value",
+      "weight": [
+        10
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "txn1",
+      "target": "weight",
+      "weight": [
+        4
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "item0",
+      "target": "txn0",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "txn1",
+      "target": "value",
+      "weight": [
+        10
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "item1",
+      "target": "txn1",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "item2",
+      "target": "txn2",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "item3",
+      "target": "txn3",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "txn2",
+      "target": "weight",
+      "weight": [
+        6
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "txn2",
+      "target": "value",
+      "weight": [
+        12
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "txn3",
+      "target": "value",
+      "weight": [
+        18
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "txn3",
+      "target": "weight",
+      "weight": [
+        9
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "capacity",
+      "target": "txn0",
+      "weight": [
+        2
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "capacity",
+      "target": "txn1",
+      "weight": [
+        4
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "capacity",
+      "target": "txn2",
+      "weight": [
+        6
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "capacity",
+      "target": "txn3",
+      "weight": [
+        9
+      ]
+    }
+  ],
+  "places": {
+    "capacity": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        15
+      ],
+      "offset": 0,
+      "x": 730,
+      "y": 541
+    },
+    "item0": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        1
+      ],
+      "offset": 0,
+      "x": 351,
+      "y": 140
+    },
+    "item1": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        1
+      ],
+      "offset": 0,
+      "x": 353,
+      "y": 265
+    },
+    "item2": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        1
+      ],
+      "offset": 0,
+      "x": 351,
+      "y": 417
+    },
+    "item3": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        1
+      ],
+      "offset": 0,
+      "x": 350,
+      "y": 543
+    },
+    "value": {
+      "@type": "Place",
+      "capacity": [],
+      "initial": [],
+      "offset": 0,
+      "x": 765,
+      "y": 145
+    },
+    "weight": {
+      "@type": "Place",
+      "capacity": [],
+      "initial": [],
+      "offset": 0,
+      "x": 880,
+      "y": 320
+    }
+  },
+  "token": [],
+  "transitions": {
+    "txn0": {
+      "@type": "Transition",
+      "offset": 0,
+      "role": "default",
+      "x": 465,
+      "y": 139
+    },
+    "txn1": {
+      "@type": "Transition",
+      "offset": 0,
+      "role": "default",
+      "x": 466,
+      "y": 264
+    },
+    "txn2": {
+      "@type": "Transition",
+      "offset": 0,
+      "role": "default",
+      "x": 462,
+      "y": 418
+    },
+    "txn3": {
+      "@type": "Transition",
+      "offset": 0,
+      "role": "default",
+      "x": 464,
+      "y": 542
+    }
+  }
+}
