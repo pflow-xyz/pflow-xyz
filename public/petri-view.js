@@ -5025,6 +5025,36 @@ class PetriView extends HTMLElement {
         });
         dialog.appendChild(buttonsContainer);
 
+        // Optimize Rates button
+        const optimizeButton = document.createElement('button');
+        optimizeButton.textContent = 'Optimize Rates';
+        optimizeButton.type = 'button';
+        this._applyStyles(optimizeButton, {
+            padding: '10px 20px',
+            fontSize: '14px',
+            fontWeight: '600',
+            color: '#fff',
+            background: '#28a745',
+            border: 'none',
+            borderRadius: '6px',
+            cursor: 'pointer'
+        });
+        optimizeButton.addEventListener('click', () => {
+            this._optimizeRates({
+                timeStartInput,
+                timeEndInput,
+                dtInput,
+                abstolInput,
+                reltolInput,
+                placeCheckboxes,
+                transitionRateInputs,
+                plotContainer,
+                optimizeButton,
+                runButton
+            });
+        });
+        buttonsContainer.appendChild(optimizeButton);
+
         // Run simulation button
         const runButton = document.createElement('button');
         runButton.textContent = 'Run Simulation';
@@ -5177,6 +5207,309 @@ class PetriView extends HTMLElement {
             runButton.disabled = false;
             runButton.textContent = 'Run Simulation';
         }
+    }
+
+    async _optimizeRates(params) {
+        const {
+            timeStartInput,
+            timeEndInput,
+            dtInput,
+            abstolInput,
+            reltolInput,
+            transitionRateInputs,
+            plotContainer,
+            optimizeButton,
+            runButton
+        } = params;
+
+        try {
+            // Get list of places to choose from
+            const placeLabels = Object.keys(this._model.places || {});
+            if (placeLabels.length === 0) {
+                alert('No places in the model to optimize');
+                return;
+            }
+
+            // Prompt user to select which place to optimize
+            const targetPlace = await this._promptForPlace(placeLabels);
+            if (!targetPlace) {
+                return; // User cancelled
+            }
+
+            // Disable buttons during optimization
+            optimizeButton.disabled = true;
+            optimizeButton.textContent = 'Optimizing...';
+            runButton.disabled = true;
+
+            // Get transition labels
+            const transitionLabels = Object.keys(transitionRateInputs);
+            const numTransitions = transitionLabels.length;
+
+            // Parse simulation parameters
+            const tstart = parseFloat(timeStartInput.value) || 0;
+            const tend = parseFloat(timeEndInput.value) || 10;
+            const dt = parseFloat(dtInput.value) || 0.01;
+            const abstol = parseFloat(abstolInput.value) || 1e-6;
+            const reltol = parseFloat(reltolInput.value) || 1e-3;
+
+            // Track best configuration
+            let bestValue = -Infinity;
+            let bestRates = {};
+            let bestStateInfo = null;
+
+            // Show progress
+            plotContainer.innerHTML = `<p style="margin: 0; font-size: 14px;">Testing ${Math.pow(2, numTransitions)} rate configurations to maximize "${targetPlace}"...</p>`;
+
+            // Enumerate all possible combinations (2^n where n = number of transitions)
+            const totalCombinations = Math.pow(2, numTransitions);
+            
+            for (let i = 0; i < totalCombinations; i++) {
+                const rates = {};
+                
+                // Convert binary representation to rates (0 = off, 1 = on)
+                for (let j = 0; j < numTransitions; j++) {
+                    const isOn = (i & (1 << j)) !== 0;
+                    rates[transitionLabels[j]] = isOn ? 1.0 : 0;
+                }
+
+                try {
+                    // Create Petri net from model
+                    const net = this._solverModule.fromJSON(this._model);
+                    const initialState = this._solverModule.setState(net);
+
+                    // Create ODE problem
+                    const prob = new this._solverModule.ODEProblem(
+                        net,
+                        initialState,
+                        [tstart, tend],
+                        rates
+                    );
+
+                    // Solve
+                    const sol = this._solverModule.solve(prob, this._solverModule.Tsit5(), {
+                        dt: dt,
+                        abstol: abstol,
+                        reltol: reltol,
+                        adaptive: true
+                    });
+
+                    // Get final state
+                    const finalState = sol.getFinalState();
+                    const placeIndex = sol.stateLabels.indexOf(targetPlace);
+                    
+                    if (placeIndex !== -1) {
+                        const value = finalState[placeIndex];
+                        
+                        if (value > bestValue) {
+                            bestValue = value;
+                            bestRates = { ...rates };
+                            bestStateInfo = {
+                                finalState: [...finalState],
+                                stateLabels: [...sol.stateLabels]
+                            };
+                        }
+                    }
+                } catch (err) {
+                    // Skip configurations that cause errors
+                    console.warn('Skipping configuration due to error:', err.message);
+                }
+
+                // Update progress periodically
+                if (i % Math.max(1, Math.floor(totalCombinations / 20)) === 0) {
+                    const progress = Math.floor((i / totalCombinations) * 100);
+                    plotContainer.innerHTML = `<p style="margin: 0; font-size: 14px;">Testing configurations... ${progress}% complete</p>`;
+                }
+            }
+
+            // Update rate inputs with optimal values
+            for (const [label, input] of Object.entries(transitionRateInputs)) {
+                input.value = bestRates[label] || 0;
+            }
+
+            // Display results
+            const activeTransitions = Object.entries(bestRates)
+                .filter(([_, rate]) => rate > 0)
+                .map(([label, _]) => label);
+            const inactiveTransitions = Object.entries(bestRates)
+                .filter(([_, rate]) => rate === 0)
+                .map(([label, _]) => label);
+
+            let resultHTML = '<div style="text-align: left;">';
+            resultHTML += `<h3 style="margin: 0 0 12px 0; font-size: 16px; color: #28a745;">Optimization Complete!</h3>`;
+            resultHTML += `<p style="margin: 0 0 8px 0;"><strong>Target Place:</strong> ${targetPlace}</p>`;
+            resultHTML += `<p style="margin: 0 0 8px 0;"><strong>Optimal Value:</strong> ${bestValue.toFixed(4)}</p>`;
+            resultHTML += `<p style="margin: 0 0 4px 0;"><strong>Active Transitions:</strong></p>`;
+            if (activeTransitions.length > 0) {
+                resultHTML += '<ul style="margin: 0 0 8px 0; padding-left: 20px;">';
+                activeTransitions.forEach(t => {
+                    resultHTML += `<li>${t}</li>`;
+                });
+                resultHTML += '</ul>';
+            } else {
+                resultHTML += '<p style="margin: 0 0 8px 0; padding-left: 20px; font-style: italic;">None</p>';
+            }
+            resultHTML += `<p style="margin: 0 0 4px 0;"><strong>Disabled Transitions:</strong></p>`;
+            if (inactiveTransitions.length > 0) {
+                resultHTML += '<ul style="margin: 0 0 8px 0; padding-left: 20px;">';
+                inactiveTransitions.forEach(t => {
+                    resultHTML += `<li style="color: #dc3545;">${t}</li>`;
+                });
+                resultHTML += '</ul>';
+            } else {
+                resultHTML += '<p style="margin: 0 0 8px 0; padding-left: 20px; font-style: italic;">None</p>';
+            }
+            resultHTML += `<p style="margin: 12px 0 0 0; font-size: 13px; color: #666;">Transition rates have been updated. Click "Run Simulation" to visualize the optimal solution.</p>`;
+            resultHTML += '</div>';
+
+            plotContainer.innerHTML = resultHTML;
+
+            console.log('Optimization completed successfully');
+            console.log('Best value:', bestValue);
+            console.log('Best rates:', bestRates);
+            console.log('Best final state:', bestStateInfo);
+
+        } catch (err) {
+            console.error('Optimization error:', err);
+            alert('Optimization failed: ' + err.message);
+            plotContainer.innerHTML = '<p style="color: red; margin: 0;">Optimization failed: ' + err.message + '</p>';
+        } finally {
+            // Re-enable buttons
+            optimizeButton.disabled = false;
+            optimizeButton.textContent = 'Optimize Rates';
+            runButton.disabled = false;
+        }
+    }
+
+    async _promptForPlace(placeLabels) {
+        return new Promise((resolve) => {
+            // Create modal overlay
+            const overlay = document.createElement('div');
+            this._applyStyles(overlay, {
+                position: 'fixed',
+                left: '0',
+                top: '0',
+                right: '0',
+                bottom: '0',
+                background: 'rgba(0, 0, 0, 0.6)',
+                zIndex: 2147483647,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '20px'
+            });
+
+            // Create dialog
+            const dialog = document.createElement('div');
+            this._applyStyles(dialog, {
+                background: '#fff',
+                borderRadius: '8px',
+                padding: '24px',
+                maxWidth: '400px',
+                width: '100%',
+                boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)'
+            });
+
+            // Title
+            const title = document.createElement('h2');
+            title.textContent = 'Select Optimization Target';
+            this._applyStyles(title, {
+                margin: '0 0 12px 0',
+                fontSize: '20px',
+                fontWeight: 'bold',
+                color: '#333'
+            });
+            dialog.appendChild(title);
+
+            // Description
+            const desc = document.createElement('p');
+            desc.textContent = 'Select which place value you want to maximize:';
+            this._applyStyles(desc, {
+                margin: '0 0 16px 0',
+                fontSize: '14px',
+                color: '#555',
+                lineHeight: '1.5'
+            });
+            dialog.appendChild(desc);
+
+            // Dropdown
+            const select = document.createElement('select');
+            this._applyStyles(select, {
+                width: '100%',
+                padding: '8px',
+                fontSize: '14px',
+                border: '1px solid #ccc',
+                borderRadius: '4px',
+                marginBottom: '20px'
+            });
+            placeLabels.forEach(label => {
+                const option = document.createElement('option');
+                option.value = label;
+                option.textContent = label;
+                select.appendChild(option);
+            });
+            dialog.appendChild(select);
+
+            // Buttons container
+            const buttonsContainer = document.createElement('div');
+            this._applyStyles(buttonsContainer, {
+                display: 'flex',
+                gap: '12px',
+                justifyContent: 'flex-end'
+            });
+            dialog.appendChild(buttonsContainer);
+
+            // Cancel button
+            const cancelButton = document.createElement('button');
+            cancelButton.textContent = 'Cancel';
+            cancelButton.type = 'button';
+            this._applyStyles(cancelButton, {
+                padding: '8px 16px',
+                fontSize: '14px',
+                fontWeight: '600',
+                color: '#333',
+                background: '#f3f3f3',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: 'pointer'
+            });
+            cancelButton.addEventListener('click', () => {
+                document.body.removeChild(overlay);
+                resolve(null);
+            });
+            buttonsContainer.appendChild(cancelButton);
+
+            // OK button
+            const okButton = document.createElement('button');
+            okButton.textContent = 'OK';
+            okButton.type = 'button';
+            this._applyStyles(okButton, {
+                padding: '8px 16px',
+                fontSize: '14px',
+                fontWeight: '600',
+                color: '#fff',
+                background: '#28a745',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: 'pointer'
+            });
+            okButton.addEventListener('click', () => {
+                const selectedPlace = select.value;
+                document.body.removeChild(overlay);
+                resolve(selectedPlace);
+            });
+            buttonsContainer.appendChild(okButton);
+
+            overlay.appendChild(dialog);
+            document.body.appendChild(overlay);
+
+            // Close on overlay click
+            overlay.addEventListener('click', (e) => {
+                if (e.target === overlay) {
+                    document.body.removeChild(overlay);
+                    resolve(null);
+                }
+            });
+        });
     }
 
     // ---------------- layout algorithms dialog ----------------
