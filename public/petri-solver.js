@@ -478,8 +478,11 @@ export class SVGPlotter {
     const sx = (x) => this.margin.left + ((x - xmin) / (xmax - xmin)) * this.plotWidth;
     const sy = (y) => this.margin.top + this.plotHeight - ((y - ymin) / (ymax - ymin)) * this.plotHeight;
 
+    // Generate unique ID for this plot
+    const plotId = 'plot_' + Math.random().toString(36).substr(2, 9);
+
     // Build SVG
-    let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${this.width}" height="${this.height}" style="background: white;">`;
+    let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${this.width}" height="${this.height}" style="background: white;" id="${plotId}">`;
     
     // Title
     if (this.title) {
@@ -543,8 +546,129 @@ export class SVGPlotter {
       }
     }
 
+    // Interactive crosshair elements
+    svg += `<g id="${plotId}_crosshair" style="display: none;">`;
+    svg += `<line id="${plotId}_line" x1="0" y1="${this.margin.top}" x2="0" y2="${this.margin.top + this.plotHeight}" stroke="#666" stroke-width="1" stroke-dasharray="4,4"/>`;
+    svg += `<rect id="${plotId}_tooltip_bg" x="0" y="0" rx="4" ry="4" fill="white" stroke="#666" stroke-width="1" opacity="0.95"/>`;
+    svg += `<text id="${plotId}_tooltip_text" x="0" y="0" font-family="Arial, sans-serif" font-size="11" fill="#333"></text>`;
+    svg += `</g>`;
+    
+    // Transparent overlay for mouse events
+    svg += `<rect id="${plotId}_overlay" x="${this.margin.left}" y="${this.margin.top}" width="${this.plotWidth}" height="${this.plotHeight}" fill="transparent" style="cursor: crosshair;"/>`;
+
     svg += '</svg>';
+
+    // Store plot data for later initialization
+    this.lastPlotData = {
+      plotId: plotId,
+      margin: this.margin,
+      plotWidth: this.plotWidth,
+      plotHeight: this.plotHeight,
+      xmin: xmin,
+      xmax: xmax,
+      ymin: ymin,
+      ymax: ymax,
+      series: this.series
+    };
+
     return svg;
+  }
+
+  /**
+   * Setup interactivity for a plot after it's been inserted into the DOM
+   * Call this method after setting plotDiv.innerHTML = svg
+   * @param {Object} plotData - Plot data from plotter.lastPlotData
+   */
+  static setupInteractivity(plotData) {
+    const { plotId, margin, plotWidth, plotHeight, xmin, xmax, ymin, ymax, series } = plotData;
+    
+    const svg = document.getElementById(plotId);
+    if (!svg) {
+      console.error('SVG not found:', plotId);
+      return;
+    }
+    
+    const crosshair = document.getElementById(plotId + '_crosshair');
+    const line = document.getElementById(plotId + '_line');
+    const tooltipBg = document.getElementById(plotId + '_tooltip_bg');
+    const tooltipText = document.getElementById(plotId + '_tooltip_text');
+    const overlay = document.getElementById(plotId + '_overlay');
+    
+    if (!crosshair || !overlay) {
+      console.error('Crosshair or overlay elements not found');
+      return;
+    }
+    
+    function lerp(x, x0, y0, x1, y1) {
+      if (x1 === x0) return y0;
+      return y0 + (y1 - y0) * (x - x0) / (x1 - x0);
+    }
+    
+    function getYAtX(s, xval) {
+      if (xval <= s.x[0]) return s.y[0];
+      if (xval >= s.x[s.x.length - 1]) return s.y[s.y.length - 1];
+      
+      for (let i = 0; i < s.x.length - 1; i++) {
+        if (xval >= s.x[i] && xval <= s.x[i + 1]) {
+          return lerp(xval, s.x[i], s.y[i], s.x[i + 1], s.y[i + 1]);
+        }
+      }
+      return s.y[s.y.length - 1];
+    }
+    
+    overlay.addEventListener('mousemove', function(e) {
+      const rect = svg.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+      
+      crosshair.style.display = 'block';
+      line.setAttribute('x1', mouseX);
+      line.setAttribute('x2', mouseX);
+      
+      const dataX = xmin + (mouseX - margin.left) / plotWidth * (xmax - xmin);
+      
+      let tooltipLines = ['T = ' + dataX.toFixed(3)];
+      for (const s of series) {
+        const yval = getYAtX(s, dataX);
+        tooltipLines.push(s.label + ': ' + yval.toFixed(3));
+      }
+      
+      tooltipText.innerHTML = '';
+      for (let i = 0; i < tooltipLines.length; i++) {
+        const tspan = document.createElementNS('http://www.w3.org/2000/svg', 'tspan');
+        tspan.textContent = tooltipLines[i];
+        tspan.setAttribute('x', '0');
+        tspan.setAttribute('dy', i === 0 ? '0' : '1.2em');
+        if (i === 0) {
+          tspan.setAttribute('font-weight', 'bold');
+        }
+        tooltipText.appendChild(tspan);
+      }
+      
+      const tooltipPadding = 8;
+      const lineHeight = 14;
+      const tooltipWidth = 120;
+      const tooltipHeight = tooltipLines.length * lineHeight + tooltipPadding * 2;
+      
+      let tooltipX = mouseX + 10;
+      let tooltipY = margin.top + 10;
+      
+      if (tooltipX + tooltipWidth > margin.left + plotWidth) {
+        tooltipX = mouseX - tooltipWidth - 10;
+      }
+      
+      tooltipBg.setAttribute('x', tooltipX);
+      tooltipBg.setAttribute('y', tooltipY);
+      tooltipBg.setAttribute('width', tooltipWidth);
+      tooltipBg.setAttribute('height', tooltipHeight);
+      
+      tooltipText.setAttribute('x', tooltipX + tooltipPadding);
+      tooltipText.setAttribute('y', tooltipY + tooltipPadding + 12);
+    });
+    
+    overlay.addEventListener('mouseleave', function() {
+      crosshair.style.display = 'none';
+    });
   }
 
   /**
@@ -565,7 +689,14 @@ export class SVGPlotter {
       plotter.addSeries(sol.t, y, varName);
     }
 
-    return plotter.render();
+    const svg = plotter.render();
+    
+    // Return both SVG and plot data for interactivity
+    return {
+      svg: svg,
+      plotData: plotter.lastPlotData,
+      setupInteractivity: () => SVGPlotter.setupInteractivity(plotter.lastPlotData)
+    };
   }
 }
 
