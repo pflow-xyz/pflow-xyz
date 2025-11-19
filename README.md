@@ -16,6 +16,7 @@ The component is implemented as an ES module (`public/petri-view.js`) and expose
 - **Place Capacity**: Define maximum token capacity for places
 - **Token Management**: Click to add/remove tokens, with visual capacity indicators
 - **Live Simulation**: Manual firing of transitions with play/stop mode for automatic simulation
+- **ODE Simulation**: Continuous-time simulation using ordinary differential equations (Tsit5 solver)
 - **Pan & Zoom**: Navigate large nets with mouse/touch pan and zoom controls
 - **Undo/Redo**: Full history support for all editing operations
 
@@ -381,6 +382,8 @@ Petri nets are represented using JSON-LD format with the schema at `https://pflo
 - **Play/Stop**: Start/stop automatic simulation
 - **Scale Meter**: Shows current zoom level, click to reset to 1x
 - **Hamburger Menu**: Access additional features:
+  - Simulate (ODE): Open ODE simulation dialog
+  - Layout Algorithms: Apply automatic layout
   - New (clear all)
   - Download JSON-LD
   - Open from URL
@@ -389,6 +392,94 @@ Petri nets are represented using JSON-LD format with the schema at `https://pflo
   - Save Permalink (backend mode)
   - Delete Data (backend mode)
   - Login/Logout (backend mode with Supabase)
+
+## ODE Simulation
+
+The ODE (Ordinary Differential Equation) simulation feature allows you to model continuous-time behavior of Petri nets using differential equations. This is useful for analyzing system dynamics, optimization problems, and chemical reaction networks.
+
+### Accessing the Simulator
+
+Click the hamburger menu (☰) in the top-left corner and select "🧮 Simulate (ODE)" to open the simulation dialog.
+
+### Features
+
+- **Tsit5 Solver**: 5th order Runge-Kutta method with adaptive time stepping
+- **Mass Action Kinetics**: Automatic ODE generation from Petri net structure
+- **Configurable Parameters**:
+  - Time span (start and end time)
+  - Initial time step (dt)
+  - Absolute and relative tolerances
+  - Transition rates (kinetic constants)
+- **Interactive Plotting**:
+  - Select which places to plot
+  - Real-time SVG plot generation
+  - Multiple variables on the same plot
+- **Fast Computation**: Efficient JavaScript implementation
+
+### Using the Simulation Dialog
+
+1. **Configure Time Parameters**: Set the start and end time for the simulation
+2. **Adjust Solver Options**: Fine-tune dt, absolute tolerance, and relative tolerance
+3. **Select Places to Plot**: Check the boxes for places you want to visualize
+4. **Set Transition Rates**: Configure the rate constants for each transition
+5. **Run Simulation**: Click "Run Simulation" to compute and display results
+
+### Using the Solver Module Independently
+
+The `petri-solver.js` module can be used independently of the petri-view component:
+
+```html
+<script type="module">
+  import * as Solver from './petri-solver.js';
+
+  // Parse Petri net from JSON-LD
+  const net = Solver.fromJSON(petriNetData);
+  
+  // Set up initial state and rates
+  const initialState = Solver.setState(net);
+  const rates = Solver.setRates(net, { txn0: 1.5, txn1: 2.0 });
+  
+  // Create ODE problem
+  const prob = new Solver.ODEProblem(net, initialState, [0, 10], rates);
+  
+  // Solve using Tsit5
+  const sol = Solver.solve(prob, Solver.Tsit5(), {
+    dt: 0.01,
+    abstol: 1e-6,
+    reltol: 1e-3
+  });
+  
+  // Generate plot
+  const svg = Solver.SVGPlotter.plotSolution(sol, ['place1', 'place2'], {
+    title: 'Simulation Results',
+    xlabel: 'Time',
+    ylabel: 'Token Count'
+  });
+  
+  // Display the plot
+  document.getElementById('plot').innerHTML = svg;
+</script>
+```
+
+### API Reference
+
+**Classes**:
+- `PetriNet`: Petri net model container
+- `Place`: Place node with initial tokens and capacity
+- `Transition`: Transition node with role
+- `Arc`: Arc connecting places and transitions
+- `ODEProblem`: ODE problem definition
+- `ODESolution`: Solution containing time points and states
+- `SVGPlotter`: SVG plot generator
+
+**Functions**:
+- `fromJSON(data)`: Parse JSON-LD to PetriNet
+- `setState(net, customState)`: Create initial state from net
+- `setRates(net, customRates)`: Set transition rates
+- `solve(prob, solver, options)`: Solve ODE problem
+- `Tsit5()`: Create Tsit5 solver instance
+
+See `public/test-solver.html` for a complete standalone example.
 
 ## Integration Examples
 
