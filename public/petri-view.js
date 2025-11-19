@@ -78,6 +78,10 @@ class PetriView extends HTMLElement {
         
         // Original CID from URL (for revert functionality)
         this._originalCid = null;
+        
+        // ODE Simulation
+        this._simulationDialog = null;
+        this._solverModule = null;
     }
 
     // observe compact flag and json editor toggle
@@ -4569,6 +4573,583 @@ class PetriView extends HTMLElement {
         });
     }
 
+    // ---------------- ODE simulation dialog ----------------
+    async _showSimulationDialog() {
+        // Load solver module dynamically
+        if (!this._solverModule) {
+            try {
+                this._solverModule = await import('./petri-solver.js');
+            } catch (err) {
+                alert('Failed to load simulation module: ' + err.message);
+                console.error('Failed to load petri-solver.js:', err);
+                return;
+            }
+        }
+
+        // Create modal overlay
+        const overlay = document.createElement('div');
+        overlay.className = 'pv-simulation-dialog-overlay';
+        this._applyStyles(overlay, {
+            position: 'fixed',
+            left: '0',
+            top: '0',
+            right: '0',
+            bottom: '0',
+            background: 'rgba(0, 0, 0, 0.5)',
+            zIndex: 2147483646,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '20px'
+        });
+
+        // Create dialog
+        const dialog = document.createElement('div');
+        dialog.className = 'pv-simulation-dialog';
+        this._applyStyles(dialog, {
+            background: '#fff',
+            borderRadius: '8px',
+            padding: '24px',
+            maxWidth: '900px',
+            width: '100%',
+            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)',
+            maxHeight: '90vh',
+            overflow: 'auto',
+            display: 'flex',
+            flexDirection: 'column'
+        });
+
+        // Title
+        const title = document.createElement('h2');
+        title.textContent = 'ODE Simulation';
+        this._applyStyles(title, {
+            margin: '0 0 16px 0',
+            fontSize: '22px',
+            fontWeight: 'bold',
+            color: '#333'
+        });
+        dialog.appendChild(title);
+
+        // Description
+        const desc = document.createElement('p');
+        desc.textContent = 'Simulate the Petri net using ordinary differential equations (ODE solver). Configure simulation parameters and select which places to plot.';
+        this._applyStyles(desc, {
+            margin: '0 0 20px 0',
+            fontSize: '14px',
+            color: '#555',
+            lineHeight: '1.5'
+        });
+        dialog.appendChild(desc);
+
+        // Controls container
+        const controlsContainer = document.createElement('div');
+        this._applyStyles(controlsContainer, {
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr',
+            gap: '20px',
+            marginBottom: '20px'
+        });
+        dialog.appendChild(controlsContainer);
+
+        // Left column - Simulation parameters
+        const leftColumn = document.createElement('div');
+        controlsContainer.appendChild(leftColumn);
+
+        // Time parameters
+        const timeSection = document.createElement('div');
+        this._applyStyles(timeSection, {
+            marginBottom: '16px'
+        });
+        leftColumn.appendChild(timeSection);
+
+        const timeTitle = document.createElement('h3');
+        timeTitle.textContent = 'Time Parameters';
+        this._applyStyles(timeTitle, {
+            margin: '0 0 8px 0',
+            fontSize: '16px',
+            fontWeight: '600',
+            color: '#333'
+        });
+        timeSection.appendChild(timeTitle);
+
+        const timeStartLabel = document.createElement('label');
+        timeStartLabel.textContent = 'Start Time:';
+        this._applyStyles(timeStartLabel, {
+            display: 'block',
+            fontSize: '13px',
+            marginBottom: '4px',
+            color: '#444'
+        });
+        timeSection.appendChild(timeStartLabel);
+
+        const timeStartInput = document.createElement('input');
+        timeStartInput.type = 'number';
+        timeStartInput.value = '0';
+        timeStartInput.step = '0.1';
+        this._applyStyles(timeStartInput, {
+            width: '100%',
+            padding: '6px',
+            fontSize: '13px',
+            border: '1px solid #ccc',
+            borderRadius: '4px',
+            marginBottom: '8px'
+        });
+        timeSection.appendChild(timeStartInput);
+
+        const timeEndLabel = document.createElement('label');
+        timeEndLabel.textContent = 'End Time:';
+        this._applyStyles(timeEndLabel, {
+            display: 'block',
+            fontSize: '13px',
+            marginBottom: '4px',
+            color: '#444'
+        });
+        timeSection.appendChild(timeEndLabel);
+
+        const timeEndInput = document.createElement('input');
+        timeEndInput.type = 'number';
+        timeEndInput.value = '10';
+        timeEndInput.step = '0.1';
+        this._applyStyles(timeEndInput, {
+            width: '100%',
+            padding: '6px',
+            fontSize: '13px',
+            border: '1px solid #ccc',
+            borderRadius: '4px'
+        });
+        timeSection.appendChild(timeEndInput);
+
+        // Solver options
+        const solverSection = document.createElement('div');
+        this._applyStyles(solverSection, {
+            marginBottom: '16px'
+        });
+        leftColumn.appendChild(solverSection);
+
+        const solverTitle = document.createElement('h3');
+        solverTitle.textContent = 'Solver Options';
+        this._applyStyles(solverTitle, {
+            margin: '0 0 8px 0',
+            fontSize: '16px',
+            fontWeight: '600',
+            color: '#333'
+        });
+        solverSection.appendChild(solverTitle);
+
+        const dtLabel = document.createElement('label');
+        dtLabel.textContent = 'Initial Time Step (dt):';
+        this._applyStyles(dtLabel, {
+            display: 'block',
+            fontSize: '13px',
+            marginBottom: '4px',
+            color: '#444'
+        });
+        solverSection.appendChild(dtLabel);
+
+        const dtInput = document.createElement('input');
+        dtInput.type = 'number';
+        dtInput.value = '0.01';
+        dtInput.step = '0.001';
+        this._applyStyles(dtInput, {
+            width: '100%',
+            padding: '6px',
+            fontSize: '13px',
+            border: '1px solid #ccc',
+            borderRadius: '4px',
+            marginBottom: '8px'
+        });
+        solverSection.appendChild(dtInput);
+
+        const abstolLabel = document.createElement('label');
+        abstolLabel.textContent = 'Absolute Tolerance:';
+        this._applyStyles(abstolLabel, {
+            display: 'block',
+            fontSize: '13px',
+            marginBottom: '4px',
+            color: '#444'
+        });
+        solverSection.appendChild(abstolLabel);
+
+        const abstolInput = document.createElement('input');
+        abstolInput.type = 'number';
+        abstolInput.value = '1e-6';
+        abstolInput.step = '1e-7';
+        this._applyStyles(abstolInput, {
+            width: '100%',
+            padding: '6px',
+            fontSize: '13px',
+            border: '1px solid #ccc',
+            borderRadius: '4px',
+            marginBottom: '8px'
+        });
+        solverSection.appendChild(abstolInput);
+
+        const reltolLabel = document.createElement('label');
+        reltolLabel.textContent = 'Relative Tolerance:';
+        this._applyStyles(reltolLabel, {
+            display: 'block',
+            fontSize: '13px',
+            marginBottom: '4px',
+            color: '#444'
+        });
+        solverSection.appendChild(reltolLabel);
+
+        const reltolInput = document.createElement('input');
+        reltolInput.type = 'number';
+        reltolInput.value = '1e-3';
+        reltolInput.step = '1e-4';
+        this._applyStyles(reltolInput, {
+            width: '100%',
+            padding: '6px',
+            fontSize: '13px',
+            border: '1px solid #ccc',
+            borderRadius: '4px'
+        });
+        solverSection.appendChild(reltolInput);
+
+        // Right column - Variable selection and rates
+        const rightColumn = document.createElement('div');
+        controlsContainer.appendChild(rightColumn);
+
+        // Variables to plot
+        const variablesSection = document.createElement('div');
+        this._applyStyles(variablesSection, {
+            marginBottom: '16px'
+        });
+        rightColumn.appendChild(variablesSection);
+
+        const variablesTitle = document.createElement('h3');
+        variablesTitle.textContent = 'Places to Plot';
+        this._applyStyles(variablesTitle, {
+            margin: '0 0 8px 0',
+            fontSize: '16px',
+            fontWeight: '600',
+            color: '#333'
+        });
+        variablesSection.appendChild(variablesTitle);
+
+        const variablesContainer = document.createElement('div');
+        this._applyStyles(variablesContainer, {
+            maxHeight: '150px',
+            overflow: 'auto',
+            border: '1px solid #ccc',
+            borderRadius: '4px',
+            padding: '8px',
+            background: '#fafafa'
+        });
+        variablesSection.appendChild(variablesContainer);
+
+        // Add checkboxes for each place
+        const placeCheckboxes = {};
+        const placeLabels = Object.keys(this._model.places || {});
+        if (placeLabels.length === 0) {
+            const noPlaces = document.createElement('p');
+            noPlaces.textContent = 'No places in the model';
+            this._applyStyles(noPlaces, {
+                margin: '0',
+                fontSize: '13px',
+                color: '#999',
+                fontStyle: 'italic'
+            });
+            variablesContainer.appendChild(noPlaces);
+        } else {
+            placeLabels.forEach((label, idx) => {
+                const checkboxWrapper = document.createElement('div');
+                this._applyStyles(checkboxWrapper, {
+                    marginBottom: '6px',
+                    display: 'flex',
+                    alignItems: 'center'
+                });
+
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.id = 'var-' + label;
+                checkbox.checked = idx < 5; // Check first 5 by default
+                checkbox.value = label;
+                this._applyStyles(checkbox, {
+                    marginRight: '8px',
+                    cursor: 'pointer'
+                });
+                checkboxWrapper.appendChild(checkbox);
+                placeCheckboxes[label] = checkbox;
+
+                const checkboxLabel = document.createElement('label');
+                checkboxLabel.textContent = label;
+                checkboxLabel.htmlFor = 'var-' + label;
+                this._applyStyles(checkboxLabel, {
+                    fontSize: '13px',
+                    cursor: 'pointer',
+                    color: '#444'
+                });
+                checkboxWrapper.appendChild(checkboxLabel);
+
+                variablesContainer.appendChild(checkboxWrapper);
+            });
+        }
+
+        // Transition rates
+        const ratesSection = document.createElement('div');
+        rightColumn.appendChild(ratesSection);
+
+        const ratesTitle = document.createElement('h3');
+        ratesTitle.textContent = 'Transition Rates';
+        this._applyStyles(ratesTitle, {
+            margin: '0 0 8px 0',
+            fontSize: '16px',
+            fontWeight: '600',
+            color: '#333'
+        });
+        ratesSection.appendChild(ratesTitle);
+
+        const ratesContainer = document.createElement('div');
+        this._applyStyles(ratesContainer, {
+            maxHeight: '150px',
+            overflow: 'auto',
+            border: '1px solid #ccc',
+            borderRadius: '4px',
+            padding: '8px',
+            background: '#fafafa'
+        });
+        ratesSection.appendChild(ratesContainer);
+
+        const transitionRateInputs = {};
+        const transitionLabels = Object.keys(this._model.transitions || {});
+        if (transitionLabels.length === 0) {
+            const noTransitions = document.createElement('p');
+            noTransitions.textContent = 'No transitions in the model';
+            this._applyStyles(noTransitions, {
+                margin: '0',
+                fontSize: '13px',
+                color: '#999',
+                fontStyle: 'italic'
+            });
+            ratesContainer.appendChild(noTransitions);
+        } else {
+            transitionLabels.forEach(label => {
+                const rateWrapper = document.createElement('div');
+                this._applyStyles(rateWrapper, {
+                    marginBottom: '8px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between'
+                });
+
+                const rateLabel = document.createElement('label');
+                rateLabel.textContent = label + ':';
+                this._applyStyles(rateLabel, {
+                    fontSize: '13px',
+                    color: '#444',
+                    flex: '1',
+                    marginRight: '8px'
+                });
+                rateWrapper.appendChild(rateLabel);
+
+                const rateInput = document.createElement('input');
+                rateInput.type = 'number';
+                rateInput.value = '1.0';
+                rateInput.step = '0.1';
+                rateInput.min = '0';
+                this._applyStyles(rateInput, {
+                    width: '80px',
+                    padding: '4px',
+                    fontSize: '13px',
+                    border: '1px solid #ccc',
+                    borderRadius: '4px'
+                });
+                rateWrapper.appendChild(rateInput);
+                transitionRateInputs[label] = rateInput;
+
+                ratesContainer.appendChild(rateWrapper);
+            });
+        }
+
+        // Plot area
+        const plotContainer = document.createElement('div');
+        this._applyStyles(plotContainer, {
+            marginTop: '20px',
+            padding: '16px',
+            border: '1px solid #ddd',
+            borderRadius: '8px',
+            background: '#f9f9f9',
+            minHeight: '400px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+        });
+        dialog.appendChild(plotContainer);
+
+        const plotPlaceholder = document.createElement('p');
+        plotPlaceholder.textContent = 'Click "Run Simulation" to generate plot';
+        this._applyStyles(plotPlaceholder, {
+            margin: '0',
+            fontSize: '14px',
+            color: '#999',
+            fontStyle: 'italic'
+        });
+        plotContainer.appendChild(plotPlaceholder);
+
+        // Buttons container
+        const buttonsContainer = document.createElement('div');
+        this._applyStyles(buttonsContainer, {
+            marginTop: '20px',
+            display: 'flex',
+            gap: '12px',
+            justifyContent: 'flex-end'
+        });
+        dialog.appendChild(buttonsContainer);
+
+        // Run simulation button
+        const runButton = document.createElement('button');
+        runButton.textContent = 'Run Simulation';
+        runButton.type = 'button';
+        this._applyStyles(runButton, {
+            padding: '10px 20px',
+            fontSize: '14px',
+            fontWeight: '600',
+            color: '#fff',
+            background: '#0366d6',
+            border: 'none',
+            borderRadius: '6px',
+            cursor: 'pointer'
+        });
+        runButton.addEventListener('click', () => {
+            this._runODESimulation({
+                timeStartInput,
+                timeEndInput,
+                dtInput,
+                abstolInput,
+                reltolInput,
+                placeCheckboxes,
+                transitionRateInputs,
+                plotContainer,
+                runButton
+            });
+        });
+        buttonsContainer.appendChild(runButton);
+
+        // Close button
+        const closeButton = document.createElement('button');
+        closeButton.textContent = 'Close';
+        closeButton.type = 'button';
+        this._applyStyles(closeButton, {
+            padding: '10px 20px',
+            fontSize: '14px',
+            fontWeight: '600',
+            color: '#333',
+            background: '#f3f3f3',
+            border: 'none',
+            borderRadius: '6px',
+            cursor: 'pointer'
+        });
+        closeButton.addEventListener('click', () => {
+            document.body.removeChild(overlay);
+        });
+        buttonsContainer.appendChild(closeButton);
+
+        overlay.appendChild(dialog);
+        document.body.appendChild(overlay);
+
+        // Close on overlay click
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) {
+                document.body.removeChild(overlay);
+            }
+        });
+
+        this._simulationDialog = overlay;
+    }
+
+    async _runODESimulation(params) {
+        const {
+            timeStartInput,
+            timeEndInput,
+            dtInput,
+            abstolInput,
+            reltolInput,
+            placeCheckboxes,
+            transitionRateInputs,
+            plotContainer,
+            runButton
+        } = params;
+
+        try {
+            // Disable run button during simulation
+            runButton.disabled = true;
+            runButton.textContent = 'Running...';
+
+            // Get selected variables
+            const selectedVars = [];
+            for (const [label, checkbox] of Object.entries(placeCheckboxes)) {
+                if (checkbox.checked) {
+                    selectedVars.push(label);
+                }
+            }
+
+            if (selectedVars.length === 0) {
+                alert('Please select at least one place to plot');
+                return;
+            }
+
+            // Get transition rates
+            const rates = {};
+            for (const [label, input] of Object.entries(transitionRateInputs)) {
+                rates[label] = parseFloat(input.value) || 1.0;
+            }
+
+            // Parse simulation parameters
+            const tstart = parseFloat(timeStartInput.value) || 0;
+            const tend = parseFloat(timeEndInput.value) || 10;
+            const dt = parseFloat(dtInput.value) || 0.01;
+            const abstol = parseFloat(abstolInput.value) || 1e-6;
+            const reltol = parseFloat(reltolInput.value) || 1e-3;
+
+            // Create Petri net from model
+            const net = this._solverModule.fromJSON(this._model);
+            const initialState = this._solverModule.setState(net);
+
+            // Create ODE problem
+            const prob = new this._solverModule.ODEProblem(
+                net,
+                initialState,
+                [tstart, tend],
+                rates
+            );
+
+            // Solve
+            const sol = this._solverModule.solve(prob, this._solverModule.Tsit5(), {
+                dt: dt,
+                abstol: abstol,
+                reltol: reltol,
+                adaptive: true
+            });
+
+            // Generate plot
+            const svg = this._solverModule.SVGPlotter.plotSolution(sol, selectedVars, {
+                title: 'Petri Net ODE Simulation',
+                xlabel: 'Time',
+                ylabel: 'Token Count',
+                width: plotContainer.offsetWidth - 32 || 800,
+                height: 400
+            });
+
+            // Display plot
+            plotContainer.innerHTML = svg;
+
+            // Show success message
+            console.log('Simulation completed successfully');
+            console.log('Final state:', sol.getFinalState());
+
+        } catch (err) {
+            console.error('Simulation error:', err);
+            alert('Simulation failed: ' + err.message);
+            plotContainer.innerHTML = '<p style="color: red; margin: 0;">Simulation failed: ' + err.message + '</p>';
+        } finally {
+            // Re-enable run button
+            runButton.disabled = false;
+            runButton.textContent = 'Run Simulation';
+        }
+    }
+
     // ---------------- layout algorithms dialog ----------------
     _showLayoutAlgorithmsDialog() {
         // Create modal overlay
@@ -5723,6 +6304,11 @@ class PetriView extends HTMLElement {
         }
 
         // Standard menu items
+        const simulationItem = makeMenuItem('🧮 Simulate (ODE)', () => {
+            this._showSimulationDialog();
+        });
+        menuContainer._menuContent.appendChild(simulationItem);
+        
         const layoutAlgoItem = makeMenuItem('🎨 Layout Algorithms', () => {
             this._showLayoutAlgorithmsDialog();
         });

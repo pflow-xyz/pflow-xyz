@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title>Test Petri Solver Module</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 20px auto;
+            padding: 20px;
+        }
+        h1 {
+            color: #333;
+        }
+        #output {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f5f5f5;
+            border-radius: 8px;
+        }
+        #plot {
+            margin-top: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 10px;
+            background: white;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 14px;
+            background: #0366d6;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #0256c5;
+        }
+    </style>
+</head>
+<body>
+    <h1>Petri Solver Module Test</h1>
+    <p>This demonstrates using the petri-solver.js module independently of the petri-view component.</p>
+    
+    <button id="runBtn">Run ODE Simulation</button>
+    
+    <div id="output"></div>
+    <div id="plot"></div>
+
+    <script type="module">
+        import * as Solver from './petri-solver.js';
+
+        document.getElementById('runBtn').addEventListener('click', async () => {
+            const output = document.getElementById('output');
+            const plotDiv = document.getElementById('plot');
+            
+            output.innerHTML = '<p>Running simulation...</p>';
+            
+            try {
+                // Define a simple Petri net (knapsack problem)
+                const model = {
+                    "@context": "https://pflow.xyz/schema",
+                    "@type": "PetriNet",
+                    "@version": "1.1",
+                    "places": {
+                        "item0": { "@type": "Place", "initial": [1], "x": 351, "y": 140 },
+                        "item1": { "@type": "Place", "initial": [1], "x": 353, "y": 265 },
+                        "weight": { "@type": "Place", "x": 880, "y": 320 },
+                        "value": { "@type": "Place", "x": 765, "y": 145 },
+                        "capacity": { "@type": "Place", "initial": [15], "x": 730, "y": 541 }
+                    },
+                    "transitions": {
+                        "txn0": { "@type": "Transition", "x": 465, "y": 139 },
+                        "txn1": { "@type": "Transition", "x": 466, "y": 264 }
+                    },
+                    "arcs": [
+                        { "@type": "Arrow", "source": "txn0", "target": "weight", "weight": [2] },
+                        { "@type": "Arrow", "source": "txn0", "target": "value", "weight": [10] },
+                        { "@type": "Arrow", "source": "txn1", "target": "weight", "weight": [4] },
+                        { "@type": "Arrow", "source": "item0", "target": "txn0", "weight": [1] },
+                        { "@type": "Arrow", "source": "txn1", "target": "value", "weight": [10] },
+                        { "@type": "Arrow", "source": "item1", "target": "txn1", "weight": [1] },
+                        { "@type": "Arrow", "source": "capacity", "target": "txn0", "weight": [2] },
+                        { "@type": "Arrow", "source": "capacity", "target": "txn1", "weight": [4] }
+                    ]
+                };
+
+                // Parse the model
+                const net = Solver.fromJSON(model);
+                output.innerHTML += '<p>✓ Parsed Petri net</p>';
+                
+                // Set up initial state and rates
+                const initialState = Solver.setState(net);
+                const rates = Solver.setRates(net);
+                output.innerHTML += '<p>✓ Initial state: ' + JSON.stringify(initialState) + '</p>';
+                output.innerHTML += '<p>✓ Rates: ' + JSON.stringify(rates) + '</p>';
+                
+                // Create ODE problem
+                const prob = new Solver.ODEProblem(net, initialState, [0, 5], rates);
+                output.innerHTML += '<p>✓ Created ODE problem</p>';
+                
+                // Solve
+                const startTime = performance.now();
+                const sol = Solver.solve(prob, Solver.Tsit5(), {
+                    dt: 0.01,
+                    abstol: 1e-6,
+                    reltol: 1e-3,
+                    adaptive: true
+                });
+                const endTime = performance.now();
+                
+                output.innerHTML += `<p>✓ Solved in ${(endTime - startTime).toFixed(2)}ms</p>`;
+                output.innerHTML += `<p>✓ Time points: ${sol.t.length}</p>`;
+                output.innerHTML += `<p>✓ Final state: ${JSON.stringify(sol.getFinalState())}</p>`;
+                
+                // Generate plot
+                const svg = Solver.SVGPlotter.plotSolution(sol, ['value', 'weight'], {
+                    title: 'Knapsack Problem - ODE Simulation',
+                    xlabel: 'Time',
+                    ylabel: 'Token Count',
+                    width: 900,
+                    height: 400
+                });
+                
+                plotDiv.innerHTML = svg;
+                output.innerHTML += '<p>✓ Plot generated successfully!</p>';
+                
+            } catch (err) {
+                output.innerHTML += `<p style="color: red;">✗ Error: ${err.message}</p>`;
+                console.error(err);
+            }
+        });
+    </script>
+</body>
+</html>
