@@ -422,7 +422,20 @@ Click the hamburger menu (☰) in the top-left corner and select "🧮 Simulate 
 2. **Adjust Solver Options**: Fine-tune dt, absolute tolerance, and relative tolerance
 3. **Select Places to Plot**: Check the boxes for places you want to visualize
 4. **Set Transition Rates**: Configure the rate constants for each transition
+   - Default rate is 1.0 for all transitions
+   - Setting rate to 0 disables a transition (prevents it from firing)
+   - Useful for optimization problems (e.g., knapsack) to test which transitions should be excluded
 5. **Run Simulation**: Click "Run Simulation" to compute and display results
+
+### Optimization with Rate Parameters
+
+The rate parameter can be used to perform sensitivity analysis and optimization:
+
+- **Knapsack Problems**: Set rate=0 for specific transitions to exclude items and find optimal solutions
+- **Resource Allocation**: Test different configurations by enabling/disabling transitions
+- **Constraint Analysis**: Identify bottlenecks by selectively disabling transitions
+
+**Example**: In a knapsack problem with capacity constraints, setting a transition's rate to 0 effectively removes that item from consideration. This can reveal whether including/excluding certain items improves the objective function (e.g., total value).
 
 ### Using the Solver Module Independently
 
@@ -437,7 +450,7 @@ The `petri-solver.js` module can be used independently of the petri-view compone
   
   // Set up initial state and rates
   const initialState = Solver.setState(net);
-  const rates = Solver.setRates(net, { txn0: 1.5, txn1: 2.0 });
+  const rates = Solver.setRates(net, { txn0: 1.5, txn1: 2.0, txn2: 0.0 });  // rate=0 disables txn2
   
   // Create ODE problem
   const prob = new Solver.ODEProblem(net, initialState, [0, 10], rates);
