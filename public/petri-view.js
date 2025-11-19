@@ -5124,7 +5124,7 @@ class PetriView extends HTMLElement {
             });
 
             // Generate plot
-            const svg = this._solverModule.SVGPlotter.plotSolution(sol, selectedVars, {
+            const plotResult = this._solverModule.SVGPlotter.plotSolution(sol, selectedVars, {
                 title: 'Petri Net ODE Simulation',
                 xlabel: 'Time',
                 ylabel: 'Token Count',
@@ -5133,7 +5133,8 @@ class PetriView extends HTMLElement {
             });
 
             // Display plot
-            plotContainer.innerHTML = svg;
+            plotContainer.innerHTML = plotResult.svg;
+            plotResult.setupInteractivity();
 
             // Show success message
             console.log('Simulation completed successfully');

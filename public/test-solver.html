@@ -117,7 +117,7 @@
                 output.innerHTML += `<p>✓ Final state: ${JSON.stringify(sol.getFinalState())}</p>`;
                 
                 // Generate plot
-                const svg = Solver.SVGPlotter.plotSolution(sol, ['value', 'weight'], {
+                const plotResult = Solver.SVGPlotter.plotSolution(sol, ['value', 'weight'], {
                     title: 'Knapsack Problem - ODE Simulation',
                     xlabel: 'Time',
                     ylabel: 'Token Count',
@@ -125,7 +125,8 @@
                     height: 400
                 });
                 
-                plotDiv.innerHTML = svg;
+                plotDiv.innerHTML = plotResult.svg;
+                plotResult.setupInteractivity();
                 output.innerHTML += '<p>✓ Plot generated successfully!</p>';
                 
             } catch (err) {
