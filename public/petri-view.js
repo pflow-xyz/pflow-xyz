@@ -4635,27 +4635,88 @@ class PetriView extends HTMLElement {
         dialog.className = 'pv-simulation-dialog';
         this._applyStyles(dialog, {
             background: '#fff',
-            borderRadius: '8px',
-            padding: '24px',
+            borderRadius: '12px',
+            padding: '0',
             maxWidth: '900px',
             width: '100%',
             boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)',
             maxHeight: '90vh',
-            overflow: 'auto',
+            border: '1px solid #ddd',
             display: 'flex',
-            flexDirection: 'column'
+            flexDirection: 'column',
+            position: 'relative'
         });
+
+        // Header container with title and close button
+        const header = document.createElement('div');
+        this._applyStyles(header, {
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '20px 24px',
+            borderBottom: '1px solid #eee'
+        });
+        dialog.appendChild(header);
 
         // Title
         const title = document.createElement('h2');
         title.textContent = 'ODE Simulation';
         this._applyStyles(title, {
-            margin: '0 0 16px 0',
+            margin: '0',
             fontSize: '22px',
             fontWeight: 'bold',
             color: '#333'
         });
-        dialog.appendChild(title);
+        header.appendChild(title);
+
+        // Close icon button
+        const closeIcon = document.createElement('button');
+        closeIcon.innerHTML = '×';
+        closeIcon.type = 'button';
+        closeIcon.title = 'Close';
+        this._applyStyles(closeIcon, {
+            background: 'transparent',
+            border: 'none',
+            fontSize: '32px',
+            lineHeight: '1',
+            color: '#666',
+            cursor: 'pointer',
+            padding: '0',
+            width: '32px',
+            height: '32px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderRadius: '4px',
+            transition: 'background 0.2s, color 0.2s'
+        });
+        closeIcon.addEventListener('mouseenter', () => {
+            this._applyStyles(closeIcon, {
+                background: '#f0f0f0',
+                color: '#333'
+            });
+        });
+        closeIcon.addEventListener('mouseleave', () => {
+            this._applyStyles(closeIcon, {
+                background: 'transparent',
+                color: '#666'
+            });
+        });
+        closeIcon.addEventListener('click', () => {
+            document.body.removeChild(overlay);
+        });
+        header.appendChild(closeIcon);
+
+        // Content container with scrollbar
+        const contentContainer = document.createElement('div');
+        this._applyStyles(contentContainer, {
+            padding: '24px',
+            overflowY: 'auto',
+            overflowX: 'hidden',
+            flex: '1',
+            minHeight: '0'
+        });
+        dialog.appendChild(contentContainer);
 
         // Description
         const desc = document.createElement('p');
@@ -4666,7 +4727,7 @@ class PetriView extends HTMLElement {
             color: '#555',
             lineHeight: '1.5'
         });
-        dialog.appendChild(desc);
+        contentContainer.appendChild(desc);
 
         // Controls container
         const controlsContainer = document.createElement('div');
@@ -4676,7 +4737,7 @@ class PetriView extends HTMLElement {
             gap: '20px',
             marginBottom: '20px'
         });
-        dialog.appendChild(controlsContainer);
+        contentContainer.appendChild(controlsContainer);
 
         // Left column - Simulation parameters
         const leftColumn = document.createElement('div');
@@ -5003,7 +5064,7 @@ class PetriView extends HTMLElement {
             alignItems: 'center',
             justifyContent: 'center'
         });
-        dialog.appendChild(plotContainer);
+        contentContainer.appendChild(plotContainer);
 
         const plotPlaceholder = document.createElement('p');
         plotPlaceholder.textContent = 'Click "Run Simulation" to generate plot';
@@ -5019,9 +5080,12 @@ class PetriView extends HTMLElement {
         const buttonsContainer = document.createElement('div');
         this._applyStyles(buttonsContainer, {
             marginTop: '20px',
+            padding: '16px 24px',
+            borderTop: '1px solid #eee',
             display: 'flex',
             gap: '12px',
-            justifyContent: 'flex-end'
+            justifyContent: 'flex-end',
+            background: '#fafafa'
         });
         dialog.appendChild(buttonsContainer);
 
