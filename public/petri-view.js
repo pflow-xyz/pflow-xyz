@@ -5209,6 +5209,69 @@ class PetriView extends HTMLElement {
         }
     }
 
+    /**
+     * Evaluate objective function for optimization
+     * Returns the final value of target place given transition rates
+     */
+    async _evaluateObjective(rates, transitionLabels, targetPlace, tstart, tend, dt, abstol, reltol) {
+        try {
+            const ratesObj = {};
+            transitionLabels.forEach((label, i) => {
+                ratesObj[label] = rates[i];
+            });
+
+            // Create Petri net from model
+            const net = this._solverModule.fromJSON(this._model);
+            const initialState = this._solverModule.setState(net);
+
+            // Create ODE problem
+            const prob = new this._solverModule.ODEProblem(
+                net,
+                initialState,
+                [tstart, tend],
+                ratesObj
+            );
+
+            // Solve
+            const sol = this._solverModule.solve(prob, this._solverModule.Tsit5(), {
+                dt: dt,
+                abstol: abstol,
+                reltol: reltol,
+                adaptive: true
+            });
+
+            // Get final state
+            const finalState = sol.getFinalState();
+            
+            if (finalState[targetPlace] !== undefined) {
+                return finalState[targetPlace];
+            }
+            
+            return 0;
+        } catch (err) {
+            console.warn('Evaluation error:', err.message);
+            return 0;
+        }
+    }
+
+    /**
+     * Compute gradient numerically using finite differences
+     */
+    async _computeGradient(rates, transitionLabels, targetPlace, tstart, tend, dt, abstol, reltol, epsilon = 0.01) {
+        const gradient = new Array(rates.length).fill(0);
+        const baseValue = await this._evaluateObjective(rates, transitionLabels, targetPlace, tstart, tend, dt, abstol, reltol);
+
+        for (let i = 0; i < rates.length; i++) {
+            const ratesPlusEps = [...rates];
+            ratesPlusEps[i] += epsilon;
+            
+            const valuePlusEps = await this._evaluateObjective(ratesPlusEps, transitionLabels, targetPlace, tstart, tend, dt, abstol, reltol);
+            gradient[i] = (valuePlusEps - baseValue) / epsilon;
+        }
+
+        return gradient;
+    }
+
     async _optimizeRates(params) {
         const {
             timeStartInput,
@@ -5252,120 +5315,111 @@ class PetriView extends HTMLElement {
             const abstol = parseFloat(abstolInput.value) || 1e-6;
             const reltol = parseFloat(reltolInput.value) || 1e-3;
 
-            // Track best configuration
-            let bestValue = -Infinity;
-            let bestRates = {};
-            let bestStateInfo = null;
-
             // Show progress
-            plotContainer.innerHTML = `<p style="margin: 0; font-size: 14px;">Testing ${Math.pow(2, numTransitions)} rate configurations to maximize "${targetPlace}"...</p>`;
+            plotContainer.innerHTML = `<p style="margin: 0; font-size: 14px;">Optimizing rates using gradient descent to maximize "${targetPlace}"...</p>`;
 
-            // Enumerate all possible combinations (2^n where n = number of transitions)
-            const totalCombinations = Math.pow(2, numTransitions);
+            // Initialize rates at midpoint (0.5) for better convergence
+            let rates = new Array(numTransitions).fill(0.5);
+
+            // Gradient descent parameters
+            const maxIterations = 100;
+            const learningRate = 0.1;
+            const convergenceThreshold = 1e-4;
             
-            for (let i = 0; i < totalCombinations; i++) {
-                const rates = {};
+            let bestValue = await this._evaluateObjective(rates, transitionLabels, targetPlace, tstart, tend, dt, abstol, reltol);
+            let bestRates = [...rates];
+            let iteration = 0;
+
+            // Gradient descent optimization
+            for (iteration = 0; iteration < maxIterations; iteration++) {
+                // Compute gradient
+                const gradient = await this._computeGradient(rates, transitionLabels, targetPlace, tstart, tend, dt, abstol, reltol);
                 
-                // Convert binary representation to rates (0 = off, 1 = on)
-                for (let j = 0; j < numTransitions; j++) {
-                    const isOn = (i & (1 << j)) !== 0;
-                    rates[transitionLabels[j]] = isOn ? 1.0 : 0;
+                // Check if gradient is too small (convergence)
+                const gradientNorm = Math.sqrt(gradient.reduce((sum, g) => sum + g * g, 0));
+                if (gradientNorm < convergenceThreshold) {
+                    console.log(`Converged at iteration ${iteration} with gradient norm ${gradientNorm}`);
+                    break;
                 }
 
-                try {
-                    // Create Petri net from model
-                    const net = this._solverModule.fromJSON(this._model);
-                    const initialState = this._solverModule.setState(net);
+                // Update rates using gradient ascent (we're maximizing)
+                const newRates = rates.map((r, i) => {
+                    const updated = r + learningRate * gradient[i];
+                    // Clamp rates to [0, 2] range for stability
+                    return Math.max(0, Math.min(2, updated));
+                });
 
-                    // Create ODE problem
-                    const prob = new this._solverModule.ODEProblem(
-                        net,
-                        initialState,
-                        [tstart, tend],
-                        rates
-                    );
+                // Evaluate new rates
+                const newValue = await this._evaluateObjective(newRates, transitionLabels, targetPlace, tstart, tend, dt, abstol, reltol);
 
-                    // Solve
-                    const sol = this._solverModule.solve(prob, this._solverModule.Tsit5(), {
-                        dt: dt,
-                        abstol: abstol,
-                        reltol: reltol,
-                        adaptive: true
+                // Update if improved
+                if (newValue > bestValue) {
+                    bestValue = newValue;
+                    bestRates = [...newRates];
+                    rates = newRates;
+                } else {
+                    // If no improvement, reduce learning rate and try again
+                    const reducedLearningRate = learningRate * 0.5;
+                    const tentativeRates = rates.map((r, i) => {
+                        const updated = r + reducedLearningRate * gradient[i];
+                        return Math.max(0, Math.min(2, updated));
                     });
-
-                    // Get final state
-                    const finalState = sol.getFinalState();
                     
-                    if (finalState[targetPlace] !== undefined) {
-                        const value = finalState[targetPlace];
-                        
-                        if (value > bestValue) {
-                            bestValue = value;
-                            bestRates = { ...rates };
-                            bestStateInfo = {
-                                finalState: { ...finalState },
-                                stateLabels: [...sol.stateLabels]
-                            };
-                        }
+                    const tentativeValue = await this._evaluateObjective(tentativeRates, transitionLabels, targetPlace, tstart, tend, dt, abstol, reltol);
+                    
+                    if (tentativeValue > bestValue) {
+                        bestValue = tentativeValue;
+                        bestRates = [...tentativeRates];
+                        rates = tentativeRates;
+                    } else {
+                        // No improvement even with reduced rate, stop
+                        console.log(`No improvement at iteration ${iteration}, stopping`);
+                        break;
                     }
-                } catch (err) {
-                    // Skip configurations that cause errors
-                    console.warn('Skipping configuration due to error:', err.message);
                 }
 
-                // Update progress periodically
-                if (i % Math.max(1, Math.floor(totalCombinations / 20)) === 0) {
-                    const progress = Math.floor((i / totalCombinations) * 100);
-                    plotContainer.innerHTML = `<p style="margin: 0; font-size: 14px;">Testing configurations... ${progress}% complete</p>`;
+                // Update progress
+                if (iteration % 5 === 0) {
+                    const progress = Math.floor((iteration / maxIterations) * 100);
+                    plotContainer.innerHTML = `<p style="margin: 0; font-size: 14px;">Optimizing... iteration ${iteration}/${maxIterations} (${progress}%)<br/>Current best value: ${bestValue.toFixed(4)}</p>`;
                 }
             }
+
+            // Convert best rates back to object
+            const bestRatesObj = {};
+            transitionLabels.forEach((label, i) => {
+                bestRatesObj[label] = bestRates[i];
+            });
 
             // Update rate inputs with optimal values
             for (const [label, input] of Object.entries(transitionRateInputs)) {
-                input.value = bestRates[label] || 0;
+                input.value = (bestRatesObj[label] || 0).toFixed(4);
             }
 
             // Display results
-            const activeTransitions = Object.entries(bestRates)
-                .filter(([_, rate]) => rate > 0)
-                .map(([label, _]) => label);
-            const inactiveTransitions = Object.entries(bestRates)
-                .filter(([_, rate]) => rate === 0)
-                .map(([label, _]) => label);
-
             let resultHTML = '<div style="text-align: left;">';
             resultHTML += `<h3 style="margin: 0 0 12px 0; font-size: 16px; color: #28a745;">Optimization Complete!</h3>`;
+            resultHTML += `<p style="margin: 0 0 8px 0;"><strong>Algorithm:</strong> Gradient Descent</p>`;
+            resultHTML += `<p style="margin: 0 0 8px 0;"><strong>Iterations:</strong> ${iteration}</p>`;
             resultHTML += `<p style="margin: 0 0 8px 0;"><strong>Target Place:</strong> ${targetPlace}</p>`;
             resultHTML += `<p style="margin: 0 0 8px 0;"><strong>Optimal Value:</strong> ${bestValue.toFixed(4)}</p>`;
-            resultHTML += `<p style="margin: 0 0 4px 0;"><strong>Active Transitions:</strong></p>`;
-            if (activeTransitions.length > 0) {
-                resultHTML += '<ul style="margin: 0 0 8px 0; padding-left: 20px;">';
-                activeTransitions.forEach(t => {
-                    resultHTML += `<li>${t}</li>`;
-                });
-                resultHTML += '</ul>';
-            } else {
-                resultHTML += '<p style="margin: 0 0 8px 0; padding-left: 20px; font-style: italic;">None</p>';
-            }
-            resultHTML += `<p style="margin: 0 0 4px 0;"><strong>Disabled Transitions:</strong></p>`;
-            if (inactiveTransitions.length > 0) {
-                resultHTML += '<ul style="margin: 0 0 8px 0; padding-left: 20px;">';
-                inactiveTransitions.forEach(t => {
-                    resultHTML += `<li style="color: #dc3545;">${t}</li>`;
-                });
-                resultHTML += '</ul>';
-            } else {
-                resultHTML += '<p style="margin: 0 0 8px 0; padding-left: 20px; font-style: italic;">None</p>';
-            }
+            resultHTML += `<p style="margin: 0 0 4px 0;"><strong>Optimal Rates:</strong></p>`;
+            resultHTML += '<ul style="margin: 0 0 8px 0; padding-left: 20px;">';
+            transitionLabels.forEach(label => {
+                const rate = bestRatesObj[label];
+                const color = rate > 0.1 ? '#28a745' : '#6c757d';
+                resultHTML += `<li style="color: ${color};">${label}: ${rate.toFixed(4)}</li>`;
+            });
+            resultHTML += '</ul>';
             resultHTML += `<p style="margin: 12px 0 0 0; font-size: 13px; color: #666;">Transition rates have been updated. Click "Run Simulation" to visualize the optimal solution.</p>`;
             resultHTML += '</div>';
 
             plotContainer.innerHTML = resultHTML;
 
             console.log('Optimization completed successfully');
+            console.log('Iterations:', iteration);
             console.log('Best value:', bestValue);
-            console.log('Best rates:', bestRates);
-            console.log('Best final state:', bestStateInfo);
+            console.log('Best rates:', bestRatesObj);
 
         } catch (err) {
             console.error('Optimization error:', err);
