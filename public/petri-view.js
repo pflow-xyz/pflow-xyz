@@ -5295,16 +5295,15 @@ class PetriView extends HTMLElement {
 
                     // Get final state
                     const finalState = sol.getFinalState();
-                    const placeIndex = sol.stateLabels.indexOf(targetPlace);
                     
-                    if (placeIndex !== -1) {
-                        const value = finalState[placeIndex];
+                    if (finalState[targetPlace] !== undefined) {
+                        const value = finalState[targetPlace];
                         
                         if (value > bestValue) {
                             bestValue = value;
                             bestRates = { ...rates };
                             bestStateInfo = {
-                                finalState: [...finalState],
+                                finalState: { ...finalState },
                                 stateLabels: [...sol.stateLabels]
                             };
                         }
