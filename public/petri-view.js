@@ -5120,7 +5120,8 @@ class PetriView extends HTMLElement {
             // Get transition rates
             const rates = {};
             for (const [label, input] of Object.entries(transitionRateInputs)) {
-                rates[label] = parseFloat(input.value) || 1.0;
+                const parsedValue = parseFloat(input.value);
+                rates[label] = isNaN(parsedValue) ? 1.0 : parsedValue;
             }
 
             // Parse simulation parameters
