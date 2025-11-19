@@ -633,18 +633,6 @@ export class SVGPlotter {
         tooltipLines.push(s.label + ': ' + yval.toFixed(3));
       }
       
-      tooltipText.innerHTML = '';
-      for (let i = 0; i < tooltipLines.length; i++) {
-        const tspan = document.createElementNS('http://www.w3.org/2000/svg', 'tspan');
-        tspan.textContent = tooltipLines[i];
-        tspan.setAttribute('x', '0');
-        tspan.setAttribute('dy', i === 0 ? '0' : '1.2em');
-        if (i === 0) {
-          tspan.setAttribute('font-weight', 'bold');
-        }
-        tooltipText.appendChild(tspan);
-      }
-      
       const tooltipPadding = 8;
       const lineHeight = 14;
       const tooltipWidth = 120;
@@ -664,6 +652,18 @@ export class SVGPlotter {
       
       tooltipText.setAttribute('x', tooltipX + tooltipPadding);
       tooltipText.setAttribute('y', tooltipY + tooltipPadding + 12);
+      
+      tooltipText.innerHTML = '';
+      for (let i = 0; i < tooltipLines.length; i++) {
+        const tspan = document.createElementNS('http://www.w3.org/2000/svg', 'tspan');
+        tspan.textContent = tooltipLines[i];
+        tspan.setAttribute('x', tooltipX + tooltipPadding);
+        tspan.setAttribute('dy', i === 0 ? '0' : '1.2em');
+        if (i === 0) {
+          tspan.setAttribute('font-weight', 'bold');
+        }
+        tooltipText.appendChild(tspan);
+      }
     });
     
     overlay.addEventListener('mouseleave', function() {
