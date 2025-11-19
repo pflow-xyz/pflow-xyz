@@ -4492,6 +4492,33 @@ class PetriView extends HTMLElement {
                 <li><strong>Auto-save:</strong> Changes are saved to browser localStorage</li>
             </ul>
 
+            <h3 style="margin: 16px 0 8px 0; font-size: 16px; font-weight: 600; color: #000;">ODE Simulation</h3>
+            <p style="margin: 0 0 12px 0;">
+                The ODE (Ordinary Differential Equation) simulator models continuous-time behavior of Petri nets using mass action kinetics. 
+                Access it from the hamburger menu: <strong>🧮 Simulate (ODE)</strong>
+            </p>
+            
+            <h4 style="margin: 12px 0 6px 0; font-size: 14px; font-weight: 600;">Key Features:</h4>
+            <ul style="margin: 6px 0 12px 20px; padding: 0;">
+                <li><strong>Transition Rates:</strong> Set rate constants for each transition (default is 1.0)</li>
+                <li><strong>Rate=0 for Optimization:</strong> Setting a transition's rate to 0 disables it, useful for:
+                    <ul style="margin: 4px 0 4px 20px;">
+                        <li>Knapsack problems: Exclude items to find optimal solutions</li>
+                        <li>Resource allocation: Test different configurations</li>
+                        <li>Sensitivity analysis: Identify which transitions improve objectives</li>
+                    </ul>
+                </li>
+                <li><strong>Tsit5 Solver:</strong> High-accuracy 5th order Runge-Kutta method with adaptive time stepping</li>
+                <li><strong>Interactive Plotting:</strong> Select which places to visualize and view real-time SVG plots</li>
+                <li><strong>Configurable Parameters:</strong> Adjust time span, dt, absolute/relative tolerances</li>
+            </ul>
+            
+            <p style="margin: 0 0 12px 0;">
+                <strong>Example:</strong> In a knapsack problem with limited capacity, setting rate=0 for a transition effectively 
+                removes that item from consideration. This frees up capacity for other transitions, potentially increasing the total 
+                value if the excluded item had a poor value-to-weight ratio.
+            </p>
+
             <h3 style="margin: 16px 0 8px 0; font-size: 16px; font-weight: 600; color: #000;">Layout Algorithms</h3>
             <p style="margin: 0 0 12px 0;">
                 Use the <strong>🎨 Layout Algorithms</strong> menu to automatically arrange your Petri net nodes:
