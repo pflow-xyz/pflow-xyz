@@ -82,7 +82,6 @@ class PetriView extends HTMLElement {
         // ODE Simulation
         this._simulationDialog = null;
         this._solverModule = null;
-        this._mlMatrix = null; // ml-matrix module for optimization
     }
 
     // observe compact flag and json editor toggle
@@ -5211,24 +5210,6 @@ class PetriView extends HTMLElement {
     }
 
     /**
-     * Load ml-matrix library dynamically
-     */
-    async _loadMLMatrix() {
-        if (this._mlMatrix) {
-            return this._mlMatrix;
-        }
-
-        try {
-            // Load ml-matrix from CDN
-            this._mlMatrix = await import('https://cdn.jsdelivr.net/npm/ml-matrix@6.10.4/+esm');
-            return this._mlMatrix;
-        } catch (err) {
-            console.error('Failed to load ml-matrix:', err);
-            throw new Error('Failed to load ml-matrix library: ' + err.message);
-        }
-    }
-
-    /**
      * Evaluate objective function for optimization
      * Returns the final value of target place given transition rates
      */
@@ -5305,9 +5286,6 @@ class PetriView extends HTMLElement {
         } = params;
 
         try {
-            // Load ml-matrix library
-            await this._loadMLMatrix();
-
             // Get list of places to choose from
             const placeLabels = Object.keys(this._model.places || {});
             if (placeLabels.length === 0) {
