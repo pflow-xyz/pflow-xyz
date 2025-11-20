@@ -5051,6 +5051,103 @@ class PetriView extends HTMLElement {
             });
         }
 
+        // Optimization mode selector
+        const optimizationSection = document.createElement('div');
+        this._applyStyles(optimizationSection, {
+            marginTop: '16px',
+            padding: '12px',
+            border: '1px solid #ddd',
+            borderRadius: '6px',
+            background: '#f9f9f9'
+        });
+        contentContainer.appendChild(optimizationSection);
+
+        const optimizationTitle = document.createElement('h3');
+        optimizationTitle.textContent = 'Optimization Mode';
+        this._applyStyles(optimizationTitle, {
+            margin: '0 0 8px 0',
+            fontSize: '14px',
+            fontWeight: '600',
+            color: '#333'
+        });
+        optimizationSection.appendChild(optimizationTitle);
+
+        const modeDescription = document.createElement('p');
+        modeDescription.textContent = 'Select optimization strategy for "Optimize Rates" button:';
+        this._applyStyles(modeDescription, {
+            margin: '0 0 8px 0',
+            fontSize: '12px',
+            color: '#666'
+        });
+        optimizationSection.appendChild(modeDescription);
+
+        const modeRadioContainer = document.createElement('div');
+        this._applyStyles(modeRadioContainer, {
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '8px'
+        });
+        optimizationSection.appendChild(modeRadioContainer);
+
+        // Continuous mode radio
+        const continuousModeWrapper = document.createElement('div');
+        this._applyStyles(continuousModeWrapper, {
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+        });
+        
+        const continuousModeRadio = document.createElement('input');
+        continuousModeRadio.type = 'radio';
+        continuousModeRadio.name = 'optimization-mode';
+        continuousModeRadio.value = 'continuous';
+        continuousModeRadio.id = 'mode-continuous';
+        continuousModeRadio.checked = true;
+        this._applyStyles(continuousModeRadio, {
+            cursor: 'pointer'
+        });
+        continuousModeWrapper.appendChild(continuousModeRadio);
+
+        const continuousModeLabel = document.createElement('label');
+        continuousModeLabel.htmlFor = 'mode-continuous';
+        continuousModeLabel.innerHTML = '<strong>Continuous:</strong> Find optimal continuous rates (0.0 to 1.0) using gradient ascent';
+        this._applyStyles(continuousModeLabel, {
+            fontSize: '13px',
+            color: '#444',
+            cursor: 'pointer'
+        });
+        continuousModeWrapper.appendChild(continuousModeLabel);
+        modeRadioContainer.appendChild(continuousModeWrapper);
+
+        // Binary mode radio
+        const binaryModeWrapper = document.createElement('div');
+        this._applyStyles(binaryModeWrapper, {
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+        });
+        
+        const binaryModeRadio = document.createElement('input');
+        binaryModeRadio.type = 'radio';
+        binaryModeRadio.name = 'optimization-mode';
+        binaryModeRadio.value = 'binary';
+        binaryModeRadio.id = 'mode-binary';
+        this._applyStyles(binaryModeRadio, {
+            cursor: 'pointer'
+        });
+        binaryModeWrapper.appendChild(binaryModeRadio);
+
+        const binaryModeLabel = document.createElement('label');
+        binaryModeLabel.htmlFor = 'mode-binary';
+        binaryModeLabel.innerHTML = '<strong>Binary (0|1):</strong> Find which transitions to include (1) or exclude (0) using threshold + local search';
+        this._applyStyles(binaryModeLabel, {
+            fontSize: '13px',
+            color: '#444',
+            cursor: 'pointer'
+        });
+        binaryModeWrapper.appendChild(binaryModeLabel);
+        modeRadioContainer.appendChild(binaryModeWrapper);
+
         // Plot area
         const plotContainer = document.createElement('div');
         this._applyStyles(plotContainer, {
@@ -5104,6 +5201,9 @@ class PetriView extends HTMLElement {
             cursor: 'pointer'
         });
         optimizeButton.addEventListener('click', () => {
+            // Get selected optimization mode
+            const selectedMode = continuousModeRadio.checked ? 'continuous' : 'binary';
+            
             this._optimizeRates({
                 timeStartInput,
                 timeEndInput,
@@ -5114,7 +5214,8 @@ class PetriView extends HTMLElement {
                 transitionRateInputs,
                 plotContainer,
                 optimizeButton,
-                runButton
+                runButton,
+                optimizationMode: selectedMode
             });
         });
         buttonsContainer.appendChild(optimizeButton);
@@ -5346,7 +5447,8 @@ class PetriView extends HTMLElement {
             transitionRateInputs,
             plotContainer,
             optimizeButton,
-            runButton
+            runButton,
+            optimizationMode = 'continuous'
         } = params;
 
         try {
@@ -5379,111 +5481,44 @@ class PetriView extends HTMLElement {
             const abstol = parseFloat(abstolInput.value) || 1e-6;
             const reltol = parseFloat(reltolInput.value) || 1e-3;
 
-            // Show progress
-            plotContainer.innerHTML = `<p style="margin: 0; font-size: 14px;">Optimizing rates using gradient descent to maximize "${targetPlace}"...</p>`;
-
-            // Initialize rates at midpoint (0.5) for better convergence
-            let rates = new Array(numTransitions).fill(0.5);
-
-            // Gradient descent parameters
-            const maxIterations = 100;
-            const learningRate = 0.1;
-            const convergenceThreshold = 1e-4;
-            
-            let bestValue = await this._evaluateObjective(rates, transitionLabels, targetPlace, tstart, tend, dt, abstol, reltol);
-            let bestRates = [...rates];
-            let iteration = 0;
-
-            // Gradient descent optimization
-            for (iteration = 0; iteration < maxIterations; iteration++) {
-                // Compute gradient
-                const gradient = await this._computeGradient(rates, transitionLabels, targetPlace, tstart, tend, dt, abstol, reltol);
-                
-                // Check if gradient is too small (convergence)
-                const gradientNorm = Math.sqrt(gradient.reduce((sum, g) => sum + g * g, 0));
-                if (gradientNorm < convergenceThreshold) {
-                    console.log(`Converged at iteration ${iteration} with gradient norm ${gradientNorm}`);
-                    break;
-                }
-
-                // Update rates using gradient ascent (we're maximizing)
-                const newRates = rates.map((r, i) => {
-                    const updated = r + learningRate * gradient[i];
-                    // Clamp rates to [0, 2] range for stability
-                    return Math.max(0, Math.min(2, updated));
+            // Dispatch to appropriate optimization algorithm
+            let result;
+            if (optimizationMode === 'binary') {
+                result = await this._optimizeBinary({
+                    transitionLabels,
+                    targetPlace,
+                    tstart,
+                    tend,
+                    dt,
+                    abstol,
+                    reltol,
+                    plotContainer
                 });
-
-                // Evaluate new rates
-                const newValue = await this._evaluateObjective(newRates, transitionLabels, targetPlace, tstart, tend, dt, abstol, reltol);
-
-                // Update if improved
-                if (newValue > bestValue) {
-                    bestValue = newValue;
-                    bestRates = [...newRates];
-                    rates = newRates;
-                } else {
-                    // If no improvement, reduce learning rate and try again
-                    const reducedLearningRate = learningRate * 0.5;
-                    const tentativeRates = rates.map((r, i) => {
-                        const updated = r + reducedLearningRate * gradient[i];
-                        return Math.max(0, Math.min(2, updated));
-                    });
-                    
-                    const tentativeValue = await this._evaluateObjective(tentativeRates, transitionLabels, targetPlace, tstart, tend, dt, abstol, reltol);
-                    
-                    if (tentativeValue > bestValue) {
-                        bestValue = tentativeValue;
-                        bestRates = [...tentativeRates];
-                        rates = tentativeRates;
-                    } else {
-                        // No improvement even with reduced rate, stop
-                        console.log(`No improvement at iteration ${iteration}, stopping`);
-                        break;
-                    }
-                }
-
-                // Update progress
-                if (iteration % 5 === 0) {
-                    const progress = Math.floor((iteration / maxIterations) * 100);
-                    plotContainer.innerHTML = `<p style="margin: 0; font-size: 14px;">Optimizing... iteration ${iteration}/${maxIterations} (${progress}%)<br/>Current best value: ${bestValue.toFixed(4)}</p>`;
-                }
+            } else {
+                result = await this._optimizeContinuous({
+                    transitionLabels,
+                    targetPlace,
+                    tstart,
+                    tend,
+                    dt,
+                    abstol,
+                    reltol,
+                    plotContainer
+                });
             }
-
-            // Convert best rates back to object
-            const bestRatesObj = {};
-            transitionLabels.forEach((label, i) => {
-                bestRatesObj[label] = bestRates[i];
-            });
 
             // Update rate inputs with optimal values
             for (const [label, input] of Object.entries(transitionRateInputs)) {
-                input.value = (bestRatesObj[label] || 0).toFixed(4);
+                input.value = (result.rates[label] || 0).toFixed(4);
             }
 
             // Display results
-            let resultHTML = '<div style="text-align: left;">';
-            resultHTML += `<h3 style="margin: 0 0 12px 0; font-size: 16px; color: #28a745;">Optimization Complete!</h3>`;
-            resultHTML += `<p style="margin: 0 0 8px 0;"><strong>Algorithm:</strong> Gradient Descent</p>`;
-            resultHTML += `<p style="margin: 0 0 8px 0;"><strong>Iterations:</strong> ${iteration}</p>`;
-            resultHTML += `<p style="margin: 0 0 8px 0;"><strong>Target Place:</strong> ${targetPlace}</p>`;
-            resultHTML += `<p style="margin: 0 0 8px 0;"><strong>Optimal Value:</strong> ${bestValue.toFixed(4)}</p>`;
-            resultHTML += `<p style="margin: 0 0 4px 0;"><strong>Optimal Rates:</strong></p>`;
-            resultHTML += '<ul style="margin: 0 0 8px 0; padding-left: 20px;">';
-            transitionLabels.forEach(label => {
-                const rate = bestRatesObj[label];
-                const color = rate > 0.1 ? '#28a745' : '#6c757d';
-                resultHTML += `<li style="color: ${color};">${label}: ${rate.toFixed(4)}</li>`;
-            });
-            resultHTML += '</ul>';
-            resultHTML += `<p style="margin: 12px 0 0 0; font-size: 13px; color: #666;">Transition rates have been updated. Click "Run Simulation" to visualize the optimal solution.</p>`;
-            resultHTML += '</div>';
-
-            plotContainer.innerHTML = resultHTML;
+            this._displayOptimizationResults(result, plotContainer);
 
             console.log('Optimization completed successfully');
-            console.log('Iterations:', iteration);
-            console.log('Best value:', bestValue);
-            console.log('Best rates:', bestRatesObj);
+            console.log('Iterations:', result.iterations);
+            console.log('Best value:', result.value);
+            console.log('Best rates:', result.rates);
 
         } catch (err) {
             console.error('Optimization error:', err);
@@ -5495,6 +5530,236 @@ class PetriView extends HTMLElement {
             optimizeButton.textContent = 'Optimize Rates';
             runButton.disabled = false;
         }
+    }
+
+    /**
+     * Display optimization results in the plot container
+     */
+    _displayOptimizationResults(result, plotContainer) {
+        const { mode, iterations, value, rates, targetPlace } = result;
+        
+        let resultHTML = '<div style="text-align: left;">';
+        resultHTML += `<h3 style="margin: 0 0 12px 0; font-size: 16px; color: #28a745;">Optimization Complete!</h3>`;
+        resultHTML += `<p style="margin: 0 0 8px 0;"><strong>Mode:</strong> ${mode}</p>`;
+        resultHTML += `<p style="margin: 0 0 8px 0;"><strong>Algorithm:</strong> ${result.algorithm || 'Gradient Descent'}</p>`;
+        resultHTML += `<p style="margin: 0 0 8px 0;"><strong>Iterations:</strong> ${iterations}</p>`;
+        resultHTML += `<p style="margin: 0 0 8px 0;"><strong>Target Place:</strong> ${targetPlace}</p>`;
+        resultHTML += `<p style="margin: 0 0 8px 0;"><strong>Optimal Value:</strong> ${value.toFixed(4)}</p>`;
+        resultHTML += `<p style="margin: 0 0 4px 0;"><strong>Optimal Rates:</strong></p>`;
+        resultHTML += '<ul style="margin: 0 0 8px 0; padding-left: 20px;">';
+        
+        const transitionLabels = Object.keys(rates);
+        transitionLabels.forEach(label => {
+            const rate = rates[label];
+            let displayText = `${label}: ${rate.toFixed(4)}`;
+            let color = '#28a745';
+            
+            if (mode === 'Binary') {
+                // For binary mode, show if transition is picked or not
+                if (rate === 1.0) {
+                    displayText = `${label}: 1 ✓ (included)`;
+                    color = '#28a745';
+                } else if (rate === 0.0) {
+                    displayText = `${label}: 0 (excluded)`;
+                    color = '#6c757d';
+                } else {
+                    // Shouldn't happen in binary mode, but handle it
+                    displayText = `${label}: ${rate.toFixed(4)}`;
+                    color = '#ffc107';
+                }
+            } else {
+                // For continuous mode, color based on rate value
+                if (rate > 0.1) {
+                    color = '#28a745';
+                } else {
+                    color = '#6c757d';
+                }
+            }
+            
+            resultHTML += `<li style="color: ${color};">${displayText}</li>`;
+        });
+        resultHTML += '</ul>';
+        resultHTML += `<p style="margin: 12px 0 0 0; font-size: 13px; color: #666;">Transition rates have been updated. Click "Run Simulation" to visualize the optimal solution.</p>`;
+        resultHTML += '</div>';
+
+        plotContainer.innerHTML = resultHTML;
+    }
+
+    /**
+     * Continuous optimization using gradient ascent
+     */
+    async _optimizeContinuous(params) {
+        const { transitionLabels, targetPlace, tstart, tend, dt, abstol, reltol, plotContainer } = params;
+        const numTransitions = transitionLabels.length;
+
+        // Show progress
+        plotContainer.innerHTML = `<p style="margin: 0; font-size: 14px;">Optimizing rates using gradient ascent to maximize "${targetPlace}"...</p>`;
+
+        // Initialize rates at midpoint (0.5) for better convergence
+        let rates = new Array(numTransitions).fill(0.5);
+
+        // Gradient ascent parameters
+        const maxIterations = 100;
+        const learningRate = 0.1;
+        const convergenceThreshold = 1e-4;
+        
+        let bestValue = await this._evaluateObjective(rates, transitionLabels, targetPlace, tstart, tend, dt, abstol, reltol);
+        let bestRates = [...rates];
+        let iteration = 0;
+
+        // Gradient ascent optimization
+        for (iteration = 0; iteration < maxIterations; iteration++) {
+            // Compute gradient
+            const gradient = await this._computeGradient(rates, transitionLabels, targetPlace, tstart, tend, dt, abstol, reltol);
+            
+            // Check if gradient is too small (convergence)
+            const gradientNorm = Math.sqrt(gradient.reduce((sum, g) => sum + g * g, 0));
+            if (gradientNorm < convergenceThreshold) {
+                console.log(`Converged at iteration ${iteration} with gradient norm ${gradientNorm}`);
+                break;
+            }
+
+            // Update rates using gradient ascent (we're maximizing)
+            const newRates = rates.map((r, i) => {
+                const updated = r + learningRate * gradient[i];
+                // Clamp rates to [0, 1] range
+                return Math.max(0, Math.min(1, updated));
+            });
+
+            // Evaluate new rates
+            const newValue = await this._evaluateObjective(newRates, transitionLabels, targetPlace, tstart, tend, dt, abstol, reltol);
+
+            // Update if improved
+            if (newValue > bestValue) {
+                bestValue = newValue;
+                bestRates = [...newRates];
+                rates = newRates;
+            } else {
+                // If no improvement, reduce learning rate and try again
+                const reducedLearningRate = learningRate * 0.5;
+                const tentativeRates = rates.map((r, i) => {
+                    const updated = r + reducedLearningRate * gradient[i];
+                    return Math.max(0, Math.min(1, updated));
+                });
+                
+                const tentativeValue = await this._evaluateObjective(tentativeRates, transitionLabels, targetPlace, tstart, tend, dt, abstol, reltol);
+                
+                if (tentativeValue > bestValue) {
+                    bestValue = tentativeValue;
+                    bestRates = [...tentativeRates];
+                    rates = tentativeRates;
+                } else {
+                    // No improvement even with reduced rate, stop
+                    console.log(`No improvement at iteration ${iteration}, stopping`);
+                    break;
+                }
+            }
+
+            // Update progress
+            if (iteration % 5 === 0) {
+                const progress = Math.floor((iteration / maxIterations) * 100);
+                plotContainer.innerHTML = `<p style="margin: 0; font-size: 14px;">Optimizing (continuous)... iteration ${iteration}/${maxIterations} (${progress}%)<br/>Current best value: ${bestValue.toFixed(4)}</p>`;
+            }
+        }
+
+        // Convert best rates back to object
+        const bestRatesObj = {};
+        transitionLabels.forEach((label, i) => {
+            bestRatesObj[label] = bestRates[i];
+        });
+
+        return {
+            mode: 'Continuous',
+            algorithm: 'Gradient Ascent',
+            iterations: iteration,
+            value: bestValue,
+            rates: bestRatesObj,
+            targetPlace: targetPlace
+        };
+    }
+
+    /**
+     * Binary optimization (0|1) using threshold + local search
+     */
+    async _optimizeBinary(params) {
+        const { transitionLabels, targetPlace, tstart, tend, dt, abstol, reltol, plotContainer } = params;
+        const numTransitions = transitionLabels.length;
+
+        // Show progress
+        plotContainer.innerHTML = `<p style="margin: 0; font-size: 14px;">Optimizing rates using binary search to maximize "${targetPlace}"...</p>`;
+
+        // Step 1: Use gradient ascent to find continuous solution
+        let rates = new Array(numTransitions).fill(0.5);
+        const maxIterations = 50; // Fewer iterations for initial phase
+        const learningRate = 0.1;
+        
+        for (let iteration = 0; iteration < maxIterations; iteration++) {
+            const gradient = await this._computeGradient(rates, transitionLabels, targetPlace, tstart, tend, dt, abstol, reltol);
+            
+            const gradientNorm = Math.sqrt(gradient.reduce((sum, g) => sum + g * g, 0));
+            if (gradientNorm < 1e-4) break;
+
+            rates = rates.map((r, i) => {
+                const updated = r + learningRate * gradient[i];
+                return Math.max(0, Math.min(1, updated));
+            });
+
+            if (iteration % 10 === 0) {
+                plotContainer.innerHTML = `<p style="margin: 0; font-size: 14px;">Phase 1: Finding continuous solution... ${iteration}/${maxIterations}</p>`;
+            }
+        }
+
+        // Step 2: Apply threshold (round values > 0.5 to 1, others to 0)
+        let binaryRates = rates.map(r => r > 0.5 ? 1.0 : 0.0);
+        let bestValue = await this._evaluateObjective(binaryRates, transitionLabels, targetPlace, tstart, tend, dt, abstol, reltol);
+        let bestRates = [...binaryRates];
+        let totalIterations = maxIterations;
+
+        plotContainer.innerHTML = `<p style="margin: 0; font-size: 14px;">Phase 2: Local binary improvement...</p>`;
+
+        // Step 3: Local search - try flipping each bit to see if it improves
+        let improved = true;
+        let localIterations = 0;
+        const maxLocalIterations = 20;
+
+        while (improved && localIterations < maxLocalIterations) {
+            improved = false;
+            localIterations++;
+
+            for (let i = 0; i < numTransitions; i++) {
+                // Try flipping bit i
+                const testRates = [...binaryRates];
+                testRates[i] = testRates[i] === 1.0 ? 0.0 : 1.0;
+                
+                const testValue = await this._evaluateObjective(testRates, transitionLabels, targetPlace, tstart, tend, dt, abstol, reltol);
+                
+                if (testValue > bestValue) {
+                    bestValue = testValue;
+                    bestRates = [...testRates];
+                    binaryRates = [...testRates];
+                    improved = true;
+                }
+            }
+
+            plotContainer.innerHTML = `<p style="margin: 0; font-size: 14px;">Phase 2: Local improvement... iteration ${localIterations}/${maxLocalIterations}<br/>Current best value: ${bestValue.toFixed(4)}</p>`;
+        }
+
+        totalIterations += localIterations;
+
+        // Convert best rates back to object
+        const bestRatesObj = {};
+        transitionLabels.forEach((label, i) => {
+            bestRatesObj[label] = bestRates[i];
+        });
+
+        return {
+            mode: 'Binary',
+            algorithm: 'Threshold + Local Search',
+            iterations: totalIterations,
+            value: bestValue,
+            rates: bestRatesObj,
+            targetPlace: targetPlace
+        };
     }
 
     async _promptForPlace(placeLabels) {
