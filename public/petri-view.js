@@ -5795,11 +5795,14 @@ class PetriView extends HTMLElement {
                 return;
             }
 
-            // Prompt user to select which place to optimize
-            const targetPlace = await this._promptForPlace(placeLabels);
-            if (!targetPlace) {
+            // Prompt user to select which place to optimize and direction
+            const targetSelection = await this._promptForPlace(placeLabels);
+            if (!targetSelection) {
                 return; // User cancelled
             }
+
+            const targetPlace = targetSelection.place;
+            const direction = targetSelection.direction; // 'maximize' or 'minimize'
 
             // Disable buttons during optimization
             optimizeButton.disabled = true;
@@ -5828,6 +5831,7 @@ class PetriView extends HTMLElement {
             const result = await this._optimizeUnified({
                 transitionLabels,
                 targetPlace,
+                direction,  // Pass the optimization direction
                 tstart,
                 tend,
                 dt,
@@ -5869,14 +5873,14 @@ class PetriView extends HTMLElement {
      * Display optimization results in the plot container
      */
     _displayOptimizationResults(result, plotContainer) {
-        const { mode, iterations, value, rates, targetPlace } = result;
+        const { mode, iterations, value, rates, targetPlace, direction = 'maximize' } = result;
         
         let resultHTML = '<div style="text-align: left;">';
         resultHTML += `<h3 style="margin: 0 0 12px 0; font-size: 16px; color: #28a745;">Optimization Complete!</h3>`;
         resultHTML += `<p style="margin: 0 0 8px 0;"><strong>Mode:</strong> ${mode}</p>`;
         resultHTML += `<p style="margin: 0 0 8px 0;"><strong>Algorithm:</strong> ${result.algorithm || 'Gradient Descent'}</p>`;
+        resultHTML += `<p style="margin: 0 0 8px 0;"><strong>Goal:</strong> ${direction.charAt(0).toUpperCase() + direction.slice(1)} "${targetPlace}"</p>`;
         resultHTML += `<p style="margin: 0 0 8px 0;"><strong>Iterations:</strong> ${iterations}</p>`;
-        resultHTML += `<p style="margin: 0 0 8px 0;"><strong>Target Place:</strong> ${targetPlace}</p>`;
         resultHTML += `<p style="margin: 0 0 8px 0;"><strong>Optimal Value:</strong> ${value.toFixed(4)}</p>`;
         resultHTML += `<p style="margin: 0 0 4px 0;"><strong>Optimal Rates:</strong></p>`;
         resultHTML += '<ul style="margin: 0 0 8px 0; padding-left: 20px;">';
@@ -5887,7 +5891,7 @@ class PetriView extends HTMLElement {
             let displayText = `${label}: ${rate.toFixed(4)}`;
             let color = '#28a745';
             
-            if (mode === 'Binary') {
+            if (mode === 'Binary' || mode === 'Binary (0|1)') {
                 // For binary mode, show if transition is picked or not
                 if (rate === 1.0) {
                     displayText = `${label}: 1 ✓ (included)`;
@@ -5921,12 +5925,14 @@ class PetriView extends HTMLElement {
     /**
      * Unified optimization function that supports all combinations:
      * - Mode: Binary (0|1) or Continuous [0,1]
-     * - Algorithm: SPSA or Gradient Ascent
+     * - Algorithm: SPSA or Gradient Ascent/Descent
+     * - Direction: Maximize or Minimize
      */
     async _optimizeUnified(params) {
         const {
             transitionLabels,
             targetPlace,
+            direction = 'maximize',  // 'maximize' or 'minimize'
             tstart,
             tend,
             dt,
@@ -5945,13 +5951,18 @@ class PetriView extends HTMLElement {
         // Determine algorithm name and parameters
         const isBinary = mode === 'binary';
         const useSPSA = algorithm === 'spsa';
+        const isMinimizing = direction === 'minimize';
         
-        let algorithmName = useSPSA ? 'SPSA' : 'Gradient Ascent';
+        // Sign multiplier: -1 for minimization, +1 for maximization
+        const sign = isMinimizing ? -1 : 1;
+        
+        let algorithmName = useSPSA ? 'SPSA' : (isMinimizing ? 'Gradient Descent' : 'Gradient Ascent');
         let modeName = isBinary ? 'Binary (0|1)' : 'Continuous [0,1]';
+        let directionText = isMinimizing ? 'minimize' : 'maximize';
         
         // Show initial progress
         plotContainer.innerHTML = `<p style="margin: 0; font-size: 14px;">
-            Optimizing rates to maximize "${targetPlace}"...<br/>
+            Optimizing rates to ${directionText} "${targetPlace}"...<br/>
             Mode: ${modeName}, Algorithm: ${algorithmName}<br/>
             Problem complexity: ${iterCounts.complexity}</p>`;
 
@@ -5965,7 +5976,9 @@ class PetriView extends HTMLElement {
             plotContainer.innerHTML += `<p style="margin: 8px 0 0 0; font-size: 13px;">Max iterations (SPSA): ${maxIters}</p>`;
             
             const evaluate = async (ratesArray) => {
-                return await this._evaluateObjective(ratesArray, transitionLabels, targetPlace, tstart, tend, dt, abstol, reltol);
+                const value = await this._evaluateObjective(ratesArray, transitionLabels, targetPlace, tstart, tend, dt, abstol, reltol);
+                // Negate for minimization (SPSA always maximizes, so we negate the objective)
+                return sign * value;
             };
 
             const initialRates = new Array(numTransitions).fill(0.5);
@@ -5980,7 +5993,7 @@ class PetriView extends HTMLElement {
             rates = spsaResult.rates;
             totalIterations = maxIters * spsaRestarts;
         } else {
-            // Use gradient ascent
+            // Use gradient ascent/descent
             const maxIters = iterCounts.gradient;
             plotContainer.innerHTML += `<p style="margin: 8px 0 0 0; font-size: 13px;">Max iterations (Gradient): ${maxIters}</p>`;
             
@@ -5990,6 +6003,10 @@ class PetriView extends HTMLElement {
             
             let bestValue = await this._evaluateObjective(rates, transitionLabels, targetPlace, tstart, tend, dt, abstol, reltol);
             let bestRates = [...rates];
+            
+            // For minimization, we want to find the smallest value
+            // Initialize bestValue appropriately
+            let bestSignedValue = sign * bestValue;
             
             for (let iteration = 0; iteration < maxIters; iteration++) {
                 // Compute gradient
@@ -6003,15 +6020,19 @@ class PetriView extends HTMLElement {
                     break;
                 }
 
-                // Update rates using gradient ascent
+                // Update rates using gradient ascent/descent
+                // For minimization: subtract gradient (descent), for maximization: add gradient (ascent)
                 const newRates = rates.map((r, i) => {
-                    const updated = r + learningRate * gradient[i];
+                    const updated = r + sign * learningRate * gradient[i];
                     return Math.max(0, Math.min(1, updated));
                 });
 
                 const newValue = await this._evaluateObjective(newRates, transitionLabels, targetPlace, tstart, tend, dt, abstol, reltol);
+                const newSignedValue = sign * newValue;
 
-                if (newValue > bestValue) {
+                // Check if this is an improvement (higher is better after sign adjustment)
+                if (newSignedValue > bestSignedValue) {
+                    bestSignedValue = newSignedValue;
                     bestValue = newValue;
                     bestRates = [...newRates];
                     rates = newRates;
@@ -6019,13 +6040,15 @@ class PetriView extends HTMLElement {
                     // Try reduced learning rate
                     const reducedLearningRate = learningRate * 0.5;
                     const tentativeRates = rates.map((r, i) => {
-                        const updated = r + reducedLearningRate * gradient[i];
+                        const updated = r + sign * reducedLearningRate * gradient[i];
                         return Math.max(0, Math.min(1, updated));
                     });
                     
                     const tentativeValue = await this._evaluateObjective(tentativeRates, transitionLabels, targetPlace, tstart, tend, dt, abstol, reltol);
+                    const tentativeSignedValue = sign * tentativeValue;
                     
-                    if (tentativeValue > bestValue) {
+                    if (tentativeSignedValue > bestSignedValue) {
+                        bestSignedValue = tentativeSignedValue;
                         bestValue = tentativeValue;
                         bestRates = [...tentativeRates];
                         rates = tentativeRates;
@@ -6049,6 +6072,7 @@ class PetriView extends HTMLElement {
 
         let bestValue = await this._evaluateObjective(rates, transitionLabels, targetPlace, tstart, tend, dt, abstol, reltol);
         let bestRates = [...rates];
+        let bestSignedValue = sign * bestValue;
 
         // Phase 2: Apply binary constraint if in binary mode
         if (isBinary) {
@@ -6058,6 +6082,7 @@ class PetriView extends HTMLElement {
             let binaryRates = rates.map(r => r > 0.5 ? 1.0 : 0.0);
             bestValue = await this._evaluateObjective(binaryRates, transitionLabels, targetPlace, tstart, tend, dt, abstol, reltol);
             bestRates = [...binaryRates];
+            bestSignedValue = sign * bestValue;
 
             // Phase 3: Local binary search - try flipping each bit
             plotContainer.innerHTML = `<p style="margin: 0; font-size: 14px;">Phase 3: Binary local search...</p>`;
@@ -6076,8 +6101,11 @@ class PetriView extends HTMLElement {
                     testRates[i] = testRates[i] === 1.0 ? 0.0 : 1.0;
                     
                     const testValue = await this._evaluateObjective(testRates, transitionLabels, targetPlace, tstart, tend, dt, abstol, reltol);
+                    const testSignedValue = sign * testValue;
                     
-                    if (testValue > bestValue) {
+                    // Check if this is an improvement (considering direction)
+                    if (testSignedValue > bestSignedValue) {
+                        bestSignedValue = testSignedValue;
                         bestValue = testValue;
                         bestRates = [...testRates];
                         binaryRates = [...testRates];
@@ -6102,6 +6130,7 @@ class PetriView extends HTMLElement {
         return {
             mode: modeName,
             algorithm: algorithmName,
+            direction: direction,  // Include direction in result
             iterations: totalIterations,
             value: bestValue,
             rates: bestRatesObj,
@@ -6371,7 +6400,7 @@ class PetriView extends HTMLElement {
 
             // Description
             const desc = document.createElement('p');
-            desc.textContent = 'Select which place value you want to maximize:';
+            desc.textContent = 'Select which place to optimize and whether to maximize or minimize its value:';
             this._applyStyles(desc, {
                 margin: '0 0 16px 0',
                 fontSize: '14px',
@@ -6379,6 +6408,18 @@ class PetriView extends HTMLElement {
                 lineHeight: '1.5'
             });
             dialog.appendChild(desc);
+
+            // Place selection label
+            const placeLabel = document.createElement('label');
+            placeLabel.textContent = 'Target Place:';
+            this._applyStyles(placeLabel, {
+                display: 'block',
+                margin: '0 0 4px 0',
+                fontSize: '13px',
+                fontWeight: '600',
+                color: '#333'
+            });
+            dialog.appendChild(placeLabel);
 
             // Dropdown
             const select = document.createElement('select');
@@ -6388,7 +6429,7 @@ class PetriView extends HTMLElement {
                 fontSize: '14px',
                 border: '1px solid #ccc',
                 borderRadius: '4px',
-                marginBottom: '20px'
+                marginBottom: '16px'
             });
             placeLabels.forEach(label => {
                 const option = document.createElement('option');
@@ -6397,6 +6438,81 @@ class PetriView extends HTMLElement {
                 select.appendChild(option);
             });
             dialog.appendChild(select);
+
+            // Optimization direction label
+            const directionLabel = document.createElement('label');
+            directionLabel.textContent = 'Optimization Goal:';
+            this._applyStyles(directionLabel, {
+                display: 'block',
+                margin: '0 0 8px 0',
+                fontSize: '13px',
+                fontWeight: '600',
+                color: '#333'
+            });
+            dialog.appendChild(directionLabel);
+
+            // Radio buttons for maximize/minimize
+            const directionContainer = document.createElement('div');
+            this._applyStyles(directionContainer, {
+                marginBottom: '20px'
+            });
+            dialog.appendChild(directionContainer);
+
+            // Maximize option
+            const maximizeWrapper = document.createElement('div');
+            this._applyStyles(maximizeWrapper, {
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                marginBottom: '6px'
+            });
+            const maximizeRadio = document.createElement('input');
+            maximizeRadio.type = 'radio';
+            maximizeRadio.name = 'opt-direction';
+            maximizeRadio.value = 'maximize';
+            maximizeRadio.id = 'dir-maximize';
+            maximizeRadio.checked = true;
+            this._applyStyles(maximizeRadio, {
+                cursor: 'pointer'
+            });
+            maximizeWrapper.appendChild(maximizeRadio);
+            const maximizeLabel = document.createElement('label');
+            maximizeLabel.htmlFor = 'dir-maximize';
+            maximizeLabel.textContent = 'Maximize (find rates that increase place value)';
+            this._applyStyles(maximizeLabel, {
+                fontSize: '13px',
+                color: '#444',
+                cursor: 'pointer'
+            });
+            maximizeWrapper.appendChild(maximizeLabel);
+            directionContainer.appendChild(maximizeWrapper);
+
+            // Minimize option
+            const minimizeWrapper = document.createElement('div');
+            this._applyStyles(minimizeWrapper, {
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+            });
+            const minimizeRadio = document.createElement('input');
+            minimizeRadio.type = 'radio';
+            minimizeRadio.name = 'opt-direction';
+            minimizeRadio.value = 'minimize';
+            minimizeRadio.id = 'dir-minimize';
+            this._applyStyles(minimizeRadio, {
+                cursor: 'pointer'
+            });
+            minimizeWrapper.appendChild(minimizeRadio);
+            const minimizeLabel = document.createElement('label');
+            minimizeLabel.htmlFor = 'dir-minimize';
+            minimizeLabel.textContent = 'Minimize (find rates that decrease place value)';
+            this._applyStyles(minimizeLabel, {
+                fontSize: '13px',
+                color: '#444',
+                cursor: 'pointer'
+            });
+            minimizeWrapper.appendChild(minimizeLabel);
+            directionContainer.appendChild(minimizeWrapper);
 
             // Buttons container
             const buttonsContainer = document.createElement('div');
@@ -6443,8 +6559,9 @@ class PetriView extends HTMLElement {
             });
             okButton.addEventListener('click', () => {
                 const selectedPlace = select.value;
+                const direction = maximizeRadio.checked ? 'maximize' : 'minimize';
                 document.body.removeChild(overlay);
-                resolve(selectedPlace);
+                resolve({ place: selectedPlace, direction: direction });
             });
             buttonsContainer.appendChild(okButton);
 
