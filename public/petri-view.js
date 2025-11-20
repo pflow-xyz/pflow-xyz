@@ -5755,7 +5755,7 @@ class PetriView extends HTMLElement {
 
             // Add place information
             description += '## Places\n\n';
-            const placeEntries = Object.entries(sim.net.places);
+            const placeEntries = Array.from(sim.net.places);
             if (placeEntries.length > 0) {
                 description += '| Place | Initial Tokens | Capacity |\n';
                 description += '|-------|----------------|----------|\n';
@@ -5777,7 +5777,7 @@ class PetriView extends HTMLElement {
                 description += '| Transition | Rate |\n';
                 description += '|------------|------|\n';
                 for (const [id, rate] of rateEntries) {
-                    const transition = sim.net.transitions[id];
+                    const transition = sim.net.transitions.get(id);
                     const label = transition?.label || id;
                     description += `| ${label} | ${rate} |\n`;
                 }
@@ -5796,9 +5796,8 @@ class PetriView extends HTMLElement {
             description += '|-------|-------------|\n';
             for (const [id, place] of placeEntries) {
                 const label = place.label || id;
-                const idx = sim.solution.stateLabels.indexOf(id);
-                if (idx >= 0) {
-                    const finalValue = finalState[idx].toFixed(4);
+                if (finalState[id] !== undefined) {
+                    const finalValue = finalState[id].toFixed(4);
                     description += `| ${label} | ${finalValue} |\n`;
                 }
             }
