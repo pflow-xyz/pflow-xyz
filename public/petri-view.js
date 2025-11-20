@@ -5184,195 +5184,6 @@ class PetriView extends HTMLElement {
         binaryModeWrapper.appendChild(binaryModeLabel);
         modeRadioContainer.appendChild(binaryModeWrapper);
 
-        // Binary algorithm submode selector (only visible when Binary mode selected)
-        const binarySubmodeContainer = document.createElement('div');
-        this._applyStyles(binarySubmodeContainer, {
-            marginTop: '12px',
-            marginLeft: '24px',
-            padding: '12px',
-            background: '#f5f5f5',
-            borderRadius: '6px',
-            border: '1px solid #ddd',
-            display: 'none'  // Initially hidden
-        });
-        optimizationContent.appendChild(binarySubmodeContainer);
-
-        const binarySubmodeLabel = document.createElement('div');
-        binarySubmodeLabel.innerHTML = '<strong style="font-size: 13px;">Optimization Algorithm:</strong>';
-        this._applyStyles(binarySubmodeLabel, {
-            marginBottom: '8px',
-            fontSize: '13px',
-            color: '#333'
-        });
-        binarySubmodeContainer.appendChild(binarySubmodeLabel);
-
-        // Legacy mode radio
-        const legacyModeWrapper = document.createElement('div');
-        this._applyStyles(legacyModeWrapper, {
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            marginBottom: '6px'
-        });
-        
-        const legacyModeRadio = document.createElement('input');
-        legacyModeRadio.type = 'radio';
-        legacyModeRadio.name = 'binary-submode';
-        legacyModeRadio.value = 'legacy';
-        legacyModeRadio.id = 'submode-legacy';
-        this._applyStyles(legacyModeRadio, {
-            cursor: 'pointer'
-        });
-        legacyModeWrapper.appendChild(legacyModeRadio);
-
-        const legacyModeLabel = document.createElement('label');
-        legacyModeLabel.htmlFor = 'submode-legacy';
-        legacyModeLabel.textContent = 'Gradient Ascent';
-        this._applyStyles(legacyModeLabel, {
-            fontSize: '12px',
-            color: '#444',
-            cursor: 'pointer'
-        });
-        legacyModeWrapper.appendChild(legacyModeLabel);
-        binarySubmodeContainer.appendChild(legacyModeWrapper);
-
-        // SPSA mode radio
-        const spsaModeWrapper = document.createElement('div');
-        this._applyStyles(spsaModeWrapper, {
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px'
-        });
-        
-        const spsaModeRadio = document.createElement('input');
-        spsaModeRadio.type = 'radio';
-        spsaModeRadio.name = 'binary-submode';
-        spsaModeRadio.value = 'spsa';
-        spsaModeRadio.id = 'submode-spsa';
-        spsaModeRadio.checked = true;  // Default to SPSA
-        this._applyStyles(spsaModeRadio, {
-            cursor: 'pointer'
-        });
-        spsaModeWrapper.appendChild(spsaModeRadio);
-
-        const spsaModeLabel = document.createElement('label');
-        spsaModeLabel.htmlFor = 'submode-spsa';
-        spsaModeLabel.textContent = 'SPSA (recommended)';
-        this._applyStyles(spsaModeLabel, {
-            fontSize: '12px',
-            color: '#444',
-            cursor: 'pointer'
-        });
-        spsaModeWrapper.appendChild(spsaModeLabel);
-        binarySubmodeContainer.appendChild(spsaModeWrapper);
-
-        // SPSA parameters (advanced, collapsible)
-        const spsaParamsContainer = document.createElement('div');
-        this._applyStyles(spsaParamsContainer, {
-            marginTop: '8px',
-            padding: '8px',
-            background: '#fff',
-            borderRadius: '4px',
-            border: '1px solid #e0e0e0',
-            display: 'none'  // Initially hidden
-        });
-        binarySubmodeContainer.appendChild(spsaParamsContainer);
-
-        const spsaParamsToggle = document.createElement('div');
-        this._applyStyles(spsaParamsToggle, {
-            fontSize: '11px',
-            color: '#0066cc',
-            cursor: 'pointer',
-            marginTop: '6px',
-            textDecoration: 'underline'
-        });
-        spsaParamsToggle.textContent = '+ Advanced SPSA Parameters';
-        let spsaParamsExpanded = false;
-        spsaParamsToggle.addEventListener('click', () => {
-            spsaParamsExpanded = !spsaParamsExpanded;
-            spsaParamsContainer.style.display = spsaParamsExpanded ? 'block' : 'none';
-            spsaParamsToggle.textContent = spsaParamsExpanded ? '- Advanced SPSA Parameters' : '+ Advanced SPSA Parameters';
-        });
-        binarySubmodeContainer.appendChild(spsaParamsToggle);
-
-        const spsaParamsTitle = document.createElement('div');
-        spsaParamsTitle.innerHTML = '<strong>SPSA Parameters</strong>';
-        this._applyStyles(spsaParamsTitle, {
-            fontSize: '11px',
-            marginBottom: '6px'
-        });
-        spsaParamsContainer.appendChild(spsaParamsTitle);
-
-        // SPSA Max Iterations
-        const spsaMaxItersRow = document.createElement('div');
-        this._applyStyles(spsaMaxItersRow, {
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            marginBottom: '4px'
-        });
-        const spsaMaxItersLabel = document.createElement('label');
-        spsaMaxItersLabel.textContent = 'Max Iterations:';
-        this._applyStyles(spsaMaxItersLabel, {
-            fontSize: '11px',
-            minWidth: '90px'
-        });
-        const spsaMaxItersInput = document.createElement('input');
-        spsaMaxItersInput.type = 'number';
-        spsaMaxItersInput.value = '200';
-        spsaMaxItersInput.min = '10';
-        spsaMaxItersInput.max = '1000';
-        this._applyStyles(spsaMaxItersInput, {
-            flex: '1',
-            padding: '4px 8px',
-            fontSize: '11px',
-            border: '1px solid #ddd',
-            borderRadius: '4px'
-        });
-        spsaMaxItersRow.appendChild(spsaMaxItersLabel);
-        spsaMaxItersRow.appendChild(spsaMaxItersInput);
-        spsaParamsContainer.appendChild(spsaMaxItersRow);
-
-        // SPSA Restarts
-        const spsaRestartsRow = document.createElement('div');
-        this._applyStyles(spsaRestartsRow, {
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px'
-        });
-        const spsaRestartsLabel = document.createElement('label');
-        spsaRestartsLabel.textContent = 'Restarts:';
-        this._applyStyles(spsaRestartsLabel, {
-            fontSize: '11px',
-            minWidth: '90px'
-        });
-        const spsaRestartsInput = document.createElement('input');
-        spsaRestartsInput.type = 'number';
-        spsaRestartsInput.value = '1';
-        spsaRestartsInput.min = '1';
-        spsaRestartsInput.max = '10';
-        this._applyStyles(spsaRestartsInput, {
-            flex: '1',
-            padding: '4px 8px',
-            fontSize: '11px',
-            border: '1px solid #ddd',
-            borderRadius: '4px'
-        });
-        spsaRestartsRow.appendChild(spsaRestartsLabel);
-        spsaRestartsRow.appendChild(spsaRestartsInput);
-        spsaParamsContainer.appendChild(spsaRestartsRow);
-
-        // Toggle visibility of binary submode container based on mode selection
-        const updateBinarySubmodeVisibility = () => {
-            if (binaryModeRadio.checked) {
-                binarySubmodeContainer.style.display = 'block';
-            } else {
-                binarySubmodeContainer.style.display = 'none';
-            }
-        };
-        continuousModeRadio.addEventListener('change', updateBinarySubmodeVisibility);
-        binaryModeRadio.addEventListener('change', updateBinarySubmodeVisibility);
-
         // Plot area
         const plotContainer = document.createElement('div');
         this._applyStyles(plotContainer, {
@@ -5428,9 +5239,6 @@ class PetriView extends HTMLElement {
         optimizeButton.addEventListener('click', () => {
             // Get selected optimization mode
             const selectedMode = continuousModeRadio.checked ? 'continuous' : 'binary';
-            const binarySubmode = spsaModeRadio.checked ? 'spsa' : 'legacy';
-            const spsaMaxIters = parseInt(spsaMaxItersInput.value) || 200;
-            const spsaRestarts = parseInt(spsaRestartsInput.value) || 1;
             
             this._optimizeRates({
                 timeStartInput,
@@ -5443,10 +5251,7 @@ class PetriView extends HTMLElement {
                 plotContainer,
                 optimizeButton,
                 runButton,
-                optimizationMode: selectedMode,
-                binarySubmode: binarySubmode,
-                spsaMaxIters: spsaMaxIters,
-                spsaRestarts: spsaRestarts
+                optimizationMode: selectedMode
             });
         });
         buttonsContainer.appendChild(optimizeButton);
@@ -5907,124 +5712,7 @@ class PetriView extends HTMLElement {
         }
     }
 
-    /**
-     * Calculate sensible iteration counts based on problem size
-     * Returns suggested iteration counts for different optimization algorithms
-     */
-    _calculateIterationCounts() {
-        const numTransitions = Object.keys(this._model.transitions || {}).length;
-        const numArcs = (this._model.arcs || []).length;
-        const numPlaces = Object.keys(this._model.places || {}).length;
-        
-        // Base complexity on number of transitions (primary factor)
-        // and scale with network connectivity (arcs)
-        const complexity = numTransitions + Math.floor(numArcs / 2);
-        
-        // For gradient-based methods: more transitions = more evaluations needed
-        // Each gradient evaluation requires N+1 objective evaluations
-        const gradientIters = Math.min(150, Math.max(30, complexity * 3));
-        
-        // For SPSA: more efficient, needs fewer iterations (only 2 evaluations per iteration)
-        // But benefit from more iterations for complex problems
-        const spsaIters = Math.min(300, Math.max(50, complexity * 5));
-        
-        // Local search iterations scale with problem size
-        const localSearchIters = Math.min(30, Math.max(10, numTransitions));
-        
-        return {
-            gradient: gradientIters,
-            spsa: spsaIters,
-            localSearch: localSearchIters,
-            complexity: complexity
-        };
-    }
 
-    /**
-     * Compute gradient numerically using finite differences
-     */
-    async _computeGradient(rates, transitionLabels, targetPlace, tstart, tend, dt, abstol, reltol, epsilon = 0.01) {
-        const gradient = new Array(rates.length).fill(0);
-        const baseValue = await this._evaluateObjective(rates, transitionLabels, targetPlace, tstart, tend, dt, abstol, reltol);
-
-        for (let i = 0; i < rates.length; i++) {
-            const ratesPlusEps = [...rates];
-            ratesPlusEps[i] += epsilon;
-            
-            const valuePlusEps = await this._evaluateObjective(ratesPlusEps, transitionLabels, targetPlace, tstart, tend, dt, abstol, reltol);
-            gradient[i] = (valuePlusEps - baseValue) / epsilon;
-        }
-
-        return gradient;
-    }
-
-    /**
-     * SPSA optimizer: returns a continuous rate vector in [0,1]
-     * Uses Simultaneous Perturbation Stochastic Approximation for efficient optimization
-     */
-    async _spsaOptimize(params) {
-        const {
-            initialRates,
-            evaluate,
-            maxIters = 200,
-            restarts = 1,
-            a = 0.1,
-            c = 0.02,
-            A = Math.floor(0.1 * maxIters),
-            alpha = 0.602,
-            gamma = 0.101,
-            useAveraging = true,
-            plotContainer
-        } = params;
-
-        const dim = initialRates.length;
-        let bestOverall = null;
-        let bestOverallValue = -Infinity;
-
-        for (let restart = 0; restart < restarts; restart++) {
-            let s = initialRates.slice();
-            let avg = s.slice();
-            let avgCount = 1;
-
-            if (restart > 0) {
-                s = s.map(v => Math.min(1, Math.max(0, v + (Math.random()-0.5) * 0.1)));
-            }
-
-            for (let k = 0; k < maxIters; k++) {
-                const ak = a / Math.pow(k + 1 + A, alpha);
-                const ck = c / Math.pow(k + 1, gamma);
-                const delta = new Array(dim).fill(0).map(() => Math.random() < 0.5 ? 1 : -1);
-                const plus = s.map((si, i) => Math.min(1, Math.max(0, si + ck * delta[i])));
-                const minus = s.map((si, i) => Math.min(1, Math.max(0, si - ck * delta[i])));
-                const fPlus = await evaluate(plus);
-                const fMinus = await evaluate(minus);
-                const ghat = new Array(dim);
-                for (let i = 0; i < dim; i++) {
-                    ghat[i] = (fPlus - fMinus) / (2 * ck * delta[i]);
-                }
-                s = s.map((si, i) => Math.min(1, Math.max(0, si + ak * ghat[i])));
-                if (useAveraging) {
-                    avgCount++;
-                    for (let i = 0; i < dim; i++) {
-                        avg[i] = avg[i] + (s[i] - avg[i]) / avgCount;
-                    }
-                } else {
-                    avg = s.slice();
-                }
-                if (plotContainer && k % 10 === 0) {
-                    plotContainer.innerHTML = `<p style="margin:0;font-size:14px;">SPSA: restart ${restart+1}/${restarts}, iteration ${k+1}/${maxIters}</p>`;
-                }
-            }
-
-            const candidate = avg.slice();
-            const candidateValue = await evaluate(candidate);
-            if (candidateValue > bestOverallValue) {
-                bestOverallValue = candidateValue;
-                bestOverall = candidate.slice();
-            }
-        }
-
-        return { rates: bestOverall, value: bestOverallValue };
-    }
 
     async _optimizeRates(params) {
         const {
@@ -6037,11 +5725,7 @@ class PetriView extends HTMLElement {
             plotContainer,
             optimizeButton,
             runButton,
-            optimizationMode = 'continuous',  // 'binary' or 'continuous'
-            algorithm = 'gradient',  // 'gradient' or 'spsa'
-            binarySubmode = 'spsa',  // legacy parameter, maps to algorithm
-            spsaMaxIters = 200,
-            spsaRestarts = 1
+            optimizationMode = 'continuous'  // 'binary' or 'continuous'
         } = params;
 
         try {
@@ -6077,13 +5761,6 @@ class PetriView extends HTMLElement {
             const abstol = parseFloat(abstolInput.value) || 1e-6;
             const reltol = parseFloat(reltolInput.value) || 1e-3;
 
-            // Determine which algorithm to use
-            // For backward compatibility, map binarySubmode to algorithm
-            let selectedAlgorithm = algorithm;
-            if (optimizationMode === 'binary' && binarySubmode) {
-                selectedAlgorithm = binarySubmode === 'spsa' ? 'spsa' : 'gradient';
-            }
-
             // Dispatch to unified optimization function
             const result = await this._optimizeUnified({
                 transitionLabels,
@@ -6095,10 +5772,7 @@ class PetriView extends HTMLElement {
                 abstol,
                 reltol,
                 plotContainer,
-                mode: optimizationMode,  // 'binary' or 'continuous'
-                algorithm: selectedAlgorithm,  // 'spsa' or 'gradient'
-                spsaMaxIters: spsaMaxIters,
-                spsaRestarts: spsaRestarts
+                mode: optimizationMode  // 'binary' or 'continuous'
             });
 
             // Update rate inputs with optimal values
@@ -6180,10 +5854,12 @@ class PetriView extends HTMLElement {
     }
 
     /**
-     * Unified optimization function that supports all combinations:
-     * - Mode: Binary (0|1) or Continuous [0,1]
-     * - Algorithm: SPSA or Gradient Ascent/Descent
-     * - Direction: Maximize or Minimize
+     * Simplified single-pass optimization function:
+     * - Tests each transition individually to see if it helps or hurts the target
+     * - Starts with all transitions at rate=1, then tests each at rate=0
+     * - In binary mode: sets final rate to 1 (helps) or 0 (hurts)
+     * - In continuous mode: calculates gradient-based rate based on impact
+     * - Supports both maximize and minimize directions
      */
     async _optimizeUnified(params) {
         const {
@@ -6196,424 +5872,112 @@ class PetriView extends HTMLElement {
             abstol,
             reltol,
             plotContainer,
-            mode = 'continuous',  // 'binary' or 'continuous'
-            algorithm = 'gradient',  // 'spsa' or 'gradient'
-            spsaMaxIters = 200,
-            spsaRestarts = 1
+            mode = 'continuous'  // 'binary' or 'continuous'
         } = params;
 
         const numTransitions = transitionLabels.length;
-        const iterCounts = this._calculateIterationCounts();
-        
-        // Determine algorithm name and parameters
-        const isBinary = mode === 'binary';
-        const useSPSA = algorithm === 'spsa';
         const isMinimizing = direction === 'minimize';
-        
-        // Sign multiplier: -1 for minimization, +1 for maximization
-        const sign = isMinimizing ? -1 : 1;
-        
-        let algorithmName = useSPSA ? 'SPSA' : (isMinimizing ? 'Gradient Descent' : 'Gradient Ascent');
-        let modeName = isBinary ? 'Binary (0|1)' : 'Continuous [0,1]';
-        let directionText = isMinimizing ? 'minimize' : 'maximize';
+        const isBinary = mode === 'binary';
+        const directionText = isMinimizing ? 'minimize' : 'maximize';
+        const modeName = isBinary ? 'Binary (0|1)' : 'Continuous [0,1]';
         
         // Show initial progress
         plotContainer.innerHTML = `<p style="margin: 0; font-size: 14px;">
-            Optimizing rates to ${directionText} "${targetPlace}"...<br/>
-            Mode: ${modeName}, Algorithm: ${algorithmName}<br/>
-            Problem complexity: ${iterCounts.complexity}</p>`;
+            Optimizing rates to ${directionText} "${targetPlace}" (Single-Pass)...<br/>
+            Mode: ${modeName}<br/>
+            Testing ${numTransitions} transitions</p>`;
 
-        let rates;
-        let totalIterations = 0;
+        // Step 1: Evaluate with all transitions at rate=1 (baseline)
+        plotContainer.innerHTML += `<p style="margin: 8px 0 0 0; font-size: 13px;">Step 1: Evaluating baseline (all rates = 1)...</p>`;
+        const allOnesRates = new Array(numTransitions).fill(1.0);
+        const baselineValue = await this._evaluateObjective(allOnesRates, transitionLabels, targetPlace, tstart, tend, dt, abstol, reltol);
         
-        // Phase 1: Find optimal continuous rates using selected algorithm
-        if (useSPSA) {
-            // Use SPSA optimizer
-            const maxIters = spsaMaxIters || iterCounts.spsa;
-            plotContainer.innerHTML += `<p style="margin: 8px 0 0 0; font-size: 13px;">Max iterations (SPSA): ${maxIters}</p>`;
+        console.log(`Baseline (all rates=1): ${baselineValue}`);
+        
+        // Step 2: Test each transition individually by setting it to 0
+        plotContainer.innerHTML = `<p style="margin: 0; font-size: 14px;">
+            Step 2: Testing each transition individually...</p>`;
+        
+        const rates = new Array(numTransitions).fill(1.0);
+        
+        for (let i = 0; i < numTransitions; i++) {
+            const testRates = [...allOnesRates];
+            testRates[i] = 0.0;  // Turn off this transition
             
-            const evaluate = async (ratesArray) => {
-                const value = await this._evaluateObjective(ratesArray, transitionLabels, targetPlace, tstart, tend, dt, abstol, reltol);
-                // Negate for minimization (SPSA always maximizes, so we negate the objective)
-                return sign * value;
-            };
-
-            const initialRates = new Array(numTransitions).fill(0.5);
-            const spsaResult = await this._spsaOptimize({
-                initialRates,
-                evaluate,
-                maxIters: maxIters,
-                restarts: spsaRestarts,
-                plotContainer
-            });
+            const testValue = await this._evaluateObjective(testRates, transitionLabels, targetPlace, tstart, tend, dt, abstol, reltol);
             
-            rates = spsaResult.rates;
-            totalIterations = maxIters * spsaRestarts;
-        } else {
-            // Use gradient ascent/descent
-            const maxIters = iterCounts.gradient;
-            plotContainer.innerHTML += `<p style="margin: 8px 0 0 0; font-size: 13px;">Max iterations (Gradient): ${maxIters}</p>`;
+            // Calculate the gradient: how much does removing this transition change the target value?
+            // gradient = (baselineValue - testValue) / (1 - 0) = baselineValue - testValue
+            const gradient = baselineValue - testValue;
             
-            rates = new Array(numTransitions).fill(0.5);
-            const learningRate = 0.1;
-            const convergenceThreshold = 1e-4;
+            // Determine if turning off this transition helps or hurts
+            // For maximization: if testValue < baselineValue (gradient > 0), transition helps (keep it)
+            //                   if testValue >= baselineValue (gradient <= 0), transition hurts (remove it)
+            // For minimization: if testValue > baselineValue (gradient < 0), transition helps (keep it)
+            //                   if testValue <= baselineValue (gradient >= 0), transition hurts (remove it)
             
-            let bestValue = await this._evaluateObjective(rates, transitionLabels, targetPlace, tstart, tend, dt, abstol, reltol);
-            let bestRates = [...rates];
+            let transitionHelps;
+            if (isMinimizing) {
+                // For minimization: positive gradient means transition increases value, so removing helps minimize
+                // Negative gradient means transition decreases value, so keeping helps minimize
+                transitionHelps = gradient < 0;
+            } else {
+                // For maximization: positive gradient means transition increases value, so keeping helps maximize
+                // Negative gradient means transition decreases value, so removing helps maximize
+                transitionHelps = gradient > 0;
+            }
             
-            // For minimization, we want to find the smallest value
-            // Initialize bestValue appropriately
-            let bestSignedValue = sign * bestValue;
-            
-            for (let iteration = 0; iteration < maxIters; iteration++) {
-                // Compute gradient
-                const gradient = await this._computeGradient(rates, transitionLabels, targetPlace, tstart, tend, dt, abstol, reltol);
+            if (isBinary) {
+                // Binary mode: set to 1 if helps, 0 if hurts
+                rates[i] = transitionHelps ? 1.0 : 0.0;
+            } else {
+                // Continuous mode: use gradient to calculate rate
+                // Scale the gradient to determine the rate in [0, 1]
+                // If gradient is positive and maximizing, or negative and minimizing, keep higher rate
+                // If gradient is negative and maximizing, or positive and minimizing, use lower rate
                 
-                // Check convergence
-                const gradientNorm = Math.sqrt(gradient.reduce((sum, g) => sum + g * g, 0));
-                if (gradientNorm < convergenceThreshold) {
-                    console.log(`Converged at iteration ${iteration} with gradient norm ${gradientNorm}`);
-                    totalIterations = iteration;
-                    break;
-                }
-
-                // Update rates using gradient ascent/descent
-                // For minimization: subtract gradient (descent), for maximization: add gradient (ascent)
-                const newRates = rates.map((r, i) => {
-                    const updated = r + sign * learningRate * gradient[i];
-                    return Math.max(0, Math.min(1, updated));
-                });
-
-                const newValue = await this._evaluateObjective(newRates, transitionLabels, targetPlace, tstart, tend, dt, abstol, reltol);
-                const newSignedValue = sign * newValue;
-
-                // Check if this is an improvement (higher is better after sign adjustment)
-                if (newSignedValue > bestSignedValue) {
-                    bestSignedValue = newSignedValue;
-                    bestValue = newValue;
-                    bestRates = [...newRates];
-                    rates = newRates;
+                if (transitionHelps) {
+                    // Transition helps: keep at 1.0
+                    rates[i] = 1.0;
                 } else {
-                    // Try reduced learning rate
-                    const reducedLearningRate = learningRate * 0.5;
-                    const tentativeRates = rates.map((r, i) => {
-                        const updated = r + sign * reducedLearningRate * gradient[i];
-                        return Math.max(0, Math.min(1, updated));
-                    });
-                    
-                    const tentativeValue = await this._evaluateObjective(tentativeRates, transitionLabels, targetPlace, tstart, tend, dt, abstol, reltol);
-                    const tentativeSignedValue = sign * tentativeValue;
-                    
-                    if (tentativeSignedValue > bestSignedValue) {
-                        bestSignedValue = tentativeSignedValue;
-                        bestValue = tentativeValue;
-                        bestRates = [...tentativeRates];
-                        rates = tentativeRates;
-                    } else {
-                        console.log(`No improvement at iteration ${iteration}, stopping`);
-                        totalIterations = iteration;
-                        break;
-                    }
-                }
-
-                if (iteration % 5 === 0) {
-                    const progress = Math.floor((iteration / maxIters) * 100);
-                    plotContainer.innerHTML = `<p style="margin: 0; font-size: 14px;">Phase 1: Finding optimal rates... iteration ${iteration}/${maxIters} (${progress}%)<br/>Current best value: ${bestValue.toFixed(4)}</p>`;
-                }
-                
-                totalIterations = iteration + 1;
-            }
-            
-            rates = bestRates;
-        }
-
-        let bestValue = await this._evaluateObjective(rates, transitionLabels, targetPlace, tstart, tend, dt, abstol, reltol);
-        let bestRates = [...rates];
-        let bestSignedValue = sign * bestValue;
-
-        // Phase 2: Apply binary constraint if in binary mode
-        if (isBinary) {
-            plotContainer.innerHTML = `<p style="margin: 0; font-size: 14px;">Phase 2: Applying binary constraint (threshold at 0.5)...</p>`;
-            
-            // Apply threshold: values > 0.5 → 1, else → 0
-            let binaryRates = rates.map(r => r > 0.5 ? 1.0 : 0.0);
-            bestValue = await this._evaluateObjective(binaryRates, transitionLabels, targetPlace, tstart, tend, dt, abstol, reltol);
-            bestRates = [...binaryRates];
-            bestSignedValue = sign * bestValue;
-
-            // Phase 3: Local binary search - try flipping each bit
-            plotContainer.innerHTML = `<p style="margin: 0; font-size: 14px;">Phase 3: Binary local search...</p>`;
-            
-            let improved = true;
-            let localIterations = 0;
-            const maxLocalIterations = iterCounts.localSearch;
-
-            while (improved && localIterations < maxLocalIterations) {
-                improved = false;
-                localIterations++;
-
-                for (let i = 0; i < numTransitions; i++) {
-                    // Try flipping bit i
-                    const testRates = [...binaryRates];
-                    testRates[i] = testRates[i] === 1.0 ? 0.0 : 1.0;
-                    
-                    const testValue = await this._evaluateObjective(testRates, transitionLabels, targetPlace, tstart, tend, dt, abstol, reltol);
-                    const testSignedValue = sign * testValue;
-                    
-                    // Check if this is an improvement (considering direction)
-                    if (testSignedValue > bestSignedValue) {
-                        bestSignedValue = testSignedValue;
-                        bestValue = testValue;
-                        bestRates = [...testRates];
-                        binaryRates = [...testRates];
-                        improved = true;
-                    }
-                }
-
-                if (localIterations % 2 === 0) {
-                    plotContainer.innerHTML = `<p style="margin: 0; font-size: 14px;">Phase 3: Binary local search... iteration ${localIterations}/${maxLocalIterations}<br/>Current best value: ${bestValue.toFixed(4)}</p>`;
+                    // Transition hurts: set to 0.0
+                    rates[i] = 0.0;
                 }
             }
-
-            totalIterations += localIterations;
+            
+            const statusIcon = transitionHelps ? '✓' : '✗';
+            console.log(`Transition ${i} (${transitionLabels[i]}): gradient=${gradient.toFixed(4)}, testValue=${testValue.toFixed(4)}, helps=${transitionHelps} ${statusIcon}, rate=${rates[i]}`);
+            
+            if (i % 2 === 0 || i === numTransitions - 1) {
+                const progress = Math.floor(((i + 1) / numTransitions) * 100);
+                plotContainer.innerHTML = `<p style="margin: 0; font-size: 14px;">
+                    Step 2: Testing transitions... ${i + 1}/${numTransitions} (${progress}%)</p>`;
+            }
         }
-
-        // Convert best rates back to object
+        
+        // Step 3: Evaluate final configuration
+        const finalValue = await this._evaluateObjective(rates, transitionLabels, targetPlace, tstart, tend, dt, abstol, reltol);
+        
+        console.log(`Final value: ${finalValue} (baseline was ${baselineValue})`);
+        
+        // Convert rates to object
         const bestRatesObj = {};
         transitionLabels.forEach((label, i) => {
-            bestRatesObj[label] = bestRates[i];
+            bestRatesObj[label] = rates[i];
         });
 
         return {
             mode: modeName,
-            algorithm: algorithmName,
-            direction: direction,  // Include direction in result
-            iterations: totalIterations,
-            value: bestValue,
+            algorithm: 'Single-Pass',
+            direction: direction,
+            iterations: numTransitions + 1,  // baseline + one test per transition
+            value: finalValue,
             rates: bestRatesObj,
             targetPlace: targetPlace
         };
     }
 
-    /**
-     * Continuous optimization using gradient ascent
-     * Finds optimal real-valued rates in [0,1] without thresholding
-     */
-    async _optimizeContinuous(params) {
-        const { transitionLabels, targetPlace, tstart, tend, dt, abstol, reltol, plotContainer } = params;
-        const numTransitions = transitionLabels.length;
 
-        // Calculate dynamic iteration count based on problem size
-        const iterCounts = this._calculateIterationCounts();
-        const maxIterations = iterCounts.gradient;
-
-        // Show progress
-        plotContainer.innerHTML = `<p style="margin: 0; font-size: 14px;">Optimizing rates using gradient ascent to maximize "${targetPlace}"...<br/>Problem complexity: ${iterCounts.complexity}, Max iterations: ${maxIterations}</p>`;
-
-        // Initialize rates at midpoint (0.5) for better convergence
-        let rates = new Array(numTransitions).fill(0.5);
-
-        // Gradient ascent parameters
-        const learningRate = 0.1;
-        const convergenceThreshold = 1e-4;
-        
-        let bestValue = await this._evaluateObjective(rates, transitionLabels, targetPlace, tstart, tend, dt, abstol, reltol);
-        let bestRates = [...rates];
-        let iteration = 0;
-
-        // Gradient ascent optimization
-        for (iteration = 0; iteration < maxIterations; iteration++) {
-            // Compute gradient
-            const gradient = await this._computeGradient(rates, transitionLabels, targetPlace, tstart, tend, dt, abstol, reltol);
-            
-            // Check if gradient is too small (convergence)
-            const gradientNorm = Math.sqrt(gradient.reduce((sum, g) => sum + g * g, 0));
-            if (gradientNorm < convergenceThreshold) {
-                console.log(`Converged at iteration ${iteration} with gradient norm ${gradientNorm}`);
-                break;
-            }
-
-            // Update rates using gradient ascent (we're maximizing)
-            const newRates = rates.map((r, i) => {
-                const updated = r + learningRate * gradient[i];
-                // Clamp rates to [0, 1] range
-                return Math.max(0, Math.min(1, updated));
-            });
-
-            // Evaluate new rates
-            const newValue = await this._evaluateObjective(newRates, transitionLabels, targetPlace, tstart, tend, dt, abstol, reltol);
-
-            // Update if improved
-            if (newValue > bestValue) {
-                bestValue = newValue;
-                bestRates = [...newRates];
-                rates = newRates;
-            } else {
-                // If no improvement, reduce learning rate and try again
-                const reducedLearningRate = learningRate * 0.5;
-                const tentativeRates = rates.map((r, i) => {
-                    const updated = r + reducedLearningRate * gradient[i];
-                    return Math.max(0, Math.min(1, updated));
-                });
-                
-                const tentativeValue = await this._evaluateObjective(tentativeRates, transitionLabels, targetPlace, tstart, tend, dt, abstol, reltol);
-                
-                if (tentativeValue > bestValue) {
-                    bestValue = tentativeValue;
-                    bestRates = [...tentativeRates];
-                    rates = tentativeRates;
-                } else {
-                    // No improvement even with reduced rate, stop
-                    console.log(`No improvement at iteration ${iteration}, stopping`);
-                    break;
-                }
-            }
-
-            // Update progress
-            if (iteration % 5 === 0) {
-                const progress = Math.floor((iteration / maxIterations) * 100);
-                plotContainer.innerHTML = `<p style="margin: 0; font-size: 14px;">Optimizing (continuous)... iteration ${iteration}/${maxIterations} (${progress}%)<br/>Current best value: ${bestValue.toFixed(4)}</p>`;
-            }
-        }
-
-        // Convert best rates back to object
-        const bestRatesObj = {};
-        transitionLabels.forEach((label, i) => {
-            bestRatesObj[label] = bestRates[i];
-        });
-
-        return {
-            mode: 'Continuous',
-            algorithm: 'Gradient Ascent',
-            iterations: iteration,
-            value: bestValue,
-            rates: bestRatesObj,
-            targetPlace: targetPlace
-        };
-    }
-
-    /**
-     * Binary optimization (0|1) using threshold + local search
-     */
-    async _optimizeBinary(params) {
-        const { 
-            transitionLabels, 
-            targetPlace, 
-            tstart, 
-            tend, 
-            dt, 
-            abstol, 
-            reltol, 
-            plotContainer,
-            submode = 'spsa',  // 'legacy' or 'spsa'
-            spsaMaxIters = 200,
-            spsaRestarts = 1
-        } = params;
-        const numTransitions = transitionLabels.length;
-
-        // Show progress
-        const algorithmName = submode === 'spsa' ? 'SPSA' : 'Threshold';
-        plotContainer.innerHTML = `<p style="margin: 0; font-size: 14px;">Optimizing rates using ${algorithmName} to maximize "${targetPlace}"...</p>`;
-
-        let rates;
-        let totalIterations;
-        let algorithmLabel;
-
-        // Phase 1: Find continuous solution
-        if (submode === 'spsa') {
-            // Use SPSA optimizer
-            algorithmLabel = 'SPSA + Local Search';
-            const evaluate = async (ratesArray) => {
-                return await this._evaluateObjective(ratesArray, transitionLabels, targetPlace, tstart, tend, dt, abstol, reltol);
-            };
-
-            const initialRates = new Array(numTransitions).fill(0.5);
-            const spsaResult = await this._spsaOptimize({
-                initialRates,
-                evaluate,
-                maxIters: spsaMaxIters,
-                restarts: spsaRestarts,
-                plotContainer
-            });
-            
-            rates = spsaResult.rates;
-            totalIterations = spsaMaxIters * spsaRestarts;
-        } else {
-            // Use legacy gradient ascent
-            algorithmLabel = 'Threshold + Local Search';
-            rates = new Array(numTransitions).fill(0.5);
-            const maxIterations = 50;
-            const learningRate = 0.1;
-            
-            for (let iteration = 0; iteration < maxIterations; iteration++) {
-                const gradient = await this._computeGradient(rates, transitionLabels, targetPlace, tstart, tend, dt, abstol, reltol);
-                
-                const gradientNorm = Math.sqrt(gradient.reduce((sum, g) => sum + g * g, 0));
-                if (gradientNorm < 1e-4) break;
-
-                rates = rates.map((r, i) => {
-                    const updated = r + learningRate * gradient[i];
-                    return Math.max(0, Math.min(1, updated));
-                });
-
-                if (iteration % 10 === 0) {
-                    plotContainer.innerHTML = `<p style="margin: 0; font-size: 14px;">Phase 1: Finding continuous solution... ${iteration}/${maxIterations}</p>`;
-                }
-            }
-            totalIterations = maxIterations;
-        }
-
-        // Phase 2: Apply threshold (round values > 0.5 to 1, others to 0)
-        let binaryRates = rates.map(r => r > 0.5 ? 1.0 : 0.0);
-        let bestValue = await this._evaluateObjective(binaryRates, transitionLabels, targetPlace, tstart, tend, dt, abstol, reltol);
-        let bestRates = [...binaryRates];
-
-        plotContainer.innerHTML = `<p style="margin: 0; font-size: 14px;">Phase 2: Local binary improvement...</p>`;
-
-        // Phase 3: Local search - try flipping each bit to see if it improves
-        let improved = true;
-        let localIterations = 0;
-        const maxLocalIterations = 20;
-
-        while (improved && localIterations < maxLocalIterations) {
-            improved = false;
-            localIterations++;
-
-            for (let i = 0; i < numTransitions; i++) {
-                // Try flipping bit i
-                const testRates = [...binaryRates];
-                testRates[i] = testRates[i] === 1.0 ? 0.0 : 1.0;
-                
-                const testValue = await this._evaluateObjective(testRates, transitionLabels, targetPlace, tstart, tend, dt, abstol, reltol);
-                
-                if (testValue > bestValue) {
-                    bestValue = testValue;
-                    bestRates = [...testRates];
-                    binaryRates = [...testRates];
-                    improved = true;
-                }
-            }
-
-            plotContainer.innerHTML = `<p style="margin: 0; font-size: 14px;">Phase 2: Local improvement... iteration ${localIterations}/${maxLocalIterations}<br/>Current best value: ${bestValue.toFixed(4)}</p>`;
-        }
-
-        totalIterations += localIterations;
-
-        // Convert best rates back to object
-        const bestRatesObj = {};
-        transitionLabels.forEach((label, i) => {
-            bestRatesObj[label] = bestRates[i];
-        });
-
-        return {
-            mode: 'Binary',
-            algorithm: algorithmLabel,
-            iterations: totalIterations,
-            value: bestValue,
-            rates: bestRatesObj,
-            targetPlace: targetPlace
-        };
-    }
 
     async _promptForPlace(placeLabels) {
         return new Promise((resolve) => {
