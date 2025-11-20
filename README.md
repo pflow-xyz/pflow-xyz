@@ -437,6 +437,31 @@ The rate parameter can be used to perform sensitivity analysis and optimization:
 
 **Example**: In a knapsack problem with capacity constraints, setting a transition's rate to 0 effectively removes that item from consideration. This can reveal whether including/excluding certain items improves the objective function (e.g., total value).
 
+#### Automatic Rate Optimization
+
+The ODE simulation dialog includes an "Optimize Rates" feature that automatically finds optimal transition rates to maximize a target place. Two optimization modes are available:
+
+**Continuous Mode**: Uses gradient ascent to find optimal continuous rates between 0.0 and 1.0. Best for problems where fractional rates make sense (e.g., resource allocation with partial utilization).
+
+**Binary Mode**: Finds which transitions should be fully enabled (1.0) or disabled (0.0). Best for discrete decision problems (e.g., knapsack, task selection). Two algorithms available:
+
+1. **SPSA + Local Search (recommended)**: Uses Simultaneous Perturbation Stochastic Approximation for efficient optimization
+   - More efficient: Uses only 2 evaluations per iteration (vs N for gradient methods)
+   - Better for high-dimensional problems (many transitions)
+   - Configurable parameters:
+     - Max Iterations (default: 200): Controls optimization duration
+     - Restarts (default: 1): Multiple random starts to avoid local optima
+   - After finding a continuous solution, applies thresholding (>0.5 → 1.0, ≤0.5 → 0.0)
+   - Finishes with local bit-flip search to refine the binary solution
+
+2. **Threshold + Local Search (legacy)**: Uses finite-difference gradient ascent
+   - Traditional approach with forward finite differences
+   - Requires N+1 evaluations per iteration (one per transition plus base)
+   - More expensive but deterministic
+   - Same thresholding and local search polishing as SPSA
+
+**Performance Note**: For problems with many transitions (N > 10), SPSA can be significantly faster than the legacy gradient method while achieving similar or better results.
+
 ### Using the Solver Module Independently
 
 The `petri-solver.js` module can be used independently of the petri-view component:
