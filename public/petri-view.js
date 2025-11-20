@@ -5062,15 +5062,51 @@ class PetriView extends HTMLElement {
         });
         contentContainer.appendChild(optimizationSection);
 
+        // Collapsible header for optimization section
+        const optimizationHeader = document.createElement('div');
+        this._applyStyles(optimizationHeader, {
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            cursor: 'pointer',
+            marginBottom: '8px'
+        });
+        optimizationSection.appendChild(optimizationHeader);
+
         const optimizationTitle = document.createElement('h3');
         optimizationTitle.textContent = 'Optimization Mode';
         this._applyStyles(optimizationTitle, {
-            margin: '0 0 8px 0',
+            margin: '0',
             fontSize: '14px',
             fontWeight: '600',
             color: '#333'
         });
-        optimizationSection.appendChild(optimizationTitle);
+        optimizationHeader.appendChild(optimizationTitle);
+
+        const optimizationToggle = document.createElement('span');
+        optimizationToggle.textContent = '−';  // minus sign when expanded
+        this._applyStyles(optimizationToggle, {
+            fontSize: '18px',
+            fontWeight: 'bold',
+            color: '#666',
+            userSelect: 'none'
+        });
+        optimizationHeader.appendChild(optimizationToggle);
+
+        // Container for collapsible content
+        const optimizationContent = document.createElement('div');
+        this._applyStyles(optimizationContent, {
+            display: 'block'  // Initially visible
+        });
+        optimizationSection.appendChild(optimizationContent);
+
+        // Toggle collapse/expand
+        let isOptimizationExpanded = true;
+        optimizationHeader.addEventListener('click', () => {
+            isOptimizationExpanded = !isOptimizationExpanded;
+            optimizationContent.style.display = isOptimizationExpanded ? 'block' : 'none';
+            optimizationToggle.textContent = isOptimizationExpanded ? '−' : '+';
+        });
 
         const modeDescription = document.createElement('p');
         modeDescription.textContent = 'Select optimization strategy for "Optimize Rates" button:';
@@ -5079,7 +5115,7 @@ class PetriView extends HTMLElement {
             fontSize: '12px',
             color: '#666'
         });
-        optimizationSection.appendChild(modeDescription);
+        optimizationContent.appendChild(modeDescription);
 
         const modeRadioContainer = document.createElement('div');
         this._applyStyles(modeRadioContainer, {
@@ -5087,7 +5123,7 @@ class PetriView extends HTMLElement {
             flexDirection: 'column',
             gap: '8px'
         });
-        optimizationSection.appendChild(modeRadioContainer);
+        optimizationContent.appendChild(modeRadioContainer);
 
         // Continuous mode radio
         const continuousModeWrapper = document.createElement('div');
@@ -5159,7 +5195,7 @@ class PetriView extends HTMLElement {
             border: '1px solid #ddd',
             display: 'none'  // Initially hidden
         });
-        optimizationSection.appendChild(binarySubmodeContainer);
+        optimizationContent.appendChild(binarySubmodeContainer);
 
         const binarySubmodeLabel = document.createElement('div');
         binarySubmodeLabel.innerHTML = '<strong style="font-size: 13px;">Optimization Algorithm:</strong>';
