@@ -5148,6 +5148,195 @@ class PetriView extends HTMLElement {
         binaryModeWrapper.appendChild(binaryModeLabel);
         modeRadioContainer.appendChild(binaryModeWrapper);
 
+        // Binary algorithm submode selector (only visible when Binary mode selected)
+        const binarySubmodeContainer = document.createElement('div');
+        this._applyStyles(binarySubmodeContainer, {
+            marginTop: '12px',
+            marginLeft: '24px',
+            padding: '12px',
+            background: '#f5f5f5',
+            borderRadius: '6px',
+            border: '1px solid #ddd',
+            display: 'none'  // Initially hidden
+        });
+        optimizationSection.appendChild(binarySubmodeContainer);
+
+        const binarySubmodeLabel = document.createElement('div');
+        binarySubmodeLabel.innerHTML = '<strong style="font-size: 13px;">Binary Algorithm:</strong>';
+        this._applyStyles(binarySubmodeLabel, {
+            marginBottom: '8px',
+            fontSize: '13px',
+            color: '#333'
+        });
+        binarySubmodeContainer.appendChild(binarySubmodeLabel);
+
+        // Legacy mode radio
+        const legacyModeWrapper = document.createElement('div');
+        this._applyStyles(legacyModeWrapper, {
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            marginBottom: '6px'
+        });
+        
+        const legacyModeRadio = document.createElement('input');
+        legacyModeRadio.type = 'radio';
+        legacyModeRadio.name = 'binary-submode';
+        legacyModeRadio.value = 'legacy';
+        legacyModeRadio.id = 'submode-legacy';
+        this._applyStyles(legacyModeRadio, {
+            cursor: 'pointer'
+        });
+        legacyModeWrapper.appendChild(legacyModeRadio);
+
+        const legacyModeLabel = document.createElement('label');
+        legacyModeLabel.htmlFor = 'submode-legacy';
+        legacyModeLabel.textContent = 'Threshold + Local Search (legacy)';
+        this._applyStyles(legacyModeLabel, {
+            fontSize: '12px',
+            color: '#444',
+            cursor: 'pointer'
+        });
+        legacyModeWrapper.appendChild(legacyModeLabel);
+        binarySubmodeContainer.appendChild(legacyModeWrapper);
+
+        // SPSA mode radio
+        const spsaModeWrapper = document.createElement('div');
+        this._applyStyles(spsaModeWrapper, {
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+        });
+        
+        const spsaModeRadio = document.createElement('input');
+        spsaModeRadio.type = 'radio';
+        spsaModeRadio.name = 'binary-submode';
+        spsaModeRadio.value = 'spsa';
+        spsaModeRadio.id = 'submode-spsa';
+        spsaModeRadio.checked = true;  // Default to SPSA
+        this._applyStyles(spsaModeRadio, {
+            cursor: 'pointer'
+        });
+        spsaModeWrapper.appendChild(spsaModeRadio);
+
+        const spsaModeLabel = document.createElement('label');
+        spsaModeLabel.htmlFor = 'submode-spsa';
+        spsaModeLabel.textContent = 'SPSA + Local Search (recommended)';
+        this._applyStyles(spsaModeLabel, {
+            fontSize: '12px',
+            color: '#444',
+            cursor: 'pointer'
+        });
+        spsaModeWrapper.appendChild(spsaModeLabel);
+        binarySubmodeContainer.appendChild(spsaModeWrapper);
+
+        // SPSA parameters (advanced, collapsible)
+        const spsaParamsContainer = document.createElement('div');
+        this._applyStyles(spsaParamsContainer, {
+            marginTop: '8px',
+            padding: '8px',
+            background: '#fff',
+            borderRadius: '4px',
+            border: '1px solid #e0e0e0',
+            display: 'none'  // Initially hidden
+        });
+        binarySubmodeContainer.appendChild(spsaParamsContainer);
+
+        const spsaParamsToggle = document.createElement('div');
+        this._applyStyles(spsaParamsToggle, {
+            fontSize: '11px',
+            color: '#0066cc',
+            cursor: 'pointer',
+            marginTop: '6px',
+            textDecoration: 'underline'
+        });
+        spsaParamsToggle.textContent = '+ Advanced SPSA Parameters';
+        let spsaParamsExpanded = false;
+        spsaParamsToggle.addEventListener('click', () => {
+            spsaParamsExpanded = !spsaParamsExpanded;
+            spsaParamsContainer.style.display = spsaParamsExpanded ? 'block' : 'none';
+            spsaParamsToggle.textContent = spsaParamsExpanded ? '- Advanced SPSA Parameters' : '+ Advanced SPSA Parameters';
+        });
+        binarySubmodeContainer.appendChild(spsaParamsToggle);
+
+        const spsaParamsTitle = document.createElement('div');
+        spsaParamsTitle.innerHTML = '<strong>SPSA Parameters</strong>';
+        this._applyStyles(spsaParamsTitle, {
+            fontSize: '11px',
+            marginBottom: '6px'
+        });
+        spsaParamsContainer.appendChild(spsaParamsTitle);
+
+        // SPSA Max Iterations
+        const spsaMaxItersRow = document.createElement('div');
+        this._applyStyles(spsaMaxItersRow, {
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            marginBottom: '4px'
+        });
+        const spsaMaxItersLabel = document.createElement('label');
+        spsaMaxItersLabel.textContent = 'Max Iterations:';
+        this._applyStyles(spsaMaxItersLabel, {
+            fontSize: '11px',
+            minWidth: '90px'
+        });
+        const spsaMaxItersInput = document.createElement('input');
+        spsaMaxItersInput.type = 'number';
+        spsaMaxItersInput.value = '200';
+        spsaMaxItersInput.min = '10';
+        spsaMaxItersInput.max = '1000';
+        this._applyStyles(spsaMaxItersInput, {
+            flex: '1',
+            padding: '4px 8px',
+            fontSize: '11px',
+            border: '1px solid #ddd',
+            borderRadius: '4px'
+        });
+        spsaMaxItersRow.appendChild(spsaMaxItersLabel);
+        spsaMaxItersRow.appendChild(spsaMaxItersInput);
+        spsaParamsContainer.appendChild(spsaMaxItersRow);
+
+        // SPSA Restarts
+        const spsaRestartsRow = document.createElement('div');
+        this._applyStyles(spsaRestartsRow, {
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+        });
+        const spsaRestartsLabel = document.createElement('label');
+        spsaRestartsLabel.textContent = 'Restarts:';
+        this._applyStyles(spsaRestartsLabel, {
+            fontSize: '11px',
+            minWidth: '90px'
+        });
+        const spsaRestartsInput = document.createElement('input');
+        spsaRestartsInput.type = 'number';
+        spsaRestartsInput.value = '1';
+        spsaRestartsInput.min = '1';
+        spsaRestartsInput.max = '10';
+        this._applyStyles(spsaRestartsInput, {
+            flex: '1',
+            padding: '4px 8px',
+            fontSize: '11px',
+            border: '1px solid #ddd',
+            borderRadius: '4px'
+        });
+        spsaRestartsRow.appendChild(spsaRestartsLabel);
+        spsaRestartsRow.appendChild(spsaRestartsInput);
+        spsaParamsContainer.appendChild(spsaRestartsRow);
+
+        // Toggle visibility of binary submode container based on mode selection
+        const updateBinarySubmodeVisibility = () => {
+            if (binaryModeRadio.checked) {
+                binarySubmodeContainer.style.display = 'block';
+            } else {
+                binarySubmodeContainer.style.display = 'none';
+            }
+        };
+        continuousModeRadio.addEventListener('change', updateBinarySubmodeVisibility);
+        binaryModeRadio.addEventListener('change', updateBinarySubmodeVisibility);
+
         // Plot area
         const plotContainer = document.createElement('div');
         this._applyStyles(plotContainer, {
@@ -5203,6 +5392,9 @@ class PetriView extends HTMLElement {
         optimizeButton.addEventListener('click', () => {
             // Get selected optimization mode
             const selectedMode = continuousModeRadio.checked ? 'continuous' : 'binary';
+            const binarySubmode = spsaModeRadio.checked ? 'spsa' : 'legacy';
+            const spsaMaxIters = parseInt(spsaMaxItersInput.value) || 200;
+            const spsaRestarts = parseInt(spsaRestartsInput.value) || 1;
             
             this._optimizeRates({
                 timeStartInput,
@@ -5215,7 +5407,10 @@ class PetriView extends HTMLElement {
                 plotContainer,
                 optimizeButton,
                 runButton,
-                optimizationMode: selectedMode
+                optimizationMode: selectedMode,
+                binarySubmode: binarySubmode,
+                spsaMaxIters: spsaMaxIters,
+                spsaRestarts: spsaRestarts
             });
         });
         buttonsContainer.appendChild(optimizeButton);
@@ -5437,6 +5632,75 @@ class PetriView extends HTMLElement {
         return gradient;
     }
 
+    /**
+     * SPSA optimizer: returns a continuous rate vector in [0,1]
+     * Uses Simultaneous Perturbation Stochastic Approximation for efficient optimization
+     */
+    async _spsaOptimize(params) {
+        const {
+            initialRates,
+            evaluate,
+            maxIters = 200,
+            restarts = 1,
+            a = 0.1,
+            c = 0.02,
+            A = Math.floor(0.1 * maxIters),
+            alpha = 0.602,
+            gamma = 0.101,
+            useAveraging = true,
+            plotContainer
+        } = params;
+
+        const dim = initialRates.length;
+        let bestOverall = null;
+        let bestOverallValue = -Infinity;
+
+        for (let restart = 0; restart < restarts; restart++) {
+            let s = initialRates.slice();
+            let avg = s.slice();
+            let avgCount = 1;
+
+            if (restart > 0) {
+                s = s.map(v => Math.min(1, Math.max(0, v + (Math.random()-0.5) * 0.1)));
+            }
+
+            for (let k = 0; k < maxIters; k++) {
+                const ak = a / Math.pow(k + 1 + A, alpha);
+                const ck = c / Math.pow(k + 1, gamma);
+                const delta = new Array(dim).fill(0).map(() => Math.random() < 0.5 ? 1 : -1);
+                const plus = s.map((si, i) => Math.min(1, Math.max(0, si + ck * delta[i])));
+                const minus = s.map((si, i) => Math.min(1, Math.max(0, si - ck * delta[i])));
+                const fPlus = await evaluate(plus);
+                const fMinus = await evaluate(minus);
+                const ghat = new Array(dim);
+                for (let i = 0; i < dim; i++) {
+                    ghat[i] = (fPlus - fMinus) / (2 * ck * delta[i]);
+                }
+                s = s.map((si, i) => Math.min(1, Math.max(0, si + ak * ghat[i])));
+                if (useAveraging) {
+                    avgCount++;
+                    for (let i = 0; i < dim; i++) {
+                        avg[i] = avg[i] + (s[i] - avg[i]) / avgCount;
+                    }
+                } else {
+                    avg = s.slice();
+                }
+                if (plotContainer && k % 10 === 0) {
+                    plotContainer.innerHTML = `<p style="margin:0;font-size:14px;">SPSA: restart ${restart+1}/${restarts}, iteration ${k+1}/${maxIters}</p>`;
+                }
+            }
+
+            const candidate = avg.slice();
+            const candidateValue = await evaluate(candidate);
+            if (candidateValue > bestOverallValue) {
+                bestOverallValue = candidateValue;
+                bestOverall = candidate.slice();
+            }
+        }
+
+        return { rates: bestOverall, value: bestOverallValue };
+    }
+
     async _optimizeRates(params) {
         const {
             timeStartInput,
@@ -5448,7 +5712,10 @@ class PetriView extends HTMLElement {
             plotContainer,
             optimizeButton,
             runButton,
-            optimizationMode = 'continuous'
+            optimizationMode = 'continuous',
+            binarySubmode = 'spsa',
+            spsaMaxIters = 200,
+            spsaRestarts = 1
         } = params;
 
         try {
@@ -5492,7 +5759,10 @@ class PetriView extends HTMLElement {
                     dt,
                     abstol,
                     reltol,
-                    plotContainer
+                    plotContainer,
+                    submode: binarySubmode,
+                    spsaMaxIters: spsaMaxIters,
+                    spsaRestarts: spsaRestarts
                 });
             } else {
                 result = await this._optimizeContinuous({
@@ -5682,42 +5952,81 @@ class PetriView extends HTMLElement {
      * Binary optimization (0|1) using threshold + local search
      */
     async _optimizeBinary(params) {
-        const { transitionLabels, targetPlace, tstart, tend, dt, abstol, reltol, plotContainer } = params;
+        const { 
+            transitionLabels, 
+            targetPlace, 
+            tstart, 
+            tend, 
+            dt, 
+            abstol, 
+            reltol, 
+            plotContainer,
+            submode = 'spsa',  // 'legacy' or 'spsa'
+            spsaMaxIters = 200,
+            spsaRestarts = 1
+        } = params;
         const numTransitions = transitionLabels.length;
 
         // Show progress
-        plotContainer.innerHTML = `<p style="margin: 0; font-size: 14px;">Optimizing rates using binary search to maximize "${targetPlace}"...</p>`;
+        const algorithmName = submode === 'spsa' ? 'SPSA' : 'Threshold';
+        plotContainer.innerHTML = `<p style="margin: 0; font-size: 14px;">Optimizing rates using ${algorithmName} to maximize "${targetPlace}"...</p>`;
 
-        // Step 1: Use gradient ascent to find continuous solution
-        let rates = new Array(numTransitions).fill(0.5);
-        const maxIterations = 50; // Fewer iterations for initial phase
-        const learningRate = 0.1;
-        
-        for (let iteration = 0; iteration < maxIterations; iteration++) {
-            const gradient = await this._computeGradient(rates, transitionLabels, targetPlace, tstart, tend, dt, abstol, reltol);
-            
-            const gradientNorm = Math.sqrt(gradient.reduce((sum, g) => sum + g * g, 0));
-            if (gradientNorm < 1e-4) break;
+        let rates;
+        let totalIterations;
+        let algorithmLabel;
 
-            rates = rates.map((r, i) => {
-                const updated = r + learningRate * gradient[i];
-                return Math.max(0, Math.min(1, updated));
+        // Phase 1: Find continuous solution
+        if (submode === 'spsa') {
+            // Use SPSA optimizer
+            algorithmLabel = 'SPSA + Local Search';
+            const evaluate = async (ratesArray) => {
+                return await this._evaluateObjective(ratesArray, transitionLabels, targetPlace, tstart, tend, dt, abstol, reltol);
+            };
+
+            const initialRates = new Array(numTransitions).fill(0.5);
+            const spsaResult = await this._spsaOptimize({
+                initialRates,
+                evaluate,
+                maxIters: spsaMaxIters,
+                restarts: spsaRestarts,
+                plotContainer
             });
+            
+            rates = spsaResult.rates;
+            totalIterations = spsaMaxIters * spsaRestarts;
+        } else {
+            // Use legacy gradient ascent
+            algorithmLabel = 'Threshold + Local Search';
+            rates = new Array(numTransitions).fill(0.5);
+            const maxIterations = 50;
+            const learningRate = 0.1;
+            
+            for (let iteration = 0; iteration < maxIterations; iteration++) {
+                const gradient = await this._computeGradient(rates, transitionLabels, targetPlace, tstart, tend, dt, abstol, reltol);
+                
+                const gradientNorm = Math.sqrt(gradient.reduce((sum, g) => sum + g * g, 0));
+                if (gradientNorm < 1e-4) break;
 
-            if (iteration % 10 === 0) {
-                plotContainer.innerHTML = `<p style="margin: 0; font-size: 14px;">Phase 1: Finding continuous solution... ${iteration}/${maxIterations}</p>`;
+                rates = rates.map((r, i) => {
+                    const updated = r + learningRate * gradient[i];
+                    return Math.max(0, Math.min(1, updated));
+                });
+
+                if (iteration % 10 === 0) {
+                    plotContainer.innerHTML = `<p style="margin: 0; font-size: 14px;">Phase 1: Finding continuous solution... ${iteration}/${maxIterations}</p>`;
+                }
             }
+            totalIterations = maxIterations;
         }
 
-        // Step 2: Apply threshold (round values > 0.5 to 1, others to 0)
+        // Phase 2: Apply threshold (round values > 0.5 to 1, others to 0)
         let binaryRates = rates.map(r => r > 0.5 ? 1.0 : 0.0);
         let bestValue = await this._evaluateObjective(binaryRates, transitionLabels, targetPlace, tstart, tend, dt, abstol, reltol);
         let bestRates = [...binaryRates];
-        let totalIterations = maxIterations;
 
         plotContainer.innerHTML = `<p style="margin: 0; font-size: 14px;">Phase 2: Local binary improvement...</p>`;
 
-        // Step 3: Local search - try flipping each bit to see if it improves
+        // Phase 3: Local search - try flipping each bit to see if it improves
         let improved = true;
         let localIterations = 0;
         const maxLocalIterations = 20;
@@ -5754,7 +6063,7 @@ class PetriView extends HTMLElement {
 
         return {
             mode: 'Binary',
-            algorithm: 'Threshold + Local Search',
+            algorithm: algorithmLabel,
             iterations: totalIterations,
             value: bestValue,
             rates: bestRatesObj,
