@@ -19,8 +19,8 @@
     </style>
 </head>
 <body>
-    <h1>Test Rate Optimization with Gradient Descent</h1>
-    <p>This test page demonstrates the new gradient descent optimization for Petri net transition rates.</p>
+    <h1>Test Rate Optimization</h1>
+    <p>This test page demonstrates the rate optimization features for Petri net transition rates. The optimization can find optimal rates to maximize token counts at target places using either continuous or binary optimization strategies.</p>
     
     <h2>Simple Example: Two Transitions Competing for Resources</h2>
     <petri-view id="test-net" data-json-editor>
@@ -94,19 +94,44 @@
     <ol>
         <li>Click the hamburger menu (☰) in the top-left</li>
         <li>Select "🧮 Simulate (ODE)"</li>
+        <li>Choose optimization mode:
+            <ul>
+                <li><strong>Continuous</strong>: Finds optimal fractional rates (0.0-1.0)</li>
+                <li><strong>Binary</strong>: Finds which transitions to fully enable (1.0) or disable (0.0)</li>
+            </ul>
+        </li>
+        <li>If Binary mode is selected, choose the algorithm:
+            <ul>
+                <li><strong>SPSA + Local Search (recommended)</strong>: Efficient stochastic optimization, faster for many transitions</li>
+                <li><strong>Threshold + Local Search (legacy)</strong>: Traditional gradient-based method</li>
+            </ul>
+        </li>
         <li>Click "Optimize Rates" button</li>
         <li>Select a target place (e.g., "Output A" or "Output B")</li>
-        <li>Watch the gradient descent optimization find optimal rates</li>
+        <li>Watch the optimization progress</li>
         <li>Click "Run Simulation" to see the result</li>
     </ol>
 
     <h3>Expected Behavior:</h3>
     <ul>
-        <li>The algorithm should use gradient descent instead of brute force enumeration</li>
-        <li>It should find continuous rate values (not just 0 or 1)</li>
-        <li>The optimization should complete in fewer than 100 iterations</li>
+        <li><strong>Continuous Mode</strong>: Finds optimal continuous rate values between 0.0 and 1.0</li>
+        <li><strong>Binary Mode (SPSA)</strong>:
+            <ul>
+                <li>Uses SPSA to find continuous solution (Phase 1)</li>
+                <li>Applies threshold to get binary rates (Phase 2)</li>
+                <li>Refines with local bit-flip search (Phase 3)</li>
+                <li>More efficient than legacy mode (2 evaluations per iteration vs N+1)</li>
+            </ul>
+        </li>
+        <li><strong>Binary Mode (Legacy)</strong>:
+            <ul>
+                <li>Uses finite-difference gradient ascent (Phase 1)</li>
+                <li>Same thresholding and local search as SPSA (Phases 2-3)</li>
+            </ul>
+        </li>
         <li>If optimizing for "Output A", transition t1 should get a higher rate</li>
         <li>If optimizing for "Output B", transition t2 should get a higher rate</li>
+        <li>Both SPSA and legacy algorithms should find similar solutions</li>
     </ul>
 
     <script type="module" src="./petri-view.js"></script>
