@@ -5480,6 +5480,39 @@ class PetriView extends HTMLElement {
         });
         buttonsContainer.appendChild(runButton);
 
+        // Export to Gist button (only show if authenticated and simulation has run)
+        const exportGistButton = document.createElement('button');
+        exportGistButton.textContent = '📤 Export to Gist';
+        exportGistButton.type = 'button';
+        exportGistButton.disabled = true; // Initially disabled until simulation runs
+        this._applyStyles(exportGistButton, {
+            padding: '10px 20px',
+            fontSize: '14px',
+            fontWeight: '600',
+            color: '#fff',
+            background: '#6f42c1',
+            border: 'none',
+            borderRadius: '6px',
+            cursor: 'pointer',
+            opacity: '0.5'
+        });
+        exportGistButton.addEventListener('click', async () => {
+            await this._exportODESimulationToGist({
+                timeStartInput,
+                timeEndInput,
+                dtInput,
+                abstolInput,
+                reltolInput,
+                placeCheckboxes,
+                transitionRateInputs,
+                plotContainer
+            });
+        });
+        buttonsContainer.appendChild(exportGistButton);
+
+        // Store reference to export button for enabling/disabling
+        this._odeExportGistButton = exportGistButton;
+
         // Close button
         const closeButton = document.createElement('button');
         closeButton.textContent = 'Close';
@@ -5590,6 +5623,29 @@ class PetriView extends HTMLElement {
             plotContainer.innerHTML = plotResult.svg;
             plotResult.setupInteractivity();
 
+            // Store simulation results for export
+            this._lastODESimulation = {
+                svg: plotResult.svg,
+                selectedVars: selectedVars,
+                rates: rates,
+                tstart: tstart,
+                tend: tend,
+                dt: dt,
+                abstol: abstol,
+                reltol: reltol,
+                solution: sol,
+                net: net
+            };
+
+            // Enable export button if authenticated
+            if (this._odeExportGistButton && this._supabaseInitialized && this._user) {
+                this._odeExportGistButton.disabled = false;
+                this._applyStyles(this._odeExportGistButton, {
+                    opacity: '1',
+                    cursor: 'pointer'
+                });
+            }
+
             // Show success message
             console.log('Simulation completed successfully');
             console.log('Final state:', sol.getFinalState());
@@ -5602,6 +5658,156 @@ class PetriView extends HTMLElement {
             // Re-enable run button
             runButton.disabled = false;
             runButton.textContent = 'Run Simulation';
+        }
+    }
+
+    async _exportODESimulationToGist(params) {
+        // Check if simulation has been run
+        if (!this._lastODESimulation) {
+            alert('Please run a simulation first before exporting to Gist');
+            return;
+        }
+
+        // Check if authenticated
+        if (!this._supabaseInitialized || !this._user) {
+            alert('GitHub authentication required. Please log in to export to Gist.');
+            return;
+        }
+
+        try {
+            // Get GitHub OAuth token from Supabase session
+            const {data: {session}} = await this._supabase.auth.getSession();
+            
+            if (!session || !session.provider_token) {
+                alert('GitHub authentication required. Please log out and log in again to grant Gist permissions.');
+                return;
+            }
+
+            const githubToken = session.provider_token;
+            const sim = this._lastODESimulation;
+
+            // Generate description with simulation parameters and results
+            let description = '# Petri Net ODE Simulation Results\n\n';
+            
+            // Add simulation parameters
+            description += '## Simulation Parameters\n\n';
+            description += `- **Time Span**: ${sim.tstart} to ${sim.tend}\n`;
+            description += `- **Initial Step**: ${sim.dt}\n`;
+            description += `- **Absolute Tolerance**: ${sim.abstol}\n`;
+            description += `- **Relative Tolerance**: ${sim.reltol}\n`;
+            description += `- **Solver**: Tsit5 (5th order Runge-Kutta)\n\n`;
+
+            // Add place information
+            description += '## Places\n\n';
+            const placeEntries = Object.entries(sim.net.places);
+            if (placeEntries.length > 0) {
+                description += '| Place | Initial Tokens | Capacity |\n';
+                description += '|-------|----------------|----------|\n';
+                for (const [id, place] of placeEntries) {
+                    const initial = place.initial.reduce((a, b) => a + b, 0);
+                    const capacity = place.capacity && place.capacity.length > 0 && place.capacity[0] !== 0 
+                        ? place.capacity[0] 
+                        : '∞';
+                    const label = place.label || id;
+                    description += `| ${label} | ${initial} | ${capacity} |\n`;
+                }
+                description += '\n';
+            }
+
+            // Add transition rates
+            description += '## Transition Rates\n\n';
+            const rateEntries = Object.entries(sim.rates);
+            if (rateEntries.length > 0) {
+                description += '| Transition | Rate |\n';
+                description += '|------------|------|\n';
+                for (const [id, rate] of rateEntries) {
+                    const transition = sim.net.transitions[id];
+                    const label = transition?.label || id;
+                    description += `| ${label} | ${rate} |\n`;
+                }
+                description += '\n';
+            }
+
+            // Add plotted variables
+            description += '## Plotted Variables\n\n';
+            description += sim.selectedVars.map(v => `- ${v}`).join('\n');
+            description += '\n\n';
+
+            // Add final state
+            description += '## Final State\n\n';
+            const finalState = sim.solution.getFinalState();
+            description += '| Place | Final Tokens |\n';
+            description += '|-------|-------------|\n';
+            for (const [id, place] of placeEntries) {
+                const label = place.label || id;
+                const idx = sim.solution.stateLabels.indexOf(id);
+                if (idx >= 0) {
+                    const finalValue = finalState[idx].toFixed(4);
+                    description += `| ${label} | ${finalValue} |\n`;
+                }
+            }
+            description += '\n';
+
+            // Add the SVG plot
+            description += '## Simulation Plot\n\n';
+            description += '![ODE Simulation Plot](ode-simulation-plot.svg)\n\n';
+            
+            description += '---\n';
+            description += '*Generated by [pflow-xyz](https://pflow.xyz) ODE Simulation*\n';
+
+            // Create Gist with SVG and markdown
+            const gistResponse = await fetch('https://api.github.com/gists', {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/vnd.github+json',
+                    'Authorization': `Bearer ${githubToken}`,
+                    'X-GitHub-Api-Version': '2022-11-28'
+                },
+                body: JSON.stringify({
+                    description: 'Petri Net ODE Simulation Results',
+                    public: true,
+                    files: {
+                        'ode-simulation-plot.svg': {
+                            content: sim.svg
+                        },
+                        'README.md': {
+                            content: description
+                        }
+                    }
+                })
+            });
+
+            if (!gistResponse.ok) {
+                const errorData = await gistResponse.json().catch(() => ({}));
+                console.error('Gist creation failed:', errorData);
+                
+                if (gistResponse.status === 401 || gistResponse.status === 404) {
+                    alert('GitHub authentication failed or expired. Please log out and log in again to grant Gist permissions.\n\nNote: Make sure to authorize the GitHub provider with gist scope when logging in.');
+                } else {
+                    alert(`Failed to create Gist: ${errorData.message || gistResponse.statusText}`);
+                }
+                return;
+            }
+
+            const gistData = await gistResponse.json();
+            const gistUrl = gistData.html_url;
+
+            // Show success message with Gist URL
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(gistUrl).then(() => {
+                    alert(`ODE Simulation exported to Gist successfully!\nURL copied to clipboard.\n\n${gistUrl}`);
+                }).catch(() => {
+                    alert(`ODE Simulation exported to Gist successfully!\n\n${gistUrl}`);
+                });
+            } else {
+                alert(`ODE Simulation exported to Gist successfully!\n\n${gistUrl}`);
+            }
+
+            // Optionally open the Gist in a new tab
+            window.open(gistUrl, '_blank', 'noopener,noreferrer');
+        } catch (err) {
+            console.error('Failed to export ODE simulation to Gist:', err);
+            alert('Failed to export to Gist: ' + (err && err.message ? err.message : String(err)));
         }
     }
 
