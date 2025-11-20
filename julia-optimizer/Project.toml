@@ -1,0 +1,19 @@
+name = "PflowOptimizer"
+uuid = "7e2f1234-5678-9abc-def0-123456789abc"
+authors = ["pflow-xyz"]
+version = "0.1.0"
+
+[deps]
+HTTP = "cd3eb016-35fb-5094-929b-558a96fad6f3"
+JSON = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
+DifferentialEquations = "0c46a032-eb83-5123-abaf-570d42b7fbaa"
+LabelledArrays = "2ee39098-c373-598a-b85f-a56591580800"
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+SHA = "ea8e919c-243c-51af-8825-aaa63cd721ce"
+
+[compat]
+julia = "1.6"
+HTTP = "1"
+JSON = "0.21"
+DifferentialEquations = "7"
+LabelledArrays = "1"
