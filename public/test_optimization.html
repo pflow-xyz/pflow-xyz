@@ -96,42 +96,51 @@
         <li>Select "🧮 Simulate (ODE)"</li>
         <li>Choose optimization mode:
             <ul>
-                <li><strong>Continuous</strong>: Finds optimal fractional rates (0.0-1.0)</li>
-                <li><strong>Binary</strong>: Finds which transitions to fully enable (1.0) or disable (0.0)</li>
+                <li><strong>Continuous [0,1]:</strong> Finds optimal real-valued rates without thresholding</li>
+                <li><strong>Binary (0|1):</strong> Finds which transitions to fully enable (1) or disable (0)</li>
             </ul>
         </li>
-        <li>If Binary mode is selected, choose the algorithm:
+        <li>When Binary mode is selected, choose the optimization algorithm:
             <ul>
-                <li><strong>SPSA + Local Search (recommended)</strong>: Efficient stochastic optimization, faster for many transitions</li>
-                <li><strong>Threshold + Local Search (legacy)</strong>: Traditional gradient-based method</li>
+                <li><strong>SPSA (recommended):</strong> Efficient stochastic optimization using only 2 evaluations per iteration</li>
+                <li><strong>Gradient Ascent:</strong> Traditional finite-difference gradient method (N+1 evaluations per iteration)</li>
             </ul>
         </li>
         <li>Click "Optimize Rates" button</li>
         <li>Select a target place (e.g., "Output A" or "Output B")</li>
-        <li>Watch the optimization progress</li>
+        <li>Watch the optimization progress - iteration counts are automatically scaled based on problem complexity</li>
         <li>Click "Run Simulation" to see the result</li>
     </ol>
 
     <h3>Expected Behavior:</h3>
     <ul>
-        <li><strong>Continuous Mode</strong>: Finds optimal continuous rate values between 0.0 and 1.0</li>
-        <li><strong>Binary Mode (SPSA)</strong>:
+        <li><strong>Continuous Mode:</strong>
             <ul>
-                <li>Uses SPSA to find continuous solution (Phase 1)</li>
-                <li>Applies threshold to get binary rates (Phase 2)</li>
-                <li>Refines with local bit-flip search (Phase 3)</li>
-                <li>More efficient than legacy mode (2 evaluations per iteration vs N+1)</li>
+                <li>Finds optimal real-valued rates between 0.0 and 1.0</li>
+                <li>No thresholding is applied - rates remain continuous</li>
+                <li>Works with both SPSA and Gradient Ascent algorithms</li>
+                <li>Iteration count scales with problem size (transitions + arcs)</li>
             </ul>
         </li>
-        <li><strong>Binary Mode (Legacy)</strong>:
+        <li><strong>Binary Mode:</strong>
             <ul>
-                <li>Uses finite-difference gradient ascent (Phase 1)</li>
-                <li>Same thresholding and local search as SPSA (Phases 2-3)</li>
+                <li><strong>Phase 1:</strong> Find continuous solution using selected algorithm (SPSA or Gradient Ascent)</li>
+                <li><strong>Phase 2:</strong> Apply threshold at 0.5 (values > 0.5 → 1, else → 0)</li>
+                <li><strong>Phase 3:</strong> Local bit-flip search to refine binary solution</li>
+                <li>SPSA is more efficient (2 evaluations/iter vs N+1 for gradient)</li>
+                <li>Both algorithms produce similar final results</li>
+            </ul>
+        </li>
+        <li><strong>Problem-Adaptive Iterations:</strong>
+            <ul>
+                <li>Iteration counts automatically scale based on number of transitions and arcs</li>
+                <li>SPSA: up to 300 iterations for complex problems</li>
+                <li>Gradient Ascent: up to 150 iterations for complex problems</li>
+                <li>Local search: up to 30 iterations based on number of transitions</li>
             </ul>
         </li>
         <li>If optimizing for "Output A", transition t1 should get a higher rate</li>
         <li>If optimizing for "Output B", transition t2 should get a higher rate</li>
-        <li>Both SPSA and legacy algorithms should find similar solutions</li>
     </ul>
 
     <script type="module" src="./petri-view.js"></script>
