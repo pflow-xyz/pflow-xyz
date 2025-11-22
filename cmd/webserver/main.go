@@ -235,8 +235,11 @@ func (s *Server) handleGetSVG(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Generate SVG from the JSON-LD data
-	svgContent, err := svg.GenerateSVG(data)
+	// Get layout parameter from query string
+	layoutAlgorithm := r.URL.Query().Get("layout")
+
+	// Generate SVG from the JSON-LD data with optional layout
+	svgContent, err := svg.GenerateSVGWithLayout(data, layoutAlgorithm)
 	if err != nil {
 		log.Printf("Error generating SVG for %s: %v", cid, err)
 		http.Error(w, "Failed to generate SVG", http.StatusInternalServerError)

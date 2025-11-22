@@ -319,3 +319,71 @@ func TestPathSanitization(t *testing.T) {
 		t.Errorf("Reading valid user/slug should work: %v", err)
 	}
 }
+
+func TestSaveObject_PreservesNameAndDescription(t *testing.T) {
+	// Test that @name and @description fields are preserved in storage
+	tmpDir, err := os.MkdirTemp("", "store-test-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	store := NewFSStore(tmpDir)
+
+	cid := "z4EBG9jTestWithNameAndDesc"
+	raw := []byte(`{
+		"@context": "https://pflow.xyz/schema",
+		"@type": "PetriNet",
+		"name": "My Petri Net",
+		"description": "This is a test Petri net",
+		"places": {},
+		"transitions": {}
+	}`)
+	canonical := []byte("test canonical")
+
+	// Save the object
+	err = store.SaveObject(cid, raw, canonical)
+	if err != nil {
+		t.Fatalf("SaveObject failed: %v", err)
+	}
+
+	// Read the saved object
+	savedPath := filepath.Join(tmpDir, "o", cid)
+	savedData, err := os.ReadFile(savedPath)
+	if err != nil {
+		t.Fatalf("Failed to read saved object: %v", err)
+	}
+
+	// Parse the saved JSON
+	var savedDoc map[string]interface{}
+	if err := json.Unmarshal(savedData, &savedDoc); err != nil {
+		t.Fatalf("Failed to parse saved JSON: %v", err)
+	}
+
+	// Verify name and description fields are preserved
+	if savedDoc["name"] != "My Petri Net" {
+		t.Errorf("Expected name 'My Petri Net', got %v", savedDoc["name"])
+	}
+	if savedDoc["description"] != "This is a test Petri net" {
+		t.Errorf("Expected description 'This is a test Petri net', got %v", savedDoc["description"])
+	}
+
+	// Read back using ReadObject
+	readData, err := store.ReadObject(cid)
+	if err != nil {
+		t.Fatalf("ReadObject failed: %v", err)
+	}
+
+	// Parse and verify fields are still preserved
+	var readDoc map[string]interface{}
+	if err := json.Unmarshal(readData, &readDoc); err != nil {
+		t.Fatalf("Failed to parse read data: %v", err)
+	}
+
+	if readDoc["name"] != "My Petri Net" {
+		t.Errorf("Expected name to be preserved on read, got %v", readDoc["name"])
+	}
+	if readDoc["description"] != "This is a test Petri net" {
+		t.Errorf("Expected description to be preserved on read, got %v", readDoc["description"])
+	}
+}
