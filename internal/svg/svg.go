@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"log"
 	"math"
 	"strings"
 )
@@ -101,7 +102,7 @@ func GenerateSVGWithLayout(jsonData []byte, layoutAlgorithm string) (string, err
 		if err := applyLayout(&petriNet, layoutAlgorithm); err != nil {
 			// Log the error but don't fail - just use original positions
 			// This allows graceful degradation if layout algorithm fails
-			fmt.Printf("Warning: failed to apply layout %s: %v\n", layoutAlgorithm, err)
+			log.Printf("Warning: failed to apply layout %s: %v", layoutAlgorithm, err)
 		}
 	}
 
@@ -805,45 +806,41 @@ func applyForceAtlasLayout(net *PetriNet) error {
 
 	// Create a node map for easier access
 	type nodeInfo struct {
-		x, y   *float64 // Pointers to actual position in net
+		x, y   float64 // Position values
 		isPlace bool
 		id     string
 	}
 	
 	nodes := make([]nodeInfo, 0, totalNodes)
 	
-	// Collect all nodes
-	for id := range net.Places {
-		place := net.Places[id]
+	// Collect all nodes with their current positions
+	for id, place := range net.Places {
 		nodes = append(nodes, nodeInfo{
-			x: &place.X,
-			y: &place.Y,
+			x: place.X,
+			y: place.Y,
 			isPlace: true,
 			id: id,
 		})
-		net.Places[id] = place
 	}
 	
-	for id := range net.Transitions {
-		transition := net.Transitions[id]
+	for id, transition := range net.Transitions {
 		nodes = append(nodes, nodeInfo{
-			x: &transition.X,
-			y: &transition.Y,
+			x: transition.X,
+			y: transition.Y,
 			isPlace: false,
 			id: id,
 		})
-		net.Transitions[id] = transition
 	}
 
 	// Initialize positions if they're at (0,0)
-	for i, node := range nodes {
-		if *node.x == 0 && *node.y == 0 {
+	for i := range nodes {
+		if nodes[i].x == 0 && nodes[i].y == 0 {
 			// Place in a grid initially
 			gridSize := int(math.Ceil(math.Sqrt(float64(totalNodes))))
 			row := i / gridSize
 			col := i % gridSize
-			*node.x = float64(col * 150 + 100)
-			*node.y = float64(row * 150 + 100)
+			nodes[i].x = float64(col * 150 + 100)
+			nodes[i].y = float64(row * 150 + 100)
 		}
 	}
 
@@ -859,8 +856,8 @@ func applyForceAtlasLayout(net *PetriNet) error {
 		
 		for i := 0; i < len(nodes); i++ {
 			for j := i + 1; j < len(nodes); j++ {
-				dx := *nodes[j].x - *nodes[i].x
-				dy := *nodes[j].y - *nodes[i].y
+				dx := nodes[j].x - nodes[i].x
+				dy := nodes[j].y - nodes[i].y
 				dist := math.Sqrt(dx*dx + dy*dy)
 				
 				if dist < 1.0 {
@@ -899,8 +896,8 @@ func applyForceAtlasLayout(net *PetriNet) error {
 				continue
 			}
 			
-			dx := *nodes[targetIdx].x - *nodes[sourceIdx].x
-			dy := *nodes[targetIdx].y - *nodes[sourceIdx].y
+			dx := nodes[targetIdx].x - nodes[sourceIdx].x
+			dy := nodes[targetIdx].y - nodes[sourceIdx].y
 			dist := math.Sqrt(dx*dx + dy*dy)
 			
 			if dist < 1.0 {
@@ -919,15 +916,15 @@ func applyForceAtlasLayout(net *PetriNet) error {
 		}
 
 		// Apply forces with temperature-based damping
-		for i, node := range nodes {
+		for i := range nodes {
 			displacement := math.Sqrt(forces[i][0]*forces[i][0] + forces[i][1]*forces[i][1])
 			if displacement > temperature {
 				forces[i][0] = forces[i][0] / displacement * temperature
 				forces[i][1] = forces[i][1] / displacement * temperature
 			}
 			
-			*node.x += forces[i][0]
-			*node.y += forces[i][1]
+			nodes[i].x += forces[i][0]
+			nodes[i].y += forces[i][1]
 		}
 
 		// Cool down
@@ -935,16 +932,16 @@ func applyForceAtlasLayout(net *PetriNet) error {
 	}
 
 	// Update the net with new positions
-	for i, node := range nodes {
+	for _, node := range nodes {
 		if node.isPlace {
 			place := net.Places[node.id]
-			place.X = *nodes[i].x
-			place.Y = *nodes[i].y
+			place.X = node.x
+			place.Y = node.y
 			net.Places[node.id] = place
 		} else {
 			transition := net.Transitions[node.id]
-			transition.X = *nodes[i].x
-			transition.Y = *nodes[i].y
+			transition.X = node.x
+			transition.Y = node.y
 			net.Transitions[node.id] = transition
 		}
 	}
