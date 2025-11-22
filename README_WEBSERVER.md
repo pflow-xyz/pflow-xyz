@@ -44,6 +44,16 @@ go build -o webserver ./cmd/webserver
 - `POST /api/save` - Save a JSON-LD object and get its CID
 - `GET /api/ownership/{cid}` - Check if current user owns an object
 
+### SVG Generation
+
+- `GET /img/{cid}.svg` - Generate SVG representation of a Petri net
+  - Supports optional `?layout=<algorithm>` query parameter for automatic layout
+  - Available layouts:
+    - `circular` or `circle` - Arranges nodes in a circle
+    - `force-atlas-2`, `force-atlas`, or `force` - Physics-based force-directed layout
+    - `hierarchical`, `hierarchical-vertical`, or `vertical` - Layers nodes vertically
+  - Example: `/img/{cid}.svg?layout=force-atlas-2`
+
 ## Architecture
 
 This server implements a backend for:

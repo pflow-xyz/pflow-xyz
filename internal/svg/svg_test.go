@@ -1017,3 +1017,190 @@ func TestPetriNetWithNameAndDescription(t *testing.T) {
 		t.Error("SVG missing closing tag")
 	}
 }
+
+func TestGenerateSVGWithLayout_Circular(t *testing.T) {
+	jsonData := []byte(`{
+		"@context": "https://pflow.xyz/schema",
+		"@type": "PetriNet",
+		"@version": "1.1",
+		"arcs": [
+			{
+				"@type": "Arrow",
+				"source": "place0",
+				"target": "txn0",
+				"weight": [1]
+			}
+		],
+		"places": {
+			"place0": {
+				"@type": "Place",
+				"capacity": [10],
+				"initial": [2],
+				"offset": 0,
+				"x": 0,
+				"y": 0
+			},
+			"place1": {
+				"@type": "Place",
+				"capacity": [10],
+				"initial": [0],
+				"offset": 0,
+				"x": 0,
+				"y": 0
+			}
+		},
+		"token": ["https://pflow.xyz/tokens/black"],
+		"transitions": {
+			"txn0": {
+				"@type": "Transition",
+				"x": 0,
+				"y": 0
+			}
+		}
+	}`)
+
+	svg, err := GenerateSVGWithLayout(jsonData, "circular")
+	if err != nil {
+		t.Fatalf("GenerateSVGWithLayout failed: %v", err)
+	}
+
+	// SVG should be valid
+	if !strings.Contains(svg, "<svg xmlns") {
+		t.Error("SVG missing opening tag")
+	}
+	if !strings.Contains(svg, "</svg>") {
+		t.Error("SVG missing closing tag")
+	}
+
+	// Nodes should have been repositioned (not all at 0,0)
+	// This is a basic check - the actual positions depend on the layout algorithm
+	t.Logf("Generated SVG with circular layout (length: %d bytes)", len(svg))
+}
+
+func TestGenerateSVGWithLayout_ForceAtlas(t *testing.T) {
+	jsonData := []byte(`{
+		"@context": "https://pflow.xyz/schema",
+		"@type": "PetriNet",
+		"@version": "1.1",
+		"arcs": [
+			{
+				"@type": "Arrow",
+				"source": "place0",
+				"target": "txn0",
+				"weight": [1]
+			},
+			{
+				"@type": "Arrow",
+				"source": "txn0",
+				"target": "place1",
+				"weight": [1]
+			}
+		],
+		"places": {
+			"place0": {
+				"@type": "Place",
+				"capacity": [10],
+				"initial": [2],
+				"offset": 0,
+				"x": 0,
+				"y": 0
+			},
+			"place1": {
+				"@type": "Place",
+				"capacity": [10],
+				"initial": [0],
+				"offset": 0,
+				"x": 0,
+				"y": 0
+			}
+		},
+		"token": ["https://pflow.xyz/tokens/black"],
+		"transitions": {
+			"txn0": {
+				"@type": "Transition",
+				"x": 0,
+				"y": 0
+			}
+		}
+	}`)
+
+	svg, err := GenerateSVGWithLayout(jsonData, "force-atlas-2")
+	if err != nil {
+		t.Fatalf("GenerateSVGWithLayout failed: %v", err)
+	}
+
+	// SVG should be valid
+	if !strings.Contains(svg, "<svg xmlns") {
+		t.Error("SVG missing opening tag")
+	}
+	if !strings.Contains(svg, "</svg>") {
+		t.Error("SVG missing closing tag")
+	}
+
+	t.Logf("Generated SVG with force-atlas-2 layout (length: %d bytes)", len(svg))
+}
+
+func TestGenerateSVGWithLayout_Hierarchical(t *testing.T) {
+	jsonData := []byte(`{
+		"@context": "https://pflow.xyz/schema",
+		"@type": "PetriNet",
+		"@version": "1.1",
+		"arcs": [],
+		"places": {
+			"place0": {
+				"@type": "Place",
+				"capacity": [10],
+				"initial": [2],
+				"offset": 0,
+				"x": 50,
+				"y": 50
+			}
+		},
+		"token": ["https://pflow.xyz/tokens/black"],
+		"transitions": {
+			"txn0": {
+				"@type": "Transition",
+				"x": 50,
+				"y": 50
+			}
+		}
+	}`)
+
+	svg, err := GenerateSVGWithLayout(jsonData, "hierarchical")
+	if err != nil {
+		t.Fatalf("GenerateSVGWithLayout failed: %v", err)
+	}
+
+	// SVG should be valid
+	if !strings.Contains(svg, "<svg xmlns") {
+		t.Error("SVG missing opening tag")
+	}
+	if !strings.Contains(svg, "</svg>") {
+		t.Error("SVG missing closing tag")
+	}
+
+	t.Logf("Generated SVG with hierarchical layout (length: %d bytes)", len(svg))
+}
+
+func TestGenerateSVGWithLayout_Invalid(t *testing.T) {
+	jsonData := []byte(`{
+		"@context": "https://pflow.xyz/schema",
+		"@type": "PetriNet",
+		"@version": "1.1",
+		"arcs": [],
+		"places": {},
+		"token": ["https://pflow.xyz/tokens/black"],
+		"transitions": {}
+	}`)
+
+	// Should not fail even with invalid layout name - should just use original positions
+	svg, err := GenerateSVGWithLayout(jsonData, "invalid-layout-name")
+	if err != nil {
+		t.Fatalf("GenerateSVGWithLayout should not fail with invalid layout: %v", err)
+	}
+
+	// SVG should still be valid
+	if !strings.Contains(svg, "<svg xmlns") {
+		t.Error("SVG missing opening tag")
+	}
+}

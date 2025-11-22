@@ -85,9 +85,24 @@ type NodePosition struct {
 
 // GenerateSVG generates an SVG representation of a Petri net from JSON-LD data
 func GenerateSVG(jsonData []byte) (string, error) {
+	return GenerateSVGWithLayout(jsonData, "")
+}
+
+// GenerateSVGWithLayout generates an SVG representation of a Petri net from JSON-LD data
+// with an optional layout algorithm applied
+func GenerateSVGWithLayout(jsonData []byte, layoutAlgorithm string) (string, error) {
 	var petriNet PetriNet
 	if err := json.Unmarshal(jsonData, &petriNet); err != nil {
 		return "", fmt.Errorf("failed to parse JSON-LD: %w", err)
+	}
+
+	// Apply layout algorithm if specified
+	if layoutAlgorithm != "" {
+		if err := applyLayout(&petriNet, layoutAlgorithm); err != nil {
+			// Log the error but don't fail - just use original positions
+			// This allows graceful degradation if layout algorithm fails
+			fmt.Printf("Warning: failed to apply layout %s: %v\n", layoutAlgorithm, err)
+		}
 	}
 
 	// Calculate bounds
@@ -720,4 +735,261 @@ func getArcWeight(arc Arc) int {
 	
 	// If all weights are zero, default to 1
 	return 1
+}
+
+// applyLayout applies a layout algorithm to the Petri net
+func applyLayout(net *PetriNet, algorithm string) error {
+	switch strings.ToLower(algorithm) {
+	case "circular", "circle":
+		return applyCircularLayout(net)
+	case "force-atlas-2", "force-atlas", "force":
+		return applyForceAtlasLayout(net)
+	case "hierarchical", "hierarchical-vertical", "vertical":
+		return applyHierarchicalLayout(net)
+	default:
+		return fmt.Errorf("unsupported layout algorithm: %s", algorithm)
+	}
+}
+
+// applyCircularLayout arranges all nodes in a circle
+func applyCircularLayout(net *PetriNet) error {
+	// Count total nodes
+	totalNodes := len(net.Places) + len(net.Transitions)
+	if totalNodes == 0 {
+		return nil
+	}
+
+	// Circle parameters
+	centerX := 300.0
+	centerY := 300.0
+	radius := 200.0
+
+	// Calculate angle step
+	angleStep := 2 * math.Pi / float64(totalNodes)
+	
+	nodeIndex := 0
+
+	// Position places
+	for id := range net.Places {
+		place := net.Places[id]
+		angle := float64(nodeIndex) * angleStep
+		place.X = centerX + radius*math.Cos(angle)
+		place.Y = centerY + radius*math.Sin(angle)
+		net.Places[id] = place
+		nodeIndex++
+	}
+
+	// Position transitions
+	for id := range net.Transitions {
+		transition := net.Transitions[id]
+		angle := float64(nodeIndex) * angleStep
+		transition.X = centerX + radius*math.Cos(angle)
+		transition.Y = centerY + radius*math.Sin(angle)
+		net.Transitions[id] = transition
+		nodeIndex++
+	}
+
+	return nil
+}
+
+// applyForceAtlasLayout applies a simplified force-directed layout algorithm
+// This is a basic implementation inspired by Force Atlas 2
+func applyForceAtlasLayout(net *PetriNet) error {
+	// This is a simplified version - a full Force Atlas 2 implementation would be much more complex
+	
+	// Count total nodes
+	totalNodes := len(net.Places) + len(net.Transitions)
+	if totalNodes == 0 {
+		return nil
+	}
+
+	// Create a node map for easier access
+	type nodeInfo struct {
+		x, y   *float64 // Pointers to actual position in net
+		isPlace bool
+		id     string
+	}
+	
+	nodes := make([]nodeInfo, 0, totalNodes)
+	
+	// Collect all nodes
+	for id := range net.Places {
+		place := net.Places[id]
+		nodes = append(nodes, nodeInfo{
+			x: &place.X,
+			y: &place.Y,
+			isPlace: true,
+			id: id,
+		})
+		net.Places[id] = place
+	}
+	
+	for id := range net.Transitions {
+		transition := net.Transitions[id]
+		nodes = append(nodes, nodeInfo{
+			x: &transition.X,
+			y: &transition.Y,
+			isPlace: false,
+			id: id,
+		})
+		net.Transitions[id] = transition
+	}
+
+	// Initialize positions if they're at (0,0)
+	for i, node := range nodes {
+		if *node.x == 0 && *node.y == 0 {
+			// Place in a grid initially
+			gridSize := int(math.Ceil(math.Sqrt(float64(totalNodes))))
+			row := i / gridSize
+			col := i % gridSize
+			*node.x = float64(col * 150 + 100)
+			*node.y = float64(row * 150 + 100)
+		}
+	}
+
+	// Simple force-directed iterations
+	iterations := 50
+	temperature := 100.0
+	cooling := 0.95
+	k := 100.0 // Optimal distance between nodes
+
+	for iter := 0; iter < iterations; iter++ {
+		// Calculate repulsive forces between all nodes
+		forces := make([][2]float64, len(nodes))
+		
+		for i := 0; i < len(nodes); i++ {
+			for j := i + 1; j < len(nodes); j++ {
+				dx := *nodes[j].x - *nodes[i].x
+				dy := *nodes[j].y - *nodes[i].y
+				dist := math.Sqrt(dx*dx + dy*dy)
+				
+				if dist < 1.0 {
+					dist = 1.0
+				}
+				
+				// Repulsive force (inversely proportional to distance)
+				force := k * k / dist
+				fx := force * dx / dist
+				fy := force * dy / dist
+				
+				forces[i][0] -= fx
+				forces[i][1] -= fy
+				forces[j][0] += fx
+				forces[j][1] += fy
+			}
+		}
+
+		// Calculate attractive forces along arcs
+		for _, arc := range net.Arcs {
+			var sourceIdx, targetIdx int
+			sourceFound, targetFound := false, false
+			
+			for idx, node := range nodes {
+				if node.id == arc.Source {
+					sourceIdx = idx
+					sourceFound = true
+				}
+				if node.id == arc.Target {
+					targetIdx = idx
+					targetFound = true
+				}
+			}
+			
+			if !sourceFound || !targetFound {
+				continue
+			}
+			
+			dx := *nodes[targetIdx].x - *nodes[sourceIdx].x
+			dy := *nodes[targetIdx].y - *nodes[sourceIdx].y
+			dist := math.Sqrt(dx*dx + dy*dy)
+			
+			if dist < 1.0 {
+				dist = 1.0
+			}
+			
+			// Attractive force (proportional to distance)
+			force := dist * dist / k
+			fx := force * dx / dist
+			fy := force * dy / dist
+			
+			forces[sourceIdx][0] += fx
+			forces[sourceIdx][1] += fy
+			forces[targetIdx][0] -= fx
+			forces[targetIdx][1] -= fy
+		}
+
+		// Apply forces with temperature-based damping
+		for i, node := range nodes {
+			displacement := math.Sqrt(forces[i][0]*forces[i][0] + forces[i][1]*forces[i][1])
+			if displacement > temperature {
+				forces[i][0] = forces[i][0] / displacement * temperature
+				forces[i][1] = forces[i][1] / displacement * temperature
+			}
+			
+			*node.x += forces[i][0]
+			*node.y += forces[i][1]
+		}
+
+		// Cool down
+		temperature *= cooling
+	}
+
+	// Update the net with new positions
+	for i, node := range nodes {
+		if node.isPlace {
+			place := net.Places[node.id]
+			place.X = *nodes[i].x
+			place.Y = *nodes[i].y
+			net.Places[node.id] = place
+		} else {
+			transition := net.Transitions[node.id]
+			transition.X = *nodes[i].x
+			transition.Y = *nodes[i].y
+			net.Transitions[node.id] = transition
+		}
+	}
+
+	return nil
+}
+
+// applyHierarchicalLayout arranges nodes in layers from top to bottom
+func applyHierarchicalLayout(net *PetriNet) error {
+	// Simple hierarchical layout: places on one layer, transitions on another
+	
+	placeCount := len(net.Places)
+	transitionCount := len(net.Transitions)
+	
+	if placeCount == 0 && transitionCount == 0 {
+		return nil
+	}
+
+	// Layout places in top row
+	placeSpacing := 150.0
+	placeStartX := 100.0
+	placeY := 100.0
+	
+	idx := 0
+	for id := range net.Places {
+		place := net.Places[id]
+		place.X = placeStartX + float64(idx)*placeSpacing
+		place.Y = placeY
+		net.Places[id] = place
+		idx++
+	}
+
+	// Layout transitions in bottom row
+	transitionSpacing := 150.0
+	transitionStartX := 100.0
+	transitionY := 300.0
+	
+	idx = 0
+	for id := range net.Transitions {
+		transition := net.Transitions[id]
+		transition.X = transitionStartX + float64(idx)*transitionSpacing
+		transition.Y = transitionY
+		net.Transitions[id] = transition
+		idx++
+	}
+
+	return nil
 }
