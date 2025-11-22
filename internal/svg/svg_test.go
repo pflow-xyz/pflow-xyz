@@ -1,6 +1,7 @@
 package svg
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 )
@@ -965,3 +966,54 @@ func TestArcCurveOffsetCalculation(t *testing.T) {
 	t.Logf("Curve offsets: arc0=%.1f, arc1=%.1f, arc2=%.1f", offset0, offset1, offset2)
 }
 
+func TestPetriNetWithNameAndDescription(t *testing.T) {
+	// Test that @name and @description fields are preserved when parsing JSON-LD
+	jsonData := []byte(`{
+		"@context": "https://pflow.xyz/schema",
+		"@type": "PetriNet",
+		"@version": "1.1",
+		"name": "My Test Petri Net",
+		"description": "This is a test Petri net for validating name and description preservation",
+		"arcs": [],
+		"places": {
+			"place0": {
+				"@type": "Place",
+				"capacity": [10],
+				"initial": [1],
+				"offset": 0,
+				"x": 100,
+				"y": 100
+			}
+		},
+		"token": ["https://pflow.xyz/tokens/black"],
+		"transitions": {}
+	}`)
+
+	var petriNet PetriNet
+	err := json.Unmarshal(jsonData, &petriNet)
+	if err != nil {
+		t.Fatalf("Failed to parse JSON-LD: %v", err)
+	}
+
+	// Verify name and description are preserved
+	if petriNet.Name != "My Test Petri Net" {
+		t.Errorf("Expected name 'My Test Petri Net', got '%s'", petriNet.Name)
+	}
+	if petriNet.Description != "This is a test Petri net for validating name and description preservation" {
+		t.Errorf("Expected description to be preserved, got '%s'", petriNet.Description)
+	}
+
+	// Generate SVG to ensure name and description don't break SVG generation
+	svg, err := GenerateSVG(jsonData)
+	if err != nil {
+		t.Fatalf("GenerateSVG failed with name and description: %v", err)
+	}
+
+	// SVG should still be valid
+	if !strings.Contains(svg, "<svg xmlns") {
+		t.Error("SVG missing opening tag")
+	}
+	if !strings.Contains(svg, "</svg>") {
+		t.Error("SVG missing closing tag")
+	}
+}

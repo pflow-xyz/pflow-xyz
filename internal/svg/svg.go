@@ -28,6 +28,8 @@ type PetriNet struct {
 	Places      map[string]Place      `json:"places"`
 	Transitions map[string]Transition `json:"transitions"`
 	Token       []string              `json:"token"` // Array of token color URLs or hex colors
+	Name        string                `json:"name,omitempty"`        // Optional name field from schema.org
+	Description string                `json:"description,omitempty"` // Optional description field from schema.org
 }
 
 // Label returns the label for a place, falling back to the ID if no label is set
