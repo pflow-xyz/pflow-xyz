@@ -457,6 +457,26 @@ func (s *Server) handleDeleteObject(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// getRequestScheme determines the appropriate URL scheme (http/https) based on the request
+func (s *Server) getRequestScheme(r *http.Request) string {
+	// Check X-Forwarded-Proto header first (for reverse proxy scenarios)
+	if forwardedProto := r.Header.Get("X-Forwarded-Proto"); forwardedProto != "" {
+		return forwardedProto
+	}
+
+	// Check if it's a localhost request
+	if strings.Contains(r.Host, "localhost") || strings.Contains(r.Host, "127.0.0.1") {
+		return "http"
+	}
+
+	// Check if TLS is enabled
+	if r.TLS != nil {
+		return "https"
+	}
+
+	return "http"
+}
+
 // Handler for GET /auth/github - initiate GitHub OAuth flow
 func (s *Server) handleGitHubAuth(w http.ResponseWriter, r *http.Request) {
 	if s.handleCORS(w, r) {
@@ -474,18 +494,7 @@ func (s *Server) handleGitHubAuth(w http.ResponseWriter, r *http.Request) {
 	redirectURL := r.URL.Query().Get("redirect_url")
 	if redirectURL == "" {
 		// Default redirect URL (callback endpoint)
-		scheme := "https"
-		if r.TLS == nil && !strings.Contains(r.Host, "localhost") {
-			// Check X-Forwarded-Proto header for reverse proxy scenarios
-			if forwardedProto := r.Header.Get("X-Forwarded-Proto"); forwardedProto != "" {
-				scheme = forwardedProto
-			} else {
-				scheme = "http"
-			}
-		}
-		if strings.Contains(r.Host, "localhost") || strings.Contains(r.Host, "127.0.0.1") {
-			scheme = "http"
-		}
+		scheme := s.getRequestScheme(r)
 		redirectURL = fmt.Sprintf("%s://%s/auth/github/callback", scheme, r.Host)
 	}
 
@@ -589,14 +598,7 @@ func (s *Server) handleGitHubCallback(w http.ResponseWriter, r *http.Request) {
 
 	// Redirect to the frontend with the token
 	// The frontend will store this token and use it for authenticated requests
-	scheme := "https"
-	if r.TLS == nil {
-		if forwardedProto := r.Header.Get("X-Forwarded-Proto"); forwardedProto != "" {
-			scheme = forwardedProto
-		} else if strings.Contains(r.Host, "localhost") || strings.Contains(r.Host, "127.0.0.1") {
-			scheme = "http"
-		}
-	}
+	scheme := s.getRequestScheme(r)
 
 	// Redirect to frontend with token in URL fragment (more secure than query param)
 	redirectURL := fmt.Sprintf("%s://%s/#access_token=%s", scheme, r.Host, url.QueryEscape(tokenString))
