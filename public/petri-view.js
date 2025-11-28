@@ -62,14 +62,11 @@ class PetriView extends HTMLElement {
         // layout orientation (vertical by default, horizontal when toggled)
         this._layoutHorizontal = false;
 
-        // Supabase support (backend mode)
-        this._supabase = null;
+        // Authentication support (backend mode)
         this._user = null;
-        this._supabaseUrl = null;
-        this._supabaseKey = null;
-        this._supabaseInitialized = false;
-        this._supabaseAuthSubscription = null;
-        this._supabaseInitializing = false;
+        this._authToken = null;
+        this._authInitialized = false;
+        this._authInitializing = false;
 
         // UI buttons
         this._hamburgerMenu = null;
@@ -86,7 +83,7 @@ class PetriView extends HTMLElement {
 
     // observe compact flag and json editor toggle
     static get observedAttributes() {
-        return ['data-compact', 'data-json-editor', 'data-backend', 'data-layout-horizontal', 'supabase-url', 'supabase-key'];
+        return ['data-compact', 'data-json-editor', 'data-backend', 'data-layout-horizontal'];
     }
 
     attributeChangedCallback(name, oldValue, newValue) {
@@ -104,15 +101,9 @@ class PetriView extends HTMLElement {
             }
             this._createHamburgerMenu();
 
-            // Initialize Supabase if attributes are set
+            // Initialize authentication if in backend mode
             if (newValue !== null) {
-                this._initSupabase();
-            }
-        }
-        if ((name === 'supabase-url' || name === 'supabase-key') && this.isConnected) {
-            // Re-initialize Supabase with new config
-            if (this.hasAttribute('data-backend')) {
-                this._initSupabase();
+                this._initAuth();
             }
         }
         if (name === 'data-layout-horizontal' && this.isConnected) {
@@ -124,68 +115,99 @@ class PetriView extends HTMLElement {
         }
     }
 
-    // ---------------- Supabase Integration ----------------
-    async _initSupabase() {
+    // ---------------- Authentication Integration ----------------
+    async _initAuth() {
         if (!this.hasAttribute('data-backend')) return;
 
-        const supabaseUrl = this.getAttribute('supabase-url');
-        const supabaseKey = this.getAttribute('supabase-key');
-
-        // Check if credentials have changed
-        if (this._supabaseInitialized &&
-            this._supabaseUrl === supabaseUrl &&
-            this._supabaseKey === supabaseKey) {
-            return; // Skip if same credentials
-        }
-
         // Prevent concurrent initializations
-        if (this._supabaseInitializing) {
+        if (this._authInitializing) {
             return;
         }
 
-        if (!supabaseUrl || !supabaseKey) {
-            console.log('Supabase credentials not configured. Login feature will be disabled.');
+        // Skip if already initialized
+        if (this._authInitialized) {
             return;
         }
 
         try {
-            this._supabaseInitializing = true;
+            this._authInitializing = true;
 
-            // Clean up existing subscription if any
-            if (this._supabaseAuthSubscription) {
-                this._supabaseAuthSubscription.subscription.unsubscribe();
-                this._supabaseAuthSubscription = null;
+            // Check for access token in URL fragment (from OAuth callback)
+            const hash = window.location.hash;
+            if (hash && hash.includes('access_token=')) {
+                const params = new URLSearchParams(hash.substring(1));
+                const token = params.get('access_token');
+                if (token) {
+                    // Store the token
+                    this._authToken = token;
+                    localStorage.setItem('pflow_auth_token', token);
+                    
+                    // Clean up URL
+                    window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
+                }
             }
 
-            // Dynamically import Supabase
-            const {createClient} = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm');
+            // Try to load token from localStorage
+            if (!this._authToken) {
+                this._authToken = localStorage.getItem('pflow_auth_token');
+            }
 
-            this._supabase = createClient(supabaseUrl, supabaseKey);
-            this._supabaseUrl = supabaseUrl;
-            this._supabaseKey = supabaseKey;
-            this._supabaseInitialized = true;
+            // Validate token and get user info
+            if (this._authToken) {
+                await this._fetchUserInfo();
+            }
 
-            // Listen for auth state changes and store the subscription
-            this._supabaseAuthSubscription = this._supabase.auth.onAuthStateChange(async (event, session) => {
-                if (session?.user) {
-                    this._user = session.user;
-                    this._updateMenuForAuth();
-                } else {
-                    this._user = null;
-                    this._updateMenuForAuth();
+            this._authInitialized = true;
+            this._updateMenuForAuth();
+        } catch (err) {
+            console.error('Failed to initialize authentication:', err);
+            // Clear invalid token
+            this._authToken = null;
+            localStorage.removeItem('pflow_auth_token');
+        } finally {
+            this._authInitializing = false;
+        }
+    }
+
+    async _fetchUserInfo() {
+        if (!this._authToken) return;
+
+        try {
+            const response = await fetch('/auth/user', {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${this._authToken}`,
                 }
             });
 
-            // Check current session
-            const {data: {session}} = await this._supabase.auth.getSession();
-            if (session?.user) {
-                this._user = session.user;
-                this._updateMenuForAuth();
+            if (response.ok) {
+                const data = await response.json();
+                if (data.user) {
+                    this._user = {
+                        id: data.user.id,
+                        email: data.user.email,
+                        user_metadata: {
+                            user_name: data.user.user_name,
+                            full_name: data.user.full_name,
+                        }
+                    };
+                } else {
+                    // Token is invalid
+                    this._user = null;
+                    this._authToken = null;
+                    localStorage.removeItem('pflow_auth_token');
+                }
+            } else {
+                // Token is invalid
+                this._user = null;
+                this._authToken = null;
+                localStorage.removeItem('pflow_auth_token');
             }
         } catch (err) {
-            console.error('Failed to initialize Supabase:', err);
-        } finally {
-            this._supabaseInitializing = false;
+            console.error('Failed to fetch user info:', err);
+            this._user = null;
+            this._authToken = null;
+            localStorage.removeItem('pflow_auth_token');
         }
     }
 
@@ -208,37 +230,18 @@ class PetriView extends HTMLElement {
     }
 
     async _loginWithGitHub() {
-        if (!this._supabase) {
-            alert('Supabase is not configured. Please set supabase-url and supabase-key attributes.');
-            return;
-        }
-
-        try {
-            const {error} = await this._supabase.auth.signInWithOAuth({
-                provider: 'github',
-                options: {
-                    redirectTo: window.location.origin + window.location.pathname,
-                    scopes: 'gist'
-                }
-            });
-            if (error) {
-                console.error('Login error:', error);
-                alert('Login failed: ' + error.message);
-            }
-        } catch (err) {
-            console.error('Login exception:', err);
-            alert('Login failed: ' + (err.message || String(err)));
-        }
+        // Redirect to GitHub OAuth via backend
+        window.location.href = '/auth/github';
     }
 
     async _logout() {
-        if (!this._supabase) return;
-
-        const {error} = await this._supabase.auth.signOut();
-        if (error) {
-            console.error('Logout error:', error);
-            alert('Logout failed: ' + error.message);
-        }
+        // Clear local auth state
+        this._user = null;
+        this._authToken = null;
+        localStorage.removeItem('pflow_auth_token');
+        
+        // Update UI
+        this._updateMenuForAuth();
     }
 
     // Updated _initAceEditor and _createJsonEditor in `public/petri-view.js`
@@ -1246,12 +1249,6 @@ class PetriView extends HTMLElement {
         }
         if (this._jsonEditor) this._removeJsonEditor();
 
-        // Clean up Supabase auth subscription
-        if (this._supabaseAuthSubscription) {
-            this._supabaseAuthSubscription.subscription.unsubscribe();
-            this._supabaseAuthSubscription = null;
-        }
-
         // Clean up hamburger menu
         if (this._hamburgerMenu) {
             this._hamburgerMenu.remove();
@@ -1323,11 +1320,10 @@ class PetriView extends HTMLElement {
         const isBackendMode = this.hasAttribute('data-backend');
 
         // In backend mode with authenticated user, save to server
-        if (isBackendMode && this._supabaseInitialized && this._user) {
+        if (isBackendMode && this._authInitialized && this._user) {
             try {
-                // Get the session token for authentication
-                const {data: {session}} = await this._supabase.auth.getSession();
-                const authToken = session?.access_token;
+                // Get the auth token
+                const authToken = this._authToken;
 
                 if (!authToken) {
                     alert('Please log in to save data');
@@ -1408,14 +1404,13 @@ class PetriView extends HTMLElement {
             }
 
             try {
-                // Check if user is authenticated and get session token
-                if (!this._supabaseInitialized || !this._user) {
+                // Check if user is authenticated and get auth token
+                if (!this._authInitialized || !this._user) {
                     alert('You must be logged in to delete documents from the server.');
                     return;
                 }
 
-                const {data: {session}} = await this._supabase.auth.getSession();
-                const authToken = session?.access_token;
+                const authToken = this._authToken;
 
                 if (!authToken) {
                     alert('Authentication required. Please log in.');
@@ -1495,9 +1490,8 @@ class PetriView extends HTMLElement {
         // If no CID in URL, we need to save first
         if (!cid) {
             try {
-                // Get the session token for authentication
-                const {data: {session}} = await this._supabase.auth.getSession();
-                const authToken = session?.access_token;
+                // Get the auth token
+                const authToken = this._authToken;
 
                 if (!authToken) {
                     alert('Please log in to share data');
@@ -1829,9 +1823,8 @@ class PetriView extends HTMLElement {
         // If no CID in URL, we need to save first
         if (!cid) {
             try {
-                // Get the session token for authentication
-                const {data: {session}} = await this._supabase.auth.getSession();
-                const authToken = session?.access_token;
+                // Get the auth token
+                const authToken = this._authToken;
 
                 if (!authToken) {
                     alert('Please log in to save as Gist');
@@ -1877,67 +1870,17 @@ class PetriView extends HTMLElement {
         const docUrl = `${currentUrl}/?cid=${cid}`;
         const markdown = `[![pflow](${svgUrl})](${docUrl})`;
 
-        try {
-            // Get GitHub OAuth token from Supabase session
-            const {data: {session}} = await this._supabase.auth.getSession();
-            
-            if (!session || !session.provider_token) {
-                alert('GitHub authentication required. Please log out and log in again to grant Gist permissions.');
-                return;
-            }
-
-            const githubToken = session.provider_token;
-
-            // Create Gist via GitHub API
-            const gistResponse = await fetch('https://api.github.com/gists', {
-                method: 'POST',
-                headers: {
-                    'Accept': 'application/vnd.github+json',
-                    'Authorization': `Bearer ${githubToken}`,
-                    'X-GitHub-Api-Version': '2022-11-28'
-                },
-                body: JSON.stringify({
-                    description: `Petri net diagram - CID: ${cid}`,
-                    public: true,
-                    files: {
-                        [`${cid}.md`]: {
-                            content: markdown
-                        }
-                    }
-                })
+        // Show dialog with instructions for creating a Gist manually
+        // GitHub OAuth token is not available since we use our own auth flow
+        alert(`To create a Gist, copy the following markdown and paste it into a new Gist at https://gist.github.com:\n\n${markdown}`);
+        
+        // Copy to clipboard if available
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(markdown).then(() => {
+                console.log('Markdown copied to clipboard');
+            }).catch(err => {
+                console.error('Failed to copy to clipboard:', err);
             });
-
-            if (!gistResponse.ok) {
-                const errorData = await gistResponse.json().catch(() => ({}));
-                console.error('Gist creation failed:', errorData);
-                
-                if (gistResponse.status === 401 || gistResponse.status === 404) {
-                    alert('GitHub authentication failed or expired. Please log out and log in again to grant Gist permissions.\n\nNote: Make sure to authorize the GitHub provider with gist scope when logging in.');
-                } else {
-                    alert(`Failed to create Gist: ${errorData.message || gistResponse.statusText}`);
-                }
-                return;
-            }
-
-            const gistData = await gistResponse.json();
-            const gistUrl = gistData.html_url;
-
-            // Show success message with Gist URL
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-                navigator.clipboard.writeText(gistUrl).then(() => {
-                    alert(`Gist created successfully!\nURL copied to clipboard.\n\n${gistUrl}`);
-                }).catch(() => {
-                    alert(`Gist created successfully!\n\n${gistUrl}`);
-                });
-            } else {
-                alert(`Gist created successfully!\n\n${gistUrl}`);
-            }
-
-            // Optionally open the Gist in a new tab
-            window.open(gistUrl, '_blank', 'noopener,noreferrer');
-        } catch (err) {
-            console.error('Failed to create Gist:', err);
-            alert('Failed to create Gist: ' + (err && err.message ? err.message : String(err)));
         }
     }
 
@@ -5278,7 +5221,7 @@ class PetriView extends HTMLElement {
             };
 
             // Enable export button if authenticated
-            if (this._odeExportGistButton && this._supabaseInitialized && this._user) {
+            if (this._odeExportGistButton && this._authInitialized && this._user) {
                 this._odeExportGistButton.disabled = false;
                 this._applyStyles(this._odeExportGistButton, {
                     opacity: '1',
@@ -5309,7 +5252,7 @@ class PetriView extends HTMLElement {
         }
 
         // Check if authenticated
-        if (!this._supabaseInitialized || !this._user) {
+        if (!this._authInitialized || !this._user) {
             alert('GitHub authentication required. Please log in to export to Gist.');
             return;
         }
@@ -5321,9 +5264,8 @@ class PetriView extends HTMLElement {
         // If no CID in URL, we need to save first
         if (!cid) {
             try {
-                // Get the session token for authentication
-                const {data: {session}} = await this._supabase.auth.getSession();
-                const authToken = session?.access_token;
+                // Get the auth token
+                const authToken = this._authToken;
 
                 if (!authToken) {
                     alert('Please log in to save the diagram before exporting');
@@ -5363,142 +5305,88 @@ class PetriView extends HTMLElement {
             }
         }
 
-        try {
-            // Get GitHub OAuth token from Supabase session
-            const {data: {session}} = await this._supabase.auth.getSession();
-            
-            if (!session || !session.provider_token) {
-                alert('GitHub authentication required. Please log out and log in again to grant Gist permissions.');
-                return;
-            }
+        // Generate simulation details markdown for manual Gist creation
+        const sim = this._lastODESimulation;
+        const currentUrl = window.location.origin;
+        const svgUrl = `${currentUrl}/img/${cid}.svg`;
+        const docUrl = `${currentUrl}/?cid=${cid}`;
+        const diagramMarkdown = `[![pflow](${svgUrl})](${docUrl})`;
 
-            const githubToken = session.provider_token;
-            const sim = this._lastODESimulation;
+        // Generate description with simulation parameters and results
+        let description = '# Petri Net ODE Simulation Results\n\n';
+        description += diagramMarkdown + '\n\n';
+        
+        // Add simulation parameters
+        description += '## Simulation Parameters\n\n';
+        description += `- **Time Span**: ${sim.tstart} to ${sim.tend}\n`;
+        description += `- **Initial Step**: ${sim.dt}\n`;
+        description += `- **Absolute Tolerance**: ${sim.abstol}\n`;
+        description += `- **Relative Tolerance**: ${sim.reltol}\n`;
+        description += `- **Solver**: Tsit5 (5th order Runge-Kutta)\n\n`;
 
-            // Generate markdown content with diagram link
-            const currentUrl = window.location.origin;
-            const svgUrl = `${currentUrl}/img/${cid}.svg`;
-            const docUrl = `${currentUrl}/?cid=${cid}`;
-            const diagramMarkdown = `[![pflow](${svgUrl})](${docUrl})`;
-
-            // Generate description with simulation parameters and results
-            let description = '# Petri Net ODE Simulation Results\n\n';
-            description += diagramMarkdown + '\n\n';
-            
-            // Add simulation parameters
-            description += '## Simulation Parameters\n\n';
-            description += `- **Time Span**: ${sim.tstart} to ${sim.tend}\n`;
-            description += `- **Initial Step**: ${sim.dt}\n`;
-            description += `- **Absolute Tolerance**: ${sim.abstol}\n`;
-            description += `- **Relative Tolerance**: ${sim.reltol}\n`;
-            description += `- **Solver**: Tsit5 (5th order Runge-Kutta)\n\n`;
-
-            // Add place information
-            description += '## Places\n\n';
-            const placeEntries = Array.from(sim.net.places);
-            if (placeEntries.length > 0) {
-                description += '| Place | Initial Tokens | Capacity |\n';
-                description += '|-------|----------------|----------|\n';
-                for (const [id, place] of placeEntries) {
-                    const initial = place.initial.reduce((a, b) => a + b, 0);
-                    const capacity = place.capacity && place.capacity.length > 0 && place.capacity[0] !== 0 
-                        ? place.capacity[0] 
-                        : '∞';
-                    const label = place.label || id;
-                    description += `| ${label} | ${initial} | ${capacity} |\n`;
-                }
-                description += '\n';
-            }
-
-            // Add transition rates
-            description += '## Transition Rates\n\n';
-            const rateEntries = Object.entries(sim.rates);
-            if (rateEntries.length > 0) {
-                description += '| Transition | Rate |\n';
-                description += '|------------|------|\n';
-                for (const [id, rate] of rateEntries) {
-                    const transition = sim.net.transitions.get(id);
-                    const label = transition?.label || id;
-                    description += `| ${label} | ${rate} |\n`;
-                }
-                description += '\n';
-            }
-
-            // Add plotted variables
-            description += '## Plotted Variables\n\n';
-            description += sim.selectedVars.map(v => `- ${v}`).join('\n');
-            description += '\n\n';
-
-            // Add final state
-            description += '## Final State\n\n';
-            const finalState = sim.solution.getFinalState();
-            description += '| Place | Final Tokens |\n';
-            description += '|-------|-------------|\n';
+        // Add place information
+        description += '## Places\n\n';
+        const placeEntries = Array.from(sim.net.places);
+        if (placeEntries.length > 0) {
+            description += '| Place | Initial Tokens | Capacity |\n';
+            description += '|-------|----------------|----------|\n';
             for (const [id, place] of placeEntries) {
+                const initial = place.initial.reduce((a, b) => a + b, 0);
+                const capacity = place.capacity && place.capacity.length > 0 && place.capacity[0] !== 0 
+                    ? place.capacity[0] 
+                    : '∞';
                 const label = place.label || id;
-                if (finalState[id] !== undefined) {
-                    const finalValue = finalState[id].toFixed(4);
-                    description += `| ${label} | ${finalValue} |\n`;
-                }
+                description += `| ${label} | ${initial} | ${capacity} |\n`;
             }
-            description += '\n\n';
+            description += '\n';
+        }
 
-            description += '---\n';
-            description += '*Generated by [pflow-xyz](https://pflow.xyz) ODE Simulation*\n';
+        // Add transition rates
+        description += '## Transition Rates\n\n';
+        const rateEntries = Object.entries(sim.rates);
+        if (rateEntries.length > 0) {
+            description += '| Transition | Rate |\n';
+            description += '|------------|------|\n';
+            for (const [id, rate] of rateEntries) {
+                const transition = sim.net.transitions.get(id);
+                const label = transition?.label || id;
+                description += `| ${label} | ${rate} |\n`;
+            }
+            description += '\n';
+        }
 
-            // Create Gist with SVG and markdown
-            const gistResponse = await fetch('https://api.github.com/gists', {
-                method: 'POST',
-                headers: {
-                    'Accept': 'application/vnd.github+json',
-                    'Authorization': `Bearer ${githubToken}`,
-                    'X-GitHub-Api-Version': '2022-11-28'
-                },
-                body: JSON.stringify({
-                    description: 'Petri Net ODE Simulation Results',
-                    public: true,
-                    files: {
-                        'ode-simulation-plot.svg': {
-                            content: sim.svg
-                        },
-                        'README.md': {
-                            content: description
-                        }
-                    }
-                })
+        // Add plotted variables
+        description += '## Plotted Variables\n\n';
+        description += sim.selectedVars.map(v => `- ${v}`).join('\n');
+        description += '\n\n';
+
+        // Add final state
+        description += '## Final State\n\n';
+        const finalState = sim.solution.getFinalState();
+        description += '| Place | Final Tokens |\n';
+        description += '|-------|-------------|\n';
+        for (const [id, place] of placeEntries) {
+            const label = place.label || id;
+            if (finalState[id] !== undefined) {
+                const finalValue = finalState[id].toFixed(4);
+                description += `| ${label} | ${finalValue} |\n`;
+            }
+        }
+        description += '\n\n';
+
+        description += '---\n';
+        description += '*Generated by [pflow-xyz](https://pflow.xyz) ODE Simulation*\n';
+
+        // Show dialog with instructions for creating a Gist manually
+        alert(`To create a Gist with the simulation results, copy the following content and paste it into a new Gist at https://gist.github.com:\n\n(Content copied to clipboard)`);
+        
+        // Copy to clipboard if available
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(description).then(() => {
+                console.log('Simulation results markdown copied to clipboard');
+            }).catch(err => {
+                console.error('Failed to copy to clipboard:', err);
             });
-
-            if (!gistResponse.ok) {
-                const errorData = await gistResponse.json().catch(() => ({}));
-                console.error('Gist creation failed:', errorData);
-                
-                if (gistResponse.status === 401 || gistResponse.status === 404) {
-                    alert('GitHub authentication failed or expired. Please log out and log in again to grant Gist permissions.\n\nNote: Make sure to authorize the GitHub provider with gist scope when logging in.');
-                } else {
-                    alert(`Failed to create Gist: ${errorData.message || gistResponse.statusText}`);
-                }
-                return;
-            }
-
-            const gistData = await gistResponse.json();
-            const gistUrl = gistData.html_url;
-
-            // Show success message with Gist URL
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-                navigator.clipboard.writeText(gistUrl).then(() => {
-                    alert(`ODE Simulation exported to Gist successfully!\nURL copied to clipboard.\n\n${gistUrl}`);
-                }).catch(() => {
-                    alert(`ODE Simulation exported to Gist successfully!\n\n${gistUrl}`);
-                });
-            } else {
-                alert(`ODE Simulation exported to Gist successfully!\n\n${gistUrl}`);
-            }
-
-            // Optionally open the Gist in a new tab
-            window.open(gistUrl, '_blank', 'noopener,noreferrer');
-        } catch (err) {
-            console.error('Failed to export ODE simulation to Gist:', err);
-            alert('Failed to export to Gist: ' + (err && err.message ? err.message : String(err)));
         }
     }
 
@@ -6576,7 +6464,7 @@ class PetriView extends HTMLElement {
         // Add menu items based on mode
         if (isBackendMode) {
             // Backend mode: Save button text changes based on auth state
-            const saveText = (this._supabaseInitialized && this._user)
+            const saveText = (this._authInitialized && this._user)
                 ? '💾 Save to Server'
                 : '💾 Save Permalink';
 
@@ -6591,7 +6479,7 @@ class PetriView extends HTMLElement {
             menuContainer._menuContent.appendChild(deleteItem);
 
             // Add Share button (only for logged-in users)
-            if (this._supabaseInitialized && this._user) {
+            if (this._authInitialized && this._user) {
                 const shareItem = makeMenuItem('🔗 Share', async () => {
                     await this._showShareDialog();
                 });
@@ -6613,8 +6501,8 @@ class PetriView extends HTMLElement {
             });
             menuContainer._menuContent.appendChild(separator);
 
-            // Add Login/Logout if Supabase is configured
-            if (this._supabaseInitialized) {
+            // Add Login/Logout if in backend mode
+            if (this._authInitialized) {
                 if (this._user) {
                     // Show user info and logout button
                     const userInfo = document.createElement('div');
@@ -6657,6 +6545,21 @@ class PetriView extends HTMLElement {
                     });
                     menuContainer._menuContent.appendChild(separator2);
                 }
+            } else {
+                // Auth not yet initialized, show login button
+                const loginItem = makeMenuItem('🔑 Login with GitHub', () => {
+                    this._loginWithGitHub();
+                });
+                menuContainer._menuContent.appendChild(loginItem);
+
+                // Add separator
+                const separator2 = document.createElement('div');
+                this._applyStyles(separator2, {
+                    height: '1px',
+                    background: '#e1e4e8',
+                    margin: '8px 0'
+                });
+                menuContainer._menuContent.appendChild(separator2);
             }
         }
 
@@ -6743,19 +6646,23 @@ class PetriView extends HTMLElement {
         button.className = 'pv-top-right-btn';
 
         // Determine button content based on login state
-        if (isBackendMode && this._supabaseInitialized && this._user) {
+        if (isBackendMode && this._authInitialized && this._user) {
             // Show username if logged in
             const username = this._user.user_metadata?.user_name ||
                 this._user.email?.split('@')[0] ||
                 'User';
             button.innerHTML = `👤 ${username}`;
             button.title = `Logged in as ${this._user.email || username}`;
-        } else if (isBackendMode && this._supabaseInitialized) {
+        } else if (isBackendMode && this._authInitialized) {
             // Show login button if not logged in
             button.innerHTML = '🔑 Login';
             button.title = 'Login with GitHub';
+        } else if (isBackendMode) {
+            // Auth not yet initialized in backend mode, show login button
+            button.innerHTML = '🔑 Login';
+            button.title = 'Login with GitHub';
         } else {
-            // In standard mode or when Supabase not initialized, don't show the button
+            // In standard mode, don't show the button
             return;
         }
 

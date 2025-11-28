@@ -4,12 +4,17 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"io/fs"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
+	"strconv"
 	"strings"
+	"time"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/pflow-xyz/pflow-xyz/internal/auth"
 	"github.com/pflow-xyz/pflow-xyz/internal/seal"
 	"github.com/pflow-xyz/pflow-xyz/internal/static"
@@ -452,8 +457,299 @@ func (s *Server) handleDeleteObject(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// getRequestScheme determines the appropriate URL scheme (http/https) based on the request
+func (s *Server) getRequestScheme(r *http.Request) string {
+	// Check X-Forwarded-Proto header first (for reverse proxy scenarios)
+	if forwardedProto := r.Header.Get("X-Forwarded-Proto"); forwardedProto != "" {
+		return forwardedProto
+	}
+
+	// Check if it's a localhost request
+	if strings.Contains(r.Host, "localhost") || strings.Contains(r.Host, "127.0.0.1") {
+		return "http"
+	}
+
+	// Check if TLS is enabled
+	if r.TLS != nil {
+		return "https"
+	}
+
+	return "http"
+}
+
+// Handler for GET /auth/github - initiate GitHub OAuth flow
+func (s *Server) handleGitHubAuth(w http.ResponseWriter, r *http.Request) {
+	if s.handleCORS(w, r) {
+		return
+	}
+
+	clientID := os.Getenv("GITHUB_CLIENT_ID")
+	if clientID == "" {
+		log.Printf("GITHUB_CLIENT_ID not configured")
+		http.Error(w, "GitHub OAuth not configured", http.StatusServiceUnavailable)
+		return
+	}
+
+	// Get the redirect URL from query params or use current origin
+	redirectURL := r.URL.Query().Get("redirect_url")
+	if redirectURL == "" {
+		// Default redirect URL (callback endpoint)
+		scheme := s.getRequestScheme(r)
+		redirectURL = fmt.Sprintf("%s://%s/auth/github/callback", scheme, r.Host)
+	}
+
+	// Build GitHub OAuth URL
+	githubAuthURL := fmt.Sprintf(
+		"https://github.com/login/oauth/authorize?client_id=%s&redirect_uri=%s&scope=read:user,user:email,gist",
+		url.QueryEscape(clientID),
+		url.QueryEscape(redirectURL),
+	)
+
+	http.Redirect(w, r, githubAuthURL, http.StatusTemporaryRedirect)
+}
+
+// Handler for GET /auth/github/callback - handle GitHub OAuth callback
+func (s *Server) handleGitHubCallback(w http.ResponseWriter, r *http.Request) {
+	if s.handleCORS(w, r) {
+		return
+	}
+
+	code := r.URL.Query().Get("code")
+	if code == "" {
+		http.Error(w, "Missing authorization code", http.StatusBadRequest)
+		return
+	}
+
+	clientID := os.Getenv("GITHUB_CLIENT_ID")
+	clientSecret := os.Getenv("GITHUB_CLIENT_SECRET")
+	jwtSecret := os.Getenv("JWT_SECRET")
+
+	if clientID == "" || clientSecret == "" || jwtSecret == "" {
+		log.Printf("GitHub OAuth credentials not configured")
+		http.Error(w, "GitHub OAuth not configured", http.StatusServiceUnavailable)
+		return
+	}
+
+	// Exchange code for access token
+	tokenResp, err := http.PostForm("https://github.com/login/oauth/access_token", url.Values{
+		"client_id":     {clientID},
+		"client_secret": {clientSecret},
+		"code":          {code},
+	})
+	if err != nil {
+		log.Printf("Failed to exchange code for token: %v", err)
+		http.Error(w, "Failed to authenticate with GitHub", http.StatusInternalServerError)
+		return
+	}
+	defer tokenResp.Body.Close()
+
+	body, err := io.ReadAll(tokenResp.Body)
+	if err != nil {
+		log.Printf("Failed to read token response: %v", err)
+		http.Error(w, "Failed to authenticate with GitHub", http.StatusInternalServerError)
+		return
+	}
+
+	// Parse access token from response
+	values, err := url.ParseQuery(string(body))
+	if err != nil {
+		log.Printf("Failed to parse token response: %v", err)
+		http.Error(w, "Failed to authenticate with GitHub", http.StatusInternalServerError)
+		return
+	}
+
+	accessToken := values.Get("access_token")
+	if accessToken == "" {
+		// Check if response is JSON (error case)
+		log.Printf("No access token in response: %s", string(body))
+		http.Error(w, "Failed to get access token from GitHub", http.StatusInternalServerError)
+		return
+	}
+
+	// Get user info from GitHub
+	userInfo, err := s.getGitHubUser(accessToken)
+	if err != nil {
+		log.Printf("Failed to get GitHub user info: %v", err)
+		http.Error(w, "Failed to get user info from GitHub", http.StatusInternalServerError)
+		return
+	}
+
+	// Create JWT token
+	claims := &auth.GitHubClaims{
+		RegisteredClaims: jwt.RegisteredClaims{
+			Subject:   userInfo.GitHubID,
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour)),
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+			Issuer:    "pflow-xyz",
+		},
+		Email:    userInfo.Email,
+		UserName: userInfo.UserName,
+		FullName: userInfo.FullName,
+		GitHubID: userInfo.GitHubID,
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	tokenString, err := token.SignedString([]byte(jwtSecret))
+	if err != nil {
+		log.Printf("Failed to sign JWT: %v", err)
+		http.Error(w, "Failed to create session", http.StatusInternalServerError)
+		return
+	}
+
+	// Redirect to the frontend with the token
+	// The frontend will store this token and use it for authenticated requests
+	scheme := s.getRequestScheme(r)
+
+	// Redirect to frontend with token in URL fragment (more secure than query param)
+	redirectURL := fmt.Sprintf("%s://%s/#access_token=%s", scheme, r.Host, url.QueryEscape(tokenString))
+	http.Redirect(w, r, redirectURL, http.StatusTemporaryRedirect)
+}
+
+// GitHubUserResponse represents the GitHub API user response
+type GitHubUserResponse struct {
+	ID        int64  `json:"id"`
+	Login     string `json:"login"`
+	Name      string `json:"name"`
+	Email     string `json:"email"`
+	AvatarURL string `json:"avatar_url"`
+}
+
+// GitHubEmailResponse represents a GitHub email entry
+type GitHubEmailResponse struct {
+	Email    string `json:"email"`
+	Primary  bool   `json:"primary"`
+	Verified bool   `json:"verified"`
+}
+
+// getGitHubUser fetches user information from GitHub API
+func (s *Server) getGitHubUser(accessToken string) (*auth.GitHubUserInfo, error) {
+	req, err := http.NewRequest("GET", "https://api.github.com/user", nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Authorization", "Bearer "+accessToken)
+	req.Header.Set("Accept", "application/vnd.github.v3+json")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("GitHub API error: %s - %s", resp.Status, string(body))
+	}
+
+	var ghUser GitHubUserResponse
+	if err := json.NewDecoder(resp.Body).Decode(&ghUser); err != nil {
+		return nil, err
+	}
+
+	email := ghUser.Email
+	// If email is not in the user response, fetch from emails endpoint
+	if email == "" {
+		email, _ = s.getGitHubPrimaryEmail(accessToken)
+	}
+
+	return &auth.GitHubUserInfo{
+		ID:       strconv.FormatInt(ghUser.ID, 10),
+		Email:    email,
+		UserName: ghUser.Login,
+		FullName: ghUser.Name,
+		GitHubID: strconv.FormatInt(ghUser.ID, 10),
+	}, nil
+}
+
+// getGitHubPrimaryEmail fetches the primary email from GitHub API
+func (s *Server) getGitHubPrimaryEmail(accessToken string) (string, error) {
+	req, err := http.NewRequest("GET", "https://api.github.com/user/emails", nil)
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Authorization", "Bearer "+accessToken)
+	req.Header.Set("Accept", "application/vnd.github.v3+json")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("GitHub API error: %s", resp.Status)
+	}
+
+	var emails []GitHubEmailResponse
+	if err := json.NewDecoder(resp.Body).Decode(&emails); err != nil {
+		return "", err
+	}
+
+	// Find primary email
+	for _, e := range emails {
+		if e.Primary && e.Verified {
+			return e.Email, nil
+		}
+	}
+
+	// Fallback to first verified email
+	for _, e := range emails {
+		if e.Verified {
+			return e.Email, nil
+		}
+	}
+
+	return "", nil
+}
+
+// Handler for GET /auth/user - get current user info
+func (s *Server) handleGetUser(w http.ResponseWriter, r *http.Request) {
+	if s.handleCORS(w, r) {
+		return
+	}
+
+	authHeader := r.Header.Get("Authorization")
+	if authHeader == "" {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{"user": nil})
+		return
+	}
+
+	userInfo, err := auth.ExtractUserFromToken(authHeader)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{"user": nil})
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"user": map[string]string{
+			"id":        userInfo.ID,
+			"email":     userInfo.Email,
+			"user_name": userInfo.UserName,
+			"full_name": userInfo.FullName,
+			"github_id": userInfo.GitHubID,
+		},
+	})
+}
+
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	log.Printf("%s %s", r.Method, r.URL.Path)
+
+	// Authentication routes
+	if r.URL.Path == "/auth/github" {
+		s.handleGitHubAuth(w, r)
+		return
+	}
+	if r.URL.Path == "/auth/github/callback" {
+		s.handleGitHubCallback(w, r)
+		return
+	}
+	if r.URL.Path == "/auth/user" {
+		s.handleGetUser(w, r)
+		return
+	}
 
 	// API routes
 	if r.URL.Path == "/api/save" {

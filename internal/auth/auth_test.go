@@ -9,14 +9,14 @@ import (
 )
 
 // Helper function to create a valid signed JWT for testing
-func createTestToken(t *testing.T, claims *SupabaseClaims) string {
+func createTestToken(t *testing.T, claims *GitHubClaims) string {
 	t.Helper()
 
 	// Use a test secret
 	testSecret := "test-secret-key-for-testing"
 
 	// Set the secret in environment for the test
-	os.Setenv("SUPABASE_JWT_SECRET", testSecret)
+	os.Setenv("JWT_SECRET", testSecret)
 
 	// Create the token
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
@@ -32,21 +32,16 @@ func createTestToken(t *testing.T, claims *SupabaseClaims) string {
 
 func TestExtractUserFromToken(t *testing.T) {
 	// Create claims with GitHub user info
-	claims := &SupabaseClaims{
+	claims := &GitHubClaims{
 		RegisteredClaims: jwt.RegisteredClaims{
-			Subject:   "user-id-123",
+			Subject:   "12345678",
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 		},
-		Email: "test@example.com",
-		UserMetadata: map[string]interface{}{
-			"user_name":   "testuser",
-			"full_name":   "Test User",
-			"provider_id": "12345678",
-		},
-		AppMetadata: map[string]interface{}{
-			"provider": "github",
-		},
+		Email:    "test@example.com",
+		UserName: "testuser",
+		FullName: "Test User",
+		GitHubID: "12345678",
 	}
 
 	token := createTestToken(t, claims)
@@ -58,8 +53,8 @@ func TestExtractUserFromToken(t *testing.T) {
 	}
 
 	// Validate extracted information
-	if userInfo.ID != "user-id-123" {
-		t.Errorf("Expected ID 'user-id-123', got '%s'", userInfo.ID)
+	if userInfo.ID != "12345678" {
+		t.Errorf("Expected ID '12345678', got '%s'", userInfo.ID)
 	}
 
 	if userInfo.Email != "test@example.com" {
@@ -81,7 +76,7 @@ func TestExtractUserFromToken(t *testing.T) {
 
 func TestExtractUserFromTokenWithBearer(t *testing.T) {
 	// Create a simple token
-	claims := &SupabaseClaims{
+	claims := &GitHubClaims{
 		RegisteredClaims: jwt.RegisteredClaims{
 			Subject:   "user-id-456",
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour)),
@@ -105,7 +100,7 @@ func TestExtractUserFromTokenWithBearer(t *testing.T) {
 
 func TestExtractUserFromTokenInvalid(t *testing.T) {
 	// Set a test secret
-	os.Setenv("SUPABASE_JWT_SECRET", "test-secret")
+	os.Setenv("JWT_SECRET", "test-secret")
 
 	tests := []struct {
 		name  string
@@ -129,7 +124,7 @@ func TestExtractUserFromTokenInvalid(t *testing.T) {
 
 func TestExtractUserFromTokenNoUserInfo(t *testing.T) {
 	// Create a token with no user identification
-	claims := &SupabaseClaims{
+	claims := &GitHubClaims{
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
@@ -146,7 +141,7 @@ func TestExtractUserFromTokenNoUserInfo(t *testing.T) {
 
 func TestExtractUserFromTokenNoSecret(t *testing.T) {
 	// Unset the environment variable
-	os.Unsetenv("SUPABASE_JWT_SECRET")
+	os.Unsetenv("JWT_SECRET")
 
 	// Just use a dummy token - we don't need to create a valid one
 	// since the function should fail before validating the signature
@@ -154,72 +149,9 @@ func TestExtractUserFromTokenNoSecret(t *testing.T) {
 
 	_, err := ExtractUserFromToken(token)
 	if err == nil {
-		t.Error("Expected error when SUPABASE_JWT_SECRET is not set, got nil")
+		t.Error("Expected error when JWT_SECRET is not set, got nil")
 	}
 
 	// Restore for other tests
-	os.Setenv("SUPABASE_JWT_SECRET", "test-secret")
-}
-
-func TestExtractUserFromTokenWithSubFallback(t *testing.T) {
-	// Create claims with 'sub' in user_metadata but no 'provider_id'
-	// This tests the fallback behavior when provider_id is missing
-	claims := &SupabaseClaims{
-		RegisteredClaims: jwt.RegisteredClaims{
-			Subject:   "supabase-user-id-789",
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour)),
-			IssuedAt:  jwt.NewNumericDate(time.Now()),
-		},
-		Email: "fallback@example.com",
-		UserMetadata: map[string]interface{}{
-			"user_name": "fallbackuser",
-			"sub":       "87654321", // GitHub user ID in 'sub' field
-		},
-	}
-
-	token := createTestToken(t, claims)
-
-	userInfo, err := ExtractUserFromToken(token)
-	if err != nil {
-		t.Fatalf("Failed to extract user: %v", err)
-	}
-
-	// Verify that GitHubID was extracted from 'sub' fallback
-	if userInfo.GitHubID != "87654321" {
-		t.Errorf("Expected GitHub ID '87654321' from sub fallback, got '%s'", userInfo.GitHubID)
-	}
-
-	if userInfo.UserName != "fallbackuser" {
-		t.Errorf("Expected username 'fallbackuser', got '%s'", userInfo.UserName)
-	}
-}
-
-func TestExtractUserFromTokenProviderIdTakesPrecedence(t *testing.T) {
-	// Create claims with both 'provider_id' and 'sub' in user_metadata
-	// This tests that provider_id takes precedence over sub
-	claims := &SupabaseClaims{
-		RegisteredClaims: jwt.RegisteredClaims{
-			Subject:   "supabase-user-id-999",
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour)),
-			IssuedAt:  jwt.NewNumericDate(time.Now()),
-		},
-		Email: "precedence@example.com",
-		UserMetadata: map[string]interface{}{
-			"user_name":   "precedenceuser",
-			"provider_id": "11111111", // Should take precedence
-			"sub":         "22222222", // Should be ignored
-		},
-	}
-
-	token := createTestToken(t, claims)
-
-	userInfo, err := ExtractUserFromToken(token)
-	if err != nil {
-		t.Fatalf("Failed to extract user: %v", err)
-	}
-
-	// Verify that GitHubID was extracted from provider_id, not sub
-	if userInfo.GitHubID != "11111111" {
-		t.Errorf("Expected GitHub ID '11111111' from provider_id, got '%s'", userInfo.GitHubID)
-	}
+	os.Setenv("JWT_SECRET", "test-secret")
 }
