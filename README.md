@@ -29,7 +29,7 @@ The component is implemented as an ES module (`public/petri-view.js`) and expose
 
 ### Integration Features
 - **Backend Mode**: Integration with backend server for remote persistence
-- **Supabase Auth**: Optional GitHub OAuth authentication via Supabase
+- **GitHub Auth**: Optional GitHub OAuth authentication via backend server
 - **Custom Events**: Rich event system for integration with your application
 - **Public API**: JavaScript methods for programmatic control
 - **Compact Mode**: Minimize JSON output for smaller payloads
@@ -116,15 +116,11 @@ This example demonstrates all available features:
         - data-backend: Enable backend server integration
         - data-layout-horizontal: Use horizontal layout (default is vertical)
         - data-compact: Minimize JSON output (no pretty printing)
-        - supabase-url: Supabase project URL for authentication
-        - supabase-key: Supabase anonymous key for authentication
     -->
     <petri-view 
         id="pv" 
         data-json-editor
-        data-backend
-        supabase-url="https://zosuuhddfpcnlfphwrab.supabase.co"
-        supabase-key="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inpvc3V1aGRkZnBjbmxmcGh3cmFiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE5OTQ0NzUsImV4cCI6MjA3NzU3MDQ3NX0.f99E42qLhMG9tWoPaoTfyG5koqQciKiaqerpA_7amS8">
+        data-backend>
         <script type="application/ld+json">
         {
             "@context": "https://pflow.xyz/schema",
@@ -228,8 +224,6 @@ Configure the component using HTML attributes:
 | `data-backend` | boolean | Enable backend server integration with save/load features |
 | `data-layout-horizontal` | boolean | Use horizontal layout instead of vertical |
 | `data-compact` | boolean | Minimize JSON output (no pretty printing) |
-| `supabase-url` | string | Supabase project URL for authentication |
-| `supabase-key` | string | Supabase anonymous key for authentication |
 
 ## Events
 
@@ -391,7 +385,7 @@ Petri nets are represented using JSON-LD format with the schema at `https://pflo
   - Toggle Layout (Vertical/Horizontal)
   - Save Permalink (backend mode)
   - Delete Data (backend mode)
-  - Login/Logout (backend mode with Supabase)
+  - Login/Logout (backend mode with GitHub OAuth)
 
 ## ODE Simulation
 
@@ -649,7 +643,7 @@ make test
 ├── cmd/
 │   └── webserver/        # Go webserver entry point
 ├── internal/
-│   ├── auth/            # Supabase JWT authentication
+│   ├── auth/            # GitHub JWT authentication
 │   ├── canonical/       # JSON-LD canonicalization (URDNA2015)
 │   ├── ethsig/          # Ethereum signature verification
 │   ├── seal/            # CID computation (IPFS CIDv1)
@@ -661,6 +655,21 @@ make test
 │   └── index.html      # Demo page
 └── Makefile            # Build automation
 ```
+
+## Environment Variables
+
+Configure the backend server using these environment variables:
+
+| Variable | Description |
+|----------|-------------|
+| `JWT_SECRET` | Secret key for signing and verifying JWT tokens |
+| `GITHUB_CLIENT_ID` | GitHub OAuth App client ID |
+| `GITHUB_CLIENT_SECRET` | GitHub OAuth App client secret |
+
+To set up GitHub OAuth:
+1. Create a GitHub OAuth App at https://github.com/settings/developers
+2. Set the Authorization callback URL to `https://your-domain.com/auth/github/callback`
+3. Copy the Client ID and Client Secret to environment variables
 
 ## Browser Support
 
