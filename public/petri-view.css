@@ -22,6 +22,10 @@ petri-view {
     overflow: hidden;
     display: flex;
     flex-direction: column;
+    /* Prevent text selection and touch callouts during interactions */
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
 }
 
 /* Horizontal layout when toggled */
@@ -46,6 +50,9 @@ canvas.pv-canvas {
     align-items: center;
     justify-content: center;
     user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+    touch-action: none;
 }
 
 /* place: outer container 72-80px, inner white circle with black stroke (r~16) */
@@ -79,6 +86,7 @@ canvas.pv-canvas {
     border-radius: 50%;
     background: transparent;
     pointer-events: auto;
+    touch-action: none;
 }
 
 /* transition: 30x30 square */
@@ -241,6 +249,8 @@ canvas.pv-canvas {
     position: relative;
     overflow: hidden;
     background: #fafafa;
+    /* Prevent default touch behaviors like scroll/zoom during pan/drag */
+    touch-action: none;
 }
 
 .pv-stage {
