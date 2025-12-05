@@ -513,6 +513,73 @@ The `petri-solver.js` module can be used independently of the petri-view compone
 
 See `public/test-solver.html` for a complete standalone example.
 
+## How go-pflow Differs From Modern AI
+
+This section clarifies go-pflow's computational paradigm and its distinction from machine learning systems.
+
+### Structural vs. Statistical Computation
+
+| Aspect | Modern AI | go-pflow |
+|--------|-----------|----------|
+| **Paradigm** | Statistical approximation via learned weights | Explicit dynamic computation via structural equations |
+| **Model** | Opaque weight matrices from training data | User-defined causal structure (Petri nets) |
+| **Behavior** | Probabilistic inference | Deterministic state evolution |
+| **Explanation** | Requires post-hoc interpretability methods | The model itself is the explanation |
+
+- **Modern AI** learns patterns from data using neural networks. The resulting model encodes statistical correlations in high-dimensional weight matrices. Understanding *why* a model produces a given output requires additional interpretability tooling.
+
+- **go-pflow** executes explicit causal structure defined by the user. Places, transitions, and arcs form a directed graph with precise semantics. Token flow and state changes follow directly from the net's topology — no training, no learned parameters, no opacity.
+
+### ODE-Based Token Flow as Physics-Native Computation
+
+go-pflow's ODE simulation mode treats Petri nets as continuous dynamical systems:
+
+- **Mass action kinetics** — transition rates derive from the product of input place concentrations, analogous to chemical reaction networks.
+- **Tsit5 solver** — adaptive Runge-Kutta integration produces trajectories of token concentrations over time.
+- **Deterministic evolution** — given initial conditions and rate parameters, the system's trajectory is fully reproducible.
+
+This is *physics-native* computation: the simulation solves differential equations that describe how quantities flow through a system, not gradient descent over a loss function or transformer inference over token sequences.
+
+### Intellectual Lineage
+
+go-pflow descends from several established fields:
+
+- **Analog computing** — continuous-time integration of differential equations.
+- **Systems biology** — reaction network modeling and ODE-based simulation of biochemical pathways.
+- **Operations research** — resource allocation, scheduling, and flow network optimization.
+- **Concurrency theory** — Petri nets as a formalism for modeling parallel and distributed systems.
+
+These fields predate the current machine learning era and address different problem classes: resource flows, causal dependencies, and system dynamics — rather than pattern recognition from data.
+
+### Comparison Summary
+
+```
+AI         = f(data) → learned weights → probabilistic inference
+go-pflow   = f(structure) → ODE integration → deterministic trajectories
+```
+
+- **Input**: AI consumes training datasets; go-pflow consumes user-defined Petri net topologies.
+- **Processing**: AI optimizes loss via gradient descent; go-pflow integrates ODEs via Runge-Kutta.
+- **Output**: AI produces predictions with confidence scores; go-pflow produces exact state trajectories.
+
+### Future: GPU Acceleration Opportunities
+
+Petri net simulation can benefit from GPU parallelism:
+
+- **Parallel ODE solves** — evaluate multiple initial conditions or parameter sets concurrently.
+- **Ensemble simulation** — run stochastic variants or sensitivity analyses in parallel.
+- **Structural exploration** — search over net topologies or rate parameter spaces.
+
+However, GPU-accelerated Petri net simulation remains fundamentally distinct from GPU-accelerated deep learning:
+
+| GPU Use in Deep Learning | GPU Use in go-pflow |
+|--------------------------|---------------------|
+| Matrix multiplications for forward/backward passes | Parallel integration of independent ODE systems |
+| Training via gradient descent | Parameter sweeps and ensemble runs |
+| Learned representations | Explicit structural computation |
+
+Accelerating go-pflow with GPUs would parallelize ODE integration and parameter exploration — not training of statistical models.
+
 ## Integration Examples
 
 ### React
