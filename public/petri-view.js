@@ -2011,7 +2011,29 @@ class PetriView extends HTMLElement {
         const seen = new WeakSet();
         const path = [];
 
-        const sortObj = (o) => {
+        // Priority order for top-level keys (JSON-LD keywords first, then metadata, then content)
+        const keyPriority = [
+            '@context', '@type', '@id', '@version',
+            'name', 'description', 'author',
+            'token', 'places', 'transitions', 'arcs'
+        ];
+
+        const sortKeys = (keys, isTopLevel) => {
+            if (!isTopLevel) {
+                return keys.sort();
+            }
+            // Sort by priority order, then alphabetically for unlisted keys
+            return keys.sort((a, b) => {
+                const aIdx = keyPriority.indexOf(a);
+                const bIdx = keyPriority.indexOf(b);
+                if (aIdx !== -1 && bIdx !== -1) return aIdx - bIdx;
+                if (aIdx !== -1) return -1;
+                if (bIdx !== -1) return 1;
+                return a.localeCompare(b);
+            });
+        };
+
+        const sortObj = (o, isTopLevel = false) => {
             if (o === null || typeof o !== 'object') return o;
             if (seen.has(o)) return undefined;
             seen.add(o);
@@ -2026,7 +2048,7 @@ class PetriView extends HTMLElement {
                 });
             }
             const out = {};
-            for (const k of Object.keys(o).sort()) {
+            for (const k of sortKeys(Object.keys(o), isTopLevel)) {
                 path.push(k);
                 let v = sortObj(o[k]);
                 // If Infinity sits directly in a capacity prop
@@ -2037,7 +2059,7 @@ class PetriView extends HTMLElement {
             return out;
         };
 
-        return JSON.stringify(sortObj(obj), null, space);
+        return JSON.stringify(sortObj(obj, true), null, space);
     }
 
 
