@@ -1,3 +1,36 @@
+// Mode capabilities - defines what actions each tool mode allows
+const MODE_CAPS = {
+    'select': {
+        canDragNode: true,
+        canGroupDrag: true,
+        canMultiSelect: true,
+        canBoxSelect: true,
+        canEditWeight: true,
+        canFireTransition: true,
+    },
+    'add-place': {
+        canCreatePlace: true,
+    },
+    'add-transition': {
+        canCreateTransition: true,
+    },
+    'add-arc': {
+        canCreateArc: true,
+        canLongPressInhibitor: true,
+    },
+    'add-token': {
+        canMultiSelect: true,
+        canBoxSelect: true,
+        canEditWeight: true,
+        canModifyTokens: true,
+    },
+    'delete': {
+        canMultiSelect: true,
+        canBoxSelect: true,
+        canDeleteOnClick: true,
+    },
+};
+
 class PetriView extends HTMLElement {
     // Base58 alphabet for base58btc encoding
     _base58Alphabet = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
@@ -2503,14 +2536,9 @@ class PetriView extends HTMLElement {
         });
         // Long-press support for touch devices (triggers context menu action)
         el.addEventListener('pointerdown', (ev) => {
-            if (ev.pointerType === 'touch' && this._mode === 'add-arc') {
+            if (ev.pointerType === 'touch' && this._modeCan('canLongPressInhibitor')) {
                 this._startLongPress(() => {
-                    // Provide haptic feedback if available
-                    if (navigator.vibrate) {
-                        navigator.vibrate(50);
-                    }
-                    // Call context handler directly with the node id
-                    // Note: We don't pass the original event as it may be stale after the timeout
+                    if (navigator.vibrate) navigator.vibrate(50);
                     this._onPlaceContext(id, null);
                 });
             }
@@ -2522,7 +2550,6 @@ class PetriView extends HTMLElement {
             this._cancelLongPress();
         });
         el.addEventListener('pointermove', (ev) => {
-            // Cancel long-press if finger moved too far
             if (ev.pointerType === 'touch') {
                 this._cancelLongPress();
             }
@@ -2534,16 +2561,15 @@ class PetriView extends HTMLElement {
         el.addEventListener('mouseleave', () => {
             this._hideTokenBreakdown(id);
         });
-        // Do not begin drag when in add-token, add-arc, delete or label-edit modes
+        // Handle drag initiation
         handle.addEventListener('pointerdown', (ev) => {
             // Skip drag when shift is held (for multi-select)
-            if (ev.shiftKey && (this._mode === 'select' || this._mode === 'add-token' || this._mode === 'delete')) {
+            if (ev.shiftKey && this._canMultiSelect()) {
                 return;
             }
-            if (this._selectedNodes.size > 0 && this._selectedNodes.has(id) && this._mode === 'select') {
-                // In select mode with selected nodes, drag all selected nodes
+            if (this._selectedNodes.size > 0 && this._selectedNodes.has(id) && this._modeCan('canGroupDrag')) {
                 this._beginGroupDrag(ev, id);
-            } else if (this._mode !== 'add-token' && this._mode !== 'add-arc' && this._mode !== 'delete' && !this._labelEditMode) {
+            } else if (this._canDragNode()) {
                 this._beginDrag(ev, id, 'place');
             }
         });
@@ -2588,28 +2614,20 @@ class PetriView extends HTMLElement {
             this._onTransitionContext(id, ev);
         });
         // Long-press support for touch devices (triggers context menu action)
-        // Do not begin drag when in add-arc, delete or label-edit modes
         el.addEventListener('pointerdown', (ev) => {
-            // Start long-press detection for touch in add-arc mode
-            if (ev.pointerType === 'touch' && this._mode === 'add-arc') {
+            if (ev.pointerType === 'touch' && this._modeCan('canLongPressInhibitor')) {
                 this._startLongPress(() => {
-                    // Provide haptic feedback if available
-                    if (navigator.vibrate) {
-                        navigator.vibrate(50);
-                    }
-                    // Call context handler directly with the node id
-                    // Note: We don't pass the original event as it may be stale after the timeout
+                    if (navigator.vibrate) navigator.vibrate(50);
                     this._onTransitionContext(id, null);
                 });
             }
             // Skip drag when shift is held (for multi-select)
-            if (ev.shiftKey && (this._mode === 'select' || this._mode === 'delete')) {
+            if (ev.shiftKey && this._canMultiSelect()) {
                 return;
             }
-            if (this._selectedNodes.size > 0 && this._selectedNodes.has(id) && this._mode === 'select') {
-                // In select mode with selected nodes, drag all selected nodes
+            if (this._selectedNodes.size > 0 && this._selectedNodes.has(id) && this._modeCan('canGroupDrag')) {
                 this._beginGroupDrag(ev, id);
-            } else if (this._mode !== 'add-arc' && this._mode !== 'delete' && !this._labelEditMode) {
+            } else if (this._canDragNode()) {
                 this._beginDrag(ev, id, 'transition');
             }
         });
@@ -2620,7 +2638,6 @@ class PetriView extends HTMLElement {
             this._cancelLongPress();
         });
         el.addEventListener('pointermove', (ev) => {
-            // Cancel long-press if finger moved too far
             if (ev.pointerType === 'touch') {
                 this._cancelLongPress();
             }
@@ -2699,21 +2716,21 @@ class PetriView extends HTMLElement {
             return;
         }
 
-        // Handle shift+click for group selection in compatible modes
-        if (ev.shiftKey && (this._mode === 'select' || this._mode === 'add-token' || this._mode === 'delete')) {
+        // Handle shift+click for group selection
+        if (ev.shiftKey && this._canMultiSelect()) {
             this._toggleNodeSelection(id);
             return;
         }
 
-        // Clear selection on regular click in compatible modes (unless clicking a selected node)
-        if (!ev.shiftKey && (this._mode === 'select' || this._mode === 'add-token' || this._mode === 'delete')) {
+        // Clear selection on regular click (unless clicking a selected node)
+        if (!ev.shiftKey && this._canMultiSelect()) {
             if (!this._selectedNodes.has(id)) {
                 this._clearSelection();
             }
         }
 
-        if (this._mode === 'select') return;
-        if (this._mode === 'add-token') {
+        // Mode-specific actions
+        if (this._modeCan('canModifyTokens')) {
             const arr = Array.isArray(p.initial) ? p.initial : [Number(p.initial || 0)];
             arr[0] = (Number(arr[0]) || 0) + 1;
             p.initial = arr;
@@ -2724,20 +2741,21 @@ class PetriView extends HTMLElement {
             this._draw();
             return;
         }
-        if (this._mode === 'add-arc') {
+        if (this._modeCan('canCreateArc')) {
             this._arcNodeClicked(id);
             return;
         }
-        if (this._mode === 'delete') {
+        if (this._modeCan('canDeleteOnClick')) {
             this._deleteNode(id);
-
+            return;
         }
     }
 
     _onPlaceContext(id, ev) {
         const p = this._model.places[id];
         if (!p) return;
-        if (this._mode === 'add-token') {
+
+        if (this._modeCan('canModifyTokens')) {
             const arr = Array.isArray(p.initial) ? p.initial : [Number(p.initial || 0)];
             arr[0] = Math.max(0, (Number(arr[0]) || 0) - 1);
             p.initial = arr;
@@ -2748,13 +2766,13 @@ class PetriView extends HTMLElement {
             this._draw();
             return;
         }
-        if (this._mode === 'add-arc') {
+        if (this._modeCan('canCreateArc')) {
             this._arcNodeClicked(id, {inhibit: true});
             return;
         }
-        if (this._mode === 'delete') {
+        if (this._modeCan('canDeleteOnClick')) {
             this._deleteNode(id);
-
+            return;
         }
     }
 
@@ -2818,38 +2836,38 @@ class PetriView extends HTMLElement {
             return;
         }
 
-        // Handle shift+click for group selection in compatible modes
-        if (ev.shiftKey && (this._mode === 'select' || this._mode === 'delete')) {
+        // Handle shift+click for group selection
+        if (ev.shiftKey && this._canMultiSelect()) {
             this._toggleNodeSelection(id);
             return;
         }
 
-        // Clear selection on regular click in compatible modes (unless clicking a selected node)
-        if (!ev.shiftKey && (this._mode === 'select' || this._mode === 'delete')) {
+        // Clear selection on regular click (unless clicking a selected node)
+        if (!ev.shiftKey && this._canMultiSelect()) {
             if (!this._selectedNodes.has(id)) {
                 this._clearSelection();
             }
         }
 
-        // normal edit behaviors
-        if (this._mode === 'add-arc') {
+        // Mode-specific actions
+        if (this._modeCan('canCreateArc')) {
             this._arcNodeClicked(id);
             return;
         }
-        if (this._mode === 'delete') {
+        if (this._modeCan('canDeleteOnClick')) {
             this._deleteNode(id);
+            return;
         }
     }
 
-
     _onTransitionContext(id, ev) {
-        if (this._mode === 'add-arc') {
+        if (this._modeCan('canCreateArc')) {
             this._arcNodeClicked(id, {inhibit: true});
             return;
         }
-        if (this._mode === 'delete') {
+        if (this._modeCan('canDeleteOnClick')) {
             this._deleteNode(id);
-
+            return;
         }
     }
 
@@ -2858,7 +2876,7 @@ class PetriView extends HTMLElement {
         const a = this._model.arcs && this._model.arcs[i];
         if (!a) return;
 
-        if (this._mode === 'delete') {
+        if (this._modeCan('canDeleteOnClick')) {
             this._model.arcs = (this._model.arcs || []).filter((_, j) => j !== i);
             this._normalizeModel();
             this._renderUI();
@@ -2867,20 +2885,17 @@ class PetriView extends HTMLElement {
             return;
         }
 
-        // Allow editing in select and add-token modes
-        if (this._mode === 'select' || this._mode === 'add-token') {
+        // Allow editing arc weights
+        if (this._modeCan('canEditWeight')) {
             try {
                 const cur = this._getArcWeight(a);
-                // Display weight vector as comma-separated values
                 const curStr = cur.join(',');
                 const ans = prompt('Arc weight (comma-separated for colored nets, e.g., "1,0,0")', curStr);
                 if (ans && ans.trim()) {
-                    // Parse comma-separated values into an array
                     const values = ans.split(',').map(v => {
                         const num = Number(v.trim());
                         return Number.isNaN(num) ? 0 : Math.max(0, Math.floor(num));
                     });
-                    // Ensure at least one positive value
                     if (values.some(v => v > 0)) {
                         a.weight = values;
                         this._normalizeModel();
@@ -2898,14 +2913,13 @@ class PetriView extends HTMLElement {
         const i = Number(badge.dataset.arc);
         const a = this._model.arcs && this._model.arcs[i];
         if (!a) return;
-        if (this._mode === 'add-token') {
+
+        if (this._modeCan('canModifyTokens')) {
             const cur = this._getArcWeight(a);
-            // Decrement the first non-zero weight in the vector
             const newWeight = cur.map(w => {
                 const val = Number(w) || 0;
                 return val > 0 ? Math.max(0, val - 1) : 0;
             });
-            // Ensure at least one weight is 1 if all became 0
             if (newWeight.every(w => w === 0)) {
                 newWeight[0] = 1;
             }
@@ -2916,7 +2930,7 @@ class PetriView extends HTMLElement {
             this._pushHistory();
             return;
         }
-        if (this._mode === 'delete') {
+        if (this._modeCan('canDeleteOnClick')) {
             this._model.arcs = (this._model.arcs || []).filter((_, j) => j !== i);
             this._normalizeModel();
             this._renderUI();
@@ -3107,6 +3121,24 @@ class PetriView extends HTMLElement {
         this._updateMenuActive();
     }
 
+    // Mode capability helpers
+    _modeCan(capability) {
+        const caps = MODE_CAPS[this._mode];
+        return caps && caps[capability] === true;
+    }
+
+    _canDragNode() {
+        return this._modeCan('canDragNode') && !this._labelEditMode;
+    }
+
+    _canMultiSelect() {
+        return this._modeCan('canMultiSelect');
+    }
+
+    _canBoxSelect() {
+        return this._modeCan('canBoxSelect');
+    }
+
     _updateMenuActive() {
         if (!this._menu) return;
         this._menu.querySelectorAll('.pv-tool').forEach(btn => {
@@ -3253,14 +3285,15 @@ class PetriView extends HTMLElement {
         const rect = this._stage.getBoundingClientRect();
         const x = Math.round(ev.clientX - rect.left);
         const y = Math.round(ev.clientY - rect.top);
-        if (this._mode === 'add-place') {
+
+        if (this._modeCan('canCreatePlace')) {
             const id = this._genId('p');
             this._model.places[id] = {'@type': 'Place', x, y, initial: [0], capacity: [Infinity]};
             this._normalizeModel();
             this._renderUI();
             this._syncLD();
             this._pushHistory();
-        } else if (this._mode === 'add-transition') {
+        } else if (this._modeCan('canCreateTransition')) {
             const id = this._genId('t');
             this._model.transitions[id] = {'@type': 'Transition', x, y};
             this._normalizeModel();
@@ -6943,7 +6976,7 @@ class PetriView extends HTMLElement {
             const leftButton = e.button === 0;
 
             // Check for shift+click on canvas (not on elements) to start bounding box selection
-            if (e.shiftKey && leftButton && !clickedInteractive && (this._mode === 'select' || this._mode === 'add-token' || this._mode === 'delete')) {
+            if (e.shiftKey && leftButton && !clickedInteractive && this._canBoxSelect()) {
                 e.preventDefault();
                 // Safety: ensure we're not in a conflicting state
                 if (this._panning) {
@@ -6972,7 +7005,7 @@ class PetriView extends HTMLElement {
 
             // Check if we have selected nodes and clicking on canvas (not shift, not on elements)
             // In this case, start a canvas-based group drag instead of panning
-            if (!e.shiftKey && leftButton && !clickedInteractive && this._selectedNodes.size > 0 && this._mode === 'select') {
+            if (!e.shiftKey && leftButton && !clickedInteractive && this._selectedNodes.size > 0 && this._modeCan('canGroupDrag')) {
                 e.preventDefault();
                 this._beginCanvasGroupDrag(e);
                 return;
