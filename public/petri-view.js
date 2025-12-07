@@ -6289,6 +6289,477 @@ class PetriView extends HTMLElement {
         this._syncLD();
     }
 
+    // ---------------- My Diagrams Dialog ----------------
+    async _showMyDiagramsDialog() {
+        if (!this._authToken) {
+            alert('Please log in to view your diagrams');
+            return;
+        }
+
+        // Create modal overlay
+        const overlay = document.createElement('div');
+        overlay.className = 'pv-diagrams-dialog-overlay';
+        this._applyStyles(overlay, {
+            position: 'fixed',
+            left: '0',
+            top: '0',
+            right: '0',
+            bottom: '0',
+            background: 'rgba(0, 0, 0, 0.5)',
+            zIndex: 2147483646,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '20px'
+        });
+
+        // Create dialog
+        const dialog = document.createElement('div');
+        dialog.className = 'pv-diagrams-dialog';
+        this._applyStyles(dialog, {
+            background: '#fff',
+            borderRadius: '8px',
+            padding: '24px',
+            maxWidth: '800px',
+            width: '100%',
+            maxHeight: '80vh',
+            overflow: 'auto',
+            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)'
+        });
+
+        // Title
+        const title = document.createElement('h2');
+        title.textContent = 'My Diagrams';
+        this._applyStyles(title, {
+            margin: '0 0 16px 0',
+            fontSize: '22px',
+            fontWeight: 'bold',
+            color: '#333'
+        });
+        dialog.appendChild(title);
+
+        // Loading state
+        const loadingDiv = document.createElement('div');
+        loadingDiv.textContent = 'Loading diagrams...';
+        this._applyStyles(loadingDiv, {
+            padding: '20px',
+            textAlign: 'center',
+            color: '#666'
+        });
+        dialog.appendChild(loadingDiv);
+
+        overlay.appendChild(dialog);
+        document.body.appendChild(overlay);
+
+        // Fetch diagrams
+        try {
+            const response = await fetch('/api/diagrams', {
+                headers: {
+                    'Authorization': `Bearer ${this._authToken}`
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to fetch diagrams');
+            }
+
+            const data = await response.json();
+            const diagrams = data.diagrams || [];
+
+            // Remove loading
+            loadingDiv.remove();
+
+            if (diagrams.length === 0) {
+                const emptyDiv = document.createElement('div');
+                emptyDiv.textContent = 'No diagrams saved yet. Save your current diagram to see it here!';
+                this._applyStyles(emptyDiv, {
+                    padding: '40px 20px',
+                    textAlign: 'center',
+                    color: '#666',
+                    fontSize: '14px'
+                });
+                dialog.appendChild(emptyDiv);
+            } else {
+                // Create grid for diagrams
+                const grid = document.createElement('div');
+                this._applyStyles(grid, {
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+                    gap: '16px',
+                    marginBottom: '20px'
+                });
+
+                for (const diagram of diagrams) {
+                    const card = document.createElement('div');
+                    this._applyStyles(card, {
+                        border: '1px solid #e1e4e8',
+                        borderRadius: '8px',
+                        overflow: 'hidden',
+                        cursor: 'pointer',
+                        transition: 'box-shadow 0.2s, transform 0.2s'
+                    });
+                    card.addEventListener('mouseenter', () => {
+                        card.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
+                        card.style.transform = 'translateY(-2px)';
+                    });
+                    card.addEventListener('mouseleave', () => {
+                        card.style.boxShadow = '';
+                        card.style.transform = '';
+                    });
+
+                    // Thumbnail using SVG endpoint
+                    const thumbnail = document.createElement('div');
+                    this._applyStyles(thumbnail, {
+                        width: '100%',
+                        height: '120px',
+                        background: '#f6f8fa',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        overflow: 'hidden'
+                    });
+                    const img = document.createElement('img');
+                    img.src = `/img/${diagram.cid}.svg`;
+                    img.alt = diagram.name || 'Petri Net';
+                    this._applyStyles(img, {
+                        maxWidth: '100%',
+                        maxHeight: '100%',
+                        objectFit: 'contain'
+                    });
+                    img.onerror = () => {
+                        img.style.display = 'none';
+                        thumbnail.textContent = '🔷';
+                        thumbnail.style.fontSize = '40px';
+                        thumbnail.style.color = '#ccc';
+                    };
+                    thumbnail.appendChild(img);
+                    card.appendChild(thumbnail);
+
+                    // Info section
+                    const info = document.createElement('div');
+                    this._applyStyles(info, {
+                        padding: '12px'
+                    });
+
+                    const nameEl = document.createElement('div');
+                    nameEl.textContent = diagram.name || 'Untitled';
+                    this._applyStyles(nameEl, {
+                        fontWeight: '600',
+                        fontSize: '14px',
+                        color: '#24292e',
+                        marginBottom: '4px',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap'
+                    });
+                    info.appendChild(nameEl);
+
+                    if (diagram.description) {
+                        const descEl = document.createElement('div');
+                        descEl.textContent = diagram.description;
+                        this._applyStyles(descEl, {
+                            fontSize: '12px',
+                            color: '#586069',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap'
+                        });
+                        info.appendChild(descEl);
+                    }
+
+                    const dateEl = document.createElement('div');
+                    const date = new Date(diagram.createdAt);
+                    dateEl.textContent = date.toLocaleDateString();
+                    this._applyStyles(dateEl, {
+                        fontSize: '11px',
+                        color: '#959da5',
+                        marginTop: '4px'
+                    });
+                    info.appendChild(dateEl);
+
+                    card.appendChild(info);
+
+                    // Actions
+                    const actions = document.createElement('div');
+                    this._applyStyles(actions, {
+                        display: 'flex',
+                        borderTop: '1px solid #e1e4e8'
+                    });
+
+                    const openBtn = document.createElement('button');
+                    openBtn.textContent = 'Open';
+                    openBtn.type = 'button';
+                    this._applyStyles(openBtn, {
+                        flex: '1',
+                        padding: '8px',
+                        border: 'none',
+                        background: 'transparent',
+                        cursor: 'pointer',
+                        fontSize: '12px',
+                        color: '#0366d6'
+                    });
+                    openBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        window.location.href = `/?cid=${diagram.cid}`;
+                    });
+                    actions.appendChild(openBtn);
+
+                    const deleteBtn = document.createElement('button');
+                    deleteBtn.textContent = 'Delete';
+                    deleteBtn.type = 'button';
+                    this._applyStyles(deleteBtn, {
+                        flex: '1',
+                        padding: '8px',
+                        border: 'none',
+                        borderLeft: '1px solid #e1e4e8',
+                        background: 'transparent',
+                        cursor: 'pointer',
+                        fontSize: '12px',
+                        color: '#cb2431'
+                    });
+                    deleteBtn.addEventListener('click', async (e) => {
+                        e.stopPropagation();
+                        if (confirm(`Delete "${diagram.name || 'this diagram'}"?`)) {
+                            try {
+                                const delResponse = await fetch(`/o/${diagram.cid}`, {
+                                    method: 'DELETE',
+                                    headers: {
+                                        'Authorization': `Bearer ${this._authToken}`
+                                    }
+                                });
+                                if (delResponse.ok) {
+                                    card.remove();
+                                    // Check if grid is empty
+                                    if (grid.children.length === 0) {
+                                        grid.remove();
+                                        const emptyDiv = document.createElement('div');
+                                        emptyDiv.textContent = 'No diagrams saved yet.';
+                                        this._applyStyles(emptyDiv, {
+                                            padding: '40px 20px',
+                                            textAlign: 'center',
+                                            color: '#666'
+                                        });
+                                        dialog.insertBefore(emptyDiv, dialog.querySelector('button'));
+                                    }
+                                } else {
+                                    alert('Failed to delete diagram');
+                                }
+                            } catch (err) {
+                                alert('Failed to delete diagram: ' + err.message);
+                            }
+                        }
+                    });
+                    actions.appendChild(deleteBtn);
+
+                    card.appendChild(actions);
+                    grid.appendChild(card);
+                }
+
+                dialog.appendChild(grid);
+            }
+        } catch (err) {
+            loadingDiv.textContent = 'Failed to load diagrams: ' + err.message;
+            loadingDiv.style.color = '#cb2431';
+        }
+
+        // Close button
+        const closeBtn = document.createElement('button');
+        closeBtn.textContent = 'Close';
+        closeBtn.type = 'button';
+        this._applyStyles(closeBtn, {
+            padding: '10px 24px',
+            fontSize: '14px',
+            fontWeight: '500',
+            background: '#6c757d',
+            color: '#fff',
+            border: 'none',
+            borderRadius: '6px',
+            cursor: 'pointer'
+        });
+        closeBtn.addEventListener('click', () => {
+            document.body.removeChild(overlay);
+        });
+        dialog.appendChild(closeBtn);
+
+        // Close on overlay click
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) {
+                document.body.removeChild(overlay);
+            }
+        });
+    }
+
+    // ---------------- Edit Details Dialog ----------------
+    _showEditDetailsDialog() {
+        // Create modal overlay
+        const overlay = document.createElement('div');
+        overlay.className = 'pv-details-dialog-overlay';
+        this._applyStyles(overlay, {
+            position: 'fixed',
+            left: '0',
+            top: '0',
+            right: '0',
+            bottom: '0',
+            background: 'rgba(0, 0, 0, 0.5)',
+            zIndex: 2147483646,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '20px'
+        });
+
+        // Create dialog
+        const dialog = document.createElement('div');
+        dialog.className = 'pv-details-dialog';
+        this._applyStyles(dialog, {
+            background: '#fff',
+            borderRadius: '8px',
+            padding: '24px',
+            maxWidth: '500px',
+            width: '100%',
+            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)'
+        });
+
+        // Title
+        const title = document.createElement('h2');
+        title.textContent = 'Edit Diagram Details';
+        this._applyStyles(title, {
+            margin: '0 0 16px 0',
+            fontSize: '22px',
+            fontWeight: 'bold',
+            color: '#333'
+        });
+        dialog.appendChild(title);
+
+        // Name field
+        const nameLabel = document.createElement('label');
+        nameLabel.textContent = 'Name';
+        this._applyStyles(nameLabel, {
+            display: 'block',
+            fontSize: '14px',
+            fontWeight: '500',
+            color: '#24292e',
+            marginBottom: '4px'
+        });
+        dialog.appendChild(nameLabel);
+
+        const nameInput = document.createElement('input');
+        nameInput.type = 'text';
+        nameInput.value = this._model.name || '';
+        nameInput.placeholder = 'Enter diagram name';
+        this._applyStyles(nameInput, {
+            width: '100%',
+            padding: '8px 12px',
+            fontSize: '14px',
+            border: '1px solid #e1e4e8',
+            borderRadius: '6px',
+            marginBottom: '16px',
+            boxSizing: 'border-box'
+        });
+        dialog.appendChild(nameInput);
+
+        // Description field
+        const descLabel = document.createElement('label');
+        descLabel.textContent = 'Description';
+        this._applyStyles(descLabel, {
+            display: 'block',
+            fontSize: '14px',
+            fontWeight: '500',
+            color: '#24292e',
+            marginBottom: '4px'
+        });
+        dialog.appendChild(descLabel);
+
+        const descInput = document.createElement('textarea');
+        descInput.value = this._model.description || '';
+        descInput.placeholder = 'Enter diagram description';
+        descInput.rows = 3;
+        this._applyStyles(descInput, {
+            width: '100%',
+            padding: '8px 12px',
+            fontSize: '14px',
+            border: '1px solid #e1e4e8',
+            borderRadius: '6px',
+            marginBottom: '20px',
+            boxSizing: 'border-box',
+            resize: 'vertical'
+        });
+        dialog.appendChild(descInput);
+
+        // Buttons
+        const btnContainer = document.createElement('div');
+        this._applyStyles(btnContainer, {
+            display: 'flex',
+            gap: '12px',
+            justifyContent: 'flex-end'
+        });
+
+        const cancelBtn = document.createElement('button');
+        cancelBtn.textContent = 'Cancel';
+        cancelBtn.type = 'button';
+        this._applyStyles(cancelBtn, {
+            padding: '10px 20px',
+            fontSize: '14px',
+            background: '#f6f8fa',
+            color: '#24292e',
+            border: '1px solid #e1e4e8',
+            borderRadius: '6px',
+            cursor: 'pointer'
+        });
+        cancelBtn.addEventListener('click', () => {
+            document.body.removeChild(overlay);
+        });
+        btnContainer.appendChild(cancelBtn);
+
+        const saveBtn = document.createElement('button');
+        saveBtn.textContent = 'Save';
+        saveBtn.type = 'button';
+        this._applyStyles(saveBtn, {
+            padding: '10px 20px',
+            fontSize: '14px',
+            background: '#2ea44f',
+            color: '#fff',
+            border: 'none',
+            borderRadius: '6px',
+            cursor: 'pointer'
+        });
+        saveBtn.addEventListener('click', () => {
+            const name = nameInput.value.trim();
+            const description = descInput.value.trim();
+
+            if (name) {
+                this._model.name = name;
+            } else {
+                delete this._model.name;
+            }
+
+            if (description) {
+                this._model.description = description;
+            } else {
+                delete this._model.description;
+            }
+
+            this._syncLD();
+            this._pushHistory();
+            document.body.removeChild(overlay);
+        });
+        btnContainer.appendChild(saveBtn);
+
+        dialog.appendChild(btnContainer);
+        overlay.appendChild(dialog);
+        document.body.appendChild(overlay);
+
+        // Focus name input
+        nameInput.focus();
+
+        // Close on overlay click
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) {
+                document.body.removeChild(overlay);
+            }
+        });
+    }
+
     // ---------------- hamburger menu ----------------
     _createHamburgerMenu() {
         if (this._hamburgerMenu) return;
@@ -6534,6 +7005,18 @@ class PetriView extends HTMLElement {
                     await this._saveAsGist();
                 });
                 menuContainer._menuContent.appendChild(saveAsGistItem);
+
+                // Add My Diagrams button (only for logged-in users)
+                const myDiagramsItem = makeMenuItem('📂 My Diagrams', async () => {
+                    await this._showMyDiagramsDialog();
+                });
+                menuContainer._menuContent.appendChild(myDiagramsItem);
+
+                // Add Edit Details button (only for logged-in users)
+                const editDetailsItem = makeMenuItem('✏️ Edit Details', () => {
+                    this._showEditDetailsDialog();
+                });
+                menuContainer._menuContent.appendChild(editDetailsItem);
             }
 
             // Add separator

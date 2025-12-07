@@ -386,6 +386,103 @@ func (s *FSStore) GetObjectAuthor(cid string) (githubUser, githubID string, err 
 	return githubUser, githubID, nil
 }
 
+// DiagramInfo holds metadata about a diagram for listing
+type DiagramInfo struct {
+	CID         string    `json:"cid"`
+	Name        string    `json:"name,omitempty"`
+	Description string    `json:"description,omitempty"`
+	CreatedAt   time.Time `json:"createdAt"`
+	AuthorID    string    `json:"authorId,omitempty"`
+	AuthorName  string    `json:"authorName,omitempty"`
+}
+
+// ListUserDiagrams returns all diagrams authored by a specific GitHub user ID
+func (s *FSStore) ListUserDiagrams(githubID string) ([]DiagramInfo, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	var diagrams []DiagramInfo
+
+	objDir := filepath.Join(s.base, "o")
+	entries, err := os.ReadDir(objDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return diagrams, nil
+		}
+		return nil, err
+	}
+
+	for _, entry := range entries {
+		// Skip directories (like canonical, signatures)
+		if entry.IsDir() {
+			continue
+		}
+
+		cid := entry.Name()
+		path := filepath.Join(objDir, cid)
+
+		data, err := os.ReadFile(path)
+		if err != nil {
+			continue
+		}
+
+		var doc map[string]interface{}
+		if err := json.Unmarshal(data, &doc); err != nil {
+			continue
+		}
+
+		// Check if this object belongs to the user
+		author, ok := doc["author"].(map[string]interface{})
+		if !ok {
+			continue
+		}
+
+		authorID, _ := author["id"].(string)
+		authorID = strings.TrimPrefix(authorID, "github:")
+
+		if authorID != githubID {
+			continue
+		}
+
+		// Extract metadata
+		info := DiagramInfo{
+			CID:        cid,
+			AuthorID:   authorID,
+			AuthorName: "",
+		}
+
+		if name, ok := author["name"].(string); ok {
+			info.AuthorName = name
+		}
+
+		if name, ok := doc["name"].(string); ok {
+			info.Name = name
+		}
+
+		if desc, ok := doc["description"].(string); ok {
+			info.Description = desc
+		}
+
+		// Get file modification time as creation time
+		if fileInfo, err := entry.Info(); err == nil {
+			info.CreatedAt = fileInfo.ModTime()
+		}
+
+		diagrams = append(diagrams, info)
+	}
+
+	// Sort by creation time (newest first)
+	for i := 0; i < len(diagrams)-1; i++ {
+		for j := i + 1; j < len(diagrams); j++ {
+			if diagrams[j].CreatedAt.After(diagrams[i].CreatedAt) {
+				diagrams[i], diagrams[j] = diagrams[j], diagrams[i]
+			}
+		}
+	}
+
+	return diagrams, nil
+}
+
 // DeleteObject removes an object and its associated files
 func (s *FSStore) DeleteObject(cid string) error {
 	s.mu.Lock()

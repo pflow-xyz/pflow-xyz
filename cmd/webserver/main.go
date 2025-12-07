@@ -31,6 +31,7 @@ type Storage interface {
 	AppendHistory(user, slug, cid string) error
 	DeleteObject(cid string) error
 	GetObjectAuthor(cid string) (githubUser, githubID string, err error)
+	ListUserDiagrams(githubID string) ([]store.DiagramInfo, error)
 }
 
 // FSStorage implements Storage using filesystem
@@ -76,6 +77,10 @@ func (fs *FSStorage) DeleteObject(cid string) error {
 
 func (fs *FSStorage) GetObjectAuthor(cid string) (string, string, error) {
 	return fs.store.GetObjectAuthor(cid)
+}
+
+func (fs *FSStorage) ListUserDiagrams(githubID string) ([]store.DiagramInfo, error) {
+	return fs.store.ListUserDiagrams(githubID)
 }
 
 // validateJSONLD validates the structure and content of a JSON-LD document
@@ -669,6 +674,45 @@ func (s *Server) getGitHubPrimaryEmail(accessToken string) (string, error) {
 	return "", nil
 }
 
+// Handler for GET /api/diagrams - list current user's diagrams
+func (s *Server) handleListDiagrams(w http.ResponseWriter, r *http.Request) {
+	if s.handleCORS(w, r) {
+		return
+	}
+
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Require authentication
+	authHeader := r.Header.Get("Authorization")
+	if authHeader == "" {
+		http.Error(w, "Authentication required", http.StatusUnauthorized)
+		return
+	}
+
+	userInfo, err := auth.ExtractUserFromToken(authHeader)
+	if err != nil {
+		log.Printf("Invalid authentication token: %v", err)
+		http.Error(w, "Invalid authentication token", http.StatusUnauthorized)
+		return
+	}
+
+	// List diagrams for this user
+	diagrams, err := s.storage.ListUserDiagrams(userInfo.GitHubID)
+	if err != nil {
+		log.Printf("Error listing diagrams for user %s: %v", userInfo.GitHubID, err)
+		http.Error(w, "Failed to list diagrams", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"diagrams": diagrams,
+	})
+}
+
 // Handler for GET /auth/user - get current user info
 func (s *Server) handleGetUser(w http.ResponseWriter, r *http.Request) {
 	if s.handleCORS(w, r) {
@@ -721,6 +765,10 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// API routes
 	if r.URL.Path == "/api/save" {
 		s.handleSave(w, r)
+		return
+	}
+	if r.URL.Path == "/api/diagrams" {
+		s.handleListDiagrams(w, r)
 		return
 	}
 	if strings.HasPrefix(r.URL.Path, "/api/ownership/") {
