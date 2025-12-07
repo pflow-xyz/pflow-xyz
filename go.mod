@@ -4,7 +4,6 @@ go 1.24.9
 
 require (
 	github.com/ethereum/go-ethereum v1.16.5
-	github.com/golang-jwt/jwt/v5 v5.3.0
 	github.com/ipfs/go-cid v0.6.0
 	github.com/multiformats/go-multibase v0.2.0
 	github.com/multiformats/go-multihash v0.2.3

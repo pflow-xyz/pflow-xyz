@@ -12,9 +12,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"time"
 
-	"github.com/golang-jwt/jwt/v5"
 	"github.com/pflow-xyz/pflow-xyz/internal/auth"
 	"github.com/pflow-xyz/pflow-xyz/internal/seal"
 	"github.com/pflow-xyz/pflow-xyz/internal/static"
@@ -522,9 +520,8 @@ func (s *Server) handleGitHubCallback(w http.ResponseWriter, r *http.Request) {
 
 	clientID := os.Getenv("GITHUB_CLIENT_ID")
 	clientSecret := os.Getenv("GITHUB_CLIENT_SECRET")
-	jwtSecret := os.Getenv("JWT_SECRET")
 
-	if clientID == "" || clientSecret == "" || jwtSecret == "" {
+	if clientID == "" || clientSecret == "" {
 		log.Printf("GitHub OAuth credentials not configured")
 		http.Error(w, "GitHub OAuth not configured", http.StatusServiceUnavailable)
 		return
@@ -566,42 +563,12 @@ func (s *Server) handleGitHubCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get user info from GitHub
-	userInfo, err := s.getGitHubUser(accessToken)
-	if err != nil {
-		log.Printf("Failed to get GitHub user info: %v", err)
-		http.Error(w, "Failed to get user info from GitHub", http.StatusInternalServerError)
-		return
-	}
-
-	// Create JWT token
-	claims := &auth.GitHubClaims{
-		RegisteredClaims: jwt.RegisteredClaims{
-			Subject:   userInfo.GitHubID,
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour)),
-			IssuedAt:  jwt.NewNumericDate(time.Now()),
-			Issuer:    "pflow-xyz",
-		},
-		Email:    userInfo.Email,
-		UserName: userInfo.UserName,
-		FullName: userInfo.FullName,
-		GitHubID: userInfo.GitHubID,
-	}
-
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	tokenString, err := token.SignedString([]byte(jwtSecret))
-	if err != nil {
-		log.Printf("Failed to sign JWT: %v", err)
-		http.Error(w, "Failed to create session", http.StatusInternalServerError)
-		return
-	}
-
-	// Redirect to the frontend with the token
-	// The frontend will store this token and use it for authenticated requests
+	// Redirect to the frontend with the GitHub access token directly
+	// The token will be verified via GitHub API on each authenticated request
 	scheme := s.getRequestScheme(r)
 
 	// Redirect to frontend with token in URL fragment (more secure than query param)
-	redirectURL := fmt.Sprintf("%s://%s/#access_token=%s", scheme, r.Host, url.QueryEscape(tokenString))
+	redirectURL := fmt.Sprintf("%s://%s/#access_token=%s", scheme, r.Host, url.QueryEscape(accessToken))
 	http.Redirect(w, r, redirectURL, http.StatusTemporaryRedirect)
 }
 
