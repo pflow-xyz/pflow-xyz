@@ -3114,6 +3114,10 @@ class PetriView extends HTMLElement {
     _setMode(mode) {
         if (this._simRunning && mode !== 'select') return;
         this._mode = mode;
+        // Turn off label edit mode when switching to any tool
+        if (this._labelEditMode) {
+            this._labelEditMode = false;
+        }
         if (mode !== 'add-arc' && this._arcDraft) {
             this._arcDraft = null;
             this._updateArcDraftHighlight();
