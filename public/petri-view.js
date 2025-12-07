@@ -6450,22 +6450,33 @@ class PetriView extends HTMLElement {
                         marginBottom: '4px',
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap'
+                        whiteSpace: 'nowrap',
+                        cursor: 'pointer'
+                    });
+                    nameEl.title = 'Click to edit name';
+                    nameEl.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        this._showEditDiagramDetailsDialog(diagram, nameEl, descEl);
                     });
                     info.appendChild(nameEl);
 
-                    if (diagram.description) {
-                        const descEl = document.createElement('div');
-                        descEl.textContent = diagram.description;
-                        this._applyStyles(descEl, {
-                            fontSize: '12px',
-                            color: '#586069',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            whiteSpace: 'nowrap'
-                        });
-                        info.appendChild(descEl);
-                    }
+                    const descEl = document.createElement('div');
+                    descEl.textContent = diagram.description || 'Add description...';
+                    this._applyStyles(descEl, {
+                        fontSize: '12px',
+                        color: diagram.description ? '#586069' : '#959da5',
+                        fontStyle: diagram.description ? 'normal' : 'italic',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                        cursor: 'pointer'
+                    });
+                    descEl.title = 'Click to edit description';
+                    descEl.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        this._showEditDiagramDetailsDialog(diagram, nameEl, descEl);
+                    });
+                    info.appendChild(descEl);
 
                     const dateEl = document.createElement('div');
                     const date = new Date(diagram.createdAt);
@@ -6585,6 +6596,231 @@ class PetriView extends HTMLElement {
         overlay.addEventListener('click', (e) => {
             if (e.target === overlay) {
                 document.body.removeChild(overlay);
+            }
+        });
+    }
+
+    // ---------------- Edit Remote Diagram Details Dialog ----------------
+    async _showEditDiagramDetailsDialog(diagram, nameEl, descEl) {
+        // Create modal overlay
+        const overlay = document.createElement('div');
+        overlay.className = 'pv-edit-diagram-dialog-overlay';
+        this._applyStyles(overlay, {
+            position: 'fixed',
+            left: '0',
+            top: '0',
+            right: '0',
+            bottom: '0',
+            background: 'rgba(0, 0, 0, 0.5)',
+            zIndex: 2147483647,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '20px'
+        });
+
+        // Create dialog
+        const dialog = document.createElement('div');
+        dialog.className = 'pv-edit-diagram-dialog';
+        this._applyStyles(dialog, {
+            background: '#fff',
+            borderRadius: '8px',
+            padding: '24px',
+            maxWidth: '500px',
+            width: '100%',
+            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)'
+        });
+
+        // Title
+        const title = document.createElement('h2');
+        title.textContent = 'Edit Diagram Details';
+        this._applyStyles(title, {
+            margin: '0 0 16px 0',
+            fontSize: '22px',
+            fontWeight: 'bold',
+            color: '#333'
+        });
+        dialog.appendChild(title);
+
+        // Name field
+        const nameLabel = document.createElement('label');
+        nameLabel.textContent = 'Name';
+        this._applyStyles(nameLabel, {
+            display: 'block',
+            fontSize: '14px',
+            fontWeight: '500',
+            color: '#24292e',
+            marginBottom: '4px'
+        });
+        dialog.appendChild(nameLabel);
+
+        const nameInput = document.createElement('input');
+        nameInput.type = 'text';
+        nameInput.value = diagram.name || '';
+        nameInput.placeholder = 'Enter diagram name';
+        this._applyStyles(nameInput, {
+            width: '100%',
+            padding: '8px 12px',
+            fontSize: '14px',
+            border: '1px solid #e1e4e8',
+            borderRadius: '6px',
+            marginBottom: '16px',
+            boxSizing: 'border-box'
+        });
+        dialog.appendChild(nameInput);
+
+        // Description field
+        const descLabel = document.createElement('label');
+        descLabel.textContent = 'Description';
+        this._applyStyles(descLabel, {
+            display: 'block',
+            fontSize: '14px',
+            fontWeight: '500',
+            color: '#24292e',
+            marginBottom: '4px'
+        });
+        dialog.appendChild(descLabel);
+
+        const descInput = document.createElement('textarea');
+        descInput.value = diagram.description || '';
+        descInput.placeholder = 'Enter diagram description';
+        descInput.rows = 3;
+        this._applyStyles(descInput, {
+            width: '100%',
+            padding: '8px 12px',
+            fontSize: '14px',
+            border: '1px solid #e1e4e8',
+            borderRadius: '6px',
+            marginBottom: '20px',
+            boxSizing: 'border-box',
+            resize: 'vertical'
+        });
+        dialog.appendChild(descInput);
+
+        // Buttons
+        const btnContainer = document.createElement('div');
+        this._applyStyles(btnContainer, {
+            display: 'flex',
+            gap: '12px',
+            justifyContent: 'flex-end'
+        });
+
+        const cancelBtn = document.createElement('button');
+        cancelBtn.textContent = 'Cancel';
+        cancelBtn.type = 'button';
+        this._applyStyles(cancelBtn, {
+            padding: '10px 20px',
+            fontSize: '14px',
+            background: '#f6f8fa',
+            color: '#24292e',
+            border: '1px solid #e1e4e8',
+            borderRadius: '6px',
+            cursor: 'pointer'
+        });
+        cancelBtn.addEventListener('click', () => {
+            document.body.removeChild(overlay);
+        });
+        btnContainer.appendChild(cancelBtn);
+
+        const saveBtn = document.createElement('button');
+        saveBtn.textContent = 'Save';
+        saveBtn.type = 'button';
+        this._applyStyles(saveBtn, {
+            padding: '10px 20px',
+            fontSize: '14px',
+            background: '#2ea44f',
+            color: '#fff',
+            border: 'none',
+            borderRadius: '6px',
+            cursor: 'pointer'
+        });
+        saveBtn.addEventListener('click', async () => {
+            const newName = nameInput.value.trim();
+            const newDescription = descInput.value.trim();
+
+            saveBtn.disabled = true;
+            saveBtn.textContent = 'Saving...';
+
+            try {
+                // Fetch the full diagram
+                const response = await fetch(`/o/${diagram.cid}`);
+                if (!response.ok) {
+                    throw new Error('Failed to fetch diagram');
+                }
+                const diagramData = await response.json();
+
+                // Update name and description
+                if (newName) {
+                    diagramData.name = newName;
+                } else {
+                    delete diagramData.name;
+                }
+
+                if (newDescription) {
+                    diagramData.description = newDescription;
+                } else {
+                    delete diagramData.description;
+                }
+
+                // Remove @id so we get a new CID
+                delete diagramData['@id'];
+
+                // Save back to server
+                const saveResponse = await fetch('/api/save', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${this._authToken}`
+                    },
+                    body: JSON.stringify(diagramData)
+                });
+
+                if (!saveResponse.ok) {
+                    throw new Error('Failed to save diagram');
+                }
+
+                const saveResult = await saveResponse.json();
+
+                // Update local references
+                diagram.name = newName;
+                diagram.description = newDescription;
+                diagram.cid = saveResult.cid;
+
+                // Update the UI elements
+                nameEl.textContent = newName || 'Untitled';
+                descEl.textContent = newDescription || 'Add description...';
+                descEl.style.color = newDescription ? '#586069' : '#959da5';
+                descEl.style.fontStyle = newDescription ? 'normal' : 'italic';
+
+                document.body.removeChild(overlay);
+            } catch (err) {
+                alert('Failed to save: ' + err.message);
+                saveBtn.disabled = false;
+                saveBtn.textContent = 'Save';
+            }
+        });
+        btnContainer.appendChild(saveBtn);
+
+        dialog.appendChild(btnContainer);
+        overlay.appendChild(dialog);
+        document.body.appendChild(overlay);
+
+        // Focus name input
+        nameInput.focus();
+        nameInput.select();
+
+        // Close on overlay click
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) {
+                document.body.removeChild(overlay);
+            }
+        });
+
+        // Handle Enter key
+        nameInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                descInput.focus();
             }
         });
     }
