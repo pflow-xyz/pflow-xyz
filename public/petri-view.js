@@ -6051,168 +6051,26 @@ class PetriView extends HTMLElement {
     }
 
     _applySugiyamaLayout() {
-        // Save state for undo
-        this._pushHistory();
-
-        // Get all nodes
-        const nodes = new Map();
-        for (const [id, place] of Object.entries(this._model.places || {})) {
-            nodes.set(id, { id, type: 'place', level: -1, inDegree: 0, outDegree: 0 });
-        }
-        for (const [id, transition] of Object.entries(this._model.transitions || {})) {
-            nodes.set(id, { id, type: 'transition', level: -1, inDegree: 0, outDegree: 0 });
-        }
-
-        if (nodes.size === 0) return;
-
-        // Build adjacency information
-        const outgoing = new Map();
-        const incoming = new Map();
-        for (const [id] of nodes) {
-            outgoing.set(id, []);
-            incoming.set(id, []);
-        }
-
-        const edges = [];
-        for (const arc of (this._model.arcs || [])) {
-            if (nodes.has(arc.source) && nodes.has(arc.target)) {
-                edges.push({ source: arc.source, target: arc.target });
-                outgoing.get(arc.source).push(arc.target);
-                incoming.get(arc.target).push(arc.source);
-                nodes.get(arc.source).outDegree++;
-                nodes.get(arc.target).inDegree++;
-            }
-        }
-
-        // Phase 1: Break cycles using DFS to identify back edges
-        const visited = new Set();
-        const recursionStack = new Set();
-        const backEdges = new Set();
-        
-        const dfs = (nodeId) => {
-            visited.add(nodeId);
-            recursionStack.add(nodeId);
-            
-            for (const targetId of outgoing.get(nodeId)) {
-                if (!visited.has(targetId)) {
-                    dfs(targetId);
-                } else if (recursionStack.has(targetId)) {
-                    // Back edge found (creates a cycle)
-                    backEdges.add(`${nodeId}->${targetId}`);
-                }
-            }
-            
-            recursionStack.delete(nodeId);
-        };
-
-        // Run DFS from all unvisited nodes
-        for (const [id] of nodes) {
-            if (!visited.has(id)) {
-                dfs(id);
-            }
-        }
-
-        // Phase 2: Assign levels using modified topological sort (ignoring back edges)
-        const queue = [];
-        const inDegreeMap = new Map();
-        
-        for (const [id, node] of nodes) {
-            let effectiveInDegree = 0;
-            for (const sourceId of incoming.get(id)) {
-                const edgeKey = `${sourceId}->${id}`;
-                if (!backEdges.has(edgeKey)) {
-                    effectiveInDegree++;
-                }
-            }
-            inDegreeMap.set(id, effectiveInDegree);
-            if (effectiveInDegree === 0) {
-                node.level = 0;
-                queue.push(id);
-            }
-        }
-
-        let maxLevel = 0;
-        while (queue.length > 0) {
-            const currentId = queue.shift();
-            const currentLevel = nodes.get(currentId).level;
-            maxLevel = Math.max(maxLevel, currentLevel);
-
-            for (const targetId of outgoing.get(currentId)) {
-                const edgeKey = `${currentId}->${targetId}`;
-                if (!backEdges.has(edgeKey)) {
-                    const targetNode = nodes.get(targetId);
-                    inDegreeMap.set(targetId, inDegreeMap.get(targetId) - 1);
-                    
-                    if (inDegreeMap.get(targetId) === 0) {
-                        targetNode.level = currentLevel + 1;
-                        queue.push(targetId);
-                    }
-                }
-            }
-        }
-
-        // Assign remaining nodes (part of strongly connected components)
-        // Place them at the level after the maximum level found
-        for (const [id, node] of nodes) {
-            if (node.level === -1) {
-                node.level = maxLevel + 1;
-            }
-        }
-
-        // Phase 3: Group nodes by level
-        const levels = new Map();
-        maxLevel = 0;
-        for (const [id, node] of nodes) {
-            if (!levels.has(node.level)) {
-                levels.set(node.level, []);
-            }
-            levels.get(node.level).push(node);
-            maxLevel = Math.max(maxLevel, node.level);
-        }
-
-        // Phase 4: Position nodes
-        const levelHeight = 150;
-        const nodeSpacing = 100;
-        const startY = 100;
-
-        for (let level = 0; level <= maxLevel; level++) {
-            const nodesAtLevel = levels.get(level) || [];
-            const levelWidth = nodesAtLevel.length * nodeSpacing;
-            const startXForLevel = 100 - levelWidth / 2;
-
-            nodesAtLevel.forEach((node, index) => {
-                const x = Math.round(startXForLevel + index * nodeSpacing + 500);
-                const y = Math.round(startY + level * levelHeight);
-
-                if (node.type === 'place') {
-                    this._model.places[node.id].x = x;
-                    this._model.places[node.id].y = y;
-                } else {
-                    this._model.transitions[node.id].x = x;
-                    this._model.transitions[node.id].y = y;
-                }
-            });
-        }
-
-        // Ensure all coordinates are non-negative
-        this._normalizeNodePositions(100);
-
-        // Update the view
-        this._renderUI();
-        this._syncLD();
+        this._applyDagLayout('vertical');
     }
 
     _applyHorizontalDagLayout() {
+        this._applyDagLayout('horizontal');
+    }
+
+    // Shared DAG layout implementation with cycle detection (Sugiyama-style)
+    // direction: 'vertical' (top-to-bottom) or 'horizontal' (left-to-right)
+    _applyDagLayout(direction = 'vertical') {
         // Save state for undo
         this._pushHistory();
 
         // Get all nodes
         const nodes = new Map();
         for (const [id, place] of Object.entries(this._model.places || {})) {
-            nodes.set(id, { id, type: 'place', level: -1, inDegree: 0, outDegree: 0 });
+            nodes.set(id, { id, type: 'place', level: -1 });
         }
         for (const [id, transition] of Object.entries(this._model.transitions || {})) {
-            nodes.set(id, { id, type: 'transition', level: -1, inDegree: 0, outDegree: 0 });
+            nodes.set(id, { id, type: 'transition', level: -1 });
         }
 
         if (nodes.size === 0) return;
@@ -6225,14 +6083,10 @@ class PetriView extends HTMLElement {
             incoming.set(id, []);
         }
 
-        const edges = [];
         for (const arc of (this._model.arcs || [])) {
             if (nodes.has(arc.source) && nodes.has(arc.target)) {
-                edges.push({ source: arc.source, target: arc.target });
                 outgoing.get(arc.source).push(arc.target);
                 incoming.get(arc.target).push(arc.source);
-                nodes.get(arc.source).outDegree++;
-                nodes.get(arc.target).inDegree++;
             }
         }
 
@@ -6240,39 +6094,36 @@ class PetriView extends HTMLElement {
         const visited = new Set();
         const recursionStack = new Set();
         const backEdges = new Set();
-        
+
         const dfs = (nodeId) => {
             visited.add(nodeId);
             recursionStack.add(nodeId);
-            
+
             for (const targetId of outgoing.get(nodeId)) {
                 if (!visited.has(targetId)) {
                     dfs(targetId);
                 } else if (recursionStack.has(targetId)) {
-                    // Back edge found (creates a cycle)
                     backEdges.add(`${nodeId}->${targetId}`);
                 }
             }
-            
+
             recursionStack.delete(nodeId);
         };
 
-        // Run DFS from all unvisited nodes
         for (const [id] of nodes) {
             if (!visited.has(id)) {
                 dfs(id);
             }
         }
 
-        // Phase 2: Assign levels using modified topological sort (ignoring back edges)
+        // Phase 2: Assign levels using topological sort (ignoring back edges)
         const queue = [];
         const inDegreeMap = new Map();
-        
+
         for (const [id, node] of nodes) {
             let effectiveInDegree = 0;
             for (const sourceId of incoming.get(id)) {
-                const edgeKey = `${sourceId}->${id}`;
-                if (!backEdges.has(edgeKey)) {
+                if (!backEdges.has(`${sourceId}->${id}`)) {
                     effectiveInDegree++;
                 }
             }
@@ -6290,11 +6141,10 @@ class PetriView extends HTMLElement {
             maxLevel = Math.max(maxLevel, currentLevel);
 
             for (const targetId of outgoing.get(currentId)) {
-                const edgeKey = `${currentId}->${targetId}`;
-                if (!backEdges.has(edgeKey)) {
+                if (!backEdges.has(`${currentId}->${targetId}`)) {
                     const targetNode = nodes.get(targetId);
                     inDegreeMap.set(targetId, inDegreeMap.get(targetId) - 1);
-                    
+
                     if (inDegreeMap.get(targetId) === 0) {
                         targetNode.level = currentLevel + 1;
                         queue.push(targetId);
@@ -6303,9 +6153,8 @@ class PetriView extends HTMLElement {
             }
         }
 
-        // Assign remaining nodes (part of strongly connected components)
-        // Place them at the level after the maximum level found
-        for (const [id, node] of nodes) {
+        // Assign remaining nodes (cycles) to max level + 1
+        for (const [, node] of nodes) {
             if (node.level === -1) {
                 node.level = maxLevel + 1;
             }
@@ -6314,7 +6163,7 @@ class PetriView extends HTMLElement {
         // Phase 3: Group nodes by level
         const levels = new Map();
         maxLevel = 0;
-        for (const [id, node] of nodes) {
+        for (const [, node] of nodes) {
             if (!levels.has(node.level)) {
                 levels.set(node.level, []);
             }
@@ -6322,19 +6171,25 @@ class PetriView extends HTMLElement {
             maxLevel = Math.max(maxLevel, node.level);
         }
 
-        // Phase 4: Position nodes (HORIZONTAL: levels go left-to-right)
-        const levelWidth = 150;  // horizontal spacing between levels
-        const nodeSpacing = 100; // vertical spacing within a level
-        const startX = 100;
+        // Phase 4: Position nodes based on direction
+        const levelSpacing = 150;
+        const nodeSpacing = 100;
+        const centerOffset = 400;
 
         for (let level = 0; level <= maxLevel; level++) {
             const nodesAtLevel = levels.get(level) || [];
-            const levelHeight = nodesAtLevel.length * nodeSpacing;
-            const startYForLevel = 100 - levelHeight / 2;
+            const spanSize = nodesAtLevel.length * nodeSpacing;
+            const spanStart = centerOffset - spanSize / 2;
 
             nodesAtLevel.forEach((node, index) => {
-                const x = Math.round(startX + level * levelWidth);
-                const y = Math.round(startYForLevel + index * nodeSpacing + 400);
+                let x, y;
+                if (direction === 'horizontal') {
+                    x = Math.round(100 + level * levelSpacing);
+                    y = Math.round(spanStart + index * nodeSpacing);
+                } else {
+                    x = Math.round(spanStart + index * nodeSpacing);
+                    y = Math.round(100 + level * levelSpacing);
+                }
 
                 if (node.type === 'place') {
                     this._model.places[node.id].x = x;

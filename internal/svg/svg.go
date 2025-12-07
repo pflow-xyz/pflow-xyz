@@ -949,43 +949,121 @@ func applyForceAtlasLayout(net *PetriNet) error {
 	return nil
 }
 
-// applyHierarchicalLayout arranges nodes in layers from top to bottom
+// applyHierarchicalLayout arranges nodes in layers from top to bottom using topological sorting
 func applyHierarchicalLayout(net *PetriNet) error {
-	// Simple hierarchical layout: places on one layer, transitions on another
-	
-	placeCount := len(net.Places)
-	transitionCount := len(net.Transitions)
-	
-	if placeCount == 0 && transitionCount == 0 {
+	totalNodes := len(net.Places) + len(net.Transitions)
+	if totalNodes == 0 {
 		return nil
 	}
 
-	// Layout places in top row
-	placeSpacing := 150.0
-	placeStartX := 100.0
-	placeY := 100.0
-	
-	idx := 0
-	for id := range net.Places {
-		place := net.Places[id]
-		place.X = placeStartX + float64(idx)*placeSpacing
-		place.Y = placeY
-		net.Places[id] = place
-		idx++
+	// Node info for layout
+	type nodeInfo struct {
+		id       string
+		isPlace  bool
+		level    int
+		inDegree int
 	}
 
-	// Layout transitions in bottom row
-	transitionSpacing := 150.0
-	transitionStartX := 100.0
-	transitionY := 300.0
-	
-	idx = 0
+	// Build node map
+	nodes := make(map[string]*nodeInfo)
+	for id := range net.Places {
+		nodes[id] = &nodeInfo{id: id, isPlace: true, level: -1, inDegree: 0}
+	}
 	for id := range net.Transitions {
-		transition := net.Transitions[id]
-		transition.X = transitionStartX + float64(idx)*transitionSpacing
-		transition.Y = transitionY
-		net.Transitions[id] = transition
-		idx++
+		nodes[id] = &nodeInfo{id: id, isPlace: false, level: -1, inDegree: 0}
+	}
+
+	// Build adjacency information
+	outgoing := make(map[string][]string)
+	for id := range nodes {
+		outgoing[id] = []string{}
+	}
+
+	for _, arc := range net.Arcs {
+		if _, srcOk := nodes[arc.Source]; srcOk {
+			if _, trgOk := nodes[arc.Target]; trgOk {
+				outgoing[arc.Source] = append(outgoing[arc.Source], arc.Target)
+				nodes[arc.Target].inDegree++
+			}
+		}
+	}
+
+	// Topological sort using Kahn's algorithm to assign levels
+	queue := []string{}
+	inDegreeMap := make(map[string]int)
+
+	for id, node := range nodes {
+		inDegreeMap[id] = node.inDegree
+		if node.inDegree == 0 {
+			node.level = 0
+			queue = append(queue, id)
+		}
+	}
+
+	for len(queue) > 0 {
+		currentID := queue[0]
+		queue = queue[1:]
+		currentLevel := nodes[currentID].level
+
+		for _, targetID := range outgoing[currentID] {
+			inDegreeMap[targetID]--
+			if inDegreeMap[targetID] == 0 {
+				nodes[targetID].level = currentLevel + 1
+				queue = append(queue, targetID)
+			}
+		}
+	}
+
+	// Assign level 0 to any remaining unassigned nodes (cycles)
+	for _, node := range nodes {
+		if node.level == -1 {
+			node.level = 0
+		}
+	}
+
+	// Group nodes by level
+	levels := make(map[int][]*nodeInfo)
+	maxLevel := 0
+	for _, node := range nodes {
+		levels[node.level] = append(levels[node.level], node)
+		if node.level > maxLevel {
+			maxLevel = node.level
+		}
+	}
+
+	// Layout parameters
+	levelHeight := 150.0
+	nodeSpacing := 100.0
+	startX := 100.0
+	startY := 100.0
+	canvasWidth := 800.0
+
+	// Position nodes by level
+	for level := 0; level <= maxLevel; level++ {
+		nodesAtLevel := levels[level]
+		if len(nodesAtLevel) == 0 {
+			continue
+		}
+
+		levelWidth := float64(len(nodesAtLevel)) * nodeSpacing
+		startXForLevel := startX + (canvasWidth-levelWidth)/2
+
+		for idx, node := range nodesAtLevel {
+			x := startXForLevel + float64(idx)*nodeSpacing
+			y := startY + float64(level)*levelHeight
+
+			if node.isPlace {
+				place := net.Places[node.id]
+				place.X = x
+				place.Y = y
+				net.Places[node.id] = place
+			} else {
+				transition := net.Transitions[node.id]
+				transition.X = x
+				transition.Y = y
+				net.Transitions[node.id] = transition
+			}
+		}
 	}
 
 	return nil
