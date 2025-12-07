@@ -1894,7 +1894,7 @@ class PetriView extends HTMLElement {
                     description: 'pflow Petri net diagram',
                     public: true,
                     files: {
-                        'pflow.md': {
+                        [`${cid}.md`]: {
                             content: markdown
                         }
                     }
@@ -5517,7 +5517,7 @@ class PetriView extends HTMLElement {
                     description: 'pflow ODE Simulation Results',
                     public: true,
                     files: {
-                        'simulation.md': {
+                        [`${cid}.md`]: {
                             content: description
                         }
                     }
