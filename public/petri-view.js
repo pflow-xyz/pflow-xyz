@@ -85,6 +85,10 @@ class PetriView extends HTMLElement {
         this._history = [];
         this._redo = [];
 
+        // render batching to prevent race conditions with rapid actions
+        this._updateScheduled = false;
+        this._createdOnPointerUp = false; // prevent double-creation from click event
+
         this._ro = null;
 
         // fire queue to serialize rapid transition clicks
@@ -92,7 +96,7 @@ class PetriView extends HTMLElement {
         this._processingFires = false;
 
         this._lastFireAt = Object.create(null);
-        this._fireDebounceMs = 600; // milliseconds
+        this._fireDebounceMs = 0; // no cooldown
 
         // layout orientation (vertical by default, horizontal when toggled)
         this._layoutHorizontal = false;
@@ -2494,6 +2498,21 @@ class PetriView extends HTMLElement {
         this._jsonEditorContainer = null;
     }
 
+    // Schedule sync+render for next animation frame to batch rapid updates
+    _scheduleUpdate() {
+        if (this._updateScheduled) return;
+        this._updateScheduled = true;
+        requestAnimationFrame(() => {
+            this._updateScheduled = false;
+            this._syncLD();
+            this._renderUI();
+        });
+    }
+
+    // Aliases for compatibility
+    _scheduleSync() { this._scheduleUpdate(); }
+    _scheduleRender() { this._scheduleUpdate(); }
+
     _renderUI() {
         // remove old dom nodes and badges
         for (const n of Object.values(this._nodes)) n.remove();
@@ -2512,7 +2531,6 @@ class PetriView extends HTMLElement {
         this._renderTokens();
         this._updateTransitionStates();
         this._onResize();
-        this._syncLD();
         this._updateArcDraftHighlight();
         this._updateMenuActive();
         this._updateSelectionHighlights();
@@ -2772,8 +2790,8 @@ class PetriView extends HTMLElement {
             const arr = Array.isArray(p.initial) ? p.initial : [Number(p.initial || 0)];
             arr[0] = (Number(arr[0]) || 0) + 1;
             p.initial = arr;
-            this._syncLD();
             this._pushHistory();
+            this._scheduleSync();
             this._renderTokens();
             this._updateTransitionStates();
             this._draw();
@@ -2797,8 +2815,8 @@ class PetriView extends HTMLElement {
             const arr = Array.isArray(p.initial) ? p.initial : [Number(p.initial || 0)];
             arr[0] = Math.max(0, (Number(arr[0]) || 0) - 1);
             p.initial = arr;
-            this._syncLD();
             this._pushHistory();
+            this._scheduleSync();
             this._renderTokens();
             this._updateTransitionStates();
             this._draw();
@@ -2917,9 +2935,9 @@ class PetriView extends HTMLElement {
         if (this._modeCan('canDeleteOnClick')) {
             this._model.arcs = (this._model.arcs || []).filter((_, j) => j !== i);
             this._normalizeModel();
-            this._renderUI();
-            this._syncLD();
             this._pushHistory();
+            this._scheduleSync();
+            this._scheduleRender();
             return;
         }
 
@@ -2927,9 +2945,9 @@ class PetriView extends HTMLElement {
         if (this._modeCan('canCreateArc')) {
             a.inhibitTransition = !a.inhibitTransition;
             this._normalizeModel();
-            this._renderUI();
-            this._syncLD();
             this._pushHistory();
+            this._scheduleSync();
+            this._scheduleRender();
             return;
         }
 
@@ -2947,9 +2965,9 @@ class PetriView extends HTMLElement {
                     if (values.some(v => v > 0)) {
                         a.weight = values;
                         this._normalizeModel();
-                        this._renderUI();
-                        this._syncLD();
                         this._pushHistory();
+                        this._scheduleSync();
+                        this._scheduleRender();
                     }
                 }
             } catch {
@@ -2973,17 +2991,17 @@ class PetriView extends HTMLElement {
             }
             a.weight = newWeight;
             this._normalizeModel();
-            this._renderUI();
-            this._syncLD();
             this._pushHistory();
+            this._scheduleSync();
+            this._scheduleRender();
             return;
         }
         if (this._modeCan('canDeleteOnClick')) {
             this._model.arcs = (this._model.arcs || []).filter((_, j) => j !== i);
             this._normalizeModel();
-            this._renderUI();
-            this._syncLD();
             this._pushHistory();
+            this._scheduleSync();
+            this._scheduleRender();
         }
     }
 
@@ -3003,16 +3021,16 @@ class PetriView extends HTMLElement {
         this._model.arcs = (this._model.arcs || []).filter(a => a.source !== id && a.target !== id);
         if (this._arcDraft && this._arcDraft.source === id) this._arcDraft = null;
         this._normalizeModel();
-        this._renderUI();
-        this._syncLD();
         this._pushHistory();
+        this._scheduleSync();
+        this._scheduleRender();
         this.dispatchEvent(new CustomEvent('node-deleted', {detail: {id}}));
     }
 
     _deleteNodes(ids) {
         if (!this._model || !ids || ids.length === 0) return;
         let changed = false;
-        
+
         // Delete all nodes from the model
         for (const id of ids) {
             if (this._model.places && this._model.places[id]) {
@@ -3024,24 +3042,24 @@ class PetriView extends HTMLElement {
                 changed = true;
             }
         }
-        
+
         if (!changed) return;
-        
+
         // Filter arcs connected to any deleted node
         const idsSet = new Set(ids);
         this._model.arcs = (this._model.arcs || []).filter(a => !idsSet.has(a.source) && !idsSet.has(a.target));
-        
+
         // Clear arc draft if it references any deleted node
         if (this._arcDraft && idsSet.has(this._arcDraft.source)) {
             this._arcDraft = null;
         }
-        
+
         // Only render/sync/history once after all deletions
         this._normalizeModel();
-        this._renderUI();
-        this._syncLD();
         this._pushHistory();
-        
+        this._scheduleSync();
+        this._scheduleRender();
+
         // Dispatch events for each deleted node
         for (const id of ids) {
             this.dispatchEvent(new CustomEvent('node-deleted', {detail: {id}}));
@@ -3333,6 +3351,11 @@ class PetriView extends HTMLElement {
 
 
     _onRootClick(ev) {
+        // Skip if already created on pointerup (prevents double-creation)
+        if (this._createdOnPointerUp) {
+            this._createdOnPointerUp = false;
+            return;
+        }
         if (ev.target.closest('.pv-node') || ev.target.closest('.pv-weight') || ev.target.closest('.pv-menu')) return;
         const rect = this._stage.getBoundingClientRect();
         const x = Math.round(ev.clientX - rect.left);
@@ -3342,16 +3365,16 @@ class PetriView extends HTMLElement {
             const id = this._genId('p');
             this._model.places[id] = {'@type': 'Place', x, y, initial: [0], capacity: [Infinity]};
             this._normalizeModel();
-            this._renderUI();
-            this._syncLD();
             this._pushHistory();
+            this._scheduleSync();
+            this._scheduleRender();
         } else if (this._modeCan('canCreateTransition')) {
             const id = this._genId('t');
             this._model.transitions[id] = {'@type': 'Transition', x, y};
             this._normalizeModel();
-            this._renderUI();
-            this._syncLD();
             this._pushHistory();
+            this._scheduleSync();
+            this._scheduleRender();
         }
     }
 
@@ -3498,9 +3521,9 @@ class PetriView extends HTMLElement {
                     t.y = ny;
                 }
             }
-            this._renderUI();
-            this._syncLD();
             this._pushHistory();
+            this._scheduleSync();
+            this._scheduleRender();
             this.dispatchEvent(new CustomEvent('node-moved', {detail: {id, kind}}));
         };
 
@@ -3586,9 +3609,9 @@ class PetriView extends HTMLElement {
                 }
             }
 
-            this._renderUI();
-            this._syncLD();
             this._pushHistory();
+            this._scheduleSync();
+            this._scheduleRender();
             this.dispatchEvent(new CustomEvent('group-moved', {detail: {ids: Array.from(this._selectedNodes)}}));
         };
 
@@ -3686,9 +3709,9 @@ class PetriView extends HTMLElement {
                 }
             }
 
-            this._renderUI();
-            this._syncLD();
             this._pushHistory();
+            this._scheduleSync();
+            this._scheduleRender();
             this.dispatchEvent(new CustomEvent('group-moved', {detail: {ids: Array.from(this._selectedNodes)}}));
         };
 
@@ -4321,9 +4344,9 @@ class PetriView extends HTMLElement {
         this._model.arcs.push({'@type': 'Arrow', source, target, weight: [w], inhibitTransition: inhibit});
         this._arcDraft = null;
         this._normalizeModel();
-        this._renderUI();
-        this._syncLD();
         this._pushHistory();
+        this._scheduleSync();
+        this._scheduleRender();
     }
 
     _updateArcDraftHighlight() {
@@ -7883,10 +7906,11 @@ class PetriView extends HTMLElement {
                 return;
             }
 
-            // Clear pending pan (threshold not exceeded, so click will create element)
+            // Clear pending pan (threshold not exceeded) - create element directly
             if (this._panPending) {
+                const pending = this._panPending;
                 try {
-                    if (this._canvasContainer.releasePointerCapture) this._canvasContainer.releasePointerCapture(this._panPending.pointerId ?? e.pointerId);
+                    if (this._canvasContainer.releasePointerCapture) this._canvasContainer.releasePointerCapture(pending.pointerId ?? e.pointerId);
                 } catch { /* ignore */
                 }
                 this._panPending = null;
@@ -7894,6 +7918,29 @@ class PetriView extends HTMLElement {
                     this._canvasContainer.style.cursor = '';
                     document.body.style.cursor = '';
                 } catch { /* ignore */
+                }
+
+                // Create element at the original pointer position (don't rely on click event)
+                const rect = this._stage.getBoundingClientRect();
+                const x = Math.round(pending.x - rect.left);
+                const y = Math.round(pending.y - rect.top);
+
+                if (this._modeCan('canCreatePlace')) {
+                    const id = this._genId('p');
+                    this._model.places[id] = {'@type': 'Place', x, y, initial: [0], capacity: [Infinity]};
+                    this._normalizeModel();
+                    this._pushHistory();
+                    this._scheduleSync();
+                    this._scheduleRender();
+                    this._createdOnPointerUp = true;
+                } else if (this._modeCan('canCreateTransition')) {
+                    const id = this._genId('t');
+                    this._model.transitions[id] = {'@type': 'Transition', x, y};
+                    this._normalizeModel();
+                    this._pushHistory();
+                    this._scheduleSync();
+                    this._scheduleRender();
+                    this._createdOnPointerUp = true;
                 }
                 return;
             }
