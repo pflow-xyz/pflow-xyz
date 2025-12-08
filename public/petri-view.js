@@ -71,6 +71,8 @@ class PetriView extends HTMLElement {
         // pan/zoom
         this._view = {scale: 1, tx: 0, ty: 0};
         this._panning = null;
+        this._panPending = null; // pending pan until movement threshold exceeded
+        this._panThreshold = 10; // pixels before pan activates
         this._spaceDown = false;
         this._minScale = 0.5;
         this._maxScale = 2.5;
@@ -7780,6 +7782,8 @@ class PetriView extends HTMLElement {
                 return;
             }
 
+            // In modes that create elements on click, use threshold-based pan
+            const createsOnClick = this._modeCan('canCreatePlace') || this._modeCan('canCreateTransition');
             const isPan = this._spaceDown || e.button === 1 || e.altKey || e.ctrlKey || e.metaKey || (leftButton && !clickedInteractive);
 
             if (isPan) {
@@ -7788,31 +7792,41 @@ class PetriView extends HTMLElement {
                 if (this._boxSelect) {
                     this._boxSelect = null;
                 }
-                
-                // Clear selection when panning starts (since orange highlight will not be visible)
-                if (this._selectedNodes.size > 0) {
-                    this._clearSelection();
-                }
-                
-                // start panning
-                this._panning = {
+
+                const panState = {
                     x: e.clientX,
                     y: e.clientY,
                     tx: this._view.tx,
                     ty: this._view.ty,
                     pointerId: e.pointerId
                 };
-                // set grabbing cursor during pan (apply to canvas container and body to ensure coverage)
-                try {
-                    this._canvasContainer.style.cursor = 'grabbing';
-                    document.body.style.cursor = 'grabbing';
-                } catch { /* ignore */
-                }
 
-                // capture pointer on canvas container so we receive move/up outside it
-                try {
-                    if (this._canvasContainer.setPointerCapture) this._canvasContainer.setPointerCapture(e.pointerId);
-                } catch { /* ignore */
+                // If in a mode that creates on click, start as pending (threshold-based)
+                if (createsOnClick && leftButton && !this._spaceDown && !e.altKey && !e.ctrlKey && !e.metaKey && e.button !== 1) {
+                    this._panPending = panState;
+                    // capture pointer so we receive move/up events
+                    try {
+                        if (this._canvasContainer.setPointerCapture) this._canvasContainer.setPointerCapture(e.pointerId);
+                    } catch { /* ignore */
+                    }
+                } else {
+                    // Clear selection when panning starts (since orange highlight will not be visible)
+                    if (this._selectedNodes.size > 0) {
+                        this._clearSelection();
+                    }
+                    // start panning immediately
+                    this._panning = panState;
+                    // set grabbing cursor during pan (apply to canvas container and body to ensure coverage)
+                    try {
+                        this._canvasContainer.style.cursor = 'grabbing';
+                        document.body.style.cursor = 'grabbing';
+                    } catch { /* ignore */
+                    }
+                    // capture pointer on canvas container so we receive move/up outside it
+                    try {
+                        if (this._canvasContainer.setPointerCapture) this._canvasContainer.setPointerCapture(e.pointerId);
+                    } catch { /* ignore */
+                    }
                 }
             }
         });
@@ -7826,7 +7840,26 @@ class PetriView extends HTMLElement {
                 this._draw();
                 return;
             }
-            
+
+            // Check if pending pan should activate (threshold exceeded)
+            if (this._panPending) {
+                const dx = e.clientX - this._panPending.x;
+                const dy = e.clientY - this._panPending.y;
+                if (dx * dx + dy * dy > this._panThreshold * this._panThreshold) {
+                    // Promote to actual panning
+                    if (this._selectedNodes.size > 0) {
+                        this._clearSelection();
+                    }
+                    this._panning = this._panPending;
+                    this._panPending = null;
+                    try {
+                        this._canvasContainer.style.cursor = 'grabbing';
+                        document.body.style.cursor = 'grabbing';
+                    } catch { /* ignore */
+                    }
+                }
+            }
+
             if (!this._panning) return;
             this._view.tx = this._panning.tx + (e.clientX - this._panning.x);
             this._view.ty = this._panning.ty + (e.clientY - this._panning.y);
@@ -7847,6 +7880,21 @@ class PetriView extends HTMLElement {
                 this._selectNodesInBox();
                 this._boxSelect = null;
                 this._draw(); // redraw to clear the bounding box
+                return;
+            }
+
+            // Clear pending pan (threshold not exceeded, so click will create element)
+            if (this._panPending) {
+                try {
+                    if (this._canvasContainer.releasePointerCapture) this._canvasContainer.releasePointerCapture(this._panPending.pointerId ?? e.pointerId);
+                } catch { /* ignore */
+                }
+                this._panPending = null;
+                try {
+                    this._canvasContainer.style.cursor = '';
+                    document.body.style.cursor = '';
+                } catch { /* ignore */
+                }
                 return;
             }
 
