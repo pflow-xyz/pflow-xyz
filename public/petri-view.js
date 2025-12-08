@@ -113,10 +113,13 @@ class PetriView extends HTMLElement {
         this._simulationDialog = null;
         this._solverModule = null;
         
-        // Long-press support for touch devices (for inhibitor arcs)
+        // Long-press support for touch/pen devices (for inhibitor arcs)
         this._longPressTimer = null;
         this._longPressThreshold = 500; // ms to trigger long-press
         this._longPressTriggered = false;
+        this._longPressStartX = 0;
+        this._longPressStartY = 0;
+        this._longPressMoveThreshold = 15; // pixels of movement allowed
     }
 
     // observe compact flag and json editor toggle
@@ -2556,13 +2559,13 @@ class PetriView extends HTMLElement {
             ev.stopPropagation();
             this._onPlaceContext(id, ev);
         });
-        // Long-press support for touch devices (triggers context menu action)
+        // Long-press support for touch/pen devices (triggers context menu action)
         el.addEventListener('pointerdown', (ev) => {
-            if (ev.pointerType === 'touch' && this._modeCan('canLongPressInhibitor')) {
+            if ((ev.pointerType === 'touch' || ev.pointerType === 'pen') && this._modeCan('canLongPressInhibitor')) {
                 this._startLongPress(() => {
                     if (navigator.vibrate) navigator.vibrate(50);
                     this._onPlaceContext(id, null);
-                });
+                }, ev.clientX, ev.clientY);
             }
         });
         el.addEventListener('pointerup', () => {
@@ -2572,8 +2575,8 @@ class PetriView extends HTMLElement {
             this._cancelLongPress();
         });
         el.addEventListener('pointermove', (ev) => {
-            if (ev.pointerType === 'touch') {
-                this._cancelLongPress();
+            if (ev.pointerType === 'touch' || ev.pointerType === 'pen') {
+                this._cancelLongPressIfMoved(ev.clientX, ev.clientY);
             }
         });
         // Add hover event handlers to show token breakdown
@@ -2635,13 +2638,13 @@ class PetriView extends HTMLElement {
             ev.stopPropagation();
             this._onTransitionContext(id, ev);
         });
-        // Long-press support for touch devices (triggers context menu action)
+        // Long-press support for touch/pen devices (triggers context menu action)
         el.addEventListener('pointerdown', (ev) => {
-            if (ev.pointerType === 'touch' && this._modeCan('canLongPressInhibitor')) {
+            if ((ev.pointerType === 'touch' || ev.pointerType === 'pen') && this._modeCan('canLongPressInhibitor')) {
                 this._startLongPress(() => {
                     if (navigator.vibrate) navigator.vibrate(50);
                     this._onTransitionContext(id, null);
-                });
+                }, ev.clientX, ev.clientY);
             }
             // Skip drag when shift is held (for multi-select)
             if (ev.shiftKey && this._canMultiSelect()) {
@@ -2660,8 +2663,8 @@ class PetriView extends HTMLElement {
             this._cancelLongPress();
         });
         el.addEventListener('pointermove', (ev) => {
-            if (ev.pointerType === 'touch') {
-                this._cancelLongPress();
+            if (ev.pointerType === 'touch' || ev.pointerType === 'pen') {
+                this._cancelLongPressIfMoved(ev.clientX, ev.clientY);
             }
         });
 
@@ -2710,10 +2713,12 @@ class PetriView extends HTMLElement {
         this._weights.push(badge);
     }
 
-    // ---------------- Long-press support for touch devices ----------------
-    _startLongPress(callback) {
+    // ---------------- Long-press support for touch/pen devices ----------------
+    _startLongPress(callback, x, y) {
         this._cancelLongPress();
         this._longPressTriggered = false;
+        this._longPressStartX = x;
+        this._longPressStartY = y;
         this._longPressTimer = setTimeout(() => {
             this._longPressTriggered = true;
             callback();
@@ -2724,6 +2729,15 @@ class PetriView extends HTMLElement {
         if (this._longPressTimer) {
             clearTimeout(this._longPressTimer);
             this._longPressTimer = null;
+        }
+    }
+
+    _cancelLongPressIfMoved(x, y) {
+        if (!this._longPressTimer) return;
+        const dx = x - this._longPressStartX;
+        const dy = y - this._longPressStartY;
+        if (dx * dx + dy * dy > this._longPressMoveThreshold * this._longPressMoveThreshold) {
+            this._cancelLongPress();
         }
     }
 
@@ -2900,6 +2914,16 @@ class PetriView extends HTMLElement {
 
         if (this._modeCan('canDeleteOnClick')) {
             this._model.arcs = (this._model.arcs || []).filter((_, j) => j !== i);
+            this._normalizeModel();
+            this._renderUI();
+            this._syncLD();
+            this._pushHistory();
+            return;
+        }
+
+        // Toggle inhibitor flag when in arc mode
+        if (this._modeCan('canCreateArc')) {
+            a.inhibitTransition = !a.inhibitTransition;
             this._normalizeModel();
             this._renderUI();
             this._syncLD();
@@ -4559,7 +4583,7 @@ class PetriView extends HTMLElement {
                 <li><strong>⛶ Select:</strong> Default mode for panning and selecting elements</li>
                 <li><strong>◯ Place:</strong> Click to add places (token holders)</li>
                 <li><strong>▢ Transition:</strong> Click to add transitions (firing elements)</li>
-                <li><strong>→ Arc:</strong> Click source then target to create connections. Right-click (or long-press on touch) the target to create an inhibitor arc (prevents transition from firing when place has tokens)</li>
+                <li><strong>→ Arc:</strong> Click source then target to create connections. Right-click (or long-press on touch) the target to create an inhibitor arc. Click an arc's midpoint to toggle inhibitor</li>
                 <li><strong>• Token:</strong> Click places to add/remove tokens</li>
                 <li><strong>🗑 Delete:</strong> Click elements to remove them</li>
                 <li><strong>𝓐 Label:</strong> Click elements to edit their labels</li>
@@ -4580,7 +4604,7 @@ class PetriView extends HTMLElement {
             <ul style="margin: 6px 0 12px 20px; padding: 0;">
                 <li><strong>Tap:</strong> Click on elements</li>
                 <li><strong>Drag:</strong> Move elements or pan the canvas</li>
-                <li><strong>Long-press (hold 0.5s):</strong> Creates inhibitor arcs in Arc mode (same as right-click)</li>
+                <li><strong>Long-press (hold 0.5s):</strong> Creates inhibitor arcs in Arc mode (works with touch and Apple Pencil)</li>
                 <li><strong>Pinch:</strong> Zoom in/out (if browser supports)</li>
             </ul>
 
