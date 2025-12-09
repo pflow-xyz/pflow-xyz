@@ -11,10 +11,16 @@ const MODE_CAPS = {
     'add-place': {
         canCreatePlace: true,
         canDragNode: true,
+        canGroupDrag: true,
+        canMultiSelect: true,
+        canBoxSelect: true,
     },
     'add-transition': {
         canCreateTransition: true,
         canDragNode: true,
+        canGroupDrag: true,
+        canMultiSelect: true,
+        canBoxSelect: true,
     },
     'add-arc': {
         canCreateArc: true,
