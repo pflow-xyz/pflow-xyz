@@ -42,8 +42,6 @@ const MODE_CAPS = {
         canMultiSelect: true,
         canBoxSelect: true,
         canDeleteOnClick: true,
-        canDragNode: true,
-        canGroupDrag: true,
     },
 };
 
@@ -59,6 +57,7 @@ class PetriView extends HTMLElement {
         this._canvas = null;
         this._ctx = null;
         this._dpr = window.devicePixelRatio || 1;
+        this._canvasOffset = {x: 0, y: 0}; // offset for negative coordinates
 
         // model & script node
         this._model = {};
@@ -105,6 +104,7 @@ class PetriView extends HTMLElement {
         // render batching to prevent race conditions with rapid actions
         this._updateScheduled = false;
         this._createdOnPointerUp = false; // prevent double-creation from click event
+        this._dragOccurred = false; // prevent click action after drag
 
         this._ro = null;
 
@@ -2915,7 +2915,12 @@ class PetriView extends HTMLElement {
         }
 
         // Mode-specific actions
+        // Skip token modification if drag occurred (user was repositioning, not clicking)
         if (this._modeCan('canModifyTokens')) {
+            if (this._dragOccurred) {
+                this._dragOccurred = false;
+                return;
+            }
             const arr = Array.isArray(p.initial) ? p.initial : [Number(p.initial || 0)];
             arr[0] = (Number(arr[0]) || 0) + 1;
             p.initial = arr;
@@ -2927,6 +2932,10 @@ class PetriView extends HTMLElement {
             return;
         }
         if (this._modeCan('canCreateArc')) {
+            if (this._dragOccurred) {
+                this._dragOccurred = false;
+                return;
+            }
             this._arcNodeClicked(id);
             return;
         }
@@ -3036,6 +3045,10 @@ class PetriView extends HTMLElement {
 
         // Mode-specific actions
         if (this._modeCan('canCreateArc')) {
+            if (this._dragOccurred) {
+                this._dragOccurred = false;
+                return;
+            }
             this._arcNodeClicked(id);
             return;
         }
@@ -3576,23 +3589,19 @@ class PetriView extends HTMLElement {
         const scale = this._view.scale || 1;
         const offset = kind === 'place' ? 40 : 15;
         let currentLeft = startLeft, currentTop = startTop;
+        const dragThreshold = 5; // pixels before drag counts as intentional
 
         const move = (e) => {
             const dxLocal = (e.clientX - startX) / scale;
             const dyLocal = (e.clientY - startY) / scale;
+            // Mark drag as occurred if movement exceeds threshold
+            if (Math.abs(dxLocal) > dragThreshold || Math.abs(dyLocal) > dragThreshold) {
+                this._dragOccurred = true;
+            }
             let newLeft = startLeft + dxLocal;
             let newTop = startTop + dyLocal;
             currentLeft = newLeft;
             currentTop = newTop;
-            const minLeft = -offset, minTop = -offset;
-            if (newLeft < minLeft) {
-                newLeft = minLeft;
-                currentLeft = newLeft;
-            }
-            if (newTop < minTop) {
-                newTop = minTop;
-                currentTop = newTop;
-            }
             el.style.left = `${newLeft}px`;
             el.style.top = `${newTop}px`;
             if (kind === 'place') {
@@ -3613,7 +3622,7 @@ class PetriView extends HTMLElement {
                     t.y = y;
                 }
             }
-            this._draw();
+            this._onResize(); // expand canvas if node dragged past edge
         };
 
         const up = (e) => {
@@ -3650,6 +3659,7 @@ class PetriView extends HTMLElement {
                     t.y = ny;
                 }
             }
+            this._normalizeCoordinates(); // shift all nodes if any went negative
             this._pushHistory();
             this._scheduleSync();
             this._scheduleRender();
@@ -3659,6 +3669,38 @@ class PetriView extends HTMLElement {
         window.addEventListener('pointermove', move);
         window.addEventListener('pointerup', up);
         window.addEventListener('pointercancel', up);
+    }
+
+    _normalizeCoordinates() {
+        // Find minimum coordinates across all nodes
+        const places = this._model.places || {};
+        const transitions = this._model.transitions || {};
+        let minX = Infinity, minY = Infinity;
+
+        for (const p of Object.values(places)) {
+            if (p.x !== undefined) minX = Math.min(minX, p.x);
+            if (p.y !== undefined) minY = Math.min(minY, p.y);
+        }
+        for (const t of Object.values(transitions)) {
+            if (t.x !== undefined) minX = Math.min(minX, t.x);
+            if (t.y !== undefined) minY = Math.min(minY, t.y);
+        }
+
+        // If any coordinates are negative, shift everything to make them positive
+        const padding = 50; // minimum distance from origin
+        const shiftX = minX < padding ? padding - minX : 0;
+        const shiftY = minY < padding ? padding - minY : 0;
+
+        if (shiftX > 0 || shiftY > 0) {
+            for (const p of Object.values(places)) {
+                if (p.x !== undefined) p.x += shiftX;
+                if (p.y !== undefined) p.y += shiftY;
+            }
+            for (const t of Object.values(transitions)) {
+                if (t.x !== undefined) t.x += shiftX;
+                if (t.y !== undefined) t.y += shiftY;
+            }
+        }
     }
 
     _beginGroupDrag(ev, clickedId) {
@@ -3716,7 +3758,7 @@ class PetriView extends HTMLElement {
                     node.y = Math.round(newY);
                 }
             }
-            this._draw();
+            this._onResize(); // expand canvas if nodes dragged past edge
         };
 
         const up = (e) => {
@@ -3738,6 +3780,7 @@ class PetriView extends HTMLElement {
                 }
             }
 
+            this._normalizeCoordinates(); // shift all nodes if any went negative
             this._pushHistory();
             this._scheduleSync();
             this._scheduleRender();
@@ -3810,7 +3853,7 @@ class PetriView extends HTMLElement {
                     node.y = Math.round(newY);
                 }
             }
-            this._draw();
+            this._onResize(); // expand canvas if nodes dragged past edge
         };
 
         const up = (e) => {
@@ -3838,6 +3881,7 @@ class PetriView extends HTMLElement {
                 }
             }
 
+            this._normalizeCoordinates(); // shift all nodes if any went negative
             this._pushHistory();
             this._scheduleSync();
             this._scheduleRender();
@@ -3858,13 +3902,13 @@ class PetriView extends HTMLElement {
         
         // Calculate bounds of all nodes in the diagram
         const bounds = this._calculateDiagramBounds();
-        
+
         // Canvas should be large enough to contain the entire diagram bounds
         // Use diagram bounds with padding, but at least viewport size
         const padding = 100;
         const w = Math.max(viewportW, bounds.maxX + padding);
         const h = Math.max(viewportH, bounds.maxY + padding);
-        
+
         this._canvas.width = Math.floor(w * this._dpr);
         this._canvas.height = Math.floor(h * this._dpr);
         this._canvas.style.width = `${w}px`;
