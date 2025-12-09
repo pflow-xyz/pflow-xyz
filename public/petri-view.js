@@ -25,17 +25,25 @@ const MODE_CAPS = {
     'add-arc': {
         canCreateArc: true,
         canLongPressInhibitor: true,
+        canDragNode: true,
+        canGroupDrag: true,
+        canMultiSelect: true,
+        canBoxSelect: true,
     },
     'add-token': {
         canMultiSelect: true,
         canBoxSelect: true,
         canEditWeight: true,
         canModifyTokens: true,
+        canDragNode: true,
+        canGroupDrag: true,
     },
     'delete': {
         canMultiSelect: true,
         canBoxSelect: true,
         canDeleteOnClick: true,
+        canDragNode: true,
+        canGroupDrag: true,
     },
 };
 
