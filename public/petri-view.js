@@ -7912,6 +7912,83 @@ class PetriView extends HTMLElement {
             this._draw();
         }, {passive: false});
 
+        // pinch-to-zoom and two-finger pan for touch devices
+        this._activeTouches = new Map();
+        this._pinchState = null;
+
+        this._canvasContainer.addEventListener('touchstart', (e) => {
+            for (const touch of e.changedTouches) {
+                this._activeTouches.set(touch.identifier, {x: touch.clientX, y: touch.clientY});
+            }
+            if (this._activeTouches.size === 2) {
+                e.preventDefault();
+                const touches = Array.from(this._activeTouches.values());
+                const dx = touches[1].x - touches[0].x;
+                const dy = touches[1].y - touches[0].y;
+                const dist = Math.hypot(dx, dy);
+                const r = this._canvasContainer.getBoundingClientRect();
+                const cx = (touches[0].x + touches[1].x) / 2 - r.left;
+                const cy = (touches[0].y + touches[1].y) / 2 - r.top;
+                this._pinchState = {
+                    initialDist: dist,
+                    initialScale: this._view.scale,
+                    initialTx: this._view.tx,
+                    initialTy: this._view.ty,
+                    initialCx: cx,
+                    initialCy: cy
+                };
+            }
+        }, {passive: false});
+
+        this._canvasContainer.addEventListener('touchmove', (e) => {
+            for (const touch of e.changedTouches) {
+                if (this._activeTouches.has(touch.identifier)) {
+                    this._activeTouches.set(touch.identifier, {x: touch.clientX, y: touch.clientY});
+                }
+            }
+            if (this._pinchState && this._activeTouches.size === 2) {
+                e.preventDefault();
+                const touches = Array.from(this._activeTouches.values());
+                const dx = touches[1].x - touches[0].x;
+                const dy = touches[1].y - touches[0].y;
+                const dist = Math.hypot(dx, dy);
+                const r = this._canvasContainer.getBoundingClientRect();
+                const cx = (touches[0].x + touches[1].x) / 2 - r.left;
+                const cy = (touches[0].y + touches[1].y) / 2 - r.top;
+
+                // Calculate new scale
+                const scaleRatio = dist / this._pinchState.initialDist;
+                const newScale = Math.max(this._minScale, Math.min(this._maxScale,
+                    this._pinchState.initialScale * scaleRatio));
+
+                // Calculate pan offset from pinch center movement
+                const panDx = cx - this._pinchState.initialCx;
+                const panDy = cy - this._pinchState.initialCy;
+
+                // Apply zoom centered on pinch midpoint plus pan
+                const prev = this._pinchState.initialScale;
+                const zoomCx = this._pinchState.initialCx;
+                const zoomCy = this._pinchState.initialCy;
+                this._view.tx = zoomCx - (zoomCx - this._pinchState.initialTx) * (newScale / prev) + panDx;
+                this._view.ty = zoomCy - (zoomCy - this._pinchState.initialTy) * (newScale / prev) + panDy;
+                this._view.scale = newScale;
+
+                this._applyViewTransform();
+                this._draw();
+            }
+        }, {passive: false});
+
+        const endPinch = (e) => {
+            for (const touch of e.changedTouches) {
+                this._activeTouches.delete(touch.identifier);
+            }
+            if (this._activeTouches.size < 2) {
+                this._pinchState = null;
+            }
+        };
+        this._canvasContainer.addEventListener('touchend', endPinch, {passive: false});
+        this._canvasContainer.addEventListener('touchcancel', endPinch, {passive: false});
+
         window.addEventListener('keydown', (e) => {
             // Check if user is typing in an input/textarea to avoid interfering
             const activeEl = document.activeElement;

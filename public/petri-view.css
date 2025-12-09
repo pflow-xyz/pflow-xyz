@@ -3,6 +3,8 @@ html, body {
     padding: 0;
     height: 100%;
     overflow: hidden;
+    /* Prevent browser pinch-to-zoom - app handles its own pinch gestures */
+    touch-action: none;
 }
 
 petri-view {
