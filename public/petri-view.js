@@ -7765,7 +7765,8 @@ class PetriView extends HTMLElement {
 
         // Reset canvas container to full size
         if (this._canvasContainer) {
-            this._canvasContainer.style.flex = '1 1 auto';
+            this._canvasContainer.style.flex = '1 1 100%';
+            this._canvasContainer.style.height = '100%';
         }
 
         // Reset layout to default
