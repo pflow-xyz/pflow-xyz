@@ -59,6 +59,7 @@ class PetriView extends HTMLElement {
         this._jsonEditorTextarea = null;
         this._jsonEditorTimer = null;
         this._editingJson = false;
+        this._syncingEditor = false; // flag to prevent change handler during programmatic updates
 
         // editing state
         this._mode = 'select';
@@ -2514,19 +2515,72 @@ class PetriView extends HTMLElement {
     _scheduleRender() { this._scheduleUpdate(); }
 
     _renderUI() {
-        // remove old dom nodes and badges
-        for (const n of Object.values(this._nodes)) n.remove();
-        this._nodes = {};
-        for (const b of this._weights) b.remove();
-        this._weights = [];
-
         const places = this._model.places || {};
         const transitions = this._model.transitions || {};
         const arcs = this._model.arcs || [];
 
-        for (const [id, p] of Object.entries(places)) this._createPlaceElement(id, p);
-        for (const [id, t] of Object.entries(transitions)) this._createTransitionElement(id, t);
-        arcs.forEach((arc, idx) => this._createWeightBadge(arc, idx));
+        // Track which node IDs are in the current model
+        const currentNodeIds = new Set([...Object.keys(places), ...Object.keys(transitions)]);
+
+        // Remove nodes that no longer exist in model
+        for (const id of Object.keys(this._nodes)) {
+            if (!currentNodeIds.has(id)) {
+                this._nodes[id].remove();
+                delete this._nodes[id];
+            }
+        }
+
+        // Create or update places
+        for (const [id, p] of Object.entries(places)) {
+            if (this._nodes[id]) {
+                this._updatePlaceElement(id, p);
+            } else {
+                this._createPlaceElement(id, p);
+            }
+        }
+
+        // Create or update transitions
+        for (const [id, t] of Object.entries(transitions)) {
+            if (this._nodes[id]) {
+                this._updateTransitionElement(id, t);
+            } else {
+                this._createTransitionElement(id, t);
+            }
+        }
+
+        // For badges, use source->target as stable key
+        const arcKeyToIdx = new Map();
+        arcs.forEach((arc, idx) => {
+            arcKeyToIdx.set(`${arc.source}->${arc.target}`, idx);
+        });
+
+        // Build map of existing badges by their arc key
+        const existingBadges = new Map();
+        for (const b of this._weights) {
+            const key = b.dataset.arcKey;
+            if (key) existingBadges.set(key, b);
+        }
+
+        // Remove badges for arcs that no longer exist
+        for (const [key, badge] of existingBadges) {
+            if (!arcKeyToIdx.has(key)) {
+                badge.remove();
+                existingBadges.delete(key);
+            }
+        }
+
+        // Create or update badges
+        this._weights = [];
+        arcs.forEach((arc, idx) => {
+            const key = `${arc.source}->${arc.target}`;
+            const existing = existingBadges.get(key);
+            if (existing) {
+                this._updateWeightBadge(existing, arc, idx);
+                this._weights.push(existing);
+            } else {
+                this._createWeightBadge(arc, idx, key);
+            }
+        });
 
         this._renderTokens();
         this._updateTransitionStates();
@@ -2534,6 +2588,75 @@ class PetriView extends HTMLElement {
         this._updateArcDraftHighlight();
         this._updateMenuActive();
         this._updateSelectionHighlights();
+        this._draw(); // ensure arc draft and other canvas elements are rendered
+    }
+
+    _updatePlaceElement(id, p) {
+        const el = this._nodes[id];
+        if (!el) return;
+        // Update position
+        el.style.left = `${(p.x || 0) - 40}px`;
+        el.style.top = `${(p.y || 0) - 40}px`;
+        // Update label
+        const label = el.querySelector('.pv-label');
+        if (label) {
+            const newLabel = p.label || id;
+            if (label.textContent !== newLabel) {
+                label.textContent = newLabel;
+            }
+        }
+    }
+
+    _updateTransitionElement(id, t) {
+        const el = this._nodes[id];
+        if (!el) return;
+        // Update position
+        el.style.left = `${(t.x || 0) - 15}px`;
+        el.style.top = `${(t.y || 0) - 15}px`;
+        // Update label
+        const label = el.querySelector('.pv-label');
+        if (label) {
+            const newLabel = t.label || id;
+            if (label.textContent !== newLabel) {
+                label.textContent = newLabel;
+            }
+        }
+    }
+
+    _updateWeightBadge(badge, arc, idx) {
+        // Update arc index
+        badge.dataset.arc = String(idx);
+        // Update weight display
+        const w = this._getBadgeWeight(arc);
+        const newText = w > 1 ? `${w}` : '1';
+        if (badge.textContent !== newText) {
+            badge.textContent = newText;
+        }
+        // Update inhibitor state
+        const isInhibitor = !!arc.inhibitTransition;
+        const wasInhibitor = badge.classList.contains('pv-weight-inhibit');
+        if (isInhibitor !== wasInhibitor) {
+            badge.classList.toggle('pv-weight-inhibit', isInhibitor);
+            if (isInhibitor) {
+                badge.title = 'inhibitor';
+                badge.dataset.inhibit = '1';
+            } else {
+                badge.title = '';
+                delete badge.dataset.inhibit;
+            }
+        }
+    }
+
+    _getBadgeWeight(arc) {
+        if (arc.weight == null) return 1;
+        if (Array.isArray(arc.weight)) {
+            for (const weight of arc.weight) {
+                const val = Number(weight) || 0;
+                if (val > 0) return val;
+            }
+            return 1;
+        }
+        return Number(arc.weight) || 1;
     }
 
     _createPlaceElement(id, p) {
@@ -2692,30 +2815,20 @@ class PetriView extends HTMLElement {
         this._nodes[id] = el;
     }
 
-    _createWeightBadge(arc, idx) {
-        const w = (() => {
-            if (arc.weight == null) return 1;
-            if (Array.isArray(arc.weight)) {
-                // For colored Petri nets, find the first non-zero weight
-                for (const weight of arc.weight) {
-                    const val = Number(weight) || 0;
-                    if (val > 0) return val;
-                }
-                return 1; // Default to 1 if all weights are zero
-            }
-            return Number(arc.weight) || 1;
-        })();
+    _createWeightBadge(arc, idx, arcKey) {
+        const w = this._getBadgeWeight(arc);
         const badge = document.createElement('div');
         badge.className = 'pv-weight';
         badge.style.pointerEvents = 'auto';
         badge.dataset.arc = String(idx);
+        badge.dataset.arcKey = arcKey || `${arc.source}->${arc.target}`;
         badge.textContent = w > 1 ? `${w}` : '1';
         this._applyStyles(badge, {position: 'absolute'});
 
         // mark inhibitor badges so CSS can target them
         if (arc.inhibitTransition) {
             badge.classList.add('pv-weight-inhibit');
-            badge.title = (badge.title ? badge.title + ' ' : '') + 'inhibitor';
+            badge.title = 'inhibitor';
             badge.dataset.inhibit = '1';
         }
 
@@ -7595,12 +7708,19 @@ class PetriView extends HTMLElement {
 
     _updateJsonEditor() {
         if (this._editingJson) return;
+        // Cancel any pending editor timer to prevent stale updates
+        if (this._jsonEditorTimer) {
+            clearTimeout(this._jsonEditorTimer);
+            this._jsonEditorTimer = null;
+        }
         const pretty = !this.hasAttribute('data-compact');
         const text = pretty ? this._stableStringify(this._model, 2) : JSON.stringify(this._model);
         if (this._aceEditor) {
             // avoid clobbering user's edits
             if (!this._editingJson && this._aceEditor.session.getValue() !== text) {
+                this._syncingEditor = true; // prevent change handler from re-parsing
                 this._aceEditor.session.setValue(text, -1); // -1 keeps cursor/undo state intact
+                this._syncingEditor = false;
                 if (this._jsonEditorTextarea) this._jsonEditorTextarea.value = text;
                 if (this._jsonEditorTextarea) this._jsonEditorTextarea.style.borderColor = '#ccc';
             }
@@ -7615,6 +7735,8 @@ class PetriView extends HTMLElement {
 
     _onJsonEditorInput(flush = false) {
         if (!this._jsonEditorTextarea && !this._aceEditor) return;
+        // Skip if this is a programmatic update, not a user edit
+        if (this._syncingEditor) return;
         this._editingJson = true;
         if (this._jsonEditorTimer) {
             clearTimeout(this._jsonEditorTimer);
