@@ -3899,20 +3899,31 @@ class PetriView extends HTMLElement {
         const rect = this._canvasContainer ? this._canvasContainer.getBoundingClientRect() : this._root.getBoundingClientRect();
         const viewportW = Math.max(300, Math.floor(rect.width));
         const viewportH = Math.max(200, Math.floor(rect.height));
-        
+
         // Calculate bounds of all nodes in the diagram
         const bounds = this._calculateDiagramBounds();
 
         // Canvas should be large enough to contain the entire diagram bounds
-        // Use diagram bounds with padding, but at least viewport size
+        // Account for negative coordinates by positioning canvas with negative margin
         const padding = 100;
-        const w = Math.max(viewportW, bounds.maxX + padding);
-        const h = Math.max(viewportH, bounds.maxY + padding);
+
+        // If nodes are at negative coordinates, extend canvas to cover that area
+        const extraLeft = bounds.minX < 0 ? -bounds.minX + padding : 0;
+        const extraTop = bounds.minY < 0 ? -bounds.minY + padding : 0;
+
+        // Store offset for use in _draw() and element positioning
+        this._canvasOffset = { x: extraLeft, y: extraTop };
+
+        const w = Math.max(viewportW, bounds.maxX + padding) + extraLeft;
+        const h = Math.max(viewportH, bounds.maxY + padding) + extraTop;
 
         this._canvas.width = Math.floor(w * this._dpr);
         this._canvas.height = Math.floor(h * this._dpr);
         this._canvas.style.width = `${w}px`;
         this._canvas.style.height = `${h}px`;
+        // Position canvas to cover negative coordinate space
+        this._canvas.style.marginLeft = `-${extraLeft}px`;
+        this._canvas.style.marginTop = `-${extraTop}px`;
         this._ctx.setTransform(this._dpr, 0, 0, this._dpr, 0, 0);
         this._draw();
     }
@@ -4149,7 +4160,11 @@ class PetriView extends HTMLElement {
         const scale = this._view.scale || 1;
         const viewTx = this._view.tx || 0;
         const viewTy = this._view.ty || 0;
-        
+
+        // Canvas offset for negative coordinates (canvas positioned with negative margins)
+        const offsetX = this._canvasOffset?.x || 0;
+        const offsetY = this._canvasOffset?.y || 0;
+
         ctx.lineWidth = 1;
 
         const arcs = this._model.arcs || [];
@@ -4162,7 +4177,7 @@ class PetriView extends HTMLElement {
             const srcEl = this._nodes[arc.source];
             const trgEl = this._nodes[arc.target];
             if (!srcEl || !trgEl) return;
-            
+
             // Get screen coordinates and convert to root-relative coordinates
             const srcRect = srcEl.getBoundingClientRect();
             const trgRect = trgEl.getBoundingClientRect();
@@ -4170,12 +4185,13 @@ class PetriView extends HTMLElement {
             const syScreen = (srcRect.top + srcRect.height / 2) - rootRect.top;
             const txScreen = (trgRect.left + trgRect.width / 2) - rootRect.left;
             const tyScreen = (trgRect.top + trgRect.height / 2) - rootRect.top;
-            
-            // Transform back to untransformed stage coordinates
-            const sx = (sxScreen - viewTx) / scale;
-            const sy = (syScreen - viewTy) / scale;
-            const tx = (txScreen - viewTx) / scale;
-            const ty = (tyScreen - viewTy) / scale;
+
+            // Transform back to untransformed stage coordinates, adding offset for negative coords
+            // Canvas is positioned with negative margins, so we add offset to canvas coords
+            const sx = (sxScreen - viewTx) / scale + offsetX;
+            const sy = (syScreen - viewTy) / scale + offsetY;
+            const tx = (txScreen - viewTx) / scale + offsetX;
+            const ty = (tyScreen - viewTy) / scale + offsetY;
 
             const srcIsPlace = srcEl.classList.contains('pv-place');
             const trgIsPlace = trgEl.classList.contains('pv-place');
@@ -4307,8 +4323,9 @@ class PetriView extends HTMLElement {
             if (badge) {
                 const offX = (badge.offsetWidth || 20) / 2;
                 const offY = (badge.offsetHeight || 20) / 2;
-                badge.style.left = `${Math.round(bx - offX)}px`;
-                badge.style.top = `${Math.round(by - offY)}px`;
+                // Badge is DOM element relative to stage, so subtract canvas offset
+                badge.style.left = `${Math.round(bx - offX - offsetX)}px`;
+                badge.style.top = `${Math.round(by - offY - offsetY)}px`;
                 
                 // Set badge background and border color based on arc color
                 const bgColor = active ? this._lightenColor(arcColor, 0.85) : '#fafafa';
@@ -4325,11 +4342,11 @@ class PetriView extends HTMLElement {
                 const srcRect = srcEl.getBoundingClientRect();
                 const sxScreen = (srcRect.left + srcRect.width / 2) - rootRect.left;
                 const syScreen = (srcRect.top + srcRect.height / 2) - rootRect.top;
-                const sx = (sxScreen - viewTx) / scale;
-                const sy = (syScreen - viewTy) / scale;
-                const mx = (this._mouse.x - viewTx) / scale;
-                const my = (this._mouse.y - viewTy) / scale;
-                
+                const sx = (sxScreen - viewTx) / scale + offsetX;
+                const sy = (syScreen - viewTy) / scale + offsetY;
+                const mx = (this._mouse.x - viewTx) / scale + offsetX;
+                const my = (this._mouse.y - viewTy) / scale + offsetY;
+
                 ctx.setLineDash([4, 4]);
                 ctx.strokeStyle = '#666';
                 ctx.beginPath();
@@ -4347,11 +4364,11 @@ class PetriView extends HTMLElement {
             const minY = Math.min(this._boxSelect.startY, this._boxSelect.endY);
             const maxY = Math.max(this._boxSelect.startY, this._boxSelect.endY);
 
-            // Convert to untransformed stage coordinates for drawing
-            const x1 = (minX - viewTx) / scale;
-            const y1 = (minY - viewTy) / scale;
-            const x2 = (maxX - viewTx) / scale;
-            const y2 = (maxY - viewTy) / scale;
+            // Convert to untransformed stage coordinates for drawing, with offset
+            const x1 = (minX - viewTx) / scale + offsetX;
+            const y1 = (minY - viewTy) / scale + offsetY;
+            const x2 = (maxX - viewTx) / scale + offsetX;
+            const y2 = (maxY - viewTy) / scale + offsetY;
 
             ctx.setLineDash([4, 4]);
             ctx.strokeStyle = 'rgba(255, 165, 0, 0.8)';
