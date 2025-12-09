@@ -3288,7 +3288,8 @@ class PetriView extends HTMLElement {
         this._menu.appendChild(playBtn);
         this._menuPlayBtn = playBtn;
 
-        this._canvasContainer.appendChild(this._menu);
+        // Append to root (not canvasContainer) for reliable positioning on iPad
+        this._root.appendChild(this._menu);
         this._root.addEventListener('click', (ev) => this._onRootClick(ev));
 
         // Ensure the menu reflects the current mode (e.g. default 'select') right after creation
