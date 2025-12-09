@@ -1117,6 +1117,8 @@ class PetriView extends HTMLElement {
 
         // Trigger resize to adjust canvas and editor
         this._onResize();
+        // Ensure menu is repositioned back to canvas container
+        this._repositionMenu();
     }
 
     // ---------------- layout toggle ----------------
@@ -1169,6 +1171,10 @@ class PetriView extends HTMLElement {
 
     // ---------------- divider handling ----------------
     _initDividerPosition() {
+        // Reset height/minHeight that may have been set when editor was closed
+        this._canvasContainer.style.height = '';
+        this._canvasContainer.style.minHeight = '';
+
         // Try to load saved position from localStorage
         try {
             const saved = localStorage.getItem('pv-divider-position');
@@ -3288,8 +3294,7 @@ class PetriView extends HTMLElement {
         this._menu.appendChild(playBtn);
         this._menuPlayBtn = playBtn;
 
-        // Append to root (not canvasContainer) for reliable positioning on iPad
-        this._root.appendChild(this._menu);
+        this._canvasContainer.appendChild(this._menu);
         this._root.addEventListener('click', (ev) => this._onRootClick(ev));
 
         // Ensure the menu reflects the current mode (e.g. default 'select') right after creation
@@ -3927,6 +3932,8 @@ class PetriView extends HTMLElement {
         this._canvas.style.marginTop = `-${extraTop}px`;
         this._ctx.setTransform(this._dpr, 0, 0, this._dpr, 0, 0);
         this._draw();
+        // Reposition menu to stay above editor (iPad fix)
+        this._repositionMenu();
     }
 
     _calculateDiagramBounds() {
@@ -7768,6 +7775,7 @@ class PetriView extends HTMLElement {
         if (this._canvasContainer) {
             this._canvasContainer.style.flex = '1 1 100%';
             this._canvasContainer.style.height = '100%';
+            this._canvasContainer.style.minHeight = '100%';
         }
 
         // Reset layout to default
@@ -7781,8 +7789,40 @@ class PetriView extends HTMLElement {
         // Remove the attribute to keep state consistent
         this.removeAttribute('data-json-editor');
 
-        // Trigger resize
+        // Force layout reflow then resize (fixes iPad Chrome/Safari flex issues)
+        void this._canvasContainer?.offsetHeight;
         this._onResize();
+        // Multiple resize attempts for iPad browsers
+        requestAnimationFrame(() => {
+            this._onResize();
+            this._repositionMenu();
+        });
+        setTimeout(() => {
+            this._onResize();
+            this._repositionMenu();
+        }, 100);
+        setTimeout(() => this._repositionMenu(), 300);
+    }
+
+    _repositionMenu() {
+        // Explicitly reposition menu based on editor state (iPad fix)
+        if (!this._menu || !this._canvasContainer) return;
+
+        if (this._jsonEditor) {
+            // Editor is open - menu in canvasContainer with absolute positioning
+            if (this._menu.parentElement !== this._canvasContainer) {
+                this._canvasContainer.appendChild(this._menu);
+            }
+            this._menu.style.position = 'absolute';
+            this._menu.style.bottom = '10px';
+        } else {
+            // Editor is closed - use fixed positioning relative to viewport (iPad fix)
+            if (this._menu.parentElement !== this._root) {
+                this._root.appendChild(this._menu);
+            }
+            this._menu.style.position = 'fixed';
+            this._menu.style.bottom = '17px'; // extra padding for iPad home indicator
+        }
     }
 
     _updateJsonEditor() {
