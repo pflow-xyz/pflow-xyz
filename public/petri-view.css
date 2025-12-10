@@ -376,3 +376,1145 @@ canvas.pv-canvas {
     outline: 2px solid rgba(42, 111, 184, 0.5);
     outline-offset: 2px;
 }
+
+/* ============================================
+   ACE Editor Toolbar & Components
+   ============================================ */
+
+.pv-ace-toolbar {
+    display: flex;
+    gap: 6px;
+    padding: 6px 4px;
+    align-items: center;
+    background: transparent;
+}
+
+.pv-ace-toolbar-btn {
+    padding: 6px 8px;
+    border-radius: 6px;
+    border: 1px solid #ddd;
+    background: #fff;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.pv-ace-editor-wrapper {
+    width: 100%;
+    flex: 1 1 auto;
+    min-height: 120px;
+    box-sizing: border-box;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.pv-ace-editor {
+    width: 100%;
+    flex: 1 1 auto;
+    min-height: 120px;
+}
+
+/* ============================================
+   Modal Overlays & Dialogs
+   ============================================ */
+
+.pv-modal-overlay {
+    position: fixed;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 2147483646;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.pv-modal-dialog {
+    background: #fff;
+    border-radius: 8px;
+    padding: 24px;
+    max-width: 600px;
+    width: 100%;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.pv-modal-dialog-wide {
+    max-width: 700px;
+    max-height: 85vh;
+    overflow: auto;
+}
+
+.pv-modal-dialog-xl {
+    max-width: 900px;
+    max-height: 90vh;
+    border: 1px solid #ddd;
+    border-radius: 12px;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+}
+
+.pv-modal-title {
+    margin: 0 0 16px 0;
+    font-size: 20px;
+    font-weight: bold;
+    color: #333;
+}
+
+.pv-modal-title-lg {
+    font-size: 22px;
+}
+
+.pv-modal-description {
+    margin: '0 0 16px 0';
+    font-size: 14px;
+    color: #666;
+}
+
+/* ============================================
+   Dialog Headers
+   ============================================ */
+
+.pv-dialog-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 24px;
+    border-bottom: 1px solid #eee;
+    background: #fafafa;
+    border-radius: 12px 12px 0 0;
+}
+
+.pv-dialog-header-title {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 600;
+    color: #333;
+}
+
+.pv-dialog-close-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: none;
+    background: #f0f0f0;
+    cursor: pointer;
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #666;
+    transition: background 0.2s, color 0.2s;
+}
+
+.pv-dialog-close-icon:hover {
+    background: #e0e0e0;
+    color: #333;
+}
+
+.pv-dialog-close-icon:active {
+    background: #d0d0d0;
+}
+
+/* ============================================
+   Form Elements
+   ============================================ */
+
+.pv-input {
+    width: 100%;
+    padding: 10px 12px;
+    font-size: 14px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    box-sizing: border-box;
+    font-family: inherit;
+}
+
+.pv-input:focus {
+    outline: none;
+    border-color: #2a6fb8;
+}
+
+.pv-input-mono {
+    font-family: monospace;
+}
+
+.pv-input-sm {
+    padding: 6px 10px;
+    font-size: 13px;
+}
+
+.pv-textarea {
+    width: 100%;
+    padding: 12px;
+    font-size: 14px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    box-sizing: border-box;
+    font-family: monospace;
+    resize: vertical;
+    background: #f9f9f9;
+}
+
+.pv-textarea:focus {
+    outline: none;
+    border-color: #2a6fb8;
+}
+
+.pv-label {
+    font-size: 14px;
+    font-weight: 500;
+    color: #333;
+    display: block;
+    margin-bottom: 6px;
+}
+
+.pv-label-sm {
+    font-size: 13px;
+    margin-bottom: 4px;
+}
+
+/* ============================================
+   Buttons
+   ============================================ */
+
+.pv-btn {
+    padding: 8px 16px;
+    font-size: 14px;
+    font-weight: 500;
+    border-radius: 4px;
+    cursor: pointer;
+    border: 1px solid #ddd;
+    background: #f6f8fa;
+    color: #333;
+}
+
+.pv-btn:hover {
+    background: #e9ecef;
+}
+
+.pv-btn-primary {
+    color: #fff;
+    background: #2a6fb8;
+    border: none;
+}
+
+.pv-btn-primary:hover {
+    background: #235d9c;
+}
+
+.pv-btn-success {
+    color: #fff;
+    background: #28a745;
+    border: none;
+}
+
+.pv-btn-success:hover {
+    background: #218838;
+}
+
+.pv-btn-danger {
+    color: #fff;
+    background: #dc3545;
+    border: none;
+}
+
+.pv-btn-danger:hover {
+    background: #c82333;
+}
+
+.pv-btn-sm {
+    padding: 6px 12px;
+    font-size: 13px;
+}
+
+.pv-btn-lg {
+    padding: 12px 24px;
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.pv-btn-block {
+    width: 100%;
+}
+
+/* ============================================
+   Button Containers
+   ============================================ */
+
+.pv-btn-container {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    margin-top: 16px;
+}
+
+.pv-btn-container-center {
+    justify-content: center;
+}
+
+/* ============================================
+   Fallback Editor Toolbar
+   ============================================ */
+
+.pv-editor-toolbar {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+}
+
+.pv-editor-toolbar-btn {
+    padding: 6px 10px;
+    font-size: 12px;
+    border-radius: 4px;
+    border: 1px solid #ccc;
+    background: #fff;
+    cursor: pointer;
+}
+
+.pv-editor-toolbar-btn:hover {
+    background: #f0f0f0;
+}
+
+.pv-editor-textarea {
+    width: 100%;
+    flex: 1 1 auto;
+    min-height: 120px;
+    font-family: monospace;
+    font-size: 12px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    padding: 10px;
+    box-sizing: border-box;
+    resize: none;
+}
+
+/* ============================================
+   Open URL Dialog
+   ============================================ */
+
+.pv-url-dialog {
+    max-width: 500px;
+}
+
+.pv-url-dialog-title {
+    margin: 0 0 16px 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: #333;
+}
+
+.pv-headers-container {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 12px;
+    max-height: 150px;
+    overflow-y: auto;
+}
+
+.pv-header-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.pv-header-input {
+    flex: 1;
+    padding: 8px 10px;
+    font-size: 13px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+.pv-header-remove-btn {
+    padding: 6px 10px;
+    font-size: 12px;
+    background: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.pv-header-remove-btn:hover {
+    background: #f1b0b7;
+}
+
+.pv-add-header-btn {
+    padding: 6px 12px;
+    font-size: 12px;
+    background: #e7f3ff;
+    color: #0066cc;
+    border: 1px solid #b3d7ff;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-bottom: 16px;
+}
+
+.pv-add-header-btn:hover {
+    background: #cce5ff;
+}
+
+/* ============================================
+   Share Dialog
+   ============================================ */
+
+.pv-share-textarea {
+    width: 100%;
+    height: 60px;
+    padding: 12px;
+    font-size: 13px;
+    font-family: monospace;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    background: #f9f9f9;
+    resize: none;
+    box-sizing: border-box;
+}
+
+.pv-share-preview-container {
+    text-align: center;
+    padding: 16px;
+    background: #f9f9f9;
+    border-radius: 6px;
+    margin-bottom: 16px;
+}
+
+.pv-share-preview-img {
+    max-width: 100%;
+    max-height: 200px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+/* ============================================
+   Scale Meter
+   ============================================ */
+
+.pv-scale-meter {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 4px;
+    background: rgba(255, 255, 255, 0.9);
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    z-index: 100;
+    user-select: none;
+}
+
+.pv-scale-label {
+    font-size: 12px;
+    color: #333;
+    line-height: 1;
+}
+
+.pv-scale-reset {
+    font-size: 10px;
+    padding: 2px 6px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background: #fff;
+    cursor: pointer;
+    color: #555;
+    font-weight: 500;
+    line-height: 1;
+    margin-bottom: 4px;
+}
+
+.pv-scale-reset:hover {
+    background: #f0f0f0;
+    border-color: #999;
+}
+
+.pv-scale-track {
+    position: relative;
+    width: 10px;
+    height: 80px;
+    background: #e0e0e0;
+    border-radius: 5px;
+    cursor: pointer;
+    overflow: hidden;
+    align-self: center;
+}
+
+.pv-scale-fill {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: 0;
+    width: 6px;
+    background: #2a6fb8;
+    border-radius: 3px;
+    pointer-events: none;
+}
+
+.pv-scale-thumb {
+    position: absolute;
+    left: 50%;
+    transform: translate(-50%, 50%);
+    width: 14px;
+    height: 14px;
+    background: #2a6fb8;
+    border: 2px solid #fff;
+    border-radius: 50%;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+    pointer-events: none;
+}
+
+.pv-scale-legend {
+    font-size: 10px;
+    color: #888;
+    text-align: center;
+    line-height: 1.3;
+    margin-top: 2px;
+}
+
+/* ============================================
+   Help Dialog
+   ============================================ */
+
+.pv-help-content {
+    font-size: 14px;
+    line-height: 1.6;
+    color: #444;
+}
+
+.pv-help-close-btn {
+    display: block;
+    margin: 20px auto 0;
+    padding: 10px 32px;
+    font-size: 15px;
+    font-weight: 500;
+    color: #fff;
+    background: #007bff;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.pv-help-close-btn:hover {
+    background: #0056b3;
+}
+
+/* ============================================
+   Simulation Dialog
+   ============================================ */
+
+.pv-sim-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 24px;
+}
+
+.pv-sim-description {
+    margin: 0 0 20px 0;
+    font-size: 14px;
+    color: #666;
+    line-height: 1.5;
+}
+
+.pv-sim-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 24px;
+    margin-bottom: 24px;
+}
+
+.pv-sim-section {
+    flex: 1;
+    min-width: 200px;
+}
+
+.pv-sim-section-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 12px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid #eee;
+}
+
+.pv-sim-field-label {
+    font-size: 12px;
+    color: #666;
+    display: block;
+    margin-bottom: 4px;
+}
+
+.pv-sim-field-input {
+    width: 100%;
+    padding: 8px 10px;
+    font-size: 13px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    box-sizing: border-box;
+}
+
+.pv-sim-field-input:focus {
+    outline: none;
+    border-color: #2a6fb8;
+}
+
+.pv-sim-variables-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    max-height: 100px;
+    overflow-y: auto;
+    padding: 4px;
+}
+
+.pv-sim-no-items {
+    font-size: 13px;
+    color: #888;
+    font-style: italic;
+}
+
+.pv-sim-checkbox-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px;
+    background: #f5f5f5;
+    border-radius: 4px;
+}
+
+.pv-sim-checkbox {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+}
+
+.pv-sim-checkbox-label {
+    font-size: 13px;
+    color: #333;
+    cursor: pointer;
+}
+
+.pv-sim-rate-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.pv-sim-rate-label {
+    font-size: 13px;
+    color: #333;
+    min-width: 100px;
+}
+
+.pv-sim-rate-input {
+    width: 80px;
+    padding: 6px 8px;
+    font-size: 13px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+.pv-sim-rate-input:focus {
+    outline: none;
+    border-color: #2a6fb8;
+}
+
+.pv-sim-plot-container {
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 20px;
+    min-height: 300px;
+}
+
+.pv-sim-plot-placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 280px;
+    color: #888;
+    font-size: 14px;
+}
+
+.pv-sim-buttons {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+/* ============================================
+   Layout Algorithm Dialog
+   ============================================ */
+
+.pv-layout-dialog {
+    max-width: 500px;
+}
+
+.pv-layout-dialog-title {
+    margin: 0 0 12px 0;
+    font-size: 20px;
+    font-weight: 600;
+    color: #333;
+}
+
+.pv-layout-dialog-desc {
+    margin: 0 0 20px 0;
+    font-size: 14px;
+    color: #666;
+}
+
+.pv-layout-options {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.pv-layout-option {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 16px;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+}
+
+.pv-layout-option:hover {
+    border-color: #2a6fb8;
+    background: #f8fafc;
+}
+
+.pv-layout-option-header {
+    font-size: 15px;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 4px;
+}
+
+.pv-layout-option-icon {
+    font-size: 24px;
+    line-height: 1;
+}
+
+.pv-layout-option-name {
+    font-size: 15px;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 4px;
+}
+
+.pv-layout-option-desc {
+    font-size: 13px;
+    color: #666;
+    line-height: 1.4;
+}
+
+/* ============================================
+   My Diagrams Dialog
+   ============================================ */
+
+.pv-diagrams-dialog {
+    max-width: 800px;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.pv-diagrams-title {
+    margin: 0 0 16px 0;
+    font-size: 22px;
+    font-weight: 600;
+    color: #333;
+}
+
+.pv-diagrams-loading {
+    text-align: center;
+    padding: 40px;
+    color: #666;
+}
+
+.pv-diagrams-empty {
+    text-align: center;
+    padding: 40px;
+    color: #888;
+    font-size: 14px;
+}
+
+.pv-diagrams-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 16px;
+    max-height: 60vh;
+    overflow-y: auto;
+    padding: 4px;
+}
+
+.pv-diagram-card {
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    background: #fff;
+}
+
+.pv-diagram-card:hover {
+    border-color: #2a6fb8;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.pv-diagram-thumbnail {
+    height: 120px;
+    background: #f5f5f5;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.pv-diagram-thumbnail img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+}
+
+.pv-diagram-info {
+    padding: 12px;
+}
+
+.pv-diagram-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.pv-diagram-desc {
+    font-size: 12px;
+    color: #666;
+    margin-bottom: 6px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    line-height: 1.4;
+}
+
+.pv-diagram-date {
+    font-size: 11px;
+    color: #999;
+}
+
+.pv-diagram-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.pv-diagram-open-btn {
+    flex: 1;
+    padding: 6px 12px;
+    font-size: 12px;
+    color: #fff;
+    background: #2a6fb8;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.pv-diagram-open-btn:hover {
+    background: #235d9c;
+}
+
+.pv-diagram-delete-btn {
+    padding: 6px 10px;
+    font-size: 12px;
+    color: #dc3545;
+    background: #fff;
+    border: 1px solid #dc3545;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.pv-diagram-delete-btn:hover {
+    background: #dc3545;
+    color: #fff;
+}
+
+/* ============================================
+   Edit Details Dialog
+   ============================================ */
+
+.pv-edit-dialog {
+    max-width: 450px;
+}
+
+.pv-edit-dialog-title {
+    margin: 0 0 20px 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: #333;
+}
+
+.pv-edit-field-label {
+    font-size: 14px;
+    font-weight: 500;
+    color: #555;
+    display: block;
+    margin-bottom: 6px;
+}
+
+.pv-edit-field-input {
+    width: 100%;
+    padding: 10px 12px;
+    font-size: 14px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    box-sizing: border-box;
+    margin-bottom: 16px;
+}
+
+.pv-edit-field-input:focus {
+    outline: none;
+    border-color: #2a6fb8;
+}
+
+/* ============================================
+   Hamburger Menu
+   ============================================ */
+
+.pv-menu-btn {
+    position: fixed;
+    top: 10px;
+    left: 10px;
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    border: none;
+    background: rgba(255, 255, 255, 0.95);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    cursor: pointer;
+    font-size: 20px;
+    z-index: 2000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s;
+}
+
+.pv-menu-btn:hover {
+    background: #fff;
+}
+
+.pv-menu-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 2100;
+    display: flex;
+}
+
+.pv-menu-panel {
+    width: 280px;
+    max-width: 80vw;
+    height: 100%;
+    background: #fff;
+    box-shadow: 2px 0 12px rgba(0, 0, 0, 0.15);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.pv-menu-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px;
+    border-bottom: 1px solid #eee;
+    background: #fafafa;
+}
+
+.pv-menu-header-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #666;
+}
+
+.pv-menu-header-btn:hover {
+    background: #f0f0f0;
+}
+
+.pv-menu-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: #333;
+    margin: 0;
+}
+
+.pv-menu-close-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: none;
+    background: #f0f0f0;
+    cursor: pointer;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #666;
+}
+
+.pv-menu-close-btn:hover {
+    background: #e0e0e0;
+}
+
+.pv-menu-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px 0;
+}
+
+.pv-menu-backdrop {
+    flex: 1;
+    background: rgba(0, 0, 0, 0.3);
+    cursor: pointer;
+}
+
+.pv-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    cursor: pointer;
+    transition: background 0.15s;
+    border: none;
+    background: none;
+    width: 100%;
+    text-align: left;
+    font-size: 14px;
+    color: #333;
+}
+
+.pv-menu-item:hover {
+    background: #f5f5f5;
+}
+
+.pv-menu-item-icon {
+    font-size: 18px;
+    width: 24px;
+    text-align: center;
+}
+
+.pv-menu-separator {
+    height: 1px;
+    background: #eee;
+    margin: 8px 16px;
+}
+
+.pv-menu-user-info {
+    padding: 12px 16px;
+    font-size: 13px;
+    color: #666;
+    background: #f9f9f9;
+    border-radius: 6px;
+    margin: 8px 16px;
+}
+
+/* ============================================
+   Mode Toolbar
+   ============================================ */
+
+.pv-mode-menu {
+    position: fixed;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 8px;
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 10px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+    z-index: 1100;
+}
+
+.pv-mode-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s;
+}
+
+.pv-mode-btn:hover {
+    background: rgba(0, 0, 0, 0.06);
+}
+
+.pv-mode-btn.pv-active {
+    background: rgba(0, 0, 0, 0.1);
+}
+
+.pv-play-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: none;
+    background: #28a745;
+    color: #fff;
+    cursor: pointer;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 6px rgba(40, 167, 69, 0.4);
+}
+
+.pv-play-btn:hover {
+    background: #218838;
+}
+
+/* ============================================
+   Invalid Flash Animation
+   ============================================ */
+
+.pv-invalid {
+    animation: pv-flash-invalid 0.35s ease;
+}
+
+@keyframes pv-flash-invalid {
+    0%, 100% { box-shadow: none; }
+    50% { box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.5); }
+}

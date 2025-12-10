@@ -341,27 +341,13 @@ class PetriView extends HTMLElement {
         // simple toolbar with Find + Download + Fullscreen (CSS-only) + Close
         const toolbar = document.createElement('div');
         toolbar.className = 'pv-ace-toolbar';
-        this._applyStyles(toolbar, {
-            display: 'flex',
-            gap: '6px',
-            padding: '6px 4px',
-            alignItems: 'center',
-            background: 'transparent'
-        });
 
         const makeBtn = (txt, title) => {
             const b = document.createElement('button');
             b.type = 'button';
             b.textContent = txt;
             b.title = title;
-            this._applyStyles(b, {
-                padding: '6px 8px',
-                borderRadius: '6px',
-                border: '1px solid #ddd',
-                background: '#fff',
-                cursor: 'pointer',
-                fontSize: '12px'
-            });
+            b.className = 'pv-ace-toolbar-btn';
             return b;
         };
 
@@ -394,21 +380,9 @@ class PetriView extends HTMLElement {
         // container for Ace
         const editorWrapper = document.createElement('div');
         editorWrapper.className = 'pv-ace-editor-wrapper';
-        this._applyStyles(editorWrapper, {
-            width: '100%',
-            flex: '1 1 auto',
-            minHeight: '120px',
-            boxSizing: 'border-box',
-            borderRadius: '6px',
-            border: '1px solid #ccc',
-            overflow: 'hidden',
-            display: 'flex',
-            flexDirection: 'column'
-        });
 
         const editorDiv = document.createElement('div');
         editorDiv.className = 'pv-ace-editor';
-        this._applyStyles(editorDiv, {width: '100%', flex: '1 1 auto', minHeight: '120px'});
 
         editorWrapper.appendChild(toolbar);
         editorWrapper.appendChild(editorDiv);
@@ -1603,7 +1577,7 @@ class PetriView extends HTMLElement {
         const markdown = `[![pflow](${svgUrl})](${docUrl})`;
 
         // Create modal overlay
-        const { overlay, dialog } = this._createModalOverlay({ maxWidth: '600px' });
+        const { overlay, dialog } = this._createModalOverlay({});
 
         // Title
         const title = document.createElement('h3');
@@ -1972,34 +1946,14 @@ class PetriView extends HTMLElement {
     }
 
     _createModalOverlay(options = {}) {
-        const { className, maxWidth = '600px', padding = '24px', dialogStyles = {} } = options;
+        const { className, dialogClass } = options;
         const overlay = document.createElement('div');
-        if (className) overlay.className = className + '-overlay';
-        this._applyStyles(overlay, {
-            position: 'fixed',
-            left: '0',
-            top: '0',
-            right: '0',
-            bottom: '0',
-            background: 'rgba(0, 0, 0, 0.5)',
-            zIndex: 2147483646,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '20px'
-        });
+        overlay.className = className ? `${className}-overlay pv-modal-overlay` : 'pv-modal-overlay';
 
         const dialog = document.createElement('div');
-        if (className) dialog.className = className;
-        this._applyStyles(dialog, {
-            background: '#fff',
-            borderRadius: '8px',
-            padding: padding,
-            maxWidth: maxWidth,
-            width: '100%',
-            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)',
-            ...dialogStyles
-        });
+        dialog.className = dialogClass
+            ? `${className || ''} pv-modal-dialog ${dialogClass}`.trim()
+            : `${className || ''} pv-modal-dialog`.trim();
         overlay.appendChild(dialog);
 
         return { overlay, dialog };
@@ -4738,8 +4692,7 @@ class PetriView extends HTMLElement {
         // Create modal overlay
         const { overlay, dialog } = this._createModalOverlay({
             className: 'pv-help-dialog',
-            maxWidth: '700px',
-            dialogStyles: { maxHeight: '85vh', overflow: 'auto' }
+            dialogClass: 'pv-modal-dialog-wide'
         });
 
         // Title
