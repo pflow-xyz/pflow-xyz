@@ -341,27 +341,13 @@ class PetriView extends HTMLElement {
         // simple toolbar with Find + Download + Fullscreen (CSS-only) + Close
         const toolbar = document.createElement('div');
         toolbar.className = 'pv-ace-toolbar';
-        this._applyStyles(toolbar, {
-            display: 'flex',
-            gap: '6px',
-            padding: '6px 4px',
-            alignItems: 'center',
-            background: 'transparent'
-        });
 
         const makeBtn = (txt, title) => {
             const b = document.createElement('button');
             b.type = 'button';
             b.textContent = txt;
             b.title = title;
-            this._applyStyles(b, {
-                padding: '6px 8px',
-                borderRadius: '6px',
-                border: '1px solid #ddd',
-                background: '#fff',
-                cursor: 'pointer',
-                fontSize: '12px'
-            });
+            b.className = 'pv-ace-toolbar-btn';
             return b;
         };
 
@@ -394,21 +380,9 @@ class PetriView extends HTMLElement {
         // container for Ace
         const editorWrapper = document.createElement('div');
         editorWrapper.className = 'pv-ace-editor-wrapper';
-        this._applyStyles(editorWrapper, {
-            width: '100%',
-            flex: '1 1 auto',
-            minHeight: '120px',
-            boxSizing: 'border-box',
-            borderRadius: '6px',
-            border: '1px solid #ccc',
-            overflow: 'hidden',
-            display: 'flex',
-            flexDirection: 'column'
-        });
 
         const editorDiv = document.createElement('div');
         editorDiv.className = 'pv-ace-editor';
-        this._applyStyles(editorDiv, {width: '100%', flex: '1 1 auto', minHeight: '120px'});
 
         editorWrapper.appendChild(toolbar);
         editorWrapper.appendChild(editorDiv);
@@ -747,85 +721,39 @@ class PetriView extends HTMLElement {
     _showOpenUrlDialog(editor) {
         // Create modal overlay
         const overlay = document.createElement('div');
-        overlay.className = 'pv-url-dialog-overlay';
-        this._applyStyles(overlay, {
-            position: 'fixed',
-            left: '0',
-            top: '0',
-            right: '0',
-            bottom: '0',
-            background: 'rgba(0, 0, 0, 0.5)',
-            zIndex: 2147483646,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '20px'
-        });
+        overlay.className = 'pv-url-dialog-overlay pv-modal-overlay';
 
         // Create dialog
         const dialog = document.createElement('div');
-        dialog.className = 'pv-url-dialog';
-        this._applyStyles(dialog, {
-            background: '#fff',
-            borderRadius: '8px',
-            padding: '20px',
-            maxWidth: '600px',
-            width: '100%',
-            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)',
-            maxHeight: '80vh',
-            overflow: 'auto'
-        });
+        dialog.className = 'pv-url-dialog pv-modal-dialog';
 
         // Title
         const title = document.createElement('h3');
         title.textContent = 'Open JSON-LD from URL';
-        this._applyStyles(title, {
-            margin: '0 0 16px 0',
-            fontSize: '18px',
-            fontWeight: 'bold'
-        });
+        title.className = 'pv-url-dialog-title';
         dialog.appendChild(title);
 
         // URL input
         const urlLabel = document.createElement('label');
         urlLabel.textContent = 'URL:';
-        this._applyStyles(urlLabel, {
-            display: 'block',
-            marginBottom: '6px',
-            fontSize: '14px',
-            fontWeight: '500'
-        });
+        urlLabel.className = 'pv-label';
         dialog.appendChild(urlLabel);
 
         const urlInput = document.createElement('input');
         urlInput.type = 'text';
         urlInput.placeholder = 'https://pflow.xyz/ld/data/test.jsonld';
-        this._applyStyles(urlInput, {
-            width: '100%',
-            padding: '8px',
-            fontSize: '14px',
-            border: '1px solid #ccc',
-            borderRadius: '4px',
-            boxSizing: 'border-box',
-            marginBottom: '16px'
-        });
+        urlInput.className = 'pv-input';
+        urlInput.style.marginBottom = '16px';
         dialog.appendChild(urlInput);
 
         // Headers section
         const headersLabel = document.createElement('label');
         headersLabel.textContent = 'Custom Headers (optional):';
-        this._applyStyles(headersLabel, {
-            display: 'block',
-            marginBottom: '8px',
-            fontSize: '14px',
-            fontWeight: '500'
-        });
+        headersLabel.className = 'pv-label';
         dialog.appendChild(headersLabel);
 
         const headersContainer = document.createElement('div');
-        this._applyStyles(headersContainer, {
-            marginBottom: '16px'
-        });
+        headersContainer.className = 'pv-headers-container';
         dialog.appendChild(headersContainer);
 
         // Array to track header inputs
@@ -833,48 +761,24 @@ class PetriView extends HTMLElement {
 
         const addHeaderRow = (key = '', value = '') => {
             const row = document.createElement('div');
-            this._applyStyles(row, {
-                display: 'flex',
-                gap: '8px',
-                marginBottom: '8px',
-                alignItems: 'center'
-            });
+            row.className = 'pv-header-row';
 
             const keyInput = document.createElement('input');
             keyInput.type = 'text';
             keyInput.placeholder = 'Header name';
-            this._applyStyles(keyInput, {
-                flex: '1',
-                padding: '6px',
-                fontSize: '13px',
-                border: '1px solid #ccc',
-                borderRadius: '4px'
-            });
+            keyInput.className = 'pv-header-input';
             keyInput.value = key;
 
             const valueInput = document.createElement('input');
             valueInput.type = 'text';
             valueInput.placeholder = 'Header value';
-            this._applyStyles(valueInput, {
-                flex: '1',
-                padding: '6px',
-                fontSize: '13px',
-                border: '1px solid #ccc',
-                borderRadius: '4px'
-            });
+            valueInput.className = 'pv-header-input';
             valueInput.value = value;
 
             const removeBtn = document.createElement('button');
             removeBtn.textContent = '✕';
             removeBtn.type = 'button';
-            this._applyStyles(removeBtn, {
-                padding: '6px 10px',
-                border: '1px solid #ccc',
-                borderRadius: '4px',
-                background: '#f5f5f5',
-                cursor: 'pointer',
-                fontSize: '14px'
-            });
+            removeBtn.className = 'pv-header-remove-btn';
             removeBtn.addEventListener('click', () => {
                 headersContainer.removeChild(row);
                 const idx = headerRows.indexOf(row);
@@ -896,37 +800,18 @@ class PetriView extends HTMLElement {
         const addHeaderBtn = document.createElement('button');
         addHeaderBtn.textContent = '+ Add Header';
         addHeaderBtn.type = 'button';
-        this._applyStyles(addHeaderBtn, {
-            padding: '6px 12px',
-            border: '1px solid #ccc',
-            borderRadius: '4px',
-            background: '#f5f5f5',
-            cursor: 'pointer',
-            fontSize: '13px',
-            marginBottom: '16px'
-        });
+        addHeaderBtn.className = 'pv-add-header-btn';
         addHeaderBtn.addEventListener('click', () => addHeaderRow());
         dialog.appendChild(addHeaderBtn);
 
         // Buttons
         const buttonContainer = document.createElement('div');
-        this._applyStyles(buttonContainer, {
-            display: 'flex',
-            gap: '10px',
-            justifyContent: 'flex-end'
-        });
+        buttonContainer.className = 'pv-btn-container';
 
         const cancelBtn = document.createElement('button');
         cancelBtn.textContent = 'Cancel';
         cancelBtn.type = 'button';
-        this._applyStyles(cancelBtn, {
-            padding: '8px 16px',
-            border: '1px solid #ccc',
-            borderRadius: '4px',
-            background: '#f5f5f5',
-            cursor: 'pointer',
-            fontSize: '14px'
-        });
+        cancelBtn.className = 'pv-btn';
         cancelBtn.addEventListener('click', () => {
             document.body.removeChild(overlay);
         });
@@ -934,15 +819,7 @@ class PetriView extends HTMLElement {
         const loadBtn = document.createElement('button');
         loadBtn.textContent = 'Load';
         loadBtn.type = 'button';
-        this._applyStyles(loadBtn, {
-            padding: '8px 16px',
-            border: '1px solid #007bff',
-            borderRadius: '4px',
-            background: '#007bff',
-            color: '#fff',
-            cursor: 'pointer',
-            fontSize: '14px'
-        });
+        loadBtn.className = 'pv-btn pv-btn-primary';
         loadBtn.addEventListener('click', async () => {
             const url = urlInput.value.trim();
             if (!url) {
@@ -1024,30 +901,13 @@ class PetriView extends HTMLElement {
         // Create editor toolbar (fallback, always visible)
         const toolbar = document.createElement('div');
         toolbar.className = 'pv-editor-toolbar';
-        this._applyStyles(toolbar, {
-            display: 'flex',
-            gap: '6px',
-            padding: '6px 8px',
-            background: 'rgba(255, 255, 255, 0.95)',
-            borderBottom: '1px solid #ddd',
-            alignItems: 'center',
-            flexWrap: 'wrap'
-        });
 
         const makeToolbarBtn = (text, title) => {
             const btn = document.createElement('button');
             btn.type = 'button';
             btn.textContent = text;
             btn.title = title;
-            this._applyStyles(btn, {
-                padding: '6px 10px',
-                borderRadius: '4px',
-                border: '1px solid #ccc',
-                background: '#fff',
-                cursor: 'pointer',
-                fontSize: '12px',
-                fontFamily: 'system-ui, Arial'
-            });
+            btn.className = 'pv-editor-toolbar-btn';
             return btn;
         };
 
@@ -1076,19 +936,7 @@ class PetriView extends HTMLElement {
         this._editorToolbar = toolbar;
 
         const textarea = document.createElement('textarea');
-        textarea.className = 'pv-json-textarea';
-        this._applyStyles(textarea, {
-            width: '100%',
-            flex: '1 1 auto',
-            boxSizing: 'border-box',
-            resize: 'none',
-            fontFamily: 'monospace',
-            fontSize: '13px',
-            padding: '8px',
-            borderRadius: '0',
-            border: 'none',
-            borderTop: '1px solid #ddd'
-        });
+        textarea.className = 'pv-json-textarea pv-editor-textarea';
         textarea.spellcheck = false;
         container.appendChild(textarea);
 
@@ -1446,15 +1294,10 @@ class PetriView extends HTMLElement {
             const currentUrl = window.location.href;
 
             // Copy to clipboard if available
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-                navigator.clipboard.writeText(currentUrl).then(() => {
-                    alert('Permalink saved! URL copied to clipboard.\n\n' + currentUrl);
-                }).catch(() => {
-                    alert('Permalink saved!\n\n' + currentUrl);
-                });
-            } else {
-                alert('Permalink saved!\n\n' + currentUrl);
-            }
+            this._copyToClipboard(currentUrl,
+                () => alert('Permalink saved! URL copied to clipboard.\n\n' + currentUrl),
+                () => alert('Permalink saved!\n\n' + currentUrl)
+            );
         } catch (err) {
             console.error('Failed to save permalink:', err);
             alert('Failed to save permalink: ' + (err && err.message ? err.message : String(err)));
@@ -1608,142 +1451,62 @@ class PetriView extends HTMLElement {
         const markdown = `[![pflow](${svgUrl})](${docUrl})`;
 
         // Create modal overlay
-        const overlay = document.createElement('div');
-        this._applyStyles(overlay, {
-            position: 'fixed',
-            left: '0',
-            top: '0',
-            right: '0',
-            bottom: '0',
-            background: 'rgba(0, 0, 0, 0.5)',
-            zIndex: 2147483646,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '20px'
-        });
-
-        // Create dialog
-        const dialog = document.createElement('div');
-        this._applyStyles(dialog, {
-            background: '#fff',
-            borderRadius: '8px',
-            padding: '24px',
-            maxWidth: '600px',
-            width: '100%',
-            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)'
-        });
+        const { overlay, dialog } = this._createModalOverlay({});
 
         // Title
         const title = document.createElement('h3');
         title.textContent = 'Share Your Petri Net';
-        this._applyStyles(title, {
-            margin: '0 0 16px 0',
-            fontSize: '20px',
-            fontWeight: 'bold',
-            color: '#333'
-        });
+        title.className = 'pv-modal-title';
         dialog.appendChild(title);
 
         // Description
         const description = document.createElement('p');
         description.textContent = 'Copy the markdown snippet below to share your Petri net:';
-        this._applyStyles(description, {
-            margin: '0 0 12px 0',
-            fontSize: '14px',
-            color: '#666'
-        });
+        description.className = 'pv-modal-description';
         dialog.appendChild(description);
 
         // Markdown textarea
         const textarea = document.createElement('textarea');
         textarea.value = markdown;
         textarea.readOnly = true;
-        this._applyStyles(textarea, {
-            width: '100%',
-            height: '80px',
-            padding: '10px',
-            fontSize: '13px',
-            fontFamily: 'monospace',
-            border: '1px solid #ddd',
-            borderRadius: '4px',
-            resize: 'vertical',
-            boxSizing: 'border-box'
-        });
+        textarea.className = 'pv-share-textarea';
         dialog.appendChild(textarea);
 
         // Image URL label
         const imageUrlLabel = document.createElement('p');
         imageUrlLabel.textContent = 'Image URL:';
-        this._applyStyles(imageUrlLabel, {
-            margin: '16px 0 8px 0',
-            fontSize: '14px',
-            fontWeight: '500',
-            color: '#333'
-        });
+        imageUrlLabel.className = 'pv-label';
+        imageUrlLabel.style.margin = '16px 0 8px 0';
         dialog.appendChild(imageUrlLabel);
 
         // Image URL textarea
         const imageUrlTextarea = document.createElement('textarea');
         imageUrlTextarea.value = svgUrl;
         imageUrlTextarea.readOnly = true;
-        this._applyStyles(imageUrlTextarea, {
-            width: '100%',
-            height: '50px',
-            padding: '10px',
-            fontSize: '13px',
-            fontFamily: 'monospace',
-            border: '1px solid #ddd',
-            borderRadius: '4px',
-            resize: 'vertical',
-            boxSizing: 'border-box'
-        });
+        imageUrlTextarea.className = 'pv-share-textarea';
+        imageUrlTextarea.style.height = '50px';
         dialog.appendChild(imageUrlTextarea);
 
         // Image URL copy button container
         const imageUrlButtonContainer = document.createElement('div');
-        this._applyStyles(imageUrlButtonContainer, {
-            marginTop: '8px',
-            display: 'flex',
-            justifyContent: 'flex-end'
-        });
+        imageUrlButtonContainer.className = 'pv-btn-container';
+        imageUrlButtonContainer.style.marginTop = '8px';
 
         // Image URL copy button
         const copyImageUrlButton = document.createElement('button');
         copyImageUrlButton.textContent = 'Copy Image URL';
         copyImageUrlButton.type = 'button';
-        this._applyStyles(copyImageUrlButton, {
-            padding: '6px 12px',
-            fontSize: '13px',
-            fontWeight: '500',
-            color: '#fff',
-            background: '#2a6fb8',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: 'pointer'
-        });
+        copyImageUrlButton.className = 'pv-btn pv-btn-primary pv-btn-sm';
         copyImageUrlButton.addEventListener('click', () => {
             imageUrlTextarea.select();
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-                navigator.clipboard.writeText(svgUrl).then(() => {
-                    copyImageUrlButton.textContent = 'Copied!';
-                    setTimeout(() => {
-                        copyImageUrlButton.textContent = 'Copy Image URL';
-                    }, 2000);
-                }).catch(() => {
-                    document.execCommand('copy');
-                    copyImageUrlButton.textContent = 'Copied!';
-                    setTimeout(() => {
-                        copyImageUrlButton.textContent = 'Copy Image URL';
-                    }, 2000);
-                });
-            } else {
-                document.execCommand('copy');
+            const showCopied = () => {
                 copyImageUrlButton.textContent = 'Copied!';
-                setTimeout(() => {
-                    copyImageUrlButton.textContent = 'Copy Image URL';
-                }, 2000);
-            }
+                setTimeout(() => { copyImageUrlButton.textContent = 'Copy Image URL'; }, 2000);
+            };
+            this._copyToClipboard(svgUrl, showCopied, () => {
+                document.execCommand('copy');
+                showCopied();
+            });
         });
         imageUrlButtonContainer.appendChild(copyImageUrlButton);
         dialog.appendChild(imageUrlButtonContainer);
@@ -1751,87 +1514,47 @@ class PetriView extends HTMLElement {
         // Preview section
         const previewLabel = document.createElement('p');
         previewLabel.textContent = 'Preview:';
-        this._applyStyles(previewLabel, {
-            margin: '16px 0 8px 0',
-            fontSize: '14px',
-            fontWeight: '500',
-            color: '#333'
-        });
+        previewLabel.className = 'pv-label';
+        previewLabel.style.margin = '16px 0 8px 0';
         dialog.appendChild(previewLabel);
 
         const previewContainer = document.createElement('div');
-        this._applyStyles(previewContainer, {
-            padding: '12px',
-            background: '#f6f8fa',
-            borderRadius: '4px',
-            textAlign: 'center',
-            border: '1px solid #e1e4e8'
-        });
-        
+        previewContainer.className = 'pv-share-preview-container';
+
         const previewLink = document.createElement('a');
         previewLink.href = docUrl;
         previewLink.target = '_blank';
         previewLink.rel = 'noopener noreferrer';
-        
+
         const previewImg = document.createElement('img');
         previewImg.src = svgUrl;
         previewImg.alt = 'Petri Net Preview';
-        this._applyStyles(previewImg, {
-            maxWidth: '100%',
-            height: 'auto',
-            display: 'block',
-            margin: '0 auto'
-        });
-        
+        previewImg.className = 'pv-share-preview-img';
+
         previewLink.appendChild(previewImg);
         previewContainer.appendChild(previewLink);
         dialog.appendChild(previewContainer);
 
         // Button container
         const buttonContainer = document.createElement('div');
-        this._applyStyles(buttonContainer, {
-            marginTop: '20px',
-            display: 'flex',
-            gap: '10px',
-            justifyContent: 'flex-end'
-        });
+        buttonContainer.className = 'pv-btn-container';
+        buttonContainer.style.marginTop = '20px';
 
         // Copy button
         const copyButton = document.createElement('button');
         copyButton.textContent = 'Copy to Clipboard';
         copyButton.type = 'button';
-        this._applyStyles(copyButton, {
-            padding: '8px 16px',
-            fontSize: '14px',
-            fontWeight: '500',
-            color: '#fff',
-            background: '#2a6fb8',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: 'pointer'
-        });
+        copyButton.className = 'pv-btn pv-btn-primary';
         copyButton.addEventListener('click', () => {
             textarea.select();
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-                navigator.clipboard.writeText(markdown).then(() => {
-                    copyButton.textContent = 'Copied!';
-                    setTimeout(() => {
-                        copyButton.textContent = 'Copy to Clipboard';
-                    }, 2000);
-                }).catch(() => {
-                    document.execCommand('copy');
-                    copyButton.textContent = 'Copied!';
-                    setTimeout(() => {
-                        copyButton.textContent = 'Copy to Clipboard';
-                    }, 2000);
-                });
-            } else {
-                document.execCommand('copy');
+            const showCopied = () => {
                 copyButton.textContent = 'Copied!';
-                setTimeout(() => {
-                    copyButton.textContent = 'Copy to Clipboard';
-                }, 2000);
-            }
+                setTimeout(() => { copyButton.textContent = 'Copy to Clipboard'; }, 2000);
+            };
+            this._copyToClipboard(markdown, showCopied, () => {
+                document.execCommand('copy');
+                showCopied();
+            });
         });
         buttonContainer.appendChild(copyButton);
 
@@ -1839,17 +1562,8 @@ class PetriView extends HTMLElement {
         const closeButton = document.createElement('button');
         closeButton.textContent = 'Close';
         closeButton.type = 'button';
-        this._applyStyles(closeButton, {
-            padding: '8px 16px',
-            fontSize: '14px',
-            fontWeight: '500',
-            color: '#333',
-            background: '#f6f8fa',
-            border: '1px solid #ddd',
-            borderRadius: '4px',
-            cursor: 'pointer'
-        });
-        
+        closeButton.className = 'pv-btn';
+
         // Helper function to safely close the dialog
         const closeDialog = () => {
             if (overlay.parentNode) {
@@ -1862,7 +1576,6 @@ class PetriView extends HTMLElement {
         buttonContainer.appendChild(closeButton);
 
         dialog.appendChild(buttonContainer);
-        overlay.appendChild(dialog);
 
         // Close on overlay click
         overlay.addEventListener('click', (e) => {
@@ -2009,6 +1722,34 @@ class PetriView extends HTMLElement {
 
     _applyStyles(el, styles = {}) {
         Object.assign(el.style, styles);
+    }
+
+    _copyToClipboard(text, onSuccess, onFallback) {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(onSuccess).catch(onFallback || onSuccess);
+        } else if (onFallback) {
+            onFallback();
+        } else {
+            onSuccess();
+        }
+    }
+
+    _getNodeOffset(kind) {
+        return kind === 'place' ? 40 : 15;
+    }
+
+    _createModalOverlay(options = {}) {
+        const { className, dialogClass } = options;
+        const overlay = document.createElement('div');
+        overlay.className = className ? `${className}-overlay pv-modal-overlay` : 'pv-modal-overlay';
+
+        const dialog = document.createElement('div');
+        dialog.className = dialogClass
+            ? `${className || ''} pv-modal-dialog ${dialogClass}`.trim()
+            : `${className || ''} pv-modal-dialog`.trim();
+        overlay.appendChild(dialog);
+
+        return { overlay, dialog };
     }
 
     _genId(prefix) {
@@ -3219,13 +2960,11 @@ class PetriView extends HTMLElement {
     _createMenu() {
         if (this._menu) this._menu.remove();
         this._menu = document.createElement('div');
-        this._menu.className = 'pv-menu';
-        this._applyStyles(this._menu, {
-            position: 'absolute', bottom: '10px', left: '50%', transform: 'translateX(-50%)',
-            display: 'flex', gap: '8px', padding: '6px 8px', background: 'rgba(255,255,255,0.9)',
-            borderRadius: '8px', boxShadow: '0 2px 6px rgba(0,0,0,0.15)', zIndex: 1200, alignItems: 'center',
-            userSelect: 'none', fontSize: '14px'
-        });
+        this._menu.className = 'pv-menu pv-mode-menu';
+        // Position dynamically since it needs absolute positioning
+        this._menu.style.bottom = '10px';
+        this._menu.style.left = '50%';
+        this._menu.style.transform = 'translateX(-50%)';
 
         const tools = [
             {mode: 'select', label: '\u26F6', title: 'Select / Fire (1)'},
@@ -3240,18 +2979,9 @@ class PetriView extends HTMLElement {
         tools.forEach(t => {
             const btn = document.createElement('button');
             btn.type = 'button';
-            btn.className = 'pv-tool';
+            btn.className = 'pv-tool pv-mode-btn';
             btn.textContent = t.label;
             btn.title = t.title;
-            this._applyStyles(btn, {
-                width: '36px',
-                height: '36px',
-                borderRadius: '6px',
-                border: 'none',
-                background: 'transparent',
-                cursor: 'pointer',
-                fontSize: '16px'
-            });
             btn.dataset.mode = t.mode;
             if (t.toggle) {
                 btn.dataset.toggle = 'true';
@@ -3275,18 +3005,10 @@ class PetriView extends HTMLElement {
 
         const playBtn = document.createElement('button');
         playBtn.type = 'button';
-        playBtn.className = 'pv-play';
+        playBtn.className = 'pv-play pv-play-btn';
         playBtn.textContent = this._simRunning ? '⏸' : '▶';
         playBtn.title = this._simRunning ? 'Stop simulation' : 'Start simulation';
-        this._applyStyles(playBtn, {
-            width: '44px',
-            height: '36px',
-            borderRadius: '6px',
-            border: 'none',
-            background: 'linear-gradient(180deg,#fff,#f3f3f3)',
-            cursor: 'pointer',
-            fontSize: '16px'
-        });
+        playBtn.style.width = '44px'; // Slightly wider for play button
         playBtn.addEventListener('click', (ev) => {
             ev.stopPropagation();
             this._setSimulation(!this._simRunning);
@@ -3593,7 +3315,7 @@ class PetriView extends HTMLElement {
         const startTop = parseFloat(el.style.top) || 0;
         const startX = ev.clientX, startY = ev.clientY;
         const scale = this._view.scale || 1;
-        const offset = kind === 'place' ? 40 : 15;
+        const offset = this._getNodeOffset(kind);
         let currentLeft = startLeft, currentTop = startTop;
         const dragThreshold = 5; // pixels before drag counts as intentional
 
@@ -3726,7 +3448,7 @@ class PetriView extends HTMLElement {
             if (!el) continue;
 
             const isPlace = el.classList.contains('pv-place');
-            const offset = isPlace ? 40 : 15;
+            const offset = this._getNodeOffset(isPlace ? 'place' : 'transition');
             const node = isPlace ? this._model.places[id] : this._model.transitions[id];
             if (node) {
                 initialPositions.set(id, {
@@ -3815,7 +3537,7 @@ class PetriView extends HTMLElement {
             if (!el) continue;
 
             const isPlace = el.classList.contains('pv-place');
-            const offset = isPlace ? 40 : 15;
+            const offset = this._getNodeOffset(isPlace ? 'place' : 'transition');
             const node = isPlace ? this._model.places[id] : this._model.transitions[id];
             if (node) {
                 initialPositions.set(id, {
@@ -4568,47 +4290,15 @@ class PetriView extends HTMLElement {
 
         const container = document.createElement('div');
         container.className = 'pv-scale-meter';
-        this._applyStyles(container, {
-            position: 'absolute',
-            right: '10px',
-            top: '50%',
-            transform: 'translateY(-50%)',
-            width: '52px',
-            height: '160px',
-            padding: '8px',
-            background: 'rgba(255,255,255,0.94)',
-            borderRadius: '10px',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
-            zIndex: 3000,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: '8px',
-            userSelect: 'none',
-            fontFamily: 'system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial'
-        });
 
         const label = document.createElement('div');
         label.className = 'pv-scale-label';
-        this._applyStyles(label, {fontSize: '12px', color: '#333', lineHeight: '1'});
         container.appendChild(label);
 
         const resetBtn = document.createElement('button');
         resetBtn.className = 'pv-scale-reset';
         resetBtn.type = 'button';
         resetBtn.textContent = '1x';
-        this._applyStyles(resetBtn, {
-            width: '36px',
-            height: '20px',
-            borderRadius: '6px',
-            border: '1px solid #ddd',
-            background: '#fff',
-            cursor: 'pointer',
-            fontSize: '12px',
-            color: '#333',
-            marginBottom: '4px',
-            padding: '0'
-        });
         resetBtn.title = 'Reset scale to 1x';
         resetBtn.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -4630,54 +4320,16 @@ class PetriView extends HTMLElement {
 
         const track = document.createElement('div');
         track.className = 'pv-scale-track';
-        this._applyStyles(track, {
-            position: 'relative',
-            width: '10px',
-            flex: '1 1 auto',
-            height: '100%',
-            background: '#eee',
-            borderRadius: '6px',
-            overflow: 'hidden',
-            alignSelf: 'center'
-        });
         const fill = document.createElement('div');
         fill.className = 'pv-scale-fill';
-        this._applyStyles(fill, {
-            position: 'absolute',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            bottom: '0',
-            width: '10px',
-            height: '0%',
-            background: 'linear-gradient(180deg,#4A90E2,#2A6FB8)',
-            borderRadius: '6px'
-        });
         track.appendChild(fill);
         const thumb = document.createElement('div');
         thumb.className = 'pv-scale-thumb';
-        this._applyStyles(thumb, {
-            position: 'absolute',
-            left: '50%',
-            transform: 'translate(-50%, 50%)',
-            bottom: '0%',
-            width: '18px',
-            height: '18px',
-            borderRadius: '50%',
-            background: '#fff',
-            border: '2px solid #2a6fb8',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.2)'
-        });
         track.appendChild(thumb);
         container.appendChild(track);
 
         const legend = document.createElement('div');
-        this._applyStyles(legend, {
-            width: '100%',
-            display: 'flex',
-            justifyContent: 'space-between',
-            fontSize: '10px',
-            color: '#666'
-        });
+        legend.className = 'pv-scale-legend';
         const minEl = document.createElement('span');
         minEl.textContent = `${min}x`;
         const maxEl = document.createElement('span');
@@ -4742,67 +4394,33 @@ class PetriView extends HTMLElement {
     // ---------------- help dialog ----------------
     _showHelpDialog() {
         // Create modal overlay
-        const overlay = document.createElement('div');
-        overlay.className = 'pv-help-dialog-overlay';
-        this._applyStyles(overlay, {
-            position: 'fixed',
-            left: '0',
-            top: '0',
-            right: '0',
-            bottom: '0',
-            background: 'rgba(0, 0, 0, 0.5)',
-            zIndex: 2147483646,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '20px'
-        });
-
-        // Create dialog
-        const dialog = document.createElement('div');
-        dialog.className = 'pv-help-dialog';
-        this._applyStyles(dialog, {
-            background: '#fff',
-            borderRadius: '8px',
-            padding: '24px',
-            maxWidth: '700px',
-            width: '100%',
-            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)',
-            maxHeight: '85vh',
-            overflow: 'auto'
+        const { overlay, dialog } = this._createModalOverlay({
+            className: 'pv-help-dialog',
+            dialogClass: 'pv-modal-dialog-wide'
         });
 
         // Title
         const title = document.createElement('h2');
+        title.className = 'pv-help-title';
         title.textContent = 'Help: Petri Net Editor';
-        this._applyStyles(title, {
-            margin: '0 0 16px 0',
-            fontSize: '22px',
-            fontWeight: 'bold',
-            color: '#333'
-        });
         dialog.appendChild(title);
 
         // Help content
         const content = document.createElement('div');
-        this._applyStyles(content, {
-            fontSize: '14px',
-            lineHeight: '1.6',
-            color: '#444'
-        });
+        content.className = 'pv-help-content';
 
         content.innerHTML = `
-            <h3 style="margin: 16px 0 8px 0; font-size: 16px; font-weight: 600; color: #000;">What are Petri Nets?</h3>
-            <p style="margin: 0 0 12px 0;">
-                Petri nets are a formal model for representing state machines. They consist of <strong>places</strong> (circles) 
-                that hold tokens, <strong>transitions</strong> (rectangles) that fire to move tokens, and <strong>arcs</strong> (arrows) 
+            <h3>What are Petri Nets?</h3>
+            <p>
+                Petri nets are a formal model for representing state machines. They consist of <strong>places</strong> (circles)
+                that hold tokens, <strong>transitions</strong> (rectangles) that fire to move tokens, and <strong>arcs</strong> (arrows)
                 that connect them. When a transition fires, it consumes tokens from input places and produces tokens in output places.
             </p>
 
-            <h3 style="margin: 16px 0 8px 0; font-size: 16px; font-weight: 600; color: #000;">Controls & Features</h3>
-            
-            <h4 style="margin: 12px 0 6px 0; font-size: 14px; font-weight: 600;">Toolbar Buttons:</h4>
-            <ul style="margin: 6px 0 12px 20px; padding: 0;">
+            <h3>Controls & Features</h3>
+
+            <h4>Toolbar Buttons:</h4>
+            <ul>
                 <li><strong>⛶ Select:</strong> Default mode for panning and selecting elements</li>
                 <li><strong>◯ Place:</strong> Click to add places (token holders)</li>
                 <li><strong>▢ Transition:</strong> Click to add transitions (firing elements)</li>
@@ -4813,8 +4431,8 @@ class PetriView extends HTMLElement {
                 <li><strong>▶ Play:</strong> Start/stop automatic simulation</li>
             </ul>
 
-            <h4 style="margin: 12px 0 6px 0; font-size: 14px; font-weight: 600;">Mouse Actions:</h4>
-            <ul style="margin: 6px 0 12px 20px; padding: 0;">
+            <h4>Mouse Actions:</h4>
+            <ul>
                 <li><strong>Left-click transition:</strong> Fire it manually (if enabled)</li>
                 <li><strong>Right-click place:</strong> Add or remove tokens</li>
                 <li><strong>Right-click arc:</strong> Change arc weight</li>
@@ -4823,23 +4441,23 @@ class PetriView extends HTMLElement {
                 <li><strong>Space + drag:</strong> Pan the canvas</li>
             </ul>
 
-            <h4 style="margin: 12px 0 6px 0; font-size: 14px; font-weight: 600;">Touch Actions (iPad/Tablet):</h4>
-            <ul style="margin: 6px 0 12px 20px; padding: 0;">
+            <h4>Touch Actions (iPad/Tablet):</h4>
+            <ul>
                 <li><strong>Tap:</strong> Click on elements</li>
                 <li><strong>Drag:</strong> Move elements or pan the canvas</li>
                 <li><strong>Long-press (hold 0.5s):</strong> Creates inhibitor arcs in Arc mode (works with touch and Apple Pencil)</li>
                 <li><strong>Pinch:</strong> Zoom in/out (if browser supports)</li>
             </ul>
 
-            <h4 style="margin: 12px 0 6px 0; font-size: 14px; font-weight: 600;">Selection & Multi-Select:</h4>
-            <ul style="margin: 6px 0 12px 20px; padding: 0;">
+            <h4>Selection & Multi-Select:</h4>
+            <ul>
                 <li><strong>Shift + click node:</strong> Add/remove individual nodes from selection (in Select, Token, and Delete modes)</li>
                 <li><strong>Shift + drag on canvas:</strong> Draw a bounding box to select all nodes within it. A dashed orange rectangle shows the selection area as you drag</li>
                 <li><strong>Selected nodes:</strong> Highlighted with orange outline and shadow. Can be dragged together or deleted as a group</li>
             </ul>
 
-            <h4 style="margin: 12px 0 6px 0; font-size: 14px; font-weight: 600;">Keyboard Shortcuts:</h4>
-            <ul style="margin: 6px 0 12px 20px; padding: 0;">
+            <h4>Keyboard Shortcuts:</h4>
+            <ul>
                 <li><strong>Ctrl/Cmd + Z:</strong> Undo last action</li>
                 <li><strong>Ctrl/Cmd + Shift + Z:</strong> Redo previously undone action</li>
                 <li><strong>Delete or Backspace:</strong> Delete all selected nodes</li>
@@ -4854,25 +4472,25 @@ class PetriView extends HTMLElement {
                 <li><strong>6:</strong> Switch to Delete mode</li>
             </ul>
 
-            <h4 style="margin: 12px 0 6px 0; font-size: 14px; font-weight: 600;">Other Features:</h4>
-            <ul style="margin: 6px 0 12px 20px; padding: 0;">
+            <h4>Other Features:</h4>
+            <ul>
                 <li><strong>JSON Editor:</strong> Toggle to edit the model as JSON-LD</li>
                 <li><strong>Scale Meter:</strong> Shows current zoom level (right side)</li>
                 <li><strong>Download:</strong> Export your Petri net as JSON</li>
                 <li><strong>Auto-save:</strong> Changes are saved to browser localStorage</li>
             </ul>
 
-            <h3 style="margin: 16px 0 8px 0; font-size: 16px; font-weight: 600; color: #000;">ODE Simulation</h3>
-            <p style="margin: 0 0 12px 0;">
-                The ODE (Ordinary Differential Equation) simulator models continuous-time behavior of Petri nets using mass action kinetics. 
+            <h3>ODE Simulation</h3>
+            <p>
+                The ODE (Ordinary Differential Equation) simulator models continuous-time behavior of Petri nets using mass action kinetics.
                 Access it from the hamburger menu: <strong>🧮 Simulate (ODE)</strong>
             </p>
-            
-            <h4 style="margin: 12px 0 6px 0; font-size: 14px; font-weight: 600;">Key Features:</h4>
-            <ul style="margin: 6px 0 12px 20px; padding: 0;">
+
+            <h4>Key Features:</h4>
+            <ul>
                 <li><strong>Transition Rates:</strong> Set rate constants for each transition (default is 1.0)</li>
                 <li><strong>Rate=0 for Optimization:</strong> Setting a transition's rate to 0 disables it, useful for:
-                    <ul style="margin: 4px 0 4px 20px;">
+                    <ul>
                         <li>Knapsack problems: Exclude items to find optimal solutions</li>
                         <li>Resource allocation: Test different configurations</li>
                         <li>Sensitivity analysis: Identify which transitions improve objectives</li>
@@ -4882,46 +4500,46 @@ class PetriView extends HTMLElement {
                 <li><strong>Interactive Plotting:</strong> Select which places to visualize and view real-time SVG plots</li>
                 <li><strong>Configurable Parameters:</strong> Adjust time span, dt, absolute/relative tolerances</li>
             </ul>
-            
-            <p style="margin: 0 0 12px 0;">
-                <strong>Example:</strong> In a knapsack problem with limited capacity, setting rate=0 for a transition effectively 
-                removes that item from consideration. This frees up capacity for other transitions, potentially increasing the total 
+
+            <p>
+                <strong>Example:</strong> In a knapsack problem with limited capacity, setting rate=0 for a transition effectively
+                removes that item from consideration. This frees up capacity for other transitions, potentially increasing the total
                 value if the excluded item had a poor value-to-weight ratio.
             </p>
 
-            <h3 style="margin: 16px 0 8px 0; font-size: 16px; font-weight: 600; color: #000;">Layout Algorithms</h3>
-            <p style="margin: 0 0 12px 0;">
+            <h3>Layout Algorithms</h3>
+            <p>
                 Use the <strong>🎨 Layout Algorithms</strong> menu to automatically arrange your Petri net nodes:
             </p>
-            
-            <h4 style="margin: 12px 0 6px 0; font-size: 14px; font-weight: 600;">Available Layouts:</h4>
-            <ul style="margin: 6px 0 12px 20px; padding: 0;">
-                <li><strong>⚛️ Force-Atlas 2:</strong> Physics-based force-directed layout. Creates natural-looking graphs with even spacing. 
-                Nodes repel each other while connected nodes are pulled together, creating an organic arrangement. 
+
+            <h4>Available Layouts:</h4>
+            <ul>
+                <li><strong>⚛️ Force-Atlas 2:</strong> Physics-based force-directed layout. Creates natural-looking graphs with even spacing.
+                Nodes repel each other while connected nodes are pulled together, creating an organic arrangement.
                 Best for general-purpose visualization and exploring graph structure.</li>
-                
-                <li><strong>📊 Hierarchical:</strong> Simple top-to-bottom layered layout using topological sorting. 
-                Works well for linear workflows and simple directed acyclic graphs (DAGs). 
-                Nodes with no incoming edges are placed at the top, and each subsequent layer contains nodes whose predecessors have been placed. 
+
+                <li><strong>📊 Hierarchical:</strong> Simple top-to-bottom layered layout using topological sorting.
+                Works well for linear workflows and simple directed acyclic graphs (DAGs).
+                Nodes with no incoming edges are placed at the top, and each subsequent layer contains nodes whose predecessors have been placed.
                 <em>Note: May place all nodes on one level if the graph contains cycles.</em></li>
-                
-                <li><strong>🔷 Layered (DAG):</strong> Advanced hierarchical layout that handles complex graphs and cycles. 
-                Uses cycle-breaking to convert cyclic graphs into DAGs, then applies layered layout. 
-                Identifies feedback edges (back edges that create cycles) and ignores them during layout, 
+
+                <li><strong>🔷 Layered (DAG):</strong> Advanced hierarchical layout that handles complex graphs and cycles.
+                Uses cycle-breaking to convert cyclic graphs into DAGs, then applies layered layout.
+                Identifies feedback edges (back edges that create cycles) and ignores them during layout,
                 placing nodes in clear hierarchical layers. Best for large, complex Petri nets with cycles.</li>
-                
-                <li><strong>➡️ Horizontal DAG:</strong> Left-to-right hierarchical layout for directed acyclic graphs. 
-                Similar to Layered (DAG) but arranges nodes horizontally instead of vertically. 
-                Ideal for visualizing process flows, pipelines, and workflows that naturally progress from left to right. 
+
+                <li><strong>➡️ Horizontal DAG:</strong> Left-to-right hierarchical layout for directed acyclic graphs.
+                Similar to Layered (DAG) but arranges nodes horizontally instead of vertically.
+                Ideal for visualizing process flows, pipelines, and workflows that naturally progress from left to right.
                 Handles cycles using the same feedback edge breaking algorithm.</li>
-                
-                <li><strong>⭕ Circular:</strong> Arranges all nodes evenly spaced around a circle. 
-                Good for visualizing cyclic relationships and symmetric structures. 
+
+                <li><strong>⭕ Circular:</strong> Arranges all nodes evenly spaced around a circle.
+                Good for visualizing cyclic relationships and symmetric structures.
                 Makes it easy to see all nodes at once and identify connection patterns.</li>
             </ul>
-            
-            <h4 style="margin: 12px 0 6px 0; font-size: 14px; font-weight: 600;">Which Layout to Choose?</h4>
-            <ul style="margin: 6px 0 12px 20px; padding: 0;">
+
+            <h4>Which Layout to Choose?</h4>
+            <ul>
                 <li><strong>Simple linear workflow:</strong> Use Hierarchical</li>
                 <li><strong>Complex workflow with cycles:</strong> Use Layered (DAG) or Horizontal DAG</li>
                 <li><strong>Process flows/pipelines:</strong> Use Horizontal DAG for left-to-right orientation</li>
@@ -4934,32 +4552,14 @@ class PetriView extends HTMLElement {
 
         // Close button
         const closeBtn = document.createElement('button');
+        closeBtn.className = 'pv-help-close-btn';
         closeBtn.textContent = 'Close';
         closeBtn.type = 'button';
-        this._applyStyles(closeBtn, {
-            marginTop: '20px',
-            padding: '10px 24px',
-            fontSize: '14px',
-            fontWeight: '500',
-            background: '#007bff',
-            color: '#fff',
-            border: 'none',
-            borderRadius: '6px',
-            cursor: 'pointer',
-            transition: 'background 0.2s'
-        });
-        closeBtn.addEventListener('mouseenter', () => {
-            closeBtn.style.background = '#0056b3';
-        });
-        closeBtn.addEventListener('mouseleave', () => {
-            closeBtn.style.background = '#007bff';
-        });
         closeBtn.addEventListener('click', () => {
             document.body.removeChild(overlay);
         });
         dialog.appendChild(closeBtn);
 
-        overlay.appendChild(dialog);
         document.body.appendChild(overlay);
 
         // Close on overlay click
@@ -4985,93 +4585,29 @@ class PetriView extends HTMLElement {
 
         // Create modal overlay
         const overlay = document.createElement('div');
-        overlay.className = 'pv-simulation-dialog-overlay';
-        this._applyStyles(overlay, {
-            position: 'fixed',
-            left: '0',
-            top: '0',
-            right: '0',
-            bottom: '0',
-            background: 'rgba(0, 0, 0, 0.5)',
-            zIndex: 2147483646,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '20px'
-        });
+        overlay.className = 'pv-sim-overlay';
 
         // Create dialog
         const dialog = document.createElement('div');
-        dialog.className = 'pv-simulation-dialog';
-        this._applyStyles(dialog, {
-            background: '#fff',
-            borderRadius: '12px',
-            padding: '0',
-            maxWidth: '900px',
-            width: '100%',
-            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)',
-            maxHeight: '90vh',
-            border: '1px solid #ddd',
-            display: 'flex',
-            flexDirection: 'column',
-            position: 'relative'
-        });
+        dialog.className = 'pv-sim-dialog';
 
         // Header container with title and close button
         const header = document.createElement('div');
-        this._applyStyles(header, {
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: '20px 24px',
-            borderBottom: '1px solid #eee'
-        });
+        header.className = 'pv-sim-header';
         dialog.appendChild(header);
 
         // Title
         const title = document.createElement('h2');
+        title.className = 'pv-sim-title';
         title.textContent = 'ODE Simulation';
-        this._applyStyles(title, {
-            margin: '0',
-            fontSize: '22px',
-            fontWeight: 'bold',
-            color: '#333'
-        });
         header.appendChild(title);
 
         // Close icon button
         const closeIcon = document.createElement('button');
+        closeIcon.className = 'pv-sim-close-btn';
         closeIcon.innerHTML = '×';
         closeIcon.type = 'button';
         closeIcon.title = 'Close';
-        this._applyStyles(closeIcon, {
-            background: 'transparent',
-            border: 'none',
-            fontSize: '32px',
-            lineHeight: '1',
-            color: '#666',
-            cursor: 'pointer',
-            padding: '0',
-            width: '32px',
-            height: '32px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            borderRadius: '4px',
-            transition: 'background 0.2s, color 0.2s'
-        });
-        closeIcon.addEventListener('mouseenter', () => {
-            this._applyStyles(closeIcon, {
-                background: '#f0f0f0',
-                color: '#333'
-            });
-        });
-        closeIcon.addEventListener('mouseleave', () => {
-            this._applyStyles(closeIcon, {
-                background: 'transparent',
-                color: '#666'
-            });
-        });
         closeIcon.addEventListener('click', () => {
             document.body.removeChild(overlay);
         });
@@ -5079,34 +4615,18 @@ class PetriView extends HTMLElement {
 
         // Content container with scrollbar
         const contentContainer = document.createElement('div');
-        this._applyStyles(contentContainer, {
-            padding: '24px',
-            overflowY: 'auto',
-            overflowX: 'hidden',
-            flex: '1',
-            minHeight: '0'
-        });
+        contentContainer.className = 'pv-sim-content';
         dialog.appendChild(contentContainer);
 
         // Description
         const desc = document.createElement('p');
+        desc.className = 'pv-sim-description';
         desc.textContent = 'Simulate the Petri net using ordinary differential equations (ODE solver). Configure simulation parameters and select which places to plot.';
-        this._applyStyles(desc, {
-            margin: '0 0 20px 0',
-            fontSize: '14px',
-            color: '#555',
-            lineHeight: '1.5'
-        });
         contentContainer.appendChild(desc);
 
         // Controls container
         const controlsContainer = document.createElement('div');
-        this._applyStyles(controlsContainer, {
-            display: 'grid',
-            gridTemplateColumns: '1fr 1fr',
-            gap: '20px',
-            marginBottom: '20px'
-        });
+        controlsContainer.className = 'pv-sim-controls';
         contentContainer.appendChild(controlsContainer);
 
         // Left column - Simulation parameters
@@ -5115,154 +4635,82 @@ class PetriView extends HTMLElement {
 
         // Time parameters
         const timeSection = document.createElement('div');
-        this._applyStyles(timeSection, {
-            marginBottom: '16px'
-        });
+        timeSection.className = 'pv-sim-section';
         leftColumn.appendChild(timeSection);
 
         const timeTitle = document.createElement('h3');
+        timeTitle.className = 'pv-sim-section-title';
         timeTitle.textContent = 'Time Parameters';
-        this._applyStyles(timeTitle, {
-            margin: '0 0 8px 0',
-            fontSize: '16px',
-            fontWeight: '600',
-            color: '#333'
-        });
         timeSection.appendChild(timeTitle);
 
         const timeStartLabel = document.createElement('label');
+        timeStartLabel.className = 'pv-sim-field-label';
         timeStartLabel.textContent = 'Start Time:';
-        this._applyStyles(timeStartLabel, {
-            display: 'block',
-            fontSize: '13px',
-            marginBottom: '4px',
-            color: '#444'
-        });
         timeSection.appendChild(timeStartLabel);
 
         const timeStartInput = document.createElement('input');
+        timeStartInput.className = 'pv-sim-field-input pv-sim-field-input-mb';
         timeStartInput.type = 'number';
         timeStartInput.value = '0';
         timeStartInput.step = '0.1';
-        this._applyStyles(timeStartInput, {
-            width: '100%',
-            padding: '6px',
-            fontSize: '13px',
-            border: '1px solid #ccc',
-            borderRadius: '4px',
-            marginBottom: '8px'
-        });
         timeSection.appendChild(timeStartInput);
 
         const timeEndLabel = document.createElement('label');
+        timeEndLabel.className = 'pv-sim-field-label';
         timeEndLabel.textContent = 'End Time:';
-        this._applyStyles(timeEndLabel, {
-            display: 'block',
-            fontSize: '13px',
-            marginBottom: '4px',
-            color: '#444'
-        });
         timeSection.appendChild(timeEndLabel);
 
         const timeEndInput = document.createElement('input');
+        timeEndInput.className = 'pv-sim-field-input';
         timeEndInput.type = 'number';
         timeEndInput.value = '10';
         timeEndInput.step = '0.1';
-        this._applyStyles(timeEndInput, {
-            width: '100%',
-            padding: '6px',
-            fontSize: '13px',
-            border: '1px solid #ccc',
-            borderRadius: '4px'
-        });
         timeSection.appendChild(timeEndInput);
 
         // Solver options
         const solverSection = document.createElement('div');
-        this._applyStyles(solverSection, {
-            marginBottom: '16px'
-        });
+        solverSection.className = 'pv-sim-section';
         leftColumn.appendChild(solverSection);
 
         const solverTitle = document.createElement('h3');
+        solverTitle.className = 'pv-sim-section-title';
         solverTitle.textContent = 'Solver Options';
-        this._applyStyles(solverTitle, {
-            margin: '0 0 8px 0',
-            fontSize: '16px',
-            fontWeight: '600',
-            color: '#333'
-        });
         solverSection.appendChild(solverTitle);
 
         const dtLabel = document.createElement('label');
+        dtLabel.className = 'pv-sim-field-label';
         dtLabel.textContent = 'Initial Time Step (dt):';
-        this._applyStyles(dtLabel, {
-            display: 'block',
-            fontSize: '13px',
-            marginBottom: '4px',
-            color: '#444'
-        });
         solverSection.appendChild(dtLabel);
 
         const dtInput = document.createElement('input');
+        dtInput.className = 'pv-sim-field-input pv-sim-field-input-mb';
         dtInput.type = 'number';
         dtInput.value = '0.01';
         dtInput.step = '0.001';
-        this._applyStyles(dtInput, {
-            width: '100%',
-            padding: '6px',
-            fontSize: '13px',
-            border: '1px solid #ccc',
-            borderRadius: '4px',
-            marginBottom: '8px'
-        });
         solverSection.appendChild(dtInput);
 
         const abstolLabel = document.createElement('label');
+        abstolLabel.className = 'pv-sim-field-label';
         abstolLabel.textContent = 'Absolute Tolerance:';
-        this._applyStyles(abstolLabel, {
-            display: 'block',
-            fontSize: '13px',
-            marginBottom: '4px',
-            color: '#444'
-        });
         solverSection.appendChild(abstolLabel);
 
         const abstolInput = document.createElement('input');
+        abstolInput.className = 'pv-sim-field-input pv-sim-field-input-mb';
         abstolInput.type = 'number';
         abstolInput.value = '1e-6';
         abstolInput.step = '1e-7';
-        this._applyStyles(abstolInput, {
-            width: '100%',
-            padding: '6px',
-            fontSize: '13px',
-            border: '1px solid #ccc',
-            borderRadius: '4px',
-            marginBottom: '8px'
-        });
         solverSection.appendChild(abstolInput);
 
         const reltolLabel = document.createElement('label');
+        reltolLabel.className = 'pv-sim-field-label';
         reltolLabel.textContent = 'Relative Tolerance:';
-        this._applyStyles(reltolLabel, {
-            display: 'block',
-            fontSize: '13px',
-            marginBottom: '4px',
-            color: '#444'
-        });
         solverSection.appendChild(reltolLabel);
 
         const reltolInput = document.createElement('input');
+        reltolInput.className = 'pv-sim-field-input';
         reltolInput.type = 'number';
         reltolInput.value = '1e-3';
         reltolInput.step = '1e-4';
-        this._applyStyles(reltolInput, {
-            width: '100%',
-            padding: '6px',
-            fontSize: '13px',
-            border: '1px solid #ccc',
-            borderRadius: '4px'
-        });
         solverSection.appendChild(reltolInput);
 
         // Right column - Variable selection and rates
@@ -5271,30 +4719,16 @@ class PetriView extends HTMLElement {
 
         // Variables to plot
         const variablesSection = document.createElement('div');
-        this._applyStyles(variablesSection, {
-            marginBottom: '16px'
-        });
+        variablesSection.className = 'pv-sim-section';
         rightColumn.appendChild(variablesSection);
 
         const variablesTitle = document.createElement('h3');
+        variablesTitle.className = 'pv-sim-section-title';
         variablesTitle.textContent = 'Places to Plot';
-        this._applyStyles(variablesTitle, {
-            margin: '0 0 8px 0',
-            fontSize: '16px',
-            fontWeight: '600',
-            color: '#333'
-        });
         variablesSection.appendChild(variablesTitle);
 
         const variablesContainer = document.createElement('div');
-        this._applyStyles(variablesContainer, {
-            maxHeight: '150px',
-            overflow: 'auto',
-            border: '1px solid #ccc',
-            borderRadius: '4px',
-            padding: '8px',
-            background: '#fafafa'
-        });
+        variablesContainer.className = 'pv-sim-variables-container';
         variablesSection.appendChild(variablesContainer);
 
         // Add checkboxes for each place
@@ -5302,43 +4736,27 @@ class PetriView extends HTMLElement {
         const placeLabels = Object.keys(this._model.places || {});
         if (placeLabels.length === 0) {
             const noPlaces = document.createElement('p');
+            noPlaces.className = 'pv-sim-no-items';
             noPlaces.textContent = 'No places in the model';
-            this._applyStyles(noPlaces, {
-                margin: '0',
-                fontSize: '13px',
-                color: '#999',
-                fontStyle: 'italic'
-            });
             variablesContainer.appendChild(noPlaces);
         } else {
             placeLabels.forEach((label, idx) => {
                 const checkboxWrapper = document.createElement('div');
-                this._applyStyles(checkboxWrapper, {
-                    marginBottom: '6px',
-                    display: 'flex',
-                    alignItems: 'center'
-                });
+                checkboxWrapper.className = 'pv-sim-checkbox-wrapper';
 
                 const checkbox = document.createElement('input');
+                checkbox.className = 'pv-sim-checkbox';
                 checkbox.type = 'checkbox';
                 checkbox.id = 'var-' + label;
                 checkbox.checked = idx < 5; // Check first 5 by default
                 checkbox.value = label;
-                this._applyStyles(checkbox, {
-                    marginRight: '8px',
-                    cursor: 'pointer'
-                });
                 checkboxWrapper.appendChild(checkbox);
                 placeCheckboxes[label] = checkbox;
 
                 const checkboxLabel = document.createElement('label');
+                checkboxLabel.className = 'pv-sim-checkbox-label';
                 checkboxLabel.textContent = label;
                 checkboxLabel.htmlFor = 'var-' + label;
-                this._applyStyles(checkboxLabel, {
-                    fontSize: '13px',
-                    cursor: 'pointer',
-                    color: '#444'
-                });
                 checkboxWrapper.appendChild(checkboxLabel);
 
                 variablesContainer.appendChild(checkboxWrapper);
@@ -5350,70 +4768,37 @@ class PetriView extends HTMLElement {
         rightColumn.appendChild(ratesSection);
 
         const ratesTitle = document.createElement('h3');
+        ratesTitle.className = 'pv-sim-section-title';
         ratesTitle.textContent = 'Transition Rates';
-        this._applyStyles(ratesTitle, {
-            margin: '0 0 8px 0',
-            fontSize: '16px',
-            fontWeight: '600',
-            color: '#333'
-        });
         ratesSection.appendChild(ratesTitle);
 
         const ratesContainer = document.createElement('div');
-        this._applyStyles(ratesContainer, {
-            maxHeight: '150px',
-            overflow: 'auto',
-            border: '1px solid #ccc',
-            borderRadius: '4px',
-            padding: '8px',
-            background: '#fafafa'
-        });
+        ratesContainer.className = 'pv-sim-variables-container';
         ratesSection.appendChild(ratesContainer);
 
         const transitionRateInputs = {};
         const transitionLabels = Object.keys(this._model.transitions || {});
         if (transitionLabels.length === 0) {
             const noTransitions = document.createElement('p');
+            noTransitions.className = 'pv-sim-no-items';
             noTransitions.textContent = 'No transitions in the model';
-            this._applyStyles(noTransitions, {
-                margin: '0',
-                fontSize: '13px',
-                color: '#999',
-                fontStyle: 'italic'
-            });
             ratesContainer.appendChild(noTransitions);
         } else {
             transitionLabels.forEach(label => {
                 const rateWrapper = document.createElement('div');
-                this._applyStyles(rateWrapper, {
-                    marginBottom: '8px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between'
-                });
+                rateWrapper.className = 'pv-sim-rate-wrapper';
 
                 const rateLabel = document.createElement('label');
+                rateLabel.className = 'pv-sim-rate-label';
                 rateLabel.textContent = label + ':';
-                this._applyStyles(rateLabel, {
-                    fontSize: '13px',
-                    color: '#444',
-                    flex: '1',
-                    marginRight: '8px'
-                });
                 rateWrapper.appendChild(rateLabel);
 
                 const rateInput = document.createElement('input');
+                rateInput.className = 'pv-sim-rate-input';
                 rateInput.type = 'number';
                 rateInput.value = '1.0';
                 rateInput.step = '0.1';
                 rateInput.min = '0';
-                this._applyStyles(rateInput, {
-                    width: '80px',
-                    padding: '4px',
-                    fontSize: '13px',
-                    border: '1px solid #ccc',
-                    borderRadius: '4px'
-                });
                 rateWrapper.appendChild(rateInput);
                 transitionRateInputs[label] = rateInput;
 
@@ -5421,60 +4806,26 @@ class PetriView extends HTMLElement {
             });
         }
 
-
-
         // Plot area
         const plotContainer = document.createElement('div');
-        this._applyStyles(plotContainer, {
-            marginTop: '20px',
-            padding: '16px',
-            border: '1px solid #ddd',
-            borderRadius: '8px',
-            background: '#f9f9f9',
-            minHeight: '400px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center'
-        });
+        plotContainer.className = 'pv-sim-plot-container';
         contentContainer.appendChild(plotContainer);
 
         const plotPlaceholder = document.createElement('p');
+        plotPlaceholder.className = 'pv-sim-plot-placeholder';
         plotPlaceholder.textContent = 'Click "Run Simulation" to generate plot';
-        this._applyStyles(plotPlaceholder, {
-            margin: '0',
-            fontSize: '14px',
-            color: '#999',
-            fontStyle: 'italic'
-        });
         plotContainer.appendChild(plotPlaceholder);
 
         // Buttons container
         const buttonsContainer = document.createElement('div');
-        this._applyStyles(buttonsContainer, {
-            marginTop: '20px',
-            padding: '16px 24px',
-            borderTop: '1px solid #eee',
-            display: 'flex',
-            gap: '12px',
-            justifyContent: 'flex-end',
-            background: '#fafafa'
-        });
+        buttonsContainer.className = 'pv-sim-buttons';
         dialog.appendChild(buttonsContainer);
 
         // Run simulation button
         const runButton = document.createElement('button');
+        runButton.className = 'pv-sim-btn pv-sim-btn-primary';
         runButton.textContent = 'Run Simulation';
         runButton.type = 'button';
-        this._applyStyles(runButton, {
-            padding: '10px 20px',
-            fontSize: '14px',
-            fontWeight: '600',
-            color: '#fff',
-            background: '#0366d6',
-            border: 'none',
-            borderRadius: '6px',
-            cursor: 'pointer'
-        });
         runButton.addEventListener('click', () => {
             this._runODESimulation({
                 timeStartInput,
@@ -5492,20 +4843,10 @@ class PetriView extends HTMLElement {
 
         // Export to Gist button (only show if authenticated and simulation has run)
         const exportGistButton = document.createElement('button');
+        exportGistButton.className = 'pv-sim-btn pv-sim-btn-export';
         exportGistButton.textContent = '📤 Export to Gist';
         exportGistButton.type = 'button';
         exportGistButton.disabled = true; // Initially disabled until simulation runs
-        this._applyStyles(exportGistButton, {
-            padding: '10px 20px',
-            fontSize: '14px',
-            fontWeight: '600',
-            color: '#fff',
-            background: '#6f42c1',
-            border: 'none',
-            borderRadius: '6px',
-            cursor: 'pointer',
-            opacity: '0.5'
-        });
         exportGistButton.addEventListener('click', async () => {
             await this._exportODESimulationToGist({
                 timeStartInput,
@@ -5525,18 +4866,9 @@ class PetriView extends HTMLElement {
 
         // Close button
         const closeButton = document.createElement('button');
+        closeButton.className = 'pv-sim-btn pv-sim-btn-secondary';
         closeButton.textContent = 'Close';
         closeButton.type = 'button';
-        this._applyStyles(closeButton, {
-            padding: '10px 20px',
-            fontSize: '14px',
-            fontWeight: '600',
-            color: '#333',
-            background: '#f3f3f3',
-            border: 'none',
-            borderRadius: '6px',
-            cursor: 'pointer'
-        });
         closeButton.addEventListener('click', () => {
             document.body.removeChild(overlay);
         });
@@ -5857,123 +5189,53 @@ class PetriView extends HTMLElement {
     _showLayoutAlgorithmsDialog() {
         // Create modal overlay
         const overlay = document.createElement('div');
-        overlay.className = 'pv-layout-dialog-overlay';
-        this._applyStyles(overlay, {
-            position: 'fixed',
-            left: '0',
-            top: '0',
-            right: '0',
-            bottom: '0',
-            background: 'rgba(0, 0, 0, 0.5)',
-            zIndex: 2147483646,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '20px'
-        });
+        overlay.className = 'pv-layout-overlay';
 
         // Create dialog
         const dialog = document.createElement('div');
         dialog.className = 'pv-layout-dialog';
-        this._applyStyles(dialog, {
-            background: '#fff',
-            borderRadius: '8px',
-            padding: '24px',
-            maxWidth: '500px',
-            width: '100%',
-            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)',
-            maxHeight: '85vh',
-            overflow: 'auto'
-        });
 
         // Title
         const title = document.createElement('h2');
+        title.className = 'pv-layout-dialog-title';
         title.textContent = 'Layout Algorithms';
-        this._applyStyles(title, {
-            margin: '0 0 16px 0',
-            fontSize: '22px',
-            fontWeight: 'bold',
-            color: '#333'
-        });
         dialog.appendChild(title);
 
         // Description
         const desc = document.createElement('p');
+        desc.className = 'pv-layout-dialog-desc';
         desc.textContent = 'Apply a layout algorithm to automatically arrange your Petri net nodes:';
-        this._applyStyles(desc, {
-            margin: '0 0 16px 0',
-            fontSize: '14px',
-            color: '#666'
-        });
         dialog.appendChild(desc);
 
         // Layout options container
         const optionsContainer = document.createElement('div');
-        this._applyStyles(optionsContainer, {
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '12px'
-        });
+        optionsContainer.className = 'pv-layout-options';
 
         const createLayoutButton = (name, description, iconEmoji, onClick) => {
             const button = document.createElement('button');
             button.type = 'button';
-            this._applyStyles(button, {
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'flex-start',
-                padding: '16px',
-                background: '#f8f9fa',
-                border: '2px solid #e1e4e8',
-                borderRadius: '8px',
-                cursor: 'pointer',
-                transition: 'all 0.2s',
-                textAlign: 'left'
-            });
+            button.className = 'pv-layout-option';
 
             const header = document.createElement('div');
-            this._applyStyles(header, {
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                marginBottom: '8px'
-            });
+            header.className = 'pv-layout-option-header';
 
             const icon = document.createElement('span');
+            icon.className = 'pv-layout-option-icon';
             icon.textContent = iconEmoji;
-            this._applyStyles(icon, {
-                fontSize: '20px'
-            });
             header.appendChild(icon);
 
             const nameEl = document.createElement('span');
+            nameEl.className = 'pv-layout-option-name';
             nameEl.textContent = name;
-            this._applyStyles(nameEl, {
-                fontSize: '16px',
-                fontWeight: '600',
-                color: '#333'
-            });
             header.appendChild(nameEl);
 
             button.appendChild(header);
 
             const descEl = document.createElement('div');
+            descEl.className = 'pv-layout-option-desc';
             descEl.textContent = description;
-            this._applyStyles(descEl, {
-                fontSize: '13px',
-                color: '#666',
-                lineHeight: '1.4'
-            });
             button.appendChild(descEl);
 
-            button.addEventListener('mouseenter', () => {
-                button.style.background = '#e9ecef';
-                button.style.borderColor = '#007bff';
-            });
-            button.addEventListener('mouseleave', () => {
-                button.style.background = '#f8f9fa';
-                button.style.borderColor = '#e1e4e8';
-            });
             button.addEventListener('click', () => {
                 onClick();
                 document.body.removeChild(overlay);
@@ -6027,26 +5289,9 @@ class PetriView extends HTMLElement {
 
         // Close button
         const closeBtn = document.createElement('button');
+        closeBtn.className = 'pv-layout-close-btn';
         closeBtn.textContent = 'Cancel';
         closeBtn.type = 'button';
-        this._applyStyles(closeBtn, {
-            marginTop: '20px',
-            padding: '10px 24px',
-            fontSize: '14px',
-            fontWeight: '500',
-            background: '#6c757d',
-            color: '#fff',
-            border: 'none',
-            borderRadius: '6px',
-            cursor: 'pointer',
-            transition: 'background 0.2s'
-        });
-        closeBtn.addEventListener('mouseenter', () => {
-            closeBtn.style.background = '#5a6268';
-        });
-        closeBtn.addEventListener('mouseleave', () => {
-            closeBtn.style.background = '#6c757d';
-        });
         closeBtn.addEventListener('click', () => {
             document.body.removeChild(overlay);
         });
@@ -6567,54 +5812,22 @@ class PetriView extends HTMLElement {
 
         // Create modal overlay
         const overlay = document.createElement('div');
-        overlay.className = 'pv-diagrams-dialog-overlay';
-        this._applyStyles(overlay, {
-            position: 'fixed',
-            left: '0',
-            top: '0',
-            right: '0',
-            bottom: '0',
-            background: 'rgba(0, 0, 0, 0.5)',
-            zIndex: 2147483646,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '20px'
-        });
+        overlay.className = 'pv-diagrams-overlay';
 
         // Create dialog
         const dialog = document.createElement('div');
         dialog.className = 'pv-diagrams-dialog';
-        this._applyStyles(dialog, {
-            background: '#fff',
-            borderRadius: '8px',
-            padding: '24px',
-            maxWidth: '800px',
-            width: '100%',
-            maxHeight: '80vh',
-            overflow: 'auto',
-            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)'
-        });
 
         // Title
         const title = document.createElement('h2');
+        title.className = 'pv-diagrams-title';
         title.textContent = 'My Diagrams';
-        this._applyStyles(title, {
-            margin: '0 0 16px 0',
-            fontSize: '22px',
-            fontWeight: 'bold',
-            color: '#333'
-        });
         dialog.appendChild(title);
 
         // Loading state
         const loadingDiv = document.createElement('div');
+        loadingDiv.className = 'pv-diagrams-loading';
         loadingDiv.textContent = 'Loading diagrams...';
-        this._applyStyles(loadingDiv, {
-            padding: '20px',
-            textAlign: 'center',
-            color: '#666'
-        });
         dialog.appendChild(loadingDiv);
 
         overlay.appendChild(dialog);
@@ -6640,61 +5853,24 @@ class PetriView extends HTMLElement {
 
             if (diagrams.length === 0) {
                 const emptyDiv = document.createElement('div');
+                emptyDiv.className = 'pv-diagrams-empty';
                 emptyDiv.textContent = 'No diagrams saved yet. Save your current diagram to see it here!';
-                this._applyStyles(emptyDiv, {
-                    padding: '40px 20px',
-                    textAlign: 'center',
-                    color: '#666',
-                    fontSize: '14px'
-                });
                 dialog.appendChild(emptyDiv);
             } else {
                 // Create grid for diagrams
                 const grid = document.createElement('div');
-                this._applyStyles(grid, {
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
-                    gap: '16px',
-                    marginBottom: '20px'
-                });
+                grid.className = 'pv-diagrams-grid';
 
                 for (const diagram of diagrams) {
                     const card = document.createElement('div');
-                    this._applyStyles(card, {
-                        border: '1px solid #e1e4e8',
-                        borderRadius: '8px',
-                        overflow: 'hidden',
-                        cursor: 'pointer',
-                        transition: 'box-shadow 0.2s, transform 0.2s'
-                    });
-                    card.addEventListener('mouseenter', () => {
-                        card.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
-                        card.style.transform = 'translateY(-2px)';
-                    });
-                    card.addEventListener('mouseleave', () => {
-                        card.style.boxShadow = '';
-                        card.style.transform = '';
-                    });
+                    card.className = 'pv-diagram-card';
 
                     // Thumbnail using SVG endpoint
                     const thumbnail = document.createElement('div');
-                    this._applyStyles(thumbnail, {
-                        width: '100%',
-                        height: '120px',
-                        background: '#f6f8fa',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        overflow: 'hidden'
-                    });
+                    thumbnail.className = 'pv-diagram-thumbnail';
                     const img = document.createElement('img');
                     img.src = `/img/${diagram.cid}.svg`;
                     img.alt = diagram.name || 'Petri Net';
-                    this._applyStyles(img, {
-                        maxWidth: '100%',
-                        maxHeight: '100%',
-                        objectFit: 'contain'
-                    });
                     img.onerror = () => {
                         img.style.display = 'none';
                         thumbnail.textContent = '🔷';
@@ -6706,22 +5882,12 @@ class PetriView extends HTMLElement {
 
                     // Info section
                     const info = document.createElement('div');
-                    this._applyStyles(info, {
-                        padding: '12px'
-                    });
+                    info.className = 'pv-diagram-info';
 
                     const nameEl = document.createElement('div');
+                    nameEl.className = 'pv-diagram-name';
                     nameEl.textContent = diagram.name || 'Untitled';
-                    this._applyStyles(nameEl, {
-                        fontWeight: '600',
-                        fontSize: '14px',
-                        color: '#24292e',
-                        marginBottom: '4px',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                        cursor: 'pointer'
-                    });
+                    nameEl.style.cursor = 'pointer';
                     nameEl.title = 'Click to edit name';
                     nameEl.addEventListener('click', (e) => {
                         e.stopPropagation();
@@ -6730,16 +5896,13 @@ class PetriView extends HTMLElement {
                     info.appendChild(nameEl);
 
                     const descEl = document.createElement('div');
+                    descEl.className = 'pv-diagram-desc';
                     descEl.textContent = diagram.description || 'Add description...';
-                    this._applyStyles(descEl, {
-                        fontSize: '12px',
-                        color: diagram.description ? '#586069' : '#959da5',
-                        fontStyle: diagram.description ? 'normal' : 'italic',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                        cursor: 'pointer'
-                    });
+                    descEl.style.cursor = 'pointer';
+                    if (!diagram.description) {
+                        descEl.style.fontStyle = 'italic';
+                        descEl.style.color = '#959da5';
+                    }
                     descEl.title = 'Click to edit description';
                     descEl.addEventListener('click', (e) => {
                         e.stopPropagation();
@@ -6748,36 +5911,21 @@ class PetriView extends HTMLElement {
                     info.appendChild(descEl);
 
                     const dateEl = document.createElement('div');
+                    dateEl.className = 'pv-diagram-date';
                     const date = new Date(diagram.createdAt);
                     dateEl.textContent = date.toLocaleDateString();
-                    this._applyStyles(dateEl, {
-                        fontSize: '11px',
-                        color: '#959da5',
-                        marginTop: '4px'
-                    });
                     info.appendChild(dateEl);
 
                     card.appendChild(info);
 
                     // Actions
                     const actions = document.createElement('div');
-                    this._applyStyles(actions, {
-                        display: 'flex',
-                        borderTop: '1px solid #e1e4e8'
-                    });
+                    actions.className = 'pv-diagram-actions';
 
                     const openBtn = document.createElement('button');
+                    openBtn.className = 'pv-diagram-action-btn pv-diagram-action-btn-open';
                     openBtn.textContent = 'Open';
                     openBtn.type = 'button';
-                    this._applyStyles(openBtn, {
-                        flex: '1',
-                        padding: '8px',
-                        border: 'none',
-                        background: 'transparent',
-                        cursor: 'pointer',
-                        fontSize: '12px',
-                        color: '#0366d6'
-                    });
                     openBtn.addEventListener('click', (e) => {
                         e.stopPropagation();
                         window.location.href = `/?cid=${diagram.cid}`;
@@ -6785,18 +5933,9 @@ class PetriView extends HTMLElement {
                     actions.appendChild(openBtn);
 
                     const deleteBtn = document.createElement('button');
+                    deleteBtn.className = 'pv-diagram-action-btn pv-diagram-action-btn-delete';
                     deleteBtn.textContent = 'Delete';
                     deleteBtn.type = 'button';
-                    this._applyStyles(deleteBtn, {
-                        flex: '1',
-                        padding: '8px',
-                        border: 'none',
-                        borderLeft: '1px solid #e1e4e8',
-                        background: 'transparent',
-                        cursor: 'pointer',
-                        fontSize: '12px',
-                        color: '#cb2431'
-                    });
                     deleteBtn.addEventListener('click', async (e) => {
                         e.stopPropagation();
                         if (confirm(`Delete "${diagram.name || 'this diagram'}"?`)) {
@@ -6813,12 +5952,8 @@ class PetriView extends HTMLElement {
                                     if (grid.children.length === 0) {
                                         grid.remove();
                                         const emptyDiv = document.createElement('div');
+                                        emptyDiv.className = 'pv-diagrams-empty';
                                         emptyDiv.textContent = 'No diagrams saved yet.';
-                                        this._applyStyles(emptyDiv, {
-                                            padding: '40px 20px',
-                                            textAlign: 'center',
-                                            color: '#666'
-                                        });
                                         dialog.insertBefore(emptyDiv, dialog.querySelector('button'));
                                     }
                                 } else {
@@ -6844,18 +5979,9 @@ class PetriView extends HTMLElement {
 
         // Close button
         const closeBtn = document.createElement('button');
+        closeBtn.className = 'pv-diagrams-close-btn';
         closeBtn.textContent = 'Close';
         closeBtn.type = 'button';
-        this._applyStyles(closeBtn, {
-            padding: '10px 24px',
-            fontSize: '14px',
-            fontWeight: '500',
-            background: '#6c757d',
-            color: '#fff',
-            border: 'none',
-            borderRadius: '6px',
-            cursor: 'pointer'
-        });
         closeBtn.addEventListener('click', () => {
             document.body.removeChild(overlay);
         });
@@ -6873,136 +5999,61 @@ class PetriView extends HTMLElement {
     async _showEditDiagramDetailsDialog(diagram, nameEl, descEl) {
         // Create modal overlay
         const overlay = document.createElement('div');
-        overlay.className = 'pv-edit-diagram-dialog-overlay';
-        this._applyStyles(overlay, {
-            position: 'fixed',
-            left: '0',
-            top: '0',
-            right: '0',
-            bottom: '0',
-            background: 'rgba(0, 0, 0, 0.5)',
-            zIndex: 2147483647,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '20px'
-        });
+        overlay.className = 'pv-edit-diagram-overlay';
 
         // Create dialog
         const dialog = document.createElement('div');
         dialog.className = 'pv-edit-diagram-dialog';
-        this._applyStyles(dialog, {
-            background: '#fff',
-            borderRadius: '8px',
-            padding: '24px',
-            maxWidth: '500px',
-            width: '100%',
-            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)'
-        });
 
         // Title
         const title = document.createElement('h2');
+        title.className = 'pv-edit-diagram-title';
         title.textContent = 'Edit Diagram Details';
-        this._applyStyles(title, {
-            margin: '0 0 16px 0',
-            fontSize: '22px',
-            fontWeight: 'bold',
-            color: '#333'
-        });
         dialog.appendChild(title);
 
         // Name field
         const nameLabel = document.createElement('label');
+        nameLabel.className = 'pv-edit-diagram-label';
         nameLabel.textContent = 'Name';
-        this._applyStyles(nameLabel, {
-            display: 'block',
-            fontSize: '14px',
-            fontWeight: '500',
-            color: '#24292e',
-            marginBottom: '4px'
-        });
         dialog.appendChild(nameLabel);
 
         const nameInput = document.createElement('input');
+        nameInput.className = 'pv-edit-diagram-input';
         nameInput.type = 'text';
         nameInput.value = diagram.name || '';
         nameInput.placeholder = 'Enter diagram name';
-        this._applyStyles(nameInput, {
-            width: '100%',
-            padding: '8px 12px',
-            fontSize: '14px',
-            border: '1px solid #e1e4e8',
-            borderRadius: '6px',
-            marginBottom: '16px',
-            boxSizing: 'border-box'
-        });
         dialog.appendChild(nameInput);
 
         // Description field
         const descLabel = document.createElement('label');
+        descLabel.className = 'pv-edit-diagram-label';
         descLabel.textContent = 'Description';
-        this._applyStyles(descLabel, {
-            display: 'block',
-            fontSize: '14px',
-            fontWeight: '500',
-            color: '#24292e',
-            marginBottom: '4px'
-        });
         dialog.appendChild(descLabel);
 
         const descInput = document.createElement('textarea');
+        descInput.className = 'pv-edit-diagram-textarea';
         descInput.value = diagram.description || '';
         descInput.placeholder = 'Enter diagram description';
         descInput.rows = 3;
-        this._applyStyles(descInput, {
-            width: '100%',
-            padding: '8px 12px',
-            fontSize: '14px',
-            border: '1px solid #e1e4e8',
-            borderRadius: '6px',
-            marginBottom: '20px',
-            boxSizing: 'border-box',
-            resize: 'vertical'
-        });
         dialog.appendChild(descInput);
 
         // Buttons
         const btnContainer = document.createElement('div');
-        this._applyStyles(btnContainer, {
-            display: 'flex',
-            gap: '12px',
-            justifyContent: 'flex-end'
-        });
+        btnContainer.className = 'pv-edit-diagram-buttons';
 
         const cancelBtn = document.createElement('button');
+        cancelBtn.className = 'pv-edit-diagram-btn-cancel';
         cancelBtn.textContent = 'Cancel';
         cancelBtn.type = 'button';
-        this._applyStyles(cancelBtn, {
-            padding: '10px 20px',
-            fontSize: '14px',
-            background: '#f6f8fa',
-            color: '#24292e',
-            border: '1px solid #e1e4e8',
-            borderRadius: '6px',
-            cursor: 'pointer'
-        });
         cancelBtn.addEventListener('click', () => {
             document.body.removeChild(overlay);
         });
         btnContainer.appendChild(cancelBtn);
 
         const saveBtn = document.createElement('button');
+        saveBtn.className = 'pv-edit-diagram-btn-save';
         saveBtn.textContent = 'Save';
         saveBtn.type = 'button';
-        this._applyStyles(saveBtn, {
-            padding: '10px 20px',
-            fontSize: '14px',
-            background: '#2ea44f',
-            color: '#fff',
-            border: 'none',
-            borderRadius: '6px',
-            cursor: 'pointer'
-        });
         saveBtn.addEventListener('click', async () => {
             const newName = nameInput.value.trim();
             const newDescription = descInput.value.trim();
@@ -7098,136 +6149,61 @@ class PetriView extends HTMLElement {
     _showEditDetailsDialog() {
         // Create modal overlay
         const overlay = document.createElement('div');
-        overlay.className = 'pv-details-dialog-overlay';
-        this._applyStyles(overlay, {
-            position: 'fixed',
-            left: '0',
-            top: '0',
-            right: '0',
-            bottom: '0',
-            background: 'rgba(0, 0, 0, 0.5)',
-            zIndex: 2147483646,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '20px'
-        });
+        overlay.className = 'pv-edit-diagram-overlay';
 
         // Create dialog
         const dialog = document.createElement('div');
-        dialog.className = 'pv-details-dialog';
-        this._applyStyles(dialog, {
-            background: '#fff',
-            borderRadius: '8px',
-            padding: '24px',
-            maxWidth: '500px',
-            width: '100%',
-            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)'
-        });
+        dialog.className = 'pv-edit-diagram-dialog';
 
         // Title
         const title = document.createElement('h2');
+        title.className = 'pv-edit-diagram-title';
         title.textContent = 'Edit Diagram Details';
-        this._applyStyles(title, {
-            margin: '0 0 16px 0',
-            fontSize: '22px',
-            fontWeight: 'bold',
-            color: '#333'
-        });
         dialog.appendChild(title);
 
         // Name field
         const nameLabel = document.createElement('label');
+        nameLabel.className = 'pv-edit-diagram-label';
         nameLabel.textContent = 'Name';
-        this._applyStyles(nameLabel, {
-            display: 'block',
-            fontSize: '14px',
-            fontWeight: '500',
-            color: '#24292e',
-            marginBottom: '4px'
-        });
         dialog.appendChild(nameLabel);
 
         const nameInput = document.createElement('input');
+        nameInput.className = 'pv-edit-diagram-input';
         nameInput.type = 'text';
         nameInput.value = this._model.name || '';
         nameInput.placeholder = 'Enter diagram name';
-        this._applyStyles(nameInput, {
-            width: '100%',
-            padding: '8px 12px',
-            fontSize: '14px',
-            border: '1px solid #e1e4e8',
-            borderRadius: '6px',
-            marginBottom: '16px',
-            boxSizing: 'border-box'
-        });
         dialog.appendChild(nameInput);
 
         // Description field
         const descLabel = document.createElement('label');
+        descLabel.className = 'pv-edit-diagram-label';
         descLabel.textContent = 'Description';
-        this._applyStyles(descLabel, {
-            display: 'block',
-            fontSize: '14px',
-            fontWeight: '500',
-            color: '#24292e',
-            marginBottom: '4px'
-        });
         dialog.appendChild(descLabel);
 
         const descInput = document.createElement('textarea');
+        descInput.className = 'pv-edit-diagram-textarea';
         descInput.value = this._model.description || '';
         descInput.placeholder = 'Enter diagram description';
         descInput.rows = 3;
-        this._applyStyles(descInput, {
-            width: '100%',
-            padding: '8px 12px',
-            fontSize: '14px',
-            border: '1px solid #e1e4e8',
-            borderRadius: '6px',
-            marginBottom: '20px',
-            boxSizing: 'border-box',
-            resize: 'vertical'
-        });
         dialog.appendChild(descInput);
 
         // Buttons
         const btnContainer = document.createElement('div');
-        this._applyStyles(btnContainer, {
-            display: 'flex',
-            gap: '12px',
-            justifyContent: 'flex-end'
-        });
+        btnContainer.className = 'pv-edit-diagram-buttons';
 
         const cancelBtn = document.createElement('button');
+        cancelBtn.className = 'pv-edit-diagram-btn-cancel';
         cancelBtn.textContent = 'Cancel';
         cancelBtn.type = 'button';
-        this._applyStyles(cancelBtn, {
-            padding: '10px 20px',
-            fontSize: '14px',
-            background: '#f6f8fa',
-            color: '#24292e',
-            border: '1px solid #e1e4e8',
-            borderRadius: '6px',
-            cursor: 'pointer'
-        });
         cancelBtn.addEventListener('click', () => {
             document.body.removeChild(overlay);
         });
         btnContainer.appendChild(cancelBtn);
 
         const saveBtn = document.createElement('button');
+        saveBtn.className = 'pv-edit-diagram-btn-save';
         saveBtn.textContent = 'Save';
         saveBtn.type = 'button';
-        this._applyStyles(saveBtn, {
-            padding: '10px 20px',
-            fontSize: '14px',
-            background: '#2ea44f',
-            color: '#fff',
-            border: 'none',
-            borderRadius: '6px',
-            cursor: 'pointer'
-        });
         saveBtn.addEventListener('click', () => {
             const name = nameInput.value.trim();
             const description = descInput.value.trim();
@@ -7277,25 +6253,6 @@ class PetriView extends HTMLElement {
         menuBtn.className = 'pv-hamburger-btn';
         menuBtn.innerHTML = '☰';
         menuBtn.title = 'Menu';
-        this._applyStyles(menuBtn, {
-            position: 'absolute',
-            top: '10px',
-            left: '10px',
-            width: '40px',
-            height: '40px',
-            borderRadius: '6px',
-            border: 'none',
-            background: 'rgba(255, 255, 255, 0.9)',
-            boxShadow: '0 2px 6px rgba(0, 0, 0, 0.15)',
-            cursor: 'pointer',
-            fontSize: '20px',
-            zIndex: 1300,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            userSelect: 'none',
-            transition: 'background 0.2s'
-        });
 
         // Use left-side panel in backend mode, dropdown otherwise
         let menuContainer;
@@ -7304,93 +6261,35 @@ class PetriView extends HTMLElement {
             menuContainer = document.createElement('div');
             menuContainer.className = 'pv-hamburger-overlay';
             menuContainer.style.display = 'none';
-            this._applyStyles(menuContainer, {
-                position: 'fixed',
-                top: '0',
-                left: '0',
-                width: '100%',
-                height: '100%',
-                background: 'rgba(0, 0, 0, 0.5)',
-                zIndex: 1299,
-                display: 'none'
-            });
 
             // Create left panel
             const panel = document.createElement('div');
             panel.className = 'pv-hamburger-panel';
-            this._applyStyles(panel, {
-                position: 'fixed',
-                top: '0',
-                left: '0',
-                width: '300px',
-                height: '100%',
-                background: '#fff',
-                boxShadow: '2px 0 8px rgba(0,0,0,0.1)',
-                display: 'flex',
-                flexDirection: 'column',
-                zIndex: 1300
-            });
 
-            // Panel header - use full width for hamburger menu button
+            // Panel header
             const header = document.createElement('div');
-            this._applyStyles(header, {
-                // Left padding of 60px = 16px (left position) + 32px (button width) + 12px (margin)
-                padding: '16px 16px 16px 60px',
-                borderBottom: '1px solid #e1e4e8',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                position: 'relative'
-            });
+            header.className = 'pv-hamburger-header';
 
             // Hamburger button inside the panel on the left
             const panelMenuBtn = document.createElement('button');
             panelMenuBtn.type = 'button';
+            panelMenuBtn.className = 'pv-hamburger-header-btn';
             panelMenuBtn.innerHTML = '☰';
             panelMenuBtn.title = 'Close Menu';
-            this._applyStyles(panelMenuBtn, {
-                position: 'absolute',
-                left: '16px',
-                top: '50%',
-                transform: 'translateY(-50%)',
-                width: '32px',
-                height: '32px',
-                borderRadius: '4px',
-                border: 'none',
-                background: 'transparent',
-                cursor: 'pointer',
-                fontSize: '18px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#586069'
-            });
             panelMenuBtn.addEventListener('click', () => {
                 menuContainer.style.display = 'none';
             });
             header.appendChild(panelMenuBtn);
 
             const title = document.createElement('h3');
+            title.className = 'pv-hamburger-title';
             title.textContent = 'Menu';
-            this._applyStyles(title, {
-                margin: '0',
-                fontSize: '18px',
-                fontWeight: 'bold'
-            });
             header.appendChild(title);
 
             const closeBtn = document.createElement('button');
+            closeBtn.className = 'pv-hamburger-close-btn';
             closeBtn.textContent = '×';
             closeBtn.type = 'button';
-            this._applyStyles(closeBtn, {
-                background: 'transparent',
-                border: 'none',
-                fontSize: '28px',
-                cursor: 'pointer',
-                padding: '0',
-                lineHeight: '1',
-                color: '#586069'
-            });
             closeBtn.addEventListener('click', () => {
                 menuContainer.style.display = 'none';
             });
@@ -7400,11 +6299,7 @@ class PetriView extends HTMLElement {
 
             // Panel content
             const content = document.createElement('div');
-            this._applyStyles(content, {
-                padding: '8px 0',
-                flex: '1 1 auto',
-                overflow: 'auto'
-            });
+            content.className = 'pv-hamburger-content';
             panel.appendChild(content);
 
             menuContainer.appendChild(panel);
@@ -7421,58 +6316,23 @@ class PetriView extends HTMLElement {
             menuContainer = document.createElement('div');
             menuContainer.className = 'pv-hamburger-dropdown';
             menuContainer.style.display = 'none';
-            this._applyStyles(menuContainer, {
-                position: 'absolute',
-                top: '55px',
-                left: '10px',
-                minWidth: '180px',
-                background: 'rgba(255, 255, 255, 0.98)',
-                borderRadius: '8px',
-                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)',
-                zIndex: 1300,
-                padding: '6px 0',
-                userSelect: 'none'
-            });
             menuContainer._menuContent = menuContainer;
         }
 
         const makeMenuItem = (text, onClick, icon = null) => {
             const item = document.createElement('div');
             item.className = 'pv-menu-item';
-            this._applyStyles(item, {
-                padding: '10px 16px',
-                cursor: 'pointer',
-                fontSize: '14px',
-                fontFamily: 'system-ui, Arial',
-                transition: 'background 0.15s',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px'
-            });
 
             if (icon) {
                 const iconEl = document.createElement('span');
+                iconEl.className = 'pv-menu-item-icon';
                 iconEl.innerHTML = icon;
-                this._applyStyles(iconEl, {
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    width: '16px',
-                    height: '16px'
-                });
                 item.appendChild(iconEl);
             }
 
             const textEl = document.createElement('span');
             textEl.textContent = text;
             item.appendChild(textEl);
-
-            item.addEventListener('mouseenter', () => {
-                item.style.background = 'rgba(0, 0, 0, 0.05)';
-            });
-            item.addEventListener('mouseleave', () => {
-                item.style.background = 'transparent';
-            });
             item.addEventListener('click', (e) => {
                 e.stopPropagation();
                 onClick();
@@ -7526,11 +6386,7 @@ class PetriView extends HTMLElement {
 
             // Add separator
             const separator = document.createElement('div');
-            this._applyStyles(separator, {
-                height: '1px',
-                background: '#e1e4e8',
-                margin: '8px 0'
-            });
+            separator.className = 'pv-hamburger-separator';
             menuContainer._menuContent.appendChild(separator);
 
             // Add Login/Logout if in backend mode
@@ -7538,12 +6394,7 @@ class PetriView extends HTMLElement {
                 if (this._user) {
                     // Show user info and logout button
                     const userInfo = document.createElement('div');
-                    this._applyStyles(userInfo, {
-                        padding: '10px 16px',
-                        fontSize: '13px',
-                        color: '#586069',
-                        borderBottom: '1px solid #e1e4e8'
-                    });
+                    userInfo.className = 'pv-hamburger-user-info';
                     const userEmail = this._user.email || this._user.user_metadata?.user_name || 'User';
                     userInfo.textContent = `Logged in as: ${userEmail}`;
                     menuContainer._menuContent.appendChild(userInfo);
@@ -7555,11 +6406,7 @@ class PetriView extends HTMLElement {
 
                     // Add separator
                     const separator2 = document.createElement('div');
-                    this._applyStyles(separator2, {
-                        height: '1px',
-                        background: '#e1e4e8',
-                        margin: '8px 0'
-                    });
+                    separator2.className = 'pv-hamburger-separator';
                     menuContainer._menuContent.appendChild(separator2);
                 } else {
                     // Show login button
@@ -7570,11 +6417,7 @@ class PetriView extends HTMLElement {
 
                     // Add separator
                     const separator2 = document.createElement('div');
-                    this._applyStyles(separator2, {
-                        height: '1px',
-                        background: '#e1e4e8',
-                        margin: '8px 0'
-                    });
+                    separator2.className = 'pv-hamburger-separator';
                     menuContainer._menuContent.appendChild(separator2);
                 }
             } else {
@@ -7586,11 +6429,7 @@ class PetriView extends HTMLElement {
 
                 // Add separator
                 const separator2 = document.createElement('div');
-                this._applyStyles(separator2, {
-                    height: '1px',
-                    background: '#e1e4e8',
-                    margin: '8px 0'
-                });
+                separator2.className = 'pv-hamburger-separator';
                 menuContainer._menuContent.appendChild(separator2);
             }
         }
@@ -7647,13 +6486,6 @@ class PetriView extends HTMLElement {
             document.addEventListener('click', closeDropdown);
         }
 
-        menuBtn.addEventListener('mouseenter', () => {
-            menuBtn.style.background = 'rgba(255, 255, 255, 1)';
-        });
-        menuBtn.addEventListener('mouseleave', () => {
-            menuBtn.style.background = 'rgba(255, 255, 255, 0.9)';
-        });
-
         this._root.appendChild(menuBtn);
         if (isBackendMode) {
             // Append to body for full-screen overlay
@@ -7698,28 +6530,6 @@ class PetriView extends HTMLElement {
             return;
         }
 
-        this._applyStyles(button, {
-            position: 'absolute',
-            top: '10px',
-            right: '10px',
-            height: '40px',
-            padding: '0 16px',
-            borderRadius: '6px',
-            border: 'none',
-            background: 'rgba(255, 255, 255, 0.9)',
-            boxShadow: '0 2px 6px rgba(0, 0, 0, 0.15)',
-            cursor: 'pointer',
-            fontSize: '14px',
-            fontFamily: 'system-ui, Arial',
-            zIndex: 1300,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            userSelect: 'none',
-            transition: 'background 0.2s',
-            whiteSpace: 'nowrap'
-        });
-
         button.addEventListener('click', (e) => {
             e.stopPropagation();
             if (this._user) {
@@ -7729,13 +6539,6 @@ class PetriView extends HTMLElement {
                 // If not logged in, trigger login
                 this._loginWithGitHub();
             }
-        });
-
-        button.addEventListener('mouseenter', () => {
-            button.style.background = 'rgba(255, 255, 255, 1)';
-        });
-        button.addEventListener('mouseleave', () => {
-            button.style.background = 'rgba(255, 255, 255, 0.9)';
         });
 
         this._root.appendChild(button);
@@ -8075,6 +6878,16 @@ class PetriView extends HTMLElement {
                 '6': 'delete'
             };
             if (map[e.key] && !isTyping) this._setMode(map[e.key]);
+
+            // 7 = toggle label editor, 8 = toggle play/pause
+            if (e.key === '7' && !isTyping) {
+                e.preventDefault();
+                this._toggleLabelEditMode();
+            }
+            if (e.key === '8' && !isTyping) {
+                e.preventDefault();
+                this._setSimulation(!this._simRunning);
+            }
         });
         window.addEventListener('keyup', (e) => {
             if (e.key === ' ') this._spaceDown = false;
