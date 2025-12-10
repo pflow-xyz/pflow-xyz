@@ -6149,136 +6149,61 @@ class PetriView extends HTMLElement {
     _showEditDetailsDialog() {
         // Create modal overlay
         const overlay = document.createElement('div');
-        overlay.className = 'pv-details-dialog-overlay';
-        this._applyStyles(overlay, {
-            position: 'fixed',
-            left: '0',
-            top: '0',
-            right: '0',
-            bottom: '0',
-            background: 'rgba(0, 0, 0, 0.5)',
-            zIndex: 2147483646,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '20px'
-        });
+        overlay.className = 'pv-edit-diagram-overlay';
 
         // Create dialog
         const dialog = document.createElement('div');
-        dialog.className = 'pv-details-dialog';
-        this._applyStyles(dialog, {
-            background: '#fff',
-            borderRadius: '8px',
-            padding: '24px',
-            maxWidth: '500px',
-            width: '100%',
-            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)'
-        });
+        dialog.className = 'pv-edit-diagram-dialog';
 
         // Title
         const title = document.createElement('h2');
+        title.className = 'pv-edit-diagram-title';
         title.textContent = 'Edit Diagram Details';
-        this._applyStyles(title, {
-            margin: '0 0 16px 0',
-            fontSize: '22px',
-            fontWeight: 'bold',
-            color: '#333'
-        });
         dialog.appendChild(title);
 
         // Name field
         const nameLabel = document.createElement('label');
+        nameLabel.className = 'pv-edit-diagram-label';
         nameLabel.textContent = 'Name';
-        this._applyStyles(nameLabel, {
-            display: 'block',
-            fontSize: '14px',
-            fontWeight: '500',
-            color: '#24292e',
-            marginBottom: '4px'
-        });
         dialog.appendChild(nameLabel);
 
         const nameInput = document.createElement('input');
+        nameInput.className = 'pv-edit-diagram-input';
         nameInput.type = 'text';
         nameInput.value = this._model.name || '';
         nameInput.placeholder = 'Enter diagram name';
-        this._applyStyles(nameInput, {
-            width: '100%',
-            padding: '8px 12px',
-            fontSize: '14px',
-            border: '1px solid #e1e4e8',
-            borderRadius: '6px',
-            marginBottom: '16px',
-            boxSizing: 'border-box'
-        });
         dialog.appendChild(nameInput);
 
         // Description field
         const descLabel = document.createElement('label');
+        descLabel.className = 'pv-edit-diagram-label';
         descLabel.textContent = 'Description';
-        this._applyStyles(descLabel, {
-            display: 'block',
-            fontSize: '14px',
-            fontWeight: '500',
-            color: '#24292e',
-            marginBottom: '4px'
-        });
         dialog.appendChild(descLabel);
 
         const descInput = document.createElement('textarea');
+        descInput.className = 'pv-edit-diagram-textarea';
         descInput.value = this._model.description || '';
         descInput.placeholder = 'Enter diagram description';
         descInput.rows = 3;
-        this._applyStyles(descInput, {
-            width: '100%',
-            padding: '8px 12px',
-            fontSize: '14px',
-            border: '1px solid #e1e4e8',
-            borderRadius: '6px',
-            marginBottom: '20px',
-            boxSizing: 'border-box',
-            resize: 'vertical'
-        });
         dialog.appendChild(descInput);
 
         // Buttons
         const btnContainer = document.createElement('div');
-        this._applyStyles(btnContainer, {
-            display: 'flex',
-            gap: '12px',
-            justifyContent: 'flex-end'
-        });
+        btnContainer.className = 'pv-edit-diagram-buttons';
 
         const cancelBtn = document.createElement('button');
+        cancelBtn.className = 'pv-edit-diagram-btn-cancel';
         cancelBtn.textContent = 'Cancel';
         cancelBtn.type = 'button';
-        this._applyStyles(cancelBtn, {
-            padding: '10px 20px',
-            fontSize: '14px',
-            background: '#f6f8fa',
-            color: '#24292e',
-            border: '1px solid #e1e4e8',
-            borderRadius: '6px',
-            cursor: 'pointer'
-        });
         cancelBtn.addEventListener('click', () => {
             document.body.removeChild(overlay);
         });
         btnContainer.appendChild(cancelBtn);
 
         const saveBtn = document.createElement('button');
+        saveBtn.className = 'pv-edit-diagram-btn-save';
         saveBtn.textContent = 'Save';
         saveBtn.type = 'button';
-        this._applyStyles(saveBtn, {
-            padding: '10px 20px',
-            fontSize: '14px',
-            background: '#2ea44f',
-            color: '#fff',
-            border: 'none',
-            borderRadius: '6px',
-            cursor: 'pointer'
-        });
         saveBtn.addEventListener('click', () => {
             const name = nameInput.value.trim();
             const description = descInput.value.trim();
