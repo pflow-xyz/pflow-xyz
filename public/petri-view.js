@@ -721,85 +721,39 @@ class PetriView extends HTMLElement {
     _showOpenUrlDialog(editor) {
         // Create modal overlay
         const overlay = document.createElement('div');
-        overlay.className = 'pv-url-dialog-overlay';
-        this._applyStyles(overlay, {
-            position: 'fixed',
-            left: '0',
-            top: '0',
-            right: '0',
-            bottom: '0',
-            background: 'rgba(0, 0, 0, 0.5)',
-            zIndex: 2147483646,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '20px'
-        });
+        overlay.className = 'pv-url-dialog-overlay pv-modal-overlay';
 
         // Create dialog
         const dialog = document.createElement('div');
-        dialog.className = 'pv-url-dialog';
-        this._applyStyles(dialog, {
-            background: '#fff',
-            borderRadius: '8px',
-            padding: '20px',
-            maxWidth: '600px',
-            width: '100%',
-            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)',
-            maxHeight: '80vh',
-            overflow: 'auto'
-        });
+        dialog.className = 'pv-url-dialog pv-modal-dialog';
 
         // Title
         const title = document.createElement('h3');
         title.textContent = 'Open JSON-LD from URL';
-        this._applyStyles(title, {
-            margin: '0 0 16px 0',
-            fontSize: '18px',
-            fontWeight: 'bold'
-        });
+        title.className = 'pv-url-dialog-title';
         dialog.appendChild(title);
 
         // URL input
         const urlLabel = document.createElement('label');
         urlLabel.textContent = 'URL:';
-        this._applyStyles(urlLabel, {
-            display: 'block',
-            marginBottom: '6px',
-            fontSize: '14px',
-            fontWeight: '500'
-        });
+        urlLabel.className = 'pv-label';
         dialog.appendChild(urlLabel);
 
         const urlInput = document.createElement('input');
         urlInput.type = 'text';
         urlInput.placeholder = 'https://pflow.xyz/ld/data/test.jsonld';
-        this._applyStyles(urlInput, {
-            width: '100%',
-            padding: '8px',
-            fontSize: '14px',
-            border: '1px solid #ccc',
-            borderRadius: '4px',
-            boxSizing: 'border-box',
-            marginBottom: '16px'
-        });
+        urlInput.className = 'pv-input';
+        urlInput.style.marginBottom = '16px';
         dialog.appendChild(urlInput);
 
         // Headers section
         const headersLabel = document.createElement('label');
         headersLabel.textContent = 'Custom Headers (optional):';
-        this._applyStyles(headersLabel, {
-            display: 'block',
-            marginBottom: '8px',
-            fontSize: '14px',
-            fontWeight: '500'
-        });
+        headersLabel.className = 'pv-label';
         dialog.appendChild(headersLabel);
 
         const headersContainer = document.createElement('div');
-        this._applyStyles(headersContainer, {
-            marginBottom: '16px'
-        });
+        headersContainer.className = 'pv-headers-container';
         dialog.appendChild(headersContainer);
 
         // Array to track header inputs
@@ -807,48 +761,24 @@ class PetriView extends HTMLElement {
 
         const addHeaderRow = (key = '', value = '') => {
             const row = document.createElement('div');
-            this._applyStyles(row, {
-                display: 'flex',
-                gap: '8px',
-                marginBottom: '8px',
-                alignItems: 'center'
-            });
+            row.className = 'pv-header-row';
 
             const keyInput = document.createElement('input');
             keyInput.type = 'text';
             keyInput.placeholder = 'Header name';
-            this._applyStyles(keyInput, {
-                flex: '1',
-                padding: '6px',
-                fontSize: '13px',
-                border: '1px solid #ccc',
-                borderRadius: '4px'
-            });
+            keyInput.className = 'pv-header-input';
             keyInput.value = key;
 
             const valueInput = document.createElement('input');
             valueInput.type = 'text';
             valueInput.placeholder = 'Header value';
-            this._applyStyles(valueInput, {
-                flex: '1',
-                padding: '6px',
-                fontSize: '13px',
-                border: '1px solid #ccc',
-                borderRadius: '4px'
-            });
+            valueInput.className = 'pv-header-input';
             valueInput.value = value;
 
             const removeBtn = document.createElement('button');
             removeBtn.textContent = '✕';
             removeBtn.type = 'button';
-            this._applyStyles(removeBtn, {
-                padding: '6px 10px',
-                border: '1px solid #ccc',
-                borderRadius: '4px',
-                background: '#f5f5f5',
-                cursor: 'pointer',
-                fontSize: '14px'
-            });
+            removeBtn.className = 'pv-header-remove-btn';
             removeBtn.addEventListener('click', () => {
                 headersContainer.removeChild(row);
                 const idx = headerRows.indexOf(row);
@@ -870,37 +800,18 @@ class PetriView extends HTMLElement {
         const addHeaderBtn = document.createElement('button');
         addHeaderBtn.textContent = '+ Add Header';
         addHeaderBtn.type = 'button';
-        this._applyStyles(addHeaderBtn, {
-            padding: '6px 12px',
-            border: '1px solid #ccc',
-            borderRadius: '4px',
-            background: '#f5f5f5',
-            cursor: 'pointer',
-            fontSize: '13px',
-            marginBottom: '16px'
-        });
+        addHeaderBtn.className = 'pv-add-header-btn';
         addHeaderBtn.addEventListener('click', () => addHeaderRow());
         dialog.appendChild(addHeaderBtn);
 
         // Buttons
         const buttonContainer = document.createElement('div');
-        this._applyStyles(buttonContainer, {
-            display: 'flex',
-            gap: '10px',
-            justifyContent: 'flex-end'
-        });
+        buttonContainer.className = 'pv-btn-container';
 
         const cancelBtn = document.createElement('button');
         cancelBtn.textContent = 'Cancel';
         cancelBtn.type = 'button';
-        this._applyStyles(cancelBtn, {
-            padding: '8px 16px',
-            border: '1px solid #ccc',
-            borderRadius: '4px',
-            background: '#f5f5f5',
-            cursor: 'pointer',
-            fontSize: '14px'
-        });
+        cancelBtn.className = 'pv-btn';
         cancelBtn.addEventListener('click', () => {
             document.body.removeChild(overlay);
         });
@@ -908,15 +819,7 @@ class PetriView extends HTMLElement {
         const loadBtn = document.createElement('button');
         loadBtn.textContent = 'Load';
         loadBtn.type = 'button';
-        this._applyStyles(loadBtn, {
-            padding: '8px 16px',
-            border: '1px solid #007bff',
-            borderRadius: '4px',
-            background: '#007bff',
-            color: '#fff',
-            cursor: 'pointer',
-            fontSize: '14px'
-        });
+        loadBtn.className = 'pv-btn pv-btn-primary';
         loadBtn.addEventListener('click', async () => {
             const url = urlInput.value.trim();
             if (!url) {
@@ -998,30 +901,13 @@ class PetriView extends HTMLElement {
         // Create editor toolbar (fallback, always visible)
         const toolbar = document.createElement('div');
         toolbar.className = 'pv-editor-toolbar';
-        this._applyStyles(toolbar, {
-            display: 'flex',
-            gap: '6px',
-            padding: '6px 8px',
-            background: 'rgba(255, 255, 255, 0.95)',
-            borderBottom: '1px solid #ddd',
-            alignItems: 'center',
-            flexWrap: 'wrap'
-        });
 
         const makeToolbarBtn = (text, title) => {
             const btn = document.createElement('button');
             btn.type = 'button';
             btn.textContent = text;
             btn.title = title;
-            this._applyStyles(btn, {
-                padding: '6px 10px',
-                borderRadius: '4px',
-                border: '1px solid #ccc',
-                background: '#fff',
-                cursor: 'pointer',
-                fontSize: '12px',
-                fontFamily: 'system-ui, Arial'
-            });
+            btn.className = 'pv-editor-toolbar-btn';
             return btn;
         };
 
@@ -1050,19 +936,7 @@ class PetriView extends HTMLElement {
         this._editorToolbar = toolbar;
 
         const textarea = document.createElement('textarea');
-        textarea.className = 'pv-json-textarea';
-        this._applyStyles(textarea, {
-            width: '100%',
-            flex: '1 1 auto',
-            boxSizing: 'border-box',
-            resize: 'none',
-            fontFamily: 'monospace',
-            fontSize: '13px',
-            padding: '8px',
-            borderRadius: '0',
-            border: 'none',
-            borderTop: '1px solid #ddd'
-        });
+        textarea.className = 'pv-json-textarea pv-editor-textarea';
         textarea.spellcheck = false;
         container.appendChild(textarea);
 
@@ -1582,91 +1456,47 @@ class PetriView extends HTMLElement {
         // Title
         const title = document.createElement('h3');
         title.textContent = 'Share Your Petri Net';
-        this._applyStyles(title, {
-            margin: '0 0 16px 0',
-            fontSize: '20px',
-            fontWeight: 'bold',
-            color: '#333'
-        });
+        title.className = 'pv-modal-title';
         dialog.appendChild(title);
 
         // Description
         const description = document.createElement('p');
         description.textContent = 'Copy the markdown snippet below to share your Petri net:';
-        this._applyStyles(description, {
-            margin: '0 0 12px 0',
-            fontSize: '14px',
-            color: '#666'
-        });
+        description.className = 'pv-modal-description';
         dialog.appendChild(description);
 
         // Markdown textarea
         const textarea = document.createElement('textarea');
         textarea.value = markdown;
         textarea.readOnly = true;
-        this._applyStyles(textarea, {
-            width: '100%',
-            height: '80px',
-            padding: '10px',
-            fontSize: '13px',
-            fontFamily: 'monospace',
-            border: '1px solid #ddd',
-            borderRadius: '4px',
-            resize: 'vertical',
-            boxSizing: 'border-box'
-        });
+        textarea.className = 'pv-share-textarea';
         dialog.appendChild(textarea);
 
         // Image URL label
         const imageUrlLabel = document.createElement('p');
         imageUrlLabel.textContent = 'Image URL:';
-        this._applyStyles(imageUrlLabel, {
-            margin: '16px 0 8px 0',
-            fontSize: '14px',
-            fontWeight: '500',
-            color: '#333'
-        });
+        imageUrlLabel.className = 'pv-label';
+        imageUrlLabel.style.margin = '16px 0 8px 0';
         dialog.appendChild(imageUrlLabel);
 
         // Image URL textarea
         const imageUrlTextarea = document.createElement('textarea');
         imageUrlTextarea.value = svgUrl;
         imageUrlTextarea.readOnly = true;
-        this._applyStyles(imageUrlTextarea, {
-            width: '100%',
-            height: '50px',
-            padding: '10px',
-            fontSize: '13px',
-            fontFamily: 'monospace',
-            border: '1px solid #ddd',
-            borderRadius: '4px',
-            resize: 'vertical',
-            boxSizing: 'border-box'
-        });
+        imageUrlTextarea.className = 'pv-share-textarea';
+        imageUrlTextarea.style.height = '50px';
         dialog.appendChild(imageUrlTextarea);
 
         // Image URL copy button container
         const imageUrlButtonContainer = document.createElement('div');
-        this._applyStyles(imageUrlButtonContainer, {
-            marginTop: '8px',
-            display: 'flex',
-            justifyContent: 'flex-end'
-        });
+        imageUrlButtonContainer.className = 'pv-btn-container';
+        imageUrlButtonContainer.style.marginTop = '8px';
 
         // Image URL copy button
         const copyImageUrlButton = document.createElement('button');
         copyImageUrlButton.textContent = 'Copy Image URL';
         copyImageUrlButton.type = 'button';
-        this._applyStyles(copyImageUrlButton, {
-            padding: '6px 12px',
-            fontSize: '13px',
-            fontWeight: '500',
-            color: '#fff',
-            background: '#2a6fb8',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: 'pointer'
-        });
+        copyImageUrlButton.className = 'pv-btn pv-btn-primary pv-btn-sm';
         copyImageUrlButton.addEventListener('click', () => {
             imageUrlTextarea.select();
             const showCopied = () => {
@@ -1684,65 +1514,37 @@ class PetriView extends HTMLElement {
         // Preview section
         const previewLabel = document.createElement('p');
         previewLabel.textContent = 'Preview:';
-        this._applyStyles(previewLabel, {
-            margin: '16px 0 8px 0',
-            fontSize: '14px',
-            fontWeight: '500',
-            color: '#333'
-        });
+        previewLabel.className = 'pv-label';
+        previewLabel.style.margin = '16px 0 8px 0';
         dialog.appendChild(previewLabel);
 
         const previewContainer = document.createElement('div');
-        this._applyStyles(previewContainer, {
-            padding: '12px',
-            background: '#f6f8fa',
-            borderRadius: '4px',
-            textAlign: 'center',
-            border: '1px solid #e1e4e8'
-        });
-        
+        previewContainer.className = 'pv-share-preview-container';
+
         const previewLink = document.createElement('a');
         previewLink.href = docUrl;
         previewLink.target = '_blank';
         previewLink.rel = 'noopener noreferrer';
-        
+
         const previewImg = document.createElement('img');
         previewImg.src = svgUrl;
         previewImg.alt = 'Petri Net Preview';
-        this._applyStyles(previewImg, {
-            maxWidth: '100%',
-            height: 'auto',
-            display: 'block',
-            margin: '0 auto'
-        });
-        
+        previewImg.className = 'pv-share-preview-img';
+
         previewLink.appendChild(previewImg);
         previewContainer.appendChild(previewLink);
         dialog.appendChild(previewContainer);
 
         // Button container
         const buttonContainer = document.createElement('div');
-        this._applyStyles(buttonContainer, {
-            marginTop: '20px',
-            display: 'flex',
-            gap: '10px',
-            justifyContent: 'flex-end'
-        });
+        buttonContainer.className = 'pv-btn-container';
+        buttonContainer.style.marginTop = '20px';
 
         // Copy button
         const copyButton = document.createElement('button');
         copyButton.textContent = 'Copy to Clipboard';
         copyButton.type = 'button';
-        this._applyStyles(copyButton, {
-            padding: '8px 16px',
-            fontSize: '14px',
-            fontWeight: '500',
-            color: '#fff',
-            background: '#2a6fb8',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: 'pointer'
-        });
+        copyButton.className = 'pv-btn pv-btn-primary';
         copyButton.addEventListener('click', () => {
             textarea.select();
             const showCopied = () => {
@@ -1760,17 +1562,8 @@ class PetriView extends HTMLElement {
         const closeButton = document.createElement('button');
         closeButton.textContent = 'Close';
         closeButton.type = 'button';
-        this._applyStyles(closeButton, {
-            padding: '8px 16px',
-            fontSize: '14px',
-            fontWeight: '500',
-            color: '#333',
-            background: '#f6f8fa',
-            border: '1px solid #ddd',
-            borderRadius: '4px',
-            cursor: 'pointer'
-        });
-        
+        closeButton.className = 'pv-btn';
+
         // Helper function to safely close the dialog
         const closeDialog = () => {
             if (overlay.parentNode) {
@@ -3167,13 +2960,11 @@ class PetriView extends HTMLElement {
     _createMenu() {
         if (this._menu) this._menu.remove();
         this._menu = document.createElement('div');
-        this._menu.className = 'pv-menu';
-        this._applyStyles(this._menu, {
-            position: 'absolute', bottom: '10px', left: '50%', transform: 'translateX(-50%)',
-            display: 'flex', gap: '8px', padding: '6px 8px', background: 'rgba(255,255,255,0.9)',
-            borderRadius: '8px', boxShadow: '0 2px 6px rgba(0,0,0,0.15)', zIndex: 1200, alignItems: 'center',
-            userSelect: 'none', fontSize: '14px'
-        });
+        this._menu.className = 'pv-menu pv-mode-menu';
+        // Position dynamically since it needs absolute positioning
+        this._menu.style.bottom = '10px';
+        this._menu.style.left = '50%';
+        this._menu.style.transform = 'translateX(-50%)';
 
         const tools = [
             {mode: 'select', label: '\u26F6', title: 'Select / Fire (1)'},
@@ -3188,18 +2979,9 @@ class PetriView extends HTMLElement {
         tools.forEach(t => {
             const btn = document.createElement('button');
             btn.type = 'button';
-            btn.className = 'pv-tool';
+            btn.className = 'pv-tool pv-mode-btn';
             btn.textContent = t.label;
             btn.title = t.title;
-            this._applyStyles(btn, {
-                width: '36px',
-                height: '36px',
-                borderRadius: '6px',
-                border: 'none',
-                background: 'transparent',
-                cursor: 'pointer',
-                fontSize: '16px'
-            });
             btn.dataset.mode = t.mode;
             if (t.toggle) {
                 btn.dataset.toggle = 'true';
@@ -3223,18 +3005,10 @@ class PetriView extends HTMLElement {
 
         const playBtn = document.createElement('button');
         playBtn.type = 'button';
-        playBtn.className = 'pv-play';
+        playBtn.className = 'pv-play pv-play-btn';
         playBtn.textContent = this._simRunning ? '⏸' : '▶';
         playBtn.title = this._simRunning ? 'Stop simulation' : 'Start simulation';
-        this._applyStyles(playBtn, {
-            width: '44px',
-            height: '36px',
-            borderRadius: '6px',
-            border: 'none',
-            background: 'linear-gradient(180deg,#fff,#f3f3f3)',
-            cursor: 'pointer',
-            fontSize: '16px'
-        });
+        playBtn.style.width = '44px'; // Slightly wider for play button
         playBtn.addEventListener('click', (ev) => {
             ev.stopPropagation();
             this._setSimulation(!this._simRunning);
