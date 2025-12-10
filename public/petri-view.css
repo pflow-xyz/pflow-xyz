@@ -804,16 +804,19 @@ canvas.pv-canvas {
     right: 10px;
     top: 50%;
     transform: translateY(-50%);
+    width: 52px;
+    height: 160px;
+    padding: 8px;
+    background: rgba(255, 255, 255, 0.94);
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+    z-index: 3000;
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 8px;
-    padding: 8px 4px;
-    background: rgba(255, 255, 255, 0.9);
-    border-radius: 8px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-    z-index: 100;
     user-select: none;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
 }
 
 .pv-scale-label {
@@ -823,16 +826,16 @@ canvas.pv-canvas {
 }
 
 .pv-scale-reset {
-    font-size: 10px;
-    padding: 2px 6px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
+    width: 36px;
+    height: 20px;
+    border-radius: 6px;
+    border: 1px solid #ddd;
     background: #fff;
     cursor: pointer;
-    color: #555;
-    font-weight: 500;
-    line-height: 1;
+    font-size: 12px;
+    color: #333;
     margin-bottom: 4px;
+    padding: 0;
 }
 
 .pv-scale-reset:hover {
@@ -843,10 +846,10 @@ canvas.pv-canvas {
 .pv-scale-track {
     position: relative;
     width: 10px;
-    height: 80px;
-    background: #e0e0e0;
-    border-radius: 5px;
-    cursor: pointer;
+    flex: 1 1 auto;
+    height: 100%;
+    background: #eee;
+    border-radius: 6px;
     overflow: hidden;
     align-self: center;
 }
@@ -856,41 +859,74 @@ canvas.pv-canvas {
     left: 50%;
     transform: translateX(-50%);
     bottom: 0;
-    width: 6px;
-    background: #2a6fb8;
-    border-radius: 3px;
-    pointer-events: none;
+    width: 10px;
+    height: 0%;
+    background: linear-gradient(180deg, #4A90E2, #2A6FB8);
+    border-radius: 6px;
 }
 
 .pv-scale-thumb {
     position: absolute;
     left: 50%;
     transform: translate(-50%, 50%);
-    width: 14px;
-    height: 14px;
-    background: #2a6fb8;
-    border: 2px solid #fff;
+    bottom: 0%;
+    width: 18px;
+    height: 18px;
     border-radius: 50%;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-    pointer-events: none;
+    background: #fff;
+    border: 2px solid #2a6fb8;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 
 .pv-scale-legend {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
     font-size: 10px;
-    color: #888;
-    text-align: center;
-    line-height: 1.3;
-    margin-top: 2px;
+    color: #666;
 }
 
 /* ============================================
    Help Dialog
    ============================================ */
 
+.pv-help-title {
+    margin: 0 0 16px 0;
+    font-size: 22px;
+    font-weight: bold;
+    color: #333;
+}
+
 .pv-help-content {
     font-size: 14px;
     line-height: 1.6;
     color: #444;
+}
+
+.pv-help-content h3 {
+    margin: 16px 0 8px 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: #000;
+}
+
+.pv-help-content h4 {
+    margin: 12px 0 6px 0;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.pv-help-content p {
+    margin: 0 0 12px 0;
+}
+
+.pv-help-content ul {
+    margin: 6px 0 12px 20px;
+    padding: 0;
+}
+
+.pv-help-content ul ul {
+    margin: 4px 0 4px 20px;
 }
 
 .pv-help-close-btn {
@@ -904,6 +940,7 @@ canvas.pv-canvas {
     border: none;
     border-radius: 6px;
     cursor: pointer;
+    transition: background 0.2s;
 }
 
 .pv-help-close-btn:hover {
@@ -1301,6 +1338,129 @@ canvas.pv-canvas {
    Hamburger Menu
    ============================================ */
 
+.pv-hamburger-btn {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    width: 40px;
+    height: 40px;
+    border-radius: 6px;
+    border: none;
+    background: rgba(255, 255, 255, 0.9);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+    cursor: pointer;
+    font-size: 20px;
+    z-index: 1300;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    user-select: none;
+    transition: background 0.2s;
+}
+
+.pv-hamburger-btn:hover {
+    background: rgba(255, 255, 255, 1);
+}
+
+.pv-hamburger-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 1299;
+}
+
+.pv-hamburger-panel {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 300px;
+    height: 100%;
+    background: #fff;
+    box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
+    display: flex;
+    flex-direction: column;
+    z-index: 1300;
+}
+
+.pv-hamburger-header {
+    padding: 16px 16px 16px 60px;
+    border-bottom: 1px solid #e1e4e8;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: relative;
+}
+
+.pv-hamburger-header-btn {
+    position: absolute;
+    left: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 32px;
+    height: 32px;
+    border-radius: 4px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #586069;
+}
+
+.pv-hamburger-title {
+    margin: 0;
+    font-size: 18px;
+    font-weight: bold;
+}
+
+.pv-hamburger-close-btn {
+    background: transparent;
+    border: none;
+    font-size: 28px;
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+    color: #586069;
+}
+
+.pv-hamburger-content {
+    padding: 8px 0;
+    flex: 1 1 auto;
+    overflow: auto;
+}
+
+.pv-hamburger-dropdown {
+    position: absolute;
+    top: 55px;
+    left: 10px;
+    min-width: 180px;
+    background: rgba(255, 255, 255, 0.98);
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    z-index: 1300;
+    padding: 6px 0;
+    user-select: none;
+}
+
+.pv-hamburger-separator {
+    height: 1px;
+    background: #e1e4e8;
+    margin: 8px 0;
+}
+
+.pv-hamburger-user-info {
+    padding: 10px 16px;
+    font-size: 13px;
+    color: #586069;
+    border-bottom: 1px solid #e1e4e8;
+}
+
+/* Legacy menu classes for compatibility */
 .pv-menu-btn {
     position: fixed;
     top: 10px;

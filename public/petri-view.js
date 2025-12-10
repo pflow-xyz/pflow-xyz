@@ -4290,47 +4290,15 @@ class PetriView extends HTMLElement {
 
         const container = document.createElement('div');
         container.className = 'pv-scale-meter';
-        this._applyStyles(container, {
-            position: 'absolute',
-            right: '10px',
-            top: '50%',
-            transform: 'translateY(-50%)',
-            width: '52px',
-            height: '160px',
-            padding: '8px',
-            background: 'rgba(255,255,255,0.94)',
-            borderRadius: '10px',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
-            zIndex: 3000,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: '8px',
-            userSelect: 'none',
-            fontFamily: 'system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial'
-        });
 
         const label = document.createElement('div');
         label.className = 'pv-scale-label';
-        this._applyStyles(label, {fontSize: '12px', color: '#333', lineHeight: '1'});
         container.appendChild(label);
 
         const resetBtn = document.createElement('button');
         resetBtn.className = 'pv-scale-reset';
         resetBtn.type = 'button';
         resetBtn.textContent = '1x';
-        this._applyStyles(resetBtn, {
-            width: '36px',
-            height: '20px',
-            borderRadius: '6px',
-            border: '1px solid #ddd',
-            background: '#fff',
-            cursor: 'pointer',
-            fontSize: '12px',
-            color: '#333',
-            marginBottom: '4px',
-            padding: '0'
-        });
         resetBtn.title = 'Reset scale to 1x';
         resetBtn.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -4352,54 +4320,16 @@ class PetriView extends HTMLElement {
 
         const track = document.createElement('div');
         track.className = 'pv-scale-track';
-        this._applyStyles(track, {
-            position: 'relative',
-            width: '10px',
-            flex: '1 1 auto',
-            height: '100%',
-            background: '#eee',
-            borderRadius: '6px',
-            overflow: 'hidden',
-            alignSelf: 'center'
-        });
         const fill = document.createElement('div');
         fill.className = 'pv-scale-fill';
-        this._applyStyles(fill, {
-            position: 'absolute',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            bottom: '0',
-            width: '10px',
-            height: '0%',
-            background: 'linear-gradient(180deg,#4A90E2,#2A6FB8)',
-            borderRadius: '6px'
-        });
         track.appendChild(fill);
         const thumb = document.createElement('div');
         thumb.className = 'pv-scale-thumb';
-        this._applyStyles(thumb, {
-            position: 'absolute',
-            left: '50%',
-            transform: 'translate(-50%, 50%)',
-            bottom: '0%',
-            width: '18px',
-            height: '18px',
-            borderRadius: '50%',
-            background: '#fff',
-            border: '2px solid #2a6fb8',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.2)'
-        });
         track.appendChild(thumb);
         container.appendChild(track);
 
         const legend = document.createElement('div');
-        this._applyStyles(legend, {
-            width: '100%',
-            display: 'flex',
-            justifyContent: 'space-between',
-            fontSize: '10px',
-            color: '#666'
-        });
+        legend.className = 'pv-scale-legend';
         const minEl = document.createElement('span');
         minEl.textContent = `${min}x`;
         const maxEl = document.createElement('span');
@@ -4471,35 +4401,26 @@ class PetriView extends HTMLElement {
 
         // Title
         const title = document.createElement('h2');
+        title.className = 'pv-help-title';
         title.textContent = 'Help: Petri Net Editor';
-        this._applyStyles(title, {
-            margin: '0 0 16px 0',
-            fontSize: '22px',
-            fontWeight: 'bold',
-            color: '#333'
-        });
         dialog.appendChild(title);
 
         // Help content
         const content = document.createElement('div');
-        this._applyStyles(content, {
-            fontSize: '14px',
-            lineHeight: '1.6',
-            color: '#444'
-        });
+        content.className = 'pv-help-content';
 
         content.innerHTML = `
-            <h3 style="margin: 16px 0 8px 0; font-size: 16px; font-weight: 600; color: #000;">What are Petri Nets?</h3>
-            <p style="margin: 0 0 12px 0;">
-                Petri nets are a formal model for representing state machines. They consist of <strong>places</strong> (circles) 
-                that hold tokens, <strong>transitions</strong> (rectangles) that fire to move tokens, and <strong>arcs</strong> (arrows) 
+            <h3>What are Petri Nets?</h3>
+            <p>
+                Petri nets are a formal model for representing state machines. They consist of <strong>places</strong> (circles)
+                that hold tokens, <strong>transitions</strong> (rectangles) that fire to move tokens, and <strong>arcs</strong> (arrows)
                 that connect them. When a transition fires, it consumes tokens from input places and produces tokens in output places.
             </p>
 
-            <h3 style="margin: 16px 0 8px 0; font-size: 16px; font-weight: 600; color: #000;">Controls & Features</h3>
-            
-            <h4 style="margin: 12px 0 6px 0; font-size: 14px; font-weight: 600;">Toolbar Buttons:</h4>
-            <ul style="margin: 6px 0 12px 20px; padding: 0;">
+            <h3>Controls & Features</h3>
+
+            <h4>Toolbar Buttons:</h4>
+            <ul>
                 <li><strong>⛶ Select:</strong> Default mode for panning and selecting elements</li>
                 <li><strong>◯ Place:</strong> Click to add places (token holders)</li>
                 <li><strong>▢ Transition:</strong> Click to add transitions (firing elements)</li>
@@ -4510,8 +4431,8 @@ class PetriView extends HTMLElement {
                 <li><strong>▶ Play:</strong> Start/stop automatic simulation</li>
             </ul>
 
-            <h4 style="margin: 12px 0 6px 0; font-size: 14px; font-weight: 600;">Mouse Actions:</h4>
-            <ul style="margin: 6px 0 12px 20px; padding: 0;">
+            <h4>Mouse Actions:</h4>
+            <ul>
                 <li><strong>Left-click transition:</strong> Fire it manually (if enabled)</li>
                 <li><strong>Right-click place:</strong> Add or remove tokens</li>
                 <li><strong>Right-click arc:</strong> Change arc weight</li>
@@ -4520,23 +4441,23 @@ class PetriView extends HTMLElement {
                 <li><strong>Space + drag:</strong> Pan the canvas</li>
             </ul>
 
-            <h4 style="margin: 12px 0 6px 0; font-size: 14px; font-weight: 600;">Touch Actions (iPad/Tablet):</h4>
-            <ul style="margin: 6px 0 12px 20px; padding: 0;">
+            <h4>Touch Actions (iPad/Tablet):</h4>
+            <ul>
                 <li><strong>Tap:</strong> Click on elements</li>
                 <li><strong>Drag:</strong> Move elements or pan the canvas</li>
                 <li><strong>Long-press (hold 0.5s):</strong> Creates inhibitor arcs in Arc mode (works with touch and Apple Pencil)</li>
                 <li><strong>Pinch:</strong> Zoom in/out (if browser supports)</li>
             </ul>
 
-            <h4 style="margin: 12px 0 6px 0; font-size: 14px; font-weight: 600;">Selection & Multi-Select:</h4>
-            <ul style="margin: 6px 0 12px 20px; padding: 0;">
+            <h4>Selection & Multi-Select:</h4>
+            <ul>
                 <li><strong>Shift + click node:</strong> Add/remove individual nodes from selection (in Select, Token, and Delete modes)</li>
                 <li><strong>Shift + drag on canvas:</strong> Draw a bounding box to select all nodes within it. A dashed orange rectangle shows the selection area as you drag</li>
                 <li><strong>Selected nodes:</strong> Highlighted with orange outline and shadow. Can be dragged together or deleted as a group</li>
             </ul>
 
-            <h4 style="margin: 12px 0 6px 0; font-size: 14px; font-weight: 600;">Keyboard Shortcuts:</h4>
-            <ul style="margin: 6px 0 12px 20px; padding: 0;">
+            <h4>Keyboard Shortcuts:</h4>
+            <ul>
                 <li><strong>Ctrl/Cmd + Z:</strong> Undo last action</li>
                 <li><strong>Ctrl/Cmd + Shift + Z:</strong> Redo previously undone action</li>
                 <li><strong>Delete or Backspace:</strong> Delete all selected nodes</li>
@@ -4551,25 +4472,25 @@ class PetriView extends HTMLElement {
                 <li><strong>6:</strong> Switch to Delete mode</li>
             </ul>
 
-            <h4 style="margin: 12px 0 6px 0; font-size: 14px; font-weight: 600;">Other Features:</h4>
-            <ul style="margin: 6px 0 12px 20px; padding: 0;">
+            <h4>Other Features:</h4>
+            <ul>
                 <li><strong>JSON Editor:</strong> Toggle to edit the model as JSON-LD</li>
                 <li><strong>Scale Meter:</strong> Shows current zoom level (right side)</li>
                 <li><strong>Download:</strong> Export your Petri net as JSON</li>
                 <li><strong>Auto-save:</strong> Changes are saved to browser localStorage</li>
             </ul>
 
-            <h3 style="margin: 16px 0 8px 0; font-size: 16px; font-weight: 600; color: #000;">ODE Simulation</h3>
-            <p style="margin: 0 0 12px 0;">
-                The ODE (Ordinary Differential Equation) simulator models continuous-time behavior of Petri nets using mass action kinetics. 
+            <h3>ODE Simulation</h3>
+            <p>
+                The ODE (Ordinary Differential Equation) simulator models continuous-time behavior of Petri nets using mass action kinetics.
                 Access it from the hamburger menu: <strong>🧮 Simulate (ODE)</strong>
             </p>
-            
-            <h4 style="margin: 12px 0 6px 0; font-size: 14px; font-weight: 600;">Key Features:</h4>
-            <ul style="margin: 6px 0 12px 20px; padding: 0;">
+
+            <h4>Key Features:</h4>
+            <ul>
                 <li><strong>Transition Rates:</strong> Set rate constants for each transition (default is 1.0)</li>
                 <li><strong>Rate=0 for Optimization:</strong> Setting a transition's rate to 0 disables it, useful for:
-                    <ul style="margin: 4px 0 4px 20px;">
+                    <ul>
                         <li>Knapsack problems: Exclude items to find optimal solutions</li>
                         <li>Resource allocation: Test different configurations</li>
                         <li>Sensitivity analysis: Identify which transitions improve objectives</li>
@@ -4579,46 +4500,46 @@ class PetriView extends HTMLElement {
                 <li><strong>Interactive Plotting:</strong> Select which places to visualize and view real-time SVG plots</li>
                 <li><strong>Configurable Parameters:</strong> Adjust time span, dt, absolute/relative tolerances</li>
             </ul>
-            
-            <p style="margin: 0 0 12px 0;">
-                <strong>Example:</strong> In a knapsack problem with limited capacity, setting rate=0 for a transition effectively 
-                removes that item from consideration. This frees up capacity for other transitions, potentially increasing the total 
+
+            <p>
+                <strong>Example:</strong> In a knapsack problem with limited capacity, setting rate=0 for a transition effectively
+                removes that item from consideration. This frees up capacity for other transitions, potentially increasing the total
                 value if the excluded item had a poor value-to-weight ratio.
             </p>
 
-            <h3 style="margin: 16px 0 8px 0; font-size: 16px; font-weight: 600; color: #000;">Layout Algorithms</h3>
-            <p style="margin: 0 0 12px 0;">
+            <h3>Layout Algorithms</h3>
+            <p>
                 Use the <strong>🎨 Layout Algorithms</strong> menu to automatically arrange your Petri net nodes:
             </p>
-            
-            <h4 style="margin: 12px 0 6px 0; font-size: 14px; font-weight: 600;">Available Layouts:</h4>
-            <ul style="margin: 6px 0 12px 20px; padding: 0;">
-                <li><strong>⚛️ Force-Atlas 2:</strong> Physics-based force-directed layout. Creates natural-looking graphs with even spacing. 
-                Nodes repel each other while connected nodes are pulled together, creating an organic arrangement. 
+
+            <h4>Available Layouts:</h4>
+            <ul>
+                <li><strong>⚛️ Force-Atlas 2:</strong> Physics-based force-directed layout. Creates natural-looking graphs with even spacing.
+                Nodes repel each other while connected nodes are pulled together, creating an organic arrangement.
                 Best for general-purpose visualization and exploring graph structure.</li>
-                
-                <li><strong>📊 Hierarchical:</strong> Simple top-to-bottom layered layout using topological sorting. 
-                Works well for linear workflows and simple directed acyclic graphs (DAGs). 
-                Nodes with no incoming edges are placed at the top, and each subsequent layer contains nodes whose predecessors have been placed. 
+
+                <li><strong>📊 Hierarchical:</strong> Simple top-to-bottom layered layout using topological sorting.
+                Works well for linear workflows and simple directed acyclic graphs (DAGs).
+                Nodes with no incoming edges are placed at the top, and each subsequent layer contains nodes whose predecessors have been placed.
                 <em>Note: May place all nodes on one level if the graph contains cycles.</em></li>
-                
-                <li><strong>🔷 Layered (DAG):</strong> Advanced hierarchical layout that handles complex graphs and cycles. 
-                Uses cycle-breaking to convert cyclic graphs into DAGs, then applies layered layout. 
-                Identifies feedback edges (back edges that create cycles) and ignores them during layout, 
+
+                <li><strong>🔷 Layered (DAG):</strong> Advanced hierarchical layout that handles complex graphs and cycles.
+                Uses cycle-breaking to convert cyclic graphs into DAGs, then applies layered layout.
+                Identifies feedback edges (back edges that create cycles) and ignores them during layout,
                 placing nodes in clear hierarchical layers. Best for large, complex Petri nets with cycles.</li>
-                
-                <li><strong>➡️ Horizontal DAG:</strong> Left-to-right hierarchical layout for directed acyclic graphs. 
-                Similar to Layered (DAG) but arranges nodes horizontally instead of vertically. 
-                Ideal for visualizing process flows, pipelines, and workflows that naturally progress from left to right. 
+
+                <li><strong>➡️ Horizontal DAG:</strong> Left-to-right hierarchical layout for directed acyclic graphs.
+                Similar to Layered (DAG) but arranges nodes horizontally instead of vertically.
+                Ideal for visualizing process flows, pipelines, and workflows that naturally progress from left to right.
                 Handles cycles using the same feedback edge breaking algorithm.</li>
-                
-                <li><strong>⭕ Circular:</strong> Arranges all nodes evenly spaced around a circle. 
-                Good for visualizing cyclic relationships and symmetric structures. 
+
+                <li><strong>⭕ Circular:</strong> Arranges all nodes evenly spaced around a circle.
+                Good for visualizing cyclic relationships and symmetric structures.
                 Makes it easy to see all nodes at once and identify connection patterns.</li>
             </ul>
-            
-            <h4 style="margin: 12px 0 6px 0; font-size: 14px; font-weight: 600;">Which Layout to Choose?</h4>
-            <ul style="margin: 6px 0 12px 20px; padding: 0;">
+
+            <h4>Which Layout to Choose?</h4>
+            <ul>
                 <li><strong>Simple linear workflow:</strong> Use Hierarchical</li>
                 <li><strong>Complex workflow with cycles:</strong> Use Layered (DAG) or Horizontal DAG</li>
                 <li><strong>Process flows/pipelines:</strong> Use Horizontal DAG for left-to-right orientation</li>
@@ -4631,26 +4552,9 @@ class PetriView extends HTMLElement {
 
         // Close button
         const closeBtn = document.createElement('button');
+        closeBtn.className = 'pv-help-close-btn';
         closeBtn.textContent = 'Close';
         closeBtn.type = 'button';
-        this._applyStyles(closeBtn, {
-            marginTop: '20px',
-            padding: '10px 24px',
-            fontSize: '14px',
-            fontWeight: '500',
-            background: '#007bff',
-            color: '#fff',
-            border: 'none',
-            borderRadius: '6px',
-            cursor: 'pointer',
-            transition: 'background 0.2s'
-        });
-        closeBtn.addEventListener('mouseenter', () => {
-            closeBtn.style.background = '#0056b3';
-        });
-        closeBtn.addEventListener('mouseleave', () => {
-            closeBtn.style.background = '#007bff';
-        });
         closeBtn.addEventListener('click', () => {
             document.body.removeChild(overlay);
         });
@@ -6973,25 +6877,6 @@ class PetriView extends HTMLElement {
         menuBtn.className = 'pv-hamburger-btn';
         menuBtn.innerHTML = '☰';
         menuBtn.title = 'Menu';
-        this._applyStyles(menuBtn, {
-            position: 'absolute',
-            top: '10px',
-            left: '10px',
-            width: '40px',
-            height: '40px',
-            borderRadius: '6px',
-            border: 'none',
-            background: 'rgba(255, 255, 255, 0.9)',
-            boxShadow: '0 2px 6px rgba(0, 0, 0, 0.15)',
-            cursor: 'pointer',
-            fontSize: '20px',
-            zIndex: 1300,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            userSelect: 'none',
-            transition: 'background 0.2s'
-        });
 
         // Use left-side panel in backend mode, dropdown otherwise
         let menuContainer;
@@ -7000,93 +6885,35 @@ class PetriView extends HTMLElement {
             menuContainer = document.createElement('div');
             menuContainer.className = 'pv-hamburger-overlay';
             menuContainer.style.display = 'none';
-            this._applyStyles(menuContainer, {
-                position: 'fixed',
-                top: '0',
-                left: '0',
-                width: '100%',
-                height: '100%',
-                background: 'rgba(0, 0, 0, 0.5)',
-                zIndex: 1299,
-                display: 'none'
-            });
 
             // Create left panel
             const panel = document.createElement('div');
             panel.className = 'pv-hamburger-panel';
-            this._applyStyles(panel, {
-                position: 'fixed',
-                top: '0',
-                left: '0',
-                width: '300px',
-                height: '100%',
-                background: '#fff',
-                boxShadow: '2px 0 8px rgba(0,0,0,0.1)',
-                display: 'flex',
-                flexDirection: 'column',
-                zIndex: 1300
-            });
 
-            // Panel header - use full width for hamburger menu button
+            // Panel header
             const header = document.createElement('div');
-            this._applyStyles(header, {
-                // Left padding of 60px = 16px (left position) + 32px (button width) + 12px (margin)
-                padding: '16px 16px 16px 60px',
-                borderBottom: '1px solid #e1e4e8',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                position: 'relative'
-            });
+            header.className = 'pv-hamburger-header';
 
             // Hamburger button inside the panel on the left
             const panelMenuBtn = document.createElement('button');
             panelMenuBtn.type = 'button';
+            panelMenuBtn.className = 'pv-hamburger-header-btn';
             panelMenuBtn.innerHTML = '☰';
             panelMenuBtn.title = 'Close Menu';
-            this._applyStyles(panelMenuBtn, {
-                position: 'absolute',
-                left: '16px',
-                top: '50%',
-                transform: 'translateY(-50%)',
-                width: '32px',
-                height: '32px',
-                borderRadius: '4px',
-                border: 'none',
-                background: 'transparent',
-                cursor: 'pointer',
-                fontSize: '18px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#586069'
-            });
             panelMenuBtn.addEventListener('click', () => {
                 menuContainer.style.display = 'none';
             });
             header.appendChild(panelMenuBtn);
 
             const title = document.createElement('h3');
+            title.className = 'pv-hamburger-title';
             title.textContent = 'Menu';
-            this._applyStyles(title, {
-                margin: '0',
-                fontSize: '18px',
-                fontWeight: 'bold'
-            });
             header.appendChild(title);
 
             const closeBtn = document.createElement('button');
+            closeBtn.className = 'pv-hamburger-close-btn';
             closeBtn.textContent = '×';
             closeBtn.type = 'button';
-            this._applyStyles(closeBtn, {
-                background: 'transparent',
-                border: 'none',
-                fontSize: '28px',
-                cursor: 'pointer',
-                padding: '0',
-                lineHeight: '1',
-                color: '#586069'
-            });
             closeBtn.addEventListener('click', () => {
                 menuContainer.style.display = 'none';
             });
@@ -7096,11 +6923,7 @@ class PetriView extends HTMLElement {
 
             // Panel content
             const content = document.createElement('div');
-            this._applyStyles(content, {
-                padding: '8px 0',
-                flex: '1 1 auto',
-                overflow: 'auto'
-            });
+            content.className = 'pv-hamburger-content';
             panel.appendChild(content);
 
             menuContainer.appendChild(panel);
@@ -7117,58 +6940,23 @@ class PetriView extends HTMLElement {
             menuContainer = document.createElement('div');
             menuContainer.className = 'pv-hamburger-dropdown';
             menuContainer.style.display = 'none';
-            this._applyStyles(menuContainer, {
-                position: 'absolute',
-                top: '55px',
-                left: '10px',
-                minWidth: '180px',
-                background: 'rgba(255, 255, 255, 0.98)',
-                borderRadius: '8px',
-                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)',
-                zIndex: 1300,
-                padding: '6px 0',
-                userSelect: 'none'
-            });
             menuContainer._menuContent = menuContainer;
         }
 
         const makeMenuItem = (text, onClick, icon = null) => {
             const item = document.createElement('div');
             item.className = 'pv-menu-item';
-            this._applyStyles(item, {
-                padding: '10px 16px',
-                cursor: 'pointer',
-                fontSize: '14px',
-                fontFamily: 'system-ui, Arial',
-                transition: 'background 0.15s',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px'
-            });
 
             if (icon) {
                 const iconEl = document.createElement('span');
+                iconEl.className = 'pv-menu-item-icon';
                 iconEl.innerHTML = icon;
-                this._applyStyles(iconEl, {
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    width: '16px',
-                    height: '16px'
-                });
                 item.appendChild(iconEl);
             }
 
             const textEl = document.createElement('span');
             textEl.textContent = text;
             item.appendChild(textEl);
-
-            item.addEventListener('mouseenter', () => {
-                item.style.background = 'rgba(0, 0, 0, 0.05)';
-            });
-            item.addEventListener('mouseleave', () => {
-                item.style.background = 'transparent';
-            });
             item.addEventListener('click', (e) => {
                 e.stopPropagation();
                 onClick();
@@ -7222,11 +7010,7 @@ class PetriView extends HTMLElement {
 
             // Add separator
             const separator = document.createElement('div');
-            this._applyStyles(separator, {
-                height: '1px',
-                background: '#e1e4e8',
-                margin: '8px 0'
-            });
+            separator.className = 'pv-hamburger-separator';
             menuContainer._menuContent.appendChild(separator);
 
             // Add Login/Logout if in backend mode
@@ -7234,12 +7018,7 @@ class PetriView extends HTMLElement {
                 if (this._user) {
                     // Show user info and logout button
                     const userInfo = document.createElement('div');
-                    this._applyStyles(userInfo, {
-                        padding: '10px 16px',
-                        fontSize: '13px',
-                        color: '#586069',
-                        borderBottom: '1px solid #e1e4e8'
-                    });
+                    userInfo.className = 'pv-hamburger-user-info';
                     const userEmail = this._user.email || this._user.user_metadata?.user_name || 'User';
                     userInfo.textContent = `Logged in as: ${userEmail}`;
                     menuContainer._menuContent.appendChild(userInfo);
@@ -7251,11 +7030,7 @@ class PetriView extends HTMLElement {
 
                     // Add separator
                     const separator2 = document.createElement('div');
-                    this._applyStyles(separator2, {
-                        height: '1px',
-                        background: '#e1e4e8',
-                        margin: '8px 0'
-                    });
+                    separator2.className = 'pv-hamburger-separator';
                     menuContainer._menuContent.appendChild(separator2);
                 } else {
                     // Show login button
@@ -7266,11 +7041,7 @@ class PetriView extends HTMLElement {
 
                     // Add separator
                     const separator2 = document.createElement('div');
-                    this._applyStyles(separator2, {
-                        height: '1px',
-                        background: '#e1e4e8',
-                        margin: '8px 0'
-                    });
+                    separator2.className = 'pv-hamburger-separator';
                     menuContainer._menuContent.appendChild(separator2);
                 }
             } else {
@@ -7282,11 +7053,7 @@ class PetriView extends HTMLElement {
 
                 // Add separator
                 const separator2 = document.createElement('div');
-                this._applyStyles(separator2, {
-                    height: '1px',
-                    background: '#e1e4e8',
-                    margin: '8px 0'
-                });
+                separator2.className = 'pv-hamburger-separator';
                 menuContainer._menuContent.appendChild(separator2);
             }
         }
@@ -7342,13 +7109,6 @@ class PetriView extends HTMLElement {
             };
             document.addEventListener('click', closeDropdown);
         }
-
-        menuBtn.addEventListener('mouseenter', () => {
-            menuBtn.style.background = 'rgba(255, 255, 255, 1)';
-        });
-        menuBtn.addEventListener('mouseleave', () => {
-            menuBtn.style.background = 'rgba(255, 255, 255, 0.9)';
-        });
 
         this._root.appendChild(menuBtn);
         if (isBackendMode) {
