@@ -1446,15 +1446,10 @@ class PetriView extends HTMLElement {
             const currentUrl = window.location.href;
 
             // Copy to clipboard if available
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-                navigator.clipboard.writeText(currentUrl).then(() => {
-                    alert('Permalink saved! URL copied to clipboard.\n\n' + currentUrl);
-                }).catch(() => {
-                    alert('Permalink saved!\n\n' + currentUrl);
-                });
-            } else {
-                alert('Permalink saved!\n\n' + currentUrl);
-            }
+            this._copyToClipboard(currentUrl,
+                () => alert('Permalink saved! URL copied to clipboard.\n\n' + currentUrl),
+                () => alert('Permalink saved!\n\n' + currentUrl)
+            );
         } catch (err) {
             console.error('Failed to save permalink:', err);
             alert('Failed to save permalink: ' + (err && err.message ? err.message : String(err)));
@@ -1608,31 +1603,7 @@ class PetriView extends HTMLElement {
         const markdown = `[![pflow](${svgUrl})](${docUrl})`;
 
         // Create modal overlay
-        const overlay = document.createElement('div');
-        this._applyStyles(overlay, {
-            position: 'fixed',
-            left: '0',
-            top: '0',
-            right: '0',
-            bottom: '0',
-            background: 'rgba(0, 0, 0, 0.5)',
-            zIndex: 2147483646,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '20px'
-        });
-
-        // Create dialog
-        const dialog = document.createElement('div');
-        this._applyStyles(dialog, {
-            background: '#fff',
-            borderRadius: '8px',
-            padding: '24px',
-            maxWidth: '600px',
-            width: '100%',
-            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)'
-        });
+        const { overlay, dialog } = this._createModalOverlay({ maxWidth: '600px' });
 
         // Title
         const title = document.createElement('h3');
@@ -1724,26 +1695,14 @@ class PetriView extends HTMLElement {
         });
         copyImageUrlButton.addEventListener('click', () => {
             imageUrlTextarea.select();
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-                navigator.clipboard.writeText(svgUrl).then(() => {
-                    copyImageUrlButton.textContent = 'Copied!';
-                    setTimeout(() => {
-                        copyImageUrlButton.textContent = 'Copy Image URL';
-                    }, 2000);
-                }).catch(() => {
-                    document.execCommand('copy');
-                    copyImageUrlButton.textContent = 'Copied!';
-                    setTimeout(() => {
-                        copyImageUrlButton.textContent = 'Copy Image URL';
-                    }, 2000);
-                });
-            } else {
-                document.execCommand('copy');
+            const showCopied = () => {
                 copyImageUrlButton.textContent = 'Copied!';
-                setTimeout(() => {
-                    copyImageUrlButton.textContent = 'Copy Image URL';
-                }, 2000);
-            }
+                setTimeout(() => { copyImageUrlButton.textContent = 'Copy Image URL'; }, 2000);
+            };
+            this._copyToClipboard(svgUrl, showCopied, () => {
+                document.execCommand('copy');
+                showCopied();
+            });
         });
         imageUrlButtonContainer.appendChild(copyImageUrlButton);
         dialog.appendChild(imageUrlButtonContainer);
@@ -1812,26 +1771,14 @@ class PetriView extends HTMLElement {
         });
         copyButton.addEventListener('click', () => {
             textarea.select();
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-                navigator.clipboard.writeText(markdown).then(() => {
-                    copyButton.textContent = 'Copied!';
-                    setTimeout(() => {
-                        copyButton.textContent = 'Copy to Clipboard';
-                    }, 2000);
-                }).catch(() => {
-                    document.execCommand('copy');
-                    copyButton.textContent = 'Copied!';
-                    setTimeout(() => {
-                        copyButton.textContent = 'Copy to Clipboard';
-                    }, 2000);
-                });
-            } else {
-                document.execCommand('copy');
+            const showCopied = () => {
                 copyButton.textContent = 'Copied!';
-                setTimeout(() => {
-                    copyButton.textContent = 'Copy to Clipboard';
-                }, 2000);
-            }
+                setTimeout(() => { copyButton.textContent = 'Copy to Clipboard'; }, 2000);
+            };
+            this._copyToClipboard(markdown, showCopied, () => {
+                document.execCommand('copy');
+                showCopied();
+            });
         });
         buttonContainer.appendChild(copyButton);
 
@@ -1862,7 +1809,6 @@ class PetriView extends HTMLElement {
         buttonContainer.appendChild(closeButton);
 
         dialog.appendChild(buttonContainer);
-        overlay.appendChild(dialog);
 
         // Close on overlay click
         overlay.addEventListener('click', (e) => {
@@ -2009,6 +1955,54 @@ class PetriView extends HTMLElement {
 
     _applyStyles(el, styles = {}) {
         Object.assign(el.style, styles);
+    }
+
+    _copyToClipboard(text, onSuccess, onFallback) {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(onSuccess).catch(onFallback || onSuccess);
+        } else if (onFallback) {
+            onFallback();
+        } else {
+            onSuccess();
+        }
+    }
+
+    _getNodeOffset(kind) {
+        return kind === 'place' ? 40 : 15;
+    }
+
+    _createModalOverlay(options = {}) {
+        const { className, maxWidth = '600px', padding = '24px', dialogStyles = {} } = options;
+        const overlay = document.createElement('div');
+        if (className) overlay.className = className + '-overlay';
+        this._applyStyles(overlay, {
+            position: 'fixed',
+            left: '0',
+            top: '0',
+            right: '0',
+            bottom: '0',
+            background: 'rgba(0, 0, 0, 0.5)',
+            zIndex: 2147483646,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '20px'
+        });
+
+        const dialog = document.createElement('div');
+        if (className) dialog.className = className;
+        this._applyStyles(dialog, {
+            background: '#fff',
+            borderRadius: '8px',
+            padding: padding,
+            maxWidth: maxWidth,
+            width: '100%',
+            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)',
+            ...dialogStyles
+        });
+        overlay.appendChild(dialog);
+
+        return { overlay, dialog };
     }
 
     _genId(prefix) {
@@ -3593,7 +3587,7 @@ class PetriView extends HTMLElement {
         const startTop = parseFloat(el.style.top) || 0;
         const startX = ev.clientX, startY = ev.clientY;
         const scale = this._view.scale || 1;
-        const offset = kind === 'place' ? 40 : 15;
+        const offset = this._getNodeOffset(kind);
         let currentLeft = startLeft, currentTop = startTop;
         const dragThreshold = 5; // pixels before drag counts as intentional
 
@@ -3726,7 +3720,7 @@ class PetriView extends HTMLElement {
             if (!el) continue;
 
             const isPlace = el.classList.contains('pv-place');
-            const offset = isPlace ? 40 : 15;
+            const offset = this._getNodeOffset(isPlace ? 'place' : 'transition');
             const node = isPlace ? this._model.places[id] : this._model.transitions[id];
             if (node) {
                 initialPositions.set(id, {
@@ -3815,7 +3809,7 @@ class PetriView extends HTMLElement {
             if (!el) continue;
 
             const isPlace = el.classList.contains('pv-place');
-            const offset = isPlace ? 40 : 15;
+            const offset = this._getNodeOffset(isPlace ? 'place' : 'transition');
             const node = isPlace ? this._model.places[id] : this._model.transitions[id];
             if (node) {
                 initialPositions.set(id, {
@@ -4742,34 +4736,10 @@ class PetriView extends HTMLElement {
     // ---------------- help dialog ----------------
     _showHelpDialog() {
         // Create modal overlay
-        const overlay = document.createElement('div');
-        overlay.className = 'pv-help-dialog-overlay';
-        this._applyStyles(overlay, {
-            position: 'fixed',
-            left: '0',
-            top: '0',
-            right: '0',
-            bottom: '0',
-            background: 'rgba(0, 0, 0, 0.5)',
-            zIndex: 2147483646,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '20px'
-        });
-
-        // Create dialog
-        const dialog = document.createElement('div');
-        dialog.className = 'pv-help-dialog';
-        this._applyStyles(dialog, {
-            background: '#fff',
-            borderRadius: '8px',
-            padding: '24px',
+        const { overlay, dialog } = this._createModalOverlay({
+            className: 'pv-help-dialog',
             maxWidth: '700px',
-            width: '100%',
-            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)',
-            maxHeight: '85vh',
-            overflow: 'auto'
+            dialogStyles: { maxHeight: '85vh', overflow: 'auto' }
         });
 
         // Title
@@ -4959,7 +4929,6 @@ class PetriView extends HTMLElement {
         });
         dialog.appendChild(closeBtn);
 
-        overlay.appendChild(dialog);
         document.body.appendChild(overlay);
 
         // Close on overlay click
@@ -8075,6 +8044,16 @@ class PetriView extends HTMLElement {
                 '6': 'delete'
             };
             if (map[e.key] && !isTyping) this._setMode(map[e.key]);
+
+            // 7 = toggle label editor, 8 = toggle play/pause
+            if (e.key === '7' && !isTyping) {
+                e.preventDefault();
+                this._toggleLabelEditMode();
+            }
+            if (e.key === '8' && !isTyping) {
+                e.preventDefault();
+                this._setSimulation(!this._simRunning);
+            }
         });
         window.addEventListener('keyup', (e) => {
             if (e.key === ' ') this._spaceDown = false;
