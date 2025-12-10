@@ -5189,123 +5189,53 @@ class PetriView extends HTMLElement {
     _showLayoutAlgorithmsDialog() {
         // Create modal overlay
         const overlay = document.createElement('div');
-        overlay.className = 'pv-layout-dialog-overlay';
-        this._applyStyles(overlay, {
-            position: 'fixed',
-            left: '0',
-            top: '0',
-            right: '0',
-            bottom: '0',
-            background: 'rgba(0, 0, 0, 0.5)',
-            zIndex: 2147483646,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '20px'
-        });
+        overlay.className = 'pv-layout-overlay';
 
         // Create dialog
         const dialog = document.createElement('div');
         dialog.className = 'pv-layout-dialog';
-        this._applyStyles(dialog, {
-            background: '#fff',
-            borderRadius: '8px',
-            padding: '24px',
-            maxWidth: '500px',
-            width: '100%',
-            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)',
-            maxHeight: '85vh',
-            overflow: 'auto'
-        });
 
         // Title
         const title = document.createElement('h2');
+        title.className = 'pv-layout-dialog-title';
         title.textContent = 'Layout Algorithms';
-        this._applyStyles(title, {
-            margin: '0 0 16px 0',
-            fontSize: '22px',
-            fontWeight: 'bold',
-            color: '#333'
-        });
         dialog.appendChild(title);
 
         // Description
         const desc = document.createElement('p');
+        desc.className = 'pv-layout-dialog-desc';
         desc.textContent = 'Apply a layout algorithm to automatically arrange your Petri net nodes:';
-        this._applyStyles(desc, {
-            margin: '0 0 16px 0',
-            fontSize: '14px',
-            color: '#666'
-        });
         dialog.appendChild(desc);
 
         // Layout options container
         const optionsContainer = document.createElement('div');
-        this._applyStyles(optionsContainer, {
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '12px'
-        });
+        optionsContainer.className = 'pv-layout-options';
 
         const createLayoutButton = (name, description, iconEmoji, onClick) => {
             const button = document.createElement('button');
             button.type = 'button';
-            this._applyStyles(button, {
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'flex-start',
-                padding: '16px',
-                background: '#f8f9fa',
-                border: '2px solid #e1e4e8',
-                borderRadius: '8px',
-                cursor: 'pointer',
-                transition: 'all 0.2s',
-                textAlign: 'left'
-            });
+            button.className = 'pv-layout-option';
 
             const header = document.createElement('div');
-            this._applyStyles(header, {
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                marginBottom: '8px'
-            });
+            header.className = 'pv-layout-option-header';
 
             const icon = document.createElement('span');
+            icon.className = 'pv-layout-option-icon';
             icon.textContent = iconEmoji;
-            this._applyStyles(icon, {
-                fontSize: '20px'
-            });
             header.appendChild(icon);
 
             const nameEl = document.createElement('span');
+            nameEl.className = 'pv-layout-option-name';
             nameEl.textContent = name;
-            this._applyStyles(nameEl, {
-                fontSize: '16px',
-                fontWeight: '600',
-                color: '#333'
-            });
             header.appendChild(nameEl);
 
             button.appendChild(header);
 
             const descEl = document.createElement('div');
+            descEl.className = 'pv-layout-option-desc';
             descEl.textContent = description;
-            this._applyStyles(descEl, {
-                fontSize: '13px',
-                color: '#666',
-                lineHeight: '1.4'
-            });
             button.appendChild(descEl);
 
-            button.addEventListener('mouseenter', () => {
-                button.style.background = '#e9ecef';
-                button.style.borderColor = '#007bff';
-            });
-            button.addEventListener('mouseleave', () => {
-                button.style.background = '#f8f9fa';
-                button.style.borderColor = '#e1e4e8';
-            });
             button.addEventListener('click', () => {
                 onClick();
                 document.body.removeChild(overlay);
@@ -5359,26 +5289,9 @@ class PetriView extends HTMLElement {
 
         // Close button
         const closeBtn = document.createElement('button');
+        closeBtn.className = 'pv-layout-close-btn';
         closeBtn.textContent = 'Cancel';
         closeBtn.type = 'button';
-        this._applyStyles(closeBtn, {
-            marginTop: '20px',
-            padding: '10px 24px',
-            fontSize: '14px',
-            fontWeight: '500',
-            background: '#6c757d',
-            color: '#fff',
-            border: 'none',
-            borderRadius: '6px',
-            cursor: 'pointer',
-            transition: 'background 0.2s'
-        });
-        closeBtn.addEventListener('mouseenter', () => {
-            closeBtn.style.background = '#5a6268';
-        });
-        closeBtn.addEventListener('mouseleave', () => {
-            closeBtn.style.background = '#6c757d';
-        });
         closeBtn.addEventListener('click', () => {
             document.body.removeChild(overlay);
         });
