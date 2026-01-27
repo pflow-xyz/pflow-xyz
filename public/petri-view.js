@@ -1891,6 +1891,9 @@ class PetriView extends HTMLElement {
             t.x = Number(t.x || 0);
             t.y = Number(t.y || 0);
         }
+        // Filter out self-loops (arcs where source === target)
+        m.arcs = m.arcs.filter(a => a.source !== a.target);
+        
         for (const a of m.arcs) {
             a['@type'] ||= 'Arrow';
             if (a.weight == null) a.weight = [1];
