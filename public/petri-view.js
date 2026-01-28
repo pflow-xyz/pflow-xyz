@@ -2834,6 +2834,7 @@ class PetriView extends HTMLElement {
         const i = Number(badge.dataset.arc);
         const a = this._model.arcs && this._model.arcs[i];
         if (!a) return;
+        if (this._simRunning) return;
 
         if (this._modeCan('canDeleteOnClick')) {
             this._model.arcs = (this._model.arcs || []).filter((_, j) => j !== i);
