@@ -1891,9 +1891,6 @@ class PetriView extends HTMLElement {
             t.x = Number(t.x || 0);
             t.y = Number(t.y || 0);
         }
-        // Filter out self-loops (arcs where source === target)
-        m.arcs = m.arcs.filter(a => a.source !== a.target);
-        
         for (const a of m.arcs) {
             a['@type'] ||= 'Arrow';
             if (a.weight == null) a.weight = [1];
@@ -4240,7 +4237,8 @@ class PetriView extends HTMLElement {
         if (srcEl && trgEl) {
             const srcIsPlace = srcEl.classList.contains('pv-place');
             const trgIsPlace = trgEl.classList.contains('pv-place');
-            if (srcIsPlace === trgIsPlace) {
+            // Allow self-loops, but prevent place->place or transition->transition for different nodes
+            if (source !== target && srcIsPlace === trgIsPlace) {
                 this._flashInvalidArc(srcEl);
                 this._flashInvalidArc(trgEl);
                 this._arcDraft = null;
@@ -4248,12 +4246,6 @@ class PetriView extends HTMLElement {
                 this._draw();
                 return;
             }
-        }
-        if (source === target) {
-            this._arcDraft = null;
-            this._updateArcDraftHighlight();
-            this._draw();
-            return;
         }
         let w = 1;
         try {
