@@ -2151,6 +2151,17 @@ class PetriView extends HTMLElement {
             }
         }
 
+        // Build map of tokens consumed per place by input arcs
+        const consumed = {};
+        for (const a of inArcs) {
+            if (a.inhibitTransition) continue;
+            const w = this._getArcWeight(a);
+            if (!consumed[a.source]) consumed[a.source] = [];
+            for (let i = 0; i < w.length; i++) {
+                consumed[a.source][i] = (consumed[a.source][i] ?? 0) + (w[i] ?? 0);
+            }
+        }
+
         // output arcs (transition -> place)
         const outArcs = this._outArcsOf(tid);
         for (const a of outArcs) {
@@ -2171,12 +2182,15 @@ class PetriView extends HTMLElement {
             }
 
             // output capacity must not overflow (check each color separately)
+            // Account for tokens consumed by input arcs from the same place
             const cap = this._capacityOf(a.target);
+            const cons = consumed[a.target] ?? [];
             for (let i = 0; i < Math.max(w.length, tokens.length, cap.length); i++) {
                 const wVal = w[i] ?? 0;
                 const tVal = tokens[i] ?? 0;
+                const cVal = cons[i] ?? 0;
                 const capVal = cap[i] ?? Infinity;
-                if (tVal + wVal > capVal) return false;
+                if (tVal - cVal + wVal > capVal) return false;
             }
         }
 
