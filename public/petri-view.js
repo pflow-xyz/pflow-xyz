@@ -4434,10 +4434,10 @@ class PetriView extends HTMLElement {
 
             <h3>🚀 Petri Pilot</h3>
             <p>
-                <strong>Petri Pilot</strong> generates complete applications from Petri net models.
-                Design your workflow here, then visit <a href="https://pilot.pflow.xyz" target="_blank" style="color: #4a90d9;">pilot.pflow.xyz</a>
-                to generate event-sourced backends, frontends, and explore live demos like task managers,
-                e-commerce flows, and token systems.
+                <strong>Petri Pilot</strong> offers interactive tutorials for learning Petri nets.
+                Visit <a href="https://pilot.pflow.xyz" target="_blank" style="color: #4a90d9;">pilot.pflow.xyz</a>
+                to explore live examples including task managers, e-commerce workflows, token systems,
+                and optimization problems like the knapsack—all modeled as Petri nets.
             </p>
 
             <h3>Controls & Features</h3>
