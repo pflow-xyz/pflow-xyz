@@ -4432,6 +4432,14 @@ class PetriView extends HTMLElement {
                 that connect them. When a transition fires, it consumes tokens from input places and produces tokens in output places.
             </p>
 
+            <h3>🚀 Petri Pilot</h3>
+            <p>
+                <strong>Petri Pilot</strong> generates complete applications from Petri net models.
+                Design your workflow here, then visit <a href="https://pilot.pflow.xyz" target="_blank" style="color: #4a90d9;">pilot.pflow.xyz</a>
+                to generate event-sourced backends, frontends, and explore live demos like task managers,
+                e-commerce flows, and token systems.
+            </p>
+
             <h3>Controls & Features</h3>
 
             <h4>Toolbar Buttons:</h4>
