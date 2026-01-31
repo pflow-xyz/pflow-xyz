@@ -4585,6 +4585,106 @@ class PetriView extends HTMLElement {
         });
     }
 
+    // ---------------- Petri Pilot dialog ----------------
+    _showPetriPilotDialog() {
+        // Create modal overlay
+        const { overlay, dialog } = this._createModalOverlay({
+            className: 'pv-help-dialog',
+            dialogClass: 'pv-modal-dialog'
+        });
+
+        // Title
+        const title = document.createElement('h2');
+        title.className = 'pv-help-title';
+        title.textContent = '🚀 Petri Pilot';
+        dialog.appendChild(title);
+
+        // Content
+        const content = document.createElement('div');
+        content.className = 'pv-help-content';
+
+        content.innerHTML = `
+            <h3>What is Petri Pilot?</h3>
+            <p>
+                <strong>Petri Pilot</strong> is a code generation platform that transforms Petri net models into
+                fully functional applications. Design your workflow visually, then generate production-ready
+                backend services and interactive frontends.
+            </p>
+
+            <h3>Key Features</h3>
+            <ul>
+                <li><strong>🎯 Model-Driven Development:</strong> Define your application logic as a Petri net,
+                and Petri Pilot generates event-sourced Go backends with SQLite persistence.</li>
+
+                <li><strong>🖥️ Automatic Frontends:</strong> Get vanilla ES modules frontends with admin dashboards,
+                state visualization, and interactive transition controls.</li>
+
+                <li><strong>🔌 MCP Integration:</strong> Use Petri Pilot tools via MCP (Model Context Protocol)
+                to design, validate, simulate, and generate code directly from AI assistants like Claude.</li>
+
+                <li><strong>📊 ODE Simulation:</strong> Analyze continuous-time behavior using mass action kinetics
+                before generating discrete implementations.</li>
+
+                <li><strong>🔐 Built-in Auth:</strong> Optional role-based access control with GitHub OAuth integration.</li>
+            </ul>
+
+            <h3>Live Demos</h3>
+            <p>
+                Explore generated applications running on Petri Pilot:
+            </p>
+            <ul>
+                <li><strong>Tic-Tac-Toe:</strong> Classic game with state machine logic</li>
+                <li><strong>Coffeeshop:</strong> Order workflow management</li>
+                <li><strong>Knapsack:</strong> Optimization problem with ODE visualization</li>
+                <li><strong>Texas Hold'em:</strong> Poker game with complex state transitions</li>
+            </ul>
+
+            <h3>Get Started</h3>
+            <p>
+                Visit <a href="https://pilot.pflow.xyz" target="_blank" rel="noopener noreferrer">pilot.pflow.xyz</a>
+                to explore live demos, view models, and learn how to generate your own applications.
+            </p>
+        `;
+
+        dialog.appendChild(content);
+
+        // Button container
+        const buttonContainer = document.createElement('div');
+        buttonContainer.style.cssText = 'display: flex; gap: 12px; justify-content: center; margin-top: 20px;';
+
+        // Visit Petri Pilot button
+        const visitBtn = document.createElement('button');
+        visitBtn.className = 'pv-help-close-btn';
+        visitBtn.style.cssText = 'background: #4a9eda; color: white;';
+        visitBtn.textContent = 'Visit Petri Pilot →';
+        visitBtn.type = 'button';
+        visitBtn.addEventListener('click', () => {
+            window.open('https://pilot.pflow.xyz', '_blank', 'noopener,noreferrer');
+        });
+        buttonContainer.appendChild(visitBtn);
+
+        // Close button
+        const closeBtn = document.createElement('button');
+        closeBtn.className = 'pv-help-close-btn';
+        closeBtn.textContent = 'Close';
+        closeBtn.type = 'button';
+        closeBtn.addEventListener('click', () => {
+            document.body.removeChild(overlay);
+        });
+        buttonContainer.appendChild(closeBtn);
+
+        dialog.appendChild(buttonContainer);
+
+        document.body.appendChild(overlay);
+
+        // Close on overlay click
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) {
+                document.body.removeChild(overlay);
+            }
+        });
+    }
+
     // ---------------- ODE simulation dialog ----------------
     async _showSimulationDialog() {
         // Load solver module dynamically
@@ -6478,6 +6578,11 @@ class PetriView extends HTMLElement {
             this._showHelpDialog();
         });
         menuContainer._menuContent.appendChild(helpItem);
+
+        const petriPilotItem = makeMenuItem('🚀 Petri Pilot', () => {
+            this._showPetriPilotDialog();
+        });
+        menuContainer._menuContent.appendChild(petriPilotItem);
 
         const githubItem = makeMenuItem('GitHub', () => {
             window.open('https://github.com/pflow-xyz/pflow-xyz', '_blank', 'noopener,noreferrer');
