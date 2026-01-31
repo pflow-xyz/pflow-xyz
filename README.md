@@ -1,45 +1,105 @@
 # pflow-xyz
 
-Lightweight web component for building, editing, and simulating Petri nets in the browser.
+**Interactive web component for authoring, visualizing, and simulating Petri nets.**
 
 [![](https://data.jsdelivr.com/v1/package/gh/pflow-xyz/pflow-xyz/badge)](https://www.jsdelivr.com/package/gh/pflow-xyz/pflow-xyz)
 
-**Try it out:** https://pflow.xyz
+> Petri nets are a mathematical formalism for modeling concurrent systems, workflows, and resource flows. Unlike statistical ML models, Petri nets provide **explicit causal structure** — the model itself is the explanation.
 
-The component is implemented as an ES module (`public/petri-view.js`) and exposes a clean API and events for integration.
+## The pflow Ecosystem
 
-## Features
+pflow-xyz is part of a suite of tools for Petri net-based application development:
 
-### Core Features
-- **Visual Editor**: Interactive editor for places, transitions, and arcs with drag-and-drop
-- **Inhibitor Arcs**: Support for inhibitor arcs that prevent transitions from firing
-- **Place Capacity**: Define maximum token capacity for places
-- **Token Management**: Click to add/remove tokens, with visual capacity indicators
-- **Live Simulation**: Manual firing of transitions with play/stop mode for automatic simulation
-- **ODE Simulation**: Continuous-time simulation using ordinary differential equations (Tsit5 solver)
-- **Pan & Zoom**: Navigate large nets with mouse/touch pan and zoom controls
-- **Undo/Redo**: Full history support for all editing operations
+| Project | Purpose | Language |
+|---------|---------|----------|
+| **[pflow-xyz](https://github.com/pflow-xyz/pflow-xyz)** | Browser-based visual editor & ODE simulator | JavaScript |
+| **[go-pflow](https://github.com/pflow-xyz/go-pflow)** | Production library for Petri net modeling, simulation & code generation | Go |
+| **[petri-pilot](https://github.com/pflow-xyz/petri-pilot)** | MCP server for AI-assisted model design + full-stack app generation | Go |
 
-### Data & Persistence
-- **JSON-LD Format**: Uses standard JSON-LD schema (https://pflow.xyz/schema)
-- **In-Page Editor**: Optional JSON editor with syntax highlighting (Ace)
-- **Multiple Storage**: Save to inline `<script>`, localStorage, or remote server
-- **CID Generation**: IPFS CIDv1 content addressing with SHA2-256
-- **Download/Upload**: Import and export Petri nets as JSON-LD files
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                         Development Flow                             │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│   ┌──────────────┐    ┌──────────────┐    ┌──────────────────────┐  │
+│   │  pflow-xyz   │───▶│   go-pflow   │───▶│    petri-pilot       │  │
+│   │              │    │              │    │                      │  │
+│   │ Visual Editor│    │ Go Library   │    │ MCP Server +         │  │
+│   │ ODE Simulator│    │ ODE Solver   │    │ Code Generation      │  │
+│   │ JSON-LD I/O  │    │ Code Gen     │    │ Full-Stack Apps      │  │
+│   └──────────────┘    └──────────────┘    └──────────────────────┘  │
+│         │                    │                      │                │
+│         ▼                    ▼                      ▼                │
+│   ┌──────────────────────────────────────────────────────────────┐  │
+│   │                    JSON-LD Models                             │  │
+│   │              https://pflow.xyz/schema                         │  │
+│   └──────────────────────────────────────────────────────────────┘  │
+│                                                                      │
+└─────────────────────────────────────────────────────────────────────┘
+```
 
-### Integration Features
-- **Backend Mode**: Integration with backend server for remote persistence
-- **GitHub Auth**: Optional GitHub OAuth authentication via backend server
-- **Custom Events**: Rich event system for integration with your application
-- **Public API**: JavaScript methods for programmatic control
-- **Compact Mode**: Minimize JSON output for smaller payloads
-- **Layout Options**: Vertical or horizontal layout orientation
+## Try It Live
+
+### Interactive Tutorials
+
+Learn Petri net concepts through playable demos at **[pilot.pflow.xyz](https://pilot.pflow.xyz)**:
+
+| Demo | Concepts | Link |
+|------|----------|------|
+| **Tic-Tac-Toe** | Places, transitions, arcs, ODE strategic analysis | [Play](https://pilot.pflow.xyz/tic-tac-toe/) |
+| **ZK Tic-Tac-Toe** | Zero-knowledge proofs with gnark circuits | [Play](https://pilot.pflow.xyz/zk-tic-tac-toe/) |
+| **Coffee Shop** | Capacity limits, weighted arcs, resource flow | [Play](https://pilot.pflow.xyz/coffeeshop/) |
+| **Texas Hold'em** | Role-based access, guards, event sourcing | [Play](https://pilot.pflow.xyz/texas-holdem/) |
+| **Knapsack** | Optimization via mass-action kinetics | [Play](https://pilot.pflow.xyz/knapsack/) |
+
+### Visual Editor
+
+Build your own models: **[pflow.xyz](https://pflow.xyz)** or **[pilot.pflow.xyz/pflow](https://pilot.pflow.xyz/pflow)**
+
+### GraphQL API
+
+Every model becomes a typed API: **[pilot.pflow.xyz/graphql/i](https://pilot.pflow.xyz/graphql/i)**
+
+---
+
+## AI-Assisted Development (MCP)
+
+[petri-pilot](https://github.com/pflow-xyz/petri-pilot) provides an **MCP (Model Context Protocol) server** that enables AI assistants like Claude to design Petri net models and generate applications.
+
+### MCP Tools
+
+| Tool | Description |
+|------|-------------|
+| `petri_validate` | Check model for structural correctness |
+| `petri_simulate` | Fire transitions and verify behavior |
+| `petri_analyze` | Reachability, deadlocks, liveness analysis |
+| `petri_codegen` | Generate Go backend from model |
+| `petri_frontend` | Generate ES modules frontend |
+| `petri_application` | Generate complete full-stack app |
+
+### Example: AI-Driven App Generation
+
+```
+User: "Create a task management app with todo, in-progress, and done states"
+
+Claude (via MCP):
+1. petri_validate() - Design and validate the workflow model
+2. petri_simulate() - Test state transitions
+3. petri_application() - Generate Go backend + ES modules frontend
+4. service_start() - Launch the application
+```
+
+The result is a working application with:
+- Event-sourced state management
+- REST/GraphQL APIs
+- Real-time UI
+- SQLite persistence
+
+---
 
 ## Quick Start
 
 ### Using jsDelivr CDN (Recommended)
-
-The easiest way to use pflow-xyz is via the jsDelivr CDN:
 
 ```html
 <!DOCTYPE html>
@@ -52,7 +112,7 @@ The easiest way to use pflow-xyz is via the jsDelivr CDN:
 </head>
 <body>
     <script type="module" src="https://cdn.jsdelivr.net/gh/pflow-xyz/pflow-xyz@latest/public/petri-view.js"></script>
-    
+
     <petri-view id="pv" data-json-editor>
         <script type="application/ld+json">
         {
@@ -70,673 +130,199 @@ The easiest way to use pflow-xyz is via the jsDelivr CDN:
 </html>
 ```
 
-### Local Development
+### ODE Solver (Standalone)
 
-For local development, clone the repository and serve the files:
-
-```bash
-git clone https://github.com/pflow-xyz/pflow-xyz.git
-cd pflow-xyz
-# Serve public/ directory with any web server
-python3 -m http.server 8000 --directory public
-```
-
-Then visit `http://localhost:8000` in your browser.
-
-## Complete Example with All Features
-
-This example demonstrates all available features:
-
-```html
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="utf-8"/>
-    <meta name="viewport" content="width=device-width, initial-scale=1"/>
-    <title>Complete Petri Net Example</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/pflow-xyz/pflow-xyz@latest/public/petri-view.css"/>
-    <style>
-        body {
-            margin: 0;
-            padding: 0;
-            font-family: system-ui, -apple-system, sans-serif;
-        }
-        #pv {
-            width: 100vw;
-            height: 100vh;
-        }
-    </style>
-</head>
-<body>
-    <script type="module" src="https://cdn.jsdelivr.net/gh/pflow-xyz/pflow-xyz@latest/public/petri-view.js"></script>
-    
-    <!-- 
-        Attributes:
-        - data-json-editor: Enable in-page JSON editor
-        - data-backend: Enable backend server integration
-        - data-layout-horizontal: Use horizontal layout (default is vertical)
-        - data-compact: Minimize JSON output (no pretty printing)
-    -->
-    <petri-view 
-        id="pv" 
-        data-json-editor
-        data-backend>
-        <script type="application/ld+json">
-        {
-            "@context": "https://pflow.xyz/schema",
-            "@type": "PetriNet",
-            "@version": "1.1",
-            "arcs": [
-                {
-                    "@type": "Arrow",
-                    "inhibitTransition": false,
-                    "source": "producer",
-                    "target": "buffer",
-                    "weight": [1]
-                },
-                {
-                    "@type": "Arrow",
-                    "inhibitTransition": false,
-                    "source": "buffer",
-                    "target": "consumer",
-                    "weight": [1]
-                },
-                {
-                    "@type": "Arrow",
-                    "inhibitTransition": true,
-                    "source": "buffer",
-                    "target": "overflow_guard",
-                    "weight": [5]
-                }
-            ],
-            "places": {
-                "buffer": {
-                    "@type": "Place",
-                    "capacity": [5],
-                    "initial": [2],
-                    "offset": 0,
-                    "x": 200,
-                    "y": 150
-                }
-            },
-            "token": ["https://pflow.xyz/tokens/black"],
-            "transitions": {
-                "producer": {
-                    "@type": "Transition",
-                    "x": 50,
-                    "y": 150
-                },
-                "consumer": {
-                    "@type": "Transition",
-                    "x": 350,
-                    "y": 150
-                },
-                "overflow_guard": {
-                    "@type": "Transition",
-                    "x": 200,
-                    "y": 50
-                }
-            }
-        }
-        </script>
-    </petri-view>
-
-    <script type="module">
-        const pv = document.getElementById('pv');
-        
-        // Listen to events
-        pv.addEventListener('transition-fired-success', (e) => {
-            console.log('Transition fired:', e.detail.id);
-        });
-        
-        pv.addEventListener('marking-changed', (e) => {
-            console.log('New marking:', e.detail.marks);
-        });
-        
-        pv.addEventListener('simulation-started', () => {
-            console.log('Simulation started');
-        });
-        
-        pv.addEventListener('simulation-stopped', () => {
-            console.log('Simulation stopped');
-        });
-        
-        // Use the public API
-        setTimeout(() => {
-            const model = pv.getModel();
-            console.log('Current model:', model);
-            
-            const json = pv.exportJSON();
-            console.log('Exported JSON:', json);
-        }, 1000);
-    </script>
-</body>
-</html>
-```
-
-## Attributes
-
-Configure the component using HTML attributes:
-
-| Attribute | Type | Description |
-|-----------|------|-------------|
-| `data-json-editor` | boolean | Enable in-page JSON editor with toolbar |
-| `data-backend` | boolean | Enable backend server integration with save/load features |
-| `data-layout-horizontal` | boolean | Use horizontal layout instead of vertical |
-| `data-compact` | boolean | Minimize JSON output (no pretty printing) |
-
-## Events
-
-The component fires custom events that you can listen to:
-
-| Event | Detail | Description |
-|-------|--------|-------------|
-| `jsonld-updated` | `{json}` | Fired when the model is updated |
-| `transition-fired-success` | `{id}` | Fired when a transition fires successfully |
-| `transition-fired-blocked` | `{id}` | Fired when a transition is blocked from firing |
-| `marking-changed` | `{marks}` | Fired when the token marking changes |
-| `simulation-started` | - | Fired when automatic simulation starts |
-| `simulation-stopped` | - | Fired when automatic simulation stops |
-| `node-moved` | `{id, kind}` | Fired when a node is moved |
-| `node-deleted` | `{id}` | Fired when a node is deleted |
-| `data-deleted` | - | Fired when all data is cleared |
-
-## Public API
-
-Control the component programmatically:
+The `petri-solver.js` module can be used independently:
 
 ```javascript
-const petriView = document.querySelector('petri-view');
+import * as Solver from 'https://cdn.jsdelivr.net/gh/pflow-xyz/pflow-xyz@latest/public/petri-solver.js';
 
-// Get and set the model
-const model = petriView.getModel();
-petriView.setModel(newModel);
+// Parse Petri net from JSON-LD
+const net = Solver.fromJSON(petriNetData);
 
-// Import/export JSON
-const json = petriView.exportJSON();
-petriView.importJSON(jsonData);
+// Set up initial state and rates
+const initialState = Solver.setState(net);
+const rates = Solver.setRates(net, { produce: 1.0, consume: 0.5 });
 
-// Save to script tag
-petriView.saveToScript();
+// Solve ODE
+const prob = new Solver.ODEProblem(net, initialState, [0, 10], rates);
+const sol = Solver.solve(prob, Solver.Tsit5(), { dt: 0.01 });
 
-// Download as JSON-LD file
-await petriView.downloadJSON();
+// Plot results
+const svg = Solver.SVGPlotter.plotSolution(sol, ['buffer'], {
+  title: 'Token Flow Over Time'
+});
 ```
+
+---
+
+## Features
+
+### Visual Editor
+- **Drag-and-drop** places, transitions, and arcs
+- **Inhibitor arcs** that block transitions
+- **Place capacity** limits with visual indicators
+- **Multi-select** with shift-click or bounding box
+- **Pan & zoom** for large nets
+- **Undo/redo** full history
+
+### ODE Simulation
+- **Tsit5 solver** (5th order Runge-Kutta, adaptive)
+- **Mass-action kinetics** automatic ODE generation
+- **Rate optimization** find optimal transition rates
+- **Interactive plotting** with SVG output
+
+### Data & Integration
+- **JSON-LD format** with schema at `https://pflow.xyz/schema`
+- **IPFS CID** content addressing (SHA2-256)
+- **Custom events** for framework integration
+- **Public API** for programmatic control
+
+---
+
+## How It Differs From AI/ML
+
+| Aspect | Machine Learning | Petri Net Simulation |
+|--------|------------------|---------------------|
+| **Model** | Learned weight matrices | User-defined graph structure |
+| **Behavior** | Probabilistic inference | Deterministic state evolution |
+| **Explanation** | Requires interpretability tools | The model *is* the explanation |
+| **Computation** | Gradient descent on loss | ODE integration of token flow |
+
+Petri nets provide **explicit causal structure**. Token flow follows directly from places, transitions, and arcs — no training data, no opacity.
+
+```
+ML:        f(data) → learned weights → probabilistic inference
+Petri:     f(structure) → ODE integration → deterministic trajectories
+```
+
+---
 
 ## JSON-LD Schema
 
-Petri nets are represented using JSON-LD format with the schema at `https://pflow.xyz/schema`.
-
-### Complete Example
+Models use JSON-LD format compatible across all pflow tools:
 
 ```json
 {
   "@context": "https://pflow.xyz/schema",
   "@type": "PetriNet",
   "@version": "1.1",
-  "arcs": [
-    {
-      "@type": "Arrow",
-      "inhibitTransition": false,
-      "source": "place1",
-      "target": "transition1",
-      "weight": [2]
-    },
-    {
-      "@type": "Arrow",
-      "inhibitTransition": true,
-      "source": "place2",
-      "target": "transition1",
-      "weight": [3]
-    }
-  ],
   "places": {
-    "place1": {
-      "@type": "Place",
-      "capacity": [10],
-      "initial": [5],
-      "offset": 0,
-      "x": 100,
-      "y": 100
-    },
-    "place2": {
-      "@type": "Place",
-      "capacity": [Infinity],
-      "initial": [0],
-      "offset": 0,
-      "x": 200,
-      "y": 100
-    }
+    "ready": { "@type": "Place", "initial": [1], "x": 100, "y": 100 },
+    "running": { "@type": "Place", "initial": [0], "x": 250, "y": 100 },
+    "done": { "@type": "Place", "initial": [0], "x": 400, "y": 100 }
   },
-  "token": ["https://pflow.xyz/tokens/black"],
   "transitions": {
-    "transition1": {
-      "@type": "Transition",
-      "x": 150,
-      "y": 200
-    }
-  }
-}
-```
-
-### Arc Properties
-
-- `source`: ID of the source node (place or transition)
-- `target`: ID of the target node (place or transition)
-- `weight`: Array with single integer representing arc weight
-- `inhibitTransition`: Boolean, `true` for inhibitor arcs
-
-**Inhibitor Arcs:**
-- Input inhibitor (from place to transition): Transition disabled while source place has tokens ≥ weight
-- Output inhibitor (from transition to place): Transition disabled until target place has tokens ≥ weight
-- Inhibitor arcs do not consume or produce tokens
-
-### Place Properties
-
-- `@type`: Always `"Place"`
-- `initial`: Array with initial token count
-- `capacity`: Array with maximum token capacity (`Infinity` for unlimited)
-- `offset`: Token color offset (usually 0)
-- `x`, `y`: Position coordinates in pixels
-
-### Transition Properties
-
-- `@type`: Always `"Transition"`
-- `x`, `y`: Position coordinates in pixels
-
-## Editor Controls
-
-### Mouse/Touch Controls
-- **Click place**: Add/remove tokens
-- **Click transition**: Fire transition (if enabled)
-- **Right-click node**: Open context menu (add arcs, delete)
-- **Drag node**: Move node
-- **Shift + Click node**: Add/remove node from selection (multi-select)
-- **Shift + Drag on canvas**: Draw bounding box to select multiple nodes
-- **Mouse wheel**: Zoom in/out
-- **Space + drag**: Pan the canvas
-- **Double-click transition**: Toggle between normal and inhibitor arc mode
-
-### Keyboard Shortcuts
-- **Ctrl/Cmd + Z**: Undo
-- **Ctrl/Cmd + Shift + Z**: Redo
-- **Escape**: Cancel current operation (arc draft, bounding box selection)
-- **Delete/Backspace**: Delete selected nodes
-- **Space**: Enable pan mode (hold)
-- **1-6**: Switch modes (1=select, 2=add place, 3=add transition, 4=add arc, 5=add token, 6=delete)
-- **X**: Start/stop simulation
-
-### Selection Features
-- **Multi-select**: Hold Shift and click individual nodes to add/remove them from the selection
-- **Bounding Box**: Hold Shift and drag on empty canvas to draw a bounding box. All nodes whose centers fall within the box will be selected when you release the mouse
-- **Visual Feedback**: Selected nodes are highlighted with an orange outline and shadow
-- **Batch Operations**: Delete all selected nodes at once with Delete/Backspace key
-
-### Toolbar
-- **Play/Stop**: Start/stop automatic simulation
-- **Scale Meter**: Shows current zoom level, click to reset to 1x
-- **Hamburger Menu**: Access additional features:
-  - Simulate (ODE): Open ODE simulation dialog
-  - Layout Algorithms: Apply automatic layout
-  - New (clear all)
-  - Download JSON-LD
-  - Open from URL
-  - Toggle JSON Editor
-  - Toggle Layout (Vertical/Horizontal)
-  - Save Permalink (backend mode)
-  - Delete Data (backend mode)
-  - Login/Logout (backend mode with GitHub OAuth)
-
-## ODE Simulation
-
-The ODE (Ordinary Differential Equation) simulation feature allows you to model continuous-time behavior of Petri nets using differential equations. This is useful for analyzing system dynamics, optimization problems, and chemical reaction networks.
-
-### Accessing the Simulator
-
-Click the hamburger menu (☰) in the top-left corner and select "🧮 Simulate (ODE)" to open the simulation dialog.
-
-### Features
-
-- **Tsit5 Solver**: 5th order Runge-Kutta method with adaptive time stepping
-- **Mass Action Kinetics**: Automatic ODE generation from Petri net structure
-- **Configurable Parameters**:
-  - Time span (start and end time)
-  - Initial time step (dt)
-  - Absolute and relative tolerances
-  - Transition rates (kinetic constants)
-- **Interactive Plotting**:
-  - Select which places to plot
-  - Real-time SVG plot generation
-  - Multiple variables on the same plot
-- **Fast Computation**: Efficient JavaScript implementation
-
-### Using the Simulation Dialog
-
-1. **Configure Time Parameters**: Set the start and end time for the simulation
-2. **Adjust Solver Options**: Fine-tune dt, absolute tolerance, and relative tolerance
-3. **Select Places to Plot**: Check the boxes for places you want to visualize
-4. **Set Transition Rates**: Configure the rate constants for each transition
-   - Default rate is 1.0 for all transitions
-   - Setting rate to 0 disables a transition (prevents it from firing)
-   - Useful for optimization problems (e.g., knapsack) to test which transitions should be excluded
-5. **Run Simulation**: Click "Run Simulation" to compute and display results
-
-### Optimization with Rate Parameters
-
-The rate parameter can be used to perform sensitivity analysis and optimization:
-
-- **Knapsack Problems**: Set rate=0 for specific transitions to exclude items and find optimal solutions
-- **Resource Allocation**: Test different configurations by enabling/disabling transitions
-- **Constraint Analysis**: Identify bottlenecks by selectively disabling transitions
-
-**Example**: In a knapsack problem with capacity constraints, setting a transition's rate to 0 effectively removes that item from consideration. This can reveal whether including/excluding certain items improves the objective function (e.g., total value).
-
-#### Automatic Rate Optimization
-
-The ODE simulation dialog includes an "Optimize Rates" feature that automatically finds optimal transition rates to maximize a target place. Two optimization modes are available:
-
-**Continuous Mode**: Uses gradient ascent to find optimal continuous rates between 0.0 and 1.0. Best for problems where fractional rates make sense (e.g., resource allocation with partial utilization).
-
-**Binary Mode**: Finds which transitions should be fully enabled (1.0) or disabled (0.0). Best for discrete decision problems (e.g., knapsack, task selection). Two algorithms available:
-
-1. **SPSA + Local Search (recommended)**: Uses Simultaneous Perturbation Stochastic Approximation for efficient optimization
-   - More efficient: Uses only 2 evaluations per iteration (vs N for gradient methods)
-   - Better for high-dimensional problems (many transitions)
-   - Configurable parameters:
-     - Max Iterations (default: 200): Controls optimization duration
-     - Restarts (default: 1): Multiple random starts to avoid local optima
-   - After finding a continuous solution, applies thresholding (>0.5 → 1.0, ≤0.5 → 0.0)
-   - Finishes with local bit-flip search to refine the binary solution
-
-2. **Threshold + Local Search (legacy)**: Uses finite-difference gradient ascent
-   - Traditional approach with forward finite differences
-   - Requires N+1 evaluations per iteration (one per transition plus base)
-   - More expensive but deterministic
-   - Same thresholding and local search polishing as SPSA
-
-**Performance Note**: For problems with many transitions (N > 10), SPSA can be significantly faster than the legacy gradient method while achieving similar or better results.
-
-### Using the Solver Module Independently
-
-The `petri-solver.js` module can be used independently of the petri-view component:
-
-```html
-<script type="module">
-  import * as Solver from './petri-solver.js';
-
-  // Parse Petri net from JSON-LD
-  const net = Solver.fromJSON(petriNetData);
-  
-  // Set up initial state and rates
-  const initialState = Solver.setState(net);
-  const rates = Solver.setRates(net, { txn0: 1.5, txn1: 2.0, txn2: 0.0 });  // rate=0 disables txn2
-  
-  // Create ODE problem
-  const prob = new Solver.ODEProblem(net, initialState, [0, 10], rates);
-  
-  // Solve using Tsit5
-  const sol = Solver.solve(prob, Solver.Tsit5(), {
-    dt: 0.01,
-    abstol: 1e-6,
-    reltol: 1e-3
-  });
-  
-  // Generate plot
-  const svg = Solver.SVGPlotter.plotSolution(sol, ['place1', 'place2'], {
-    title: 'Simulation Results',
-    xlabel: 'Time',
-    ylabel: 'Token Count'
-  });
-  
-  // Display the plot
-  document.getElementById('plot').innerHTML = svg;
-</script>
-```
-
-### API Reference
-
-**Classes**:
-- `PetriNet`: Petri net model container
-- `Place`: Place node with initial tokens and capacity
-- `Transition`: Transition node with role
-- `Arc`: Arc connecting places and transitions
-- `ODEProblem`: ODE problem definition
-- `ODESolution`: Solution containing time points and states
-- `SVGPlotter`: SVG plot generator
-
-**Functions**:
-- `fromJSON(data)`: Parse JSON-LD to PetriNet
-- `setState(net, customState)`: Create initial state from net
-- `setRates(net, customRates)`: Set transition rates
-- `solve(prob, solver, options)`: Solve ODE problem
-- `Tsit5()`: Create Tsit5 solver instance
-
-See `public/test-solver.html` for a complete standalone example.
-
-## How go-pflow Differs From Modern AI
-
-This section clarifies go-pflow's computational paradigm and its distinction from machine learning systems.
-
-### Structural vs. Statistical Computation
-
-| Aspect | Modern AI | go-pflow |
-|--------|-----------|----------|
-| **Paradigm** | Statistical approximation via learned weights | Explicit dynamic computation via structural equations |
-| **Model** | Opaque weight matrices from training data | User-defined causal structure (Petri nets) |
-| **Behavior** | Probabilistic inference | Deterministic state evolution |
-| **Explanation** | Requires post-hoc interpretability methods | The model itself is the explanation |
-
-- **Modern AI** learns patterns from data using neural networks. The resulting model encodes statistical correlations in high-dimensional weight matrices. Understanding *why* a model produces a given output requires additional interpretability tooling.
-
-- **go-pflow** executes explicit causal structure defined by the user. Places, transitions, and arcs form a directed graph with precise semantics. Token flow and state changes follow directly from the net's topology — no training, no learned parameters, no opacity.
-
-### ODE-Based Token Flow as Physics-Native Computation
-
-go-pflow's ODE simulation mode treats Petri nets as continuous dynamical systems:
-
-- **Mass action kinetics** — transition rates derive from the product of input place concentrations, analogous to chemical reaction networks.
-- **Tsit5 solver** — adaptive Runge-Kutta integration produces trajectories of token concentrations over time.
-- **Deterministic evolution** — given initial conditions and rate parameters, the system's trajectory is fully reproducible.
-
-This is *physics-native* computation: the simulation solves differential equations that describe how quantities flow through a system, not gradient descent over a loss function or transformer inference over token sequences.
-
-### Intellectual Lineage
-
-go-pflow descends from several established fields:
-
-- **Analog computing** — continuous-time integration of differential equations.
-- **Systems biology** — reaction network modeling and ODE-based simulation of biochemical pathways.
-- **Operations research** — resource allocation, scheduling, and flow network optimization.
-- **Concurrency theory** — Petri nets as a formalism for modeling parallel and distributed systems.
-
-These fields predate the current machine learning era and address different problem classes: resource flows, causal dependencies, and system dynamics — rather than pattern recognition from data.
-
-### Comparison Summary
-
-```
-AI         = f(data) → learned weights → probabilistic inference
-go-pflow   = f(structure) → ODE integration → deterministic trajectories
-```
-
-- **Input**: AI consumes training datasets; go-pflow consumes user-defined Petri net topologies.
-- **Processing**: AI optimizes loss via gradient descent; go-pflow integrates ODEs via Runge-Kutta.
-- **Output**: AI produces predictions with confidence scores; go-pflow produces exact state trajectories.
-
-### Future: GPU Acceleration Opportunities
-
-Petri net simulation can benefit from GPU parallelism:
-
-- **Parallel ODE solves** — evaluate multiple initial conditions or parameter sets concurrently.
-- **Ensemble simulation** — run stochastic variants or sensitivity analyses in parallel.
-- **Structural exploration** — search over net topologies or rate parameter spaces.
-
-However, GPU-accelerated Petri net simulation remains fundamentally distinct from GPU-accelerated deep learning:
-
-| GPU Use in Deep Learning | GPU Use in go-pflow |
-|--------------------------|---------------------|
-| Matrix multiplications for forward/backward passes | Parallel integration of independent ODE systems |
-| Training via gradient descent | Parameter sweeps and ensemble runs |
-| Learned representations | Explicit structural computation |
-
-Accelerating go-pflow with GPUs would parallelize ODE integration and parameter exploration — not training of statistical models.
-
-## Integration Examples
-
-### React
-```jsx
-import { useEffect, useRef } from 'react';
-
-function PetriNetEditor() {
-  const pvRef = useRef(null);
-  
-  useEffect(() => {
-    const pv = pvRef.current;
-    
-    const handleTransition = (e) => {
-      console.log('Transition fired:', e.detail.id);
-    };
-    
-    pv.addEventListener('transition-fired-success', handleTransition);
-    return () => pv.removeEventListener('transition-fired-success', handleTransition);
-  }, []);
-  
-  return (
-    <petri-view ref={pvRef} data-json-editor>
-      <script type="application/ld+json">
-        {JSON.stringify({
-          "@context": "https://pflow.xyz/schema",
-          "@type": "PetriNet",
-          "@version": "1.1",
-          "arcs": [],
-          "places": {},
-          "token": ["https://pflow.xyz/tokens/black"],
-          "transitions": {}
-        })}
-      </script>
-    </petri-view>
-  );
-}
-```
-
-### Vue
-```vue
-<template>
-  <petri-view 
-    ref="petriView" 
-    data-json-editor
-    @transition-fired-success="handleTransition">
-    <script type="application/ld+json">
-      {{ modelJson }}
-    </script>
-  </petri-view>
-</template>
-
-<script>
-export default {
-  data() {
-    return {
-      modelJson: JSON.stringify({
-        "@context": "https://pflow.xyz/schema",
-        "@type": "PetriNet",
-        "@version": "1.1",
-        "arcs": [],
-        "places": {},
-        "token": ["https://pflow.xyz/tokens/black"],
-        "transitions": {}
-      })
-    };
+    "start": { "@type": "Transition", "x": 175, "y": 100 },
+    "finish": { "@type": "Transition", "x": 325, "y": 100 }
   },
-  methods: {
-    handleTransition(e) {
-      console.log('Transition fired:', e.detail.id);
-    }
-  }
+  "arcs": [
+    { "@type": "Arrow", "source": "ready", "target": "start", "weight": [1] },
+    { "@type": "Arrow", "source": "start", "target": "running", "weight": [1] },
+    { "@type": "Arrow", "source": "running", "target": "finish", "weight": [1] },
+    { "@type": "Arrow", "source": "finish", "target": "done", "weight": [1] }
+  ]
 }
-</script>
 ```
 
-### Vanilla JavaScript
-```html
-<script type="module">
-import 'https://cdn.jsdelivr.net/gh/pflow-xyz/pflow-xyz@latest/public/petri-view.js';
+---
 
-// Create element dynamically
-const pv = document.createElement('petri-view');
-pv.setAttribute('data-json-editor', '');
+## Code Generation
 
-const model = {
-  "@context": "https://pflow.xyz/schema",
-  "@type": "PetriNet",
-  "@version": "1.1",
-  "arcs": [],
-  "places": {},
-  "token": ["https://pflow.xyz/tokens/black"],
-  "transitions": {}
-};
+### From Model to Application
 
-pv.addEventListener('jsonld-updated', (e) => {
-  console.log('Model updated:', e.detail.json);
-});
+petri-pilot can generate complete applications from Petri net models:
 
-document.body.appendChild(pv);
-pv.setModel(model);
-</script>
-```
+**Backend (Go):**
+- Event-sourced aggregate with Petri net workflow
+- REST API handlers for each transition
+- GraphQL schema and resolvers
+- SQLite persistence
 
-## Development
-
-See [README_WEBSERVER.md](README_WEBSERVER.md) for information about the Go webserver backend.
-
-### Building
+**Frontend (ES Modules):**
+- State visualization
+- Transition forms
+- Admin dashboard
+- Real-time updates
 
 ```bash
-# Build the webserver (embeds public/ directory)
-make build
+# Generate backend
+petri-pilot codegen -o ./myapp -pkg myapp model.json
 
-# Run the webserver
-make run
+# Generate frontend
+petri-pilot frontend -o ./myapp/frontend model.json
 
-# Run with development settings (port 3000)
-make run-dev
-
-# Run tests
-make test
+# Or generate both via MCP
+petri_application(spec='{"name":"myapp", ...}')
 ```
 
-### Project Structure
+---
 
+## Events & API
+
+### Custom Events
+
+```javascript
+const pv = document.querySelector('petri-view');
+
+pv.addEventListener('transition-fired-success', (e) => {
+  console.log('Fired:', e.detail.id);
+});
+
+pv.addEventListener('marking-changed', (e) => {
+  console.log('Tokens:', e.detail.marks);
+});
+
+pv.addEventListener('jsonld-updated', (e) => {
+  console.log('Model:', e.detail.json);
+});
 ```
-.
-├── cmd/
-│   └── webserver/        # Go webserver entry point
-├── internal/
-│   ├── auth/            # GitHub JWT authentication
-│   ├── canonical/       # JSON-LD canonicalization (URDNA2015)
-│   ├── ethsig/          # Ethereum signature verification
-│   ├── seal/            # CID computation (IPFS CIDv1)
-│   ├── static/          # Embedded static files
-│   └── store/           # Filesystem-based object storage
-├── public/              # Frontend static files
-│   ├── petri-view.js   # Main web component
-│   ├── petri-view.css  # Component styles
-│   └── index.html      # Demo page
-└── Makefile            # Build automation
+
+### Public API
+
+```javascript
+// Get/set model
+const model = pv.getModel();
+pv.setModel(newModel);
+
+// Import/export
+const json = pv.exportJSON();
+pv.importJSON(jsonData);
+
+// Download
+await pv.downloadJSON();
 ```
 
-## Environment Variables
+---
 
-Configure the backend server using these environment variables:
+## Keyboard Shortcuts
 
-| Variable | Description |
-|----------|-------------|
-| `JWT_SECRET` | Secret key for signing and verifying JWT tokens |
-| `GITHUB_CLIENT_ID` | GitHub OAuth App client ID |
-| `GITHUB_CLIENT_SECRET` | GitHub OAuth App client secret |
+| Key | Action |
+|-----|--------|
+| `1-6` | Switch modes (select, place, transition, arc, token, delete) |
+| `Space` + drag | Pan canvas |
+| `Ctrl/Cmd + Z` | Undo |
+| `Ctrl/Cmd + Shift + Z` | Redo |
+| `Delete` | Delete selected |
+| `X` | Start/stop simulation |
+| `Shift` + click | Multi-select |
+| `Shift` + drag | Bounding box select |
 
-To set up GitHub OAuth:
-1. Create a GitHub OAuth App at https://github.com/settings/developers
-2. Set the Authorization callback URL to `https://your-domain.com/auth/github/callback`
-3. Copy the Client ID and Client Secret to environment variables
+---
+
+## Links
+
+| Resource | URL |
+|----------|-----|
+| **Live Editor** | [pflow.xyz](https://pflow.xyz) |
+| **Interactive Demos** | [pilot.pflow.xyz](https://pilot.pflow.xyz) |
+| **GraphQL Playground** | [pilot.pflow.xyz/graphql/i](https://pilot.pflow.xyz/graphql/i) |
+| **go-pflow Library** | [github.com/pflow-xyz/go-pflow](https://github.com/pflow-xyz/go-pflow) |
+| **petri-pilot MCP** | [github.com/pflow-xyz/petri-pilot](https://github.com/pflow-xyz/petri-pilot) |
+| **jsDelivr CDN** | [jsdelivr.com/package/gh/pflow-xyz/pflow-xyz](https://www.jsdelivr.com/package/gh/pflow-xyz/pflow-xyz) |
+| **JSON-LD Schema** | [pflow.xyz/schema](https://pflow.xyz/schema) |
+
+---
 
 ## Browser Support
 
@@ -749,10 +335,3 @@ Modern browsers with ES6 module support:
 ## License
 
 See [LICENSE](LICENSE) file for details.
-
-## Links
-
-- **Live Demo**: https://pflow-xyz.github.io/pflow-xyz/public/
-- **Schema**: https://pflow.xyz/schema
-- **jsDelivr CDN**: https://cdn.jsdelivr.net/gh/pflow-xyz/pflow-xyz@latest/public/
-- **Repository**: https://github.com/pflow-xyz/pflow-xyz
