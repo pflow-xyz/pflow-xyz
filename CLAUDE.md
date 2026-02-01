@@ -112,3 +112,47 @@ Frontend testing via `public/test-solver.html` for the ODE solver.
 - GitHub OAuth tokens are passed directly to frontend (no JWT)
 - Storage uses filesystem with structure: `data/o/{cid}`, `data/u/{user}/g/{slug}/`
 - Frontend `_authToken` is a GitHub access token with `gist` scope
+
+## Deployment (pflow.dev)
+
+All services run on pflow.dev behind nginx. Manage with the `~/services` command:
+
+```bash
+~/services list      # Show all services and status
+~/services start     # Start all services
+~/services stop      # Stop all services  
+~/services restart   # Restart all services
+```
+
+### Service Ports
+
+| Service | Port | URL |
+|---------|------|-----|
+| pflow-pilot | 8083 | pilot.pflow.xyz |
+| pflow-xyz | 8081 | pflow.xyz |
+| blog-stackdump | 8082 | blog.stackdump.com |
+| modeldao-org | 8084 | modeldao.org |
+| stackdump-com | 8085 | console.stackdump.com |
+
+### This Service
+
+```bash
+# Check status
+ssh pflow.dev "~/services list"
+
+# View logs
+ssh pflow.dev "tmux capture-pane -t servers:pflow-xyz -p | tail -50"
+
+# Restart
+ssh pflow.dev "~/services restart"
+
+# Attach to tmux
+ssh pflow.dev "tmux attach -t servers"
+```
+
+### Environment Variables
+
+Environment variables are configured in `~/services`. This service uses:
+- `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` - GitHub OAuth
+- `GOOGLE_ANALYTICS_ID` - Analytics (G-E7Q5BVDGYB)
+- `SUPABASE_JWT_SECRET` - Supabase JWT
