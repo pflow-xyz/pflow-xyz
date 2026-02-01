@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -165,8 +166,9 @@ func validateKeys(data interface{}) error {
 
 // Server represents the web server
 type Server struct {
-	storage  Storage
-	publicFS fs.FS
+	storage           Storage
+	publicFS          fs.FS
+	googleAnalyticsID string
 }
 
 // handleCORS handles CORS preflight requests
@@ -745,6 +747,32 @@ func (s *Server) handleGetUser(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// getAnalyticsScript returns the Google Analytics script tag if configured
+func (s *Server) getAnalyticsScript() string {
+	if s.googleAnalyticsID == "" {
+		return ""
+	}
+	return fmt.Sprintf(`<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=%s"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', '%s');
+</script>
+`, s.googleAnalyticsID, s.googleAnalyticsID)
+}
+
+// injectAnalytics injects Google Analytics script into HTML content
+func (s *Server) injectAnalytics(html []byte) []byte {
+	script := s.getAnalyticsScript()
+	if script == "" {
+		return html
+	}
+	// Inject before </head>
+	return bytes.Replace(html, []byte("</head>"), []byte(script+"</head>"), 1)
+}
+
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	log.Printf("%s %s", r.Method, r.URL.Path)
 
@@ -801,6 +829,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				http.Error(w, "Not found", http.StatusNotFound)
 				return
 			}
+			data = s.injectAnalytics(data)
 			w.Header().Set("Content-Type", "text/html")
 			w.Write(data)
 			return
@@ -832,6 +861,12 @@ func main() {
 	server := &Server{
 		storage:  storage,
 		publicFS: publicFS,
+	}
+
+	// Configure Google Analytics if set
+	if gaID := os.Getenv("GOOGLE_ANALYTICS_ID"); gaID != "" {
+		server.googleAnalyticsID = gaID
+		log.Printf("Google Analytics: %s", gaID)
 	}
 
 	// Start server
