@@ -255,6 +255,86 @@
     "timestamp": {
       "@id": "https://pflow.xyz/schema#timestamp",
       "@type": "http://www.w3.org/2001/XMLSchema#dateTime"
+    },
+
+    /* -------------------------------------------------
+     * Net type taxonomy
+     * ------------------------------------------------- */
+
+    "WorkflowNet": {
+      "@id": "https://pflow.xyz/schema#WorkflowNet",
+      "@type": "@id"
+    },
+    "ComputationNet": {
+      "@id": "https://pflow.xyz/schema#ComputationNet",
+      "@type": "@id"
+    },
+    "ResourceNet": {
+      "@id": "https://pflow.xyz/schema#ResourceNet",
+      "@type": "@id"
+    },
+    "GameNet": {
+      "@id": "https://pflow.xyz/schema#GameNet",
+      "@type": "@id"
+    },
+    "ClassificationNet": {
+      "@id": "https://pflow.xyz/schema#ClassificationNet",
+      "@type": "@id"
+    },
+    "CompositeNet": {
+      "@id": "https://pflow.xyz/schema#CompositeNet",
+      "@type": "@id"
+    },
+
+    /* -------------------------------------------------
+     * Composition
+     * ------------------------------------------------- */
+
+    "schemas": {
+      "@id": "https://pflow.xyz/schema#schemas",
+      "@container": "@set"
+    },
+    "links": {
+      "@id": "https://pflow.xyz/schema#links",
+      "@container": "@set"
+    },
+    "ref": {
+      "@id": "https://pflow.xyz/schema#ref",
+      "@type": "http://www.w3.org/2001/XMLSchema#anyURI"
+    },
+
+    /* Link types */
+    "DataLink": {
+      "@id": "https://pflow.xyz/schema#DataLink",
+      "@type": "@id"
+    },
+    "EventLink": {
+      "@id": "https://pflow.xyz/schema#EventLink",
+      "@type": "@id"
+    },
+    "TokenLink": {
+      "@id": "https://pflow.xyz/schema#TokenLink",
+      "@type": "@id"
+    },
+    "GuardLink": {
+      "@id": "https://pflow.xyz/schema#GuardLink",
+      "@type": "@id"
+    },
+
+    /* Link endpoints */
+    "from": {
+      "@id": "https://pflow.xyz/schema#from"
+    },
+    "to": {
+      "@id": "https://pflow.xyz/schema#to"
+    },
+    "place": {
+      "@id": "https://pflow.xyz/schema#place",
+      "@type": "http://www.w3.org/2001/XMLSchema#string"
+    },
+    "transition": {
+      "@id": "https://pflow.xyz/schema#transition",
+      "@type": "http://www.w3.org/2001/XMLSchema#string"
     }
   }
 }
