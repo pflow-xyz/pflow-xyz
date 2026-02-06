@@ -173,9 +173,21 @@
       /* list of place IDs the invariant refers to */
     },
 
+    "claim": {
+      "@id": "https://pflow.xyz/schema#claim",
+      "@type": "http://www.w3.org/2001/XMLSchema#string"
+      /* discriminator: "maxTotal" | "bounded" | "mutex" | "liveness" */
+    },
+
     "maxTotal": {
       "@id": "https://pflow.xyz/schema#maxTotal",
       "@type": "http://www.w3.org/2001/XMLSchema#integer"
+    },
+
+    "bound": {
+      "@id": "https://pflow.xyz/schema#bound",
+      "@type": "http://www.w3.org/2001/XMLSchema#integer"
+      /* upper bound for "bounded" claims */
     },
 
     /* -------------------------------------------------
