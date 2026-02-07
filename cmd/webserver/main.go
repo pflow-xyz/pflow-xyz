@@ -776,6 +776,20 @@ func (s *Server) injectAnalytics(html []byte) []byte {
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	log.Printf("%s %s", r.Method, r.URL.Path)
 
+	// Deploy endpoints (no auth required, self-authenticated)
+	if r.URL.Path == "/webhook/github" && r.Method == "POST" {
+		handleWebhook(w, r)
+		return
+	}
+	if r.URL.Path == "/admin/deploy" && r.Method == "POST" {
+		handleAdminDeploy(w, r)
+		return
+	}
+	if r.URL.Path == "/admin/logs" && r.Method == "GET" {
+		handleAdminLogs(w, r)
+		return
+	}
+
 	// Authentication routes
 	if r.URL.Path == "/auth/github" {
 		s.handleGitHubAuth(w, r)

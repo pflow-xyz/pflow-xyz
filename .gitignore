@@ -1,6 +1,6 @@
 # Binaries
 cmd/webserver/webserver
-webserver
+/webserver
 *.exe
 *.dll
 *.so
