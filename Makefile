@@ -1,4 +1,4 @@
-.PHONY: all build run clean test
+.PHONY: all build run clean test test-js
 
 # Build the webserver
 build:
@@ -22,8 +22,12 @@ clean:
 	@echo "Clean complete"
 
 # Run tests
-test:
+test: test-js
 	@go test ./...
+
+# Run JavaScript tests
+test-js:
+	@deno test public/petri-sim_test.ts
 
 # Build and run with custom port
 run-dev: build

@@ -1,3 +1,5 @@
+import * as Sim from './petri-sim.js';
+
 // Mode capabilities - defines what actions each tool mode allows
 const MODE_CAPS = {
     'select': {
@@ -1762,18 +1764,6 @@ class PetriView extends HTMLElement {
         return id;
     }
 
-    _capacityOf(pid) {
-        const p = this._model.places[pid];
-        if (!p) return Infinity;
-        const arr = Array.isArray(p.capacity) ? p.capacity : [p.capacity];
-        const v = arr[0];
-        if (v === Infinity) return Infinity;
-        const n = Number(v);
-        const cap = Number.isFinite(n) ? n : Infinity;
-        // Treat capacity=0 as unlimited (Infinity)
-        return cap === 0 ? Infinity : cap;
-    }
-
     _isCapacityPath(pathArr) {
         // crude but effective: ...places.<id>.capacity[...]
         const i = pathArr.indexOf('places');
@@ -1862,12 +1852,14 @@ class PetriView extends HTMLElement {
                 return Number.isFinite(n) ? n : 0;
             });
 
-            // capacity: null/undefined => Infinity (unbounded). Preserve 0.
+            // capacity: null/undefined/0 => Infinity (unbounded).
+            // capacity=0 means unbounded per standard Petri net convention.
             if (!Array.isArray(p.capacity)) p.capacity = [p.capacity];
             p.capacity = p.capacity.map(v => {
-                if (v === null || v === undefined) return Infinity; // explicit unbounded
+                if (v === null || v === undefined) return Infinity;
                 const n = Number(v);
-                return Number.isFinite(n) ? n : Infinity;
+                if (!Number.isFinite(n) || n === 0) return Infinity;
+                return n;
             });
 
             // Validate: initial tokens should not exceed capacity for each color
@@ -2070,21 +2062,11 @@ class PetriView extends HTMLElement {
 
     // ---------------- marking & firing ----------------
     _getArcWeight(arc) {
-        // For colored Petri nets, return the full weight vector
-        if (arc.weight == null) return [1];
-        if (!Array.isArray(arc.weight)) return [Number(arc.weight) || 1];
-        return arc.weight.map(w => Number(w) || 0);
+        return Sim.getArcWeight(arc);
     }
 
     _marking() {
-        const marks = {};
-        for (const [pid, p] of Object.entries(this._model.places)) {
-            // Return the full vector of token counts (one per color)
-            marks[pid] = Array.isArray(p.initial) 
-                ? p.initial.map(v => Number(v) || 0)
-                : [Number(p.initial || 0)];
-        }
-        return marks;
+        return Sim.marking(this._model);
     }
 
     _setMarking(marks) {
@@ -2101,144 +2083,33 @@ class PetriView extends HTMLElement {
     }
 
     _capacityOf(pid) {
-        const p = this._model.places[pid];
-        if (!p) return [Infinity];
-        // Return the full capacity vector (one per color)
-        const arr = Array.isArray(p.capacity) ? p.capacity : [Number(p.capacity || Infinity)];
-        return arr.map(cap => {
-            const c = Number(cap);
-            // Only non-finite values are treated as unlimited (Infinity)
-            // capacity=0 means zero capacity (useful for colored nets)
-            return Number.isFinite(c) ? c : Infinity;
-        });
+        return Sim.capacityOf(this._model, pid);
     }
 
     _inArcsOf(tid) {
-        return (this._model.arcs || []).filter(a => a.target === tid);
+        return Sim.inArcsOf(this._model, tid);
     }
 
     _outArcsOf(tid) {
-        return (this._model.arcs || []).filter(a => a.source === tid);
+        return Sim.outArcsOf(this._model, tid);
     }
 
     _enabled(tid, marks) {
-        marks = marks || this._marking();
-
-        // input arcs (place -> transition)
-        const inArcs = this._inArcsOf(tid);
-        for (const a of inArcs) {
-            const fromPlace = this._model.places[a.source];
-            if (!fromPlace) continue;
-            const w = this._getArcWeight(a);
-            const tokens = marks[a.source] ?? [0];
-
-            if (a.inhibitTransition) {
-                // input inhibitor: transition disabled while source place has enough tokens of ANY color >= weight
-                for (let i = 0; i < Math.max(w.length, tokens.length); i++) {
-                    const wVal = w[i] ?? 0;
-                    const tVal = tokens[i] ?? 0;
-                    if (wVal > 0 && tVal >= wVal) return false;
-                }
-                // inhibitor doesn't consume tokens
-                continue;
-            }
-
-            // normal input arc must have enough tokens of EACH color
-            for (let i = 0; i < Math.max(w.length, tokens.length); i++) {
-                const wVal = w[i] ?? 0;
-                const tVal = tokens[i] ?? 0;
-                if (tVal < wVal) return false;
-            }
-        }
-
-        // Build map of tokens consumed per place by input arcs
-        const consumed = {};
-        for (const a of inArcs) {
-            if (a.inhibitTransition) continue;
-            const w = this._getArcWeight(a);
-            if (!consumed[a.source]) consumed[a.source] = [];
-            for (let i = 0; i < w.length; i++) {
-                consumed[a.source][i] = (consumed[a.source][i] ?? 0) + (w[i] ?? 0);
-            }
-        }
-
-        // output arcs (transition -> place)
-        const outArcs = this._outArcsOf(tid);
-        for (const a of outArcs) {
-            const toPlace = this._model.places[a.target];
-            if (!toPlace) continue;
-            const w = this._getArcWeight(a);
-            const tokens = marks[a.target] ?? [0];
-
-            if (a.inhibitTransition) {
-                // output inhibitor: transition disabled until target place has enough tokens
-                for (let i = 0; i < Math.max(w.length, tokens.length); i++) {
-                    const wVal = w[i] ?? 0;
-                    const tVal = tokens[i] ?? 0;
-                    if (wVal > 0 && tVal < wVal) return false;
-                }
-                // inhibitor doesn't produce tokens, skip capacity check
-                continue;
-            }
-
-            // output capacity must not overflow (check each color separately)
-            // Account for tokens consumed by input arcs from the same place
-            const cap = this._capacityOf(a.target);
-            const cons = consumed[a.target] ?? [];
-            for (let i = 0; i < Math.max(w.length, tokens.length, cap.length); i++) {
-                const wVal = w[i] ?? 0;
-                const tVal = tokens[i] ?? 0;
-                const cVal = cons[i] ?? 0;
-                const capVal = cap[i] ?? Infinity;
-                if (tVal - cVal + wVal > capVal) return false;
-            }
-        }
-
-        return true;
+        return Sim.enabled(this._model, tid, marks || this._marking());
     }
 
     _fire(tid) {
         const marks = this._marking();
-        if (!this._enabled(tid, marks)) {
+        const newMarks = Sim.fire(this._model, tid, marks);
+        if (!newMarks) {
             this.dispatchEvent(new CustomEvent('transition-fired-blocked', {detail: {id: tid}}));
             return false;
         }
-        
-        // Process input arcs (consume tokens)
-        for (const a of this._inArcsOf(tid)) {
-            const isPlace = !!this._model.places[a.source];
-            if (!isPlace) continue;
-            if (a.inhibitTransition) continue; // inhibitor arcs don't consume tokens
-            
-            const w = this._getArcWeight(a);
-            const tokens = marks[a.source] ?? [0];
-            
-            // Element-wise subtraction: tokens[i] -= w[i] for each color i
-            marks[a.source] = tokens.map((t, i) => Math.max(0, t - (w[i] ?? 0)));
-        }
-        
-        // Process output arcs (produce tokens)
-        for (const a of this._outArcsOf(tid)) {
-            const isPlace = !!this._model.places[a.target];
-            if (!isPlace) continue;
-            if (a.inhibitTransition) continue; // inhibitor arcs don't produce tokens
-            
-            const w = this._getArcWeight(a);
-            const tokens = marks[a.target] ?? [0];
-            
-            // Element-wise addition: tokens[i] += w[i] for each color i
-            // Ensure result array is at least as long as the weight vector
-            const maxLen = Math.max(tokens.length, w.length);
-            marks[a.target] = Array.from({length: maxLen}, (_, i) => 
-                (tokens[i] ?? 0) + (w[i] ?? 0)
-            );
-        }
-        
-        this._setMarking(marks);
+        this._setMarking(newMarks);
         this._renderTokens();
         this._updateTransitionStates();
         this._draw();
-        this.dispatchEvent(new CustomEvent('marking-changed', {detail: {marks}}));
+        this.dispatchEvent(new CustomEvent('marking-changed', {detail: {marks: newMarks}}));
         this.dispatchEvent(new CustomEvent('transition-fired-success', {detail: {id: tid}}));
         return true;
     }
@@ -4145,7 +4016,7 @@ class PetriView extends HTMLElement {
                 dot.className = 'pv-token-dot';
                 el.appendChild(dot);
             }
-            const cap = this._capacityOf(id);
+            const cap = Sim.scalarCapacityOf(this._model, id);
             el.toggleAttribute('data-cap-full', Number.isFinite(cap) && tokenCount >= cap);
         }
     }
