@@ -23,6 +23,9 @@ jobs:
       - name: Run JavaScript tests
         run: deno test public/petri-sim_test.ts
 
+      - name: Copy public assets for Go embed
+        run: cp -r public internal/static/
+
       - name: Run Go tests
         run: go test ./...
 
