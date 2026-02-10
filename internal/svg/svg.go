@@ -743,10 +743,12 @@ func applyLayout(net *PetriNet, algorithm string) error {
 	switch strings.ToLower(algorithm) {
 	case "circular", "circle":
 		return applyCircularLayout(net)
-	case "force-atlas-2", "force-atlas", "force":
-		return applyForceAtlasLayout(net)
-	case "hierarchical", "hierarchical-vertical", "vertical":
-		return applyHierarchicalLayout(net)
+	case "sugiyama", "layered":
+		return applySugiyamaLayout(net)
+	case "grid", "orthogonal":
+		return applyGridLayout(net)
+	case "bipartite":
+		return applyBipartiteLayout(net)
 	default:
 		return fmt.Errorf("unsupported layout algorithm: %s", algorithm)
 	}
@@ -793,235 +795,114 @@ func applyCircularLayout(net *PetriNet) error {
 	return nil
 }
 
-// applyForceAtlasLayout applies a simplified force-directed layout algorithm
-// This is a basic implementation inspired by Force Atlas 2
-func applyForceAtlasLayout(net *PetriNet) error {
-	// This is a simplified version - a full Force Atlas 2 implementation would be much more complex
-	
-	// Count total nodes
+// applySugiyamaLayout arranges nodes in layers using the Sugiyama framework:
+// cycle-breaking, longest-path level assignment, barycenter crossing minimization
+func applySugiyamaLayout(net *PetriNet) error {
 	totalNodes := len(net.Places) + len(net.Transitions)
 	if totalNodes == 0 {
 		return nil
 	}
 
-	// Create a node map for easier access
 	type nodeInfo struct {
-		x, y   float64 // Position values
+		id      string
 		isPlace bool
-		id     string
-	}
-	
-	nodes := make([]nodeInfo, 0, totalNodes)
-	
-	// Collect all nodes with their current positions
-	for id, place := range net.Places {
-		nodes = append(nodes, nodeInfo{
-			x: place.X,
-			y: place.Y,
-			isPlace: true,
-			id: id,
-		})
-	}
-	
-	for id, transition := range net.Transitions {
-		nodes = append(nodes, nodeInfo{
-			x: transition.X,
-			y: transition.Y,
-			isPlace: false,
-			id: id,
-		})
-	}
-
-	// Initialize positions if they're at (0,0)
-	for i := range nodes {
-		if nodes[i].x == 0 && nodes[i].y == 0 {
-			// Place in a grid initially
-			gridSize := int(math.Ceil(math.Sqrt(float64(totalNodes))))
-			row := i / gridSize
-			col := i % gridSize
-			nodes[i].x = float64(col * 150 + 100)
-			nodes[i].y = float64(row * 150 + 100)
-		}
-	}
-
-	// Simple force-directed iterations
-	iterations := 50
-	temperature := 100.0
-	cooling := 0.95
-	k := 100.0 // Optimal distance between nodes
-
-	for iter := 0; iter < iterations; iter++ {
-		// Calculate repulsive forces between all nodes
-		forces := make([][2]float64, len(nodes))
-		
-		for i := 0; i < len(nodes); i++ {
-			for j := i + 1; j < len(nodes); j++ {
-				dx := nodes[j].x - nodes[i].x
-				dy := nodes[j].y - nodes[i].y
-				dist := math.Sqrt(dx*dx + dy*dy)
-				
-				if dist < 1.0 {
-					dist = 1.0
-				}
-				
-				// Repulsive force (inversely proportional to distance)
-				force := k * k / dist
-				fx := force * dx / dist
-				fy := force * dy / dist
-				
-				forces[i][0] -= fx
-				forces[i][1] -= fy
-				forces[j][0] += fx
-				forces[j][1] += fy
-			}
-		}
-
-		// Calculate attractive forces along arcs
-		for _, arc := range net.Arcs {
-			var sourceIdx, targetIdx int
-			sourceFound, targetFound := false, false
-			
-			for idx, node := range nodes {
-				if node.id == arc.Source {
-					sourceIdx = idx
-					sourceFound = true
-				}
-				if node.id == arc.Target {
-					targetIdx = idx
-					targetFound = true
-				}
-			}
-			
-			if !sourceFound || !targetFound {
-				continue
-			}
-			
-			dx := nodes[targetIdx].x - nodes[sourceIdx].x
-			dy := nodes[targetIdx].y - nodes[sourceIdx].y
-			dist := math.Sqrt(dx*dx + dy*dy)
-			
-			if dist < 1.0 {
-				dist = 1.0
-			}
-			
-			// Attractive force (proportional to distance)
-			force := dist * dist / k
-			fx := force * dx / dist
-			fy := force * dy / dist
-			
-			forces[sourceIdx][0] += fx
-			forces[sourceIdx][1] += fy
-			forces[targetIdx][0] -= fx
-			forces[targetIdx][1] -= fy
-		}
-
-		// Apply forces with temperature-based damping
-		for i := range nodes {
-			displacement := math.Sqrt(forces[i][0]*forces[i][0] + forces[i][1]*forces[i][1])
-			if displacement > temperature {
-				forces[i][0] = forces[i][0] / displacement * temperature
-				forces[i][1] = forces[i][1] / displacement * temperature
-			}
-			
-			nodes[i].x += forces[i][0]
-			nodes[i].y += forces[i][1]
-		}
-
-		// Cool down
-		temperature *= cooling
-	}
-
-	// Update the net with new positions
-	for _, node := range nodes {
-		if node.isPlace {
-			place := net.Places[node.id]
-			place.X = node.x
-			place.Y = node.y
-			net.Places[node.id] = place
-		} else {
-			transition := net.Transitions[node.id]
-			transition.X = node.x
-			transition.Y = node.y
-			net.Transitions[node.id] = transition
-		}
-	}
-
-	return nil
-}
-
-// applyHierarchicalLayout arranges nodes in layers from top to bottom using topological sorting
-func applyHierarchicalLayout(net *PetriNet) error {
-	totalNodes := len(net.Places) + len(net.Transitions)
-	if totalNodes == 0 {
-		return nil
-	}
-
-	// Node info for layout
-	type nodeInfo struct {
-		id       string
-		isPlace  bool
-		level    int
-		inDegree int
+		level   int
 	}
 
 	// Build node map
 	nodes := make(map[string]*nodeInfo)
 	for id := range net.Places {
-		nodes[id] = &nodeInfo{id: id, isPlace: true, level: -1, inDegree: 0}
+		nodes[id] = &nodeInfo{id: id, isPlace: true, level: -1}
 	}
 	for id := range net.Transitions {
-		nodes[id] = &nodeInfo{id: id, isPlace: false, level: -1, inDegree: 0}
+		nodes[id] = &nodeInfo{id: id, isPlace: false, level: -1}
 	}
 
-	// Build adjacency information
+	// Build adjacency lists
 	outgoing := make(map[string][]string)
+	incoming := make(map[string][]string)
 	for id := range nodes {
 		outgoing[id] = []string{}
+		incoming[id] = []string{}
 	}
-
 	for _, arc := range net.Arcs {
-		if _, srcOk := nodes[arc.Source]; srcOk {
-			if _, trgOk := nodes[arc.Target]; trgOk {
-				outgoing[arc.Source] = append(outgoing[arc.Source], arc.Target)
-				nodes[arc.Target].inDegree++
+		if _, ok := nodes[arc.Source]; !ok {
+			continue
+		}
+		if _, ok := nodes[arc.Target]; !ok {
+			continue
+		}
+		outgoing[arc.Source] = append(outgoing[arc.Source], arc.Target)
+		incoming[arc.Target] = append(incoming[arc.Target], arc.Source)
+	}
+
+	// Phase 1: DFS cycle-breaking — identify back edges
+	visited := make(map[string]bool)
+	onStack := make(map[string]bool)
+	backEdges := make(map[string]bool)
+
+	var dfs func(id string)
+	dfs = func(id string) {
+		visited[id] = true
+		onStack[id] = true
+		for _, t := range outgoing[id] {
+			if !visited[t] {
+				dfs(t)
+			} else if onStack[t] {
+				backEdges[id+"->"+t] = true
+			}
+		}
+		onStack[id] = false
+	}
+	for id := range nodes {
+		if !visited[id] {
+			dfs(id)
+		}
+	}
+
+	// Phase 2: Longest-path level assignment from sources (ignoring back edges)
+	// Find sources (nodes with 0 non-back in-degree)
+	for id := range nodes {
+		effectiveIn := 0
+		for _, src := range incoming[id] {
+			if !backEdges[src+"->"+id] {
+				effectiveIn++
+			}
+		}
+		if effectiveIn == 0 {
+			nodes[id].level = 0
+		}
+	}
+
+	// BFS-style longest path
+	changed := true
+	for changed {
+		changed = false
+		for id, node := range nodes {
+			if node.level < 0 {
+				continue
+			}
+			for _, t := range outgoing[id] {
+				if backEdges[id+"->"+t] {
+					continue
+				}
+				newLevel := node.level + 1
+				if newLevel > nodes[t].level {
+					nodes[t].level = newLevel
+					changed = true
+				}
 			}
 		}
 	}
 
-	// Topological sort using Kahn's algorithm to assign levels
-	queue := []string{}
-	inDegreeMap := make(map[string]int)
-
-	for id, node := range nodes {
-		inDegreeMap[id] = node.inDegree
-		if node.inDegree == 0 {
-			node.level = 0
-			queue = append(queue, id)
-		}
-	}
-
-	for len(queue) > 0 {
-		currentID := queue[0]
-		queue = queue[1:]
-		currentLevel := nodes[currentID].level
-
-		for _, targetID := range outgoing[currentID] {
-			inDegreeMap[targetID]--
-			if inDegreeMap[targetID] == 0 {
-				nodes[targetID].level = currentLevel + 1
-				queue = append(queue, targetID)
-			}
-		}
-	}
-
-	// Assign level 0 to any remaining unassigned nodes (cycles)
+	// Assign remaining unassigned nodes (in cycles) to level 0
 	for _, node := range nodes {
-		if node.level == -1 {
+		if node.level < 0 {
 			node.level = 0
 		}
 	}
 
-	// Group nodes by level
+	// Group by level
 	levels := make(map[int][]*nodeInfo)
 	maxLevel := 0
 	for _, node := range nodes {
@@ -1031,26 +912,94 @@ func applyHierarchicalLayout(net *PetriNet) error {
 		}
 	}
 
-	// Layout parameters
-	levelHeight := 150.0
-	nodeSpacing := 100.0
-	startX := 100.0
-	startY := 100.0
-	canvasWidth := 800.0
-
-	// Position nodes by level
-	for level := 0; level <= maxLevel; level++ {
-		nodesAtLevel := levels[level]
-		if len(nodesAtLevel) == 0 {
-			continue
+	// Phase 3: Barycenter crossing minimization (4 passes, 2 sweeps each)
+	// Build a position index for quick lookup
+	posOf := make(map[string]int)
+	for lvl := 0; lvl <= maxLevel; lvl++ {
+		for i, n := range levels[lvl] {
+			posOf[n.id] = i
 		}
+	}
 
-		levelWidth := float64(len(nodesAtLevel)) * nodeSpacing
-		startXForLevel := startX + (canvasWidth-levelWidth)/2
+	for pass := 0; pass < 4; pass++ {
+		// Down sweep
+		for lvl := 1; lvl <= maxLevel; lvl++ {
+			bary := make(map[string]float64)
+			for _, node := range levels[lvl] {
+				sum := 0.0
+				count := 0
+				for _, src := range incoming[node.id] {
+					if backEdges[src+"->"+node.id] {
+						continue
+					}
+					if nodes[src].level == lvl-1 {
+						sum += float64(posOf[src])
+						count++
+					}
+				}
+				if count > 0 {
+					bary[node.id] = sum / float64(count)
+				} else {
+					bary[node.id] = float64(posOf[node.id])
+				}
+			}
+			// Sort by barycenter
+			layer := levels[lvl]
+			for i := 1; i < len(layer); i++ {
+				for j := i; j > 0 && bary[layer[j].id] < bary[layer[j-1].id]; j-- {
+					layer[j], layer[j-1] = layer[j-1], layer[j]
+				}
+			}
+			for i, n := range layer {
+				posOf[n.id] = i
+			}
+		}
+		// Up sweep
+		for lvl := maxLevel - 1; lvl >= 0; lvl-- {
+			bary := make(map[string]float64)
+			for _, node := range levels[lvl] {
+				sum := 0.0
+				count := 0
+				for _, tgt := range outgoing[node.id] {
+					if backEdges[node.id+"->"+tgt] {
+						continue
+					}
+					if nodes[tgt].level == lvl+1 {
+						sum += float64(posOf[tgt])
+						count++
+					}
+				}
+				if count > 0 {
+					bary[node.id] = sum / float64(count)
+				} else {
+					bary[node.id] = float64(posOf[node.id])
+				}
+			}
+			layer := levels[lvl]
+			for i := 1; i < len(layer); i++ {
+				for j := i; j > 0 && bary[layer[j].id] < bary[layer[j-1].id]; j-- {
+					layer[j], layer[j-1] = layer[j-1], layer[j]
+				}
+			}
+			for i, n := range layer {
+				posOf[n.id] = i
+			}
+		}
+	}
 
-		for idx, node := range nodesAtLevel {
-			x := startXForLevel + float64(idx)*nodeSpacing
-			y := startY + float64(level)*levelHeight
+	// Phase 4: Assign coordinates
+	levelSpacing := 150.0
+	nodeSpacing := 120.0
+	startY := 100.0
+
+	for lvl := 0; lvl <= maxLevel; lvl++ {
+		layer := levels[lvl]
+		totalWidth := float64(len(layer)-1) * nodeSpacing
+		startX := 400.0 - totalWidth/2
+
+		for i, node := range layer {
+			x := startX + float64(i)*nodeSpacing
+			y := startY + float64(lvl)*levelSpacing
 
 			if node.isPlace {
 				place := net.Places[node.id]
@@ -1064,6 +1013,197 @@ func applyHierarchicalLayout(net *PetriNet) error {
 				net.Transitions[node.id] = transition
 			}
 		}
+	}
+
+	return nil
+}
+
+// applyGridLayout arranges nodes on a grid, sorted by connectivity (most connected first)
+func applyGridLayout(net *PetriNet) error {
+	totalNodes := len(net.Places) + len(net.Transitions)
+	if totalNodes == 0 {
+		return nil
+	}
+
+	type nodeInfo struct {
+		id      string
+		isPlace bool
+		degree  int
+	}
+
+	// Collect nodes and compute degree
+	nodeList := make([]nodeInfo, 0, totalNodes)
+	degree := make(map[string]int)
+	for _, arc := range net.Arcs {
+		degree[arc.Source]++
+		degree[arc.Target]++
+	}
+
+	for id := range net.Places {
+		nodeList = append(nodeList, nodeInfo{id: id, isPlace: true, degree: degree[id]})
+	}
+	for id := range net.Transitions {
+		nodeList = append(nodeList, nodeInfo{id: id, isPlace: false, degree: degree[id]})
+	}
+
+	// Sort by degree descending (most connected first)
+	for i := 1; i < len(nodeList); i++ {
+		for j := i; j > 0 && nodeList[j].degree > nodeList[j-1].degree; j-- {
+			nodeList[j], nodeList[j-1] = nodeList[j-1], nodeList[j]
+		}
+	}
+
+	// Grid parameters
+	cols := int(math.Ceil(math.Sqrt(float64(totalNodes))))
+	spacing := 120.0
+
+	// Center on canvas
+	rows := int(math.Ceil(float64(totalNodes) / float64(cols)))
+	totalWidth := float64(cols-1) * spacing
+	totalHeight := float64(rows-1) * spacing
+	offsetX := 400.0 - totalWidth/2
+	offsetY := 300.0 - totalHeight/2
+
+	for i, node := range nodeList {
+		col := i % cols
+		row := i / cols
+		x := offsetX + float64(col)*spacing
+		y := offsetY + float64(row)*spacing
+
+		if node.isPlace {
+			place := net.Places[node.id]
+			place.X = x
+			place.Y = y
+			net.Places[node.id] = place
+		} else {
+			transition := net.Transitions[node.id]
+			transition.X = x
+			transition.Y = y
+			net.Transitions[node.id] = transition
+		}
+	}
+
+	return nil
+}
+
+// applyBipartiteLayout places all places in a left column and transitions in a right column,
+// sorted by barycenter of neighbors to minimize crossings
+func applyBipartiteLayout(net *PetriNet) error {
+	totalNodes := len(net.Places) + len(net.Transitions)
+	if totalNodes == 0 {
+		return nil
+	}
+
+	type nodeInfo struct {
+		id      string
+		isPlace bool
+	}
+
+	// Collect places and transitions
+	places := make([]nodeInfo, 0, len(net.Places))
+	transitions := make([]nodeInfo, 0, len(net.Transitions))
+	for id := range net.Places {
+		places = append(places, nodeInfo{id: id, isPlace: true})
+	}
+	for id := range net.Transitions {
+		transitions = append(transitions, nodeInfo{id: id, isPlace: false})
+	}
+
+	// Build neighbor map (regardless of arc direction)
+	neighbors := make(map[string][]string)
+	for _, arc := range net.Arcs {
+		neighbors[arc.Source] = append(neighbors[arc.Source], arc.Target)
+		neighbors[arc.Target] = append(neighbors[arc.Target], arc.Source)
+	}
+
+	// Assign initial positions (index order)
+	posOf := make(map[string]int)
+	for i, p := range places {
+		posOf[p.id] = i
+	}
+	for i, t := range transitions {
+		posOf[t.id] = i
+	}
+
+	// Barycenter sort: 4 iterations alternating columns
+	for iter := 0; iter < 4; iter++ {
+		// Sort transitions by barycenter of neighboring places
+		bary := make(map[string]float64)
+		for _, t := range transitions {
+			sum := 0.0
+			count := 0
+			for _, nb := range neighbors[t.id] {
+				if _, ok := net.Places[nb]; ok {
+					sum += float64(posOf[nb])
+					count++
+				}
+			}
+			if count > 0 {
+				bary[t.id] = sum / float64(count)
+			} else {
+				bary[t.id] = float64(posOf[t.id])
+			}
+		}
+		for i := 1; i < len(transitions); i++ {
+			for j := i; j > 0 && bary[transitions[j].id] < bary[transitions[j-1].id]; j-- {
+				transitions[j], transitions[j-1] = transitions[j-1], transitions[j]
+			}
+		}
+		for i, t := range transitions {
+			posOf[t.id] = i
+		}
+
+		// Sort places by barycenter of neighboring transitions
+		bary = make(map[string]float64)
+		for _, p := range places {
+			sum := 0.0
+			count := 0
+			for _, nb := range neighbors[p.id] {
+				if _, ok := net.Transitions[nb]; ok {
+					sum += float64(posOf[nb])
+					count++
+				}
+			}
+			if count > 0 {
+				bary[p.id] = sum / float64(count)
+			} else {
+				bary[p.id] = float64(posOf[p.id])
+			}
+		}
+		for i := 1; i < len(places); i++ {
+			for j := i; j > 0 && bary[places[j].id] < bary[places[j-1].id]; j-- {
+				places[j], places[j-1] = places[j-1], places[j]
+			}
+		}
+		for i, p := range places {
+			posOf[p.id] = i
+		}
+	}
+
+	// Assign coordinates
+	colGap := 300.0
+	vSpacing := 120.0
+	leftX := 250.0
+	rightX := leftX + colGap
+
+	// Center each column vertically
+	placeHeight := float64(len(places)-1) * vSpacing
+	transHeight := float64(len(transitions)-1) * vSpacing
+	centerY := 300.0
+	placeStartY := centerY - placeHeight/2
+	transStartY := centerY - transHeight/2
+
+	for i, p := range places {
+		place := net.Places[p.id]
+		place.X = leftX
+		place.Y = placeStartY + float64(i)*vSpacing
+		net.Places[p.id] = place
+	}
+	for i, t := range transitions {
+		transition := net.Transitions[t.id]
+		transition.X = rightX
+		transition.Y = transStartY + float64(i)*vSpacing
+		net.Transitions[t.id] = transition
 	}
 
 	return nil

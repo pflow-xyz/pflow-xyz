@@ -1077,7 +1077,7 @@ func TestGenerateSVGWithLayout_Circular(t *testing.T) {
 	t.Logf("Generated SVG with circular layout (length: %d bytes)", len(svg))
 }
 
-func TestGenerateSVGWithLayout_ForceAtlas(t *testing.T) {
+func TestGenerateSVGWithLayout_Sugiyama(t *testing.T) {
 	jsonData := []byte(`{
 		"@context": "https://pflow.xyz/schema",
 		"@type": "PetriNet",
@@ -1124,12 +1124,11 @@ func TestGenerateSVGWithLayout_ForceAtlas(t *testing.T) {
 		}
 	}`)
 
-	svg, err := GenerateSVGWithLayout(jsonData, "force-atlas-2")
+	svg, err := GenerateSVGWithLayout(jsonData, "sugiyama")
 	if err != nil {
 		t.Fatalf("GenerateSVGWithLayout failed: %v", err)
 	}
 
-	// SVG should be valid
 	if !strings.Contains(svg, "<svg xmlns") {
 		t.Error("SVG missing opening tag")
 	}
@@ -1137,10 +1136,10 @@ func TestGenerateSVGWithLayout_ForceAtlas(t *testing.T) {
 		t.Error("SVG missing closing tag")
 	}
 
-	t.Logf("Generated SVG with force-atlas-2 layout (length: %d bytes)", len(svg))
+	t.Logf("Generated SVG with sugiyama layout (length: %d bytes)", len(svg))
 }
 
-func TestGenerateSVGWithLayout_Hierarchical(t *testing.T) {
+func TestGenerateSVGWithLayout_Grid(t *testing.T) {
 	jsonData := []byte(`{
 		"@context": "https://pflow.xyz/schema",
 		"@type": "PetriNet",
@@ -1166,12 +1165,11 @@ func TestGenerateSVGWithLayout_Hierarchical(t *testing.T) {
 		}
 	}`)
 
-	svg, err := GenerateSVGWithLayout(jsonData, "hierarchical")
+	svg, err := GenerateSVGWithLayout(jsonData, "grid")
 	if err != nil {
 		t.Fatalf("GenerateSVGWithLayout failed: %v", err)
 	}
 
-	// SVG should be valid
 	if !strings.Contains(svg, "<svg xmlns") {
 		t.Error("SVG missing opening tag")
 	}
@@ -1179,7 +1177,69 @@ func TestGenerateSVGWithLayout_Hierarchical(t *testing.T) {
 		t.Error("SVG missing closing tag")
 	}
 
-	t.Logf("Generated SVG with hierarchical layout (length: %d bytes)", len(svg))
+	t.Logf("Generated SVG with grid layout (length: %d bytes)", len(svg))
+}
+
+func TestGenerateSVGWithLayout_Bipartite(t *testing.T) {
+	jsonData := []byte(`{
+		"@context": "https://pflow.xyz/schema",
+		"@type": "PetriNet",
+		"@version": "1.1",
+		"arcs": [
+			{
+				"@type": "Arrow",
+				"source": "place0",
+				"target": "txn0",
+				"weight": [1]
+			},
+			{
+				"@type": "Arrow",
+				"source": "txn0",
+				"target": "place1",
+				"weight": [1]
+			}
+		],
+		"places": {
+			"place0": {
+				"@type": "Place",
+				"capacity": [10],
+				"initial": [2],
+				"offset": 0,
+				"x": 0,
+				"y": 0
+			},
+			"place1": {
+				"@type": "Place",
+				"capacity": [10],
+				"initial": [0],
+				"offset": 0,
+				"x": 0,
+				"y": 0
+			}
+		},
+		"token": ["https://pflow.xyz/tokens/black"],
+		"transitions": {
+			"txn0": {
+				"@type": "Transition",
+				"x": 0,
+				"y": 0
+			}
+		}
+	}`)
+
+	svg, err := GenerateSVGWithLayout(jsonData, "bipartite")
+	if err != nil {
+		t.Fatalf("GenerateSVGWithLayout failed: %v", err)
+	}
+
+	if !strings.Contains(svg, "<svg xmlns") {
+		t.Error("SVG missing opening tag")
+	}
+	if !strings.Contains(svg, "</svg>") {
+		t.Error("SVG missing closing tag")
+	}
+
+	t.Logf("Generated SVG with bipartite layout (length: %d bytes)", len(svg))
 }
 
 func TestGenerateSVGWithLayout_Invalid(t *testing.T) {

@@ -5240,45 +5240,33 @@ class PetriView extends HTMLElement {
         };
 
         // Add layout algorithm buttons
-        const forceAtlasBtn = createLayoutButton(
-            'Force-Atlas 2',
-            'Physics-based force-directed layout that creates natural-looking graphs with even spacing',
-            '⚛️',
-            () => this._applyForceAtlas2Layout()
-        );
-        optionsContainer.appendChild(forceAtlasBtn);
-
-        const hierarchicalBtn = createLayoutButton(
-            'Hierarchical',
-            'Arranges nodes in layers from top to bottom, ideal for simple linear workflows',
+        optionsContainer.appendChild(createLayoutButton(
+            'Sugiyama',
+            'Layered layout with cycle-breaking and crossing minimization, ideal for workflows',
             '📊',
-            () => this._applyHierarchicalLayout()
-        );
-        optionsContainer.appendChild(hierarchicalBtn);
-
-        const dagBtn = createLayoutButton(
-            'Layered (DAG)',
-            'Advanced hierarchical layout that handles complex graphs and cycles by breaking feedback edges',
-            '🔷',
             () => this._applySugiyamaLayout()
-        );
-        optionsContainer.appendChild(dagBtn);
+        ));
 
-        const horizontalDagBtn = createLayoutButton(
-            'Horizontal DAG',
-            'Left-to-right hierarchical layout for DAGs, ideal for process flows and pipelines',
-            '➡️',
-            () => this._applyHorizontalDagLayout()
-        );
-        optionsContainer.appendChild(horizontalDagBtn);
+        optionsContainer.appendChild(createLayoutButton(
+            'Grid',
+            'Arranges nodes on a grid sorted by connectivity, good for dense nets',
+            '⊞',
+            () => this._applyGridLayout()
+        ));
 
-        const circularBtn = createLayoutButton(
+        optionsContainer.appendChild(createLayoutButton(
+            'Bipartite',
+            'Places on the left, transitions on the right, sorted to minimize crossings',
+            '⇄',
+            () => this._applyBipartiteLayout()
+        ));
+
+        optionsContainer.appendChild(createLayoutButton(
             'Circular',
             'Arranges all nodes in a circle, good for visualizing cyclic relationships',
             '⭕',
             () => this._applyCircularLayout()
-        );
-        optionsContainer.appendChild(circularBtn);
+        ));
 
         dialog.appendChild(optionsContainer);
 
@@ -5341,294 +5329,25 @@ class PetriView extends HTMLElement {
         }
     }
 
-    _applyForceAtlas2Layout() {
-        // Save state for undo
-        this._pushHistory();
-
-        // Get all nodes (places and transitions)
-        const nodes = [];
-        const nodeMap = new Map();
-        
-        // Add places
-        for (const [id, place] of Object.entries(this._model.places || {})) {
-            const node = { id, x: place.x || 0, y: place.y || 0, type: 'place' };
-            nodes.push(node);
-            nodeMap.set(id, node);
-        }
-        
-        // Add transitions
-        for (const [id, transition] of Object.entries(this._model.transitions || {})) {
-            const node = { id, x: transition.x || 0, y: transition.y || 0, type: 'transition' };
-            nodes.push(node);
-            nodeMap.set(id, node);
-        }
-
-        if (nodes.length === 0) return;
-
-        // Build edge list from arcs
-        const edges = [];
-        for (const arc of (this._model.arcs || [])) {
-            const source = nodeMap.get(arc.source);
-            const target = nodeMap.get(arc.target);
-            if (source && target) {
-                edges.push({ source, target });
-            }
-        }
-
-        // Force-Atlas 2 parameters
-        const iterations = 500;
-        const gravity = 0.5;
-        const scalingRatio = 50;
-        const edgeWeightInfluence = 1.0;
-
-        // Initialize velocities
-        nodes.forEach(node => {
-            node.vx = 0;
-            node.vy = 0;
-        });
-
-        // Run simulation
-        for (let iter = 0; iter < iterations; iter++) {
-            // Calculate repulsive forces (all pairs)
-            for (let i = 0; i < nodes.length; i++) {
-                for (let j = i + 1; j < nodes.length; j++) {
-                    const n1 = nodes[i];
-                    const n2 = nodes[j];
-                    const dx = n2.x - n1.x;
-                    const dy = n2.y - n1.y;
-                    const dist = Math.sqrt(dx * dx + dy * dy) || 0.01;
-                    
-                    // Repulsion force (inverse square)
-                    const force = scalingRatio * scalingRatio / dist;
-                    const fx = (dx / dist) * force;
-                    const fy = (dy / dist) * force;
-                    
-                    n1.vx -= fx;
-                    n1.vy -= fy;
-                    n2.vx += fx;
-                    n2.vy += fy;
-                }
-            }
-
-            // Calculate attractive forces (edges)
-            for (const edge of edges) {
-                const dx = edge.target.x - edge.source.x;
-                const dy = edge.target.y - edge.source.y;
-                const dist = Math.sqrt(dx * dx + dy * dy) || 0.01;
-                
-                // Attraction force (proportional to distance)
-                const force = (dist / scalingRatio) * edgeWeightInfluence;
-                const fx = (dx / dist) * force;
-                const fy = (dy / dist) * force;
-                
-                edge.source.vx += fx;
-                edge.source.vy += fy;
-                edge.target.vx -= fx;
-                edge.target.vy -= fy;
-            }
-
-            // Apply gravity toward center
-            const centerX = nodes.reduce((sum, n) => sum + n.x, 0) / nodes.length;
-            const centerY = nodes.reduce((sum, n) => sum + n.y, 0) / nodes.length;
-            
-            for (const node of nodes) {
-                const dx = centerX - node.x;
-                const dy = centerY - node.y;
-                node.vx += dx * gravity;
-                node.vy += dy * gravity;
-            }
-
-            // Update positions with damping
-            const damping = 0.5;
-            for (const node of nodes) {
-                node.x += node.vx * damping;
-                node.y += node.vy * damping;
-                node.vx *= 0.9; // velocity decay
-                node.vy *= 0.9;
-            }
-        }
-
-        // Find bounds and scale to reasonable size
-        let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-        for (const node of nodes) {
-            minX = Math.min(minX, node.x);
-            maxX = Math.max(maxX, node.x);
-            minY = Math.min(minY, node.y);
-            maxY = Math.max(maxY, node.y);
-        }
-
-        const width = maxX - minX || 1;
-        const height = maxY - minY || 1;
-        const targetWidth = 800;
-        const targetHeight = 600;
-        const scale = Math.min(targetWidth / width, targetHeight / height);
-
-        // Apply positions back to model
-        for (const node of nodes) {
-            const scaledX = Math.round((node.x - minX) * scale + 100);
-            const scaledY = Math.round((node.y - minY) * scale + 100);
-            
-            if (node.type === 'place') {
-                this._model.places[node.id].x = scaledX;
-                this._model.places[node.id].y = scaledY;
-            } else {
-                this._model.transitions[node.id].x = scaledX;
-                this._model.transitions[node.id].y = scaledY;
-            }
-        }
-
-        // Ensure all coordinates are non-negative
-        this._normalizeNodePositions(100);
-
-        // Update the view
-        this._renderUI();
-        this._syncLD();
-    }
-
-    _applyHierarchicalLayout() {
-        // Save state for undo
-        this._pushHistory();
-
-        // Get all nodes
-        const nodes = new Map();
-        for (const [id, place] of Object.entries(this._model.places || {})) {
-            nodes.set(id, { id, type: 'place', level: -1, inDegree: 0, outDegree: 0 });
-        }
-        for (const [id, transition] of Object.entries(this._model.transitions || {})) {
-            nodes.set(id, { id, type: 'transition', level: -1, inDegree: 0, outDegree: 0 });
-        }
-
-        if (nodes.size === 0) return;
-
-        // Build adjacency information
-        const outgoing = new Map();
-        const incoming = new Map();
-        for (const [id] of nodes) {
-            outgoing.set(id, []);
-            incoming.set(id, []);
-        }
-
-        for (const arc of (this._model.arcs || [])) {
-            if (nodes.has(arc.source) && nodes.has(arc.target)) {
-                outgoing.get(arc.source).push(arc.target);
-                incoming.get(arc.target).push(arc.source);
-                nodes.get(arc.source).outDegree++;
-                nodes.get(arc.target).inDegree++;
-            }
-        }
-
-        // Topological sort to assign levels (Kahn's algorithm)
-        const queue = [];
-        const inDegreeMap = new Map();
-        
-        for (const [id, node] of nodes) {
-            inDegreeMap.set(id, node.inDegree);
-            if (node.inDegree === 0) {
-                node.level = 0;
-                queue.push(id);
-            }
-        }
-
-        while (queue.length > 0) {
-            const currentId = queue.shift();
-            const currentLevel = nodes.get(currentId).level;
-
-            for (const targetId of outgoing.get(currentId)) {
-                const targetNode = nodes.get(targetId);
-                inDegreeMap.set(targetId, inDegreeMap.get(targetId) - 1);
-                
-                if (inDegreeMap.get(targetId) === 0) {
-                    targetNode.level = currentLevel + 1;
-                    queue.push(targetId);
-                }
-            }
-        }
-
-        // Assign level 0 to any remaining unassigned nodes (cycles)
-        for (const [id, node] of nodes) {
-            if (node.level === -1) {
-                node.level = 0;
-            }
-        }
-
-        // Group nodes by level
-        const levels = new Map();
-        let maxLevel = 0;
-        for (const [id, node] of nodes) {
-            if (!levels.has(node.level)) {
-                levels.set(node.level, []);
-            }
-            levels.get(node.level).push(node);
-            maxLevel = Math.max(maxLevel, node.level);
-        }
-
-        // Layout parameters
-        const levelHeight = 150;
-        const nodeSpacing = 100;
-        const startX = 100;
-        const startY = 100;
-
-        // Position nodes
-        for (let level = 0; level <= maxLevel; level++) {
-            const nodesAtLevel = levels.get(level) || [];
-            const levelWidth = nodesAtLevel.length * nodeSpacing;
-            const startXForLevel = startX + (800 - levelWidth) / 2;
-
-            nodesAtLevel.forEach((node, index) => {
-                const x = Math.round(startXForLevel + index * nodeSpacing);
-                const y = Math.round(startY + level * levelHeight);
-
-                if (node.type === 'place') {
-                    this._model.places[node.id].x = x;
-                    this._model.places[node.id].y = y;
-                } else {
-                    this._model.transitions[node.id].x = x;
-                    this._model.transitions[node.id].y = y;
-                }
-            });
-        }
-
-        // Ensure all coordinates are non-negative
-        this._normalizeNodePositions(100);
-
-        // Update the view
-        this._renderUI();
-        this._syncLD();
-    }
-
     _applySugiyamaLayout() {
-        this._applyDagLayout('vertical');
-    }
-
-    _applyHorizontalDagLayout() {
-        this._applyDagLayout('horizontal');
-    }
-
-    // Shared DAG layout implementation with cycle detection (Sugiyama-style)
-    // direction: 'vertical' (top-to-bottom) or 'horizontal' (left-to-right)
-    _applyDagLayout(direction = 'vertical') {
-        // Save state for undo
         this._pushHistory();
 
-        // Get all nodes
         const nodes = new Map();
-        for (const [id, place] of Object.entries(this._model.places || {})) {
+        for (const [id] of Object.entries(this._model.places || {})) {
             nodes.set(id, { id, type: 'place', level: -1 });
         }
-        for (const [id, transition] of Object.entries(this._model.transitions || {})) {
+        for (const [id] of Object.entries(this._model.transitions || {})) {
             nodes.set(id, { id, type: 'transition', level: -1 });
         }
-
         if (nodes.size === 0) return;
 
-        // Build adjacency information
+        // Build adjacency lists
         const outgoing = new Map();
         const incoming = new Map();
         for (const [id] of nodes) {
             outgoing.set(id, []);
             incoming.set(id, []);
         }
-
         for (const arc of (this._model.arcs || [])) {
             if (nodes.has(arc.source) && nodes.has(arc.target)) {
                 outgoing.get(arc.source).push(arc.target);
@@ -5636,107 +5355,117 @@ class PetriView extends HTMLElement {
             }
         }
 
-        // Phase 1: Break cycles using DFS to identify back edges
+        // Phase 1: DFS cycle-breaking
         const visited = new Set();
-        const recursionStack = new Set();
+        const onStack = new Set();
         const backEdges = new Set();
-
-        const dfs = (nodeId) => {
-            visited.add(nodeId);
-            recursionStack.add(nodeId);
-
-            for (const targetId of outgoing.get(nodeId)) {
-                if (!visited.has(targetId)) {
-                    dfs(targetId);
-                } else if (recursionStack.has(targetId)) {
-                    backEdges.add(`${nodeId}->${targetId}`);
-                }
+        const dfs = (id) => {
+            visited.add(id);
+            onStack.add(id);
+            for (const t of outgoing.get(id)) {
+                if (!visited.has(t)) dfs(t);
+                else if (onStack.has(t)) backEdges.add(`${id}->${t}`);
             }
-
-            recursionStack.delete(nodeId);
+            onStack.delete(id);
         };
-
         for (const [id] of nodes) {
-            if (!visited.has(id)) {
-                dfs(id);
-            }
+            if (!visited.has(id)) dfs(id);
         }
 
-        // Phase 2: Assign levels using topological sort (ignoring back edges)
-        const queue = [];
-        const inDegreeMap = new Map();
-
-        for (const [id, node] of nodes) {
-            let effectiveInDegree = 0;
-            for (const sourceId of incoming.get(id)) {
-                if (!backEdges.has(`${sourceId}->${id}`)) {
-                    effectiveInDegree++;
-                }
+        // Phase 2: Longest-path level assignment (ignoring back edges)
+        for (const [id] of nodes) {
+            let effectiveIn = 0;
+            for (const src of incoming.get(id)) {
+                if (!backEdges.has(`${src}->${id}`)) effectiveIn++;
             }
-            inDegreeMap.set(id, effectiveInDegree);
-            if (effectiveInDegree === 0) {
-                node.level = 0;
-                queue.push(id);
-            }
+            if (effectiveIn === 0) nodes.get(id).level = 0;
         }
-
-        let maxLevel = 0;
-        while (queue.length > 0) {
-            const currentId = queue.shift();
-            const currentLevel = nodes.get(currentId).level;
-            maxLevel = Math.max(maxLevel, currentLevel);
-
-            for (const targetId of outgoing.get(currentId)) {
-                if (!backEdges.has(`${currentId}->${targetId}`)) {
-                    const targetNode = nodes.get(targetId);
-                    inDegreeMap.set(targetId, inDegreeMap.get(targetId) - 1);
-
-                    if (inDegreeMap.get(targetId) === 0) {
-                        targetNode.level = currentLevel + 1;
-                        queue.push(targetId);
+        let changed = true;
+        while (changed) {
+            changed = false;
+            for (const [id, node] of nodes) {
+                if (node.level < 0) continue;
+                for (const t of outgoing.get(id)) {
+                    if (backEdges.has(`${id}->${t}`)) continue;
+                    const newLevel = node.level + 1;
+                    if (newLevel > nodes.get(t).level) {
+                        nodes.get(t).level = newLevel;
+                        changed = true;
                     }
                 }
             }
         }
-
-        // Assign remaining nodes (cycles) to max level + 1
         for (const [, node] of nodes) {
-            if (node.level === -1) {
-                node.level = maxLevel + 1;
-            }
+            if (node.level < 0) node.level = 0;
         }
 
-        // Phase 3: Group nodes by level
+        // Group by level
         const levels = new Map();
-        maxLevel = 0;
+        let maxLevel = 0;
         for (const [, node] of nodes) {
-            if (!levels.has(node.level)) {
-                levels.set(node.level, []);
-            }
+            if (!levels.has(node.level)) levels.set(node.level, []);
             levels.get(node.level).push(node);
             maxLevel = Math.max(maxLevel, node.level);
         }
 
-        // Phase 4: Position nodes based on direction
-        const levelSpacing = 150;
-        const nodeSpacing = 100;
-        const centerOffset = 400;
+        // Phase 3: Barycenter crossing minimization (4 passes, 2 sweeps each)
+        const posOf = new Map();
+        for (let lvl = 0; lvl <= maxLevel; lvl++) {
+            (levels.get(lvl) || []).forEach((n, i) => posOf.set(n.id, i));
+        }
 
-        for (let level = 0; level <= maxLevel; level++) {
-            const nodesAtLevel = levels.get(level) || [];
-            const spanSize = nodesAtLevel.length * nodeSpacing;
-            const spanStart = centerOffset - spanSize / 2;
-
-            nodesAtLevel.forEach((node, index) => {
-                let x, y;
-                if (direction === 'horizontal') {
-                    x = Math.round(100 + level * levelSpacing);
-                    y = Math.round(spanStart + index * nodeSpacing);
-                } else {
-                    x = Math.round(spanStart + index * nodeSpacing);
-                    y = Math.round(100 + level * levelSpacing);
+        for (let pass = 0; pass < 4; pass++) {
+            // Down sweep
+            for (let lvl = 1; lvl <= maxLevel; lvl++) {
+                const layer = levels.get(lvl) || [];
+                const bary = new Map();
+                for (const node of layer) {
+                    let sum = 0, count = 0;
+                    for (const src of incoming.get(node.id)) {
+                        if (backEdges.has(`${src}->${node.id}`)) continue;
+                        if (nodes.get(src).level === lvl - 1) {
+                            sum += posOf.get(src);
+                            count++;
+                        }
+                    }
+                    bary.set(node.id, count > 0 ? sum / count : posOf.get(node.id));
                 }
+                layer.sort((a, b) => bary.get(a.id) - bary.get(b.id));
+                layer.forEach((n, i) => posOf.set(n.id, i));
+            }
+            // Up sweep
+            for (let lvl = maxLevel - 1; lvl >= 0; lvl--) {
+                const layer = levels.get(lvl) || [];
+                const bary = new Map();
+                for (const node of layer) {
+                    let sum = 0, count = 0;
+                    for (const tgt of outgoing.get(node.id)) {
+                        if (backEdges.has(`${node.id}->${tgt}`)) continue;
+                        if (nodes.get(tgt).level === lvl + 1) {
+                            sum += posOf.get(tgt);
+                            count++;
+                        }
+                    }
+                    bary.set(node.id, count > 0 ? sum / count : posOf.get(node.id));
+                }
+                layer.sort((a, b) => bary.get(a.id) - bary.get(b.id));
+                layer.forEach((n, i) => posOf.set(n.id, i));
+            }
+        }
 
+        // Phase 4: Assign coordinates
+        const levelSpacing = 150;
+        const nodeSpacing = 120;
+        const startY = 100;
+
+        for (let lvl = 0; lvl <= maxLevel; lvl++) {
+            const layer = levels.get(lvl) || [];
+            const totalWidth = (layer.length - 1) * nodeSpacing;
+            const startX = 400 - totalWidth / 2;
+
+            layer.forEach((node, i) => {
+                const x = Math.round(startX + i * nodeSpacing);
+                const y = Math.round(startY + lvl * levelSpacing);
                 if (node.type === 'place') {
                     this._model.places[node.id].x = x;
                     this._model.places[node.id].y = y;
@@ -5747,10 +5476,144 @@ class PetriView extends HTMLElement {
             });
         }
 
-        // Ensure all coordinates are non-negative
         this._normalizeNodePositions(100);
+        this._renderUI();
+        this._syncLD();
+    }
 
-        // Update the view
+    _applyGridLayout() {
+        this._pushHistory();
+
+        const places = Object.keys(this._model.places || {});
+        const transitions = Object.keys(this._model.transitions || {});
+        const totalNodes = places.length + transitions.length;
+        if (totalNodes === 0) return;
+
+        // Compute degree for each node
+        const degree = {};
+        for (const arc of (this._model.arcs || [])) {
+            degree[arc.source] = (degree[arc.source] || 0) + 1;
+            degree[arc.target] = (degree[arc.target] || 0) + 1;
+        }
+
+        // Collect all nodes with type
+        const nodeList = [];
+        for (const id of places) nodeList.push({ id, type: 'place', degree: degree[id] || 0 });
+        for (const id of transitions) nodeList.push({ id, type: 'transition', degree: degree[id] || 0 });
+
+        // Sort by degree descending
+        nodeList.sort((a, b) => b.degree - a.degree);
+
+        // Grid parameters
+        const cols = Math.ceil(Math.sqrt(totalNodes));
+        const spacing = 120;
+        const rows = Math.ceil(totalNodes / cols);
+        const totalWidth = (cols - 1) * spacing;
+        const totalHeight = (rows - 1) * spacing;
+        const offsetX = 400 - totalWidth / 2;
+        const offsetY = 300 - totalHeight / 2;
+
+        for (let i = 0; i < nodeList.length; i++) {
+            const node = nodeList[i];
+            const col = i % cols;
+            const row = Math.floor(i / cols);
+            const x = Math.round(offsetX + col * spacing);
+            const y = Math.round(offsetY + row * spacing);
+
+            if (node.type === 'place') {
+                this._model.places[node.id].x = x;
+                this._model.places[node.id].y = y;
+            } else {
+                this._model.transitions[node.id].x = x;
+                this._model.transitions[node.id].y = y;
+            }
+        }
+
+        this._normalizeNodePositions(100);
+        this._renderUI();
+        this._syncLD();
+    }
+
+    _applyBipartiteLayout() {
+        this._pushHistory();
+
+        const placeIds = Object.keys(this._model.places || {});
+        const transitionIds = Object.keys(this._model.transitions || {});
+        if (placeIds.length + transitionIds.length === 0) return;
+
+        // Build neighbor map (regardless of arc direction)
+        const neighbors = {};
+        for (const arc of (this._model.arcs || [])) {
+            if (!neighbors[arc.source]) neighbors[arc.source] = [];
+            if (!neighbors[arc.target]) neighbors[arc.target] = [];
+            neighbors[arc.source].push(arc.target);
+            neighbors[arc.target].push(arc.source);
+        }
+
+        // Working copies
+        const places = placeIds.slice();
+        const transitions = transitionIds.slice();
+
+        // Assign initial positions
+        const posOf = {};
+        places.forEach((id, i) => posOf[id] = i);
+        transitions.forEach((id, i) => posOf[id] = i);
+
+        // Barycenter sort: 4 iterations alternating columns
+        for (let iter = 0; iter < 4; iter++) {
+            // Sort transitions by barycenter of neighboring places
+            const tBary = {};
+            for (const id of transitions) {
+                let sum = 0, count = 0;
+                for (const nb of (neighbors[id] || [])) {
+                    if (this._model.places && this._model.places[nb]) {
+                        sum += posOf[nb];
+                        count++;
+                    }
+                }
+                tBary[id] = count > 0 ? sum / count : posOf[id];
+            }
+            transitions.sort((a, b) => tBary[a] - tBary[b]);
+            transitions.forEach((id, i) => posOf[id] = i);
+
+            // Sort places by barycenter of neighboring transitions
+            const pBary = {};
+            for (const id of places) {
+                let sum = 0, count = 0;
+                for (const nb of (neighbors[id] || [])) {
+                    if (this._model.transitions && this._model.transitions[nb]) {
+                        sum += posOf[nb];
+                        count++;
+                    }
+                }
+                pBary[id] = count > 0 ? sum / count : posOf[id];
+            }
+            places.sort((a, b) => pBary[a] - pBary[b]);
+            places.forEach((id, i) => posOf[id] = i);
+        }
+
+        // Assign coordinates
+        const colGap = 300;
+        const vSpacing = 120;
+        const leftX = 250;
+        const rightX = leftX + colGap;
+        const centerY = 300;
+
+        const placeHeight = (places.length - 1) * vSpacing;
+        const transHeight = (transitions.length - 1) * vSpacing;
+        const placeStartY = centerY - placeHeight / 2;
+        const transStartY = centerY - transHeight / 2;
+
+        places.forEach((id, i) => {
+            this._model.places[id].x = leftX;
+            this._model.places[id].y = Math.round(placeStartY + i * vSpacing);
+        });
+        transitions.forEach((id, i) => {
+            this._model.transitions[id].x = rightX;
+            this._model.transitions[id].y = Math.round(transStartY + i * vSpacing);
+        });
+
+        this._normalizeNodePositions(100);
         this._renderUI();
         this._syncLD();
     }
