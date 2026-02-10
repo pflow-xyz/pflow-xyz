@@ -1887,6 +1887,7 @@ class PetriView extends HTMLElement {
             a['@type'] ||= 'Arrow';
             if (a.weight == null) a.weight = [1];
             if (!Array.isArray(a.weight)) a.weight = [Number(a.weight) || 1];
+            a.weight = a.weight.map(w => Number(w) || 1);
             a.inhibitTransition = !!a.inhibitTransition;
         }
     }

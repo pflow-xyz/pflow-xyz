@@ -9,7 +9,7 @@
 export function getArcWeight(arc) {
     if (arc.weight == null) return [1];
     if (!Array.isArray(arc.weight)) return [Number(arc.weight) || 1];
-    return arc.weight.map(w => Number(w) || 0);
+    return arc.weight.map(w => Number(w) || 1);
 }
 
 /**

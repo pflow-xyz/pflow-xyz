@@ -33,8 +33,8 @@ Deno.test("getArcWeight: scalar weight normalised to array", () => {
     assertEquals(getArcWeight({ weight: 3 }), [3]);
 });
 
-Deno.test("getArcWeight: array weight preserved", () => {
-    assertEquals(getArcWeight({ weight: [2, 0, 5] }), [2, 0, 5]);
+Deno.test("getArcWeight: array weight preserved, 0 becomes 1", () => {
+    assertEquals(getArcWeight({ weight: [2, 0, 5] }), [2, 1, 5]);
 });
 
 // --- capacityOf ---
@@ -211,23 +211,35 @@ Deno.test("inhibitor arc: allows when source place has fewer tokens than weight"
     assertEquals(enabled(m, "t1", marking(m)), true);
 });
 
-// --- weight-0 read arc ---
+// --- weight-0 treated as weight-1 ---
 
-Deno.test("weight-0 arc: does not consume tokens, does not block", () => {
-    // A weight-0 arc acts as a read arc: doesn't consume, doesn't block
+Deno.test("weight-0 arc: treated as weight 1, consumes token", () => {
+    // weight=0 is normalized to 1 (same as null/undefined)
     const m = model(
         { p1: { initial: [5] }, p2: { initial: [0] } },
         { t1: {} },
         [
-            { source: "p1", target: "t1", weight: [0] }, // read arc
+            { source: "p1", target: "t1", weight: [0] }, // becomes weight 1
             { source: "t1", target: "p2", weight: [1] },
         ],
     );
     assertEquals(enabled(m, "t1", marking(m)), true);
     const result = fire(m, "t1", marking(m));
     assertNotEquals(result, null);
-    assertEquals(result!["p1"], [5]); // unchanged — weight 0 consumed nothing
+    assertEquals(result!["p1"], [4]); // consumed 1 (weight 0 → 1)
     assertEquals(result!["p2"], [1]);
+});
+
+Deno.test("weight-0 arc: blocks when place is empty", () => {
+    const m = model(
+        { p1: { initial: [0] }, p2: { initial: [0] } },
+        { t1: {} },
+        [
+            { source: "p1", target: "t1", weight: [0] }, // becomes weight 1
+            { source: "t1", target: "p2", weight: [1] },
+        ],
+    );
+    assertEquals(enabled(m, "t1", marking(m)), false);
 });
 
 // --- bounded buffer (producer-consumer) ---
