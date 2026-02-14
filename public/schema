@@ -77,10 +77,6 @@
       "@type": "http://www.w3.org/2001/XMLSchema#integer"
     },
 
-    /* -------------------------------------------------
-     * Seal / provenance / verification layer
-     * ------------------------------------------------- */
-
     "PetriNetSeal": {
       "@id": "https://pflow.xyz/schema#PetriNetSeal",
       "@type": "@id"
@@ -99,8 +95,6 @@
     "createdBy": {
       "@id": "https://pflow.xyz/schema#createdBy",
       "@type": "@id"
-      /* we expect this to point at a schema.org Person / Organization
-         or a DID document */
     },
 
     "createdAt": {
@@ -124,10 +118,6 @@
       "@type": "https://pflow.xyz/schema#Signature"
     },
 
-    /* -------------------------------------------------
-     * Runtime description
-     * ------------------------------------------------- */
-
     "PetriRuntime": {
       "@id": "https://pflow.xyz/schema#PetriRuntime",
       "@type": "@id"
@@ -136,25 +126,17 @@
     "impl": {
       "@id": "https://pflow.xyz/schema#impl",
       "@type": "http://www.w3.org/2001/XMLSchema#string"
-      /* e.g. "pflow.jl/discrete-v1" */
     },
 
     "implHash": {
       "@id": "https://pflow.xyz/schema#implHash",
       "@type": "http://www.w3.org/2001/XMLSchema#string"
-      /* sha256 or multihash of the runtime code */
     },
 
     "semantics": {
       "@id": "https://pflow.xyz/schema#semantics",
       "@type": "http://www.w3.org/2001/XMLSchema#string"
-      /* human/machine readable note like
-         "inhibitor-arcs-are-zero-checks-before-fire" */
     },
-
-    /* -------------------------------------------------
-     * Invariants / safety claims
-     * ------------------------------------------------- */
 
     "InvariantClaim": {
       "@id": "https://pflow.xyz/schema#InvariantClaim",
@@ -170,13 +152,11 @@
       "@id": "https://pflow.xyz/schema#places",
       "@container": "@list",
       "@type": "http://www.w3.org/2001/XMLSchema#string"
-      /* list of place IDs the invariant refers to */
     },
 
     "claim": {
       "@id": "https://pflow.xyz/schema#claim",
       "@type": "http://www.w3.org/2001/XMLSchema#string"
-      /* discriminator: "maxTotal" | "bounded" | "mutex" | "liveness" */
     },
 
     "maxTotal": {
@@ -187,12 +167,7 @@
     "bound": {
       "@id": "https://pflow.xyz/schema#bound",
       "@type": "http://www.w3.org/2001/XMLSchema#integer"
-      /* upper bound for "bounded" claims */
     },
-
-    /* -------------------------------------------------
-     * Signature block
-     * ------------------------------------------------- */
 
     "Signature": {
       "@id": "https://pflow.xyz/schema#Signature",
@@ -202,31 +177,23 @@
     "publicKey": {
       "@id": "https://pflow.xyz/schema#publicKey",
       "@type": "http://www.w3.org/2001/XMLSchema#string"
-      /* DID key material, base58, bech32, etc. */
     },
 
     "sig": {
       "@id": "https://pflow.xyz/schema#sig",
       "@type": "http://www.w3.org/2001/XMLSchema#string"
-      /* detached signature bytes, encoded (base64/base58/etc.) */
     },
 
     "sigType": {
       "@id": "https://pflow.xyz/schema#sigType",
       "@type": "http://www.w3.org/2001/XMLSchema#string"
-      /* e.g. "Ed25519Signature2020" */
     },
 
     "signedFields": {
       "@id": "https://pflow.xyz/schema#signedFields",
       "@container": "@list",
       "@type": "http://www.w3.org/2001/XMLSchema#string"
-      /* which top-level fields of the seal were covered */
     },
-
-    /* -------------------------------------------------
-     * Execution log / replay events (optional but important)
-     * ------------------------------------------------- */
 
     "TransitionFireEvent": {
       "@id": "https://pflow.xyz/schema#TransitionFireEvent",
@@ -236,14 +203,11 @@
     "fired": {
       "@id": "https://pflow.xyz/schema#fired",
       "@type": "http://www.w3.org/2001/XMLSchema#string"
-      /* transition ID that fired */
     },
 
     "prevMarking": {
       "@id": "https://pflow.xyz/schema#prevMarking",
       "@type": "http://www.w3.org/2001/XMLSchema#string"
-      /* could also be a structured type later; keep string/JSON
-         blob for now to avoid recursion in the @context */
     },
 
     "nextMarking": {
@@ -254,24 +218,17 @@
     "actor": {
       "@id": "https://pflow.xyz/schema#actor",
       "@type": "@id"
-      /* DID / address of whoever authorized the fire */
     },
 
     "runtimeHash": {
       "@id": "https://pflow.xyz/schema#runtimeHash",
       "@type": "http://www.w3.org/2001/XMLSchema#string"
-      /* snapshot hash of the runtime actually used
-         for this firing */
     },
 
     "timestamp": {
       "@id": "https://pflow.xyz/schema#timestamp",
       "@type": "http://www.w3.org/2001/XMLSchema#dateTime"
     },
-
-    /* -------------------------------------------------
-     * Net type taxonomy
-     * ------------------------------------------------- */
 
     "WorkflowNet": {
       "@id": "https://pflow.xyz/schema#WorkflowNet",
@@ -298,10 +255,6 @@
       "@type": "@id"
     },
 
-    /* -------------------------------------------------
-     * Composition
-     * ------------------------------------------------- */
-
     "schemas": {
       "@id": "https://pflow.xyz/schema#schemas",
       "@container": "@set"
@@ -315,7 +268,6 @@
       "@type": "http://www.w3.org/2001/XMLSchema#anyURI"
     },
 
-    /* Link types */
     "DataLink": {
       "@id": "https://pflow.xyz/schema#DataLink",
       "@type": "@id"
@@ -333,7 +285,6 @@
       "@type": "@id"
     },
 
-    /* Link endpoints */
     "from": {
       "@id": "https://pflow.xyz/schema#from"
     },
