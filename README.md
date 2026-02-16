@@ -6,7 +6,7 @@
 
 ## Try It Live
 
-**Editor:** [pflow.xyz](https://pflow.xyz) | **Demos:** [pilot.pflow.xyz](https://pilot.pflow.xyz) | **GraphQL:** [pilot.pflow.xyz/graphql/i](https://pilot.pflow.xyz/graphql/i)
+**Editor:** [pflow.xyz](https://pflow.xyz) | **Demos:** [pilot.pflow.xyz](https://pilot.pflow.xyz) | **Book:** [book.pflow.xyz](https://book.pflow.xyz) | **GraphQL:** [pilot.pflow.xyz/graphql/i](https://pilot.pflow.xyz/graphql/i)
 
 ### Demos
 
@@ -38,11 +38,13 @@ Every demo is a full-stack app generated from a Petri net model by [petri-pilot]
 | **[pflow-xyz](https://github.com/pflow-xyz/pflow-xyz)** | Visual editor & ODE simulator | JavaScript |
 | **[go-pflow](https://github.com/pflow-xyz/go-pflow)** | Petri net library, simulation & code generation | Go |
 | **[petri-pilot](https://github.com/pflow-xyz/petri-pilot)** | MCP server + full-stack app generation from models | Go |
+| **[book-pflow-xyz](https://github.com/pflow-xyz/book-pflow-xyz)** | "Petri Nets as a Universal Abstraction" — practitioner's guide | mdBook |
 
 ```
 JSON-LD Model ──▶ go-pflow (codegen) ──▶ petri-pilot (serve) ──▶ Running App
       ▲                                                               │
       └──────────── pflow-xyz (visual editor) ◀───────────────────────┘
+                    book-pflow-xyz (guide)
 ```
 
 ---
@@ -143,6 +145,7 @@ pv.importJSON(jsonData);
 |----------|-----|
 | **Live Editor** | [pflow.xyz](https://pflow.xyz) |
 | **Demos** | [pilot.pflow.xyz](https://pilot.pflow.xyz) |
+| **Book** | [book.pflow.xyz](https://book.pflow.xyz) |
 | **GraphQL** | [pilot.pflow.xyz/graphql/i](https://pilot.pflow.xyz/graphql/i) |
 | **go-pflow** | [github.com/pflow-xyz/go-pflow](https://github.com/pflow-xyz/go-pflow) |
 | **petri-pilot** | [github.com/pflow-xyz/petri-pilot](https://github.com/pflow-xyz/petri-pilot) |

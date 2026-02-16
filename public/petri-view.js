@@ -4304,6 +4304,12 @@ class PetriView extends HTMLElement {
                 that connect them. When a transition fires, it consumes tokens from input places and produces tokens in output places.
             </p>
 
+            <h3>📖 Book</h3>
+            <p>
+                <strong>Petri Nets as a Universal Abstraction</strong> — a practitioner's guide to modeling with pflow.
+                Read it at <a href="https://book.pflow.xyz" target="_blank" style="color: #4a90d9;">book.pflow.xyz</a>.
+            </p>
+
             <h3>🚀 Petri Pilot</h3>
             <p>
                 <strong>Petri Pilot</strong> generates full-stack apps from Petri net models.
@@ -6316,6 +6322,11 @@ class PetriView extends HTMLElement {
             this._showPetriPilotDialog();
         });
         menuContainer._menuContent.appendChild(petriPilotItem);
+
+        const bookItem = makeMenuItem('📖 Book', () => {
+            window.open('https://book.pflow.xyz', '_blank', 'noopener,noreferrer');
+        });
+        menuContainer._menuContent.appendChild(bookItem);
 
         const githubItem = makeMenuItem('GitHub', () => {
             window.open('https://github.com/pflow-xyz/pflow-xyz', '_blank', 'noopener,noreferrer');
