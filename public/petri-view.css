@@ -441,6 +441,8 @@ canvas.pv-canvas {
     max-width: 600px;
     width: 100%;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    max-height: 85vh;
+    overflow: auto;
 }
 
 .pv-modal-dialog-wide {
