@@ -4414,24 +4414,15 @@ class PetriView extends HTMLElement {
 
             <h4>Available Layouts:</h4>
             <ul>
-                <li><strong>⚛️ Force-Atlas 2:</strong> Physics-based force-directed layout. Creates natural-looking graphs with even spacing.
-                Nodes repel each other while connected nodes are pulled together, creating an organic arrangement.
-                Best for general-purpose visualization and exploring graph structure.</li>
+                <li><strong>📊 Sugiyama:</strong> Layered layout with cycle-breaking and crossing minimization.
+                Produces clean hierarchical arrangements ideal for workflows and directed graphs.
+                Handles cycles by identifying and breaking feedback edges.</li>
 
-                <li><strong>📊 Hierarchical:</strong> Simple top-to-bottom layered layout using topological sorting.
-                Works well for linear workflows and simple directed acyclic graphs (DAGs).
-                Nodes with no incoming edges are placed at the top, and each subsequent layer contains nodes whose predecessors have been placed.
-                <em>Note: May place all nodes on one level if the graph contains cycles.</em></li>
+                <li><strong>⊞ Grid:</strong> Arranges nodes on a grid sorted by connectivity.
+                Good for dense nets where you want a compact, organized view of all nodes.</li>
 
-                <li><strong>🔷 Layered (DAG):</strong> Advanced hierarchical layout that handles complex graphs and cycles.
-                Uses cycle-breaking to convert cyclic graphs into DAGs, then applies layered layout.
-                Identifies feedback edges (back edges that create cycles) and ignores them during layout,
-                placing nodes in clear hierarchical layers. Best for large, complex Petri nets with cycles.</li>
-
-                <li><strong>➡️ Horizontal DAG:</strong> Left-to-right hierarchical layout for directed acyclic graphs.
-                Similar to Layered (DAG) but arranges nodes horizontally instead of vertically.
-                Ideal for visualizing process flows, pipelines, and workflows that naturally progress from left to right.
-                Handles cycles using the same feedback edge breaking algorithm.</li>
+                <li><strong>⇄ Bipartite:</strong> Places on the left, transitions on the right, sorted to minimize crossings.
+                Leverages the natural bipartite structure of Petri nets for clear separation of places and transitions.</li>
 
                 <li><strong>⭕ Circular:</strong> Arranges all nodes evenly spaced around a circle.
                 Good for visualizing cyclic relationships and symmetric structures.
@@ -4440,10 +4431,9 @@ class PetriView extends HTMLElement {
 
             <h4>Which Layout to Choose?</h4>
             <ul>
-                <li><strong>Simple linear workflow:</strong> Use Hierarchical</li>
-                <li><strong>Complex workflow with cycles:</strong> Use Layered (DAG) or Horizontal DAG</li>
-                <li><strong>Process flows/pipelines:</strong> Use Horizontal DAG for left-to-right orientation</li>
-                <li><strong>Explore structure/connections:</strong> Use Force-Atlas 2</li>
+                <li><strong>Workflows and pipelines:</strong> Use Sugiyama</li>
+                <li><strong>Dense or complex nets:</strong> Use Grid</li>
+                <li><strong>Clear place/transition separation:</strong> Use Bipartite</li>
                 <li><strong>Cyclic or symmetric patterns:</strong> Use Circular</li>
             </ul>
         `;
