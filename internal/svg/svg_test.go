@@ -1242,6 +1242,209 @@ func TestGenerateSVGWithLayout_Bipartite(t *testing.T) {
 	t.Logf("Generated SVG with bipartite layout (length: %d bytes)", len(svg))
 }
 
+func TestGenerateSVGWithLayout_StringDiagram_LinearChain(t *testing.T) {
+	// Linear chain: T0 → P0 → T1 → P1 → T2
+	jsonData := []byte(`{
+		"@context": "https://pflow.xyz/schema",
+		"@type": "PetriNet",
+		"@version": "1.1",
+		"arcs": [
+			{"@type": "Arrow", "source": "txn0", "target": "place0", "weight": [1]},
+			{"@type": "Arrow", "source": "place0", "target": "txn1", "weight": [1]},
+			{"@type": "Arrow", "source": "txn1", "target": "place1", "weight": [1]},
+			{"@type": "Arrow", "source": "place1", "target": "txn2", "weight": [1]}
+		],
+		"places": {
+			"place0": {"@type": "Place", "capacity": [10], "initial": [0], "offset": 0, "x": 0, "y": 0},
+			"place1": {"@type": "Place", "capacity": [10], "initial": [0], "offset": 0, "x": 0, "y": 0}
+		},
+		"token": ["https://pflow.xyz/tokens/black"],
+		"transitions": {
+			"txn0": {"@type": "Transition", "x": 0, "y": 0},
+			"txn1": {"@type": "Transition", "x": 0, "y": 0},
+			"txn2": {"@type": "Transition", "x": 0, "y": 0}
+		}
+	}`)
+
+	svg, err := GenerateSVGWithLayout(jsonData, "string-diagram")
+	if err != nil {
+		t.Fatalf("GenerateSVGWithLayout failed: %v", err)
+	}
+	if !strings.Contains(svg, "<svg xmlns") {
+		t.Error("SVG missing opening tag")
+	}
+
+	// Verify transitions are layered: T0 at layer 0, T1 at layer 1, T2 at layer 2
+	var net PetriNet
+	json.Unmarshal(jsonData, &net)
+	applyStringDiagramLayout(&net)
+
+	if net.Transitions["txn0"].Y >= net.Transitions["txn1"].Y {
+		t.Errorf("txn0 (Y=%.0f) should be above txn1 (Y=%.0f)", net.Transitions["txn0"].Y, net.Transitions["txn1"].Y)
+	}
+	if net.Transitions["txn1"].Y >= net.Transitions["txn2"].Y {
+		t.Errorf("txn1 (Y=%.0f) should be above txn2 (Y=%.0f)", net.Transitions["txn1"].Y, net.Transitions["txn2"].Y)
+	}
+
+	// Places should be between their source and target transition layers
+	if net.Places["place0"].Y <= net.Transitions["txn0"].Y || net.Places["place0"].Y >= net.Transitions["txn1"].Y {
+		t.Errorf("place0 (Y=%.0f) should be between txn0 (Y=%.0f) and txn1 (Y=%.0f)",
+			net.Places["place0"].Y, net.Transitions["txn0"].Y, net.Transitions["txn1"].Y)
+	}
+
+	t.Logf("Generated SVG with string-diagram layout (length: %d bytes)", len(svg))
+}
+
+func TestGenerateSVGWithLayout_StringDiagram_ForkJoin(t *testing.T) {
+	// Fork/join: T0 → P0,P1 → T1; tests parallel wires
+	jsonData := []byte(`{
+		"@context": "https://pflow.xyz/schema",
+		"@type": "PetriNet",
+		"@version": "1.1",
+		"arcs": [
+			{"@type": "Arrow", "source": "txn0", "target": "place0", "weight": [1]},
+			{"@type": "Arrow", "source": "txn0", "target": "place1", "weight": [1]},
+			{"@type": "Arrow", "source": "place0", "target": "txn1", "weight": [1]},
+			{"@type": "Arrow", "source": "place1", "target": "txn1", "weight": [1]}
+		],
+		"places": {
+			"place0": {"@type": "Place", "capacity": [10], "initial": [0], "offset": 0, "x": 0, "y": 0},
+			"place1": {"@type": "Place", "capacity": [10], "initial": [0], "offset": 0, "x": 0, "y": 0}
+		},
+		"token": ["https://pflow.xyz/tokens/black"],
+		"transitions": {
+			"txn0": {"@type": "Transition", "x": 0, "y": 0},
+			"txn1": {"@type": "Transition", "x": 0, "y": 0}
+		}
+	}`)
+
+	var net PetriNet
+	json.Unmarshal(jsonData, &net)
+	err := applyStringDiagramLayout(&net)
+	if err != nil {
+		t.Fatalf("applyStringDiagramLayout failed: %v", err)
+	}
+
+	// Both transitions should be on the same X but different layers
+	if net.Transitions["txn0"].Y >= net.Transitions["txn1"].Y {
+		t.Errorf("txn0 should be above txn1")
+	}
+	// Both places should be between the two transition layers
+	for _, pid := range []string{"place0", "place1"} {
+		py := net.Places[pid].Y
+		if py <= net.Transitions["txn0"].Y || py >= net.Transitions["txn1"].Y {
+			t.Errorf("%s (Y=%.0f) should be between txn0 (Y=%.0f) and txn1 (Y=%.0f)",
+				pid, py, net.Transitions["txn0"].Y, net.Transitions["txn1"].Y)
+		}
+	}
+}
+
+func TestGenerateSVGWithLayout_StringDiagram_Cycle(t *testing.T) {
+	// Cycle: T0 → P0 → T1 → P1 → T0 (back edge should be broken)
+	jsonData := []byte(`{
+		"@context": "https://pflow.xyz/schema",
+		"@type": "PetriNet",
+		"@version": "1.1",
+		"arcs": [
+			{"@type": "Arrow", "source": "txn0", "target": "place0", "weight": [1]},
+			{"@type": "Arrow", "source": "place0", "target": "txn1", "weight": [1]},
+			{"@type": "Arrow", "source": "txn1", "target": "place1", "weight": [1]},
+			{"@type": "Arrow", "source": "place1", "target": "txn0", "weight": [1]}
+		],
+		"places": {
+			"place0": {"@type": "Place", "capacity": [10], "initial": [1], "offset": 0, "x": 0, "y": 0},
+			"place1": {"@type": "Place", "capacity": [10], "initial": [0], "offset": 0, "x": 0, "y": 0}
+		},
+		"token": ["https://pflow.xyz/tokens/black"],
+		"transitions": {
+			"txn0": {"@type": "Transition", "x": 0, "y": 0},
+			"txn1": {"@type": "Transition", "x": 0, "y": 0}
+		}
+	}`)
+
+	var net PetriNet
+	json.Unmarshal(jsonData, &net)
+	err := applyStringDiagramLayout(&net)
+	if err != nil {
+		t.Fatalf("applyStringDiagramLayout failed: %v", err)
+	}
+
+	// Should not panic or infinite loop — both transitions get assigned positions
+	t.Logf("txn0: (%.0f, %.0f), txn1: (%.0f, %.0f)",
+		net.Transitions["txn0"].X, net.Transitions["txn0"].Y,
+		net.Transitions["txn1"].X, net.Transitions["txn1"].Y)
+}
+
+func TestGenerateSVGWithLayout_StringDiagram_DisconnectedPlaces(t *testing.T) {
+	// Disconnected place and boundary places
+	jsonData := []byte(`{
+		"@context": "https://pflow.xyz/schema",
+		"@type": "PetriNet",
+		"@version": "1.1",
+		"arcs": [
+			{"@type": "Arrow", "source": "txn0", "target": "output_place", "weight": [1]},
+			{"@type": "Arrow", "source": "input_place", "target": "txn0", "weight": [1]}
+		],
+		"places": {
+			"input_place": {"@type": "Place", "capacity": [10], "initial": [1], "offset": 0, "x": 0, "y": 0},
+			"output_place": {"@type": "Place", "capacity": [10], "initial": [0], "offset": 0, "x": 0, "y": 0},
+			"disconnected": {"@type": "Place", "capacity": [10], "initial": [0], "offset": 0, "x": 0, "y": 0}
+		},
+		"token": ["https://pflow.xyz/tokens/black"],
+		"transitions": {
+			"txn0": {"@type": "Transition", "x": 0, "y": 0}
+		}
+	}`)
+
+	var net PetriNet
+	json.Unmarshal(jsonData, &net)
+	err := applyStringDiagramLayout(&net)
+	if err != nil {
+		t.Fatalf("applyStringDiagramLayout failed: %v", err)
+	}
+
+	// Input place should be above txn0
+	if net.Places["input_place"].Y >= net.Transitions["txn0"].Y {
+		t.Errorf("input_place (Y=%.0f) should be above txn0 (Y=%.0f)",
+			net.Places["input_place"].Y, net.Transitions["txn0"].Y)
+	}
+	// Output place should be below txn0
+	if net.Places["output_place"].Y <= net.Transitions["txn0"].Y {
+		t.Errorf("output_place (Y=%.0f) should be below txn0 (Y=%.0f)",
+			net.Places["output_place"].Y, net.Transitions["txn0"].Y)
+	}
+	// Disconnected place should be below everything
+	if net.Places["disconnected"].Y <= net.Transitions["txn0"].Y {
+		t.Errorf("disconnected (Y=%.0f) should be below txn0 (Y=%.0f)",
+			net.Places["disconnected"].Y, net.Transitions["txn0"].Y)
+	}
+}
+
+func TestGenerateSVGWithLayout_StringDiagram_MonoidalAlias(t *testing.T) {
+	// Test the "monoidal" alias
+	jsonData := []byte(`{
+		"@context": "https://pflow.xyz/schema",
+		"@type": "PetriNet",
+		"@version": "1.1",
+		"arcs": [],
+		"places": {
+			"place0": {"@type": "Place", "capacity": [10], "initial": [0], "offset": 0, "x": 0, "y": 0}
+		},
+		"token": ["https://pflow.xyz/tokens/black"],
+		"transitions": {
+			"txn0": {"@type": "Transition", "x": 0, "y": 0}
+		}
+	}`)
+
+	svg, err := GenerateSVGWithLayout(jsonData, "monoidal")
+	if err != nil {
+		t.Fatalf("GenerateSVGWithLayout with 'monoidal' alias failed: %v", err)
+	}
+	if !strings.Contains(svg, "<svg xmlns") {
+		t.Error("SVG missing opening tag")
+	}
+}
+
 func TestGenerateSVGWithLayout_Invalid(t *testing.T) {
 	jsonData := []byte(`{
 		"@context": "https://pflow.xyz/schema",

@@ -4544,6 +4544,10 @@ class PetriView extends HTMLElement {
                 <li><strong>⭕ Circular:</strong> Arranges all nodes evenly spaced around a circle.
                 Good for visualizing cyclic relationships and symmetric structures.
                 Makes it easy to see all nodes at once and identify connection patterns.</li>
+
+                <li><strong>🧵 String Diagram:</strong> Monoidal string diagram layout where transitions are boxes
+                and places are wires. Transitions are layered top-to-bottom by dependency; places are positioned
+                along the wires between their source and target transitions.</li>
             </ul>
 
             <h4>Which Layout to Choose?</h4>
@@ -4552,6 +4556,7 @@ class PetriView extends HTMLElement {
                 <li><strong>Dense or complex nets:</strong> Use Grid</li>
                 <li><strong>Clear place/transition separation:</strong> Use Bipartite</li>
                 <li><strong>Cyclic or symmetric patterns:</strong> Use Circular</li>
+                <li><strong>Category theory / monoidal view:</strong> Use String Diagram</li>
             </ul>
         `;
 
@@ -5371,6 +5376,13 @@ class PetriView extends HTMLElement {
             () => this._applyCircularLayout()
         ));
 
+        optionsContainer.appendChild(createLayoutButton(
+            'String Diagram',
+            'Monoidal layout: transitions as boxes, places as wires flowing top-to-bottom',
+            '🧵',
+            () => this._showStringDiagramModal()
+        ));
+
         dialog.appendChild(optionsContainer);
 
         // Close button
@@ -5760,6 +5772,284 @@ class PetriView extends HTMLElement {
         this._normalizeNodePositions(100);
 
         // Update the view
+        this._renderUI();
+        this._syncLD();
+    }
+
+    async _showStringDiagramModal() {
+        await import('./diagram-viewer.js');
+
+        // Create modal overlay
+        const overlay = document.createElement('div');
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:10000;display:flex;align-items:center;justify-content:center;';
+
+        const dialog = document.createElement('div');
+        dialog.style.cssText = 'background:#fff;border-radius:12px;padding:20px;max-width:90vw;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,0.3);';
+
+        // Header with title and close button
+        const header = document.createElement('div');
+        header.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;';
+        const title = document.createElement('h2');
+        title.textContent = 'String Diagram';
+        title.style.cssText = 'margin:0;font-size:1.2em;';
+        const closeBtn = document.createElement('button');
+        closeBtn.textContent = '\u00d7';
+        closeBtn.style.cssText = 'border:none;background:none;font-size:1.5em;cursor:pointer;padding:4px 8px;';
+        closeBtn.addEventListener('click', () => document.body.removeChild(overlay));
+        header.appendChild(title);
+        header.appendChild(closeBtn);
+        dialog.appendChild(header);
+
+        // SVG container using <diagram-viewer>
+        const svgContainer = document.createElement('div');
+        svgContainer.style.cssText = 'overflow:auto;flex:1;min-height:200px;';
+        const viewer = document.createElement('diagram-viewer');
+        viewer.model = this._model;
+        svgContainer.appendChild(viewer);
+        dialog.appendChild(svgContainer);
+
+        // Download button
+        const downloadBtn = document.createElement('button');
+        downloadBtn.textContent = 'Download SVG';
+        downloadBtn.style.cssText = 'margin-top:12px;padding:8px 16px;border:1px solid #ccc;border-radius:6px;background:#f5f5f5;cursor:pointer;align-self:flex-end;';
+        downloadBtn.addEventListener('click', () => {
+            const svgContent = viewer.svgString;
+            const blob = new Blob([svgContent], { type: 'image/svg+xml' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'string-diagram.svg';
+            a.click();
+            URL.revokeObjectURL(url);
+        });
+        dialog.appendChild(downloadBtn);
+
+        overlay.appendChild(dialog);
+        document.body.appendChild(overlay);
+
+        // Close on overlay click
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) document.body.removeChild(overlay);
+        });
+    }
+
+    _applyStringDiagramLayout() {
+        this._pushHistory();
+
+        const transitionIds = Object.keys(this._model.transitions || {});
+        const placeIds = Object.keys(this._model.places || {});
+        if (transitionIds.length + placeIds.length === 0) return;
+
+        // Phase 1: Build transition-only DAG mediated by places
+        // For each place, find input transitions (T→P) and output transitions (P→T)
+        const placeInputs = {};  // place -> [transitions that feed into it]
+        const placeOutputs = {}; // place -> [transitions it feeds into]
+        for (const id of placeIds) {
+            placeInputs[id] = [];
+            placeOutputs[id] = [];
+        }
+        for (const arc of (this._model.arcs || [])) {
+            if (this._model.transitions && this._model.transitions[arc.source] &&
+                this._model.places && this._model.places[arc.target]) {
+                // T → P arc
+                placeInputs[arc.target].push(arc.source);
+            }
+            if (this._model.places && this._model.places[arc.source] &&
+                this._model.transitions && this._model.transitions[arc.target]) {
+                // P → T arc
+                placeOutputs[arc.source].push(arc.target);
+            }
+        }
+
+        // Build transition-to-transition edges (through places)
+        const tOutgoing = {};
+        const tIncoming = {};
+        for (const id of transitionIds) {
+            tOutgoing[id] = [];
+            tIncoming[id] = [];
+        }
+        for (const pid of placeIds) {
+            for (const src of placeInputs[pid]) {
+                for (const tgt of placeOutputs[pid]) {
+                    if (src !== tgt) {
+                        tOutgoing[src].push(tgt);
+                        tIncoming[tgt].push(src);
+                    }
+                }
+            }
+        }
+
+        // Phase 2: DFS cycle-breaking on transition graph
+        const visited = new Set();
+        const onStack = new Set();
+        const backEdges = new Set();
+        const dfs = (id) => {
+            visited.add(id);
+            onStack.add(id);
+            for (const t of tOutgoing[id]) {
+                if (!visited.has(t)) dfs(t);
+                else if (onStack.has(t)) backEdges.add(`${id}->${t}`);
+            }
+            onStack.delete(id);
+        };
+        for (const id of transitionIds) {
+            if (!visited.has(id)) dfs(id);
+        }
+
+        // Phase 3: Longest-path layer assignment for transitions
+        const tLevel = {};
+        for (const id of transitionIds) tLevel[id] = -1;
+
+        // Sources: transitions with no non-back incoming edges
+        for (const id of transitionIds) {
+            let effectiveIn = 0;
+            for (const src of tIncoming[id]) {
+                if (!backEdges.has(`${src}->${id}`)) effectiveIn++;
+            }
+            if (effectiveIn === 0) tLevel[id] = 0;
+        }
+
+        let changed = true;
+        while (changed) {
+            changed = false;
+            for (const id of transitionIds) {
+                if (tLevel[id] < 0) continue;
+                for (const t of tOutgoing[id]) {
+                    if (backEdges.has(`${id}->${t}`)) continue;
+                    const newLevel = tLevel[id] + 1;
+                    if (newLevel > tLevel[t]) {
+                        tLevel[t] = newLevel;
+                        changed = true;
+                    }
+                }
+            }
+        }
+        for (const id of transitionIds) {
+            if (tLevel[id] < 0) tLevel[id] = 0;
+        }
+
+        // Group transitions by layer
+        const layers = new Map();
+        let maxLayer = 0;
+        for (const id of transitionIds) {
+            const lvl = tLevel[id];
+            if (!layers.has(lvl)) layers.set(lvl, []);
+            layers.get(lvl).push(id);
+            maxLayer = Math.max(maxLayer, lvl);
+        }
+
+        // Phase 4: Barycenter crossing minimization on transition layers
+        const posOf = {};
+        for (let lvl = 0; lvl <= maxLayer; lvl++) {
+            (layers.get(lvl) || []).forEach((id, i) => posOf[id] = i);
+        }
+
+        for (let pass = 0; pass < 4; pass++) {
+            // Down sweep
+            for (let lvl = 1; lvl <= maxLayer; lvl++) {
+                const layer = layers.get(lvl) || [];
+                const bary = {};
+                for (const id of layer) {
+                    let sum = 0, count = 0;
+                    for (const src of tIncoming[id]) {
+                        if (backEdges.has(`${src}->${id}`)) continue;
+                        if (tLevel[src] === lvl - 1) {
+                            sum += posOf[src];
+                            count++;
+                        }
+                    }
+                    bary[id] = count > 0 ? sum / count : posOf[id];
+                }
+                layer.sort((a, b) => bary[a] - bary[b]);
+                layer.forEach((id, i) => posOf[id] = i);
+            }
+            // Up sweep
+            for (let lvl = maxLayer - 1; lvl >= 0; lvl--) {
+                const layer = layers.get(lvl) || [];
+                const bary = {};
+                for (const id of layer) {
+                    let sum = 0, count = 0;
+                    for (const tgt of tOutgoing[id]) {
+                        if (backEdges.has(`${id}->${tgt}`)) continue;
+                        if (tLevel[tgt] === lvl + 1) {
+                            sum += posOf[tgt];
+                            count++;
+                        }
+                    }
+                    bary[id] = count > 0 ? sum / count : posOf[id];
+                }
+                layer.sort((a, b) => bary[a] - bary[b]);
+                layer.forEach((id, i) => posOf[id] = i);
+            }
+        }
+
+        // Phase 5: Assign transition coordinates
+        const layerSpacing = 180;
+        const boxSpacing = 120;
+        const startY = 100;
+
+        for (let lvl = 0; lvl <= maxLayer; lvl++) {
+            const layer = layers.get(lvl) || [];
+            const totalWidth = (layer.length - 1) * boxSpacing;
+            const startX = 400 - totalWidth / 2;
+
+            layer.forEach((id, i) => {
+                this._model.transitions[id].x = Math.round(startX + i * boxSpacing);
+                this._model.transitions[id].y = Math.round(startY + lvl * layerSpacing);
+            });
+        }
+
+        // Phase 6: Position places along wires
+        for (const pid of placeIds) {
+            const inputs = placeInputs[pid];
+            const outputs = placeOutputs[pid];
+
+            if (inputs.length > 0 && outputs.length > 0) {
+                // Place on the wire: midpoint between avg source and avg target layers
+                let srcLayerSum = 0, srcXSum = 0;
+                for (const t of inputs) {
+                    srcLayerSum += tLevel[t];
+                    srcXSum += this._model.transitions[t].x;
+                }
+                let tgtLayerSum = 0, tgtXSum = 0;
+                for (const t of outputs) {
+                    tgtLayerSum += tLevel[t];
+                    tgtXSum += this._model.transitions[t].x;
+                }
+                const avgSrcLayer = srcLayerSum / inputs.length;
+                const avgTgtLayer = tgtLayerSum / outputs.length;
+                const avgSrcX = srcXSum / inputs.length;
+                const avgTgtX = tgtXSum / outputs.length;
+
+                const midLayer = (avgSrcLayer + avgTgtLayer) / 2;
+                this._model.places[pid].x = Math.round((avgSrcX + avgTgtX) / 2);
+                this._model.places[pid].y = Math.round(startY + midLayer * layerSpacing);
+            } else if (inputs.length > 0) {
+                // Output boundary: place below its source transitions
+                let srcXSum = 0, srcLayerMax = 0;
+                for (const t of inputs) {
+                    srcXSum += this._model.transitions[t].x;
+                    srcLayerMax = Math.max(srcLayerMax, tLevel[t]);
+                }
+                this._model.places[pid].x = Math.round(srcXSum / inputs.length);
+                this._model.places[pid].y = Math.round(startY + (srcLayerMax + 0.5) * layerSpacing);
+            } else if (outputs.length > 0) {
+                // Input boundary: place above its target transitions
+                let tgtXSum = 0, tgtLayerMin = maxLayer;
+                for (const t of outputs) {
+                    tgtXSum += this._model.transitions[t].x;
+                    tgtLayerMin = Math.min(tgtLayerMin, tLevel[t]);
+                }
+                this._model.places[pid].x = Math.round(tgtXSum / outputs.length);
+                this._model.places[pid].y = Math.round(startY + (tgtLayerMin - 0.5) * layerSpacing);
+            } else {
+                // Disconnected: place at bottom
+                this._model.places[pid].x = 400;
+                this._model.places[pid].y = Math.round(startY + (maxLayer + 1.5) * layerSpacing);
+            }
+        }
+
+        this._normalizeNodePositions(100);
         this._renderUI();
         this._syncLD();
     }

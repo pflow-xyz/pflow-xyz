@@ -261,6 +261,40 @@ func (s *Server) handleGetSVG(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(svgContent))
 }
 
+// Handler for POST /api/svg - generate SVG from posted JSON-LD with optional layout
+func (s *Server) handlePostSVG(w http.ResponseWriter, r *http.Request) {
+	if s.handleCORS(w, r) {
+		return
+	}
+
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Read the JSON body
+	data, err := io.ReadAll(io.LimitReader(r.Body, 1<<20)) // 1MB limit
+	if err != nil {
+		http.Error(w, "Failed to read body", http.StatusBadRequest)
+		return
+	}
+	defer r.Body.Close()
+
+	// Get layout parameter from query string
+	layoutAlgorithm := r.URL.Query().Get("layout")
+
+	// Generate SVG from the JSON-LD data with optional layout
+	svgContent, err := svg.GenerateSVGWithLayout(data, layoutAlgorithm)
+	if err != nil {
+		log.Printf("Error generating SVG: %v", err)
+		http.Error(w, "Failed to generate SVG", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "image/svg+xml")
+	w.Write([]byte(svgContent))
+}
+
 // Handler for GET /api/ownership/{cid} - check if current user owns the object
 func (s *Server) handleCheckOwnership(w http.ResponseWriter, r *http.Request) {
 	if s.handleCORS(w, r) {
@@ -815,6 +849,10 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	if strings.HasPrefix(r.URL.Path, "/api/ownership/") {
 		s.handleCheckOwnership(w, r)
+		return
+	}
+	if r.URL.Path == "/api/svg" {
+		s.handlePostSVG(w, r)
 		return
 	}
 

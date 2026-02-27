@@ -749,6 +749,8 @@ func applyLayout(net *PetriNet, algorithm string) error {
 		return applyGridLayout(net)
 	case "bipartite":
 		return applyBipartiteLayout(net)
+	case "string-diagram", "string_diagram", "monoidal":
+		return applyStringDiagramLayout(net)
 	default:
 		return fmt.Errorf("unsupported layout algorithm: %s", algorithm)
 	}
@@ -1204,6 +1206,292 @@ func applyBipartiteLayout(net *PetriNet) error {
 		transition.X = rightX
 		transition.Y = transStartY + float64(i)*vSpacing
 		net.Transitions[t.id] = transition
+	}
+
+	return nil
+}
+
+// applyStringDiagramLayout arranges a Petri net as a monoidal string diagram:
+// transitions are layered top-to-bottom as boxes, places are positioned along the wires.
+func applyStringDiagramLayout(net *PetriNet) error {
+	if len(net.Places)+len(net.Transitions) == 0 {
+		return nil
+	}
+
+	transitionIds := make([]string, 0, len(net.Transitions))
+	for id := range net.Transitions {
+		transitionIds = append(transitionIds, id)
+	}
+	placeIds := make([]string, 0, len(net.Places))
+	for id := range net.Places {
+		placeIds = append(placeIds, id)
+	}
+
+	// Phase 1: Build transition-only DAG mediated by places
+	placeInputs := make(map[string][]string)  // place -> transitions that feed into it
+	placeOutputs := make(map[string][]string) // place -> transitions it feeds into
+	for _, pid := range placeIds {
+		placeInputs[pid] = []string{}
+		placeOutputs[pid] = []string{}
+	}
+	for _, arc := range net.Arcs {
+		if _, isTransSrc := net.Transitions[arc.Source]; isTransSrc {
+			if _, isPlaceTgt := net.Places[arc.Target]; isPlaceTgt {
+				placeInputs[arc.Target] = append(placeInputs[arc.Target], arc.Source)
+			}
+		}
+		if _, isPlaceSrc := net.Places[arc.Source]; isPlaceSrc {
+			if _, isTransTgt := net.Transitions[arc.Target]; isTransTgt {
+				placeOutputs[arc.Source] = append(placeOutputs[arc.Source], arc.Target)
+			}
+		}
+	}
+
+	// Build transition-to-transition edges through places
+	tOutgoing := make(map[string][]string)
+	tIncoming := make(map[string][]string)
+	for _, id := range transitionIds {
+		tOutgoing[id] = []string{}
+		tIncoming[id] = []string{}
+	}
+	for _, pid := range placeIds {
+		for _, src := range placeInputs[pid] {
+			for _, tgt := range placeOutputs[pid] {
+				if src != tgt {
+					tOutgoing[src] = append(tOutgoing[src], tgt)
+					tIncoming[tgt] = append(tIncoming[tgt], src)
+				}
+			}
+		}
+	}
+
+	// Phase 2: DFS cycle-breaking on transition graph
+	visited := make(map[string]bool)
+	onStack := make(map[string]bool)
+	backEdges := make(map[string]bool)
+
+	var dfs func(id string)
+	dfs = func(id string) {
+		visited[id] = true
+		onStack[id] = true
+		for _, t := range tOutgoing[id] {
+			if !visited[t] {
+				dfs(t)
+			} else if onStack[t] {
+				backEdges[id+"->"+t] = true
+			}
+		}
+		onStack[id] = false
+	}
+	for _, id := range transitionIds {
+		if !visited[id] {
+			dfs(id)
+		}
+	}
+
+	// Phase 3: Longest-path layer assignment for transitions
+	tLevel := make(map[string]int)
+	for _, id := range transitionIds {
+		tLevel[id] = -1
+	}
+	for _, id := range transitionIds {
+		effectiveIn := 0
+		for _, src := range tIncoming[id] {
+			if !backEdges[src+"->"+id] {
+				effectiveIn++
+			}
+		}
+		if effectiveIn == 0 {
+			tLevel[id] = 0
+		}
+	}
+
+	changed := true
+	for changed {
+		changed = false
+		for _, id := range transitionIds {
+			if tLevel[id] < 0 {
+				continue
+			}
+			for _, t := range tOutgoing[id] {
+				if backEdges[id+"->"+t] {
+					continue
+				}
+				newLevel := tLevel[id] + 1
+				if newLevel > tLevel[t] {
+					tLevel[t] = newLevel
+					changed = true
+				}
+			}
+		}
+	}
+	for _, id := range transitionIds {
+		if tLevel[id] < 0 {
+			tLevel[id] = 0
+		}
+	}
+
+	// Group transitions by layer
+	layers := make(map[int][]string)
+	maxLayer := 0
+	for _, id := range transitionIds {
+		lvl := tLevel[id]
+		layers[lvl] = append(layers[lvl], id)
+		if lvl > maxLayer {
+			maxLayer = lvl
+		}
+	}
+
+	// Phase 4: Barycenter crossing minimization on transition layers
+	posOf := make(map[string]int)
+	for lvl := 0; lvl <= maxLayer; lvl++ {
+		for i, id := range layers[lvl] {
+			posOf[id] = i
+		}
+	}
+
+	for pass := 0; pass < 4; pass++ {
+		// Down sweep
+		for lvl := 1; lvl <= maxLayer; lvl++ {
+			bary := make(map[string]float64)
+			for _, id := range layers[lvl] {
+				sum := 0.0
+				count := 0
+				for _, src := range tIncoming[id] {
+					if backEdges[src+"->"+id] {
+						continue
+					}
+					if tLevel[src] == lvl-1 {
+						sum += float64(posOf[src])
+						count++
+					}
+				}
+				if count > 0 {
+					bary[id] = sum / float64(count)
+				} else {
+					bary[id] = float64(posOf[id])
+				}
+			}
+			layer := layers[lvl]
+			for i := 1; i < len(layer); i++ {
+				for j := i; j > 0 && bary[layer[j]] < bary[layer[j-1]]; j-- {
+					layer[j], layer[j-1] = layer[j-1], layer[j]
+				}
+			}
+			for i, id := range layer {
+				posOf[id] = i
+			}
+		}
+		// Up sweep
+		for lvl := maxLayer - 1; lvl >= 0; lvl-- {
+			bary := make(map[string]float64)
+			for _, id := range layers[lvl] {
+				sum := 0.0
+				count := 0
+				for _, tgt := range tOutgoing[id] {
+					if backEdges[id+"->"+tgt] {
+						continue
+					}
+					if tLevel[tgt] == lvl+1 {
+						sum += float64(posOf[tgt])
+						count++
+					}
+				}
+				if count > 0 {
+					bary[id] = sum / float64(count)
+				} else {
+					bary[id] = float64(posOf[id])
+				}
+			}
+			layer := layers[lvl]
+			for i := 1; i < len(layer); i++ {
+				for j := i; j > 0 && bary[layer[j]] < bary[layer[j-1]]; j-- {
+					layer[j], layer[j-1] = layer[j-1], layer[j]
+				}
+			}
+			for i, id := range layer {
+				posOf[id] = i
+			}
+		}
+	}
+
+	// Phase 5: Assign transition coordinates
+	layerSpacing := 180.0
+	boxSpacing := 120.0
+	startY := 100.0
+
+	for lvl := 0; lvl <= maxLayer; lvl++ {
+		layer := layers[lvl]
+		totalWidth := float64(len(layer)-1) * boxSpacing
+		startX := 400.0 - totalWidth/2
+
+		for i, id := range layer {
+			transition := net.Transitions[id]
+			transition.X = startX + float64(i)*boxSpacing
+			transition.Y = startY + float64(lvl)*layerSpacing
+			net.Transitions[id] = transition
+		}
+	}
+
+	// Phase 6: Position places along wires
+	for _, pid := range placeIds {
+		inputs := placeInputs[pid]
+		outputs := placeOutputs[pid]
+		place := net.Places[pid]
+
+		if len(inputs) > 0 && len(outputs) > 0 {
+			// Midpoint between avg source and avg target layers
+			srcLayerSum := 0.0
+			srcXSum := 0.0
+			for _, t := range inputs {
+				srcLayerSum += float64(tLevel[t])
+				srcXSum += net.Transitions[t].X
+			}
+			tgtLayerSum := 0.0
+			tgtXSum := 0.0
+			for _, t := range outputs {
+				tgtLayerSum += float64(tLevel[t])
+				tgtXSum += net.Transitions[t].X
+			}
+			avgSrcLayer := srcLayerSum / float64(len(inputs))
+			avgTgtLayer := tgtLayerSum / float64(len(outputs))
+			avgSrcX := srcXSum / float64(len(inputs))
+			avgTgtX := tgtXSum / float64(len(outputs))
+
+			midLayer := (avgSrcLayer + avgTgtLayer) / 2
+			place.X = (avgSrcX + avgTgtX) / 2
+			place.Y = startY + midLayer*layerSpacing
+		} else if len(inputs) > 0 {
+			// Output boundary: below source transitions
+			srcXSum := 0.0
+			srcLayerMax := 0
+			for _, t := range inputs {
+				srcXSum += net.Transitions[t].X
+				if tLevel[t] > srcLayerMax {
+					srcLayerMax = tLevel[t]
+				}
+			}
+			place.X = srcXSum / float64(len(inputs))
+			place.Y = startY + (float64(srcLayerMax)+0.5)*layerSpacing
+		} else if len(outputs) > 0 {
+			// Input boundary: above target transitions
+			tgtXSum := 0.0
+			tgtLayerMin := maxLayer
+			for _, t := range outputs {
+				tgtXSum += net.Transitions[t].X
+				if tLevel[t] < tgtLayerMin {
+					tgtLayerMin = tLevel[t]
+				}
+			}
+			place.X = tgtXSum / float64(len(outputs))
+			place.Y = startY + (float64(tgtLayerMin)-0.5)*layerSpacing
+		} else {
+			// Disconnected: bottom
+			place.X = 400
+			place.Y = startY + (float64(maxLayer)+1.5)*layerSpacing
+		}
+
+		net.Places[pid] = place
 	}
 
 	return nil
