@@ -138,6 +138,12 @@ class PetriView extends HTMLElement {
         this._simulationDialog = null;
         this._solverModule = null;
         
+        // Display settings (persisted to localStorage)
+        this._displaySettings = {
+            hideUniformWeights: true, // hide weight badges when all arcs have weight 1
+        };
+        this._loadDisplaySettings();
+
         // Long-press support for touch/pen devices (for inhibitor arcs)
         this._longPressTimer = null;
         this._longPressThreshold = 500; // ms to trigger long-press
@@ -2231,6 +2237,12 @@ class PetriView extends HTMLElement {
             }
         });
 
+        // Hide all weight badges when every arc has weight 1 (and setting is on)
+        const hideWeights = this._shouldHideWeights();
+        for (const b of this._weights) {
+            b.style.display = hideWeights ? 'none' : '';
+        }
+
         this._renderTokens();
         this._updateTransitionStates();
         this._onResize();
@@ -2306,6 +2318,111 @@ class PetriView extends HTMLElement {
             return 1;
         }
         return Number(arc.weight) || 1;
+    }
+
+    /** True when every arc weight is 0 or 1, so badges add no information. */
+    _allWeightsUniform() {
+        for (const arc of (this._model.arcs || [])) {
+            const w = this._getBadgeWeight(arc);
+            if (w > 1) return false;
+        }
+        return true;
+    }
+
+    /** Whether weight badges should be hidden for the current model. */
+    _shouldHideWeights() {
+        return this._displaySettings.hideUniformWeights && this._allWeightsUniform();
+    }
+
+    // ---------------- Display settings persistence ----------------
+
+    _loadDisplaySettings() {
+        try {
+            const raw = localStorage.getItem('pv-display-settings');
+            if (raw) {
+                const saved = JSON.parse(raw);
+                Object.assign(this._displaySettings, saved);
+            }
+        } catch { /* ignore bad data */ }
+    }
+
+    _saveDisplaySettings() {
+        try {
+            localStorage.setItem('pv-display-settings', JSON.stringify(this._displaySettings));
+        } catch { /* quota exceeded, etc. */ }
+    }
+
+    // ---------------- Display Settings dialog ----------------
+
+    _showDisplaySettingsDialog() {
+        const { overlay, dialog } = this._createModalOverlay({
+            className: 'pv-display-settings',
+            dialogClass: ''
+        });
+
+        const title = document.createElement('h2');
+        title.style.cssText = 'margin:0 0 16px;font-size:22px;font-weight:bold;color:#333';
+        title.textContent = 'Display Settings';
+        dialog.appendChild(title);
+
+        const desc = document.createElement('p');
+        desc.style.cssText = 'margin:0 0 16px;font-size:14px;color:#666';
+        desc.textContent = 'Configure how the Petri net is displayed:';
+        dialog.appendChild(desc);
+
+        // --- Toggle helper ---
+        const makeToggle = (label, description, key) => {
+            const row = document.createElement('label');
+            row.style.cssText = 'display:flex;align-items:center;gap:12px;padding:12px 0;cursor:pointer;border-bottom:1px solid #eee';
+
+            const toggle = document.createElement('input');
+            toggle.type = 'checkbox';
+            toggle.checked = !!this._displaySettings[key];
+            toggle.style.cssText = 'width:18px;height:18px;cursor:pointer;flex-shrink:0';
+
+            const textWrap = document.createElement('div');
+            const labelEl = document.createElement('div');
+            labelEl.style.cssText = 'font-size:14px;font-weight:500;color:#333';
+            labelEl.textContent = label;
+            textWrap.appendChild(labelEl);
+
+            if (description) {
+                const descEl = document.createElement('div');
+                descEl.style.cssText = 'font-size:12px;color:#888;margin-top:2px';
+                descEl.textContent = description;
+                textWrap.appendChild(descEl);
+            }
+
+            row.appendChild(toggle);
+            row.appendChild(textWrap);
+
+            toggle.addEventListener('change', () => {
+                this._displaySettings[key] = toggle.checked;
+                this._saveDisplaySettings();
+                this._scheduleRender();
+            });
+
+            return row;
+        };
+
+        dialog.appendChild(makeToggle(
+            'Hide uniform weights',
+            'Hide arc weight badges when every arc has weight 1',
+            'hideUniformWeights'
+        ));
+
+        // Close button
+        const closeBtn = document.createElement('button');
+        closeBtn.type = 'button';
+        closeBtn.textContent = 'Close';
+        closeBtn.style.cssText = 'margin-top:20px;padding:8px 24px;border:1px solid #ddd;border-radius:6px;background:#f5f5f5;cursor:pointer;font-size:14px';
+        closeBtn.addEventListener('click', () => overlay.remove());
+        dialog.appendChild(closeBtn);
+
+        document.body.appendChild(overlay);
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) overlay.remove();
+        });
     }
 
     _createPlaceElement(id, p) {
@@ -6297,6 +6414,11 @@ class PetriView extends HTMLElement {
             }
         });
         menuContainer._menuContent.appendChild(toggleEditorItem);
+
+        const displaySettingsItem = makeMenuItem('⚙ Display Settings', () => {
+            this._showDisplaySettingsDialog();
+        });
+        menuContainer._menuContent.appendChild(displaySettingsItem);
 
         const downloadItem = makeMenuItem('📥 Download JSON', () => {
             this.downloadJSON();
