@@ -13,6 +13,7 @@ cmd/webserver/webserver
 dist/
 build/
 bin/
+out/
 
 # Data directories
 data/
@@ -28,3 +29,9 @@ data-dev/
 # Temporary files
 tmp/
 *.log
+
+# Playwright MCP
+.playwright-mcp/
+
+# Dev screenshots
+*.png
