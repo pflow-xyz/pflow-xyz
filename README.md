@@ -6,7 +6,7 @@
 
 ## Try It Live
 
-**Editor:** [pflow.xyz](https://pflow.xyz) | **Demos:** [pilot.pflow.xyz](https://pilot.pflow.xyz) | **Book:** [book.pflow.xyz](https://book.pflow.xyz) | **GraphQL:** [pilot.pflow.xyz/graphql/i](https://pilot.pflow.xyz/graphql/i)
+**Editor:** [pflow.xyz](https://pflow.xyz) | **Demos:** [pilot.pflow.xyz](https://pilot.pflow.xyz) | **Code to Flow:** [pilot.pflow.xyz/code-to-flow](https://pilot.pflow.xyz/code-to-flow/) | **Book:** [book.pflow.xyz](https://book.pflow.xyz) | **GraphQL:** [pilot.pflow.xyz/graphql/i](https://pilot.pflow.xyz/graphql/i)
 
 ### Demos
 
@@ -46,6 +46,12 @@ JSON-LD Model ──▶ go-pflow (codegen) ──▶ petri-pilot (serve) ──�
       └──────────── pflow-xyz (visual editor) ◀───────────────────────┘
                     book-pflow-xyz (guide)
 ```
+
+### Design Philosophy
+
+**Arc topology replaces coded formulas.** A Petri net's structure — which places connect to which transitions, with what weights — encodes behavior declaratively. A double arc makes a transition fire quadratically with token concentration. Changing a rate constant tunes dynamics without touching logic. The wiring *is* the program.
+
+This means models stay small enough to visualize and verify, while producing real applications. See [Building ZK Poker](https://blog.stackdump.com/posts/building-zk-poker) for a deep dive into how four cooperating Petri nets drive a provably fair poker game — strategy, hand evaluation, chip conservation, and phase control, all from arc topology.
 
 ---
 
@@ -145,6 +151,7 @@ pv.importJSON(jsonData);
 |----------|-----|
 | **Live Editor** | [pflow.xyz](https://pflow.xyz) |
 | **Demos** | [pilot.pflow.xyz](https://pilot.pflow.xyz) |
+| **Code to Flow** | [pilot.pflow.xyz/code-to-flow](https://pilot.pflow.xyz/code-to-flow/) |
 | **Book** | [book.pflow.xyz](https://book.pflow.xyz) |
 | **GraphQL** | [pilot.pflow.xyz/graphql/i](https://pilot.pflow.xyz/graphql/i) |
 | **go-pflow** | [github.com/pflow-xyz/go-pflow](https://github.com/pflow-xyz/go-pflow) |

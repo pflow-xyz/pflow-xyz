@@ -6725,6 +6725,11 @@ class PetriView extends HTMLElement {
         });
         menuContainer._menuContent.appendChild(petriPilotItem);
 
+        const codeToFlowItem = makeMenuItem('🔄 Code to Flow', () => {
+            window.open('https://pilot.pflow.xyz/code-to-flow/', '_blank', 'noopener,noreferrer');
+        });
+        menuContainer._menuContent.appendChild(codeToFlowItem);
+
         const bookItem = makeMenuItem('📖 Book', () => {
             window.open('https://book.pflow.xyz', '_blank', 'noopener,noreferrer');
         });
