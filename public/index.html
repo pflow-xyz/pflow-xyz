@@ -28,8 +28,9 @@
             --pf-radius: 4px;
         }
 
-        /* Override petri-view.css body lock when landing is visible */
-        body.landing-active {
+        /* Override petri-view.css html/body lock when landing is visible */
+        html.landing-active,
+        html.landing-active body {
             overflow: auto !important;
             height: auto !important;
             touch-action: auto !important;
@@ -603,14 +604,14 @@
     function showEditor() {
         landing.style.display = 'none';
         editor.style.display = 'block';
-        document.body.classList.remove('landing-active');
+        document.documentElement.classList.remove('landing-active');
         localStorage.setItem('pflow_skip_landing', '1');
     }
 
     function showLanding() {
         landing.style.display = 'block';
         editor.style.display = 'none';
-        document.body.classList.add('landing-active');
+        document.documentElement.classList.add('landing-active');
     }
 
     // Deep link: skip landing if ?cid= or ?data= present
