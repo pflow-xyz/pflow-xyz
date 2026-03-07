@@ -608,6 +608,16 @@
         document.documentElement.classList.add('landing-active');
     }
 
+    // Editor logo -> back to landing (must bind before early returns)
+    var homeBtn = document.getElementById('editor-home-btn');
+    if (homeBtn) {
+        homeBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            localStorage.removeItem('pflow_skip_landing');
+            window.location.href = '/';
+        });
+    }
+
     // Deep link: skip landing if ?cid= or ?data= present
     if (params.has('cid') || params.has('data')) {
         showEditor();
@@ -628,16 +638,6 @@
         e.preventDefault();
         showEditor();
     });
-
-    // Editor logo -> back to landing
-    var homeBtn = document.getElementById('editor-home-btn');
-    if (homeBtn) {
-        homeBtn.addEventListener('click', function(e) {
-            e.preventDefault();
-            localStorage.removeItem('pflow_skip_landing');
-            window.location.href = '/';
-        });
-    }
 
     // Model card clicks — navigate so petri-view can read the cid param on init
     document.querySelectorAll('.model-card').forEach(function(card) {
