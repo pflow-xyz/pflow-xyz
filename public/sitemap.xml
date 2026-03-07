@@ -2,6 +2,9 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url><loc>https://pflow.xyz/</loc><priority>1.0</priority></url>
   <url><loc>https://pflow.xyz/schema</loc><priority>0.8</priority></url>
+  <url><loc>https://pflow.xyz/?cid=z4EBG9jDsuUdvVN4bUXRHxoDG3p274FfhcJd8BiruRcE1jLCHi8</loc><priority>0.7</priority></url>
+  <url><loc>https://pflow.xyz/?cid=z2xFpT8ETzXdkvi1N1NtJ67W9ocqWQtLLQS4SL54ANicrSq3uHm</loc><priority>0.7</priority></url>
+  <url><loc>https://pflow.xyz/?cid=z2xFpT8ETRc2A6NLSviZL59fMgo7cJhHrMTo3VDyxSUQwnJwWT5</loc><priority>0.7</priority></url>
   <url><loc>https://pflow.xyz/img/z4EBG9izF5nW754U9qVfUTn8VE2NX5YoVRddibcBKjST17VFAhC.svg</loc><priority>0.6</priority></url>
   <url><loc>https://pflow.xyz/img/z4EBG9j1YQFZEQBpCn3ZjdpAuXpPnrKSDF5YXsW3q86znPztEoh.svg</loc><priority>0.6</priority></url>
   <url><loc>https://pflow.xyz/img/z4EBG9j1aMiBny6hgTAKFXfXxTASCD5vT6NVY3opfQx4FfBf42a.svg</loc><priority>0.6</priority></url>

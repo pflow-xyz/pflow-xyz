@@ -3,10 +3,317 @@
 <head>
     <meta charset="utf-8"/>
     <meta content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" name="viewport"/>
-    <title>{pflow}</title>
+    <title>pflow - Visual Editor for Petri Nets</title>
+    <meta name="description" content="One abstraction for state machines, resource flows, game mechanics, and token standards. Build Petri net models you can simulate, analyze, and generate code from."/>
+    <meta property="og:title" content="pflow - Visual Editor for Petri Nets"/>
+    <meta property="og:description" content="One abstraction for state machines, resource flows, game mechanics, and token standards."/>
+    <meta property="og:type" content="website"/>
+    <meta property="og:url" content="https://pflow.xyz"/>
+    <meta property="og:image" content="https://pflow.xyz/title.svg"/>
+    <meta name="twitter:card" content="summary_large_image"/>
+    <meta name="twitter:title" content="pflow - Visual Editor for Petri Nets"/>
+    <meta name="twitter:description" content="One abstraction for state machines, resource flows, game mechanics, and token standards."/>
     <link href="petri-view.css" rel="stylesheet"/>
     <script src="petri-view.js" type="module"></script>
     <style>
+        :root {
+            --pf-bg: #1C1C1D;
+            --pf-bg-alt: #1E1E1D;
+            --pf-bg-card: #2a2a2b;
+            --pf-text: #ffffff;
+            --pf-text-muted: #999999;
+            --pf-accent: #EBFF00;
+            --pf-accent-hover: #d4e600;
+            --pf-border: #333333;
+            --pf-radius: 4px;
+        }
+
+        /* Landing page styles */
+        #landing {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background: var(--pf-bg);
+            color: var(--pf-text);
+            min-height: 100vh;
+        }
+
+        #landing * { box-sizing: border-box; }
+
+        .landing-nav {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 32px;
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 10;
+        }
+
+        .landing-nav img {
+            height: 30px;
+            width: auto;
+            filter: brightness(0) invert(1);
+        }
+
+        .landing-nav-links {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+        }
+
+        .landing-nav-links a {
+            color: var(--pf-text-muted);
+            text-decoration: none;
+            font-size: 14px;
+            transition: color 0.2s;
+        }
+
+        .landing-nav-links a:hover {
+            color: var(--pf-text);
+        }
+
+        /* Hero section */
+        .landing-hero {
+            position: relative;
+            width: 100%;
+            height: 80vh;
+            min-height: 480px;
+            max-height: 720px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .landing-hero video {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            z-index: 1;
+        }
+
+        .landing-hero-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.6);
+            z-index: 2;
+        }
+
+        .landing-hero-content {
+            position: relative;
+            z-index: 3;
+            text-align: center;
+            padding: 0 24px;
+            max-width: 640px;
+        }
+
+        .landing-hero h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin: 0 0 16px;
+            letter-spacing: -0.02em;
+        }
+
+        .landing-hero p {
+            font-size: 1.15rem;
+            color: var(--pf-text-muted);
+            margin: 0 0 32px;
+            line-height: 1.6;
+        }
+
+        .landing-hero-buttons {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .btn-primary {
+            background: var(--pf-accent);
+            color: var(--pf-bg);
+            border: none;
+            padding: 12px 32px;
+            font-size: 1rem;
+            font-weight: 600;
+            border-radius: var(--pf-radius);
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            transition: background 0.2s;
+        }
+
+        .btn-primary:hover {
+            background: var(--pf-accent-hover);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: var(--pf-text);
+            border: 1px solid var(--pf-border);
+            padding: 12px 32px;
+            font-size: 1rem;
+            font-weight: 500;
+            border-radius: var(--pf-radius);
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            transition: border-color 0.2s, color 0.2s;
+        }
+
+        .btn-secondary:hover {
+            border-color: var(--pf-accent);
+            color: var(--pf-accent);
+        }
+
+        /* Example models section */
+        .landing-section {
+            padding: 64px 32px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .landing-section h2 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin: 0 0 32px;
+            text-align: center;
+        }
+
+        .model-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 24px;
+        }
+
+        .model-card {
+            background: var(--pf-bg-card);
+            border: 1px solid var(--pf-border);
+            border-radius: var(--pf-radius);
+            overflow: hidden;
+            cursor: pointer;
+            transition: border-color 0.2s, transform 0.15s;
+            text-decoration: none;
+            color: var(--pf-text);
+            display: block;
+        }
+
+        .model-card:hover {
+            border-color: var(--pf-accent);
+            transform: translateY(-2px);
+        }
+
+        .model-card-img {
+            width: 100%;
+            height: 180px;
+            background: #222;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .model-card-img img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            padding: 12px;
+            filter: invert(1) hue-rotate(180deg);
+        }
+
+        .model-card-body {
+            padding: 16px;
+        }
+
+        .model-card-body h3 {
+            font-size: 1rem;
+            font-weight: 600;
+            margin: 0 0 6px;
+        }
+
+        .model-card-body p {
+            font-size: 0.85rem;
+            color: var(--pf-text-muted);
+            margin: 0;
+            line-height: 1.4;
+        }
+
+        /* About section */
+        .landing-about {
+            text-align: center;
+            padding: 48px 32px;
+            max-width: 640px;
+            margin: 0 auto;
+            border-top: 1px solid var(--pf-border);
+        }
+
+        .landing-about p {
+            color: var(--pf-text-muted);
+            line-height: 1.7;
+            margin: 0 0 20px;
+            font-size: 1rem;
+        }
+
+        .landing-about a {
+            color: var(--pf-accent);
+            text-decoration: none;
+        }
+
+        .landing-about a:hover {
+            text-decoration: underline;
+        }
+
+        /* Footer */
+        .landing-footer {
+            border-top: 1px solid var(--pf-border);
+            background: var(--pf-bg);
+        }
+
+        .landing-footer-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 24px 32px;
+            max-width: 1200px;
+            margin: 0 auto;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        .landing-footer-links {
+            display: flex;
+            gap: 24px;
+            flex-wrap: wrap;
+        }
+
+        .landing-footer-links a {
+            color: var(--pf-text-muted);
+            text-decoration: none;
+            font-size: 0.85rem;
+        }
+
+        .landing-footer-links a:hover {
+            color: var(--pf-accent);
+        }
+
+        .landing-footer-copy {
+            color: #666;
+            font-size: 0.8rem;
+        }
+
+        .landing-flower-bar {
+            width: 100%;
+            height: 65px;
+            display: block;
+        }
+
+        /* Editor chrome (when visible) */
         .fixed-title {
             position: fixed;
             top: 16px;
@@ -24,7 +331,6 @@
             pointer-events: none;
         }
 
-        /* Reserve space for hamburger menu on the left */
         .hamburger-placeholder {
             position: fixed;
             top: 10px;
@@ -34,101 +340,303 @@
             z-index: 1000;
             pointer-events: none;
         }
+
+        /* Reduced motion */
+        @media (prefers-reduced-motion: reduce) {
+            .landing-hero video {
+                display: none;
+            }
+            .landing-hero {
+                background: var(--pf-bg);
+            }
+        }
+
+        /* Mobile */
+        @media (max-width: 640px) {
+            .landing-hero h1 {
+                font-size: 1.75rem;
+            }
+            .landing-hero p {
+                font-size: 1rem;
+            }
+            .landing-hero {
+                height: 70vh;
+                min-height: 400px;
+            }
+            .landing-nav {
+                padding: 12px 16px;
+            }
+            .landing-section {
+                padding: 48px 16px;
+            }
+            .model-grid {
+                grid-template-columns: 1fr;
+            }
+        }
     </style>
 </head>
 <body>
-<div class="hamburger-placeholder"></div>
-<a class="fixed-title" href="https://pflow.xyz" rel="noopener noreferrer" target="_blank">
-    <img alt="Title" src="title.svg"/>
-</a>
-<petri-view
-        data-json-editor
-        data-backend>
-<script type="application/ld+json">
-    {
-        "@context": "https://pflow.xyz/schema",
-        "@type": "PetriNet",
-        "@version": "1.1",
-        "arcs": [
-            {
-                "@type": "Arrow",
-                "inhibitTransition": false,
-                "source": "txn0",
-                "target": "place0",
-                "weight": [
-                    1
-                ]
+
+<!-- Landing Page -->
+<div id="landing">
+    <nav class="landing-nav">
+        <a href="/"><img alt="pflow" src="title.svg"/></a>
+        <div class="landing-nav-links">
+            <a href="https://github.com/pflow-xyz/pflow-xyz">GitHub</a>
+        </div>
+    </nav>
+
+    <section class="landing-hero">
+        <video autoplay loop muted playsinline>
+            <source src="p-flower.webm" type="video/webm"/>
+            <source src="p-flower.mp4" type="video/mp4"/>
+        </video>
+        <div class="landing-hero-overlay"></div>
+        <div class="landing-hero-content">
+            <h1>Visual Editor for Petri Nets</h1>
+            <p>One abstraction for state machines, resource flows, game mechanics, and token standards. Build models you can simulate, analyze, and generate code from.</p>
+            <div class="landing-hero-buttons">
+                <a class="btn-primary" href="#" id="open-editor-btn">Open Editor</a>
+                <a class="btn-secondary" href="https://book.pflow.xyz">Read the Book</a>
+            </div>
+        </div>
+    </section>
+
+    <section class="landing-section">
+        <h2>Example Models</h2>
+        <div class="model-grid">
+            <a class="model-card" href="/?cid=z4EBG9j3NhEnaxZBEpXXCvyMbR9utkgUZoPBQFxS99qSehUwuBL" data-cid="z4EBG9j3NhEnaxZBEpXXCvyMbR9utkgUZoPBQFxS99qSehUwuBL">
+                <div class="model-card-img">
+                    <img alt="Coffee Shop" src="/img/z4EBG9j3NhEnaxZBEpXXCvyMbR9utkgUZoPBQFxS99qSehUwuBL.svg" loading="lazy"/>
+                </div>
+                <div class="model-card-body">
+                    <h3>Coffee Shop</h3>
+                    <p>Weighted arcs encode recipes, conservation laws guarantee you never oversell a latte.</p>
+                </div>
+            </a>
+            <a class="model-card" href="/?cid=z4EBG9j1YQFZEQBpCn3ZjdpAuXpPnrKSDF5YXsW3q86znPztEoh" data-cid="z4EBG9j1YQFZEQBpCn3ZjdpAuXpPnrKSDF5YXsW3q86znPztEoh">
+                <div class="model-card-img">
+                    <img alt="Tic-Tac-Toe" src="/img/z4EBG9j1YQFZEQBpCn3ZjdpAuXpPnrKSDF5YXsW3q86znPztEoh.svg" loading="lazy"/>
+                </div>
+                <div class="model-card-body">
+                    <h3>Tic-Tac-Toe</h3>
+                    <p>Every board position is a place. ODE heatmaps reveal optimal play from network topology alone.</p>
+                </div>
+            </a>
+            <a class="model-card" href="/?cid=z4EBG9j1aMiBny6hgTAKFXfXxTASCD5vT6NVY3opfQx4FfBf42a" data-cid="z4EBG9j1aMiBny6hgTAKFXfXxTASCD5vT6NVY3opfQx4FfBf42a">
+                <div class="model-card-img">
+                    <img alt="Enzyme Kinetics" src="/img/z4EBG9j1aMiBny6hgTAKFXfXxTASCD5vT6NVY3opfQx4FfBf42a.svg" loading="lazy"/>
+                </div>
+                <div class="model-card-body">
+                    <h3>Enzyme Kinetics</h3>
+                    <p>Four places, three transitions — mass-action kinetics produce Michaelis-Menten curves automatically.</p>
+                </div>
+            </a>
+            <a class="model-card" href="/?cid=z4EBG9j7s3ri1DFxbBYpxYUhKtZf8ngA3nfw9849upqeQj85z9J" data-cid="z4EBG9j7s3ri1DFxbBYpxYUhKtZf8ngA3nfw9849upqeQj85z9J">
+                <div class="model-card-img">
+                    <img alt="Predator-Prey" src="/img/z4EBG9j7s3ri1DFxbBYpxYUhKtZf8ngA3nfw9849upqeQj85z9J.svg" loading="lazy"/>
+                </div>
+                <div class="model-card-body">
+                    <h3>Predator-Prey</h3>
+                    <p>Lotka-Volterra dynamics — two species, three reactions, and the ODE solver draws the phase portrait.</p>
+                </div>
+            </a>
+            <a class="model-card" href="/?cid=z4EBG9jDW9ike1veSLWu9Et2dMTiPEWTMkai8TkjUtEaUVtyrda" data-cid="z4EBG9jDW9ike1veSLWu9Et2dMTiPEWTMkai8TkjUtEaUVtyrda">
+                <div class="model-card-img">
+                    <img alt="Producer-Consumer" src="/img/z4EBG9jDW9ike1veSLWu9Et2dMTiPEWTMkai8TkjUtEaUVtyrda.svg" loading="lazy"/>
+                </div>
+                <div class="model-card-body">
+                    <h3>Producer-Consumer</h3>
+                    <p>Bounded buffer concurrency — capacity constraints prevent overflow, token counts prove correctness.</p>
+                </div>
+            </a>
+            <a class="model-card" href="/?cid=z4EBG9jC6HtPfeMtyA5yt6HuzDspMH2B15FQZ7mx3D2zeBwBU1f" data-cid="z4EBG9jC6HtPfeMtyA5yt6HuzDspMH2B15FQZ7mx3D2zeBwBU1f">
+                <div class="model-card-img">
+                    <img alt="USDC Bridge" src="/img/z4EBG9jC6HtPfeMtyA5yt6HuzDspMH2B15FQZ7mx3D2zeBwBU1f.svg" loading="lazy"/>
+                </div>
+                <div class="model-card-body">
+                    <h3>USDC Bridge</h3>
+                    <p>Cross-chain token flow — IBC to Noble, CCTP burn-and-mint to Base, all as one net.</p>
+                </div>
+            </a>
+        </div>
+    </section>
+
+    <div class="landing-about">
+        <h2>A Universal Abstraction</h2>
+        <p>
+            Places hold tokens. Transitions move them. Arcs define the rules.
+            From this — coffee shops, poker games, enzyme reactions, zero-knowledge proofs, and blockchain protocols
+            all emerge as instances of the same formal structure.
+        </p>
+        <p>
+            Simulate with ODE solvers. Prove with ZK circuits. Generate code from topology.
+            The model is the specification.
+        </p>
+        <a href="https://book.pflow.xyz">Read the book &rarr;</a>
+    </div>
+
+    <footer class="landing-footer">
+        <img class="landing-flower-bar" src="flower-bar.svg" alt=""/>
+        <div class="landing-footer-content">
+            <div class="landing-footer-links">
+                <a href="https://pilot.pflow.xyz">Petri Pilot</a>
+                <a href="https://book.pflow.xyz">Book</a>
+                <a href="https://blog.stackdump.com">Blog</a>
+                <a href="https://github.com/pflow-xyz/pflow-xyz">GitHub</a>
+            </div>
+            <span class="landing-footer-copy">&copy; Stackdump.com LLC</span>
+        </div>
+    </footer>
+</div>
+
+<!-- Editor (hidden until activated) -->
+<div id="editor-wrapper" style="display: none;">
+    <div class="hamburger-placeholder"></div>
+    <a class="fixed-title" href="https://pflow.xyz" rel="noopener noreferrer" target="_blank">
+        <img alt="Title" src="title.svg"/>
+    </a>
+    <petri-view
+            data-json-editor
+            data-backend>
+    <script type="application/ld+json">
+        {
+            "@context": "https://pflow.xyz/schema",
+            "@type": "PetriNet",
+            "@version": "1.1",
+            "arcs": [
+                {
+                    "@type": "Arrow",
+                    "inhibitTransition": false,
+                    "source": "txn0",
+                    "target": "place0",
+                    "weight": [
+                        1
+                    ]
+                },
+                {
+                    "@type": "Arrow",
+                    "inhibitTransition": false,
+                    "source": "place0",
+                    "target": "txn1",
+                    "weight": [
+                        3
+                    ]
+                },
+                {
+                    "@type": "Arrow",
+                    "inhibitTransition": true,
+                    "source": "txn2",
+                    "target": "place0",
+                    "weight": [
+                        3
+                    ]
+                },
+                {
+                    "@type": "Arrow",
+                    "inhibitTransition": true,
+                    "source": "place0",
+                    "target": "txn3",
+                    "weight": [
+                        1
+                    ]
+                }
+            ],
+            "places": {
+                "place0": {
+                    "@type": "Place",
+                    "capacity": [
+                        3
+                    ],
+                    "initial": [
+                        1
+                    ],
+                    "offset": 0,
+                    "x": 130,
+                    "y": 207
+                }
             },
-            {
-                "@type": "Arrow",
-                "inhibitTransition": false,
-                "source": "place0",
-                "target": "txn1",
-                "weight": [
-                    3
-                ]
+            "token": [
+                "https://pflow.xyz/tokens/black"
+            ],
+            "transitions": {
+                "txn0": {
+                    "@type": "Transition",
+                    "x": 46,
+                    "y": 116
+                },
+                "txn1": {
+                    "@type": "Transition",
+                    "x": 227,
+                    "y": 112
+                },
+                "txn2": {
+                    "@type": "Transition",
+                    "x": 43,
+                    "y": 307
+                },
+                "txn3": {
+                    "@type": "Transition",
+                    "x": 235,
+                    "y": 306
+                }
             },
-            {
-                "@type": "Arrow",
-                "inhibitTransition": true,
-                "source": "txn2",
-                "target": "place0",
-                "weight": [
-                    3
-                ]
-            },
-            {
-                "@type": "Arrow",
-                "inhibitTransition": true,
-                "source": "place0",
-                "target": "txn3",
-                "weight": [
-                    1
-                ]
-            }
-        ],
-        "places": {
-            "place0": {
-                "@type": "Place",
-                "capacity": [
-                    3
-                ],
-                "initial": [
-                    1
-                ],
-                "offset": 0,
-                "x": 130,
-                "y": 207
-            }
-        },
-        "token": [
-            "https://pflow.xyz/tokens/black"
-        ],
-        "transitions": {
-            "txn0": {
-                "@type": "Transition",
-                "x": 46,
-                "y": 116
-            },
-            "txn1": {
-                "@type": "Transition",
-                "x": 227,
-                "y": 112
-            },
-            "txn2": {
-                "@type": "Transition",
-                "x": 43,
-                "y": 307
-            },
-            "txn3": {
-                "@type": "Transition",
-                "x": 235,
-                "y": 306
-            }
-        },
-        "@id": "z2xFpT8KDD7FU8tiWSMcB8n6dxJriy2PtZJrcyCwHkn9fmug732"
+            "@id": "z2xFpT8KDD7FU8tiWSMcB8n6dxJriy2PtZJrcyCwHkn9fmug732"
+        }
+    </script>
+    </petri-view>
+</div>
+
+<script>
+(function() {
+    const landing = document.getElementById('landing');
+    const editor = document.getElementById('editor-wrapper');
+    const params = new URLSearchParams(window.location.search);
+
+    function showEditor() {
+        landing.style.display = 'none';
+        editor.style.display = 'block';
+        localStorage.setItem('pflow_skip_landing', '1');
     }
+
+    function showLanding() {
+        landing.style.display = 'block';
+        editor.style.display = 'none';
+    }
+
+    // Deep link: skip landing if ?cid= or ?data= present
+    if (params.has('cid') || params.has('data')) {
+        showEditor();
+        return;
+    }
+
+    // Returning user preference
+    if (localStorage.getItem('pflow_skip_landing') === '1') {
+        showEditor();
+        return;
+    }
+
+    // Show landing by default
+    showLanding();
+
+    // "Open Editor" button
+    document.getElementById('open-editor-btn').addEventListener('click', function(e) {
+        e.preventDefault();
+        showEditor();
+    });
+
+    // Model card clicks — navigate so petri-view can read the cid param on init
+    document.querySelectorAll('.model-card').forEach(function(card) {
+        card.addEventListener('click', function(e) {
+            e.preventDefault();
+            var cid = card.getAttribute('data-cid');
+            if (cid) {
+                window.location.href = '/?cid=' + cid;
+            }
+        });
+    });
+})();
 </script>
-</petri-view>
+
 </body>
 </html>
