@@ -495,7 +495,7 @@
 <!-- Editor (hidden until activated) -->
 <div id="editor-wrapper" style="display: none;">
     <div class="hamburger-placeholder"></div>
-    <a class="fixed-title" href="https://pflow.xyz" rel="noopener noreferrer" target="_blank">
+    <a class="fixed-title" href="/" id="editor-home-btn">
         <img alt="Title" src="title.svg"/>
     </a>
     <petri-view
@@ -628,6 +628,16 @@
         e.preventDefault();
         showEditor();
     });
+
+    // Editor logo -> back to landing
+    var homeBtn = document.getElementById('editor-home-btn');
+    if (homeBtn) {
+        homeBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            localStorage.removeItem('pflow_skip_landing');
+            window.location.href = '/';
+        });
+    }
 
     // Model card clicks — navigate so petri-view can read the cid param on init
     document.querySelectorAll('.model-card').forEach(function(card) {
