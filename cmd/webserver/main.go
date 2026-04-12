@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -187,6 +188,108 @@ func (s *Server) handleCORS(w http.ResponseWriter, r *http.Request) bool {
 	}
 
 	return false
+}
+
+// cssNamedColors is the CSS Color Module Level 4 named-color set plus transparent/currentcolor.
+var cssNamedColors = map[string]struct{}{
+	"aliceblue": {}, "antiquewhite": {}, "aqua": {}, "aquamarine": {}, "azure": {},
+	"beige": {}, "bisque": {}, "black": {}, "blanchedalmond": {}, "blue": {},
+	"blueviolet": {}, "brown": {}, "burlywood": {}, "cadetblue": {}, "chartreuse": {},
+	"chocolate": {}, "coral": {}, "cornflowerblue": {}, "cornsilk": {}, "crimson": {},
+	"cyan": {}, "darkblue": {}, "darkcyan": {}, "darkgoldenrod": {}, "darkgray": {},
+	"darkgreen": {}, "darkgrey": {}, "darkkhaki": {}, "darkmagenta": {}, "darkolivegreen": {},
+	"darkorange": {}, "darkorchid": {}, "darkred": {}, "darksalmon": {}, "darkseagreen": {},
+	"darkslateblue": {}, "darkslategray": {}, "darkslategrey": {}, "darkturquoise": {}, "darkviolet": {},
+	"deeppink": {}, "deepskyblue": {}, "dimgray": {}, "dimgrey": {}, "dodgerblue": {},
+	"firebrick": {}, "floralwhite": {}, "forestgreen": {}, "fuchsia": {}, "gainsboro": {},
+	"ghostwhite": {}, "gold": {}, "goldenrod": {}, "gray": {}, "green": {},
+	"greenyellow": {}, "grey": {}, "honeydew": {}, "hotpink": {}, "indianred": {},
+	"indigo": {}, "ivory": {}, "khaki": {}, "lavender": {}, "lavenderblush": {},
+	"lawngreen": {}, "lemonchiffon": {}, "lightblue": {}, "lightcoral": {}, "lightcyan": {},
+	"lightgoldenrodyellow": {}, "lightgray": {}, "lightgreen": {}, "lightgrey": {}, "lightpink": {},
+	"lightsalmon": {}, "lightseagreen": {}, "lightskyblue": {}, "lightslategray": {}, "lightslategrey": {},
+	"lightsteelblue": {}, "lightyellow": {}, "lime": {}, "limegreen": {}, "linen": {},
+	"magenta": {}, "maroon": {}, "mediumaquamarine": {}, "mediumblue": {}, "mediumorchid": {},
+	"mediumpurple": {}, "mediumseagreen": {}, "mediumslateblue": {}, "mediumspringgreen": {}, "mediumturquoise": {},
+	"mediumvioletred": {}, "midnightblue": {}, "mintcream": {}, "mistyrose": {}, "moccasin": {},
+	"navajowhite": {}, "navy": {}, "oldlace": {}, "olive": {}, "olivedrab": {},
+	"orange": {}, "orangered": {}, "orchid": {}, "palegoldenrod": {}, "palegreen": {},
+	"paleturquoise": {}, "palevioletred": {}, "papayawhip": {}, "peachpuff": {}, "peru": {},
+	"pink": {}, "plum": {}, "powderblue": {}, "purple": {}, "rebeccapurple": {},
+	"red": {}, "rosybrown": {}, "royalblue": {}, "saddlebrown": {}, "salmon": {},
+	"sandybrown": {}, "seagreen": {}, "seashell": {}, "sienna": {}, "silver": {},
+	"skyblue": {}, "slateblue": {}, "slategray": {}, "slategrey": {}, "snow": {},
+	"springgreen": {}, "steelblue": {}, "tan": {}, "teal": {}, "thistle": {},
+	"tomato": {}, "turquoise": {}, "violet": {}, "wheat": {}, "white": {},
+	"whitesmoke": {}, "yellow": {}, "yellowgreen": {},
+	"transparent": {}, "currentcolor": {},
+}
+
+// hexColorRe matches bare hex color codes (no leading #): 3, 4, 6, or 8 hex digits.
+var hexColorRe = regexp.MustCompile(`^[0-9a-f]{3}$|^[0-9a-f]{4}$|^[0-9a-f]{6}$|^[0-9a-f]{8}$`)
+
+// normalizeColor lowercases and validates a single color segment. Returns the
+// normalized form and whether it is a hex code. Empty/invalid returns ok=false.
+func normalizeColor(s string) (normalized string, isHex, ok bool) {
+	s = strings.ToLower(s)
+	if s == "" {
+		return "", false, false
+	}
+	if hexColorRe.MatchString(s) {
+		return s, true, true
+	}
+	if _, found := cssNamedColors[s]; found {
+		return s, false, true
+	}
+	return "", false, false
+}
+
+// Handler for GET /tokens/{color} - return JSON-LD describing the token type
+func (s *Server) handleTokenType(w http.ResponseWriter, r *http.Request) {
+	if s.handleCORS(w, r) {
+		return
+	}
+
+	path := strings.Trim(strings.TrimPrefix(r.URL.Path, "/tokens/"), "/")
+	if path == "" {
+		http.Error(w, "token color required", http.StatusBadRequest)
+		return
+	}
+	rawSegments := strings.Split(path, ",")
+	colors := make([]string, 0, len(rawSegments))
+	for _, seg := range rawSegments {
+		norm, _, ok := normalizeColor(seg)
+		if !ok {
+			http.Error(w, fmt.Sprintf("invalid color %q: must be a CSS named color or bare hex code (3,4,6,8 digits)", seg), http.StatusBadRequest)
+			return
+		}
+		colors = append(colors, norm)
+	}
+	name := strings.Join(colors, ",")
+
+	var description string
+	switch {
+	case len(colors) == 1 && colors[0] == "black":
+		description = "Single-color token for standard Petri net places."
+	case len(colors) == 1:
+		description = fmt.Sprintf("Single-color token (%s) for colored Petri net places.", colors[0])
+	default:
+		description = fmt.Sprintf("Multi-color token signature (%s) for colored Petri net places.", name)
+	}
+
+	doc := map[string]interface{}{
+		"@context":     "https://pflow.xyz/schema",
+		"@type":        "TokenType",
+		"@id":          "https://pflow.xyz/tokens/" + name,
+		"name":         name,
+		"colorCount":   len(colors),
+		"description":  description,
+		"rdfs:seeAlso": "https://pflow.xyz/schema",
+	}
+
+	w.Header().Set("Content-Type", "application/ld+json")
+	w.Header().Set("Link", `<https://pflow.xyz>; rel="alternate"; type="text/html"`)
+	json.NewEncoder(w).Encode(doc)
 }
 
 // Handler for GET /o/{cid} - get object by CID
@@ -853,6 +956,12 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	if r.URL.Path == "/api/svg" {
 		s.handlePostSVG(w, r)
+		return
+	}
+
+	// Token type route
+	if strings.HasPrefix(r.URL.Path, "/tokens/") {
+		s.handleTokenType(w, r)
 		return
 	}
 
