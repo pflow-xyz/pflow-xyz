@@ -170,6 +170,7 @@ type Server struct {
 	storage           Storage
 	publicFS          fs.FS
 	googleAnalyticsID string
+	schemaCache       schemaCache
 }
 
 // handleCORS handles CORS preflight requests
@@ -257,13 +258,15 @@ func (s *Server) handleTokenType(w http.ResponseWriter, r *http.Request) {
 	}
 	rawSegments := strings.Split(path, ",")
 	colors := make([]string, 0, len(rawSegments))
+	isHex := make([]bool, 0, len(rawSegments))
 	for _, seg := range rawSegments {
-		norm, _, ok := normalizeColor(seg)
+		norm, hex, ok := normalizeColor(seg)
 		if !ok {
 			http.Error(w, fmt.Sprintf("invalid color %q: must be a CSS named color or bare hex code (3,4,6,8 digits)", seg), http.StatusBadRequest)
 			return
 		}
 		colors = append(colors, norm)
+		isHex = append(isHex, hex)
 	}
 	name := strings.Join(colors, ",")
 
@@ -277,6 +280,13 @@ func (s *Server) handleTokenType(w http.ResponseWriter, r *http.Request) {
 		description = fmt.Sprintf("Multi-color token signature (%s) for colored Petri net places.", name)
 	}
 
+	if wantsHTML(r) {
+		if err := renderTokenHTML(w, name, description, colors, isHex); err != nil {
+			http.Error(w, "render error", http.StatusInternalServerError)
+		}
+		return
+	}
+
 	doc := map[string]interface{}{
 		"@context":     "https://pflow.xyz/schema",
 		"@type":        "TokenType",
@@ -288,7 +298,7 @@ func (s *Server) handleTokenType(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/ld+json")
-	w.Header().Set("Link", `<https://pflow.xyz>; rel="alternate"; type="text/html"`)
+	w.Header().Set("Link", `</tokens/`+name+`>; rel="alternate"; type="text/html"`)
 	json.NewEncoder(w).Encode(doc)
 }
 
@@ -962,6 +972,12 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Token type route
 	if strings.HasPrefix(r.URL.Path, "/tokens/") {
 		s.handleTokenType(w, r)
+		return
+	}
+
+	// Schema reference (content-negotiated: JSON-LD or HTML)
+	if r.URL.Path == "/schema" {
+		s.handleSchema(w, r)
 		return
 	}
 

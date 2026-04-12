@@ -65,6 +65,10 @@ examples/                # Example Petri nets in JSON-LD
 - `GET /o/{cid}` - Retrieve object by CID
 - `DELETE /o/{cid}` - Delete object (author only)
 - `GET /img/{cid}.svg` - Generate SVG (optional `?layout=force-atlas-2|circular|hierarchical`)
+- `GET /schema` - JSON-LD context (HTML reference page when `Accept: text/html`)
+- `GET /tokens/{color}` - JSON-LD token type (HTML page when `Accept: text/html`); accepts CSS named colors and bare hex (e.g. `red`, `ff0000`, `red,blue`)
+
+Content negotiation for `/schema` and `/tokens/{color}` is implemented in `cmd/webserver/content_negotiation.go`. Browsers (Accept includes `text/html` ranked above JSON) get a styled dark-theme page; everything else (curl, no Accept, `*/*`) gets JSON-LD.
 
 ## Environment Variables
 
