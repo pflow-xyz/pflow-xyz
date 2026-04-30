@@ -923,6 +923,13 @@ func (s *Server) injectAnalytics(html []byte) []byte {
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	log.Printf("%s %s", r.Method, r.URL.Path)
 
+	// Health check (no auth, used by Datadog synthetic tests).
+	if r.URL.Path == "/health" && r.Method == "GET" {
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"ok":true}`))
+		return
+	}
+
 	// Deploy endpoints (no auth required, self-authenticated)
 	if r.URL.Path == "/webhook/github" && r.Method == "POST" {
 		handleWebhook(w, r)
