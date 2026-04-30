@@ -16,6 +16,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"regexp"
 	"strings"
 )
 
@@ -77,9 +78,36 @@ func (s *Server) decorateIndexForShare(r *http.Request, indexHTML []byte) []byte
 		Payload:  string(raw),
 	})
 
-	out := injectIntoHead(indexHTML, []byte(block))
+	// Strip the static og:* / twitter:* / canonical / description meta
+	// tags from the original document before injecting the per-CID block.
+	// Without this, both sets co-exist and unfurlers' "first vs last
+	// wins" behaviour determines which card shows — modern crawlers
+	// take last, but it's cheaper to just remove the duplicates.
+	out := stripExistingShareMeta(indexHTML)
+	out = injectIntoHead(out, []byte(block))
 	out = replaceTitleTag(out, title)
 	return out
+}
+
+// stripExistingShareMeta removes <meta property="og:…">, <meta
+// name="twitter:…">, <meta name="description">, and <link
+// rel="canonical"> tags from doc. Used by decorateIndexForShare so
+// the per-CID block is the only social metadata in the response.
+var (
+	staticOGRe         = regexp.MustCompile(`(?i)\s*<meta\s+property="og:[^"]*"[^>]*/?>\s*\n?`)
+	staticTwitterRe    = regexp.MustCompile(`(?i)\s*<meta\s+name="twitter:[^"]*"[^>]*/?>\s*\n?`)
+	staticDescRe       = regexp.MustCompile(`(?i)\s*<meta\s+name="description"[^>]*/?>\s*\n?`)
+	staticCanonicalRe  = regexp.MustCompile(`(?i)\s*<link\s+rel="canonical"[^>]*/?>\s*\n?`)
+	staticAlternateRe  = regexp.MustCompile(`(?i)\s*<link\s+rel="alternate"\s+type="application/ld\+json"[^>]*/?>\s*\n?`)
+)
+
+func stripExistingShareMeta(doc []byte) []byte {
+	doc = staticOGRe.ReplaceAll(doc, []byte("\n"))
+	doc = staticTwitterRe.ReplaceAll(doc, []byte("\n"))
+	doc = staticDescRe.ReplaceAll(doc, []byte("\n"))
+	doc = staticCanonicalRe.ReplaceAll(doc, []byte("\n"))
+	doc = staticAlternateRe.ReplaceAll(doc, []byte("\n"))
+	return doc
 }
 
 type shareHeadFields struct {

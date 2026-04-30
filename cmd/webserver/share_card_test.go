@@ -168,6 +168,28 @@ func TestDecorateIndexForShare(t *testing.T) {
 		}
 	})
 
+	t.Run("strips existing og/twitter tags", func(t *testing.T) {
+		staticHTML := []byte(`<!DOCTYPE html><html><head>` +
+			`<title>pflow</title>` +
+			`<meta property="og:title" content="static title"/>` +
+			`<meta name="twitter:image" content="https://example.com/static.png"/>` +
+			`<meta name="description" content="static desc"/>` +
+			`<link rel="canonical" href="https://pflow.xyz"/>` +
+			`</head><body></body></html>`)
+		r := httptest.NewRequest("GET", "/?cid="+sampleCID, nil)
+		r.Host = "pflow.xyz"
+		out := srv.decorateIndexForShare(r, staticHTML)
+		s := string(out)
+		// Static values must be gone.
+		if strings.Contains(s, `static title`) || strings.Contains(s, `static.png`) || strings.Contains(s, `static desc`) {
+			t.Errorf("static share tags leaked through:\n%s", s)
+		}
+		// New ones must be present.
+		if !strings.Contains(s, `/share-card/`+sampleCID+`.png`) {
+			t.Errorf("dynamic card missing")
+		}
+	})
+
 	t.Run("untouched when no cid", func(t *testing.T) {
 		r := httptest.NewRequest("GET", "/", nil)
 		out := srv.decorateIndexForShare(r, indexHTML)
