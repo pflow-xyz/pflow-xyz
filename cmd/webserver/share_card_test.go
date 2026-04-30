@@ -47,7 +47,7 @@ func TestRenderShareCardSVG(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	summary := summarizeCard(p, sampleCID, "https://pflow.xyz")
+	summary := summarizeCard(p, sampleCID, "https://pflow.xyz", "")
 	if summary.PlaceCount == 0 || summary.TransitionCount == 0 {
 		t.Fatalf("expected non-empty net, got %+v", summary)
 	}
@@ -67,8 +67,9 @@ func TestRenderShareCardSVG(t *testing.T) {
 			t.Errorf("svg missing %q", want)
 		}
 	}
-	if !strings.Contains(s, "/?cid=") {
-		t.Errorf("svg missing share URL fragment")
+	// CID prefix appears in the displayURL label under the QR.
+	if !strings.Contains(s, sampleCID[:6]) {
+		t.Errorf("svg missing CID label")
 	}
 }
 
@@ -78,7 +79,7 @@ func TestRenderShareCardPNG(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	summary := summarizeCard(p, sampleCID, "https://pflow.xyz")
+	summary := summarizeCard(p, sampleCID, "https://pflow.xyz", "")
 	out, err := renderShareCardPNG(summary, p)
 	if err != nil {
 		t.Fatal(err)

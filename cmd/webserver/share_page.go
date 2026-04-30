@@ -38,9 +38,16 @@ func (s *Server) decorateIndexForShare(r *http.Request, indexHTML []byte) []byte
 		return indexHTML
 	}
 	origin := schemeHost(r)
-	summary := summarizeCard(p, cid, origin)
+	titleOverride := r.URL.Query().Get("title")
+	summary := summarizeCard(p, cid, origin, titleOverride)
+	// Card asset URLs preserve the title override so the rendered
+	// card matches the labelled link.
 	cardPNG := fmt.Sprintf("%s/share-card/%s.png", origin, cid)
 	cardSVG := fmt.Sprintf("%s/share-card/%s.svg", origin, cid)
+	if t := strings.TrimSpace(titleOverride); t != "" {
+		cardPNG += "?title=" + queryEscape(t)
+		cardSVG += "?title=" + queryEscape(t)
+	}
 	desc := summary.Subtitle
 	if d := strings.TrimSpace(p.Description); d != "" {
 		if len(d) > 200 {

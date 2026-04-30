@@ -18,7 +18,7 @@ func TestSampleOutput(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	summary := summarizeCard(p, sampleCID, "https://pflow.xyz")
+	summary := summarizeCard(p, sampleCID, "https://pflow.xyz", "")
 	svgOut := renderShareCardSVG(summary, "")
 	if err := os.WriteFile(dir+"/share-card.svg", svgOut, 0644); err != nil {
 		t.Fatal(err)

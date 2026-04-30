@@ -94,8 +94,18 @@ func parseCardPayload(raw []byte) (cardPayload, error) {
 	return p, nil
 }
 
-func summarizeCard(p cardPayload, cid, origin string) cardSummary {
-	title := strings.TrimSpace(p.Name)
+// summarizeCard projects a payload + an optional URL-supplied title
+// override into the card-ready summary. titleOverride wins over the
+// payload's name field, which wins over the "Petri Net" fallback.
+// The override is needed because saved CIDs are immutable — the
+// landing-page examples have no name field embedded but the page
+// knows them ("Tic-Tac-Toe", "Coffee Shop", …) and can pass the
+// label through ?title=.
+func summarizeCard(p cardPayload, cid, origin, titleOverride string) cardSummary {
+	title := strings.TrimSpace(titleOverride)
+	if title == "" {
+		title = strings.TrimSpace(p.Name)
+	}
 	if title == "" {
 		title = "Petri Net"
 	}
@@ -118,9 +128,42 @@ func summarizeCard(p cardPayload, cid, origin string) cardSummary {
 		TransitionCount: len(p.Transitions),
 		ArcCount:        len(p.Arcs),
 		TokenColors:     tokens,
-		ShareURL:        fmt.Sprintf("%s/?cid=%s", origin, cid),
+		ShareURL:        buildShareURL(origin, cid, titleOverride),
 		CID:             cid,
 	}
+}
+
+// buildShareURL preserves the title override in the canonical share
+// URL so a scanned QR / clicked link reproduces the same labelled
+// card on the landing page.
+func buildShareURL(origin, cid, titleOverride string) string {
+	u := fmt.Sprintf("%s/?cid=%s", origin, cid)
+	if t := strings.TrimSpace(titleOverride); t != "" {
+		u += "&title=" + queryEscape(t)
+	}
+	return u
+}
+
+func queryEscape(s string) string {
+	// URL.QueryEscape but without importing net/url here — the inputs
+	// are short titles so a small percent-encode loop is enough.
+	const hex = "0123456789ABCDEF"
+	var b strings.Builder
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		switch {
+		case c >= 'A' && c <= 'Z', c >= 'a' && c <= 'z', c >= '0' && c <= '9',
+			c == '-', c == '_', c == '.', c == '~':
+			b.WriteByte(c)
+		case c == ' ':
+			b.WriteByte('+')
+		default:
+			b.WriteByte('%')
+			b.WriteByte(hex[c>>4])
+			b.WriteByte(hex[c&0x0F])
+		}
+	}
+	return b.String()
 }
 
 // tokenColorHex resolves a token URL or bare hex to a #rrggbb string.
@@ -233,8 +276,9 @@ func renderShareCardSVG(s cardSummary, netSVG string) []byte {
 		swatchX -= 28
 		fmt.Fprintf(&buf, `<circle cx="%.0f" cy="180" r="10" fill="%s" stroke="#444" stroke-width="1"/>`, swatchX, s.TokenColors[i])
 	}
-	// Net panel (white card)
-	const panelX, panelY, panelW, panelH = 48, 220, 820, 360
+	// Net panel (white card) — left/center, with the QR + URL as a
+	// dedicated column on the right so neither overlaps the diagram.
+	const panelX, panelY, panelW, panelH = 48, 220, 760, 340
 	fmt.Fprintf(&buf, `<rect x="%d" y="%d" width="%d" height="%d" rx="8" class="panel"/>`, panelX, panelY, panelW, panelH)
 	// Embed the net SVG by stripping its <svg ...> wrapper and rewrapping
 	// in a positioned <svg>. The inner content is otherwise opaque to us.
@@ -245,19 +289,19 @@ func renderShareCardSVG(s cardSummary, netSVG string) []byte {
 		buf.WriteString(inner)
 		buf.WriteString(`</svg>`)
 	}
-	// "PETRI NET" tag bottom-left
-	buf.WriteString(`<text class="tag" x="48" y="608">PETRI NET · DRAW · GENERATE · PROVE</text>`)
-	// QR + URL (bottom-right corner)
-	const qrSize = 140
+	// QR column (right of panel).
+	const qrSize = 180
 	qrX := W - qrSize - 48
-	qrY := H - qrSize - 48
+	qrY := panelY + (panelH-qrSize)/2 - 18
 	qrSVG := qrCodeSVG(s.ShareURL, qrSize)
 	if qrSVG != "" {
 		fmt.Fprintf(&buf, `<g transform="translate(%d %d)">%s</g>`, qrX, qrY, qrSVG)
 	}
-	// Share URL above QR
-	fmt.Fprintf(&buf, `<text class="url" x="%d" y="%d" text-anchor="end">%s</text>`,
-		W-48-qrSize-16, H-48-qrSize/2, svgEscape(displayURL(s.ShareURL)))
+	// Share URL centered under QR.
+	fmt.Fprintf(&buf, `<text class="url" x="%d" y="%d" text-anchor="middle">%s</text>`,
+		qrX+qrSize/2, qrY+qrSize+28, svgEscape(displayURL(s.ShareURL)))
+	// "PETRI NET" tag bottom-left
+	buf.WriteString(`<text class="tag" x="48" y="608">PETRI NET · DRAW · GENERATE · PROVE</text>`)
 	buf.WriteString(`</svg>`)
 	return buf.Bytes()
 }
@@ -322,13 +366,23 @@ func svgEscape(s string) string {
 	return r.Replace(s)
 }
 
+// displayURL builds the short label printed under the QR. CIDs are
+// 49 chars on their own and don't fit at any reasonable font size,
+// so we render "host · z4EB…uBL" — first/last fragments of the CID
+// with an ellipsis in the middle. The QR carries the full URL so
+// the label is purely human-orientation.
 func displayURL(u string) string {
 	u = strings.TrimPrefix(u, "https://")
 	u = strings.TrimPrefix(u, "http://")
-	if len(u) > 50 {
-		u = u[:47] + "…"
+	host, query, _ := strings.Cut(u, "/?cid=")
+	if query == "" {
+		return u
 	}
-	return u
+	cid, _, _ := strings.Cut(query, "&")
+	if len(cid) > 14 {
+		cid = cid[:6] + "…" + cid[len(cid)-5:]
+	}
+	return host + " · " + cid
 }
 
 // --- PNG card -----------------------------------------------------
@@ -407,8 +461,10 @@ func renderShareCardPNG(s cardSummary, p cardPayload) ([]byte, error) {
 		dc.Stroke()
 	}
 
-	// Net panel
-	const panelX, panelY, panelW, panelH = 48.0, 220.0, 820.0, 360.0
+	// Net panel — left/center, narrower so the QR column on the right
+	// has its own dedicated space (was: panel ran the full width and
+	// the QR overlapped the diagram).
+	const panelX, panelY, panelW, panelH = 48.0, 220.0, 760.0, 340.0
 	dc.SetHexColor("#FFFFFF")
 	dc.DrawRoundedRectangle(panelX, panelY, panelW, panelH, 8)
 	dc.Fill()
@@ -423,19 +479,19 @@ func renderShareCardPNG(s cardSummary, p cardPayload) ([]byte, error) {
 		dc.DrawString("PETRI NET · DRAW · GENERATE · PROVE", 48, 608)
 	}
 
-	// QR
-	const qrSize = 140
+	// QR column (right of panel).
+	const qrSize = 180
 	qrX := float64(W - qrSize - 48)
-	qrY := float64(H - qrSize - 48)
+	qrY := panelY + (panelH-qrSize)/2 - 18
 	if img, err := qrImage(s.ShareURL, qrSize); err == nil && img != nil {
 		dc.DrawImage(img, int(qrX), int(qrY))
 	}
 
-	// Share URL line
-	if f, err := face(false, 20); err == nil {
+	// Share URL centered under QR
+	if f, err := face(false, 18); err == nil {
 		dc.SetFontFace(f)
 		dc.SetHexColor("#999999")
-		dc.DrawStringAnchored(displayURL(s.ShareURL), float64(W-48-qrSize-16), float64(H-48-qrSize/2), 1, 0.5)
+		dc.DrawStringAnchored(displayURL(s.ShareURL), qrX+qrSize/2, qrY+qrSize+22, 0.5, 0.5)
 	}
 
 	var out bytes.Buffer
@@ -589,7 +645,7 @@ func shareCardHandler(storage Storage, originFunc func(*http.Request) string) ht
 			http.Error(w, "invalid payload", http.StatusBadRequest)
 			return
 		}
-		summary := summarizeCard(p, cid, originFunc(r))
+		summary := summarizeCard(p, cid, originFunc(r), r.URL.Query().Get("title"))
 		w.Header().Set("Cache-Control", "public, max-age=3600")
 		if isSVG {
 			netSVG, _ := svg.GenerateSVG(raw)
