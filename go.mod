@@ -1,13 +1,16 @@
 module github.com/pflow-xyz/pflow-xyz
 
-go 1.24.9
+go 1.25.0
 
 require (
 	github.com/ethereum/go-ethereum v1.16.5
+	github.com/fogleman/gg v1.3.0
 	github.com/ipfs/go-cid v0.6.0
 	github.com/multiformats/go-multibase v0.2.0
 	github.com/multiformats/go-multihash v0.2.3
 	github.com/piprate/json-gold v0.7.0
+	github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e
+	golang.org/x/image v0.39.0
 )
 
 require (
@@ -20,6 +23,7 @@ require (
 	github.com/ethereum/c-kzg-4844/v2 v2.1.3 // indirect
 	github.com/ethereum/go-verkle v0.2.2 // indirect
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
+	github.com/golang/freetype v0.0.0-20170609003504-e2365dfdc4a0 // indirect
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/holiman/uint256 v1.3.2 // indirect
 	github.com/klauspost/cpuid/v2 v2.0.9 // indirect
@@ -32,7 +36,8 @@ require (
 	github.com/spaolacci/murmur3 v1.1.0 // indirect
 	github.com/supranational/blst v0.3.16-0.20250831170142-f48500c1fdbe // indirect
 	golang.org/x/crypto v0.37.0 // indirect
-	golang.org/x/sync v0.13.0 // indirect
+	golang.org/x/sync v0.20.0 // indirect
 	golang.org/x/sys v0.36.0 // indirect
+	golang.org/x/text v0.36.0 // indirect
 	lukechampine.com/blake3 v1.1.6 // indirect
 )

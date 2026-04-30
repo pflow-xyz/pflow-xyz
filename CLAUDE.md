@@ -67,6 +67,9 @@ examples/                # Example Petri nets in JSON-LD
 - `GET /img/{cid}.svg` - Generate SVG (optional `?layout=force-atlas-2|circular|hierarchical`)
 - `GET /schema` - JSON-LD context (HTML reference page when `Accept: text/html`)
 - `GET /tokens/{color}` - JSON-LD token type (HTML page when `Accept: text/html`); accepts CSS named colors and bare hex (e.g. `red`, `ff0000`, `red,blue`)
+- `GET /share-card/{cid}.svg` - 1200×630 social share card (vector) for the stored net
+- `GET /share-card/{cid}.png` - 1200×630 social share card (raster) — used as `og:image` because Twitter/Mastodon/Bluesky drop SVG og:images
+- `GET /?cid={cid}` - SPA shell, decorated with Open Graph / Twitter / JSON-LD `<head>` meta tags pointing at the share card (see `cmd/webserver/share_page.go`)
 
 Content negotiation for `/schema` and `/tokens/{color}` is implemented in `cmd/webserver/content_negotiation.go`. Browsers (Accept includes `text/html` ranked above JSON) get a styled dark-theme page; everything else (curl, no Accept, `*/*`) gets JSON-LD.
 

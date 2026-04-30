@@ -987,6 +987,12 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Social share cards: /share-card/{cid}.{svg,png}
+	if strings.HasPrefix(r.URL.Path, "/share-card/") {
+		shareCardHandler(s.storage, schemeHost).ServeHTTP(w, r)
+		return
+	}
+
 	// Object routes
 	if strings.HasPrefix(r.URL.Path, "/o/") {
 		if r.Method == http.MethodDelete {
@@ -1006,8 +1012,14 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				http.Error(w, "Not found", http.StatusNotFound)
 				return
 			}
+			data = s.decorateIndexForShare(r, data)
 			data = s.injectAnalytics(data)
 			w.Header().Set("Content-Type", "text/html")
+			// Short cache so unfurl bots don't thrash, but not immutable —
+			// a re-deployed card template should propagate within minutes.
+			if r.URL.Query().Get("cid") != "" {
+				w.Header().Set("Cache-Control", "public, max-age=300")
+			}
 			w.Write(data)
 			return
 		}
