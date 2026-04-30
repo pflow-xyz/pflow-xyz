@@ -35,3 +35,7 @@ tmp/
 
 # Dev screenshots
 *.png
+
+# Local scratch
+PLAN.md
+/out
