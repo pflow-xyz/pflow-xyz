@@ -216,7 +216,13 @@ func runDeploySync() (string, error) {
 		return nil
 	}
 
-	if err := run(projectDir, "git pull", "git", "pull", "--ff-only"); err != nil {
+	if err := run(projectDir, "git fetch", "git", "fetch", "origin", "main"); err != nil {
+		return buf.String(), err
+	}
+	if err := run(projectDir, "verify signature", "git", "verify-commit", "origin/main"); err != nil {
+		return buf.String(), fmt.Errorf("refusing to deploy unsigned/untrusted HEAD: %w", err)
+	}
+	if err := run(projectDir, "fast-forward", "git", "merge", "--ff-only", "origin/main"); err != nil {
 		return buf.String(), err
 	}
 
