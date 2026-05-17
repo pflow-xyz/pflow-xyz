@@ -930,6 +930,12 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Prometheus metrics, scraped by the Datadog agent on pflow.dev.
+	if r.URL.Path == "/metrics" && r.Method == "GET" {
+		handleMetrics(w, r)
+		return
+	}
+
 	// Deploy endpoints (no auth required, self-authenticated)
 	if r.URL.Path == "/webhook/github" && r.Method == "POST" {
 		handleWebhook(w, r)
