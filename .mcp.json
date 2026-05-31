@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "pflow-pilot": {
+      "type": "http",
+      "url": "https://pilot.pflow.xyz/mcp"
+    }
+  }
+}
