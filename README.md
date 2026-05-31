@@ -113,7 +113,11 @@ const sol = Solver.solve(prob, Solver.Tsit5(), { dt: 0.01 });
 
 ## AI-Assisted Development (MCP)
 
-[petri-pilot](https://github.com/pflow-xyz/petri-pilot) provides an MCP server for AI assistants to design models and generate apps.
+[petri-pilot](https://github.com/pflow-xyz/petri-pilot) provides an MCP server for AI assistants to design models and generate apps. This repo ships a `.mcp.json` pointing at the hosted server, so Claude Code picks it up automatically (in the terminal and on the web). To add it to other clients:
+
+```bash
+claude mcp add --transport http petri-pilot https://pilot.pflow.xyz/mcp
+```
 
 | Tool | Description |
 |------|-------------|
