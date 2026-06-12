@@ -64,6 +64,10 @@
       "@id": "https://pflow.xyz/schema#weight",
       "@container": "@list"
     },
+    "parents": {
+      "@id": "https://pflow.xyz/schema#parents",
+      "@container": "@list"
+    },
     "arcType": {
       "@id": "https://pflow.xyz/schema#arcType",
       "@type": "http://www.w3.org/2001/XMLSchema#string"

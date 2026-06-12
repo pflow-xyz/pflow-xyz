@@ -58,6 +58,14 @@ func initCachingLoader() {
 					"@id":        "https://pflow.xyz/schema#initial",
 					"@container": "@list",
 				},
+				// parents: provenance chain of parent CIDs this net derives from.
+				// Ordered (@list, newest-first) so lineage order is part of the
+				// content identity — mirrors beats-bitwrap-io's `parents` field.
+				// Not the top-level @id, so it IS included in the CID.
+				"parents": map[string]interface{}{
+					"@id":        "https://pflow.xyz/schema#parents",
+					"@container": "@list",
+				},
 				"offset": "https://pflow.xyz/schema#offset",
 				"x":      "https://pflow.xyz/schema#x",
 				"y":      "https://pflow.xyz/schema#y",
@@ -85,6 +93,16 @@ func SealJSONLD(raw []byte) (string, []byte, error) {
 	var doc interface{}
 	if err := json.Unmarshal(raw, &doc); err != nil {
 		return "", nil, err
+	}
+
+	// Remove the top-level "@id" before canonicalization. A net's @id is
+	// self-referential (it equals this CID), so including it in its own
+	// preimage would be circular and non-idempotent — re-sealing a stored
+	// doc that carries @id would yield a different CID. Stripping it makes
+	// the CID depend only on the net's content and keeps Go in lockstep with
+	// the JS editor (public/seal-cid.js), which strips @id identically.
+	if m, ok := doc.(map[string]interface{}); ok {
+		delete(m, "@id")
 	}
 
 	// prepare processor and options

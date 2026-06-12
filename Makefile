@@ -1,4 +1,4 @@
-.PHONY: all build run clean test test-js
+.PHONY: all build run clean test test-js test-parity
 
 # Build the webserver
 build:
@@ -22,12 +22,20 @@ clean:
 	@echo "Clean complete"
 
 # Run tests
-test: test-js
+test: test-js test-parity
 	@go test ./...
 
 # Run JavaScript tests
 test-js:
 	@deno test public/petri-sim_test.ts
+
+# Cross-language CID parity: Go seal (internal/seal) vs JS seal (public/seal-cid.js)
+# against the shared golden fixtures in parity/. Fails the build on any divergence.
+# parity_check.mjs runs under node or deno; node is used here for portability.
+test-parity:
+	@echo "Parity: Go seal vs JS seal-cid.js (parity/golden.json)..."
+	@go test ./internal/seal/ -count=1
+	@node parity/parity_check.mjs
 
 # Build and run with custom port
 run-dev: build

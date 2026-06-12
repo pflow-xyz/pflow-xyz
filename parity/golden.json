@@ -1,0 +1,8 @@
+{
+  "_comment": "Cross-language CID contract. Both internal/seal (Go) and public/seal-cid.js (JS) MUST reproduce these CIDs for the matching fixture in parity/fixtures/. Enforced by `make test-parity`. CIDs are CIDv1 dag-json / sha2-256 / base58btc over the @id-stripped URDNA2015 N-Quads. Regenerate with: go run ./cmd/cidprobe parity/fixtures/*.jsonld",
+  "coffee-shop.jsonld": "z4EBG9jDsuUdvVN4bUXRHxoDG3p274FfhcJd8BiruRcE1jLCHi8",
+  "knapsack.jsonld": "z4EBG9jAJRwz8xUfq4ELvGPvUNfD13DqHERooMvJaqkb8bUHKaQ",
+  "net-a.jsonld": "z4EBG9jGDZ27fhNuuxmc1HpUZRKZtCrfHzCTP8h4stbsA6u24Qx",
+  "net-b.jsonld": "z4EBG9j4KsBV5WWdHXkpBM6jKMEm13ZiW53oXY5BpYxi2SxWAJj",
+  "with-parents.jsonld": "z4EBG9j8Y5JUjbd6ZiaG9DkTSHHFf8tiNTUat5coaYBXVVVEngB"
+}

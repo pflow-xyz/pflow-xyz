@@ -1,4 +1,5 @@
 import * as Sim from './petri-sim.js';
+import {computeCid} from './seal-cid.mjs';
 
 // Mode capabilities - defines what actions each tool mode allows
 const MODE_CAPS = {
@@ -48,8 +49,6 @@ const MODE_CAPS = {
 };
 
 class PetriView extends HTMLElement {
-    // Base58 alphabet for base58btc encoding
-    _base58Alphabet = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
 
     constructor() {
         super();
@@ -589,110 +588,18 @@ class PetriView extends HTMLElement {
         this._aceEditorContainer = editorWrapper;
     }
 
-    // Encode bytes to base58btc
-    _encodeBase58(bytes) {
-        const alphabet = this._base58Alphabet;
-        let num = 0n;
-
-        // Convert bytes to big integer
-        for (let i = 0; i < bytes.length; i++) {
-            num = num * 256n + BigInt(bytes[i]);
-        }
-
-        // Convert to base58
-        let encoded = '';
-        while (num > 0n) {
-            const remainder = num % 58n;
-            num = num / 58n;
-            encoded = alphabet[Number(remainder)] + encoded;
-        }
-
-        // Add leading 1s for leading zero bytes
-        for (let i = 0; i < bytes.length && bytes[i] === 0; i++) {
-            encoded = '1' + encoded;
-        }
-
-        return encoded;
-    }
-
-    // Compute SHA256 hash using Web Crypto API
-    async _sha256(data) {
-        const encoder = new TextEncoder();
-        const bytes = typeof data === 'string' ? encoder.encode(data) : data;
-        const hashBuffer = await crypto.subtle.digest('SHA-256', bytes);
-        return new Uint8Array(hashBuffer);
-    }
-
-    // Create CIDv1 bytes with multicodec and multihash
-    _createCIDv1Bytes(codec, hash) {
-        // CIDv1 format: <version><codec><multihash>
-        // version = 0x01
-        // codec = 0x0129 (dag-json) = [0x01, 0x29] in varint encoding
-        // multihash = <hash-type><hash-length><hash-bytes>
-        //   hash-type = 0x12 (sha2-256)
-        //   hash-length = 0x20 (32 bytes)
-
-        const version = 0x01;
-        const codecBytes = codec === 0x0129 ? [0x01, 0x29] : [codec];
-        const hashType = 0x12; // sha2-256
-        const hashLength = hash.length;
-
-        const cidBytes = new Uint8Array(1 + codecBytes.length + 2 + hash.length);
-        let offset = 0;
-
-        cidBytes[offset++] = version;
-        for (const b of codecBytes) {
-            cidBytes[offset++] = b;
-        }
-        cidBytes[offset++] = hashType;
-        cidBytes[offset++] = hashLength;
-        for (let i = 0; i < hash.length; i++) {
-            cidBytes[offset++] = hash[i];
-        }
-
-        return cidBytes;
-    }
-
-    // Canonicalize JSON document to deterministic string
-    _canonicalizeJSON(doc) {
-        // Simple canonical JSON serialization
-        // Sort object keys recursively and use consistent formatting
-        const canonicalize = (obj) => {
-            if (obj === null || typeof obj !== 'object') {
-                return JSON.stringify(obj);
-            }
-
-            if (Array.isArray(obj)) {
-                return '[' + obj.map(item => canonicalize(item)).join(',') + ']';
-            }
-
-            // Sort keys and build object
-            const keys = Object.keys(obj).sort();
-            const pairs = keys.map(key => {
-                return JSON.stringify(key) + ':' + canonicalize(obj[key]);
-            });
-            return '{' + pairs.join(',') + '}';
-        };
-
-        return canonicalize(doc);
-    }
-
-    // Compute CID for a JSON-LD document
+    // Compute the canonical CIDv1 for a JSON-LD document.
+    //
+    // Delegates to the shared seal-cid module (public/seal-cid.mjs) so the editor
+    // and the Go server (internal/seal.SealJSONLD) produce byte-identical CIDs.
+    // This replaced an inline implementation that (a) canonicalized via naive
+    // key-sorting instead of URDNA2015 and (b) mis-encoded the dag-json codec
+    // varint as [0x01,0x29] instead of [0xA9,0x02] — both of which made the
+    // editor's CID disagree with the stored CID. Parity is now enforced by
+    // `make test-parity` (parity/golden.json). computeCid() strips the top-level
+    // @id itself, so callers may pass the full document.
     async _computeCidForJsonLd(doc) {
-        // 1. Canonicalize the JSON document
-        const canonical = this._canonicalizeJSON(doc);
-
-        // 2. Compute SHA256 hash
-        const hash = await this._sha256(canonical);
-
-        // 3. Create CIDv1 with dag-json codec (0x0129)
-        const cidBytes = this._createCIDv1Bytes(0x0129, hash);
-
-        // 4. Encode as base58btc (prepend 'z' for base58btc multibase)
-        const base58 = this._encodeBase58(cidBytes);
-        const cid = 'z' + base58;
-
-        return cid;
+        return computeCid(doc);
     }
 
     // Validate if the given document is valid JSON-LD

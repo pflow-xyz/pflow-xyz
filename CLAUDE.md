@@ -113,6 +113,26 @@ Frontend testing via `public/test-solver.html` for the ODE solver.
 - Storage paths use sanitized CID strings
 - Objects are immutable once stored
 
+**JS/Go CID parity (enforced).** The browser editor and the Go server must
+produce byte-identical CIDs. Both compute `CIDv1(dag-json, sha2-256, base58btc)`
+over the **`@id`-stripped** URDNA2015 N-Quads (the top-level `@id` is the CID
+itself, so it's excluded from its own preimage — this makes CIDs idempotent).
+- Go: `internal/seal/seal.go` (strips `@id`, uses `piprate/json-gold`).
+- JS: `public/seal-cid.mjs` — the single source of truth, imported by
+  `petri-view.js`. Uses a vendored `jsonld` ESM bundle at
+  `public/vendor/jsonld.bundle.mjs` (regenerate with
+  `esbuild jsonld --bundle --format=esm --platform=browser --banner:js='globalThis.self ??= globalThis;'`).
+- **Lineage:** a `parents` field (ordered, `@container:@list`, newest-first array of
+  parent CID strings) carries provenance — mirrors beats-bitwrap-io. It is **not**
+  the top-level `@id`, so it IS part of the CID, and because it's a list its order
+  is significant. Adding a context term means updating BOTH CID contexts
+  (`seal.go` + `seal-cid.mjs`) and `public/schema` in lockstep.
+- Contract is locked by `make test-parity`: shared fixtures in `parity/fixtures/`
+  + golden CIDs in `parity/golden.json`, checked from Go
+  (`internal/seal/parity_test.go`) and JS (`parity/parity_check.mjs`). Any
+  divergence fails the build. Regenerate goldens with
+  `go run ./cmd/cidprobe parity/fixtures/*.jsonld`.
+
 ## Architecture Notes
 
 - Backend embeds `public/` directory at compile time via `internal/static/`
