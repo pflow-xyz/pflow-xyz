@@ -29,11 +29,11 @@ test: test-js test-parity
 test-js:
 	@deno test public/petri-sim_test.ts
 
-# Cross-language CID parity: Go seal (internal/seal) vs JS seal (public/seal-cid.js)
+# Cross-language CID parity: Go seal (internal/seal) vs JS seal (public/seal-cid.mjs)
 # against the shared golden fixtures in parity/. Fails the build on any divergence.
 # parity_check.mjs runs under node or deno; node is used here for portability.
 test-parity:
-	@echo "Parity: Go seal vs JS seal-cid.js (parity/golden.json)..."
+	@echo "Parity: Go seal vs JS seal-cid.mjs (parity/golden.json)..."
 	@go test ./internal/seal/ -count=1
 	@node parity/parity_check.mjs
 
