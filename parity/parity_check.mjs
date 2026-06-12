@@ -1,6 +1,6 @@
 // parity_check.mjs — JS side of the JS/Go CID parity contract.
 //
-// Asserts that public/seal-cid.js (the same module the browser editor uses)
+// Asserts that public/seal-cid.mjs (the same module the browser editor uses)
 // reproduces every CID in parity/golden.json for the matching fixture. The Go
 // side checks the identical fixtures/golden in internal/seal/parity_test.go.
 // Green on both => the JS and Go CID pipelines agree byte-for-byte.
