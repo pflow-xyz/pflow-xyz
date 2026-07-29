@@ -22,12 +22,21 @@ clean:
 	@echo "Clean complete"
 
 # Run tests
-test: test-js test-parity
+test: test-js test-parity test-parity-behavior
 	@go test ./...
 
 # Run JavaScript tests
 test-js:
 	@deno test public/petri-sim_test.ts
+
+# Cross-language behavioral parity: go-pflow engines vs the browser's JS engines.
+# sim: lockstep discrete-firing walks over 200 seeded random models
+#      (public/petri-sim.js vs go-pflow reachability)
+# ode: Tsit5 trajectory agreement on fixed fixtures
+#      (public/petri-solver.js vs go-pflow solver)
+test-parity-behavior:
+	@echo "Parity: petri-sim.js / petri-solver.js vs go-pflow..."
+	@go test ./parity/sim/ ./parity/ode/ -count=1
 
 # Cross-language CID parity: Go seal (internal/seal) vs JS seal (public/seal-cid.mjs)
 # against the shared golden fixtures in parity/. Fails the build on any divergence.

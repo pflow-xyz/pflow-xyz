@@ -133,6 +133,27 @@ itself, so it's excluded from its own preimage — this makes CIDs idempotent).
   divergence fails the build. Regenerate goldens with
   `go run ./cmd/cidprobe parity/fixtures/*.jsonld`.
 
+**JS/Go behavioral parity (enforced).** Beyond CIDs, the browser's simulation
+engines and go-pflow must produce identical *behavior* from identical models —
+this is what makes an analysis result from go-pflow trustworthy for a net built
+in this editor. Locked by `make test-parity-behavior` (`parity/sim/` and
+`parity/ode/`, both need `node`):
+- **Discrete firing** (`parity/sim`): 200 seeded random models walked in
+  lockstep — fire the lexicographically smallest enabled transition — comparing
+  enabled sets and markings at every step between `public/petri-sim.js` and
+  go-pflow's reachability engine. The shared rules: weighted inhibitors disable
+  at tokens >= weight; output-side inhibitors are test arcs (require tokens >=
+  weight, move nothing); capacities are enforced with same-firing consumption
+  netted and production aggregated per place; multiple input arcs from one
+  place require the sum of their weights. Token colors are out of scope (JS is
+  per-color, go-pflow sums to scalars — a known representational gap).
+- **ODE** (`parity/ode`): fixed fixtures integrated by `public/petri-solver.js`
+  and go-pflow's Tsit5 with shared default options; final states agree to
+  ~1e-15 (the implementations are step-for-step identical), asserted at 1e-6.
+- Changing firing semantics on either side means changing BOTH engines and
+  their tests in lockstep — the differential fails otherwise. go-pflow's side
+  of the contract is pinned by Go-native tests in its reachability package.
+
 ## Architecture Notes
 
 - Backend embeds `public/` directory at compile time via `internal/static/`
