@@ -17,7 +17,7 @@ import {
 function model(
     places: Record<string, { initial?: number[]; capacity?: number[] }>,
     transitions: Record<string, Record<string, unknown>>,
-    arcs: Array<{ source: string; target: string; weight?: number[]; inhibitTransition?: boolean }>,
+    arcs: Array<{ source: string; target: string; weight?: number | number[]; inhibitTransition?: boolean }>,
 ) {
     return { places, transitions, arcs };
 }
@@ -33,8 +33,13 @@ Deno.test("getArcWeight: scalar weight normalised to array", () => {
     assertEquals(getArcWeight({ weight: 3 }), [3]);
 });
 
-Deno.test("getArcWeight: array weight preserved, 0 becomes 1", () => {
-    assertEquals(getArcWeight({ weight: [2, 0, 5] }), [2, 1, 5]);
+Deno.test("getArcWeight: array weight preserves explicit zeros", () => {
+    // Changed for token-color support: a vector weight is a deliberate
+    // per-color specification, and a zero component means "this color is
+    // not involved". The old behavior coerced [2,0,5] to [2,1,5], which
+    // made a zero-weight color impossible to express and diverged from
+    // go-pflow's colored-net unfolding (see parity/sim).
+    assertEquals(getArcWeight({ weight: [2, 0, 5] }), [2, 0, 5]);
 });
 
 // --- capacityOf ---
@@ -211,35 +216,41 @@ Deno.test("inhibitor arc: allows when source place has fewer tokens than weight"
     assertEquals(enabled(m, "t1", marking(m)), true);
 });
 
-// --- weight-0 treated as weight-1 ---
+// --- weight defaults ---
+// Scalar weight 0 (and null/undefined) still defaults to 1; a VECTOR zero
+// component now means "color not involved" — see the token-color tests below.
 
-Deno.test("weight-0 arc: treated as weight 1, consumes token", () => {
-    // weight=0 is normalized to 1 (same as null/undefined)
+Deno.test("scalar weight-0 arc: treated as weight 1, consumes token", () => {
     const m = model(
         { p1: { initial: [5] }, p2: { initial: [0] } },
         { t1: {} },
         [
-            { source: "p1", target: "t1", weight: [0] }, // becomes weight 1
+            { source: "p1", target: "t1", weight: 0 }, // scalar: becomes weight 1
             { source: "t1", target: "p2", weight: [1] },
         ],
     );
     assertEquals(enabled(m, "t1", marking(m)), true);
     const result = fire(m, "t1", marking(m));
     assertNotEquals(result, null);
-    assertEquals(result!["p1"], [4]); // consumed 1 (weight 0 → 1)
+    assertEquals(result!["p1"], [4]); // consumed 1 (scalar 0 → 1)
     assertEquals(result!["p2"], [1]);
 });
 
-Deno.test("weight-0 arc: blocks when place is empty", () => {
+Deno.test("vector weight-0 arc: imposes nothing, moves nothing", () => {
     const m = model(
         { p1: { initial: [0] }, p2: { initial: [0] } },
         { t1: {} },
         [
-            { source: "p1", target: "t1", weight: [0] }, // becomes weight 1
+            { source: "p1", target: "t1", weight: [0] }, // vector zero: color not involved
             { source: "t1", target: "p2", weight: [1] },
         ],
     );
-    assertEquals(enabled(m, "t1", marking(m)), false);
+    // p1 empty is irrelevant: the [0] arc requires nothing.
+    assertEquals(enabled(m, "t1", marking(m)), true);
+    const result = fire(m, "t1", marking(m));
+    assertNotEquals(result, null);
+    assertEquals(result!["p1"], [0]); // untouched
+    assertEquals(result!["p2"], [1]);
 });
 
 // --- bounded buffer (producer-consumer) ---
@@ -351,4 +362,42 @@ Deno.test("fire: does not mutate the input marking", () => {
     const original = JSON.parse(JSON.stringify(marks));
     fire(m, "t1", marks);
     assertEquals(marks, original); // original untouched
+});
+
+Deno.test("vector weight preserves explicit zero components", () => {
+  // [0,2]: color 0 not involved. Only color 1 is required and moved.
+  const model = {
+    places: {
+      a: { initial: [0, 2] },
+      b: { initial: [0, 0] },
+    },
+    transitions: { t: {} },
+    arcs: [
+      { source: "a", target: "t", weight: [0, 2] },
+      { source: "t", target: "b", weight: [0, 1] },
+    ],
+  };
+  const marks = marking(model);
+  if (!enabled(model, "t", marks)) {
+    throw new Error("t must be enabled: color 1 has 2 >= 2, color 0 is not involved");
+  }
+  const next = fire(model, "t", marks);
+  if (next === null) throw new Error("fire failed");
+  if (next.a[0] !== 0 || next.a[1] !== 0 || next.b[1] !== 1) {
+    throw new Error(`wrong movement: a=${next.a} b=${next.b}`);
+  }
+});
+
+Deno.test("scalar weight 0 still defaults to 1", () => {
+  const model = {
+    places: { a: { initial: [1] }, b: { initial: [0] } },
+    transitions: { t: {} },
+    arcs: [
+      { source: "a", target: "t", weight: 0 },
+      { source: "t", target: "b", weight: 1 },
+    ],
+  };
+  const next = fire(model, "t", marking(model));
+  if (next === null) throw new Error("scalar-0 arc should behave as weight 1");
+  if (next.a[0] !== 0) throw new Error("should consume 1 token");
 });

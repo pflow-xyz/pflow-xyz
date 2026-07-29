@@ -9,7 +9,15 @@
 export function getArcWeight(arc) {
     if (arc.weight == null) return [1];
     if (!Array.isArray(arc.weight)) return [Number(arc.weight) || 1];
-    return arc.weight.map(w => Number(w) || 1);
+    // Vector weights preserve explicit zeros: a per-color vector is a
+    // deliberate specification, and [0,2] means "color 0 not involved" —
+    // the previous `|| 1` silently turned it into [1,2], making a
+    // zero-weight color impossible to express. (Scalar 0 still defaults to
+    // 1 above: a bare weight of 0 is a degenerate "unspecified".)
+    return arc.weight.map(w => {
+        const n = Number(w);
+        return Number.isFinite(n) ? n : 1;
+    });
 }
 
 /**

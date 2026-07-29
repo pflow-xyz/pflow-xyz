@@ -145,8 +145,13 @@ in this editor. Locked by `make test-parity-behavior` (`parity/sim/` and
   at tokens >= weight; output-side inhibitors are test arcs (require tokens >=
   weight, move nothing); capacities are enforced with same-firing consumption
   netted and production aggregated per place; multiple input arcs from one
-  place require the sum of their weights. Token colors are out of scope (JS is
-  per-color, go-pflow sums to scalars — a known representational gap).
+  place require the sum of their weights. Token colors ARE covered: ~1/3 of
+  models use two-color vectors, which go-pflow analyzes via petri.ExpandColors
+  (colored-net unfolding) and this side natively; vector weight components
+  preserve explicit zeros ("color not involved"), while a scalar weight of 0
+  still defaults to 1. The engines are contracted to agree on LEGAL states —
+  initial markings above a declared capacity are malformed (go-pflow
+  validation rejects them) and excluded from generation.
 - **ODE** (`parity/ode`): fixed fixtures integrated by `public/petri-solver.js`
   and go-pflow's Tsit5 with shared default options; final states agree to
   ~1e-15 (the implementations are step-for-step identical), asserted at 1e-6.

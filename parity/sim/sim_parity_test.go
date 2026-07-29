@@ -10,10 +10,10 @@
 // a semantic difference between the two engines, not test noise.
 //
 // The generator covers weights above 1, weighted input inhibitors, output-side
-// inhibitors (test arcs), and place capacities. Token COLORS are deliberately
-// out of scope: petri-sim.js is component-wise per color while go-pflow's
-// discrete engine sums color vectors into scalar markings — a known
-// representational gap, not something a test can reconcile.
+// inhibitors (test arcs), place capacities, and two-color token vectors.
+// go-pflow analyses colored nets via petri.ExpandColors (the standard
+// colored-net unfolding), so its per-color semantics are compared here
+// against petri-sim.js's native component-wise rules.
 package sim_test
 
 import (
@@ -27,6 +27,7 @@ import (
 	"testing"
 
 	"github.com/pflow-xyz/go-pflow/parser"
+	"github.com/pflow-xyz/go-pflow/petri"
 	"github.com/pflow-xyz/go-pflow/reachability"
 )
 
@@ -43,8 +44,11 @@ type jsonModel struct {
 }
 
 type jsonPlace struct {
-	Initial  float64 `json:"initial"`
-	Capacity float64 `json:"capacity,omitempty"`
+	// Initial and Capacity are scalars on single-color models and vectors
+	// (one component per token color) on multi-color ones — the same duality
+	// the pflow.xyz JSON format allows.
+	Initial  any     `json:"initial"`
+	Capacity any     `json:"capacity,omitempty"`
 	X        float64 `json:"x"`
 	Y        float64 `json:"y"`
 }
@@ -55,10 +59,10 @@ type jsonTransition struct {
 }
 
 type jsonArc struct {
-	Source            string  `json:"source"`
-	Target            string  `json:"target"`
-	Weight            float64 `json:"weight"`
-	InhibitTransition bool    `json:"inhibitTransition,omitempty"`
+	Source            string `json:"source"`
+	Target            string `json:"target"`
+	Weight            any    `json:"weight"`
+	InhibitTransition bool   `json:"inhibitTransition,omitempty"`
 }
 
 type step struct {
@@ -72,11 +76,40 @@ type modelTrace struct {
 	Steps []step `json:"steps"`
 }
 
-// generate builds a random single-color model exercising the dimensions the
-// two engines could disagree on.
+// scalarOrVec renders a per-color slice in the model JSON's dual form:
+// scalar for single-color, vector otherwise.
+func scalarOrVec(v []float64) any {
+	if len(v) == 1 {
+		return v[0]
+	}
+	return v
+}
+
+// generate builds a random model exercising the dimensions the two engines
+// could disagree on. Roughly a third of models use two token colors — the JS
+// engine is component-wise per color, and go-pflow reproduces that via
+// petri.ExpandColors (the colored-net unfolding).
 func generate(r *rand.Rand) jsonModel {
 	np := 2 + r.Intn(4)
 	nt := 1 + r.Intn(4)
+
+	colors := 1
+	if r.Intn(3) == 0 {
+		colors = 2
+	}
+
+	// weights: at least one color must be non-zero or the arc is a no-op on
+	// both sides; allow zero components on multi-color arcs.
+	weight := func() any {
+		if colors == 1 {
+			return float64(1 + r.Intn(3))
+		}
+		out := []float64{float64(r.Intn(3)), float64(r.Intn(3))}
+		if out[0] == 0 && out[1] == 0 {
+			out[r.Intn(2)] = 1
+		}
+		return out
+	}
 
 	m := jsonModel{
 		Places:      map[string]jsonPlace{},
@@ -84,9 +117,30 @@ func generate(r *rand.Rand) jsonModel {
 	}
 
 	for i := 0; i < np; i++ {
-		p := jsonPlace{Initial: float64(r.Intn(4))}
+		initial := make([]float64, colors)
+		for c := range initial {
+			initial[c] = float64(r.Intn(4))
+		}
+		var capacity []float64
 		if r.Intn(4) == 0 {
-			p.Capacity = float64(1 + r.Intn(4)) // 0 stays "unbounded"
+			capacity = make([]float64, colors)
+			for c := range capacity {
+				capacity[c] = float64(1 + r.Intn(4))
+				// Keep the initial marking legal: tokens above a declared
+				// capacity are a malformed model (go-pflow validation errors
+				// on it). The engines are only contracted to agree on legal
+				// states — JS blocks ANY producer into a place with an
+				// over-capacity sibling color, which the color unfolding
+				// cannot see; from a legal initial marking the capacity
+				// invariant holds and that path is unreachable.
+				if initial[c] > capacity[c] {
+					initial[c] = capacity[c]
+				}
+			}
+		}
+		p := jsonPlace{Initial: scalarOrVec(initial)}
+		if capacity != nil {
+			p.Capacity = scalarOrVec(capacity)
 		}
 		m.Places[fmt.Sprintf("p%d", i)] = p
 	}
@@ -97,20 +151,20 @@ func generate(r *rand.Rand) jsonModel {
 		for k := 0; k <= r.Intn(2); k++ {
 			m.Arcs = append(m.Arcs, jsonArc{
 				Source: fmt.Sprintf("p%d", r.Intn(np)), Target: tid,
-				Weight: float64(1 + r.Intn(3)),
+				Weight: weight(),
 			})
 		}
 		for k := 0; k <= r.Intn(2); k++ {
 			m.Arcs = append(m.Arcs, jsonArc{
 				Source: tid, Target: fmt.Sprintf("p%d", r.Intn(np)),
-				Weight: float64(1 + r.Intn(3)),
+				Weight: weight(),
 			})
 		}
 		// ~25%: a weighted input inhibitor (disables at tokens >= weight).
 		if r.Intn(4) == 0 {
 			m.Arcs = append(m.Arcs, jsonArc{
 				Source: fmt.Sprintf("p%d", r.Intn(np)), Target: tid,
-				Weight: float64(1 + r.Intn(2)), InhibitTransition: true,
+				Weight: weight(), InhibitTransition: true,
 			})
 		}
 		// ~12%: an output-side inhibitor (test arc: requires tokens >= weight,
@@ -118,7 +172,7 @@ func generate(r *rand.Rand) jsonModel {
 		if r.Intn(8) == 0 {
 			m.Arcs = append(m.Arcs, jsonArc{
 				Source: tid, Target: fmt.Sprintf("p%d", r.Intn(np)),
-				Weight: float64(1 + r.Intn(2)), InhibitTransition: true,
+				Weight: weight(), InhibitTransition: true,
 			})
 		}
 	}
@@ -132,6 +186,11 @@ func goWalk(t *testing.T, raw []byte) []step {
 	if err != nil {
 		t.Fatalf("go parser rejected generated model: %v", err)
 	}
+
+	// Multi-color models go through the same unfolding the analyzers use;
+	// markings are folded back to base places for comparison, matching the
+	// JS side, which reports per-place scalar sums over color vectors.
+	net, cm := net.ExpandColors()
 
 	initial := make(reachability.Marking, len(net.Places))
 	for name, p := range net.Places {
@@ -147,10 +206,7 @@ func goWalk(t *testing.T, raw []byte) []step {
 		enabled := append([]string(nil), st.Enabled...)
 		sort.Strings(enabled)
 
-		s := step{Enabled: enabled, Marking: map[string]int{}}
-		for k, v := range marks {
-			s.Marking[k] = v
-		}
+		s := step{Enabled: enabled, Marking: baseMarking(marks, cm)}
 
 		if len(enabled) == 0 {
 			s.Fired = nil
@@ -167,10 +223,7 @@ func goWalk(t *testing.T, raw []byte) []step {
 		}
 		marks = next
 		s.Fired = fired
-		s.Marking = map[string]int{}
-		for k, v := range marks {
-			s.Marking[k] = v
-		}
+		s.Marking = baseMarking(marks, cm)
 		steps = append(steps, s)
 	}
 	return steps
@@ -266,6 +319,16 @@ func diffTraces(js, goS []step) string {
 		return fmt.Sprintf("  trace lengths differ: js=%d go=%d", len(js), len(goS))
 	}
 	return ""
+}
+
+// baseMarking folds an (possibly color-expanded) marking back to per-base-
+// place totals for comparison with the JS side's scalar sums.
+func baseMarking(m reachability.Marking, cm *petri.ColorMap) map[string]int {
+	out := map[string]int{}
+	for k, v := range cm.SumByBase(m) {
+		out[k] = v
+	}
+	return out
 }
 
 func prevMarking(steps []step, i int) map[string]int {
