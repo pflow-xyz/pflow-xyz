@@ -6,6 +6,8 @@
  * Implements Tsit5 (5th order Runge-Kutta) solver
  */
 
+import { expandColors, expandState } from './petri-colors.js';
+
 // ============================================================================
 // Data Structures
 // ============================================================================
@@ -140,9 +142,18 @@ export function fromJSON(data) {
 }
 
 /**
- * Set initial state from Petri net
+ * Set initial state from Petri net.
+ *
+ * Keys are the net's own place names, and the value is that place's TOTAL
+ * across colors. On a multi-color net, ODEProblem maps this through
+ * expandState to recover the per-color split.
+ *
+ * @param {PetriNet} net
+ * @param {Object<string, number>|null} customState
+ * @returns {Object<string, number>}
  */
 export function setState(net, customState = null) {
+  /** @type {Object<string, number>} */
   const state = {};
   for (const [label, place] of net.places) {
     if (customState && customState[label] !== undefined) {
@@ -156,8 +167,12 @@ export function setState(net, customState = null) {
 
 /**
  * Set transition rates
+ * @param {PetriNet} net
+ * @param {Object<string, number>|null} customRates
+ * @returns {Object<string, number>}
  */
 export function setRates(net, customRates = null) {
+  /** @type {Object<string, number>} */
   const rates = {};
   for (const [label, _] of net.transitions) {
     if (customRates && customRates[label] !== undefined) {
@@ -237,8 +252,31 @@ function buildODEFunction(net, rates) {
  * ODE Problem definition
  */
 export class ODEProblem {
+  /**
+   * Multi-color nets are unfolded first (expandColors), so mass-action
+   * kinetics run per color: a transition's flux depends only on the colors its
+   * input arcs actually name, and consumes only those. Without the unfolding a
+   * place holding [red:10, blue:5] would drive a red-only reaction at
+   * concentration 15 and pay for it out of a summed pool.
+   *
+   * initialState is mapped through expandState, so the usual
+   * `new ODEProblem(net, setState(net), …)` call reproduces each place's
+   * declared per-color vector exactly. ODESolution.getFinalState and getState
+   * still report per-place totals under the original names, so existing
+   * readers are unaffected; getVariable and stateLabels expose the per-color
+   * series.
+   *
+   * `net` is the unfolded net; `colorMap` is null when nothing was unfolded.
+   * Mirrors go-pflow's solver.NewProblem.
+   */
   constructor(net, initialState, tspan, rates) {
+    const { net: expanded, colorMap } = expandColors(net);
+    if (colorMap !== null) {
+      initialState = expandState(net, initialState);
+      net = expanded;
+    }
     this.net = net;
+    this.colorMap = colorMap;
     this.u0 = initialState;
     this.tspan = tspan;
     this.rates = rates;
@@ -250,14 +288,26 @@ export class ODEProblem {
  * ODE Solution
  */
 export class ODESolution {
-  constructor(t, u, stateLabels) {
+  /**
+   * On a color-unfolded problem `u` and `stateLabels` use the expanded
+   * per-color place names ("pool.red"); getFinalState and getState fold them
+   * back to per-place totals under the original names, and getVariable accepts
+   * either. Mirrors go-pflow's solver.Solution.
+   */
+  constructor(t, u, stateLabels, colorMap = null) {
     this.t = t;
     this.u = u;  // Array of state objects
     this.stateLabels = stateLabels;
+    this.colorMap = colorMap;
   }
 
   /**
-   * Get values for a specific state variable
+   * Get values for a specific state variable.
+   *
+   * On a color-unfolded solution an expanded name ("pool.red") selects that
+   * color and a base name ("pool") sums across colors, so a caller that
+   * plotted "pool" before the unfolding still gets the same total series.
+   *
    * @param {number|string} index - Index or label of state variable
    * @returns {Array<number>}
    */
@@ -268,20 +318,57 @@ export class ODESolution {
     } else {
       label = index;
     }
-    return this.u.map(state => state[label]);
+    const labels = this.colorMap ? this.colorMap.lookup(label) : [label];
+    return this.u.map(state => {
+      let sum = 0;
+      for (const l of labels) sum += state[l] ?? 0;
+      return sum;
+    });
   }
 
   /**
-   * Get final state
+   * Per-color time series for a base place, index-aligned with
+   * colorMap.colors. On a single-color solution this is the one series.
+   * @param {string} place
+   * @returns {Array<Array<number>>}
+   */
+  getVariableByColor(place) {
+    const labels = this.colorMap ? this.colorMap.lookup(place) : [place];
+    return labels.map(l => this.u.map(state => state[l] ?? 0));
+  }
+
+  /**
+   * Get final state, keyed by the original place names — on a color-unfolded
+   * solution the colors of each place are summed. See getFinalStateByColor.
    */
   getFinalState() {
+    const last = this.u[this.u.length - 1];
+    if (last === undefined) return last;
+    return this.colorMap ? this.colorMap.sumByBase(last) : last;
+  }
+
+  /**
+   * Get final state keyed by expanded per-color place names. Identical to
+   * getFinalState on a single-color solution.
+   */
+  getFinalStateByColor() {
     return this.u[this.u.length - 1];
   }
 
   /**
-   * Get state at specific index
+   * Get state at specific index, keyed by the original place names (colors
+   * summed). See getStateByColor.
    */
   getState(index) {
+    const s = this.u[index];
+    if (s === undefined) return s;
+    return this.colorMap ? this.colorMap.sumByBase(s) : s;
+  }
+
+  /**
+   * Get state at specific index keyed by expanded per-color place names.
+   */
+  getStateByColor(index) {
     return this.u[index];
   }
 }
@@ -405,7 +492,7 @@ export function solve(prob, solver = Tsit5(), options = {}) {
     }
   }
 
-  return new ODESolution(t, u, stateLabels);
+  return new ODESolution(t, u, stateLabels, prob.colorMap ?? null);
 }
 
 // ============================================================================

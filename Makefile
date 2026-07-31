@@ -27,7 +27,7 @@ test: test-js test-parity test-parity-behavior
 
 # Run JavaScript tests
 test-js:
-	@deno test public/petri-sim_test.ts
+	@deno test public/petri-sim_test.ts public/petri-colors_test.ts
 
 # Cross-language behavioral parity: go-pflow engines vs the browser's JS engines.
 # sim: lockstep discrete-firing walks over 200 seeded random models

@@ -155,9 +155,34 @@ in this editor. Locked by `make test-parity-behavior` (`parity/sim/` and
 - **ODE** (`parity/ode`): fixed fixtures integrated by `public/petri-solver.js`
   and go-pflow's Tsit5 with shared default options; final states agree to
   ~1e-15 (the implementations are step-for-step identical), asserted at 1e-6.
+  Token colors are handled here the same way as in the discrete engine — by
+  unfolding. `ODEProblem` calls `expandColors` (see below), so mass action runs
+  per color: a transition's flux depends only on the colors its input arcs
+  name, and consumes only those.
 - Changing firing semantics on either side means changing BOTH engines and
   their tests in lockstep — the differential fails otherwise. go-pflow's side
   of the contract is pinned by Go-native tests in its reachability package.
+
+**Colored-net unfolding (`public/petri-colors.js`).** A direct port of
+go-pflow's `petri/colors.go`; every rule has a counterpart there. `expandColors`
+turns a multi-color net into an equivalent single-color one — one place per
+color (`pool.red`), one arc per non-zero weight component, transitions shared
+so a firing moves every color atomically — so anything that works on a
+single-color net works on it unchanged with exact per-color semantics.
+- `expandState(net, state)` maps a base-name state vector into the unfolding: a
+  base total splits across colors in the proportions the place declares. Chosen
+  so `expandState(net, setState(net))` reproduces the declared vectors exactly,
+  and so it is idempotent on already-expanded keys.
+- **Reporting convention, matching go-pflow's solver:** `ODESolution`'s
+  `getFinalState`/`getState`/`getVariable("pool")` report per-place TOTALS under
+  the original names, so existing callers (and the editor's plot checkboxes,
+  which are keyed by base place id) are unaffected. `getFinalStateByColor`,
+  `getStateByColor`, `getVariable("pool.red")` and `getVariableByColor("pool")`
+  expose the breakdown. The dynamics are per color either way.
+- `petri-sim.js` is natively component-wise and does NOT use this module; it is
+  the independent implementation the unfolding is checked against.
+- Unit tests: `public/petri-colors_test.ts` (`make test-js`), mirroring
+  go-pflow's `petri/colors_test.go`.
 
 ## Architecture Notes
 
