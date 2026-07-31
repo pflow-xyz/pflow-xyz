@@ -1,102 +1,690 @@
 {
-  "_comment": "Shared ODE parity fixtures. Both parity/ode/ode_parity_test.go (go-pflow solver) and parity/ode/ode_replay.mjs (public/petri-solver.js) integrate these with default Tsit5 options and must agree on final states within 1e-2 relative.",
-  "models": [
-    {
-      "name": "sir",
-      "tspan": [0, 10],
-      "rates": {"infect": 0.001, "recover": 0.1},
-      "model": {
-        "places": {
-          "S": {"initial": [999], "x": 0, "y": 0},
-          "I": {"initial": [1], "x": 0, "y": 0},
-          "R": {"initial": [0], "x": 0, "y": 0}
-        },
-        "transitions": {"infect": {"x": 0, "y": 0}, "recover": {"x": 0, "y": 0}},
-        "arcs": [
-          {"source": "S", "target": "infect", "weight": [1]},
-          {"source": "I", "target": "infect", "weight": [1]},
-          {"source": "infect", "target": "I", "weight": [2]},
-          {"source": "I", "target": "recover", "weight": [1]},
-          {"source": "recover", "target": "R", "weight": [1]}
-        ]
-      }
+ "_comment": "Shared ODE parity fixtures. Both parity/ode/ode_parity_test.go (go-pflow solver) and parity/ode/ode_replay.mjs (public/petri-solver.js) integrate these with default Tsit5 options and must agree on final states within 1e-2 relative.",
+ "models": [
+  {
+   "name": "sir",
+   "tspan": [
+    0,
+    10
+   ],
+   "rates": {
+    "infect": 0.001,
+    "recover": 0.1
+   },
+   "model": {
+    "places": {
+     "S": {
+      "initial": [
+       999
+      ],
+      "x": 0,
+      "y": 0
+     },
+     "I": {
+      "initial": [
+       1
+      ],
+      "x": 0,
+      "y": 0
+     },
+     "R": {
+      "initial": [
+       0
+      ],
+      "x": 0,
+      "y": 0
+     }
     },
-    {
-      "name": "cycle",
-      "tspan": [0, 10],
-      "rates": {"fwd": 1.0, "back": 0.5},
-      "model": {
-        "places": {
-          "a": {"initial": [10], "x": 0, "y": 0},
-          "b": {"initial": [0], "x": 0, "y": 0}
-        },
-        "transitions": {"fwd": {"x": 0, "y": 0}, "back": {"x": 0, "y": 0}},
-        "arcs": [
-          {"source": "a", "target": "fwd", "weight": [1]},
-          {"source": "fwd", "target": "b", "weight": [1]},
-          {"source": "b", "target": "back", "weight": [1]},
-          {"source": "back", "target": "a", "weight": [1]}
-        ]
-      }
+    "transitions": {
+     "infect": {
+      "x": 0,
+      "y": 0
+     },
+     "recover": {
+      "x": 0,
+      "y": 0
+     }
     },
-    {
-      "name": "chain-weighted",
-      "tspan": [0, 5],
-      "rates": {"pack": 0.2, "ship": 0.4},
-      "model": {
-        "places": {
-          "loose": {"initial": [12], "x": 0, "y": 0},
-          "boxed": {"initial": [0], "x": 0, "y": 0},
-          "gone": {"initial": [0], "x": 0, "y": 0}
-        },
-        "transitions": {"pack": {"x": 0, "y": 0}, "ship": {"x": 0, "y": 0}},
-        "arcs": [
-          {"source": "loose", "target": "pack", "weight": [3]},
-          {"source": "pack", "target": "boxed", "weight": [1]},
-          {"source": "boxed", "target": "ship", "weight": [1]},
-          {"source": "ship", "target": "gone", "weight": [1]}
-        ]
-      }
+    "arcs": [
+     {
+      "source": "S",
+      "target": "infect",
+      "weight": [
+       1
+      ]
+     },
+     {
+      "source": "I",
+      "target": "infect",
+      "weight": [
+       1
+      ]
+     },
+     {
+      "source": "infect",
+      "target": "I",
+      "weight": [
+       2
+      ]
+     },
+     {
+      "source": "I",
+      "target": "recover",
+      "weight": [
+       1
+      ]
+     },
+     {
+      "source": "recover",
+      "target": "R",
+      "weight": [
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "name": "cycle",
+   "tspan": [
+    0,
+    10
+   ],
+   "rates": {
+    "fwd": 1.0,
+    "back": 0.5
+   },
+   "model": {
+    "places": {
+     "a": {
+      "initial": [
+       10
+      ],
+      "x": 0,
+      "y": 0
+     },
+     "b": {
+      "initial": [
+       0
+      ],
+      "x": 0,
+      "y": 0
+     }
     },
-    {
-      "name": "competing",
-      "tspan": [0, 8],
-      "rates": {"fast": 0.9, "slow": 0.1},
-      "model": {
-        "places": {
-          "pool": {"initial": [50], "x": 0, "y": 0},
-          "left": {"initial": [0], "x": 0, "y": 0},
-          "right": {"initial": [0], "x": 0, "y": 0}
-        },
-        "transitions": {"fast": {"x": 0, "y": 0}, "slow": {"x": 0, "y": 0}},
-        "arcs": [
-          {"source": "pool", "target": "fast", "weight": [1]},
-          {"source": "fast", "target": "left", "weight": [1]},
-          {"source": "pool", "target": "slow", "weight": [1]},
-          {"source": "slow", "target": "right", "weight": [1]}
-        ]
-      }
+    "transitions": {
+     "fwd": {
+      "x": 0,
+      "y": 0
+     },
+     "back": {
+      "x": 0,
+      "y": 0
+     }
     },
-    {
-      "name": "second-order",
-      "tspan": [0, 6],
-      "rates": {"bind": 0.05, "unbind": 0.2},
-      "model": {
-        "places": {
-          "A": {"initial": [8], "x": 0, "y": 0},
-          "B": {"initial": [6], "x": 0, "y": 0},
-          "AB": {"initial": [0], "x": 0, "y": 0}
-        },
-        "transitions": {"bind": {"x": 0, "y": 0}, "unbind": {"x": 0, "y": 0}},
-        "arcs": [
-          {"source": "A", "target": "bind", "weight": [1]},
-          {"source": "B", "target": "bind", "weight": [1]},
-          {"source": "bind", "target": "AB", "weight": [1]},
-          {"source": "AB", "target": "unbind", "weight": [1]},
-          {"source": "unbind", "target": "A", "weight": [1]},
-          {"source": "unbind", "target": "B", "weight": [1]}
-        ]
-      }
-    }
-  ]
+    "arcs": [
+     {
+      "source": "a",
+      "target": "fwd",
+      "weight": [
+       1
+      ]
+     },
+     {
+      "source": "fwd",
+      "target": "b",
+      "weight": [
+       1
+      ]
+     },
+     {
+      "source": "b",
+      "target": "back",
+      "weight": [
+       1
+      ]
+     },
+     {
+      "source": "back",
+      "target": "a",
+      "weight": [
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "name": "chain-weighted",
+   "tspan": [
+    0,
+    5
+   ],
+   "rates": {
+    "pack": 0.2,
+    "ship": 0.4
+   },
+   "model": {
+    "places": {
+     "loose": {
+      "initial": [
+       12
+      ],
+      "x": 0,
+      "y": 0
+     },
+     "boxed": {
+      "initial": [
+       0
+      ],
+      "x": 0,
+      "y": 0
+     },
+     "gone": {
+      "initial": [
+       0
+      ],
+      "x": 0,
+      "y": 0
+     }
+    },
+    "transitions": {
+     "pack": {
+      "x": 0,
+      "y": 0
+     },
+     "ship": {
+      "x": 0,
+      "y": 0
+     }
+    },
+    "arcs": [
+     {
+      "source": "loose",
+      "target": "pack",
+      "weight": [
+       3
+      ]
+     },
+     {
+      "source": "pack",
+      "target": "boxed",
+      "weight": [
+       1
+      ]
+     },
+     {
+      "source": "boxed",
+      "target": "ship",
+      "weight": [
+       1
+      ]
+     },
+     {
+      "source": "ship",
+      "target": "gone",
+      "weight": [
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "name": "competing",
+   "tspan": [
+    0,
+    8
+   ],
+   "rates": {
+    "fast": 0.9,
+    "slow": 0.1
+   },
+   "model": {
+    "places": {
+     "pool": {
+      "initial": [
+       50
+      ],
+      "x": 0,
+      "y": 0
+     },
+     "left": {
+      "initial": [
+       0
+      ],
+      "x": 0,
+      "y": 0
+     },
+     "right": {
+      "initial": [
+       0
+      ],
+      "x": 0,
+      "y": 0
+     }
+    },
+    "transitions": {
+     "fast": {
+      "x": 0,
+      "y": 0
+     },
+     "slow": {
+      "x": 0,
+      "y": 0
+     }
+    },
+    "arcs": [
+     {
+      "source": "pool",
+      "target": "fast",
+      "weight": [
+       1
+      ]
+     },
+     {
+      "source": "fast",
+      "target": "left",
+      "weight": [
+       1
+      ]
+     },
+     {
+      "source": "pool",
+      "target": "slow",
+      "weight": [
+       1
+      ]
+     },
+     {
+      "source": "slow",
+      "target": "right",
+      "weight": [
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "name": "second-order",
+   "tspan": [
+    0,
+    6
+   ],
+   "rates": {
+    "bind": 0.05,
+    "unbind": 0.2
+   },
+   "model": {
+    "places": {
+     "A": {
+      "initial": [
+       8
+      ],
+      "x": 0,
+      "y": 0
+     },
+     "B": {
+      "initial": [
+       6
+      ],
+      "x": 0,
+      "y": 0
+     },
+     "AB": {
+      "initial": [
+       0
+      ],
+      "x": 0,
+      "y": 0
+     }
+    },
+    "transitions": {
+     "bind": {
+      "x": 0,
+      "y": 0
+     },
+     "unbind": {
+      "x": 0,
+      "y": 0
+     }
+    },
+    "arcs": [
+     {
+      "source": "A",
+      "target": "bind",
+      "weight": [
+       1
+      ]
+     },
+     {
+      "source": "B",
+      "target": "bind",
+      "weight": [
+       1
+      ]
+     },
+     {
+      "source": "bind",
+      "target": "AB",
+      "weight": [
+       1
+      ]
+     },
+     {
+      "source": "AB",
+      "target": "unbind",
+      "weight": [
+       1
+      ]
+     },
+     {
+      "source": "unbind",
+      "target": "A",
+      "weight": [
+       1
+      ]
+     },
+     {
+      "source": "unbind",
+      "target": "B",
+      "weight": [
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "name": "two-color-starved",
+   "tspan": [
+    0,
+    10
+   ],
+   "rates": {
+    "drain": 1.0
+   },
+   "model": {
+    "token": [
+     "red",
+     "blue"
+    ],
+    "places": {
+     "pool": {
+      "initial": [
+       0,
+       10
+      ],
+      "x": 0,
+      "y": 0
+     },
+     "out": {
+      "initial": [
+       0,
+       0
+      ],
+      "x": 0,
+      "y": 0
+     }
+    },
+    "transitions": {
+     "drain": {
+      "x": 0,
+      "y": 0
+     }
+    },
+    "arcs": [
+     {
+      "source": "pool",
+      "target": "drain",
+      "weight": [
+       1,
+       0
+      ]
+     },
+     {
+      "source": "drain",
+      "target": "out",
+      "weight": [
+       1,
+       0
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "name": "two-color-selective",
+   "tspan": [
+    0,
+    10
+   ],
+   "rates": {
+    "drain": 0.5
+   },
+   "model": {
+    "token": [
+     "red",
+     "blue"
+    ],
+    "places": {
+     "pool": {
+      "initial": [
+       4,
+       6
+      ],
+      "x": 0,
+      "y": 0
+     },
+     "out": {
+      "initial": [
+       0,
+       0
+      ],
+      "x": 0,
+      "y": 0
+     }
+    },
+    "transitions": {
+     "drain": {
+      "x": 0,
+      "y": 0
+     }
+    },
+    "arcs": [
+     {
+      "source": "pool",
+      "target": "drain",
+      "weight": [
+       1,
+       0
+      ]
+     },
+     {
+      "source": "drain",
+      "target": "out",
+      "weight": [
+       1,
+       0
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "name": "two-color-coupled",
+   "tspan": [
+    0,
+    5
+   ],
+   "rates": {
+    "react": 0.05
+   },
+   "model": {
+    "token": [
+     "red",
+     "blue"
+    ],
+    "places": {
+     "a": {
+      "initial": [
+       10,
+       4
+      ],
+      "x": 0,
+      "y": 0
+     },
+     "b": {
+      "initial": [
+       0,
+       0
+      ],
+      "x": 0,
+      "y": 0
+     }
+    },
+    "transitions": {
+     "react": {
+      "x": 0,
+      "y": 0
+     }
+    },
+    "arcs": [
+     {
+      "source": "a",
+      "target": "react",
+      "weight": [
+       2,
+       1
+      ]
+     },
+     {
+      "source": "react",
+      "target": "b",
+      "weight": [
+       1,
+       3
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "name": "three-color-gap",
+   "tspan": [
+    0,
+    8
+   ],
+   "rates": {
+    "mix": 0.2
+   },
+   "model": {
+    "token": [
+     "red",
+     "green",
+     "blue"
+    ],
+    "places": {
+     "src": {
+      "initial": [
+       5,
+       7,
+       3
+      ],
+      "x": 0,
+      "y": 0
+     },
+     "dst": {
+      "initial": [
+       0,
+       0,
+       0
+      ],
+      "x": 0,
+      "y": 0
+     }
+    },
+    "transitions": {
+     "mix": {
+      "x": 0,
+      "y": 0
+     }
+    },
+    "arcs": [
+     {
+      "source": "src",
+      "target": "mix",
+      "weight": [
+       1,
+       0,
+       2
+      ]
+     },
+     {
+      "source": "mix",
+      "target": "dst",
+      "weight": [
+       1,
+       0,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "name": "two-color-unnamed",
+   "tspan": [
+    0,
+    6
+   ],
+   "rates": {
+    "t": 0.3
+   },
+   "model": {
+    "places": {
+     "p": {
+      "initial": [
+       3,
+       5
+      ],
+      "x": 0,
+      "y": 0
+     },
+     "q": {
+      "initial": [
+       0,
+       0
+      ],
+      "x": 0,
+      "y": 0
+     }
+    },
+    "transitions": {
+     "t": {
+      "x": 0,
+      "y": 0
+     }
+    },
+    "arcs": [
+     {
+      "source": "p",
+      "target": "t",
+      "weight": [
+       1,
+       2
+      ]
+     },
+     {
+      "source": "t",
+      "target": "q",
+      "weight": [
+       2,
+       1
+      ]
+     }
+    ]
+   }
+  }
+ ]
 }
