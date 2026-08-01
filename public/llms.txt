@@ -44,9 +44,9 @@ weight component means "this color is not involved".
 
 - CDN mirrors for strict-CSP hosts that block pflow.xyz — pin a tag, `@main`
   is cached ~12h by jsDelivr:
-  - [jsDelivr](https://cdn.jsdelivr.net/gh/pflow-xyz/pflow-xyz@v1.21.0/public/petri-solver.js)
-  - npm-backed (after `pflow-xyz` is on npm): `https://esm.sh/pflow-xyz@1.21.0`
-    or `https://unpkg.com/pflow-xyz@1.21.0/public/petri-solver.js`
+  - [jsDelivr](https://cdn.jsdelivr.net/gh/pflow-xyz/pflow-xyz@v1.21.1/public/petri-solver.js)
+  - npm-backed (after `pflow-xyz` is on npm): `https://esm.sh/pflow-xyz@1.21.1`
+    or `https://unpkg.com/pflow-xyz@1.21.1/public/petri-solver.js`
   - cdnjs (pending acceptance — placeholder, 404s until then):
     `https://cdnjs.cloudflare.com/ajax/libs/pflow-xyz/<version>/petri-solver.js`
 - **claude.ai artifacts cannot load these modules today.** Their CSP allows

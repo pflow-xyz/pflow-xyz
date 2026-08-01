@@ -75,13 +75,13 @@ loaded the module, so either source is self-sufficient:
 
 ```js
 const pf = await import("https://pflow.xyz/petri-solver.js")
-  .catch(() => import("https://cdn.jsdelivr.net/gh/pflow-xyz/pflow-xyz@v1.21.0/public/petri-solver.js"));
+  .catch(() => import("https://cdn.jsdelivr.net/gh/pflow-xyz/pflow-xyz@v1.21.1/public/petri-solver.js"));
 ```
 
 Pin a release tag (as above) or commit SHA — `@main` is cached ~12h by
 jsDelivr, so it lags the latest deploy. Once the `pflow-xyz` npm package is
-published, npm-backed CDNs work too: `https://esm.sh/pflow-xyz@1.21.0` or
-`https://unpkg.com/pflow-xyz@1.21.0/public/petri-solver.js`.
+published, npm-backed CDNs work too: `https://esm.sh/pflow-xyz@1.21.1` or
+`https://unpkg.com/pflow-xyz@1.21.1/public/petri-solver.js`.
 
 ## Minimal ad-hoc page: solve an ODE and plot it
 
@@ -89,7 +89,7 @@ published, npm-backed CDNs work too: `https://esm.sh/pflow-xyz@1.21.0` or
 <div id="plot"></div>
 <script type="module">
   const pf = await import("https://pflow.xyz/petri-solver.js")
-    .catch(() => import("https://cdn.jsdelivr.net/gh/pflow-xyz/pflow-xyz@v1.21.0/public/petri-solver.js"));
+    .catch(() => import("https://cdn.jsdelivr.net/gh/pflow-xyz/pflow-xyz@v1.21.1/public/petri-solver.js"));
 
   const model = { /* JSON-LD model as above */ };
   const net = pf.fromJSON(model);
