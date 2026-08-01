@@ -53,6 +53,10 @@ let PetriView;
 if (typeof HTMLElement !== 'undefined') {
 PetriView = class PetriView extends HTMLElement {
 
+    // Bumped when the default split changes, so a stored value from an older
+    // layout is ignored rather than pinning returning visitors to it.
+    static DIVIDER_KEY = 'pv-divider-position-v2';
+
     constructor() {
         super();
         // DOM & rendering
@@ -405,7 +409,7 @@ PetriView = class PetriView extends HTMLElement {
 
         // init ace
         const editor = window.ace.edit(editorDiv);
-        editor.setTheme('ace/theme/textmate');
+        editor.setTheme(this._aceTheme());
         editor.session.setMode('ace/mode/json');
 
         // base options
@@ -588,6 +592,7 @@ PetriView = class PetriView extends HTMLElement {
 
         // store refs for cleanup
         this._aceEditor = editor;
+        this._watchColorScheme();
         this._aceEditorContainer = editorWrapper;
     }
 
@@ -935,6 +940,49 @@ PetriView = class PetriView extends HTMLElement {
         }
     }
 
+    // ---------------- theme ----------------
+
+    // Mirrors the CSS resolution order exactly: an explicit data-theme on
+    // <html> wins, otherwise the OS preference decides. Ace paints itself in
+    // JS and cannot read our custom properties, so it has to be told.
+    _isDarkTheme() {
+        try {
+            const attr = document.documentElement.getAttribute('data-theme');
+            if (attr === 'dark') return true;
+            if (attr === 'light') return false;
+            return typeof window.matchMedia === 'function'
+                && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        } catch {
+            return false;
+        }
+    }
+
+    _aceTheme() {
+        return this._isDarkTheme() ? 'ace/theme/tomorrow_night' : 'ace/theme/textmate';
+    }
+
+    // Follow the OS switching mid-session rather than only at load.
+    _watchColorScheme() {
+        if (this._colorSchemeWatched) return;
+        this._colorSchemeWatched = true;
+        try {
+            const mq = window.matchMedia('(prefers-color-scheme: dark)');
+            const onChange = () => {
+                if (this._aceEditor) {
+                    try {
+                        this._aceEditor.setTheme(this._aceTheme());
+                    } catch {
+                        // ignore
+                    }
+                }
+            };
+            if (typeof mq.addEventListener === 'function') mq.addEventListener('change', onChange);
+            else if (typeof mq.addListener === 'function') mq.addListener(onChange);
+        } catch {
+            // ignore
+        }
+    }
+
     // ---------------- divider handling ----------------
 
     // Small-viewport test, matching the @media breakpoint in petri-view.css.
@@ -991,12 +1039,18 @@ PetriView = class PetriView extends HTMLElement {
         this._canvasContainer.style.height = '';
         this._canvasContainer.style.minHeight = '';
 
-        // Try to load saved position from localStorage
+        // Try to load saved position from localStorage.
+        // The key is versioned: a value saved before the small-screen default
+        // existed would otherwise pin returning visitors to the old desktop
+        // split forever, which is exactly the layout the default now avoids.
+        // A position is also only restored into the viewport class it was
+        // saved from, so a desktop split does not carry onto a phone.
         try {
-            const saved = localStorage.getItem('pv-divider-position');
+            const saved = localStorage.getItem(PetriView.DIVIDER_KEY);
             if (saved) {
                 const pos = JSON.parse(saved);
-                if (pos && typeof pos.canvasFlex === 'string') {
+                if (pos && typeof pos.canvasFlex === 'string'
+                    && !!pos.narrow === this._isNarrowViewport()) {
                     this._canvasContainer.style.flex = pos.canvasFlex;
                     return;
                 }
@@ -1012,9 +1066,10 @@ PetriView = class PetriView extends HTMLElement {
     _saveDividerPosition() {
         try {
             const pos = {
-                canvasFlex: this._canvasContainer.style.flex
+                canvasFlex: this._canvasContainer.style.flex,
+                narrow: this._isNarrowViewport()
             };
-            localStorage.setItem('pv-divider-position', JSON.stringify(pos));
+            localStorage.setItem(PetriView.DIVIDER_KEY, JSON.stringify(pos));
         } catch {
             // ignore
         }

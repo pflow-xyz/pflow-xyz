@@ -25,7 +25,7 @@ clean:
 	@echo "Clean complete"
 
 # Run tests
-test: test-js test-parity test-parity-behavior test-publish test-npm-pack
+test: test-js test-parity test-parity-behavior test-publish test-npm-pack test-theme
 	@go test ./...
 
 # Run JavaScript tests
@@ -36,6 +36,10 @@ test-js:
 # graph ships and site media doesn't, smoke-test the solver from the extracted
 # package, and resolve the exports map from a scratch install. Skips if npm is
 # not installed (same policy as the node edge in the parity tests).
+# Guard the design-token contract (see scripts/check-theme-tokens.py)
+test-theme:
+	@python3 scripts/check-theme-tokens.py
+
 test-npm-pack:
 	@./scripts/npm-pack-test.sh
 

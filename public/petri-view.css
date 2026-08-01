@@ -9,6 +9,9 @@
    emits; values mirror its built-in light fallbacks.
    ============================================================ */
 :root {
+    /* Theme-invariant: the diagram's paper, light in both themes by design. */
+    --pv-paper: #fafafa;
+
     --pv-surface: #ffffff;
     --pv-surface-2: #f6f6f4;
     --pv-surface-3: #ecece9;
@@ -34,73 +37,263 @@
     --pv-viz-series-6: #008300;
     --pv-viz-series-7: #4a3aa7;
     --pv-viz-series-8: #e34948;
+
+    --pv-success: #0ca30c;
+    --pv-success-strong: #218838;
+    --pv-danger-strong: #c82333;
+    --pv-warning: #d98300;
+
+    /* Chrome surfaces: floating panels, menus, meters, dialogs. Distinct from
+       --pv-surface because they sit ON the canvas and need their own contrast. */
+    --pv-panel: #ffffff;
+    --pv-panel-soft: rgba(255, 255, 255, 0.92);
+    --pv-panel-2: rgba(250, 250, 250, 0.98);
+    --pv-hover: #d0d0d0;
+    --pv-active: #c0c0c0;
+    --pv-grip: rgba(0, 0, 0, 0.15);
+    --pv-scrim: rgba(0, 0, 0, 0.5);
+    --pv-shadow-sm: rgba(0, 0, 0, 0.08);
+    --pv-shadow: rgba(0, 0, 0, 0.15);
+    --pv-shadow-md: rgba(0, 0, 0, 0.2);
+    --pv-shadow-lg: rgba(0, 0, 0, 0.3);
+    --pv-focus-ring: rgba(42, 111, 184, 0.5);
+    --pv-warning-glow: rgba(255, 165, 0, 0.5);
+    --pv-danger-surface: #f8d7da;
+    --pv-danger-surface-hover: #f1b0b7;
+    --pv-danger-surface-ink: #721c24;
+    --pv-danger-surface-border: #f5c6cb;
+    --pv-info-surface: #e7f3ff;
+    --pv-info-surface-hover: #cce5ff;
+    --pv-info-ink: #0066cc;
+    --pv-info-border: #b3d7ff;
+
+    --pv-neutral: #6c757d;
+    --pv-neutral-strong: #5a6268;
+    --pv-success-muted: #94d3a2;
+    --pv-accent-alt: #6f42c1;
+    --pv-scrim-soft: rgba(0, 0, 0, 0.3);
+    --pv-hover-soft: rgba(0, 0, 0, 0.06);
+    --pv-active-soft: rgba(0, 0, 0, 0.1);
+    --pv-danger-glow: rgba(220, 53, 69, 0.5);
+
+    /* Dark palette. Single source of truth for BOTH dark paths below
+       (prefers-color-scheme and data-theme="dark"); those blocks only remap
+       semantic tokens onto these, so the two can never disagree on a value. */
+    --pv-d-surface: #1e1e1d;
+    --pv-d-surface-2: #171716;
+    --pv-d-surface-3: #2a2a28;
+    --pv-d-ink: #e8e6df;
+    --pv-d-ink-secondary: #a6a49b;
+    --pv-d-ink-muted: #898781;
+    --pv-d-border: #3a3a38;
+    --pv-d-accent: #4d8fd6;
+    --pv-d-accent-strong: #6ba3e0;
+    --pv-d-accent-ink: #ffffff;
+    --pv-d-danger: #e5534b;
+    --pv-d-danger-strong: #f85149;
+    --pv-d-success: #3fb950;
+    --pv-d-success-strong: #2ea043;
+    --pv-d-warning: #d29922;
+    --pv-d-panel: #232322;
+    --pv-d-panel-soft: rgba(35, 35, 34, 0.94);
+    --pv-d-panel-2: rgba(28, 28, 27, 0.98);
+    --pv-d-hover: #343431;
+    --pv-d-active: #3f3f3c;
+    --pv-d-grip: rgba(255, 255, 255, 0.24);
+    --pv-d-scrim: rgba(0, 0, 0, 0.66);
+    --pv-d-shadow-sm: rgba(0, 0, 0, 0.45);
+    --pv-d-shadow: rgba(0, 0, 0, 0.55);
+    --pv-d-shadow-md: rgba(0, 0, 0, 0.6);
+    --pv-d-shadow-lg: rgba(0, 0, 0, 0.72);
+    --pv-d-focus-ring: rgba(109, 164, 224, 0.6);
+    --pv-d-warning-glow: rgba(210, 153, 34, 0.5);
+    --pv-d-danger-surface: #3d1d1f;
+    --pv-d-danger-surface-hover: #56282b;
+    --pv-d-danger-surface-ink: #ffb4ab;
+    --pv-d-danger-surface-border: #5c2b2e;
+    --pv-d-info-surface: #10243e;
+    --pv-d-info-surface-hover: #17375e;
+    --pv-d-info-ink: #79b8ff;
+    --pv-d-info-border: #1f4b7a;
+    --pv-d-neutral: #6e7681;
+    --pv-d-neutral-strong: #8b949e;
+    --pv-d-success-muted: #2a5a35;
+    --pv-d-accent-alt: #a371f7;
+    --pv-d-scrim-soft: rgba(0, 0, 0, 0.5);
+    --pv-d-hover-soft: rgba(255, 255, 255, 0.08);
+    --pv-d-active-soft: rgba(255, 255, 255, 0.14);
+    --pv-d-danger-glow: rgba(229, 83, 75, 0.55);
+    --pv-d-viz-muted: #898781;
+    --pv-d-viz-surface: #1a1a19;
+    --pv-d-viz-ink: #ffffff;
+    --pv-d-viz-grid: #2c2c2a;
+    --pv-d-viz-axis: #383835;
+    --pv-d-viz-series-1: #3987e5;
+    --pv-d-viz-series-2: #d95926;
+    --pv-d-viz-series-3: #199e70;
+    --pv-d-viz-series-4: #c98500;
+    --pv-d-viz-series-5: #d55181;
+    --pv-d-viz-series-6: #008300;
+    --pv-d-viz-series-7: #9085e9;
+    --pv-d-viz-series-8: #e66767;
+
 }
 
 @media (prefers-color-scheme: dark) {
     :root:where(:not([data-theme="light"])) {
         color-scheme: dark;
-        --pv-surface: #1e1e1d;
-        --pv-surface-2: #171716;
-        --pv-surface-3: #2a2a28;
-        --pv-ink: #e8e6df;
-        --pv-ink-secondary: #a6a49b;
-        --pv-ink-muted: #898781;
-        --pv-border: #3a3a38;
-        --pv-accent: #4d8fd6;
-        --pv-accent-strong: #6ba3e0;
-        --pv-accent-ink: #ffffff;
-        --pv-danger: #e5534b;
-        --pv-viz-surface: #1a1a19;
-        --pv-viz-ink: #ffffff;
-        --pv-viz-grid: #2c2c2a;
-        --pv-viz-axis: #383835;
-        --pv-viz-series-1: #3987e5;
-        --pv-viz-series-2: #d95926;
-        --pv-viz-series-3: #199e70;
-        --pv-viz-series-4: #c98500;
-        --pv-viz-series-5: #d55181;
-        --pv-viz-series-6: #008300;
-        --pv-viz-series-7: #9085e9;
-        --pv-viz-series-8: #e66767;
+        --pv-surface: var(--pv-d-surface);
+        --pv-surface-2: var(--pv-d-surface-2);
+        --pv-surface-3: var(--pv-d-surface-3);
+        --pv-ink: var(--pv-d-ink);
+        --pv-ink-secondary: var(--pv-d-ink-secondary);
+        --pv-ink-muted: var(--pv-d-ink-muted);
+        --pv-border: var(--pv-d-border);
+        --pv-accent: var(--pv-d-accent);
+        --pv-accent-strong: var(--pv-d-accent-strong);
+        --pv-accent-ink: var(--pv-d-accent-ink);
+        --pv-danger: var(--pv-d-danger);
+        --pv-danger-strong: var(--pv-d-danger-strong);
+        --pv-success: var(--pv-d-success);
+        --pv-success-strong: var(--pv-d-success-strong);
+        --pv-warning: var(--pv-d-warning);
+        --pv-panel: var(--pv-d-panel);
+        --pv-panel-soft: var(--pv-d-panel-soft);
+        --pv-panel-2: var(--pv-d-panel-2);
+        --pv-hover: var(--pv-d-hover);
+        --pv-active: var(--pv-d-active);
+        --pv-grip: var(--pv-d-grip);
+        --pv-scrim: var(--pv-d-scrim);
+        --pv-shadow-sm: var(--pv-d-shadow-sm);
+        --pv-shadow: var(--pv-d-shadow);
+        --pv-shadow-md: var(--pv-d-shadow-md);
+        --pv-shadow-lg: var(--pv-d-shadow-lg);
+        --pv-focus-ring: var(--pv-d-focus-ring);
+        --pv-warning-glow: var(--pv-d-warning-glow);
+        --pv-danger-surface: var(--pv-d-danger-surface);
+        --pv-danger-surface-hover: var(--pv-d-danger-surface-hover);
+        --pv-danger-surface-ink: var(--pv-d-danger-surface-ink);
+        --pv-danger-surface-border: var(--pv-d-danger-surface-border);
+        --pv-info-surface: var(--pv-d-info-surface);
+        --pv-info-surface-hover: var(--pv-d-info-surface-hover);
+        --pv-info-ink: var(--pv-d-info-ink);
+        --pv-info-border: var(--pv-d-info-border);
+        --pv-neutral: var(--pv-d-neutral);
+        --pv-neutral-strong: var(--pv-d-neutral-strong);
+        --pv-success-muted: var(--pv-d-success-muted);
+        --pv-accent-alt: var(--pv-d-accent-alt);
+        --pv-scrim-soft: var(--pv-d-scrim-soft);
+        --pv-hover-soft: var(--pv-d-hover-soft);
+        --pv-active-soft: var(--pv-d-active-soft);
+        --pv-danger-glow: var(--pv-d-danger-glow);
+        --pv-viz-muted: var(--pv-d-viz-muted);
+    --pv-viz-surface: var(--pv-d-viz-surface);
+        --pv-viz-ink: var(--pv-d-viz-ink);
+        --pv-viz-grid: var(--pv-d-viz-grid);
+        --pv-viz-axis: var(--pv-d-viz-axis);
+        --pv-viz-series-1: var(--pv-d-viz-series-1);
+        --pv-viz-series-2: var(--pv-d-viz-series-2);
+        --pv-viz-series-3: var(--pv-d-viz-series-3);
+        --pv-viz-series-4: var(--pv-d-viz-series-4);
+        --pv-viz-series-5: var(--pv-d-viz-series-5);
+        --pv-viz-series-6: var(--pv-d-viz-series-6);
+        --pv-viz-series-7: var(--pv-d-viz-series-7);
+        --pv-viz-series-8: var(--pv-d-viz-series-8);
     }
 }
 :root[data-theme="dark"] {
     color-scheme: dark;
-    --pv-surface: #1e1e1d;
-    --pv-surface-2: #171716;
-    --pv-surface-3: #2a2a28;
-    --pv-ink: #e8e6df;
-    --pv-ink-secondary: #a6a49b;
-    --pv-ink-muted: #898781;
-    --pv-border: #3a3a38;
-    --pv-accent: #4d8fd6;
-    --pv-accent-strong: #6ba3e0;
-    --pv-accent-ink: #ffffff;
-    --pv-danger: #e5534b;
-    --pv-viz-surface: #1a1a19;
-    --pv-viz-ink: #ffffff;
-    --pv-viz-grid: #2c2c2a;
-    --pv-viz-axis: #383835;
-    --pv-viz-series-1: #3987e5;
-    --pv-viz-series-2: #d95926;
-    --pv-viz-series-3: #199e70;
-    --pv-viz-series-4: #c98500;
-    --pv-viz-series-5: #d55181;
-    --pv-viz-series-6: #008300;
-    --pv-viz-series-7: #9085e9;
-    --pv-viz-series-8: #e66767;
+    --pv-surface: var(--pv-d-surface);
+    --pv-surface-2: var(--pv-d-surface-2);
+    --pv-surface-3: var(--pv-d-surface-3);
+    --pv-ink: var(--pv-d-ink);
+    --pv-ink-secondary: var(--pv-d-ink-secondary);
+    --pv-ink-muted: var(--pv-d-ink-muted);
+    --pv-border: var(--pv-d-border);
+    --pv-accent: var(--pv-d-accent);
+    --pv-accent-strong: var(--pv-d-accent-strong);
+    --pv-accent-ink: var(--pv-d-accent-ink);
+    --pv-danger: var(--pv-d-danger);
+    --pv-danger-strong: var(--pv-d-danger-strong);
+    --pv-success: var(--pv-d-success);
+    --pv-success-strong: var(--pv-d-success-strong);
+    --pv-warning: var(--pv-d-warning);
+    --pv-panel: var(--pv-d-panel);
+    --pv-panel-soft: var(--pv-d-panel-soft);
+    --pv-panel-2: var(--pv-d-panel-2);
+    --pv-hover: var(--pv-d-hover);
+    --pv-active: var(--pv-d-active);
+    --pv-grip: var(--pv-d-grip);
+    --pv-scrim: var(--pv-d-scrim);
+    --pv-shadow-sm: var(--pv-d-shadow-sm);
+    --pv-shadow: var(--pv-d-shadow);
+    --pv-shadow-md: var(--pv-d-shadow-md);
+    --pv-shadow-lg: var(--pv-d-shadow-lg);
+    --pv-focus-ring: var(--pv-d-focus-ring);
+    --pv-warning-glow: var(--pv-d-warning-glow);
+    --pv-danger-surface: var(--pv-d-danger-surface);
+    --pv-danger-surface-hover: var(--pv-d-danger-surface-hover);
+    --pv-danger-surface-ink: var(--pv-d-danger-surface-ink);
+    --pv-danger-surface-border: var(--pv-d-danger-surface-border);
+    --pv-info-surface: var(--pv-d-info-surface);
+    --pv-info-surface-hover: var(--pv-d-info-surface-hover);
+    --pv-info-ink: var(--pv-d-info-ink);
+    --pv-info-border: var(--pv-d-info-border);
+    --pv-neutral: var(--pv-d-neutral);
+    --pv-neutral-strong: var(--pv-d-neutral-strong);
+    --pv-success-muted: var(--pv-d-success-muted);
+    --pv-accent-alt: var(--pv-d-accent-alt);
+    --pv-scrim-soft: var(--pv-d-scrim-soft);
+    --pv-hover-soft: var(--pv-d-hover-soft);
+    --pv-active-soft: var(--pv-d-active-soft);
+    --pv-danger-glow: var(--pv-d-danger-glow);
+    --pv-viz-muted: var(--pv-d-viz-muted);
+    --pv-viz-surface: var(--pv-d-viz-surface);
+    --pv-viz-ink: var(--pv-d-viz-ink);
+    --pv-viz-grid: var(--pv-d-viz-grid);
+    --pv-viz-axis: var(--pv-d-viz-axis);
+    --pv-viz-series-1: var(--pv-d-viz-series-1);
+    --pv-viz-series-2: var(--pv-d-viz-series-2);
+    --pv-viz-series-3: var(--pv-d-viz-series-3);
+    --pv-viz-series-4: var(--pv-d-viz-series-4);
+    --pv-viz-series-5: var(--pv-d-viz-series-5);
+    --pv-viz-series-6: var(--pv-d-viz-series-6);
+    --pv-viz-series-7: var(--pv-d-viz-series-7);
+    --pv-viz-series-8: var(--pv-d-viz-series-8);
 }
 
 /* The diagram itself stays on light "paper" in both modes: canvas arc
    colors are drawn in JS against a light background. */
-.pv-canvas-container {
+/* The diagram layer keeps the light "paper" palette in BOTH themes so the
+   canvas-drawn arcs and node colors stay readable. Scoped to .pv-stage, not
+   .pv-canvas-container: the scale meter and mode menu are siblings of the
+   stage inside that container, and pinning at the container level froze them
+   light in dark mode. */
+.pv-stage {
     --pv-surface: #ffffff;
     --pv-surface-2: #fafafa;
     --pv-surface-3: #ecece9;
     --pv-ink: #24292e;
     --pv-ink-secondary: #586069;
     --pv-border: #e1e4e8;
+    /* The new chrome tokens are pinned here as well: elements drawn on the
+       canvas (weight badges, token dots) sit on light paper in both themes, so
+       a dark shadow or panel value would bleed through. */
+    --pv-panel: #ffffff;
+    --pv-panel-soft: rgba(255, 255, 255, 0.92);
+    --pv-panel-2: rgba(250, 250, 250, 0.98);
+    --pv-grip: rgba(0, 0, 0, 0.15);
+    --pv-shadow-sm: rgba(0, 0, 0, 0.08);
+    --pv-shadow: rgba(0, 0, 0, 0.15);
+    --pv-shadow-md: rgba(0, 0, 0, 0.2);
+    --pv-shadow-lg: rgba(0, 0, 0, 0.3);
     color-scheme: light;
+}
+
+/* Canvas backdrop. --pv-paper is intentionally theme-invariant (see the
+   token block); it is the paper the diagram sits on, not a themed surface. */
+.pv-canvas-container {
+    background: var(--pv-paper);
 }
 
 html, body {
@@ -355,7 +548,6 @@ canvas.pv-canvas {
     min-height: 150px;
     position: relative;
     overflow: hidden;
-    background: var(--pv-surface-2);
     /* Prevent default touch behaviors like scroll/zoom during pan/drag */
     touch-action: none;
 }
@@ -381,7 +573,7 @@ canvas.pv-canvas {
 
 .pv-layout-divider:hover,
 .pv-layout-divider:active {
-    background: linear-gradient(180deg, #c0c0c0 0%, #d0d0d0 50%, #c0c0c0 100%);
+    background: linear-gradient(180deg, var(--pv-active) 0%, var(--pv-hover) 50%, var(--pv-active) 100%);
 }
 
 .pv-layout-divider::before {
@@ -392,7 +584,7 @@ canvas.pv-canvas {
     transform: translate(-50%, -50%);
     width: 40px;
     height: 3px;
-    background: rgba(0, 0, 0, 0.15);
+    background: var(--pv-grip);
     border-radius: 2px;
 }
 
@@ -404,7 +596,7 @@ canvas.pv-canvas {
 
 .pv-root.pv-layout-horizontal .pv-layout-divider:hover,
 .pv-root.pv-layout-horizontal .pv-layout-divider:active {
-    background: linear-gradient(90deg, #c0c0c0 0%, #d0d0d0 50%, #c0c0c0 100%);
+    background: linear-gradient(90deg, var(--pv-active) 0%, var(--pv-hover) 50%, var(--pv-active) 100%);
 }
 
 .pv-root.pv-layout-horizontal .pv-layout-divider::before {
@@ -418,7 +610,7 @@ canvas.pv-canvas {
     min-width: 200px;
     min-height: 150px;
     padding: 12px;
-    background: rgba(250, 250, 250, 0.98);
+    background: var(--pv-panel-2);
     box-sizing: border-box;
     display: flex;
     flex-direction: column;
@@ -449,8 +641,8 @@ canvas.pv-canvas {
     height: 36px;
     border-radius: 6px;
     border: none;
-    background: rgba(255, 255, 255, 0.9);
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+    background: var(--pv-panel-soft);
+    box-shadow: 0 2px 6px var(--pv-shadow);
     cursor: pointer;
     font-size: 16px;
     z-index: 1200;
@@ -462,11 +654,11 @@ canvas.pv-canvas {
 }
 
 .pv-layout-toggle:hover {
-    background: rgba(255, 255, 255, 1);
+    background: var(--pv-panel);
 }
 
 .pv-layout-toggle:active {
-    background: rgba(240, 240, 240, 1);
+    background: var(--pv-surface-3);
 }
 
 /* Remove focus outline on toolbar buttons to avoid visual inconsistency */
@@ -478,7 +670,7 @@ canvas.pv-canvas {
 /* Keep keyboard navigation accessible with visible focus for keyboard users */
 .pv-tool:focus-visible,
 .pv-play:focus-visible {
-    outline: 2px solid rgba(42, 111, 184, 0.5);
+    outline: 2px solid var(--pv-focus-ring);
     outline-offset: 2px;
 }
 
@@ -531,7 +723,7 @@ canvas.pv-canvas {
     top: 0;
     right: 0;
     bottom: 0;
-    background: rgba(0, 0, 0, 0.5);
+    background: var(--pv-scrim);
     z-index: 2147483646;
     display: flex;
     align-items: center;
@@ -545,7 +737,7 @@ canvas.pv-canvas {
     padding: 24px;
     max-width: 600px;
     width: 100%;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 4px 20px var(--pv-shadow-lg);
     max-height: 85vh;
     overflow: auto;
 }
@@ -626,7 +818,7 @@ canvas.pv-canvas {
 }
 
 .pv-dialog-close-icon:active {
-    background: #d0d0d0;
+    background: var(--pv-hover);
 }
 
 /* ============================================
@@ -707,7 +899,7 @@ canvas.pv-canvas {
 }
 
 .pv-btn-primary {
-    color: #fff;
+    color: var(--pv-accent-ink);
     background: var(--pv-accent);
     border: none;
 }
@@ -717,23 +909,23 @@ canvas.pv-canvas {
 }
 
 .pv-btn-success {
-    color: #fff;
-    background: #28a745;
+    color: var(--pv-accent-ink);
+    background: var(--pv-success);
     border: none;
 }
 
 .pv-btn-success:hover {
-    background: #218838;
+    background: var(--pv-success-strong);
 }
 
 .pv-btn-danger {
-    color: #fff;
-    background: #dc3545;
+    color: var(--pv-accent-ink);
+    background: var(--pv-danger);
     border: none;
 }
 
 .pv-btn-danger:hover {
-    background: #c82333;
+    background: var(--pv-danger-strong);
 }
 
 .pv-btn-sm {
@@ -844,30 +1036,30 @@ canvas.pv-canvas {
 .pv-header-remove-btn {
     padding: 6px 10px;
     font-size: 12px;
-    background: #f8d7da;
-    color: #721c24;
-    border: 1px solid #f5c6cb;
+    background: var(--pv-danger-surface);
+    color: var(--pv-danger-surface-ink);
+    border: 1px solid var(--pv-danger-surface-border);
     border-radius: 4px;
     cursor: pointer;
 }
 
 .pv-header-remove-btn:hover {
-    background: #f1b0b7;
+    background: var(--pv-danger-surface-hover);
 }
 
 .pv-add-header-btn {
     padding: 6px 12px;
     font-size: 12px;
-    background: #e7f3ff;
-    color: #0066cc;
-    border: 1px solid #b3d7ff;
+    background: var(--pv-info-surface);
+    color: var(--pv-info-ink);
+    border: 1px solid var(--pv-info-border);
     border-radius: 4px;
     cursor: pointer;
     margin-bottom: 16px;
 }
 
 .pv-add-header-btn:hover {
-    background: #cce5ff;
+    background: var(--pv-info-surface-hover);
 }
 
 /* ============================================
@@ -914,9 +1106,9 @@ canvas.pv-canvas {
     width: 52px;
     height: 160px;
     padding: 8px;
-    background: rgba(255, 255, 255, 0.94);
+    background: var(--pv-panel-soft);
     border-radius: 10px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+    box-shadow: 0 2px 8px var(--pv-shadow);
     z-index: 3000;
     display: flex;
     flex-direction: column;
@@ -947,7 +1139,7 @@ canvas.pv-canvas {
 
 .pv-scale-reset:hover {
     background: var(--pv-surface-2);
-    border-color: #999;
+    border-color: var(--pv-ink-muted);
 }
 
 .pv-scale-track {
@@ -968,7 +1160,7 @@ canvas.pv-canvas {
     bottom: 0;
     width: 10px;
     height: 0%;
-    background: linear-gradient(180deg, #4A90E2, #2A6FB8);
+    background: linear-gradient(180deg, var(--pv-accent), var(--pv-accent-strong));
     border-radius: 6px;
 }
 
@@ -982,7 +1174,7 @@ canvas.pv-canvas {
     border-radius: 50%;
     background: var(--pv-surface);
     border: 2px solid var(--pv-accent);
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 1px 3px var(--pv-shadow-md);
 }
 
 .pv-scale-legend {
@@ -1014,7 +1206,7 @@ canvas.pv-canvas {
     margin: 16px 0 8px 0;
     font-size: 16px;
     font-weight: 600;
-    color: #000;
+    color: var(--pv-ink);
 }
 
 .pv-help-content h4 {
@@ -1042,7 +1234,7 @@ canvas.pv-canvas {
     padding: 10px 32px;
     font-size: 15px;
     font-weight: 500;
-    color: #fff;
+    color: var(--pv-accent-ink);
     background: var(--pv-accent);
     border: none;
     border-radius: 6px;
@@ -1051,7 +1243,7 @@ canvas.pv-canvas {
 }
 
 .pv-help-close-btn:hover {
-    background: #0056b3;
+    background: var(--pv-accent-strong);
 }
 
 /* ============================================
@@ -1064,7 +1256,7 @@ canvas.pv-canvas {
     top: 0;
     right: 0;
     bottom: 0;
-    background: rgba(0, 0, 0, 0.5);
+    background: var(--pv-scrim);
     z-index: 2147483646;
     display: flex;
     align-items: center;
@@ -1078,7 +1270,7 @@ canvas.pv-canvas {
     padding: 0;
     max-width: 900px;
     width: 100%;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 4px 20px var(--pv-shadow-lg);
     max-height: 90vh;
     border: 1px solid var(--pv-border);
     display: flex;
@@ -1279,17 +1471,17 @@ canvas.pv-canvas {
 }
 
 .pv-sim-btn-primary {
-    color: #fff;
+    color: var(--pv-accent-ink);
     background: var(--pv-accent);
 }
 
 .pv-sim-btn-primary:hover {
-    background: #0256b3;
+    background: var(--pv-accent-strong);
 }
 
 .pv-sim-btn-export {
-    color: #fff;
-    background: #6f42c1;
+    color: var(--pv-accent-ink);
+    background: var(--pv-accent-alt);
 }
 
 .pv-sim-btn-export:disabled {
@@ -1299,12 +1491,12 @@ canvas.pv-canvas {
 
 .pv-sim-btn-secondary {
     color: var(--pv-ink);
-    background: #fafbfc;
-    border: 1px solid #d1d5da;
+    background: var(--pv-surface-2);
+    border: 1px solid var(--pv-border);
 }
 
 .pv-sim-btn-secondary:hover {
-    background: #f3f4f6;
+    background: var(--pv-surface-3);
 }
 
 /* ============================================
@@ -1317,7 +1509,7 @@ canvas.pv-canvas {
     top: 0;
     right: 0;
     bottom: 0;
-    background: rgba(0, 0, 0, 0.5);
+    background: var(--pv-scrim);
     z-index: 2147483646;
     display: flex;
     align-items: center;
@@ -1331,7 +1523,7 @@ canvas.pv-canvas {
     padding: 24px;
     max-width: 500px;
     width: 100%;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 4px 20px var(--pv-shadow-lg);
     max-height: 85vh;
     overflow: auto;
 }
@@ -1360,7 +1552,7 @@ canvas.pv-canvas {
     flex-direction: column;
     align-items: flex-start;
     padding: 16px;
-    background: #f8f9fa;
+    background: var(--pv-surface-2);
     border: 2px solid var(--pv-border);
     border-radius: 8px;
     cursor: pointer;
@@ -1423,7 +1615,7 @@ canvas.pv-canvas {
     top: 0;
     right: 0;
     bottom: 0;
-    background: rgba(0, 0, 0, 0.5);
+    background: var(--pv-scrim);
     z-index: 2147483646;
     display: flex;
     align-items: center;
@@ -1439,7 +1631,7 @@ canvas.pv-canvas {
     width: 100%;
     max-height: 80vh;
     overflow: auto;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 4px 20px var(--pv-shadow-lg);
 }
 
 .pv-diagrams-title {
@@ -1478,7 +1670,7 @@ canvas.pv-canvas {
 }
 
 .pv-diagram-card:hover {
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 4px 12px var(--pv-shadow);
     transform: translateY(-2px);
 }
 
@@ -1538,7 +1730,7 @@ canvas.pv-canvas {
     flex: 1;
     padding: 6px 12px;
     font-size: 12px;
-    color: #fff;
+    color: var(--pv-accent-ink);
     background: var(--pv-accent);
     border: none;
     border-radius: 4px;
@@ -1568,24 +1760,24 @@ canvas.pv-canvas {
 }
 
 .pv-diagram-action-btn-open:hover {
-    background: #f0f7ff;
+    background: var(--pv-info-surface);
 }
 
 .pv-diagram-action-btn-delete {
-    color: #cb2431;
+    color: var(--pv-danger);
     border-left: 1px solid var(--pv-border);
 }
 
 .pv-diagram-action-btn-delete:hover {
-    background: #fff5f5;
+    background: var(--pv-panel)5f5;
 }
 
 .pv-diagrams-close-btn {
     padding: 10px 24px;
     font-size: 14px;
     font-weight: 500;
-    background: #6c757d;
-    color: #fff;
+    background: var(--pv-neutral);
+    color: var(--pv-accent-ink);
     border: none;
     border-radius: 6px;
     cursor: pointer;
@@ -1593,7 +1785,7 @@ canvas.pv-canvas {
 }
 
 .pv-diagrams-close-btn:hover {
-    background: #5a6268;
+    background: var(--pv-neutral-strong);
 }
 
 /* ============================================
@@ -1641,7 +1833,7 @@ canvas.pv-canvas {
     top: 0;
     right: 0;
     bottom: 0;
-    background: rgba(0, 0, 0, 0.5);
+    background: var(--pv-scrim);
     z-index: 2147483647;
     display: flex;
     align-items: center;
@@ -1655,7 +1847,7 @@ canvas.pv-canvas {
     padding: 24px;
     max-width: 500px;
     width: 100%;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 4px 20px var(--pv-shadow-lg);
 }
 
 .pv-edit-diagram-title {
@@ -1722,14 +1914,14 @@ canvas.pv-canvas {
 }
 
 .pv-edit-diagram-btn-cancel:hover {
-    background: #e1e4e8;
+    background: var(--pv-border);
 }
 
 .pv-edit-diagram-btn-save {
     padding: 10px 20px;
     font-size: 14px;
-    background: #2ea44f;
-    color: #fff;
+    background: var(--pv-success);
+    color: var(--pv-accent-ink);
     border: none;
     border-radius: 6px;
     cursor: pointer;
@@ -1737,11 +1929,11 @@ canvas.pv-canvas {
 }
 
 .pv-edit-diagram-btn-save:hover {
-    background: #2c974b;
+    background: var(--pv-success-strong);
 }
 
 .pv-edit-diagram-btn-save:disabled {
-    background: #94d3a2;
+    background: var(--pv-success-muted);
     cursor: not-allowed;
 }
 
@@ -1757,8 +1949,8 @@ canvas.pv-canvas {
     height: 40px;
     border-radius: 6px;
     border: none;
-    background: rgba(255, 255, 255, 0.9);
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+    background: var(--pv-panel-soft);
+    box-shadow: 0 2px 6px var(--pv-shadow);
     cursor: pointer;
     font-size: 20px;
     z-index: 1300;
@@ -1770,7 +1962,7 @@ canvas.pv-canvas {
 }
 
 .pv-hamburger-btn:hover {
-    background: rgba(255, 255, 255, 1);
+    background: var(--pv-panel);
 }
 
 .pv-hamburger-overlay {
@@ -1779,7 +1971,7 @@ canvas.pv-canvas {
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0, 0, 0, 0.5);
+    background: var(--pv-scrim);
     z-index: 1299;
 }
 
@@ -1790,7 +1982,7 @@ canvas.pv-canvas {
     width: 300px;
     height: 100%;
     background: var(--pv-surface);
-    box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
+    box-shadow: 2px 0 8px var(--pv-shadow-sm);
     display: flex;
     flex-direction: column;
     z-index: 1300;
@@ -1850,9 +2042,9 @@ canvas.pv-canvas {
     top: 55px;
     left: 10px;
     min-width: 180px;
-    background: rgba(255, 255, 255, 0.98);
+    background: var(--pv-panel-soft);
     border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 4px 12px var(--pv-shadow-md);
     z-index: 1300;
     padding: 6px 0;
     user-select: none;
@@ -1860,7 +2052,7 @@ canvas.pv-canvas {
 
 .pv-hamburger-separator {
     height: 1px;
-    background: #e1e4e8;
+    background: var(--pv-border);
     margin: 8px 0;
 }
 
@@ -1883,8 +2075,8 @@ canvas.pv-canvas {
     padding: 0 16px;
     border-radius: 6px;
     border: none;
-    background: rgba(255, 255, 255, 0.9);
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+    background: var(--pv-panel-soft);
+    box-shadow: 0 2px 6px var(--pv-shadow);
     cursor: pointer;
     font-size: 14px;
     font-family: system-ui, Arial;
@@ -1898,7 +2090,7 @@ canvas.pv-canvas {
 }
 
 .pv-top-right-btn:hover {
-    background: rgba(255, 255, 255, 1);
+    background: var(--pv-panel);
 }
 
 /* Legacy menu classes for compatibility */
@@ -1910,8 +2102,8 @@ canvas.pv-canvas {
     height: 40px;
     border-radius: 8px;
     border: none;
-    background: rgba(255, 255, 255, 0.95);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    background: var(--pv-panel-soft);
+    box-shadow: 0 2px 8px var(--pv-shadow);
     cursor: pointer;
     font-size: 20px;
     z-index: 2000;
@@ -1940,7 +2132,7 @@ canvas.pv-canvas {
     max-width: 80vw;
     height: 100%;
     background: var(--pv-surface);
-    box-shadow: 2px 0 12px rgba(0, 0, 0, 0.15);
+    box-shadow: 2px 0 12px var(--pv-shadow);
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -2006,7 +2198,7 @@ canvas.pv-canvas {
 
 .pv-menu-backdrop {
     flex: 1;
-    background: rgba(0, 0, 0, 0.3);
+    background: var(--pv-scrim-soft);
     cursor: pointer;
 }
 
@@ -2060,9 +2252,9 @@ canvas.pv-canvas {
     flex-direction: row;
     gap: 8px;
     padding: 6px 8px;
-    background: rgba(255, 255, 255, 0.9);
+    background: var(--pv-panel-soft);
     border-radius: 8px;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 2px 6px var(--pv-shadow);
     z-index: 1200;
     align-items: center;
     user-select: none;
@@ -2084,11 +2276,11 @@ canvas.pv-canvas {
 }
 
 .pv-mode-btn:hover {
-    background: rgba(0, 0, 0, 0.06);
+    background: var(--pv-hover-soft);
 }
 
 .pv-mode-btn.pv-active {
-    background: rgba(0, 0, 0, 0.1);
+    background: var(--pv-active-soft);
 }
 
 .pv-play-btn {
@@ -2105,7 +2297,7 @@ canvas.pv-canvas {
 }
 
 .pv-play-btn:hover {
-    background: linear-gradient(180deg, var(--pv-surface-2), #e8e8e8);
+    background: linear-gradient(180deg, var(--pv-surface-2), var(--pv-surface-3));
 }
 
 /* ============================================
@@ -2118,7 +2310,7 @@ canvas.pv-canvas {
 
 @keyframes pv-flash-invalid {
     0%, 100% { box-shadow: none; }
-    50% { box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.5); }
+    50% { box-shadow: 0 0 0 3px var(--pv-danger-glow); }
 }
 
 /* ============================================================
@@ -2177,7 +2369,7 @@ canvas.pv-canvas {
     border-radius: 8px;
     padding: 10px 14px;
     font: 13px/1.45 system-ui, sans-serif;
-    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.18);
+    box-shadow: 0 6px 24px var(--pv-shadow-md);
     white-space: pre-line;
     animation: pv-toast-in 160ms ease-out;
     max-width: 100%;
