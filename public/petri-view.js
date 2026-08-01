@@ -48,7 +48,10 @@ const MODE_CAPS = {
     },
 };
 
-class PetriView extends HTMLElement {
+// ── Web Component (browser only) ──────────────────────────────────
+let PetriView;
+if (typeof HTMLElement !== 'undefined') {
+PetriView = class PetriView extends HTMLElement {
 
     constructor() {
         super();
@@ -7354,7 +7357,9 @@ class PetriView extends HTMLElement {
         return `petri-view:last${id ? ':' + id : ''}`;
     }
 
-}
+};
 
 customElements.define('petri-view', PetriView);
+}
+
 export {PetriView};

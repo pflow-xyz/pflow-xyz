@@ -46,15 +46,20 @@ fi
 node scripts/npm-smoke.mjs "$pkg"
 
 # Prove the exports map resolves from a consumer's point of view.
+# The package name is read from package.json so a rename cannot silently
+# leave this test importing a stale specifier.
+name="$(node -p "require('./package.json').name")"
 scratch="$tmp/scratch"
 mkdir -p "$scratch"
 ( cd "$scratch" \
   && npm init -y --silent >/dev/null \
   && npm install --silent --no-audit --no-fund "$tmp/$tarball" >/dev/null \
-  && node --input-type=module -e '
-    const solver = await import("pflow-xyz");
-    const sim = await import("pflow-xyz/petri-sim.js");
-    if (typeof solver.solve !== "function") throw new Error("pflow-xyz: solve export missing");
-    if (typeof sim.fire !== "function") throw new Error("pflow-xyz/petri-sim.js: fire export missing");
-    console.log("ok: exports map resolves (pflow-xyz, pflow-xyz/petri-sim.js)");
+  && PKG="$name" node --input-type=module -e '
+    const pkg = process.env.PKG;
+    const solver = await import(pkg);
+    const sim = await import(`${pkg}/petri-sim.js`);
+    const view = await import(`${pkg}/petri-view.js`);
+    if (typeof solver.solve !== "function") throw new Error(`${pkg}: solve export missing`);
+    if (typeof sim.fire !== "function") throw new Error(`${pkg}/petri-sim.js: fire export missing`);
+    console.log(`ok: exports map resolves (${pkg}, ${pkg}/petri-sim.js, ${pkg}/petri-view.js under node)`);
   ' )
