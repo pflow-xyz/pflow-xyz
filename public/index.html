@@ -2,7 +2,10 @@
 <html lang="en">
 <head>
     <meta charset="utf-8"/>
-    <meta content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" name="viewport"/>
+    <!-- Pinch-zoom stays enabled: blocking it fails WCAG 1.4.4, and it is the
+         first gesture people try on a diagram. The canvas sets touch-action:none
+         so its own pan/zoom gestures are unaffected. -->
+    <meta content="width=device-width, initial-scale=1" name="viewport"/>
     <title>pflow - Visual Editor for Petri Nets</title>
     <meta name="description" content="One abstraction for state machines, resource flows, game mechanics, and token standards. Build Petri net models you can simulate, analyze, and generate code from."/>
     <meta property="og:title" content="pflow - Visual Editor for Petri Nets"/>

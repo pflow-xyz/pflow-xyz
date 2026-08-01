@@ -901,8 +901,8 @@ PetriView = class PetriView extends HTMLElement {
             this.removeAttribute('data-layout-horizontal');
         }
 
-        // Reset to 50/50 split on orientation change
-        this._canvasContainer.style.flex = '0 0 50%';
+        // Reset the split on orientation change (same default as first load)
+        this._canvasContainer.style.flex = this._defaultCanvasFlex();
         this._saveDividerPosition();
 
         // Update divider cursor and aria
@@ -936,6 +936,56 @@ PetriView = class PetriView extends HTMLElement {
     }
 
     // ---------------- divider handling ----------------
+
+    // Small-viewport test, matching the @media breakpoint in petri-view.css.
+    // Kept in one place so the JS defaults and the CSS never disagree.
+    // Height matters as well as width: a phone in landscape is 844x390, which
+    // is wider than the width breakpoint but leaves each pane under 200px.
+    _isNarrowViewport() {
+        try {
+            return typeof window !== 'undefined'
+                && typeof window.matchMedia === 'function'
+                && window.matchMedia('(max-width: 760px), (max-height: 520px)').matches;
+        } catch {
+            return false;
+        }
+    }
+
+    // A 50/50 split leaves the graph roughly 400px tall on a phone, which is
+    // not enough to work in. On a narrow screen the JSON pane therefore starts
+    // collapsed to its drag handle; the graph is what the page is for. This is
+    // only the DEFAULT — a saved divider position still wins, and dragging or
+    // tapping the handle opens the pane.
+    _defaultCanvasFlex() {
+        if (this._isNarrowViewport() && !this._layoutHorizontal) {
+            const px = (this._divider && this._divider.offsetHeight) || 14;
+            return `0 0 calc(100% - ${px}px)`;
+        }
+        return '0 0 50%';
+    }
+
+    // Tap (as opposed to drag) on the handle toggles the pane open/closed.
+    _toggleEditorPane() {
+        if (!this._canvasContainer || !this._jsonEditor) return;
+        // Measure the space the canvas does NOT occupy rather than the pane's
+        // own height: a collapsed pane still reports its vertical padding.
+        const rootPx = this._root.getBoundingClientRect().height;
+        const canvasPx = this._canvasContainer.getBoundingClientRect().height;
+        const collapsed = (rootPx - canvasPx) < 60;
+        this._canvasContainer.style.flex = collapsed ? '0 0 50%' : this._defaultCanvasFlex();
+        this._saveDividerPosition();
+        requestAnimationFrame(() => {
+            this._onResize();
+            if (this._aceEditor) {
+                try {
+                    this._aceEditor.resize();
+                } catch {
+                    // ignore
+                }
+            }
+        });
+    }
+
     _initDividerPosition() {
         // Reset height/minHeight that may have been set when editor was closed
         this._canvasContainer.style.height = '';
@@ -955,8 +1005,8 @@ PetriView = class PetriView extends HTMLElement {
             // ignore
         }
 
-        // Default: 50/50 split
-        this._canvasContainer.style.flex = '0 0 50%';
+        // Default: 50/50 on desktop, collapsed editor on a narrow screen
+        this._canvasContainer.style.flex = this._defaultCanvasFlex();
     }
 
     _saveDividerPosition() {
@@ -974,11 +1024,13 @@ PetriView = class PetriView extends HTMLElement {
         if (!this._divider) return;
 
         let isDragging = false;
+        let dragOrigin = null;
 
         const onPointerDown = (e) => {
             if (e.button !== 0) return; // left button only
             e.preventDefault();
             isDragging = true;
+            dragOrigin = {x: e.clientX, y: e.clientY};
             this._divider.setPointerCapture(e.pointerId);
 
             // Update cursor based on current layout
@@ -990,18 +1042,25 @@ PetriView = class PetriView extends HTMLElement {
 
             const rootRect = this._root.getBoundingClientRect();
 
+            // On a narrow screen the pane must be able to collapse fully, or
+            // the drag cannot reach the state the editor starts in.
+            const narrow = this._isNarrowViewport();
+            const paneMin = narrow ? 0 : (this._layoutHorizontal ? 200 : 150);
+
             if (this._layoutHorizontal) {
                 // Horizontal layout (side-by-side)
+                const dividerPx = this._divider.offsetWidth || 8;
                 const offsetX = e.clientX - rootRect.left;
-                const minSize = 200;
-                const maxSize = rootRect.width - 200 - 8; // account for divider
+                const minSize = narrow ? 120 : 200;
+                const maxSize = rootRect.width - paneMin - dividerPx;
                 const clamped = Math.max(minSize, Math.min(maxSize, offsetX));
                 this._canvasContainer.style.flex = `0 0 ${clamped}px`;
             } else {
                 // Vertical layout (stacked)
+                const dividerPx = this._divider.offsetHeight || 8;
                 const offsetY = e.clientY - rootRect.top;
-                const minSize = 150;
-                const maxSize = rootRect.height - 150 - 8; // account for divider
+                const minSize = narrow ? 120 : 150;
+                const maxSize = rootRect.height - paneMin - dividerPx;
                 const clamped = Math.max(minSize, Math.min(maxSize, offsetY));
                 this._canvasContainer.style.flex = `0 0 ${clamped}px`;
             }
@@ -1031,6 +1090,17 @@ PetriView = class PetriView extends HTMLElement {
 
             // Restore cursor
             document.body.style.cursor = '';
+
+            // A press that never moved is a tap, not a resize: toggle the pane
+            // so the collapsed default is reachable without a precise drag.
+            const moved = dragOrigin
+                ? Math.hypot(e.clientX - dragOrigin.x, e.clientY - dragOrigin.y)
+                : Infinity;
+            dragOrigin = null;
+            if (moved < 6) {
+                this._toggleEditorPane();
+                return;
+            }
 
             // Save position
             this._saveDividerPosition();

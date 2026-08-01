@@ -2336,7 +2336,63 @@ canvas.pv-canvas {
     font-variant-numeric: tabular-nums;
 }
 .pv-analysis-actions { margin-top: 12px; }
-@media (max-width: 760px) {
+/* Small viewports. Height is part of the test because a phone in landscape is
+   844x390 — wider than the width breakpoint, but with under 200px per pane.
+   _isNarrowViewport() in petri-view.js matches this query exactly. */
+@media (max-width: 760px), (max-height: 520px) {
     .pv-analysis-body { flex-direction: column; }
     .pv-analysis-controls { width: auto; }
+
+    /* The JSON pane starts collapsed to its handle on a phone (see
+       _defaultCanvasFlex in petri-view.js). These min-heights, sized for a
+       desktop split, would otherwise force it back open and overflow the root. */
+    .pv-root .pv-json-editor { min-height: 0; padding: 8px; }
+    .pv-canvas-container { min-height: 0; }
+
+    /* The scale meter floats over the canvas. At 1400px that costs ~5% of the
+       width; at 390px it was 17% and sat on top of the diagram. */
+    .pv-scale-meter {
+        width: 40px;
+        height: 116px;
+        right: 6px;
+        padding: 6px;
+        gap: 6px;
+    }
+
+    /* Keep the handle visually slim but give it a real touch target, and make
+       the grip wide enough to read as draggable. */
+    .pv-layout-divider { flex: 0 0 14px; }
+    .pv-layout-divider::before { width: 56px; height: 4px; }
+    .pv-root:not(.pv-layout-horizontal) .pv-layout-divider::after {
+        content: '';
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: -10px;
+        bottom: -10px;
+    }
+
+    /* 44px is the minimum comfortable touch target. */
+    .pv-editor-toolbar-btn,
+    .pv-menu-btn,
+    .pv-menu-header-btn {
+        min-width: 44px;
+        min-height: 44px;
+    }
+
+    /* The mode menu is a single row of 8 tools. At 44px wide each, the row is
+       424px and overflows a 390px phone, so trade width for a tighter gap and
+       keep the full 44px of touch height. overflow-x is the safety net if a
+       tool is ever added. */
+    .pv-mode-menu {
+        gap: 4px;
+        padding: 4px;
+        max-width: calc(100vw - 16px);
+        overflow-x: auto;
+    }
+    .pv-mode-menu button {
+        min-width: 38px;
+        min-height: 44px;
+        flex: 0 0 auto;
+    }
 }
