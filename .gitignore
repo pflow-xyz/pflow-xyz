@@ -42,3 +42,7 @@ PLAN.md
 
 # Bazel symlinks
 /bazel-*
+
+# Python bytecode (publish/)
+__pycache__/
+*.pyc

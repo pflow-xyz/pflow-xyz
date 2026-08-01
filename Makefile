@@ -1,4 +1,4 @@
-.PHONY: all build run clean test test-js test-parity
+.PHONY: all build run clean test test-js test-parity test-publish publish
 
 # Build the webserver
 build:
@@ -25,12 +25,24 @@ clean:
 	@echo "Clean complete"
 
 # Run tests
-test: test-js test-parity test-parity-behavior
+test: test-js test-parity test-parity-behavior test-publish
 	@go test ./...
 
 # Run JavaScript tests
 test-js:
 	@deno test public/petri-sim_test.ts public/petri-colors_test.ts
+
+# Publisher for cdn.stackdump.com (uses a temp blobs dir; touches no real state)
+test-publish:
+	@python3 publish/test_cdn.py
+
+# Publish a page/model/dir to cdn.stackdump.com. Public URL is printed on success.
+#   make publish SRC=examples/predator-prey.html
+#   make publish SRC=./demo-dir ARGS='--tag ode --meta solver=tsit5 --draft'
+# Add ARGS='--dry-run' to see the CID and generated index.md without writing.
+publish:
+	@test -n "$(SRC)" || { echo "usage: make publish SRC=<file-or-dir> [ARGS='--tag x']"; exit 2; }
+	@python3 publish/cdn.py "$(SRC)" $(ARGS)
 
 # Cross-language behavioral parity: go-pflow engines vs the browser's JS engines.
 # sim: lockstep discrete-firing walks over 200 seeded random models

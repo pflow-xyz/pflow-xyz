@@ -148,6 +148,43 @@ Go tests are alongside source files (`*_test.go`). Key test files:
 
 Frontend testing via `public/test-solver.html` for the ODE solver.
 
+## Publishing to cdn.stackdump.com
+
+`publish/cdn.py` is this repo's implementation of the ecosystem producer
+contract (see `~/Workspace/CLAUDE.md`). Use it for demo pages, saved models,
+or any artifact directory — it computes the CID, generates `index.md`, stages
+atomically, pings the indexer, and mirrors to pflow.dev.
+
+```bash
+make publish SRC=path/to/demo.html                     # infers title + schema
+make publish SRC=./artifact-dir ARGS='--tag ode --meta solver=tsit5'
+make publish SRC=model.jsonld ARGS='--dry-run'         # print CID + index.md, write nothing
+python3 publish/cdn.py demo.html --body notes.md --draft
+```
+
+Public URL is `https://cdn.stackdump.com/ipfs/<cid>/`; the tool prints it.
+`make test-publish` covers the module (temp blobs dir, no real state touched)
+and runs as part of `make test`.
+
+**Two conventions it encodes so callers don't have to remember them:**
+
+- **CID** is `bafyrei` + the first 32 hex of `sha256(primary artifact bytes)` —
+  the house rule shared with beats-builder. Not a real CIDv1; the CDN
+  sanitises rather than validates. Adding sibling assets does **not** change
+  the address, only the primary artifact's bytes do.
+- **`index.html` is renamed to `demo.html` on staging.** The CDN's file server
+  301s `/ipfs/<cid>/index.html` → `./`, which renders the `index.md` landing
+  page — so an artifact literally named `index.html` is unreachable and the
+  landing page's link to it is a redirect loop. This bit the first publish;
+  the rename is now automatic and asserted by a test.
+
+Schema and title are inferred (`InteractiveDemo/v1` for HTML, `PetriNet/v1`
+for a JSON-LD net, `Dataset/v1`/`Document/v1` otherwise; title from `<title>`
+or the JSON `title`/`name`), and `--title`/`--schema` override. Every
+`--meta KEY=VALUE` becomes a searchable facet (`?meta.solver=tsit5`), with
+numeric values left unquoted so range queries work. Republishing the same
+bytes replaces the directory cleanly and yields the same CID.
+
 ## Common Tasks
 
 **Adding a new API endpoint:**
