@@ -1,0 +1,65 @@
+"""Canonical browser modules.
+
+This package is the source of truth for the shared JS that bitwrap-io,
+stackedup-gg and modeldao-org each vendor a copy of. They copy rather than
+reference because each embeds or serves its own static assets — bitwrap-io and
+modeldao-org via //go:embed (needs files on disk at `go build` time),
+stackedup-gg via http.FileServer(http.Dir(...)) at runtime — and because
+pflow.dev deploys with `make build`, not Bazel.
+
+So the copies stay. What these targets add is a way to depend on the canonical
+bytes from inside a Bazel graph: a consumer that is Bazel-ported can take a
+bazel_dep on this module and diff its vendored copy against
+@pflow_xyz//public:browser_modules, which pins a resolvable upstream version
+rather than a bare sha256. See CLAUDE.md's vendoring contract, and
+scripts/pflow-js.sh for the offline lock every consumer also carries.
+
+Keep :browser_modules in sync with the consumers' pflow-js.lock rows — it is the
+same set of files, named once here.
+"""
+
+load(":files.bzl", "PUBLIC_FILES")
+
+exports_files(PUBLIC_FILES)
+
+# The modules consumers vendor. Anything added here should be added to the
+# relevant pflow-js.lock too, or the two mechanisms disagree about what
+# "canonical" means.
+filegroup(
+    name = "browser_modules",
+    srcs = [
+        "petri-colors.js",
+        "petri-sim.js",
+        "petri-solver.js",
+        "petri-view.js",
+        "seal-cid.mjs",
+        "vendor/jsonld.bundle.mjs",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+# The two engines the JS/Go differential drives, plus what they import. Used as
+# test data by //parity/... so the parity tests run against the same files the
+# browser loads, not a copy.
+filegroup(
+    name = "sim_engine",
+    srcs = ["petri-sim.js"],
+    visibility = ["//visibility:public"],
+)
+
+filegroup(
+    name = "solver_engine",
+    srcs = [
+        "petri-colors.js",
+        "petri-solver.js",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+# Everything served to the browser. internal/static embeds a copy of this tree;
+# see //internal/static:BUILD.bazel for how that copy is produced in-graph.
+filegroup(
+    name = "public_files",
+    srcs = PUBLIC_FILES,
+    visibility = ["//visibility:public"],
+)

@@ -1,0 +1,30 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "seal",
+    srcs = ["seal.go"],
+    importpath = "github.com/pflow-xyz/pflow-xyz/internal/seal",
+    visibility = ["//:__subpackages__"],
+    deps = [
+        "@com_github_ipfs_go_cid//:go-cid",
+        "@com_github_multiformats_go_multibase//:go-multibase",
+        "@com_github_multiformats_go_multihash//:go-multihash",
+        "@com_github_piprate_json_gold//ld",
+    ],
+)
+
+go_test(
+    name = "seal_test",
+    srcs = [
+        "cid_consistency_test.go",
+        "parity_test.go",
+        "seal_test.go",
+    ],
+    embed = [":seal"],
+    # keep: parity_test.go reads ../../parity/golden.json and its fixtures.
+    data = ["//parity:golden"],
+    deps = [
+        "@com_github_ipfs_go_cid//:go-cid",
+        "@com_github_multiformats_go_multihash//:go-multihash",
+    ],
+)

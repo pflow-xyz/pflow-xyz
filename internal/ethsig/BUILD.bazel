@@ -1,0 +1,22 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "ethsig",
+    srcs = [
+        "ethsig.go",
+        "wallet.go",
+    ],
+    importpath = "github.com/pflow-xyz/pflow-xyz/internal/ethsig",
+    visibility = ["//:__subpackages__"],
+    deps = [
+        "@com_github_ethereum_go_ethereum//accounts/keystore",
+        "@com_github_ethereum_go_ethereum//common",
+        "@com_github_ethereum_go_ethereum//crypto",
+    ],
+)
+
+go_test(
+    name = "ethsig_test",
+    srcs = ["wallet_test.go"],
+    embed = [":ethsig"],
+)

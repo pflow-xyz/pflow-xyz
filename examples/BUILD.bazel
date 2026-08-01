@@ -1,0 +1,7 @@
+# Example JSON-LD models, used as test data by //cmd/webserver (share-card
+# rendering) and as fixtures elsewhere.
+filegroup(
+    name = "examples",
+    srcs = glob(["*.jsonld"]),
+    visibility = ["//visibility:public"],
+)

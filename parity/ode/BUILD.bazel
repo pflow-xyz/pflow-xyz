@@ -1,0 +1,18 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_test")
+
+go_test(
+    name = "ode_test",
+    srcs = ["ode_parity_test.go"],
+    # keep: the test reads fixtures.json and shells out to node with
+    # ode_replay.mjs, which imports the canonical solver from //public. Pointing
+    # at //public rather than a copy is the whole point of the differential.
+    data = [
+        "fixtures.json",
+        "ode_replay.mjs",
+        "//public:solver_engine",
+    ],
+    deps = [
+        "@com_github_pflow_xyz_go_pflow//parser",
+        "@com_github_pflow_xyz_go_pflow//solver",
+    ],
+)

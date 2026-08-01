@@ -1,0 +1,35 @@
+# Bzlmod is the only dependency-resolution path (pure Bazel, no legacy WORKSPACE).
+common --enable_bzlmod
+common --noenable_workspace
+
+# Go builds are hermetic via rules_go's downloaded SDK; never fall back to host Go.
+build --incompatible_enable_proto_toolchain_resolution
+
+# Quieter, more useful output.
+build --show_timestamps
+test --test_output=errors
+test --test_summary=terse
+
+# Keep building independent targets after a failure so we see the full picture.
+build --keep_going
+test --keep_going
+
+# Local cache so repeated builds are fast.
+build --disk_cache=~/.cache/bazel-disk/pflow-xyz
+
+# Shared remote cache (opt-in: `bazel test --config=remote //...`). Auth is read
+# from ~/.netrc (machine bazel.stackdump.com) — NEVER commit credentials. Falls
+# back to a local build if the cache is unreachable. Read-only by default so a
+# non-sandboxed local-fallback result can never poison the shared cache; only
+# trusted CI pushes opt into uploads (CI appends --remote_upload_local_results).
+build:remote --remote_cache=https://bazel.stackdump.com
+build:remote --remote_local_fallback
+build:remote --noremote_upload_local_results
+
+# Build pure Go (no cgo). go-ethereum's crypto/secp256k1 does a relative cgo
+# #include of libsecp256k1's C sources, which does not resolve in Bazel's
+# sandbox; without cgo, go-ethereum selects signature_nocgo.go, which uses
+# decred's pure-Go secp256k1 (already an indirect dep in go.mod). The only
+# consumer here is internal/ethsig — signature recovery — where the two backends
+# are interchangeable. Nothing else in this repo needs cgo.
+build --@io_bazel_rules_go//go/config:pure

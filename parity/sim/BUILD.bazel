@@ -1,0 +1,16 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_test")
+
+go_test(
+    name = "sim_test",
+    srcs = ["sim_parity_test.go"],
+    # keep: replay.mjs drives the browser's own petri-sim.js from //public.
+    data = [
+        "replay.mjs",
+        "//public:sim_engine",
+    ],
+    deps = [
+        "@com_github_pflow_xyz_go_pflow//parser",
+        "@com_github_pflow_xyz_go_pflow//petri",
+        "@com_github_pflow_xyz_go_pflow//reachability",
+    ],
+)

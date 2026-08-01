@@ -39,3 +39,6 @@ tmp/
 # Local scratch
 PLAN.md
 /out
+
+# Bazel symlinks
+/bazel-*

@@ -1,0 +1,14 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "canonical",
+    srcs = ["canonical.go"],
+    importpath = "github.com/pflow-xyz/pflow-xyz/internal/canonical",
+    visibility = ["//:__subpackages__"],
+)
+
+go_test(
+    name = "canonical_test",
+    srcs = ["canonical_test.go"],
+    embed = [":canonical"],
+)

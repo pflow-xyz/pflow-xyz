@@ -1,0 +1,31 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+load("//public:files.bzl", "PUBLIC_FILES")
+
+# internal/static/public is a build artifact: the Makefile does
+# `cp -r public internal/static/` before `go build`, and the tree is gitignored.
+# Gazelle would otherwise glob whatever that copy last left on disk, which makes
+# the Bazel build depend on having run make first and lets the embedded content
+# go stale silently. Produce it in-graph instead, straight from //public.
+# gazelle:exclude public
+
+genrule(
+    name = "gen_public",
+    srcs = ["//public:public_files"],
+    outs = ["public/" + f for f in PUBLIC_FILES],
+    cmd = """
+for src in $(SRCS); do
+    rel=$${src#public/}
+    dst=$(RULEDIR)/public/$$rel
+    mkdir -p "$$(dirname "$$dst")"
+    cp "$$src" "$$dst"
+done
+""",
+)
+
+go_library(
+    name = "static",
+    srcs = ["static.go"],
+    embedsrcs = ["public/" + f for f in PUBLIC_FILES],  # keep: from :gen_public
+    importpath = "github.com/pflow-xyz/pflow-xyz/internal/static",
+    visibility = ["//:__subpackages__"],
+)

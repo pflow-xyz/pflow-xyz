@@ -1,0 +1,9 @@
+# Shared CID parity corpus: fixtures plus the golden CIDs both the Go side
+# (//internal/seal:seal_test) and the JS side (parity/parity_check.mjs) must
+# reproduce. A divergence between them is the failure this corpus exists to
+# catch, so both sides read these same files.
+filegroup(
+    name = "golden",
+    srcs = ["golden.json"] + glob(["fixtures/*"]),
+    visibility = ["//visibility:public"],
+)

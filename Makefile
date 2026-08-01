@@ -57,3 +57,18 @@ deps:
 	@go mod tidy
 
 all: clean build
+
+# ── Bazel (hermetic verification build; `make build` remains the ship path) ──
+
+.PHONY: bazel-build bazel-test bazel-gazelle
+bazel-build:
+	@bazel build //...
+
+bazel-test:
+	@bazel test //...
+
+# Regenerate BUILD.bazel files after adding/moving Go files. After adding or
+# removing anything under public/, also regenerate public/files.bzl — it is the
+# single list //public and //internal/static both read.
+bazel-gazelle:
+	@bazel run //:gazelle

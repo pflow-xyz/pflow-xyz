@@ -1,0 +1,14 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "svg",
+    srcs = ["svg.go"],
+    importpath = "github.com/pflow-xyz/pflow-xyz/internal/svg",
+    visibility = ["//:__subpackages__"],
+)
+
+go_test(
+    name = "svg_test",
+    srcs = ["svg_test.go"],
+    embed = [":svg"],
+)

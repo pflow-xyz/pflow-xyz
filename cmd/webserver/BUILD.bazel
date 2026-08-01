@@ -1,0 +1,47 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library", "go_test")
+
+go_library(
+    name = "webserver_lib",
+    srcs = [
+        "content_negotiation.go",
+        "deploy.go",
+        "main.go",
+        "metrics.go",
+        "share_card.go",
+        "share_page.go",
+    ],
+    importpath = "github.com/pflow-xyz/pflow-xyz/cmd/webserver",
+    visibility = ["//visibility:private"],
+    deps = [
+        "//internal/auth",
+        "//internal/seal",
+        "//internal/static",
+        "//internal/store",
+        "//internal/svg",
+        "@com_github_fogleman_gg//:gg",
+        "@com_github_skip2_go_qrcode//:go-qrcode",
+        "@org_golang_x_image//font",
+        "@org_golang_x_image//font/gofont/gobold",
+        "@org_golang_x_image//font/gofont/goregular",
+        "@org_golang_x_image//font/opentype",
+    ],
+)
+
+go_binary(
+    name = "webserver",
+    embed = [":webserver_lib"],
+    visibility = ["//visibility:public"],
+)
+
+go_test(
+    name = "webserver_test",
+    srcs = [
+        "content_negotiation_test.go",
+        "sample_card_test.go",
+        "share_card_test.go",
+    ],
+    embed = [":webserver_lib"],
+    # keep: share_card_test.go renders a stored example model from //examples.
+    data = ["//examples"],
+    deps = ["//internal/static"],
+)

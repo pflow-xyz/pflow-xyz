@@ -31,6 +31,58 @@ go test ./...               # Run all tests
 ./bin/webserver -port 8080  # Run server with custom port
 ```
 
+## Build systems
+
+pflow-xyz builds two ways. **Go tooling and Bazel coexist** — `go.mod` stays the
+source of truth for dependencies; Bazel reads it via Gazelle. `make build` is
+the ship path (pflow.dev deploys with it); Bazel is the hermetic verification
+build and the way other repos can pin this repo's JS.
+
+```bash
+make build / make test          # Go + deno + parity, as before
+make bazel-build                # bazel build //...   (runs nogo: vet + x/tools)
+make bazel-test                 # bazel test //...
+make bazel-gazelle              # regenerate BUILD.bazel after adding Go files
+bazel test --config=remote //... # use the shared bazel.stackdump.com cache
+```
+
+Pins mirror the ecosystem line — `rules_go 0.61.1 / gazelle 0.51.3 / Go SDK
+1.26.0` — so action keys match graph-wide and the shared remote cache is reusable
+across go-pflow, bitwrap-io and petri-pilot.
+
+**Decisions baked in:**
+
+- **`//public` is exported.** `@pflow_xyz//public:browser_modules` is the
+  filegroup consumers vendor. A Bazel-ported consumer can take a `bazel_dep` on
+  this module and diff its vendored copy against a *pinned upstream version*
+  rather than a bare sha256 — the provenance `pflow-js.lock` alone cannot give.
+  The copies still exist regardless: bitwrap-io and modeldao-org need files on
+  disk for `//go:embed`, stackedup-gg serves them from disk at runtime, and
+  pflow.dev ships `make build`.
+- **`internal/static/public/**` is produced in-graph.** The Makefile does
+  `cp -r public internal/static/` and the tree is gitignored, so Gazelle would
+  otherwise glob whatever the last `make build` left behind — making the Bazel
+  build depend on having run make, and letting the embedded assets go stale
+  silently. `//internal/static:gen_public` copies from `//public` instead, with
+  `# gazelle:exclude public`. Verified by deleting the on-disk tree and
+  rebuilding.
+- **One file list, two consumers.** `public/files.bzl` holds `PUBLIC_FILES`,
+  read by both `//public` and `//internal/static`. Regenerate it when adding or
+  removing anything under `public/`.
+- **Pure Go, no cgo.** go-ethereum's `crypto/secp256k1` does a relative cgo
+  `#include` of libsecp256k1's C sources, which does not resolve in Bazel's
+  sandbox. Without cgo, go-ethereum selects `signature_nocgo.go` and decred's
+  pure-Go secp256k1 (already an indirect dep). The only consumer is
+  `internal/ethsig`; the backends are interchangeable there. Note this is one
+  way the hermetic build differs from what `make build` ships.
+- **gnark-crypto asm is patched hermetically**, reusing go-pflow's
+  `bazel/patches/gnark-crypto-asm-hermetic.patch` — both repos pin v0.19.2. It
+  arrives indirectly via go-ethereum's KZG path.
+- **The parity tests run under Bazel** and use `//public` directly, so the
+  differential drives the same files the browser loads rather than a copy. They
+  shell out to **host** `node` (they `exec.LookPath` and skip if absent), so
+  that one edge is not hermetic.
+
 ## Project Structure
 
 ```
