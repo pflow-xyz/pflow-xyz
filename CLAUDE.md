@@ -163,6 +163,35 @@ in this editor. Locked by `make test-parity-behavior` (`parity/sim/` and
   their tests in lockstep — the differential fails otherwise. go-pflow's side
   of the contract is pinned by Go-native tests in its reachability package.
 
+**`public/` is the canonical source for shared browser modules.** bitwrap-io,
+stackedup-gg and modeldao-org each serve their own copy (each embeds its own
+static assets), so the files are duplicated on disk by necessity — but never
+divergently. Each consumer carries `scripts/pflow-js.sh` + a `pflow-js.lock`
+recording every vendored file's sha256 and the pflow-xyz commit it came from:
+
+| Consumer | Vendored |
+|---|---|
+| bitwrap-io | `public/`: petri-sim.js, petri-solver.js, petri-colors.js, petri-view.js, seal-cid.mjs, vendor/jsonld.bundle.mjs |
+| stackedup-gg | `frontends/zk-poker/`: petri-solver.js, petri-colors.js |
+| modeldao-org | `internal/static/public/`: seal-cid.mjs, vendor/jsonld.bundle.mjs |
+
+`make check-pflow-js` (wired into each repo's `make test`, and bitwrap-io's CI)
+verifies the copies still match the lock. It is offline by design — the failure
+it prevents is someone editing a vendored copy in place, and a network fetch
+would only make that check flaky. `make sync-pflow-js` re-copies from a
+pflow-xyz checkout (`PFLOW_XYZ=`, default `../pflow-xyz`) and rewrites the lock;
+`./scripts/pflow-js.sh status` reports staleness without changing anything.
+
+**Fix shared-module bugs HERE, then sync.** bitwrap-io's petri-sim.js sat 57
+lines behind for months, still coercing a `[0,2]` arc weight to `[1,2]` — which
+makes "this color is not involved" unexpressible — plus missing the aggregate
+consumption and capacity checks. Nothing failed, because nothing compared.
+
+Not covered, deliberately: modeldao-org's `petri-view.js` (a genuine 1404-line
+fork, not drift) and petri-pilot / pflow-pilot's `pflow-engine.js` (a derived
+unified ODE + event-sourcing runtime, not a copy). Those need the shared parts
+extracted, not a file swap.
+
 **Colored-net unfolding (`public/petri-colors.js`).** A direct port of
 go-pflow's `petri/colors.go`; every rule has a counterpart there. `expandColors`
 turns a multi-color net into an equivalent single-color one — one place per
