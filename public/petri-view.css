@@ -12,6 +12,22 @@
     /* Theme-invariant: the diagram's paper, light in both themes by design. */
     --pv-paper: #fafafa;
 
+    /* Brand palette for the marketing shell (index.html's --pf-* aliases).
+       Deliberately dark in BOTH themes today - the dark ground with the yellow
+       accent is the brand, not a dark-mode artifact. Named and centralised here
+       so giving the landing page a light variant later is a values-only change
+       (add a light override block) rather than an edit to its markup.
+       Theme-invariant by design, so exempt from the dark-parity check. */
+    --pv-brand-bg: #1C1C1D;
+    --pv-brand-bg-alt: #1E1E1D;
+    --pv-brand-bg-card: #2a2a2b;
+    --pv-brand-ink: #ffffff;
+    --pv-brand-ink-muted: #999999;
+    --pv-brand-accent: #EBFF00;
+    --pv-brand-accent-hover: #d4e600;
+    --pv-brand-border: #333333;
+    --pv-brand-scrim: rgba(0, 0, 0, 0.6);
+
     --pv-surface: #ffffff;
     --pv-surface-2: #f6f6f4;
     --pv-surface-3: #ecece9;

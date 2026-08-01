@@ -23,14 +23,17 @@
     <script src="petri-view.js" type="module"></script>
     <style>
         :root {
-            --pf-bg: #1C1C1D;
-            --pf-bg-alt: #1E1E1D;
-            --pf-bg-card: #2a2a2b;
-            --pf-text: #ffffff;
-            --pf-text-muted: #999999;
-            --pf-accent: #EBFF00;
-            --pf-accent-hover: #d4e600;
-            --pf-border: #333333;
+            /* Aliases onto the shared brand palette in petri-view.css. The
+               values live there so a light variant of this page is a
+               values-only change; --pf-* names stay for the markup below. */
+            --pf-bg: var(--pv-brand-bg);
+            --pf-bg-alt: var(--pv-brand-bg-alt);
+            --pf-bg-card: var(--pv-brand-bg-card);
+            --pf-text: var(--pv-brand-ink);
+            --pf-text-muted: var(--pv-brand-ink-muted);
+            --pf-accent: var(--pv-brand-accent);
+            --pf-accent-hover: var(--pv-brand-accent-hover);
+            --pf-border: var(--pv-brand-border);
             --pf-radius: 4px;
         }
 
@@ -116,7 +119,7 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0,0,0,0.6);
+            background: var(--pv-brand-scrim);
             z-index: 2;
         }
 
@@ -226,7 +229,7 @@
         .model-card-img {
             width: 100%;
             height: 180px;
-            background: #fafafa;
+            background: var(--pv-paper);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -389,7 +392,7 @@
         }
 
         .landing-footer-copy {
-            color: #666;
+            color: var(--pf-text-muted);
             font-size: 0.8rem;
         }
 

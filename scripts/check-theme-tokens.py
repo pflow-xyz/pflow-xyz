@@ -31,7 +31,12 @@ CANVAS = (
 
 # Tokens that are the same in both themes on purpose, so "missing a dark
 # counterpart" is the intended state rather than a bug.
-THEME_INVARIANT = ("--pv-paper",)
+#   --pv-paper  : the diagram's light "paper" ground.
+#   --pv-brand-*: the marketing shell, dark in both themes by design.
+THEME_INVARIANT = ("--pv-paper", "--pv-brand-")
+
+# Pages whose inline <style> must also theme through tokens.
+INLINE_STYLE_PAGES = ("index.html",)
 
 COLOR = re.compile(r"(#[0-9a-fA-F]{3,8}\b|rgba?\([\d\s.,%]*\))")
 SEL = re.compile(r"^([.#&:\w\[][^{}]*)\{\s*$")
@@ -108,6 +113,21 @@ def main():
         failures.append(
             "hardcoded color(s) in themed chrome; use a --pv-* token:\n" + "\n".join(offenders)
         )
+
+    # Inline <style> on the shipped pages must theme through tokens too, or the
+    # landing page drifts from the editor the way it already had once.
+    for page in INLINE_STYLE_PAGES:
+        path = CSS.parent / page
+        if not path.exists():
+            failures.append(f"{page}: expected to exist for the inline-style check")
+            continue
+        inline = "\n".join(re.findall(r"<style[^>]*>(.*?)</style>", path.read_text(), re.S))
+        stray = COLOR.findall(inline)
+        if stray:
+            failures.append(
+                f"{page}: {len(stray)} hardcoded color(s) in inline <style>; "
+                f"alias a --pv-* token instead: {', '.join(sorted(set(stray))[:6])}"
+            )
 
     if failures:
         print("check-theme-tokens: FAIL")
