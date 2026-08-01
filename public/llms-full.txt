@@ -54,21 +54,34 @@ Notes: `capacity` 0 or absent means unbounded. `initial`, `capacity`, and
 weight component means "this color is not involved". Set
 `"inhibitTransition": true` on an arc for an inhibitor.
 
-## Sandboxed environments (claude.ai artifacts, strict-CSP hosts)
+## Sandboxed environments (strict-CSP hosts)
 
-Some sandboxes only allow scripts from an allowlist of public CDNs, which
-blocks pflow.xyz. jsDelivr mirrors these modules and is broadly allowlisted;
-relative imports (petri-colors.js) resolve against whichever origin loaded
-the module, so either source is self-sufficient. Prefer a dynamic import
-with fallback so the same file works everywhere:
+**claude.ai artifacts cannot load these modules today.** Artifact CSP allows
+external scripts only from `cdnjs.cloudflare.com`; imports from pflow.xyz,
+jsDelivr, esm.sh, or unpkg are all refused there and fail with
+`Failed to fetch dynamically imported module`. Don't write a fallback loader
+for artifacts — it fails on every origin. Host the page elsewhere (any static
+host works; the modules are CORS-open). A cdnjs submission is staged; once
+accepted, `https://cdnjs.cloudflare.com/ajax/libs/pflow-xyz/<version>/petri-solver.js`
+will be the artifact-compatible URL — until then that URL 404s.
+
+Also: `file://` pages can't load ES modules at all (CORS blocks them), so
+"open the HTML file in a browser" is not enough for local use — serve it,
+e.g. `python3 -m http.server`.
+
+For *other* strict-CSP hosts that do allow common CDNs, jsDelivr mirrors the
+repo; relative imports (petri-colors.js) resolve against whichever origin
+loaded the module, so either source is self-sufficient:
 
 ```js
 const pf = await import("https://pflow.xyz/petri-solver.js")
-  .catch(() => import("https://cdn.jsdelivr.net/gh/pflow-xyz/pflow-xyz@main/public/petri-solver.js"));
+  .catch(() => import("https://cdn.jsdelivr.net/gh/pflow-xyz/pflow-xyz@v1.21.0/public/petri-solver.js"));
 ```
 
-Pin `@main` to a commit SHA for reproducible pages. (jsDelivr caches @main
-for ~12h, so it can lag the latest deploy.)
+Pin a release tag (as above) or commit SHA — `@main` is cached ~12h by
+jsDelivr, so it lags the latest deploy. Once the `pflow-xyz` npm package is
+published, npm-backed CDNs work too: `https://esm.sh/pflow-xyz@1.21.0` or
+`https://unpkg.com/pflow-xyz@1.21.0/public/petri-solver.js`.
 
 ## Minimal ad-hoc page: solve an ODE and plot it
 
@@ -76,7 +89,7 @@ for ~12h, so it can lag the latest deploy.)
 <div id="plot"></div>
 <script type="module">
   const pf = await import("https://pflow.xyz/petri-solver.js")
-    .catch(() => import("https://cdn.jsdelivr.net/gh/pflow-xyz/pflow-xyz@main/public/petri-solver.js"));
+    .catch(() => import("https://cdn.jsdelivr.net/gh/pflow-xyz/pflow-xyz@v1.21.0/public/petri-solver.js"));
 
   const model = { /* JSON-LD model as above */ };
   const net = pf.fromJSON(model);

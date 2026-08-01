@@ -42,9 +42,16 @@ weight component means "this color is not involved".
 
 ## Optional
 
-- [Mirror via jsDelivr](https://cdn.jsdelivr.net/gh/pflow-xyz/pflow-xyz@main/public/petri-solver.js):
-  same modules on a CDN that sandboxed environments (e.g. claude.ai
-  artifacts, whose CSP blocks pflow.xyz) allow; substitute `@main` with a
-  commit SHA for reproducible pages. Recommended pattern — dynamic import
-  with fallback:
-  `await import('https://pflow.xyz/petri-solver.js').catch(() => import('https://cdn.jsdelivr.net/gh/pflow-xyz/pflow-xyz@main/public/petri-solver.js'))`
+- CDN mirrors for strict-CSP hosts that block pflow.xyz — pin a tag, `@main`
+  is cached ~12h by jsDelivr:
+  - [jsDelivr](https://cdn.jsdelivr.net/gh/pflow-xyz/pflow-xyz@v1.21.0/public/petri-solver.js)
+  - npm-backed (after `pflow-xyz` is on npm): `https://esm.sh/pflow-xyz@1.21.0`
+    or `https://unpkg.com/pflow-xyz@1.21.0/public/petri-solver.js`
+  - cdnjs (pending acceptance — placeholder, 404s until then):
+    `https://cdnjs.cloudflare.com/ajax/libs/pflow-xyz/<version>/petri-solver.js`
+- **claude.ai artifacts cannot load these modules today.** Their CSP allows
+  scripts only from `cdnjs.cloudflare.com`; pflow.xyz, jsDelivr, esm.sh, and
+  unpkg are all refused (`Failed to fetch dynamically imported module`). Do
+  not emit an import-with-fallback loader for artifacts — host the page
+  elsewhere instead. Also note `file://` pages can't load ES modules at all;
+  open local pages via `python3 -m http.server`.

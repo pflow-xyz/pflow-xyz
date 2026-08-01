@@ -1,0 +1,60 @@
+#!/bin/bash
+# Verify the npm package as it would actually ship:
+#   1. npm pack, extract, assert the import graph is complete and site media absent
+#   2. run scripts/npm-smoke.mjs against the extracted package
+#   3. install the tarball into a scratch package and resolve the exports map
+# Skips (exit 0) when npm/node are not installed, mirroring the parity tests.
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+
+if ! command -v npm >/dev/null || ! command -v node >/dev/null; then
+  echo "npm-pack-test: npm/node not found, skipping"
+  exit 0
+fi
+
+tmp="$(mktemp -d)"
+trap 'rm -rf "$tmp"' EXIT
+
+tarball="$(npm pack --pack-destination "$tmp" --silent | tail -1)"
+tar -xzf "$tmp/$tarball" -C "$tmp"
+pkg="$tmp/package"
+
+# Every file in the runtime import graph must ship, or imports 404 at runtime.
+required=(
+  public/petri-solver.js
+  public/petri-sim.js
+  public/petri-colors.js
+  public/petri-view.js
+  public/petri-view.css
+  public/diagram-viewer.js
+  public/seal-cid.mjs
+  public/vendor/jsonld.bundle.mjs
+)
+for f in "${required[@]}"; do
+  [ -f "$pkg/$f" ] || { echo "FAIL: $f missing from tarball"; exit 1; }
+done
+
+# Site media must NOT ship.
+banned=$(cd "$pkg" && find . -name '*.png' -o -name '*.webm' -o -name '*.mp4' -o -name '*.ico')
+if [ -n "$banned" ]; then
+  echo "FAIL: media leaked into tarball:"
+  echo "$banned"
+  exit 1
+fi
+
+node scripts/npm-smoke.mjs "$pkg"
+
+# Prove the exports map resolves from a consumer's point of view.
+scratch="$tmp/scratch"
+mkdir -p "$scratch"
+( cd "$scratch" \
+  && npm init -y --silent >/dev/null \
+  && npm install --silent --no-audit --no-fund "$tmp/$tarball" >/dev/null \
+  && node --input-type=module -e '
+    const solver = await import("pflow-xyz");
+    const sim = await import("pflow-xyz/petri-sim.js");
+    if (typeof solver.solve !== "function") throw new Error("pflow-xyz: solve export missing");
+    if (typeof sim.fire !== "function") throw new Error("pflow-xyz/petri-sim.js: fire export missing");
+    console.log("ok: exports map resolves (pflow-xyz, pflow-xyz/petri-sim.js)");
+  ' )

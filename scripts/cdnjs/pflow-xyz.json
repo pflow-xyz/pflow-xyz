@@ -1,0 +1,18 @@
+{
+  "name": "pflow-xyz",
+  "description": "Dependency-free ES modules for Petri nets: mass-action ODE solver (Tsit5) with an interactive SVG plotter, discrete firing semantics, and the <petri-view> editor web component",
+  "license": "MIT",
+  "filename": "petri-solver.js",
+  "homepage": "https://pflow.xyz",
+  "repository": { "type": "git", "url": "git+https://github.com/pflow-xyz/pflow-xyz.git" },
+  "keywords": ["petri-net", "ode-solver", "simulation", "state-machine", "workflow"],
+  "autoupdate": {
+    "source": "npm",
+    "target": "pflow-xyz",
+    "fileMap": [{
+      "basePath": "public",
+      "files": ["petri-*.js", "petri-view.css", "diagram-viewer.js", "*.mjs", "vendor/*.mjs"]
+    }]
+  },
+  "authors": [{ "name": "Stackdump.com LLC", "url": "https://stackdump.com" }]
+}
