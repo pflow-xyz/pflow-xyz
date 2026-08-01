@@ -1,6 +1,6 @@
 {
   "name": "@pflow-xyz/pflow-xyz",
-  "version": "1.22.0",
+  "version": "1.22.1",
   "description": "Dependency-free ES modules for Petri nets: mass-action ODE solver (Tsit5) with an interactive SVG plotter, discrete firing semantics, colored-net unfolding, and the <petri-view> editor web component.",
   "type": "module",
   "license": "MIT",
@@ -15,7 +15,10 @@
     "./petri-colors.js": "./public/petri-colors.js",
     "./petri-view.js": "./public/petri-view.js",
     "./petri-view.css": "./public/petri-view.css",
+    "./diagram-viewer.js": "./public/diagram-viewer.js",
+    "./seal-cid.mjs": "./public/seal-cid.mjs",
     "./llms.txt": "./public/llms.txt",
+    "./llms-full.txt": "./public/llms-full.txt",
     "./package.json": "./package.json"
   },
   "sideEffects": ["./public/petri-view.js", "./public/diagram-viewer.js"],

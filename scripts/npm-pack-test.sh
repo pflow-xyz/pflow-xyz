@@ -55,11 +55,30 @@ mkdir -p "$scratch"
   && npm init -y --silent >/dev/null \
   && npm install --silent --no-audit --no-fund "$tmp/$tarball" >/dev/null \
   && PKG="$name" node --input-type=module -e '
+    import { createRequire } from "node:module";
+    import { readdirSync } from "node:fs";
     const pkg = process.env.PKG;
+    const require = createRequire(process.cwd() + "/x.js");
+
     const solver = await import(pkg);
     const sim = await import(`${pkg}/petri-sim.js`);
-    const view = await import(`${pkg}/petri-view.js`);
     if (typeof solver.solve !== "function") throw new Error(`${pkg}: solve export missing`);
     if (typeof sim.fire !== "function") throw new Error(`${pkg}/petri-sim.js: fire export missing`);
-    console.log(`ok: exports map resolves (${pkg}, ${pkg}/petri-sim.js, ${pkg}/petri-view.js under node)`);
+
+    // The web components must load outside a browser, not just in one.
+    const view = await import(`${pkg}/petri-view.js`);
+    const diag = await import(`${pkg}/diagram-viewer.js`);
+    if (view.PetriView !== undefined) throw new Error("petri-view.js: expected undefined export without a DOM");
+    if (typeof diag.translatePetriNet !== "function") throw new Error("diagram-viewer.js: translatePetriNet missing");
+
+    // Anything that ships must be reachable through the exports map, or it is
+    // dead weight in the tarball that consumers cannot import.
+    const root = require.resolve(`${pkg}/package.json`).replace(/package\.json$/, "");
+    const unreachable = readdirSync(root + "public")
+      .filter(f => /\.(js|mjs)$/.test(f))
+      .filter(f => { try { require.resolve(`${pkg}/${f}`); return false; } catch { return true; } });
+    if (unreachable.length) {
+      throw new Error(`ships but not in exports map: ${unreachable.join(", ")}`);
+    }
+    console.log(`ok: exports map complete, web components load under node (${pkg})`);
   ' )
