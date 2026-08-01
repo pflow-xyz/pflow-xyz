@@ -444,7 +444,7 @@ class PetriView extends HTMLElement {
             try {
                 editor.execCommand('find');
             } catch {
-                alert('Find command unavailable');
+                this._toast('Find command unavailable', 'error');
             }
         });
 
@@ -490,7 +490,7 @@ class PetriView extends HTMLElement {
                 a.click();
                 URL.revokeObjectURL(a.href);
             } catch (err) {
-                alert('Download failed: ' + (err && err.message ? err.message : String(err)));
+                this._toast('Download failed: ' + (err && err.message ? err.message : String(err)), 'error');
             } finally {
                 // Restore button state
                 dlBtn.disabled = false;
@@ -738,7 +738,7 @@ class PetriView extends HTMLElement {
         loadBtn.addEventListener('click', async () => {
             const url = urlInput.value.trim();
             if (!url) {
-                alert('Please enter a URL');
+                this._toast('Please enter a URL', 'error');
                 return;
             }
 
@@ -763,7 +763,7 @@ class PetriView extends HTMLElement {
                 // Validate JSON-LD
                 const isValid = await this._isValidJsonLd(json);
                 if (!isValid) {
-                    alert('The fetched document is not valid JSON-LD. Please ensure the URL points to a valid JSON-LD document.');
+                    this._toast('The fetched document is not valid JSON-LD. Please ensure the URL points to a valid JSON-LD document.', 'error');
                     loadBtn.disabled = false;
                     loadBtn.textContent = 'Load';
                     return;
@@ -782,7 +782,7 @@ class PetriView extends HTMLElement {
                 document.body.removeChild(overlay);
             } catch (err) {
                 const errorMsg = err && err.message ? err.message : String(err);
-                alert('Failed to load URL: ' + errorMsg + '\n\nNote: CORS restrictions may prevent loading from some URLs. The server must include appropriate Access-Control-Allow-Origin headers.');
+                this._toast('Failed to load URL: ' + errorMsg + '\n\nNote: CORS restrictions may prevent loading from some URLs. The server must include appropriate Access-Control-Allow-Origin headers.', 'error');
                 loadBtn.disabled = false;
                 loadBtn.textContent = 'Load';
             }
@@ -1145,7 +1145,7 @@ class PetriView extends HTMLElement {
             a.click();
             URL.revokeObjectURL(a.href);
         } catch (err) {
-            alert('Download failed: ' + (err && err.message ? err.message : String(err)));
+            this._toast('Download failed: ' + (err && err.message ? err.message : String(err)), 'error');
         }
     }
 
@@ -1159,7 +1159,7 @@ class PetriView extends HTMLElement {
                 const authToken = this._authToken;
 
                 if (!authToken) {
-                    alert('Please log in to save data');
+                    this._toast('Please log in to save data', 'error');
                     return;
                 }
 
@@ -1179,7 +1179,7 @@ class PetriView extends HTMLElement {
                 if (!response.ok) {
                     const errorText = await response.text();
                     console.error('Save failed with status', response.status, errorText);
-                    alert(`Save failed: ${response.statusText}`);
+                    this._toast(`Save failed: ${response.statusText}`, 'error');
                     return;
                 }
 
@@ -1193,10 +1193,10 @@ class PetriView extends HTMLElement {
                 url.searchParams.set('cid', cid);
                 window.history.pushState({}, '', url.toString());
 
-                alert('Saved successfully! CID: ' + cid);
+                this._toast('Saved successfully! CID: ' + cid);
             } catch (err) {
                 console.error('Failed to save to server:', err);
-                alert('Failed to save to server: ' + (err && err.message ? err.message : String(err)));
+                this._toast('Failed to save to server: ' + (err && err.message ? err.message : String(err)), 'error');
             }
             return;
         }
@@ -1210,12 +1210,12 @@ class PetriView extends HTMLElement {
 
             // Copy to clipboard if available
             this._copyToClipboard(currentUrl,
-                () => alert('Permalink saved! URL copied to clipboard.\n\n' + currentUrl),
-                () => alert('Permalink saved!\n\n' + currentUrl)
+                () => this._toast('Permalink saved! URL copied to clipboard.\n\n' + currentUrl),
+                () => this._toast('Permalink saved!\n\n' + currentUrl)
             );
         } catch (err) {
             console.error('Failed to save permalink:', err);
-            alert('Failed to save permalink: ' + (err && err.message ? err.message : String(err)));
+            this._toast('Failed to save permalink: ' + (err && err.message ? err.message : String(err)), 'error');
         }
     }
 
@@ -1234,14 +1234,14 @@ class PetriView extends HTMLElement {
             try {
                 // Check if user is authenticated and get auth token
                 if (!this._authInitialized || !this._user) {
-                    alert('You must be logged in to delete documents from the server.');
+                    this._toast('You must be logged in to delete documents from the server.', 'error');
                     return;
                 }
 
                 const authToken = this._authToken;
 
                 if (!authToken) {
-                    alert('Authentication required. Please log in.');
+                    this._toast('Authentication required. Please log in.', 'error');
                     return;
                 }
 
@@ -1255,15 +1255,15 @@ class PetriView extends HTMLElement {
 
                 if (!response.ok) {
                     if (response.status === 401) {
-                        alert('Authentication required. Please log in.');
+                        this._toast('Authentication required. Please log in.', 'error');
                     } else if (response.status === 403) {
-                        alert('You do not have permission to delete this document. Only the author can delete it.');
+                        this._toast('You do not have permission to delete this document. Only the author can delete it.', 'error');
                     } else if (response.status === 404) {
-                        alert('Document not found on server.');
+                        this._toast('Document not found on server.', 'error');
                     } else {
                         const errorText = await response.text().catch(() => '');
                         const statusMsg = response.statusText || `HTTP ${response.status}`;
-                        alert(`Failed to delete document: ${statusMsg}${errorText ? '\n' + errorText : ''}`);
+                        this._toast(`Failed to delete document: ${statusMsg}${errorText ? '\n' + errorText : ''}`, 'error');
                     }
                     return;
                 }
@@ -1272,7 +1272,7 @@ class PetriView extends HTMLElement {
                 console.log('Document deleted from server:', cid);
             } catch (err) {
                 console.error('Failed to delete from server:', err);
-                alert('Failed to delete document from server: ' + (err && err.message ? err.message : String(err)));
+                this._toast('Failed to delete document from server: ' + (err && err.message ? err.message : String(err)), 'error');
                 return;
             }
         } else {
@@ -1322,7 +1322,7 @@ class PetriView extends HTMLElement {
                 const authToken = this._authToken;
 
                 if (!authToken) {
-                    alert('Please log in to share data');
+                    this._toast('Please log in to share data', 'error');
                     return;
                 }
 
@@ -1341,7 +1341,7 @@ class PetriView extends HTMLElement {
                 if (!response.ok) {
                     const errorText = await response.text();
                     console.error('Save failed with status', response.status, errorText);
-                    alert(`Failed to save before sharing: ${response.statusText}`);
+                    this._toast(`Failed to save before sharing: ${response.statusText}`, 'error');
                     return;
                 }
 
@@ -1354,7 +1354,7 @@ class PetriView extends HTMLElement {
                 window.history.pushState({}, '', url.toString());
             } catch (err) {
                 console.error('Failed to save before sharing:', err);
-                alert('Failed to save document: ' + (err && err.message ? err.message : String(err)));
+                this._toast('Failed to save document: ' + (err && err.message ? err.message : String(err)), 'error');
                 return;
             }
         }
@@ -1525,7 +1525,7 @@ class PetriView extends HTMLElement {
                 const authToken = this._authToken;
 
                 if (!authToken) {
-                    alert('Please log in to save as Gist');
+                    this._toast('Please log in to save as Gist', 'error');
                     return;
                 }
 
@@ -1544,7 +1544,7 @@ class PetriView extends HTMLElement {
                 if (!response.ok) {
                     const errorText = await response.text();
                     console.error('Save failed with status', response.status, errorText);
-                    alert(`Failed to save before creating Gist: ${response.statusText}`);
+                    this._toast(`Failed to save before creating Gist: ${response.statusText}`, 'error');
                     return;
                 }
 
@@ -1557,7 +1557,7 @@ class PetriView extends HTMLElement {
                 window.history.pushState({}, '', url.toString());
             } catch (err) {
                 console.error('Failed to save before creating Gist:', err);
-                alert('Failed to save document: ' + (err && err.message ? err.message : String(err)));
+                this._toast('Failed to save document: ' + (err && err.message ? err.message : String(err)), 'error');
                 return;
             }
         }
@@ -1571,7 +1571,7 @@ class PetriView extends HTMLElement {
         // Create gist via GitHub API
         const authToken = this._authToken;
         if (!authToken) {
-            alert('Please log in to create a Gist');
+            this._toast('Please log in to create a Gist', 'error');
             return;
         }
 
@@ -1597,7 +1597,7 @@ class PetriView extends HTMLElement {
             if (!gistResponse.ok) {
                 const errorText = await gistResponse.text();
                 console.error('Gist creation failed:', gistResponse.status, errorText);
-                alert(`Failed to create Gist: ${gistResponse.statusText}`);
+                this._toast(`Failed to create Gist: ${gistResponse.statusText}`, 'error');
                 return;
             }
 
@@ -1608,7 +1608,7 @@ class PetriView extends HTMLElement {
             window.open(gistUrl, '_blank');
         } catch (err) {
             console.error('Failed to create Gist:', err);
-            alert('Failed to create Gist: ' + (err && err.message ? err.message : String(err)));
+            this._toast('Failed to create Gist: ' + (err && err.message ? err.message : String(err)), 'error');
         }
     }
 
@@ -1800,7 +1800,14 @@ class PetriView extends HTMLElement {
             a['@type'] ||= 'Arrow';
             if (a.weight == null) a.weight = [1];
             if (!Array.isArray(a.weight)) a.weight = [Number(a.weight) || 1];
-            a.weight = a.weight.map(w => Number(w) || 1);
+            // Vector components preserve explicit 0 ("this color is not
+            // involved") — the engine contract petri-sim.js:getArcWeight and
+            // the parity suite rely on; only a scalar weight of 0 defaults to 1
+            // (handled above).
+            a.weight = a.weight.map(w => {
+                const n = Number(w);
+                return Number.isFinite(n) && n >= 0 ? n : 1;
+            });
             a.inhibitTransition = !!a.inhibitTransition;
         }
     }
@@ -2637,7 +2644,15 @@ class PetriView extends HTMLElement {
             while (this._fireQueue.length > 0) {
                 const tid = this._fireQueue.shift();
                 const el = this._nodes[tid];
-                if (el) el.classList.add('pv-firing');
+                if (el) {
+                    // restartable flash: long enough to be seen, removal is
+                    // async so it doesn't stall the queue
+                    el.classList.remove('pv-firing');
+                    void el.offsetWidth; // restart the CSS animation
+                    el.classList.add('pv-firing');
+                    clearTimeout(el._pvFiringTimer);
+                    el._pvFiringTimer = setTimeout(() => el.classList.remove('pv-firing'), 240);
+                }
 
                 // IMPORTANT: take the marking *at fire time*, not cached
                 // _fire() already:
@@ -2646,8 +2661,6 @@ class PetriView extends HTMLElement {
                 //   - redraws tokens/arcs
                 //   - dispatches events
                 this._fire(tid);
-
-                if (el) el.classList.remove('pv-firing');
 
                 // allow the browser a microtask to flush layout/paint
                 // before we possibly mutate again
@@ -2951,10 +2964,10 @@ class PetriView extends HTMLElement {
             this._pushHistory();
 
             // Show feedback to user
-            alert(`Reverted to revision ${this._originalCid}`);
+            this._toast(`Reverted to revision ${this._originalCid}`);
         } catch (err) {
             console.error('Failed to revert to original CID:', err);
-            alert('Failed to revert to original revision: ' + (err && err.message ? err.message : String(err)));
+            this._toast('Failed to revert to original revision: ' + (err && err.message ? err.message : String(err)), 'error');
         }
     }
 
@@ -2993,13 +3006,10 @@ class PetriView extends HTMLElement {
     _updateMenuActive() {
         if (!this._menu) return;
         this._menu.querySelectorAll('.pv-tool').forEach(btn => {
-            if (btn.dataset.toggle === 'true') {
-                // For toggle buttons, highlight based on toggle state
-                btn.style.background = this._labelEditMode ? 'rgba(0,0,0,0.08)' : 'transparent';
-            } else {
-                // For regular mode buttons
-                btn.style.background = (btn.dataset.mode === this._mode) ? 'rgba(0,0,0,0.08)' : 'transparent';
-            }
+            const on = btn.dataset.toggle === 'true'
+                ? this._labelEditMode
+                : btn.dataset.mode === this._mode;
+            btn.classList.toggle('pv-active', on);
         });
         // Update node highlights
         this._updateLabelEditHighlights();
@@ -3098,7 +3108,7 @@ class PetriView extends HTMLElement {
         const error = this._validateLabel(newLabel);
 
         if (error) {
-            alert(error);
+            this._toast(error);
             return;
         }
 
@@ -3170,11 +3180,7 @@ class PetriView extends HTMLElement {
                 this._menuPlayBtn.title = 'Stop simulation';
             }
             if (this._menu) {
-                this._menu.querySelectorAll('.pv-tool').forEach(btn => {
-                    btn.disabled = true;
-                    btn.style.opacity = '0.5';
-                    btn.style.cursor = 'default';
-                });
+                this._menu.querySelectorAll('.pv-tool').forEach(btn => { btn.disabled = true; });
             }
             this._root.classList.add('pv-simulating');
             this.dispatchEvent(new CustomEvent('simulation-started'));
@@ -3185,11 +3191,7 @@ class PetriView extends HTMLElement {
                 this._menuPlayBtn.title = 'Start simulation';
             }
             if (this._menu) {
-                this._menu.querySelectorAll('.pv-tool').forEach(btn => {
-                    btn.disabled = false;
-                    btn.style.opacity = '';
-                    btn.style.cursor = '';
-                });
+                this._menu.querySelectorAll('.pv-tool').forEach(btn => { btn.disabled = false; });
             }
             this._root.classList.remove('pv-simulating');
             this._setMode(this._prevMode || 'select');
@@ -4394,6 +4396,9 @@ class PetriView extends HTMLElement {
                 <li><strong>4:</strong> Switch to Add Arc mode</li>
                 <li><strong>5:</strong> Switch to Add Token mode</li>
                 <li><strong>6:</strong> Switch to Delete mode</li>
+                <li><strong>7:</strong> Toggle Label Edit mode</li>
+                <li><strong>8:</strong> Start/stop simulation (same as X)</li>
+                <li><strong>9:</strong> Open the Analysis workbench</li>
             </ul>
 
             <h4>Other Features:</h4>
@@ -4404,32 +4409,32 @@ class PetriView extends HTMLElement {
                 <li><strong>Auto-save:</strong> Changes are saved to browser localStorage</li>
             </ul>
 
-            <h3>ODE Simulation</h3>
+            <h3>Analysis Workbench</h3>
             <p>
-                The ODE (Ordinary Differential Equation) simulator models continuous-time behavior of Petri nets using mass action kinetics.
-                Access it from the hamburger menu: <strong>🧮 Simulate (ODE)</strong>
+                Continuous-time math tools for the current model, computed in the browser with the same
+                mass-action semantics and Tsit5 solver options as go-pflow and Petri Pilot.
+                Open it from the hamburger menu (<strong>🧮 Analysis</strong>) or press <strong>9</strong>.
             </p>
 
-            <h4>Key Features:</h4>
+            <h4>Tabs:</h4>
             <ul>
-                <li><strong>Transition Rates:</strong> Set rate constants for each transition (default is 1.0)</li>
-                <li><strong>Rate=0 for Optimization:</strong> Setting a transition's rate to 0 disables it, useful for:
-                    <ul>
-                        <li>Knapsack problems: Exclude items to find optimal solutions</li>
-                        <li>Resource allocation: Test different configurations</li>
-                        <li>Sensitivity analysis: Identify which transitions improve objectives</li>
-                    </ul>
-                </li>
-                <li><strong>Tsit5 Solver:</strong> High-accuracy 5th order Runge-Kutta method with adaptive time stepping</li>
-                <li><strong>Interactive Plotting:</strong> Select which places to visualize and view real-time SVG plots</li>
-                <li><strong>Configurable Parameters:</strong> Adjust time span, dt, absolute/relative tolerances</li>
+                <li><strong>Simulate:</strong> Integrate the ODE over time; interactive plot (hover for values,
+                click legend entries to toggle series) plus an initial/final/Δ table</li>
+                <li><strong>Rate Scan:</strong> Sweep one transition's rate over a range and plot each run's
+                steady state — how equilibria respond to a parameter</li>
+                <li><strong>Sweep:</strong> Overlay one place's full trajectory across rate values</li>
+                <li><strong>Phase Plot:</strong> Plot one place against another along the trajectory</li>
             </ul>
 
-            <p>
-                <strong>Example:</strong> In a knapsack problem with limited capacity, setting rate=0 for a transition effectively
-                removes that item from consideration. This frees up capacity for other transitions, potentially increasing the total
-                value if the excluded item had a poor value-to-weight ratio.
-            </p>
+            <h4>Results:</h4>
+            <ul>
+                <li><strong>CSV / JSON:</strong> Download the raw series behind any plot</li>
+                <li><strong>Copy MCP call:</strong> Copies the equivalent Petri Pilot MCP <code>tools/call</code>
+                payload (petri_ode, petri_rate_scan, petri_ode_sweep, petri_phase_plot) so an AI assistant —
+                or <code>curl https://pilot.pflow.xyz/mcp</code> — can reproduce the analysis</li>
+                <li><strong>Rate=0 disables a transition:</strong> useful for knapsack-style exclusion tests
+                and quick sensitivity checks</li>
+            </ul>
 
             <h3>Layout Algorithms</h3>
             <p>
@@ -4580,449 +4585,512 @@ class PetriView extends HTMLElement {
         });
     }
 
-    // ---------------- ODE simulation dialog ----------------
+    // ---------------- Analysis workbench (ODE + math tools) ----------------
+    //
+    // One tabbed dialog for the continuous-math tools, computed client-side
+    // with petri-solver.js. Tabs mirror petri-pilot's MCP tools (petri_ode,
+    // petri_rate_scan, petri_ode_sweep, petri_phase_plot) — the solver options
+    // match pilot's JSParityOptions, so a result here is reproducible via MCP,
+    // and "Copy MCP call" emits the equivalent tools/call payload.
+
+    _escHtml(s) {
+        return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    /**
+     * Non-blocking notification, replaces window.alert throughout the editor.
+     * kind: 'info' | 'success' | 'error'
+     */
+    _toast(message, kind = 'info', ms = 4500) {
+        let host = document.querySelector('.pv-toast-host');
+        if (!host) {
+            host = document.createElement('div');
+            host.className = 'pv-toast-host';
+            host.setAttribute('aria-live', 'polite');
+            document.body.appendChild(host);
+        }
+        const el = document.createElement('div');
+        el.className = 'pv-toast' + (kind !== 'info' ? ' pv-toast-' + kind : '');
+        el.textContent = String(message);
+        el.addEventListener('click', () => el.remove());
+        host.appendChild(el);
+        while (host.children.length > 4) host.firstChild.remove();
+        setTimeout(() => {
+            el.classList.add('pv-toast-out');
+            setTimeout(() => el.remove(), 300);
+        }, ms);
+    }
+
+    _downloadFile(filename, text, mime = 'text/plain') {
+        const blob = new Blob([text], { type: mime });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+
+    /**
+     * Convert the JSON-LD model to petri-pilot's flat schema (v1), the format
+     * its MCP tools accept. Color vectors are summed — pilot's math tools are
+     * scalar; the note field flags it when information was folded.
+     */
+    _pilotModelJSON() {
+        const m = this._model;
+        const out = {
+            name: (document.title || 'pflow-model').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'pflow-model',
+            places: [],
+            transitions: [],
+            arcs: [],
+        };
+        let folded = false;
+        for (const [id, p] of Object.entries(m.places || {})) {
+            const init = Array.isArray(p.initial) ? p.initial : [p.initial || 0];
+            if (init.length > 1) folded = true;
+            out.places.push({ id, initial: init.reduce((a, b) => a + (b || 0), 0), x: p.x || 0, y: p.y || 0 });
+        }
+        for (const [id, t] of Object.entries(m.transitions || {})) {
+            out.transitions.push({ id, x: t.x || 0, y: t.y || 0 });
+        }
+        for (const a of (m.arcs || [])) {
+            const w = Array.isArray(a.weight) ? a.weight : [a.weight || 1];
+            if (w.length > 1) folded = true;
+            const arc = { from: a.source, to: a.target, weight: w.reduce((x, y) => x + (y || 0), 0) || 1 };
+            if (a.inhibitTransition) arc.inhibit = true;
+            out.arcs.push(arc);
+        }
+        if (folded) out.description = 'Exported from pflow.xyz; multi-color token vectors were summed to scalars.';
+        return out;
+    }
+
+    /** JSON-RPC tools/call payload for pilot.pflow.xyz/mcp. */
+    _pilotCall(tool, args) {
+        return JSON.stringify({
+            jsonrpc: '2.0',
+            id: 1,
+            method: 'tools/call',
+            params: { name: tool, arguments: { model: JSON.stringify(this._pilotModelJSON()), ...args } },
+        }, null, 2);
+    }
+
+    /** Solve the current model's ODE once. Options default to JS/Go parity values. */
+    _odeSolve(rates, tspan, opts = {}, customState = null) {
+        const m = this._solverModule;
+        const net = m.fromJSON(this._model);
+        const initialState = m.setState(net, customState);
+        const prob = new m.ODEProblem(net, initialState, tspan, m.setRates(net, rates));
+        const sol = m.solve(prob, m.Tsit5(), {
+            dt: opts.dt ?? 0.01,
+            abstol: opts.abstol ?? 1e-6,
+            reltol: opts.reltol ?? 1e-3,
+            adaptive: true,
+        });
+        return { net, sol };
+    }
+
+    /** Uniform-stride downsample keeping first and last, for plotting only. */
+    _downsample(arr, limit = 600) {
+        if (arr.length <= limit) return arr.map((_, i) => i);
+        const idx = [];
+        const stride = (arr.length - 1) / (limit - 1);
+        for (let i = 0; i < limit; i++) idx.push(Math.round(i * stride));
+        return idx;
+    }
+
     async _showSimulationDialog() {
         // Load solver module dynamically
         if (!this._solverModule) {
             try {
                 this._solverModule = await import('./petri-solver.js');
             } catch (err) {
-                alert('Failed to load simulation module: ' + err.message);
+                this._toast('Failed to load solver module: ' + err.message, 'error');
                 console.error('Failed to load petri-solver.js:', err);
                 return;
             }
         }
 
-        // Create modal overlay
+        const placeIds = Object.keys(this._model.places || {});
+        const transitionIds = Object.keys(this._model.transitions || {});
+        if (placeIds.length === 0 || transitionIds.length === 0) {
+            this._toast('Add at least one place and one transition before running analysis', 'error');
+            return;
+        }
+
+        // Session-sticky parameters (survive close/reopen, not reload)
+        if (!this._analysisState) {
+            this._analysisState = {
+                tab: 'simulate',
+                tend: 10,
+                scanTend: 50,
+                rates: {},
+                selected: null,          // places to plot; null = default (first 8)
+                scanTransition: transitionIds[0],
+                range: { start: 0.1, stop: 2, n: 9 },
+                sweepObservable: placeIds[0],
+                phaseX: placeIds[0],
+                phaseY: placeIds[1] || placeIds[0],
+                dt: 0.01, abstol: 1e-6, reltol: 1e-3,
+            };
+        }
+        const st = this._analysisState;
+        for (const t of transitionIds) if (!(t in st.rates)) st.rates[t] = 1.0;
+        if (!st.selected) st.selected = placeIds.slice(0, 8);
+        st.selected = st.selected.filter(p => placeIds.includes(p));
+        if (!placeIds.includes(st.phaseX)) st.phaseX = placeIds[0];
+        if (!placeIds.includes(st.phaseY)) st.phaseY = placeIds[1] || placeIds[0];
+        if (!transitionIds.includes(st.scanTransition)) st.scanTransition = transitionIds[0];
+        if (!placeIds.includes(st.sweepObservable)) st.sweepObservable = placeIds[0];
+
+        const esc = (s) => this._escHtml(s);
         const overlay = document.createElement('div');
-        overlay.className = 'pv-sim-overlay';
+        overlay.className = 'pv-modal-overlay pv-analysis-overlay';
 
-        // Create dialog
+        const TABS = [
+            { id: 'simulate', label: 'Simulate', hint: 'Integrate the mass-action ODE over time (Tsit5).' },
+            { id: 'scan', label: 'Rate Scan', hint: 'Sweep one transition rate; plot each steady state.' },
+            { id: 'sweep', label: 'Sweep', hint: 'Overlay one place\'s trajectory across rate values.' },
+            { id: 'phase', label: 'Phase Plot', hint: 'Trajectory of one place against another.' },
+        ];
+
         const dialog = document.createElement('div');
-        dialog.className = 'pv-sim-dialog';
-
-        // Header container with title and close button
-        const header = document.createElement('div');
-        header.className = 'pv-sim-header';
-        dialog.appendChild(header);
-
-        // Title
-        const title = document.createElement('h2');
-        title.className = 'pv-sim-title';
-        title.textContent = 'ODE Simulation';
-        header.appendChild(title);
-
-        // Close icon button
-        const closeIcon = document.createElement('button');
-        closeIcon.className = 'pv-sim-close-btn';
-        closeIcon.innerHTML = '×';
-        closeIcon.type = 'button';
-        closeIcon.title = 'Close';
-        closeIcon.addEventListener('click', () => {
-            document.body.removeChild(overlay);
-        });
-        header.appendChild(closeIcon);
-
-        // Content container with scrollbar
-        const contentContainer = document.createElement('div');
-        contentContainer.className = 'pv-sim-content';
-        dialog.appendChild(contentContainer);
-
-        // Description
-        const desc = document.createElement('p');
-        desc.className = 'pv-sim-description';
-        desc.textContent = 'Simulate the Petri net using ordinary differential equations (ODE solver). Configure simulation parameters and select which places to plot.';
-        contentContainer.appendChild(desc);
-
-        // Controls container
-        const controlsContainer = document.createElement('div');
-        controlsContainer.className = 'pv-sim-controls';
-        contentContainer.appendChild(controlsContainer);
-
-        // Left column - Simulation parameters
-        const leftColumn = document.createElement('div');
-        controlsContainer.appendChild(leftColumn);
-
-        // Time parameters
-        const timeSection = document.createElement('div');
-        timeSection.className = 'pv-sim-section';
-        leftColumn.appendChild(timeSection);
-
-        const timeTitle = document.createElement('h3');
-        timeTitle.className = 'pv-sim-section-title';
-        timeTitle.textContent = 'Time Parameters';
-        timeSection.appendChild(timeTitle);
-
-        const timeStartLabel = document.createElement('label');
-        timeStartLabel.className = 'pv-sim-field-label';
-        timeStartLabel.textContent = 'Start Time:';
-        timeSection.appendChild(timeStartLabel);
-
-        const timeStartInput = document.createElement('input');
-        timeStartInput.className = 'pv-sim-field-input pv-sim-field-input-mb';
-        timeStartInput.type = 'number';
-        timeStartInput.value = '0';
-        timeStartInput.step = '0.1';
-        timeSection.appendChild(timeStartInput);
-
-        const timeEndLabel = document.createElement('label');
-        timeEndLabel.className = 'pv-sim-field-label';
-        timeEndLabel.textContent = 'End Time:';
-        timeSection.appendChild(timeEndLabel);
-
-        const timeEndInput = document.createElement('input');
-        timeEndInput.className = 'pv-sim-field-input';
-        timeEndInput.type = 'number';
-        timeEndInput.value = '10';
-        timeEndInput.step = '0.1';
-        timeSection.appendChild(timeEndInput);
-
-        // Solver options
-        const solverSection = document.createElement('div');
-        solverSection.className = 'pv-sim-section';
-        leftColumn.appendChild(solverSection);
-
-        const solverTitle = document.createElement('h3');
-        solverTitle.className = 'pv-sim-section-title';
-        solverTitle.textContent = 'Solver Options';
-        solverSection.appendChild(solverTitle);
-
-        const dtLabel = document.createElement('label');
-        dtLabel.className = 'pv-sim-field-label';
-        dtLabel.textContent = 'Initial Time Step (dt):';
-        solverSection.appendChild(dtLabel);
-
-        const dtInput = document.createElement('input');
-        dtInput.className = 'pv-sim-field-input pv-sim-field-input-mb';
-        dtInput.type = 'number';
-        dtInput.value = '0.01';
-        dtInput.step = '0.001';
-        solverSection.appendChild(dtInput);
-
-        const abstolLabel = document.createElement('label');
-        abstolLabel.className = 'pv-sim-field-label';
-        abstolLabel.textContent = 'Absolute Tolerance:';
-        solverSection.appendChild(abstolLabel);
-
-        const abstolInput = document.createElement('input');
-        abstolInput.className = 'pv-sim-field-input pv-sim-field-input-mb';
-        abstolInput.type = 'number';
-        abstolInput.value = '1e-6';
-        abstolInput.step = '1e-7';
-        solverSection.appendChild(abstolInput);
-
-        const reltolLabel = document.createElement('label');
-        reltolLabel.className = 'pv-sim-field-label';
-        reltolLabel.textContent = 'Relative Tolerance:';
-        solverSection.appendChild(reltolLabel);
-
-        const reltolInput = document.createElement('input');
-        reltolInput.className = 'pv-sim-field-input';
-        reltolInput.type = 'number';
-        reltolInput.value = '1e-3';
-        reltolInput.step = '1e-4';
-        solverSection.appendChild(reltolInput);
-
-        // Right column - Variable selection and rates
-        const rightColumn = document.createElement('div');
-        controlsContainer.appendChild(rightColumn);
-
-        // Variables to plot
-        const variablesSection = document.createElement('div');
-        variablesSection.className = 'pv-sim-section';
-        rightColumn.appendChild(variablesSection);
-
-        const variablesTitle = document.createElement('h3');
-        variablesTitle.className = 'pv-sim-section-title';
-        variablesTitle.textContent = 'Places to Plot';
-        variablesSection.appendChild(variablesTitle);
-
-        const variablesContainer = document.createElement('div');
-        variablesContainer.className = 'pv-sim-variables-container';
-        variablesSection.appendChild(variablesContainer);
-
-        // Add checkboxes for each place
-        const placeCheckboxes = {};
-        const placeLabels = Object.keys(this._model.places || {});
-        if (placeLabels.length === 0) {
-            const noPlaces = document.createElement('p');
-            noPlaces.className = 'pv-sim-no-items';
-            noPlaces.textContent = 'No places in the model';
-            variablesContainer.appendChild(noPlaces);
-        } else {
-            placeLabels.forEach((label, idx) => {
-                const checkboxWrapper = document.createElement('div');
-                checkboxWrapper.className = 'pv-sim-checkbox-wrapper';
-
-                const checkbox = document.createElement('input');
-                checkbox.className = 'pv-sim-checkbox';
-                checkbox.type = 'checkbox';
-                checkbox.id = 'var-' + label;
-                checkbox.checked = idx < 5; // Check first 5 by default
-                checkbox.value = label;
-                checkboxWrapper.appendChild(checkbox);
-                placeCheckboxes[label] = checkbox;
-
-                const checkboxLabel = document.createElement('label');
-                checkboxLabel.className = 'pv-sim-checkbox-label';
-                checkboxLabel.textContent = label;
-                checkboxLabel.htmlFor = 'var-' + label;
-                checkboxWrapper.appendChild(checkboxLabel);
-
-                variablesContainer.appendChild(checkboxWrapper);
-            });
-        }
-
-        // Transition rates
-        const ratesSection = document.createElement('div');
-        rightColumn.appendChild(ratesSection);
-
-        const ratesTitle = document.createElement('h3');
-        ratesTitle.className = 'pv-sim-section-title';
-        ratesTitle.textContent = 'Transition Rates';
-        ratesSection.appendChild(ratesTitle);
-
-        const ratesContainer = document.createElement('div');
-        ratesContainer.className = 'pv-sim-variables-container';
-        ratesSection.appendChild(ratesContainer);
-
-        const transitionRateInputs = {};
-        const transitionLabels = Object.keys(this._model.transitions || {});
-        if (transitionLabels.length === 0) {
-            const noTransitions = document.createElement('p');
-            noTransitions.className = 'pv-sim-no-items';
-            noTransitions.textContent = 'No transitions in the model';
-            ratesContainer.appendChild(noTransitions);
-        } else {
-            transitionLabels.forEach(label => {
-                const rateWrapper = document.createElement('div');
-                rateWrapper.className = 'pv-sim-rate-wrapper';
-
-                const rateLabel = document.createElement('label');
-                rateLabel.className = 'pv-sim-rate-label';
-                rateLabel.textContent = label + ':';
-                rateWrapper.appendChild(rateLabel);
-
-                const rateInput = document.createElement('input');
-                rateInput.className = 'pv-sim-rate-input';
-                rateInput.type = 'number';
-                rateInput.value = '1.0';
-                rateInput.step = '0.1';
-                rateInput.min = '0';
-                rateWrapper.appendChild(rateInput);
-                transitionRateInputs[label] = rateInput;
-
-                ratesContainer.appendChild(rateWrapper);
-            });
-        }
-
-        // Plot area
-        const plotContainer = document.createElement('div');
-        plotContainer.className = 'pv-sim-plot-container';
-        contentContainer.appendChild(plotContainer);
-
-        const plotPlaceholder = document.createElement('p');
-        plotPlaceholder.className = 'pv-sim-plot-placeholder';
-        plotPlaceholder.textContent = 'Click "Run Simulation" to generate plot';
-        plotContainer.appendChild(plotPlaceholder);
-
-        // Buttons container
-        const buttonsContainer = document.createElement('div');
-        buttonsContainer.className = 'pv-sim-buttons';
-        dialog.appendChild(buttonsContainer);
-
-        // Run simulation button
-        const runButton = document.createElement('button');
-        runButton.className = 'pv-sim-btn pv-sim-btn-primary';
-        runButton.textContent = 'Run Simulation';
-        runButton.type = 'button';
-        runButton.addEventListener('click', () => {
-            this._runODESimulation({
-                timeStartInput,
-                timeEndInput,
-                dtInput,
-                abstolInput,
-                reltolInput,
-                placeCheckboxes,
-                transitionRateInputs,
-                plotContainer,
-                runButton
-            });
-        });
-        buttonsContainer.appendChild(runButton);
-
-        // Export to Gist button (only show if authenticated and simulation has run)
-        const exportGistButton = document.createElement('button');
-        exportGistButton.className = 'pv-sim-btn pv-sim-btn-export';
-        exportGistButton.textContent = '📤 Export to Gist';
-        exportGistButton.type = 'button';
-        exportGistButton.disabled = true; // Initially disabled until simulation runs
-        exportGistButton.addEventListener('click', async () => {
-            await this._exportODESimulationToGist({
-                timeStartInput,
-                timeEndInput,
-                dtInput,
-                abstolInput,
-                reltolInput,
-                placeCheckboxes,
-                transitionRateInputs,
-                plotContainer
-            });
-        });
-        buttonsContainer.appendChild(exportGistButton);
-
-        // Store reference to export button for enabling/disabling
-        this._odeExportGistButton = exportGistButton;
-
-        // Close button
-        const closeButton = document.createElement('button');
-        closeButton.className = 'pv-sim-btn pv-sim-btn-secondary';
-        closeButton.textContent = 'Close';
-        closeButton.type = 'button';
-        closeButton.addEventListener('click', () => {
-            document.body.removeChild(overlay);
-        });
-        buttonsContainer.appendChild(closeButton);
+        dialog.className = 'pv-modal-dialog pv-analysis-dialog';
+        dialog.setAttribute('role', 'dialog');
+        dialog.setAttribute('aria-label', 'Analysis');
+        dialog.innerHTML = `
+            <div class="pv-dialog-header">
+                <h2 class="pv-dialog-header-title">Analysis</h2>
+                <button type="button" class="pv-dialog-close-icon" data-act="close" title="Close (Esc)">×</button>
+            </div>
+            <div class="pv-analysis-tabs" role="tablist">
+                ${TABS.map(t => `<button type="button" role="tab" class="pv-analysis-tab" data-tab="${t.id}">${t.label}</button>`).join('')}
+            </div>
+            <p class="pv-analysis-hint"></p>
+            <div class="pv-analysis-body">
+                <div class="pv-analysis-controls">
+                    <div class="pv-analysis-section" data-show="simulate scan sweep phase">
+                        <h3>Time</h3>
+                        <div class="pv-analysis-row">
+                            <label>t<sub>end</sub> <input type="number" data-f="tend" step="1" min="0.1" value="${st.tend}"></label>
+                        </div>
+                    </div>
+                    <div class="pv-analysis-section" data-show="scan sweep">
+                        <h3>Swept transition</h3>
+                        <select data-f="scanTransition">
+                            ${transitionIds.map(t => `<option value="${esc(t)}"${t === st.scanTransition ? ' selected' : ''}>${esc(t)}</option>`).join('')}
+                        </select>
+                        <div class="pv-analysis-row pv-analysis-range">
+                            <label>from <input type="number" data-f="rangeStart" step="0.1" value="${st.range.start}"></label>
+                            <label>to <input type="number" data-f="rangeStop" step="0.1" value="${st.range.stop}"></label>
+                            <label>steps <input type="number" data-f="rangeN" step="1" min="2" max="25" value="${st.range.n}"></label>
+                        </div>
+                    </div>
+                    <div class="pv-analysis-section" data-show="sweep">
+                        <h3>Observed place</h3>
+                        <select data-f="sweepObservable">
+                            ${placeIds.map(p => `<option value="${esc(p)}"${p === st.sweepObservable ? ' selected' : ''}>${esc(p)}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div class="pv-analysis-section" data-show="phase">
+                        <h3>Axes</h3>
+                        <label class="pv-analysis-stack">x axis
+                            <select data-f="phaseX">${placeIds.map(p => `<option value="${esc(p)}"${p === st.phaseX ? ' selected' : ''}>${esc(p)}</option>`).join('')}</select>
+                        </label>
+                        <label class="pv-analysis-stack">y axis
+                            <select data-f="phaseY">${placeIds.map(p => `<option value="${esc(p)}"${p === st.phaseY ? ' selected' : ''}>${esc(p)}</option>`).join('')}</select>
+                        </label>
+                    </div>
+                    <div class="pv-analysis-section" data-show="simulate scan">
+                        <h3>Places to plot</h3>
+                        <div class="pv-analysis-checklist">
+                            ${placeIds.map(p => `<label><input type="checkbox" data-place="${esc(p)}"${st.selected.includes(p) ? ' checked' : ''}> ${esc(p)}</label>`).join('')}
+                        </div>
+                    </div>
+                    <div class="pv-analysis-section" data-show="simulate scan sweep phase">
+                        <h3>Transition rates</h3>
+                        <div class="pv-analysis-rates">
+                            ${transitionIds.map(t => `<label>${esc(t)} <input type="number" data-rate="${esc(t)}" step="0.1" min="0" value="${st.rates[t]}"></label>`).join('')}
+                        </div>
+                    </div>
+                    <details class="pv-analysis-section pv-analysis-advanced" data-show="simulate scan sweep phase">
+                        <summary>Solver options</summary>
+                        <div class="pv-analysis-row">
+                            <label>dt <input type="number" data-f="dt" step="0.001" value="${st.dt}"></label>
+                            <label>abstol <input type="number" data-f="abstol" step="1e-7" value="${st.abstol}"></label>
+                            <label>reltol <input type="number" data-f="reltol" step="1e-4" value="${st.reltol}"></label>
+                        </div>
+                    </details>
+                </div>
+                <div class="pv-analysis-main">
+                    <div class="pv-analysis-plot"><p class="pv-analysis-placeholder">Press Run — results render here</p></div>
+                    <div class="pv-analysis-results"></div>
+                </div>
+            </div>
+            <div class="pv-btn-container pv-analysis-actions">
+                <button type="button" class="pv-btn pv-btn-primary" data-act="run">Run</button>
+                <button type="button" class="pv-btn" data-act="csv" disabled>CSV</button>
+                <button type="button" class="pv-btn" data-act="json" disabled>JSON</button>
+                <button type="button" class="pv-btn" data-act="mcp" title="Copy the equivalent petri-pilot MCP tools/call payload">Copy MCP call</button>
+                <button type="button" class="pv-btn" data-act="gist" disabled>Export to Gist</button>
+                <button type="button" class="pv-btn" data-act="close">Close</button>
+            </div>`;
 
         overlay.appendChild(dialog);
         document.body.appendChild(overlay);
+        this._simulationDialog = overlay;
 
-        // Close on overlay click
-        overlay.addEventListener('click', (e) => {
-            if (e.target === overlay) {
-                document.body.removeChild(overlay);
+        const $ = (sel) => dialog.querySelector(sel);
+        const $$ = (sel) => Array.from(dialog.querySelectorAll(sel));
+        const plotEl = $('.pv-analysis-plot');
+        const resultsEl = $('.pv-analysis-results');
+        const runBtn = $('[data-act="run"]');
+        const csvBtn = $('[data-act="csv"]');
+        const jsonBtn = $('[data-act="json"]');
+        const gistBtn = $('[data-act="gist"]');
+        let lastResult = null; // {csv, json, filename}
+
+        const close = () => {
+            overlay.remove();
+            this._simulationDialog = null;
+        };
+        overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+        overlay.addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.stopPropagation(); close(); } });
+        $$('[data-act="close"]').forEach(b => b.addEventListener('click', close));
+
+        const readState = () => {
+            st.tend = Math.max(0.1, parseFloat($('[data-f="tend"]').value) || 10);
+            st.dt = parseFloat($('[data-f="dt"]').value) || 0.01;
+            st.abstol = parseFloat($('[data-f="abstol"]').value) || 1e-6;
+            st.reltol = parseFloat($('[data-f="reltol"]').value) || 1e-3;
+            st.scanTransition = $('[data-f="scanTransition"]').value;
+            st.range = {
+                start: parseFloat($('[data-f="rangeStart"]').value) || 0,
+                stop: parseFloat($('[data-f="rangeStop"]').value) || 1,
+                n: Math.min(25, Math.max(2, parseInt($('[data-f="rangeN"]').value, 10) || 9)),
+            };
+            st.sweepObservable = $('[data-f="sweepObservable"]').value;
+            st.phaseX = $('[data-f="phaseX"]').value;
+            st.phaseY = $('[data-f="phaseY"]').value;
+            st.selected = $$('[data-place]').filter(c => c.checked).map(c => c.dataset.place);
+            for (const inp of $$('[data-rate]')) {
+                const v = parseFloat(inp.value);
+                st.rates[inp.dataset.rate] = isNaN(v) ? 1.0 : v;
+            }
+        };
+
+        const showTab = (tabId) => {
+            st.tab = tabId;
+            $$('.pv-analysis-tab').forEach(b => {
+                const on = b.dataset.tab === tabId;
+                b.classList.toggle('pv-active', on);
+                b.setAttribute('aria-selected', on ? 'true' : 'false');
+            });
+            $('.pv-analysis-hint').textContent = TABS.find(t => t.id === tabId).hint;
+            $$('[data-show]').forEach(el => {
+                el.style.display = el.dataset.show.split(' ').includes(tabId) ? '' : 'none';
+            });
+            gistBtn.style.display = tabId === 'simulate' ? '' : 'none';
+        };
+        $$('.pv-analysis-tab').forEach(b => b.addEventListener('click', () => showTab(b.dataset.tab)));
+        showTab(st.tab);
+
+        const resultsTable = (headers, rows) => {
+            resultsEl.innerHTML = `<table class="pv-analysis-table"><thead><tr>${
+                headers.map(h => `<th>${esc(h)}</th>`).join('')
+            }</tr></thead><tbody>${
+                rows.map(r => `<tr>${r.map((c, i) => `<td${i ? ' class="pv-num"' : ''}>${esc(c)}</td>`).join('')}</tr>`).join('')
+            }</tbody></table>`;
+        };
+        const toCSV = (headers, rows) =>
+            [headers, ...rows].map(r => r.map(c => /[",\n]/.test(String(c)) ? `"${String(c).replace(/"/g, '""')}"` : c).join(',')).join('\n');
+        const fmt = (v) => typeof v === 'number' ? +v.toPrecision(6) : v;
+
+        const renderPlot = (plotter) => {
+            const result = { svg: plotter.render(), plotData: plotter.lastPlotData };
+            plotEl.innerHTML = result.svg;
+            this._solverModule.SVGPlotter.setupInteractivity(result.plotData);
+            return result;
+        };
+
+        const runners = {
+            simulate: () => {
+                if (st.selected.length === 0) throw new Error('Select at least one place to plot');
+                const { net, sol } = this._odeSolve(st.rates, [0, st.tend], st);
+                const P = this._solverModule.SVGPlotter;
+                const plotter = new P(860, 420);
+                plotter.setTitle('ODE simulation · Tsit5').setXLabel('Time').setYLabel('Token count');
+                const keep = this._downsample(sol.t);
+                for (const v of st.selected) {
+                    const y = sol.getVariable(v);
+                    plotter.addSeries(keep.map(i => sol.t[i]), keep.map(i => y[i]), v);
+                }
+                const plotResult = renderPlot(plotter);
+                const initial = this._solverModule.setState(net);
+                const final = sol.getFinalState();
+                const rows = Object.keys(final).map(p => [p, fmt(initial[p] ?? 0), fmt(final[p]), fmt(final[p] - (initial[p] ?? 0))]);
+                resultsTable(['Place', 'Initial', 'Final', 'Δ'], rows);
+                // Feed the Gist exporter (kept API: reads this._lastODESimulation)
+                this._lastODESimulation = {
+                    svg: plotResult.svg, selectedVars: st.selected, rates: { ...st.rates },
+                    tstart: 0, tend: st.tend, dt: st.dt, abstol: st.abstol, reltol: st.reltol,
+                    solution: sol, net,
+                };
+                if (this._authInitialized && this._user) gistBtn.disabled = false;
+                const headers = ['t', ...st.selected];
+                const series = st.selected.map(v => sol.getVariable(v));
+                const csvRows = sol.t.map((t, i) => [t, ...series.map(s => s[i])]);
+                return {
+                    csv: toCSV(headers, csvRows),
+                    json: { tool: 'petri_ode', tspan: [0, st.tend], rates: st.rates, t: sol.t, series: Object.fromEntries(st.selected.map((v, i) => [v, series[i]])), final },
+                    filename: 'ode-simulation',
+                };
+            },
+            scan: () => {
+                if (st.selected.length === 0) throw new Error('Select at least one place to observe');
+                const values = [];
+                for (let i = 0; i < st.range.n; i++) {
+                    values.push(st.range.start + (st.range.stop - st.range.start) * i / (st.range.n - 1));
+                }
+                const finals = values.map(v => {
+                    const { sol } = this._odeSolve({ ...st.rates, [st.scanTransition]: v }, [0, st.scanTend ?? Math.max(50, st.tend)], st);
+                    return sol.getFinalState();
+                });
+                const P = this._solverModule.SVGPlotter;
+                const plotter = new P(860, 420);
+                plotter.setTitle(`Steady state vs rate(${st.scanTransition})`).setXLabel(`rate(${st.scanTransition})`).setYLabel('Token count');
+                for (const p of st.selected) {
+                    plotter.addSeries(values, finals.map(f => f[p] ?? 0), p, null, { markers: true });
+                }
+                renderPlot(plotter);
+                resultsTable([`rate(${st.scanTransition})`, ...st.selected],
+                    values.map((v, i) => [fmt(v), ...st.selected.map(p => fmt(finals[i][p] ?? 0))]));
+                return {
+                    csv: toCSV([`rate`, ...st.selected], values.map((v, i) => [v, ...st.selected.map(p => finals[i][p] ?? 0)])),
+                    json: { tool: 'petri_rate_scan', transition: st.scanTransition, values, observables: st.selected, results: finals },
+                    filename: `rate-scan-${st.scanTransition}`,
+                };
+            },
+            sweep: () => {
+                const values = [];
+                for (let i = 0; i < st.range.n; i++) {
+                    values.push(st.range.start + (st.range.stop - st.range.start) * i / (st.range.n - 1));
+                }
+                const P = this._solverModule.SVGPlotter;
+                const plotter = new P(860, 420);
+                plotter.setTitle(`${st.sweepObservable} across rate(${st.scanTransition})`).setXLabel('Time').setYLabel(st.sweepObservable);
+                const trajectories = [];
+                for (const v of values) {
+                    const { sol } = this._odeSolve({ ...st.rates, [st.scanTransition]: v }, [0, st.tend], st);
+                    const y = sol.getVariable(st.sweepObservable);
+                    const keep = this._downsample(sol.t);
+                    plotter.addSeries(keep.map(i => sol.t[i]), keep.map(i => y[i]), `k=${+v.toPrecision(3)}`);
+                    trajectories.push({ rate: v, final: y[y.length - 1] });
+                }
+                renderPlot(plotter);
+                resultsTable([`rate(${st.scanTransition})`, `${st.sweepObservable} final`],
+                    trajectories.map(tr => [fmt(tr.rate), fmt(tr.final)]));
+                return {
+                    csv: toCSV(['rate', 'final'], trajectories.map(tr => [tr.rate, tr.final])),
+                    json: { tool: 'petri_ode_sweep', transition: st.scanTransition, observable: st.sweepObservable, trajectories },
+                    filename: `sweep-${st.scanTransition}-${st.sweepObservable}`,
+                };
+            },
+            phase: () => {
+                const { sol } = this._odeSolve(st.rates, [0, st.tend], st);
+                const xs = sol.getVariable(st.phaseX);
+                const ys = sol.getVariable(st.phaseY);
+                const keep = this._downsample(xs);
+                const P = this._solverModule.SVGPlotter;
+                const plotter = new P(860, 460, { hoverMode: 'point', clampYZero: false });
+                plotter.setTitle(`Phase: ${st.phaseY} vs ${st.phaseX}`).setXLabel(st.phaseX).setYLabel(st.phaseY);
+                plotter.addSeries(keep.map(i => xs[i]), keep.map(i => ys[i]), 'trajectory');
+                // start / end markers as tiny series
+                plotter.addSeries([xs[0]], [ys[0]], 'start', null, { markers: true });
+                plotter.addSeries([xs[xs.length - 1]], [ys[ys.length - 1]], 'end', null, { markers: true });
+                renderPlot(plotter);
+                resultsTable(['', st.phaseX, st.phaseY], [
+                    ['start', fmt(xs[0]), fmt(ys[0])],
+                    ['end', fmt(xs[xs.length - 1]), fmt(ys[ys.length - 1])],
+                ]);
+                return {
+                    csv: toCSV(['t', st.phaseX, st.phaseY], sol.t.map((t, i) => [t, xs[i], ys[i]])),
+                    json: { tool: 'petri_phase_plot', placeX: st.phaseX, placeY: st.phaseY, t: sol.t, x: xs, y: ys },
+                    filename: `phase-${st.phaseX}-${st.phaseY}`,
+                };
+            },
+        };
+
+        runBtn.addEventListener('click', async () => {
+            readState();
+            runBtn.disabled = true;
+            runBtn.textContent = 'Running…';
+            await new Promise(r => setTimeout(r, 10)); // let the button repaint
+            try {
+                lastResult = runners[st.tab]();
+                csvBtn.disabled = false;
+                jsonBtn.disabled = false;
+            } catch (err) {
+                console.error('Analysis error:', err);
+                this._toast('Analysis failed: ' + err.message, 'error');
+                plotEl.innerHTML = `<p class="pv-analysis-error">${this._escHtml(err.message)}</p>`;
+                resultsEl.innerHTML = '';
+            } finally {
+                runBtn.disabled = false;
+                runBtn.textContent = 'Run';
             }
         });
 
-        this._simulationDialog = overlay;
-    }
-
-    async _runODESimulation(params) {
-        const {
-            timeStartInput,
-            timeEndInput,
-            dtInput,
-            abstolInput,
-            reltolInput,
-            placeCheckboxes,
-            transitionRateInputs,
-            plotContainer,
-            runButton
-        } = params;
-
-        try {
-            // Disable run button during simulation
-            runButton.disabled = true;
-            runButton.textContent = 'Running...';
-
-            // Get selected variables
-            const selectedVars = [];
-            for (const [label, checkbox] of Object.entries(placeCheckboxes)) {
-                if (checkbox.checked) {
-                    selectedVars.push(label);
-                }
-            }
-
-            if (selectedVars.length === 0) {
-                alert('Please select at least one place to plot');
-                return;
-            }
-
-            // Get transition rates
-            const rates = {};
-            for (const [label, input] of Object.entries(transitionRateInputs)) {
-                const parsedValue = parseFloat(input.value);
-                rates[label] = isNaN(parsedValue) ? 1.0 : parsedValue;
-            }
-
-            // Parse simulation parameters
-            const tstart = parseFloat(timeStartInput.value) || 0;
-            const tend = parseFloat(timeEndInput.value) || 10;
-            const dt = parseFloat(dtInput.value) || 0.01;
-            const abstol = parseFloat(abstolInput.value) || 1e-6;
-            const reltol = parseFloat(reltolInput.value) || 1e-3;
-
-            // Create Petri net from model
-            const net = this._solverModule.fromJSON(this._model);
-            const initialState = this._solverModule.setState(net);
-
-            // Create ODE problem
-            const prob = new this._solverModule.ODEProblem(
-                net,
-                initialState,
-                [tstart, tend],
-                rates
-            );
-
-            // Solve
-            const sol = this._solverModule.solve(prob, this._solverModule.Tsit5(), {
-                dt: dt,
-                abstol: abstol,
-                reltol: reltol,
-                adaptive: true
-            });
-
-            // Generate plot
-            const plotResult = this._solverModule.SVGPlotter.plotSolution(sol, selectedVars, {
-                title: 'Petri Net ODE Simulation',
-                xlabel: 'Time',
-                ylabel: 'Token Count',
-                width: plotContainer.offsetWidth - 32 || 800,
-                height: 400
-            });
-
-            // Display plot
-            plotContainer.innerHTML = plotResult.svg;
-            plotResult.setupInteractivity();
-
-            // Store simulation results for export
-            this._lastODESimulation = {
-                svg: plotResult.svg,
-                selectedVars: selectedVars,
-                rates: rates,
-                tstart: tstart,
-                tend: tend,
-                dt: dt,
-                abstol: abstol,
-                reltol: reltol,
-                solution: sol,
-                net: net
+        csvBtn.addEventListener('click', () => {
+            if (lastResult) this._downloadFile(lastResult.filename + '.csv', lastResult.csv, 'text/csv');
+        });
+        jsonBtn.addEventListener('click', () => {
+            if (lastResult) this._downloadFile(lastResult.filename + '.json', JSON.stringify(lastResult.json, null, 2), 'application/json');
+        });
+        gistBtn.addEventListener('click', () => this._exportODESimulationToGist({}));
+        $('[data-act="mcp"]').addEventListener('click', () => {
+            readState();
+            const calls = {
+                simulate: () => this._pilotCall('petri_ode', { rates: JSON.stringify(st.rates), tspan: `[0,${st.tend}]` }),
+                scan: () => this._pilotCall('petri_rate_scan', {
+                    transition: st.scanTransition,
+                    range: `[${st.range.start},${st.range.stop},${st.range.n}]`,
+                    observables: JSON.stringify(st.selected),
+                    fixed_rates: JSON.stringify(st.rates),
+                }),
+                sweep: () => this._pilotCall('petri_ode_sweep', {
+                    transition: st.scanTransition,
+                    observable: st.sweepObservable,
+                    range: `[${st.range.start},${st.range.stop},${st.range.n}]`,
+                    fixed_rates: JSON.stringify(st.rates),
+                    tspan: `[0,${st.tend}]`,
+                }),
+                phase: () => this._pilotCall('petri_phase_plot', {
+                    place_x: st.phaseX, place_y: st.phaseY,
+                    rates: JSON.stringify(st.rates), tspan: `[0,${st.tend}]`,
+                }),
             };
+            const payload = calls[st.tab]();
+            navigator.clipboard.writeText(payload).then(
+                () => this._toast('MCP tools/call payload copied — POST it to https://pilot.pflow.xyz/mcp'),
+                () => this._toast('Clipboard unavailable', 'error'),
+            );
+        });
 
-            // Enable export button if authenticated
-            if (this._odeExportGistButton && this._authInitialized && this._user) {
-                this._odeExportGistButton.disabled = false;
-                this._applyStyles(this._odeExportGistButton, {
-                    opacity: '1',
-                    cursor: 'pointer'
-                });
-            }
-
-            // Show success message
-            console.log('Simulation completed successfully');
-            console.log('Final state:', sol.getFinalState());
-
-        } catch (err) {
-            console.error('Simulation error:', err);
-            alert('Simulation failed: ' + err.message);
-            plotContainer.innerHTML = '<p style="color: red; margin: 0;">Simulation failed: ' + err.message + '</p>';
-        } finally {
-            // Re-enable run button
-            runButton.disabled = false;
-            runButton.textContent = 'Run Simulation';
-        }
+        dialog.tabIndex = -1;
+        dialog.focus();
     }
 
     async _exportODESimulationToGist(params) {
         // Check if simulation has been run
         if (!this._lastODESimulation) {
-            alert('Please run a simulation first before exporting to Gist');
+            this._toast('Please run a simulation first before exporting to Gist', 'error');
             return;
         }
 
         // Check if authenticated
         if (!this._authInitialized || !this._user) {
-            alert('GitHub authentication required. Please log in to export to Gist.');
+            this._toast('GitHub authentication required. Please log in to export to Gist.', 'error');
             return;
         }
 
@@ -5037,7 +5105,7 @@ class PetriView extends HTMLElement {
                 const authToken = this._authToken;
 
                 if (!authToken) {
-                    alert('Please log in to save the diagram before exporting');
+                    this._toast('Please log in to save the diagram before exporting', 'error');
                     return;
                 }
 
@@ -5056,7 +5124,7 @@ class PetriView extends HTMLElement {
                 if (!response.ok) {
                     const errorText = await response.text();
                     console.error('Save failed with status', response.status, errorText);
-                    alert(`Failed to save before creating Gist: ${response.statusText}`);
+                    this._toast(`Failed to save before creating Gist: ${response.statusText}`, 'error');
                     return;
                 }
 
@@ -5069,7 +5137,7 @@ class PetriView extends HTMLElement {
                 window.history.pushState({}, '', url.toString());
             } catch (err) {
                 console.error('Failed to save before creating Gist:', err);
-                alert('Failed to save document: ' + (err && err.message ? err.message : String(err)));
+                this._toast('Failed to save document: ' + (err && err.message ? err.message : String(err)), 'error');
                 return;
             }
         }
@@ -5149,7 +5217,7 @@ class PetriView extends HTMLElement {
         // Create gist via GitHub API
         const authToken = this._authToken;
         if (!authToken) {
-            alert('Please log in to export to Gist');
+            this._toast('Please log in to export to Gist', 'error');
             return;
         }
 
@@ -5175,7 +5243,7 @@ class PetriView extends HTMLElement {
             if (!gistResponse.ok) {
                 const errorText = await gistResponse.text();
                 console.error('Gist creation failed:', gistResponse.status, errorText);
-                alert(`Failed to create Gist: ${gistResponse.statusText}`);
+                this._toast(`Failed to create Gist: ${gistResponse.statusText}`, 'error');
                 return;
             }
 
@@ -5186,7 +5254,7 @@ class PetriView extends HTMLElement {
             window.open(gistUrl, '_blank');
         } catch (err) {
             console.error('Failed to create Gist:', err);
-            alert('Failed to create Gist: ' + (err && err.message ? err.message : String(err)));
+            this._toast('Failed to create Gist: ' + (err && err.message ? err.message : String(err)), 'error');
         }
     }
 
@@ -5964,7 +6032,7 @@ class PetriView extends HTMLElement {
     // ---------------- My Diagrams Dialog ----------------
     async _showMyDiagramsDialog() {
         if (!this._authToken) {
-            alert('Please log in to view your diagrams');
+            this._toast('Please log in to view your diagrams', 'error');
             return;
         }
 
@@ -6115,10 +6183,10 @@ class PetriView extends HTMLElement {
                                         dialog.insertBefore(emptyDiv, dialog.querySelector('button'));
                                     }
                                 } else {
-                                    alert('Failed to delete diagram');
+                                    this._toast('Failed to delete diagram', 'error');
                                 }
                             } catch (err) {
-                                alert('Failed to delete diagram: ' + err.message);
+                                this._toast('Failed to delete diagram: ' + err.message, 'error');
                             }
                         }
                     });
@@ -6272,7 +6340,7 @@ class PetriView extends HTMLElement {
 
                 document.body.removeChild(overlay);
             } catch (err) {
-                alert('Failed to save: ' + err.message);
+                this._toast('Failed to save: ' + err.message, 'error');
                 saveBtn.disabled = false;
                 saveBtn.textContent = 'Save';
             }
@@ -6593,7 +6661,7 @@ class PetriView extends HTMLElement {
         }
 
         // Standard menu items
-        const simulationItem = makeMenuItem('🧮 Simulate (ODE)', () => {
+        const simulationItem = makeMenuItem('🧮 Analysis (ODE, scans, phase)', () => {
             this._showSimulationDialog();
         });
         menuContainer._menuContent.appendChild(simulationItem);
@@ -7057,7 +7125,7 @@ class PetriView extends HTMLElement {
             };
             if (map[e.key] && !isTyping) this._setMode(map[e.key]);
 
-            // 7 = toggle label editor, 8 = toggle play/pause
+            // 7 = toggle label editor, 8 = toggle play/pause, 9 = analysis
             if (e.key === '7' && !isTyping) {
                 e.preventDefault();
                 this._toggleLabelEditMode();
@@ -7065,6 +7133,10 @@ class PetriView extends HTMLElement {
             if (e.key === '8' && !isTyping) {
                 e.preventDefault();
                 this._setSimulation(!this._simRunning);
+            }
+            if (e.key === '9' && !isTyping && !this._simulationDialog) {
+                e.preventDefault();
+                this._showSimulationDialog();
             }
         });
         window.addEventListener('keyup', (e) => {

@@ -1,3 +1,108 @@
+/* ============================================================
+   Design tokens
+   Light is the default; dark values apply under the OS setting
+   (prefers-color-scheme) or an explicit data-theme="dark" on <html>.
+   The diagram canvas is deliberately pinned to the light "paper"
+   palette in both modes (see .pv-canvas-container below) so the
+   canvas-drawn arcs and node colors stay readable.
+   --pv-viz-* tokens are consumed by the SVG charts petri-solver.js
+   emits; values mirror its built-in light fallbacks.
+   ============================================================ */
+:root {
+    --pv-surface: #ffffff;
+    --pv-surface-2: #f6f6f4;
+    --pv-surface-3: #ecece9;
+    --pv-ink: #24292e;
+    --pv-ink-secondary: #586069;
+    --pv-ink-muted: #898781;
+    --pv-border: #e1e4e8;
+    --pv-accent: #2a6fb8;
+    --pv-accent-strong: #235d9c;
+    --pv-accent-ink: #ffffff;
+    --pv-danger: #d73a49;
+    --pv-success: #0ca30c;
+    --pv-viz-surface: #fcfcfb;
+    --pv-viz-ink: #0b0b0b;
+    --pv-viz-muted: #898781;
+    --pv-viz-grid: #e1e0d9;
+    --pv-viz-axis: #c3c2b7;
+    --pv-viz-series-1: #2a78d6;
+    --pv-viz-series-2: #eb6834;
+    --pv-viz-series-3: #1baf7a;
+    --pv-viz-series-4: #eda100;
+    --pv-viz-series-5: #e87ba4;
+    --pv-viz-series-6: #008300;
+    --pv-viz-series-7: #4a3aa7;
+    --pv-viz-series-8: #e34948;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) {
+        color-scheme: dark;
+        --pv-surface: #1e1e1d;
+        --pv-surface-2: #171716;
+        --pv-surface-3: #2a2a28;
+        --pv-ink: #e8e6df;
+        --pv-ink-secondary: #a6a49b;
+        --pv-ink-muted: #898781;
+        --pv-border: #3a3a38;
+        --pv-accent: #4d8fd6;
+        --pv-accent-strong: #6ba3e0;
+        --pv-accent-ink: #ffffff;
+        --pv-danger: #e5534b;
+        --pv-viz-surface: #1a1a19;
+        --pv-viz-ink: #ffffff;
+        --pv-viz-grid: #2c2c2a;
+        --pv-viz-axis: #383835;
+        --pv-viz-series-1: #3987e5;
+        --pv-viz-series-2: #d95926;
+        --pv-viz-series-3: #199e70;
+        --pv-viz-series-4: #c98500;
+        --pv-viz-series-5: #d55181;
+        --pv-viz-series-6: #008300;
+        --pv-viz-series-7: #9085e9;
+        --pv-viz-series-8: #e66767;
+    }
+}
+:root[data-theme="dark"] {
+    color-scheme: dark;
+    --pv-surface: #1e1e1d;
+    --pv-surface-2: #171716;
+    --pv-surface-3: #2a2a28;
+    --pv-ink: #e8e6df;
+    --pv-ink-secondary: #a6a49b;
+    --pv-ink-muted: #898781;
+    --pv-border: #3a3a38;
+    --pv-accent: #4d8fd6;
+    --pv-accent-strong: #6ba3e0;
+    --pv-accent-ink: #ffffff;
+    --pv-danger: #e5534b;
+    --pv-viz-surface: #1a1a19;
+    --pv-viz-ink: #ffffff;
+    --pv-viz-grid: #2c2c2a;
+    --pv-viz-axis: #383835;
+    --pv-viz-series-1: #3987e5;
+    --pv-viz-series-2: #d95926;
+    --pv-viz-series-3: #199e70;
+    --pv-viz-series-4: #c98500;
+    --pv-viz-series-5: #d55181;
+    --pv-viz-series-6: #008300;
+    --pv-viz-series-7: #9085e9;
+    --pv-viz-series-8: #e66767;
+}
+
+/* The diagram itself stays on light "paper" in both modes: canvas arc
+   colors are drawn in JS against a light background. */
+.pv-canvas-container {
+    --pv-surface: #ffffff;
+    --pv-surface-2: #fafafa;
+    --pv-surface-3: #ecece9;
+    --pv-ink: #24292e;
+    --pv-ink-secondary: #586069;
+    --pv-border: #e1e4e8;
+    color-scheme: light;
+}
+
 html, body {
     margin: 0;
     padding: 0;
@@ -11,7 +116,7 @@ petri-view {
     display: block;
     width: 100%;
     height: 100vh;
-    border: 1px solid #ddd;
+    border: 1px solid var(--pv-border);
     box-sizing: border-box;
 }
 
@@ -20,7 +125,7 @@ petri-view {
     width: 100%;
     height: 100%;
     font-family: system-ui, Arial;
-    background: #fafafa;
+    background: var(--pv-surface-2);
     overflow: hidden;
     display: flex;
     flex-direction: column;
@@ -72,7 +177,7 @@ canvas.pv-canvas {
     width: 32px;
     height: 32px;
     border-radius: 50%;
-    background: #fff;
+    background: var(--pv-surface);
     border: 1.5px solid #000;
     box-shadow: none;
     box-sizing: border-box;
@@ -101,7 +206,7 @@ canvas.pv-canvas {
     justify-content: center;
     cursor: pointer;
     box-sizing: border-box;
-    background: #ffffff;
+    background: var(--pv-surface);
     border: 1px solid #000;
 }
 
@@ -131,7 +236,7 @@ canvas.pv-canvas {
     left: 50%;
     top: 50%;
     transform: translate(-50%, -50%);
-    background: #fff;
+    background: var(--pv-surface);
     color: #000;
     min-width: 20px;
     height: 20px;
@@ -141,7 +246,7 @@ canvas.pv-canvas {
     justify-content: center;
     font-size: 12px;
     padding: 0 6px;
-    border: 1px solid #ccc;
+    border: 1px solid var(--pv-border);
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
     pointer-events: none;
 }
@@ -181,7 +286,7 @@ canvas.pv-canvas {
     height: 24px;
     border-radius: 50%;
     border: 2px solid;
-    background: #fff;
+    background: var(--pv-surface);
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
     position: relative;
 }
@@ -211,7 +316,7 @@ canvas.pv-canvas {
 .pv-weight {
     position: absolute;
     font-size: 11px;
-    background: #fff;
+    background: var(--pv-surface);
     padding: 2px 6px;
     border-radius: 12px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
@@ -250,7 +355,7 @@ canvas.pv-canvas {
     min-height: 150px;
     position: relative;
     overflow: hidden;
-    background: #fafafa;
+    background: var(--pv-surface-2);
     /* Prevent default touch behaviors like scroll/zoom during pan/drag */
     touch-action: none;
 }
@@ -267,7 +372,7 @@ canvas.pv-canvas {
 /* Divider between canvas and editor */
 .pv-layout-divider {
     flex: 0 0 8px;
-    background: linear-gradient(180deg, #e0e0e0 0%, #f0f0f0 50%, #e0e0e0 100%);
+    background: linear-gradient(180deg, var(--pv-surface-3) 0%, var(--pv-surface-2) 50%, var(--pv-surface-3) 100%);
     cursor: row-resize;
     position: relative;
     z-index: 50;
@@ -293,7 +398,7 @@ canvas.pv-canvas {
 
 /* Horizontal divider when layout is horizontal */
 .pv-root.pv-layout-horizontal .pv-layout-divider {
-    background: linear-gradient(90deg, #e0e0e0 0%, #f0f0f0 50%, #e0e0e0 100%);
+    background: linear-gradient(90deg, var(--pv-surface-3) 0%, var(--pv-surface-2) 50%, var(--pv-surface-3) 100%);
     cursor: col-resize;
 }
 
@@ -392,8 +497,8 @@ canvas.pv-canvas {
 .pv-ace-toolbar-btn {
     padding: 6px 8px;
     border-radius: 6px;
-    border: 1px solid #ddd;
-    background: #fff;
+    border: 1px solid var(--pv-border);
+    background: var(--pv-surface);
     cursor: pointer;
     font-size: 12px;
 }
@@ -404,7 +509,7 @@ canvas.pv-canvas {
     min-height: 120px;
     box-sizing: border-box;
     border-radius: 6px;
-    border: 1px solid #ccc;
+    border: 1px solid var(--pv-border);
     overflow: hidden;
     display: flex;
     flex-direction: column;
@@ -435,7 +540,7 @@ canvas.pv-canvas {
 }
 
 .pv-modal-dialog {
-    background: #fff;
+    background: var(--pv-surface);
     border-radius: 8px;
     padding: 24px;
     max-width: 600px;
@@ -454,7 +559,7 @@ canvas.pv-canvas {
 .pv-modal-dialog-xl {
     max-width: 900px;
     max-height: 90vh;
-    border: 1px solid #ddd;
+    border: 1px solid var(--pv-border);
     border-radius: 12px;
     padding: 0;
     display: flex;
@@ -466,7 +571,7 @@ canvas.pv-canvas {
     margin: 0 0 16px 0;
     font-size: 20px;
     font-weight: bold;
-    color: #333;
+    color: var(--pv-ink);
 }
 
 .pv-modal-title-lg {
@@ -476,7 +581,7 @@ canvas.pv-canvas {
 .pv-modal-description {
     margin: '0 0 16px 0';
     font-size: 14px;
-    color: #666;
+    color: var(--pv-ink-secondary);
 }
 
 /* ============================================
@@ -488,8 +593,8 @@ canvas.pv-canvas {
     align-items: center;
     justify-content: space-between;
     padding: 20px 24px;
-    border-bottom: 1px solid #eee;
-    background: #fafafa;
+    border-bottom: 1px solid var(--pv-border);
+    background: var(--pv-surface-2);
     border-radius: 12px 12px 0 0;
 }
 
@@ -497,7 +602,7 @@ canvas.pv-canvas {
     margin: 0;
     font-size: 20px;
     font-weight: 600;
-    color: #333;
+    color: var(--pv-ink);
 }
 
 .pv-dialog-close-icon {
@@ -505,19 +610,19 @@ canvas.pv-canvas {
     height: 32px;
     border-radius: 50%;
     border: none;
-    background: #f0f0f0;
+    background: var(--pv-surface-2);
     cursor: pointer;
     font-size: 18px;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #666;
+    color: var(--pv-ink-secondary);
     transition: background 0.2s, color 0.2s;
 }
 
 .pv-dialog-close-icon:hover {
-    background: #e0e0e0;
-    color: #333;
+    background: var(--pv-surface-3);
+    color: var(--pv-ink);
 }
 
 .pv-dialog-close-icon:active {
@@ -532,7 +637,7 @@ canvas.pv-canvas {
     width: 100%;
     padding: 10px 12px;
     font-size: 14px;
-    border: 1px solid #ddd;
+    border: 1px solid var(--pv-border);
     border-radius: 6px;
     box-sizing: border-box;
     font-family: inherit;
@@ -540,7 +645,7 @@ canvas.pv-canvas {
 
 .pv-input:focus {
     outline: none;
-    border-color: #2a6fb8;
+    border-color: var(--pv-accent);
 }
 
 .pv-input-mono {
@@ -556,23 +661,23 @@ canvas.pv-canvas {
     width: 100%;
     padding: 12px;
     font-size: 14px;
-    border: 1px solid #ddd;
+    border: 1px solid var(--pv-border);
     border-radius: 6px;
     box-sizing: border-box;
     font-family: monospace;
     resize: vertical;
-    background: #f9f9f9;
+    background: var(--pv-surface-2);
 }
 
 .pv-textarea:focus {
     outline: none;
-    border-color: #2a6fb8;
+    border-color: var(--pv-accent);
 }
 
 .pv-label {
     font-size: 14px;
     font-weight: 500;
-    color: #333;
+    color: var(--pv-ink);
     display: block;
     margin-bottom: 6px;
 }
@@ -592,23 +697,23 @@ canvas.pv-canvas {
     font-weight: 500;
     border-radius: 4px;
     cursor: pointer;
-    border: 1px solid #ddd;
-    background: #f6f8fa;
-    color: #333;
+    border: 1px solid var(--pv-border);
+    background: var(--pv-surface-2);
+    color: var(--pv-ink);
 }
 
 .pv-btn:hover {
-    background: #e9ecef;
+    background: var(--pv-surface-3);
 }
 
 .pv-btn-primary {
     color: #fff;
-    background: #2a6fb8;
+    background: var(--pv-accent);
     border: none;
 }
 
 .pv-btn-primary:hover {
-    background: #235d9c;
+    background: var(--pv-accent-strong);
 }
 
 .pv-btn-success {
@@ -676,13 +781,13 @@ canvas.pv-canvas {
     padding: 6px 10px;
     font-size: 12px;
     border-radius: 4px;
-    border: 1px solid #ccc;
-    background: #fff;
+    border: 1px solid var(--pv-border);
+    background: var(--pv-surface);
     cursor: pointer;
 }
 
 .pv-editor-toolbar-btn:hover {
-    background: #f0f0f0;
+    background: var(--pv-surface-2);
 }
 
 .pv-editor-textarea {
@@ -691,7 +796,7 @@ canvas.pv-canvas {
     min-height: 120px;
     font-family: monospace;
     font-size: 12px;
-    border: 1px solid #ccc;
+    border: 1px solid var(--pv-border);
     border-radius: 6px;
     padding: 10px;
     box-sizing: border-box;
@@ -710,7 +815,7 @@ canvas.pv-canvas {
     margin: 0 0 16px 0;
     font-size: 18px;
     font-weight: 600;
-    color: #333;
+    color: var(--pv-ink);
 }
 
 .pv-headers-container {
@@ -732,7 +837,7 @@ canvas.pv-canvas {
     flex: 1;
     padding: 8px 10px;
     font-size: 13px;
-    border: 1px solid #ddd;
+    border: 1px solid var(--pv-border);
     border-radius: 4px;
 }
 
@@ -775,9 +880,9 @@ canvas.pv-canvas {
     padding: 12px;
     font-size: 13px;
     font-family: monospace;
-    border: 1px solid #ddd;
+    border: 1px solid var(--pv-border);
     border-radius: 6px;
-    background: #f9f9f9;
+    background: var(--pv-surface-2);
     resize: none;
     box-sizing: border-box;
 }
@@ -785,7 +890,7 @@ canvas.pv-canvas {
 .pv-share-preview-container {
     text-align: center;
     padding: 16px;
-    background: #f9f9f9;
+    background: var(--pv-surface-2);
     border-radius: 6px;
     margin-bottom: 16px;
 }
@@ -793,7 +898,7 @@ canvas.pv-canvas {
 .pv-share-preview-img {
     max-width: 100%;
     max-height: 200px;
-    border: 1px solid #ddd;
+    border: 1px solid var(--pv-border);
     border-radius: 4px;
 }
 
@@ -823,7 +928,7 @@ canvas.pv-canvas {
 
 .pv-scale-label {
     font-size: 12px;
-    color: #333;
+    color: var(--pv-ink);
     line-height: 1;
 }
 
@@ -831,17 +936,17 @@ canvas.pv-canvas {
     width: 36px;
     height: 20px;
     border-radius: 6px;
-    border: 1px solid #ddd;
-    background: #fff;
+    border: 1px solid var(--pv-border);
+    background: var(--pv-surface);
     cursor: pointer;
     font-size: 12px;
-    color: #333;
+    color: var(--pv-ink);
     margin-bottom: 4px;
     padding: 0;
 }
 
 .pv-scale-reset:hover {
-    background: #f0f0f0;
+    background: var(--pv-surface-2);
     border-color: #999;
 }
 
@@ -850,7 +955,7 @@ canvas.pv-canvas {
     width: 10px;
     flex: 1 1 auto;
     height: 100%;
-    background: #eee;
+    background: var(--pv-surface-3);
     border-radius: 6px;
     overflow: hidden;
     align-self: center;
@@ -875,8 +980,8 @@ canvas.pv-canvas {
     width: 18px;
     height: 18px;
     border-radius: 50%;
-    background: #fff;
-    border: 2px solid #2a6fb8;
+    background: var(--pv-surface);
+    border: 2px solid var(--pv-accent);
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 
@@ -885,7 +990,7 @@ canvas.pv-canvas {
     display: flex;
     justify-content: space-between;
     font-size: 10px;
-    color: #666;
+    color: var(--pv-ink-secondary);
 }
 
 /* ============================================
@@ -896,13 +1001,13 @@ canvas.pv-canvas {
     margin: 0 0 16px 0;
     font-size: 22px;
     font-weight: bold;
-    color: #333;
+    color: var(--pv-ink);
 }
 
 .pv-help-content {
     font-size: 14px;
     line-height: 1.6;
-    color: #444;
+    color: var(--pv-ink);
 }
 
 .pv-help-content h3 {
@@ -938,7 +1043,7 @@ canvas.pv-canvas {
     font-size: 15px;
     font-weight: 500;
     color: #fff;
-    background: #007bff;
+    background: var(--pv-accent);
     border: none;
     border-radius: 6px;
     cursor: pointer;
@@ -968,14 +1073,14 @@ canvas.pv-canvas {
 }
 
 .pv-sim-dialog {
-    background: #fff;
+    background: var(--pv-surface);
     border-radius: 12px;
     padding: 0;
     max-width: 900px;
     width: 100%;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
     max-height: 90vh;
-    border: 1px solid #ddd;
+    border: 1px solid var(--pv-border);
     display: flex;
     flex-direction: column;
     position: relative;
@@ -986,14 +1091,14 @@ canvas.pv-canvas {
     align-items: center;
     justify-content: space-between;
     padding: 20px 24px;
-    border-bottom: 1px solid #eee;
+    border-bottom: 1px solid var(--pv-border);
 }
 
 .pv-sim-title {
     margin: 0;
     font-size: 22px;
     font-weight: bold;
-    color: #333;
+    color: var(--pv-ink);
 }
 
 .pv-sim-close-btn {
@@ -1001,7 +1106,7 @@ canvas.pv-canvas {
     border: none;
     font-size: 32px;
     line-height: 1;
-    color: #666;
+    color: var(--pv-ink-secondary);
     cursor: pointer;
     padding: 0;
     width: 32px;
@@ -1014,8 +1119,8 @@ canvas.pv-canvas {
 }
 
 .pv-sim-close-btn:hover {
-    background: #f0f0f0;
-    color: #333;
+    background: var(--pv-surface-2);
+    color: var(--pv-ink);
 }
 
 .pv-sim-content {
@@ -1028,7 +1133,7 @@ canvas.pv-canvas {
 .pv-sim-description {
     margin: 0 0 20px 0;
     font-size: 14px;
-    color: #555;
+    color: var(--pv-ink-secondary);
     line-height: 1.5;
 }
 
@@ -1047,21 +1152,21 @@ canvas.pv-canvas {
     margin: 0 0 8px 0;
     font-size: 16px;
     font-weight: 600;
-    color: #333;
+    color: var(--pv-ink);
 }
 
 .pv-sim-field-label {
     display: block;
     font-size: 13px;
     margin-bottom: 4px;
-    color: #444;
+    color: var(--pv-ink);
 }
 
 .pv-sim-field-input {
     width: 100%;
     padding: 6px;
     font-size: 13px;
-    border: 1px solid #ccc;
+    border: 1px solid var(--pv-border);
     border-radius: 4px;
     box-sizing: border-box;
 }
@@ -1072,22 +1177,22 @@ canvas.pv-canvas {
 
 .pv-sim-field-input:focus {
     outline: none;
-    border-color: #2a6fb8;
+    border-color: var(--pv-accent);
 }
 
 .pv-sim-variables-container {
     max-height: 150px;
     overflow: auto;
-    border: 1px solid #ccc;
+    border: 1px solid var(--pv-border);
     border-radius: 4px;
     padding: 8px;
-    background: #fafafa;
+    background: var(--pv-surface-2);
 }
 
 .pv-sim-no-items {
     margin: 0;
     font-size: 13px;
-    color: #999;
+    color: var(--pv-ink-muted);
     font-style: italic;
 }
 
@@ -1105,7 +1210,7 @@ canvas.pv-canvas {
 .pv-sim-checkbox-label {
     font-size: 13px;
     cursor: pointer;
-    color: #444;
+    color: var(--pv-ink);
 }
 
 .pv-sim-rate-wrapper {
@@ -1117,7 +1222,7 @@ canvas.pv-canvas {
 
 .pv-sim-rate-label {
     font-size: 13px;
-    color: #444;
+    color: var(--pv-ink);
     flex: 1;
     margin-right: 8px;
 }
@@ -1126,21 +1231,21 @@ canvas.pv-canvas {
     width: 80px;
     padding: 4px;
     font-size: 13px;
-    border: 1px solid #ccc;
+    border: 1px solid var(--pv-border);
     border-radius: 4px;
 }
 
 .pv-sim-rate-input:focus {
     outline: none;
-    border-color: #2a6fb8;
+    border-color: var(--pv-accent);
 }
 
 .pv-sim-plot-container {
     margin-top: 20px;
     padding: 16px;
-    border: 1px solid #ddd;
+    border: 1px solid var(--pv-border);
     border-radius: 8px;
-    background: #f9f9f9;
+    background: var(--pv-surface-2);
     min-height: 400px;
     display: flex;
     align-items: center;
@@ -1150,18 +1255,18 @@ canvas.pv-canvas {
 .pv-sim-plot-placeholder {
     margin: 0;
     font-size: 14px;
-    color: #999;
+    color: var(--pv-ink-muted);
     font-style: italic;
 }
 
 .pv-sim-buttons {
     margin-top: 20px;
     padding: 16px 24px;
-    border-top: 1px solid #eee;
+    border-top: 1px solid var(--pv-border);
     display: flex;
     gap: 12px;
     justify-content: flex-end;
-    background: #fafafa;
+    background: var(--pv-surface-2);
 }
 
 .pv-sim-btn {
@@ -1175,7 +1280,7 @@ canvas.pv-canvas {
 
 .pv-sim-btn-primary {
     color: #fff;
-    background: #0366d6;
+    background: var(--pv-accent);
 }
 
 .pv-sim-btn-primary:hover {
@@ -1193,7 +1298,7 @@ canvas.pv-canvas {
 }
 
 .pv-sim-btn-secondary {
-    color: #24292e;
+    color: var(--pv-ink);
     background: #fafbfc;
     border: 1px solid #d1d5da;
 }
@@ -1221,7 +1326,7 @@ canvas.pv-canvas {
 }
 
 .pv-layout-dialog {
-    background: #fff;
+    background: var(--pv-surface);
     border-radius: 8px;
     padding: 24px;
     max-width: 500px;
@@ -1235,13 +1340,13 @@ canvas.pv-canvas {
     margin: 0 0 16px 0;
     font-size: 22px;
     font-weight: bold;
-    color: #333;
+    color: var(--pv-ink);
 }
 
 .pv-layout-dialog-desc {
     margin: 0 0 16px 0;
     font-size: 14px;
-    color: #666;
+    color: var(--pv-ink-secondary);
 }
 
 .pv-layout-options {
@@ -1256,7 +1361,7 @@ canvas.pv-canvas {
     align-items: flex-start;
     padding: 16px;
     background: #f8f9fa;
-    border: 2px solid #e1e4e8;
+    border: 2px solid var(--pv-border);
     border-radius: 8px;
     cursor: pointer;
     transition: all 0.2s;
@@ -1264,8 +1369,8 @@ canvas.pv-canvas {
 }
 
 .pv-layout-option:hover {
-    background: #e9ecef;
-    border-color: #007bff;
+    background: var(--pv-surface-3);
+    border-color: var(--pv-accent);
 }
 
 .pv-layout-option-header {
@@ -1282,12 +1387,12 @@ canvas.pv-canvas {
 .pv-layout-option-name {
     font-size: 16px;
     font-weight: 600;
-    color: #333;
+    color: var(--pv-ink);
 }
 
 .pv-layout-option-desc {
     font-size: 13px;
-    color: #666;
+    color: var(--pv-ink-secondary);
     line-height: 1.4;
 }
 
@@ -1296,8 +1401,8 @@ canvas.pv-canvas {
     padding: 10px 24px;
     font-size: 14px;
     font-weight: 500;
-    color: #333;
-    background: #f3f3f3;
+    color: var(--pv-ink);
+    background: var(--pv-surface-2);
     border: none;
     border-radius: 6px;
     cursor: pointer;
@@ -1305,7 +1410,7 @@ canvas.pv-canvas {
 }
 
 .pv-layout-close-btn:hover {
-    background: #e0e0e0;
+    background: var(--pv-surface-3);
 }
 
 /* ============================================
@@ -1327,7 +1432,7 @@ canvas.pv-canvas {
 }
 
 .pv-diagrams-dialog {
-    background: #fff;
+    background: var(--pv-surface);
     border-radius: 8px;
     padding: 24px;
     max-width: 800px;
@@ -1341,19 +1446,19 @@ canvas.pv-canvas {
     margin: 0 0 16px 0;
     font-size: 22px;
     font-weight: bold;
-    color: #333;
+    color: var(--pv-ink);
 }
 
 .pv-diagrams-loading {
     padding: 20px;
     text-align: center;
-    color: #666;
+    color: var(--pv-ink-secondary);
 }
 
 .pv-diagrams-empty {
     padding: 40px 20px;
     text-align: center;
-    color: #666;
+    color: var(--pv-ink-secondary);
     font-size: 14px;
 }
 
@@ -1365,7 +1470,7 @@ canvas.pv-canvas {
 }
 
 .pv-diagram-card {
-    border: 1px solid #e1e4e8;
+    border: 1px solid var(--pv-border);
     border-radius: 8px;
     overflow: hidden;
     cursor: pointer;
@@ -1380,7 +1485,7 @@ canvas.pv-canvas {
 .pv-diagram-thumbnail {
     width: 100%;
     height: 120px;
-    background: #f6f8fa;
+    background: var(--pv-surface-2);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1400,7 +1505,7 @@ canvas.pv-canvas {
 .pv-diagram-name {
     font-size: 14px;
     font-weight: 600;
-    color: #333;
+    color: var(--pv-ink);
     margin-bottom: 4px;
     white-space: nowrap;
     overflow: hidden;
@@ -1409,7 +1514,7 @@ canvas.pv-canvas {
 
 .pv-diagram-desc {
     font-size: 12px;
-    color: #666;
+    color: var(--pv-ink-secondary);
     margin-bottom: 6px;
     display: -webkit-box;
     -webkit-line-clamp: 2;
@@ -1420,7 +1525,7 @@ canvas.pv-canvas {
 
 .pv-diagram-date {
     font-size: 11px;
-    color: #999;
+    color: var(--pv-ink-muted);
 }
 
 .pv-diagram-actions {
@@ -1434,19 +1539,19 @@ canvas.pv-canvas {
     padding: 6px 12px;
     font-size: 12px;
     color: #fff;
-    background: #2a6fb8;
+    background: var(--pv-accent);
     border: none;
     border-radius: 4px;
     cursor: pointer;
 }
 
 .pv-diagram-open-btn:hover {
-    background: #235d9c;
+    background: var(--pv-accent-strong);
 }
 
 .pv-diagram-actions {
     display: flex;
-    border-top: 1px solid #e1e4e8;
+    border-top: 1px solid var(--pv-border);
 }
 
 .pv-diagram-action-btn {
@@ -1459,7 +1564,7 @@ canvas.pv-canvas {
 }
 
 .pv-diagram-action-btn-open {
-    color: #0366d6;
+    color: var(--pv-accent);
 }
 
 .pv-diagram-action-btn-open:hover {
@@ -1468,7 +1573,7 @@ canvas.pv-canvas {
 
 .pv-diagram-action-btn-delete {
     color: #cb2431;
-    border-left: 1px solid #e1e4e8;
+    border-left: 1px solid var(--pv-border);
 }
 
 .pv-diagram-action-btn-delete:hover {
@@ -1503,13 +1608,13 @@ canvas.pv-canvas {
     margin: 0 0 20px 0;
     font-size: 18px;
     font-weight: 600;
-    color: #333;
+    color: var(--pv-ink);
 }
 
 .pv-edit-field-label {
     font-size: 14px;
     font-weight: 500;
-    color: #555;
+    color: var(--pv-ink-secondary);
     display: block;
     margin-bottom: 6px;
 }
@@ -1518,7 +1623,7 @@ canvas.pv-canvas {
     width: 100%;
     padding: 10px 12px;
     font-size: 14px;
-    border: 1px solid #ddd;
+    border: 1px solid var(--pv-border);
     border-radius: 6px;
     box-sizing: border-box;
     margin-bottom: 16px;
@@ -1526,7 +1631,7 @@ canvas.pv-canvas {
 
 .pv-edit-field-input:focus {
     outline: none;
-    border-color: #2a6fb8;
+    border-color: var(--pv-accent);
 }
 
 /* Edit Remote Diagram Details Dialog */
@@ -1545,7 +1650,7 @@ canvas.pv-canvas {
 }
 
 .pv-edit-diagram-dialog {
-    background: #fff;
+    background: var(--pv-surface);
     border-radius: 8px;
     padding: 24px;
     max-width: 500px;
@@ -1557,14 +1662,14 @@ canvas.pv-canvas {
     margin: 0 0 16px 0;
     font-size: 22px;
     font-weight: bold;
-    color: #333;
+    color: var(--pv-ink);
 }
 
 .pv-edit-diagram-label {
     display: block;
     font-size: 14px;
     font-weight: 500;
-    color: #24292e;
+    color: var(--pv-ink);
     margin-bottom: 4px;
 }
 
@@ -1572,7 +1677,7 @@ canvas.pv-canvas {
     width: 100%;
     padding: 8px 12px;
     font-size: 14px;
-    border: 1px solid #e1e4e8;
+    border: 1px solid var(--pv-border);
     border-radius: 6px;
     margin-bottom: 16px;
     box-sizing: border-box;
@@ -1580,14 +1685,14 @@ canvas.pv-canvas {
 
 .pv-edit-diagram-input:focus {
     outline: none;
-    border-color: #2a6fb8;
+    border-color: var(--pv-accent);
 }
 
 .pv-edit-diagram-textarea {
     width: 100%;
     padding: 8px 12px;
     font-size: 14px;
-    border: 1px solid #e1e4e8;
+    border: 1px solid var(--pv-border);
     border-radius: 6px;
     margin-bottom: 20px;
     box-sizing: border-box;
@@ -1596,7 +1701,7 @@ canvas.pv-canvas {
 
 .pv-edit-diagram-textarea:focus {
     outline: none;
-    border-color: #2a6fb8;
+    border-color: var(--pv-accent);
 }
 
 .pv-edit-diagram-buttons {
@@ -1608,9 +1713,9 @@ canvas.pv-canvas {
 .pv-edit-diagram-btn-cancel {
     padding: 10px 20px;
     font-size: 14px;
-    background: #f6f8fa;
-    color: #24292e;
-    border: 1px solid #e1e4e8;
+    background: var(--pv-surface-2);
+    color: var(--pv-ink);
+    border: 1px solid var(--pv-border);
     border-radius: 6px;
     cursor: pointer;
     transition: background 0.2s;
@@ -1684,7 +1789,7 @@ canvas.pv-canvas {
     left: 0;
     width: 300px;
     height: 100%;
-    background: #fff;
+    background: var(--pv-surface);
     box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
     display: flex;
     flex-direction: column;
@@ -1693,7 +1798,7 @@ canvas.pv-canvas {
 
 .pv-hamburger-header {
     padding: 16px 16px 16px 60px;
-    border-bottom: 1px solid #e1e4e8;
+    border-bottom: 1px solid var(--pv-border);
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -1715,7 +1820,7 @@ canvas.pv-canvas {
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #586069;
+    color: var(--pv-ink-secondary);
 }
 
 .pv-hamburger-title {
@@ -1731,7 +1836,7 @@ canvas.pv-canvas {
     cursor: pointer;
     padding: 0;
     line-height: 1;
-    color: #586069;
+    color: var(--pv-ink-secondary);
 }
 
 .pv-hamburger-content {
@@ -1762,8 +1867,8 @@ canvas.pv-canvas {
 .pv-hamburger-user-info {
     padding: 10px 16px;
     font-size: 13px;
-    color: #586069;
-    border-bottom: 1px solid #e1e4e8;
+    color: var(--pv-ink-secondary);
+    border-bottom: 1px solid var(--pv-border);
 }
 
 /* ============================================
@@ -1817,7 +1922,7 @@ canvas.pv-canvas {
 }
 
 .pv-menu-btn:hover {
-    background: #fff;
+    background: var(--pv-surface);
 }
 
 .pv-menu-container {
@@ -1834,7 +1939,7 @@ canvas.pv-canvas {
     width: 280px;
     max-width: 80vw;
     height: 100%;
-    background: #fff;
+    background: var(--pv-surface);
     box-shadow: 2px 0 12px rgba(0, 0, 0, 0.15);
     display: flex;
     flex-direction: column;
@@ -1846,8 +1951,8 @@ canvas.pv-canvas {
     align-items: center;
     justify-content: space-between;
     padding: 16px;
-    border-bottom: 1px solid #eee;
-    background: #fafafa;
+    border-bottom: 1px solid var(--pv-border);
+    background: var(--pv-surface-2);
 }
 
 .pv-menu-header-btn {
@@ -1861,17 +1966,17 @@ canvas.pv-canvas {
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #666;
+    color: var(--pv-ink-secondary);
 }
 
 .pv-menu-header-btn:hover {
-    background: #f0f0f0;
+    background: var(--pv-surface-2);
 }
 
 .pv-menu-title {
     font-size: 18px;
     font-weight: 600;
-    color: #333;
+    color: var(--pv-ink);
     margin: 0;
 }
 
@@ -1880,17 +1985,17 @@ canvas.pv-canvas {
     height: 32px;
     border-radius: 50%;
     border: none;
-    background: #f0f0f0;
+    background: var(--pv-surface-2);
     cursor: pointer;
     font-size: 16px;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #666;
+    color: var(--pv-ink-secondary);
 }
 
 .pv-menu-close-btn:hover {
-    background: #e0e0e0;
+    background: var(--pv-surface-3);
 }
 
 .pv-menu-content {
@@ -1917,11 +2022,11 @@ canvas.pv-canvas {
     width: 100%;
     text-align: left;
     font-size: 14px;
-    color: #333;
+    color: var(--pv-ink);
 }
 
 .pv-menu-item:hover {
-    background: #f5f5f5;
+    background: var(--pv-surface-2);
 }
 
 .pv-menu-item-icon {
@@ -1932,15 +2037,15 @@ canvas.pv-canvas {
 
 .pv-menu-separator {
     height: 1px;
-    background: #eee;
+    background: var(--pv-surface-3);
     margin: 8px 16px;
 }
 
 .pv-menu-user-info {
     padding: 12px 16px;
     font-size: 13px;
-    color: #666;
-    background: #f9f9f9;
+    color: var(--pv-ink-secondary);
+    background: var(--pv-surface-2);
     border-radius: 6px;
     margin: 8px 16px;
 }
@@ -1991,7 +2096,7 @@ canvas.pv-canvas {
     height: 36px;
     border-radius: 6px;
     border: none;
-    background: linear-gradient(180deg, #fff, #f3f3f3);
+    background: linear-gradient(180deg, var(--pv-surface), var(--pv-surface-2));
     cursor: pointer;
     font-size: 16px;
     display: flex;
@@ -2000,7 +2105,7 @@ canvas.pv-canvas {
 }
 
 .pv-play-btn:hover {
-    background: linear-gradient(180deg, #f5f5f5, #e8e8e8);
+    background: linear-gradient(180deg, var(--pv-surface-2), #e8e8e8);
 }
 
 /* ============================================
@@ -2014,4 +2119,224 @@ canvas.pv-canvas {
 @keyframes pv-flash-invalid {
     0%, 100% { box-shadow: none; }
     50% { box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.5); }
+}
+
+/* ============================================================
+   Toolbar + simulation state feedback
+   ============================================================ */
+.pv-tool.pv-active {
+    background: color-mix(in srgb, var(--pv-accent) 14%, transparent);
+    box-shadow: inset 0 0 0 1.5px var(--pv-accent);
+    border-radius: 6px;
+}
+.pv-tool:disabled {
+    opacity: 0.45;
+    cursor: default;
+}
+.pv-simulating .pv-canvas-container {
+    box-shadow: inset 0 0 0 3px var(--pv-accent);
+}
+.pv-simulating .pv-play {
+    background: color-mix(in srgb, var(--pv-accent) 18%, transparent);
+    border-radius: 6px;
+}
+.pv-transition.pv-firing {
+    animation: pv-fire-flash 240ms ease-out;
+}
+@keyframes pv-fire-flash {
+    0% { box-shadow: 0 0 0 8px color-mix(in srgb, var(--pv-accent) 60%, transparent); }
+    100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--pv-accent) 0%, transparent); }
+}
+@media (prefers-reduced-motion: reduce) {
+    .pv-transition.pv-firing { animation: none; outline: 3px solid var(--pv-accent); }
+}
+
+/* ============================================================
+   Toasts (replace window.alert)
+   ============================================================ */
+.pv-toast-host {
+    position: fixed;
+    bottom: 84px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 4000;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: center;
+    pointer-events: none;
+    max-width: min(560px, 90vw);
+}
+.pv-toast {
+    pointer-events: auto;
+    cursor: pointer;
+    background: var(--pv-surface);
+    color: var(--pv-ink);
+    border: 1px solid var(--pv-border);
+    border-left: 4px solid var(--pv-accent);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font: 13px/1.45 system-ui, sans-serif;
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.18);
+    white-space: pre-line;
+    animation: pv-toast-in 160ms ease-out;
+    max-width: 100%;
+}
+.pv-toast-error { border-left-color: var(--pv-danger); }
+.pv-toast-success { border-left-color: var(--pv-success); }
+.pv-toast-out { opacity: 0; transition: opacity 280ms ease-out; }
+@keyframes pv-toast-in {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: none; }
+}
+
+/* ============================================================
+   Analysis workbench
+   ============================================================ */
+.pv-analysis-dialog {
+    width: min(1100px, 94vw);
+    max-width: none;
+    max-height: 92vh;
+    display: flex;
+    flex-direction: column;
+    padding: 16px 20px;
+    background: var(--pv-surface);
+    color: var(--pv-ink);
+}
+.pv-analysis-tabs {
+    display: flex;
+    gap: 4px;
+    border-bottom: 1px solid var(--pv-border);
+    margin: 4px 0 0;
+}
+.pv-analysis-tab {
+    appearance: none;
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    padding: 8px 14px;
+    font: 600 13px/1 system-ui, sans-serif;
+    color: var(--pv-ink-secondary);
+    cursor: pointer;
+}
+.pv-analysis-tab:hover { color: var(--pv-ink); }
+.pv-analysis-tab.pv-active {
+    color: var(--pv-accent);
+    border-bottom-color: var(--pv-accent);
+}
+.pv-analysis-hint {
+    margin: 8px 0;
+    font-size: 12.5px;
+    color: var(--pv-ink-secondary);
+}
+.pv-analysis-body {
+    display: flex;
+    gap: 16px;
+    flex: 1;
+    min-height: 0;
+}
+.pv-analysis-controls {
+    width: 250px;
+    flex: none;
+    overflow-y: auto;
+    padding-right: 6px;
+}
+.pv-analysis-section { margin-bottom: 14px; }
+.pv-analysis-section h3 {
+    margin: 0 0 6px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--pv-ink-muted);
+}
+.pv-analysis-section label {
+    font-size: 12.5px;
+    color: var(--pv-ink);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+.pv-analysis-section input[type="number"],
+.pv-analysis-section select {
+    background: var(--pv-surface);
+    color: var(--pv-ink);
+    border: 1px solid var(--pv-border);
+    border-radius: 6px;
+    padding: 4px 6px;
+    font-size: 12.5px;
+    width: 88px;
+}
+.pv-analysis-section select { width: 100%; }
+.pv-analysis-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+.pv-analysis-range label { flex-direction: column; align-items: flex-start; }
+.pv-analysis-range input { width: 64px; }
+.pv-analysis-stack { display: flex; flex-direction: column; align-items: stretch; margin-bottom: 8px; gap: 3px; }
+.pv-analysis-checklist,
+.pv-analysis-rates {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    max-height: 180px;
+    overflow-y: auto;
+    border: 1px solid var(--pv-border);
+    border-radius: 6px;
+    padding: 8px;
+    background: var(--pv-surface-2);
+}
+.pv-analysis-rates label { justify-content: space-between; }
+.pv-analysis-rates input { width: 72px; }
+.pv-analysis-advanced summary {
+    cursor: pointer;
+    font-size: 12px;
+    color: var(--pv-ink-secondary);
+}
+.pv-analysis-main {
+    flex: 1;
+    min-width: 0;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.pv-analysis-plot {
+    border: 1px solid var(--pv-border);
+    border-radius: 8px;
+    background: var(--pv-viz-surface);
+    min-height: 200px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px;
+}
+.pv-analysis-plot svg { display: block; }
+.pv-analysis-placeholder { color: var(--pv-ink-muted); font-size: 13px; }
+.pv-analysis-error { color: var(--pv-danger); font-size: 13px; margin: 0; }
+.pv-analysis-results { overflow-x: auto; }
+.pv-analysis-table {
+    border-collapse: collapse;
+    font-size: 12.5px;
+    width: 100%;
+}
+.pv-analysis-table th,
+.pv-analysis-table td {
+    border-bottom: 1px solid var(--pv-border);
+    padding: 5px 10px;
+    text-align: left;
+    color: var(--pv-ink);
+}
+.pv-analysis-table th {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--pv-ink-muted);
+}
+.pv-analysis-table td.pv-num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+.pv-analysis-actions { margin-top: 12px; }
+@media (max-width: 760px) {
+    .pv-analysis-body { flex-direction: column; }
+    .pv-analysis-controls { width: auto; }
 }

@@ -1037,7 +1037,15 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		// Serve other static files
+		// Serve other static files. The browser modules (petri-solver.js,
+		// petri-sim.js, petri-view.js, …) are meant to be importable from
+		// ad-hoc pages on other origins — module scripts are always
+		// CORS-checked, so without this header a scratch HTML file can't
+		// `import "https://pflow.xyz/petri-solver.js"`.
+		if strings.HasSuffix(r.URL.Path, ".js") || strings.HasSuffix(r.URL.Path, ".mjs") ||
+			strings.HasSuffix(r.URL.Path, ".css") || strings.HasSuffix(r.URL.Path, ".txt") {
+			w.Header().Set("Access-Control-Allow-Origin", "*")
+		}
 		http.FileServer(http.FS(s.publicFS)).ServeHTTP(w, r)
 		return
 	}

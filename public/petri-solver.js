@@ -499,262 +499,416 @@ export function solve(prob, solver = Tsit5(), options = {}) {
 // Plotting Functionality
 // ============================================================================
 
+// Categorical palette: 8 slots in fixed order, each with a light-surface and a
+// dark-surface step. Slots are assigned by series index, never re-ordered when
+// series are hidden; past 8 the hue repeats with a dash pattern as the
+// secondary encoding. Chrome (surface/ink/grid) rides the same mechanism.
+// Every color is emitted as var(--pv-viz-*, <light fallback>) so the SVG picks
+// up the host page's theme (petri-view.css defines the dark values) while a
+// standalone export still renders the validated light palette.
+const VIZ_SERIES = [
+  { slot: 'blue',    light: '#2a78d6', dark: '#3987e5' },
+  { slot: 'orange',  light: '#eb6834', dark: '#d95926' },
+  { slot: 'aqua',    light: '#1baf7a', dark: '#199e70' },
+  { slot: 'yellow',  light: '#eda100', dark: '#c98500' },
+  { slot: 'magenta', light: '#e87ba4', dark: '#d55181' },
+  { slot: 'green',   light: '#008300', dark: '#008300' },
+  { slot: 'violet',  light: '#4a3aa7', dark: '#9085e9' },
+  { slot: 'red',     light: '#e34948', dark: '#e66767' },
+];
+
+const VIZ_CHROME = {
+  surface: { light: '#fcfcfb', dark: '#1a1a19' },
+  ink:     { light: '#0b0b0b', dark: '#ffffff' },
+  muted:   { light: '#898781', dark: '#898781' },
+  grid:    { light: '#e1e0d9', dark: '#2c2c2a' },
+  axis:    { light: '#c3c2b7', dark: '#383835' },
+};
+
+const VIZ_FONT = 'system-ui, -apple-system, "Segoe UI", sans-serif';
+
+function vizVar(name, fallback) {
+  return `var(--pv-viz-${name}, ${fallback})`;
+}
+
+function seriesColor(i) {
+  const s = VIZ_SERIES[i % VIZ_SERIES.length];
+  return vizVar(`series-${(i % VIZ_SERIES.length) + 1}`, s.light);
+}
+
+function escXML(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+/** Format an axis tick / tooltip value: trims noise, survives tiny and huge. */
+function fmtNum(v) {
+  if (!isFinite(v)) return String(v);
+  if (v === 0) return '0';
+  const a = Math.abs(v);
+  if (a >= 1e6 || a < 1e-3) return v.toExponential(2).replace('e+', 'e');
+  if (a >= 1000) return String(Math.round(v));
+  if (a >= 100) return String(+v.toFixed(1));
+  if (a >= 1) return String(+v.toFixed(2));
+  return String(+v.toFixed(4));
+}
+
+/** Pick a 1-2-5 step giving roughly `target` ticks over [min,max]. */
+function niceTicks(min, max, target = 5) {
+  const span = max - min;
+  if (!(span > 0)) return [min];
+  const raw = span / target;
+  const mag = Math.pow(10, Math.floor(Math.log10(raw)));
+  let step = mag;
+  for (const m of [1, 2, 5, 10]) {
+    if (raw <= m * mag) { step = m * mag; break; }
+  }
+  const ticks = [];
+  for (let t = Math.ceil(min / step) * step; t <= max + step * 1e-9; t += step) {
+    ticks.push(Math.abs(t) < step * 1e-9 ? 0 : t);
+  }
+  return ticks;
+}
+
 /**
- * Simple SVG plotter
+ * SVG line/scatter plotter used for all analysis charts.
+ *
+ * API kept stable for downstream vendored copies: constructor(width, height),
+ * chainable setTitle/setXLabel/setYLabel/addSeries, render() -> svg string,
+ * static setupInteractivity(plotData), static plotSolution(sol, vars, opts).
  */
 export class SVGPlotter {
-  constructor(width = 600, height = 400) {
-    this.width = width;
-    this.height = height;
-    this.margin = { top: 40, right: 30, bottom: 50, left: 60 };
-    this.plotWidth = width - this.margin.left - this.margin.right;
-    this.plotHeight = height - this.margin.top - this.margin.bottom;
+  constructor(width = 600, height = 400, options = {}) {
+    this.width = width || 600;
+    this.height = height || 400;
     this.title = "";
     this.xlabel = "Time";
     this.ylabel = "Value";
     this.series = [];
+    // 'crosshair' (monotonic x, e.g. time series) or 'point' (nearest sample,
+    // e.g. phase portraits where x is not monotonic)
+    this.hoverMode = options.hoverMode || 'crosshair';
+    this.clampYZero = options.clampYZero !== false; // token counts: baseline at 0
   }
 
-  setTitle(title) {
-    this.title = title;
-    return this;
-  }
+  setTitle(title) { this.title = title; return this; }
+  setXLabel(label) { this.xlabel = label; return this; }
+  setYLabel(label) { this.ylabel = label; return this; }
 
-  setXLabel(label) {
-    this.xlabel = label;
-    return this;
-  }
-
-  setYLabel(label) {
-    this.ylabel = label;
-    return this;
-  }
-
-  addSeries(x, y, label = "", color = null) {
-    if (!color) {
-      const colors = ['#e41a1c', '#377eb8', '#4daf4a', '#984ea3', '#ff7f00', '#ffff33', '#a65628', '#f781bf'];
-      color = colors[this.series.length % colors.length];
-    }
-    this.series.push({ x, y, label, color });
+  addSeries(x, y, label = "", color = null, opts = {}) {
+    const i = this.series.length;
+    this.series.push({
+      x, y, label,
+      color: color || seriesColor(i),
+      dash: opts.dash || (i >= VIZ_SERIES.length ? '5,3' : null),
+      markers: !!opts.markers,
+    });
     return this;
   }
 
   render() {
-    // Compute data ranges
+    // Data ranges
     let xmin = Infinity, xmax = -Infinity;
     let ymin = Infinity, ymax = -Infinity;
-
     for (const s of this.series) {
       for (let i = 0; i < s.x.length; i++) {
-        xmin = Math.min(xmin, s.x[i]);
-        xmax = Math.max(xmax, s.x[i]);
-        ymin = Math.min(ymin, s.y[i]);
-        ymax = Math.max(ymax, s.y[i]);
+        if (!isFinite(s.x[i]) || !isFinite(s.y[i])) continue;
+        xmin = Math.min(xmin, s.x[i]); xmax = Math.max(xmax, s.x[i]);
+        ymin = Math.min(ymin, s.y[i]); ymax = Math.max(ymax, s.y[i]);
       }
     }
+    if (!isFinite(xmin)) { xmin = 0; xmax = 1; ymin = 0; ymax = 1; }
+    if (this.clampYZero && ymin >= 0) ymin = 0;
+    const xpad = (xmax - xmin || 1) * 0.02;
+    const ypad = (ymax - ymin || 1) * 0.06;
+    xmin -= xpad; xmax += xpad;
+    if (!(this.clampYZero && ymin === 0)) ymin -= ypad;
+    ymax += ypad;
 
-    // Add padding
-    const xrange = xmax - xmin || 1;
-    const yrange = ymax - ymin || 1;
-    xmin -= xrange * 0.05;
-    xmax += xrange * 0.05;
-    ymin -= yrange * 0.1;
-    ymax += yrange * 0.1;
+    const xTicks = niceTicks(xmin, xmax, 6);
+    const yTicks = niceTicks(ymin, ymax, 5);
 
-    // Scale functions
-    const sx = (x) => this.margin.left + ((x - xmin) / (xmax - xmin)) * this.plotWidth;
-    const sy = (y) => this.margin.top + this.plotHeight - ((y - ymin) / (ymax - ymin)) * this.plotHeight;
-
-    // Generate unique ID for this plot
-    const plotId = 'plot_' + Math.random().toString(36).substr(2, 9);
-
-    // Build SVG
-    let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${this.width}" height="${this.height}" style="background: white;" id="${plotId}">`;
-    
-    // Title
-    if (this.title) {
-      svg += `<text x="${this.width / 2}" y="25" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" font-weight="bold">${this.title}</text>`;
-    }
-
-    // Axes
-    svg += `<line x1="${this.margin.left}" y1="${this.margin.top}" x2="${this.margin.left}" y2="${this.margin.top + this.plotHeight}" stroke="#333" stroke-width="2"/>`;
-    svg += `<line x1="${this.margin.left}" y1="${this.margin.top + this.plotHeight}" x2="${this.margin.left + this.plotWidth}" y2="${this.margin.top + this.plotHeight}" stroke="#333" stroke-width="2"/>`;
-
-    // X-axis label
-    svg += `<text x="${this.margin.left + this.plotWidth / 2}" y="${this.height - 10}" text-anchor="middle" font-family="Arial, sans-serif" font-size="12">${this.xlabel}</text>`;
-
-    // Y-axis label
-    svg += `<text x="15" y="${this.margin.top + this.plotHeight / 2}" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" transform="rotate(-90, 15, ${this.margin.top + this.plotHeight / 2})">${this.ylabel}</text>`;
-
-    // Grid lines and ticks
-    const numXTicks = 5;
-    const numYTicks = 5;
-
-    for (let i = 0; i <= numXTicks; i++) {
-      const x = xmin + (xmax - xmin) * i / numXTicks;
-      const px = sx(x);
-      svg += `<line x1="${px}" y1="${this.margin.top + this.plotHeight}" x2="${px}" y2="${this.margin.top + this.plotHeight + 5}" stroke="#333" stroke-width="1"/>`;
-      svg += `<text x="${px}" y="${this.margin.top + this.plotHeight + 20}" text-anchor="middle" font-family="Arial, sans-serif" font-size="10">${x.toFixed(1)}</text>`;
-      svg += `<line x1="${px}" y1="${this.margin.top}" x2="${px}" y2="${this.margin.top + this.plotHeight}" stroke="#ddd" stroke-width="0.5"/>`;
-    }
-
-    for (let i = 0; i <= numYTicks; i++) {
-      const y = ymin + (ymax - ymin) * i / numYTicks;
-      const py = sy(y);
-      svg += `<line x1="${this.margin.left - 5}" y1="${py}" x2="${this.margin.left}" y2="${py}" stroke="#333" stroke-width="1"/>`;
-      svg += `<text x="${this.margin.left - 10}" y="${py + 4}" text-anchor="end" font-family="Arial, sans-serif" font-size="10">${y.toFixed(1)}</text>`;
-      svg += `<line x1="${this.margin.left}" y1="${py}" x2="${this.margin.left + this.plotWidth}" y2="${py}" stroke="#ddd" stroke-width="0.5"/>`;
-    }
-
-    // Plot series
-    for (const s of this.series) {
-      let path = 'M';
-      for (let i = 0; i < s.x.length; i++) {
-        const px = sx(s.x[i]);
-        const py = sy(s.y[i]);
-        if (i === 0) {
-          path += `${px},${py}`;
-        } else {
-          path += ` L${px},${py}`;
-        }
-      }
-      svg += `<path d="${path}" stroke="${s.color}" stroke-width="2" fill="none"/>`;
-    }
-
-    // Legend
-    if (this.series.some(s => s.label)) {
-      let legendY = this.margin.top + 10;
-      for (const s of this.series) {
-        if (s.label) {
-          svg += `<line x1="${this.width - this.margin.right - 50}" y1="${legendY}" x2="${this.width - this.margin.right - 30}" y2="${legendY}" stroke="${s.color}" stroke-width="2"/>`;
-          svg += `<text x="${this.width - this.margin.right - 25}" y="${legendY + 4}" font-family="Arial, sans-serif" font-size="10">${s.label}</text>`;
-          legendY += 20;
-        }
-      }
-    }
-
-    // Interactive crosshair elements
-    svg += `<g id="${plotId}_crosshair" style="display: none;">`;
-    svg += `<line id="${plotId}_line" x1="0" y1="${this.margin.top}" x2="0" y2="${this.margin.top + this.plotHeight}" stroke="#666" stroke-width="1" stroke-dasharray="4,4"/>`;
-    svg += `<rect id="${plotId}_tooltip_bg" x="0" y="0" rx="4" ry="4" fill="white" stroke="#666" stroke-width="1" opacity="0.95"/>`;
-    svg += `<text id="${plotId}_tooltip_text" x="0" y="0" font-family="Arial, sans-serif" font-size="11" fill="#333"></text>`;
-    svg += `</g>`;
-    
-    // Transparent overlay for mouse events
-    svg += `<rect id="${plotId}_overlay" x="${this.margin.left}" y="${this.margin.top}" width="${this.plotWidth}" height="${this.plotHeight}" fill="transparent" style="cursor: crosshair;"/>`;
-
-    svg += '</svg>';
-
-    // Store plot data for later initialization
-    this.lastPlotData = {
-      plotId: plotId,
-      margin: this.margin,
-      plotWidth: this.plotWidth,
-      plotHeight: this.plotHeight,
-      xmin: xmin,
-      xmax: xmax,
-      ymin: ymin,
-      ymax: ymax,
-      series: this.series
+    // Dynamic margins: left fits the widest y label, top fits title + legend.
+    const yLabelW = Math.max(...yTicks.map(t => fmtNum(t).length), 1) * 6.6;
+    const margin = {
+      top: this.title ? 34 : 14,
+      right: 14,
+      bottom: this.xlabel ? 44 : 28,
+      left: Math.ceil(yLabelW) + (this.ylabel ? 34 : 16),
     };
 
+    // Legend: horizontal rows above the plot (only for >= 2 labeled series —
+    // a single series is named by the title).
+    const labeled = this.series.filter(s => s.label);
+    const showLegend = labeled.length >= 2;
+    const legendItems = [];
+    let legendRows = 0;
+    if (showLegend) {
+      const availW = this.width - margin.left - margin.right;
+      let lx = 0, row = 0;
+      for (let i = 0; i < this.series.length; i++) {
+        const s = this.series[i];
+        if (!s.label) continue;
+        const w = 22 + s.label.length * 6.6 + 14;
+        if (lx + w > availW && lx > 0) { lx = 0; row++; }
+        legendItems.push({ i, x: lx, row, label: s.label, color: s.color, dash: s.dash });
+        lx += w;
+      }
+      legendRows = row + 1;
+      margin.top += legendRows * 18 + 4;
+    }
+
+    const plotWidth = Math.max(10, this.width - margin.left - margin.right);
+    const plotHeight = Math.max(10, this.height - margin.top - margin.bottom);
+    const sx = (x) => margin.left + ((x - xmin) / (xmax - xmin)) * plotWidth;
+    const sy = (y) => margin.top + plotHeight - ((y - ymin) / (ymax - ymin)) * plotHeight;
+
+    const plotId = 'plot_' + Math.random().toString(36).substr(2, 9);
+    const ink = vizVar('ink', VIZ_CHROME.ink.light);
+    const muted = vizVar('muted', VIZ_CHROME.muted.light);
+    const grid = vizVar('grid', VIZ_CHROME.grid.light);
+    const axis = vizVar('axis', VIZ_CHROME.axis.light);
+    const surface = vizVar('surface', VIZ_CHROME.surface.light);
+
+    let svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.width} ${this.height}" ` +
+      `width="${this.width}" height="${this.height}" id="${plotId}" role="img" ` +
+      `aria-label="${escXML(this.title || 'Chart')}" ` +
+      `style="background:${surface};max-width:100%;height:auto;font-family:${VIZ_FONT};">`;
+    if (this.title) {
+      svg += `<text x="${margin.left}" y="20" font-size="13" font-weight="600" fill="${ink}">${escXML(this.title)}</text>`;
+    }
+
+    // Legend (click-to-toggle wired in setupInteractivity)
+    for (const it of legendItems) {
+      const ly = (this.title ? 34 : 14) + it.row * 18 + 9;
+      const dashAttr = it.dash ? ` stroke-dasharray="${it.dash}"` : '';
+      svg += `<g id="${plotId}_leg_${it.i}" style="cursor:pointer;">` +
+        `<rect x="${margin.left + it.x - 2}" y="${ly - 9}" width="${20 + it.label.length * 6.6 + 4}" height="17" fill="transparent"/>` +
+        `<line x1="${margin.left + it.x}" y1="${ly}" x2="${margin.left + it.x + 16}" y2="${ly}" stroke="${it.color}" stroke-width="2.5"${dashAttr}/>` +
+        `<text x="${margin.left + it.x + 21}" y="${ly + 4}" font-size="11" fill="${ink}">${escXML(it.label)}</text></g>`;
+    }
+
+    // Gridlines (hairline) + ticks, recessive
+    for (const t of xTicks) {
+      const px = sx(t);
+      svg += `<line x1="${px}" y1="${margin.top}" x2="${px}" y2="${margin.top + plotHeight}" stroke="${grid}" stroke-width="1"/>`;
+      svg += `<text x="${px}" y="${margin.top + plotHeight + 16}" text-anchor="middle" font-size="10" fill="${muted}" style="font-variant-numeric:tabular-nums;">${fmtNum(t)}</text>`;
+    }
+    for (const t of yTicks) {
+      const py = sy(t);
+      svg += `<line x1="${margin.left}" y1="${py}" x2="${margin.left + plotWidth}" y2="${py}" stroke="${grid}" stroke-width="1"/>`;
+      svg += `<text x="${margin.left - 6}" y="${py + 3.5}" text-anchor="end" font-size="10" fill="${muted}" style="font-variant-numeric:tabular-nums;">${fmtNum(t)}</text>`;
+    }
+    // Baseline axes
+    svg += `<line x1="${margin.left}" y1="${margin.top}" x2="${margin.left}" y2="${margin.top + plotHeight}" stroke="${axis}" stroke-width="1"/>`;
+    svg += `<line x1="${margin.left}" y1="${margin.top + plotHeight}" x2="${margin.left + plotWidth}" y2="${margin.top + plotHeight}" stroke="${axis}" stroke-width="1"/>`;
+
+    if (this.xlabel) {
+      svg += `<text x="${margin.left + plotWidth / 2}" y="${this.height - 10}" text-anchor="middle" font-size="11" fill="${muted}">${escXML(this.xlabel)}</text>`;
+    }
+    if (this.ylabel) {
+      const cy = margin.top + plotHeight / 2;
+      svg += `<text x="14" y="${cy}" text-anchor="middle" font-size="11" fill="${muted}" transform="rotate(-90, 14, ${cy})">${escXML(this.ylabel)}</text>`;
+    }
+
+    // Series (clipped to the plot area)
+    svg += `<clipPath id="${plotId}_clip"><rect x="${margin.left}" y="${margin.top}" width="${plotWidth}" height="${plotHeight}"/></clipPath>`;
+    svg += `<g clip-path="url(#${plotId}_clip)">`;
+    for (let si = 0; si < this.series.length; si++) {
+      const s = this.series[si];
+      let path = '';
+      for (let i = 0; i < s.x.length; i++) {
+        if (!isFinite(s.x[i]) || !isFinite(s.y[i])) continue;
+        path += (path ? ' L' : 'M') + sx(s.x[i]).toFixed(2) + ',' + sy(s.y[i]).toFixed(2);
+      }
+      const dashAttr = s.dash ? ` stroke-dasharray="${s.dash}"` : '';
+      svg += `<g id="${plotId}_s_${si}">`;
+      svg += `<path d="${path}" stroke="${s.color}" stroke-width="2" fill="none" stroke-linejoin="round"${dashAttr}/>`;
+      if (s.markers) {
+        for (let i = 0; i < s.x.length; i++) {
+          if (!isFinite(s.x[i]) || !isFinite(s.y[i])) continue;
+          svg += `<circle cx="${sx(s.x[i]).toFixed(2)}" cy="${sy(s.y[i]).toFixed(2)}" r="4" fill="${s.color}" stroke="${surface}" stroke-width="2"/>`;
+        }
+      }
+      svg += `</g>`;
+    }
+    svg += `</g>`;
+
+    // Hover layer: crosshair line, per-series dots, tooltip
+    svg += `<g id="${plotId}_crosshair" style="display:none;pointer-events:none;">`;
+    svg += `<line id="${plotId}_line" x1="0" y1="${margin.top}" x2="0" y2="${margin.top + plotHeight}" stroke="${muted}" stroke-width="1" stroke-dasharray="4,4"/>`;
+    for (let si = 0; si < this.series.length; si++) {
+      svg += `<circle id="${plotId}_dot_${si}" r="4" fill="${this.series[si].color}" stroke="${surface}" stroke-width="2" style="display:none;"/>`;
+    }
+    svg += `<rect id="${plotId}_tooltip_bg" x="0" y="0" rx="5" ry="5" fill="${surface}" stroke="${axis}" stroke-width="1" opacity="0.97"/>`;
+    svg += `<text id="${plotId}_tooltip_text" x="0" y="0" font-size="11" fill="${ink}" style="font-variant-numeric:tabular-nums;"></text>`;
+    svg += `</g>`;
+    svg += `<rect id="${plotId}_overlay" x="${margin.left}" y="${margin.top}" width="${plotWidth}" height="${plotHeight}" fill="transparent" style="cursor:crosshair;"/>`;
+    svg += '</svg>';
+
+    this.lastPlotData = {
+      plotId, margin, plotWidth, plotHeight,
+      xmin, xmax, ymin, ymax,
+      series: this.series,
+      hoverMode: this.hoverMode,
+      hidden: new Set(),
+    };
     return svg;
   }
 
   /**
-   * Setup interactivity for a plot after it's been inserted into the DOM
-   * Call this method after setting plotDiv.innerHTML = svg
+   * Setup interactivity for a plot after it's been inserted into the DOM:
+   * crosshair + tooltip + nearest-point dots, and click-to-toggle legend.
+   * Call after setting plotDiv.innerHTML = svg.
    * @param {Object} plotData - Plot data from plotter.lastPlotData
    */
   static setupInteractivity(plotData) {
     const { plotId, margin, plotWidth, plotHeight, xmin, xmax, ymin, ymax, series } = plotData;
-    
+    const hidden = plotData.hidden || (plotData.hidden = new Set());
+
     const svg = document.getElementById(plotId);
-    if (!svg) {
-      console.error('SVG not found:', plotId);
-      return;
-    }
-    
+    if (!svg) { console.error('SVG not found:', plotId); return; }
     const crosshair = document.getElementById(plotId + '_crosshair');
     const line = document.getElementById(plotId + '_line');
     const tooltipBg = document.getElementById(plotId + '_tooltip_bg');
     const tooltipText = document.getElementById(plotId + '_tooltip_text');
     const overlay = document.getElementById(plotId + '_overlay');
-    
-    if (!crosshair || !overlay) {
-      console.error('Crosshair or overlay elements not found');
-      return;
+    if (!crosshair || !overlay) { console.error('Crosshair or overlay elements not found'); return; }
+
+    // Legend toggling
+    for (let si = 0; si < series.length; si++) {
+      const leg = document.getElementById(`${plotId}_leg_${si}`);
+      if (!leg) continue;
+      leg.addEventListener('click', () => {
+        const g = document.getElementById(`${plotId}_s_${si}`);
+        if (hidden.has(si)) {
+          hidden.delete(si);
+          if (g) g.style.display = '';
+          leg.style.opacity = '';
+        } else {
+          hidden.add(si);
+          if (g) g.style.display = 'none';
+          leg.style.opacity = '0.35';
+          const dot = document.getElementById(`${plotId}_dot_${si}`);
+          if (dot) dot.style.display = 'none';
+        }
+      });
     }
-    
+
     function lerp(x, x0, y0, x1, y1) {
       if (x1 === x0) return y0;
       return y0 + (y1 - y0) * (x - x0) / (x1 - x0);
     }
-    
     function getYAtX(s, xval) {
       if (xval <= s.x[0]) return s.y[0];
-      if (xval >= s.x[s.x.length - 1]) return s.y[s.y.length - 1];
-      
-      for (let i = 0; i < s.x.length - 1; i++) {
-        if (xval >= s.x[i] && xval <= s.x[i + 1]) {
-          return lerp(xval, s.x[i], s.y[i], s.x[i + 1], s.y[i + 1]);
+      const n = s.x.length;
+      if (xval >= s.x[n - 1]) return s.y[n - 1];
+      // binary search: x is monotonic in crosshair mode
+      let lo = 0, hi = n - 1;
+      while (hi - lo > 1) {
+        const mid = (lo + hi) >> 1;
+        if (s.x[mid] <= xval) lo = mid; else hi = mid;
+      }
+      return lerp(xval, s.x[lo], s.y[lo], s.x[hi], s.y[hi]);
+    }
+
+    // Convert client coords to viewBox coords (SVG may be scaled by CSS)
+    function toLocal(e) {
+      const rect = svg.getBoundingClientRect();
+      const vb = svg.viewBox && svg.viewBox.baseVal;
+      const w = vb && vb.width ? vb.width : rect.width;
+      const h = vb && vb.height ? vb.height : rect.height;
+      return {
+        x: (e.clientX - rect.left) * (w / rect.width),
+        y: (e.clientY - rect.top) * (h / rect.height),
+      };
+    }
+
+    const sx = (x) => margin.left + ((x - xmin) / (xmax - xmin)) * plotWidth;
+    const sy = (y) => margin.top + plotHeight - ((y - ymin) / (ymax - ymin)) * plotHeight;
+
+    overlay.addEventListener('mousemove', function (e) {
+      const pos = toLocal(e);
+      crosshair.style.display = 'block';
+
+      let tooltipLines = [];
+      const dotPos = [];
+
+      if (plotData.hoverMode === 'point') {
+        // Nearest sample across all visible series (phase portraits)
+        line.style.display = 'none';
+        let best = null;
+        for (let si = 0; si < series.length; si++) {
+          if (hidden.has(si)) continue;
+          const s = series[si];
+          for (let i = 0; i < s.x.length; i++) {
+            const dx = sx(s.x[i]) - pos.x, dy = sy(s.y[i]) - pos.y;
+            const d2 = dx * dx + dy * dy;
+            if (!best || d2 < best.d2) best = { d2, si, i };
+          }
+        }
+        if (!best) return;
+        const s = series[best.si];
+        tooltipLines.push((s.label ? s.label + '  ' : '') + '#' + best.i);
+        tooltipLines.push('x: ' + fmtNum(s.x[best.i]));
+        tooltipLines.push('y: ' + fmtNum(s.y[best.i]));
+        dotPos.push({ si: best.si, px: sx(s.x[best.i]), py: sy(s.y[best.i]) });
+      } else {
+        line.style.display = '';
+        const dataX = xmin + (pos.x - margin.left) / plotWidth * (xmax - xmin);
+        line.setAttribute('x1', pos.x);
+        line.setAttribute('x2', pos.x);
+        tooltipLines.push('t = ' + fmtNum(dataX));
+        for (let si = 0; si < series.length; si++) {
+          if (hidden.has(si)) continue;
+          const s = series[si];
+          const yval = getYAtX(s, dataX);
+          tooltipLines.push((s.label || 'y') + ': ' + fmtNum(yval));
+          dotPos.push({ si, px: pos.x, py: sy(yval) });
         }
       }
-      return s.y[s.y.length - 1];
-    }
-    
-    overlay.addEventListener('mousemove', function(e) {
-      const rect = svg.getBoundingClientRect();
-      const mouseX = e.clientX - rect.left;
-      const mouseY = e.clientY - rect.top;
-      
-      crosshair.style.display = 'block';
-      line.setAttribute('x1', mouseX);
-      line.setAttribute('x2', mouseX);
-      
-      const dataX = xmin + (mouseX - margin.left) / plotWidth * (xmax - xmin);
-      
-      let tooltipLines = ['T = ' + dataX.toFixed(3)];
-      for (const s of series) {
-        const yval = getYAtX(s, dataX);
-        tooltipLines.push(s.label + ': ' + yval.toFixed(3));
+
+      for (let si = 0; si < series.length; si++) {
+        const dot = document.getElementById(`${plotId}_dot_${si}`);
+        if (!dot) continue;
+        const p = dotPos.find(d => d.si === si);
+        if (p) {
+          dot.style.display = '';
+          dot.setAttribute('cx', p.px);
+          dot.setAttribute('cy', p.py);
+        } else {
+          dot.style.display = 'none';
+        }
       }
-      
-      const tooltipPadding = 8;
-      const lineHeight = 14;
-      const tooltipWidth = 120;
-      const tooltipHeight = tooltipLines.length * lineHeight + tooltipPadding * 2;
-      
-      let tooltipX = mouseX + 10;
-      let tooltipY = margin.top + 10;
-      
-      if (tooltipX + tooltipWidth > margin.left + plotWidth) {
-        tooltipX = mouseX - tooltipWidth - 10;
-      }
-      
-      tooltipBg.setAttribute('x', tooltipX);
-      tooltipBg.setAttribute('y', tooltipY);
+
+      const pad = 8, lineHeight = 14;
+      const tooltipWidth = Math.max(...tooltipLines.map(l => l.length)) * 6.6 + pad * 2;
+      const tooltipHeight = tooltipLines.length * lineHeight + pad * 2;
+      let tx = pos.x + 12, ty = Math.max(margin.top + 4, pos.y - tooltipHeight - 8);
+      if (tx + tooltipWidth > margin.left + plotWidth) tx = pos.x - tooltipWidth - 12;
+      if (ty + tooltipHeight > margin.top + plotHeight) ty = margin.top + plotHeight - tooltipHeight;
+
+      tooltipBg.setAttribute('x', tx);
+      tooltipBg.setAttribute('y', ty);
       tooltipBg.setAttribute('width', tooltipWidth);
       tooltipBg.setAttribute('height', tooltipHeight);
-      
-      tooltipText.setAttribute('x', tooltipX + tooltipPadding);
-      tooltipText.setAttribute('y', tooltipY + tooltipPadding + 12);
-      
       tooltipText.innerHTML = '';
       for (let i = 0; i < tooltipLines.length; i++) {
         const tspan = document.createElementNS('http://www.w3.org/2000/svg', 'tspan');
         tspan.textContent = tooltipLines[i];
-        tspan.setAttribute('x', tooltipX + tooltipPadding);
-        tspan.setAttribute('dy', i === 0 ? '0' : '1.2em');
-        if (i === 0) {
-          tspan.setAttribute('font-weight', 'bold');
-        }
+        tspan.setAttribute('x', tx + pad);
+        tspan.setAttribute('y', ty + pad + 11 + i * lineHeight);
+        if (i === 0) tspan.setAttribute('font-weight', 'bold');
         tooltipText.appendChild(tspan);
       }
     });
-    
-    overlay.addEventListener('mouseleave', function() {
+
+    overlay.addEventListener('mouseleave', function () {
       crosshair.style.display = 'none';
+      for (let si = 0; si < series.length; si++) {
+        const dot = document.getElementById(`${plotId}_dot_${si}`);
+        if (dot) dot.style.display = 'none';
+      }
     });
   }
 
@@ -762,22 +916,22 @@ export class SVGPlotter {
    * Plot solution from ODE solver
    */
   static plotSolution(sol, variables = null, options = {}) {
-    const plotter = new SVGPlotter(options.width, options.height);
-    
+    const plotter = new SVGPlotter(options.width, options.height, options);
+
     if (options.title) plotter.setTitle(options.title);
     if (options.xlabel) plotter.setXLabel(options.xlabel);
     if (options.ylabel) plotter.setYLabel(options.ylabel);
 
     // Determine which variables to plot
     const varsToPlot = variables || sol.stateLabels;
-    
+
     for (const varName of varsToPlot) {
       const y = sol.getVariable(varName);
       plotter.addSeries(sol.t, y, varName);
     }
 
     const svg = plotter.render();
-    
+
     // Return both SVG and plot data for interactivity
     return {
       svg: svg,

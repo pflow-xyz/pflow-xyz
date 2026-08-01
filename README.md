@@ -92,9 +92,11 @@ const sol = Solver.solve(prob, Solver.Tsit5(), { dt: 0.01 });
 
 ## Features
 
-**Editor** — Drag-and-drop places, transitions, arcs. Inhibitor arcs, capacity limits, multi-select, pan & zoom, undo/redo.
+**Editor** — Drag-and-drop places, transitions, arcs. Inhibitor arcs, capacity limits, multi-select, pan & zoom, undo/redo. Light + dark theme (follows `prefers-color-scheme`).
 
-**ODE Simulation** — Tsit5 adaptive solver, mass-action kinetics, rate optimization, interactive SVG plots.
+**Analysis workbench** (`9` or ☰ → Analysis) — Tsit5 adaptive solver with mass-action kinetics, in four tabs: time-series **Simulate**, **Rate Scan** (steady state vs one rate), **Sweep** (overlaid trajectories), and **Phase Plot**. Interactive plots (crosshair, click-to-toggle legend), numeric results tables, CSV/JSON export, and a "Copy MCP call" button that emits the equivalent petri-pilot `tools/call` payload.
+
+**Ad-hoc pages** — every module is served from pflow.xyz with `Access-Control-Allow-Origin: *`, so a scratch HTML file (or an AI assistant writing one) can `import "https://pflow.xyz/petri-solver.js"` directly. See [pflow.xyz/llms.txt](https://pflow.xyz/llms.txt) for copy-paste recipes and the model format.
 
 **Data** — JSON-LD with [schema](https://pflow.xyz/schema), IPFS CID content addressing, custom events, public API.
 
@@ -106,7 +108,9 @@ const sol = Solver.solve(prob, Solver.Tsit5(), { dt: 0.01 });
 | `Space` + drag | Pan canvas |
 | `Ctrl/Cmd + Z/Shift+Z` | Undo / Redo |
 | `Delete` | Delete selected |
-| `X` | Start/stop simulation |
+| `7` | Toggle label edit |
+| `8` / `X` | Start/stop simulation |
+| `9` | Analysis workbench |
 | `Shift` + click/drag | Multi-select / bounding box |
 
 ---
