@@ -1,116 +1,46 @@
-# pflow.xyz — Petri net editor, simulator, and browser math library
+# pflow.xyz
 
-pflow.xyz is a visual Petri net editor with an embeddable, dependency-free ES
-module library for discrete simulation and continuous (ODE) analysis. All
-modules are served from this origin with `Access-Control-Allow-Origin: *`, so
-they can be imported directly from any ad-hoc HTML page — no build step, no
-npm.
+> Visual Petri net editor with an embeddable, dependency-free ES module
+> library for discrete simulation and continuous (ODE) analysis. All modules
+> are served from this origin with `Access-Control-Allow-Origin: *` — import
+> them directly from any ad-hoc HTML page, no build step, no npm. ODE
+> semantics are behaviorally identical to go-pflow (enforced by a parity
+> test suite).
 
-## Modules (import these URLs directly)
+Models are JSON-LD (`@context: https://pflow.xyz/schema`): `places` and
+`transitions` are objects keyed by id, `arcs` is an array of
+`{source, target, weight}`. `initial`, `capacity`, and `weight` are vectors
+(one entry per token color); capacity 0 means unbounded; an explicit 0
+weight component means "this color is not involved".
 
-- https://pflow.xyz/petri-solver.js — mass-action ODE solver (Tsit5, adaptive)
-  plus SVGPlotter, an interactive SVG line/scatter plotter.
-  Exports: fromJSON, setState, setRates, ODEProblem, ODESolution, Tsit5,
-  solve, SVGPlotter, Place, Transition, Arc, PetriNet.
-- https://pflow.xyz/petri-sim.js — discrete firing semantics (pure functions).
-  Exports: enabled, fire, enabledTransitions, marking, getArcWeight,
-  capacityOf.
-- https://pflow.xyz/petri-colors.js — colored-net unfolding (expandColors,
-  expandState). petri-solver.js imports it automatically.
-- https://pflow.xyz/petri-view.js — the full `<petri-view>` editor web
-  component (drag-and-drop editing, discrete play mode, tabbed Analysis
-  workbench: ODE simulate / rate scan / sweep / phase plot).
-- https://pflow.xyz/petri-view.css — editor styles (design tokens, light +
-  dark via prefers-color-scheme).
+## Docs
 
-The ODE semantics are behaviorally identical to go-pflow
-(github.com/pflow-xyz/go-pflow) — enforced by a differential parity test
-suite — so browser results match server-side analysis.
+- [Full guide](https://pflow.xyz/llms-full.txt): model format, copy-paste
+  recipes for solving/plotting/embedding, discrete simulation, related services
+- [JSON-LD schema](https://pflow.xyz/schema): the @context served as JSON-LD
+- [Book](https://book.pflow.xyz): Petri nets as a universal abstraction
 
-## Model format (JSON-LD)
+## Modules
 
-```json
-{
-  "@context": "https://pflow.xyz/schema",
-  "@type": "PetriNet",
-  "@version": "1.1",
-  "token": ["https://pflow.xyz/tokens/black"],
-  "places": {
-    "water":  { "@type": "Place", "initial": [10], "capacity": [0], "x": 60,  "y": 60 },
-    "coffee": { "@type": "Place", "initial": [0],  "capacity": [0], "x": 260, "y": 60 }
-  },
-  "transitions": {
-    "brew": { "@type": "Transition", "x": 160, "y": 60 }
-  },
-  "arcs": [
-    { "@type": "Arrow", "source": "water", "target": "brew", "weight": [1] },
-    { "@type": "Arrow", "source": "brew", "target": "coffee", "weight": [1] }
-  ]
-}
-```
+- [petri-solver.js](https://pflow.xyz/petri-solver.js): mass-action ODE
+  solver (Tsit5, adaptive) + SVGPlotter interactive charts
+- [petri-sim.js](https://pflow.xyz/petri-sim.js): discrete firing semantics,
+  pure functions
+- [petri-colors.js](https://pflow.xyz/petri-colors.js): colored-net unfolding
+- [petri-view.js](https://pflow.xyz/petri-view.js): the full `<petri-view>`
+  editor web component (with tabbed ODE analysis workbench)
+- [petri-view.css](https://pflow.xyz/petri-view.css): editor styles, light +
+  dark themes
 
-Notes: `capacity` 0 or absent means unbounded. `initial`, `capacity`, and
-`weight` are vectors — one entry per token color in `token`; an explicit 0
-weight component means "this color is not involved". Set
-`"inhibitTransition": true` on an arc for an inhibitor.
+## Services
 
-## Minimal ad-hoc page: solve an ODE and plot it
+- [Analysis & codegen MCP server](https://pilot.pflow.xyz/mcp): petri-pilot
+  JSON-RPC tools (petri_ode, petri_rate_scan, petri_ode_sweep,
+  petri_phase_plot, petri_validate, petri_codegen, …)
+- [Server-side SVG rendering](https://pflow.xyz/api/svg): POST a model,
+  get an SVG
 
-```html
-<div id="plot"></div>
-<script type="module">
-  import * as pf from "https://pflow.xyz/petri-solver.js";
+## Optional
 
-  const model = { /* JSON-LD model as above */ };
-  const net = pf.fromJSON(model);
-  const prob = new pf.ODEProblem(net, pf.setState(net), [0, 10],
-                                 pf.setRates(net, { brew: 0.5 }));
-  const sol = pf.solve(prob, pf.Tsit5(), { dt: 0.01, abstol: 1e-6, reltol: 1e-3, adaptive: true });
-
-  const plot = pf.SVGPlotter.plotSolution(sol, ["water", "coffee"], {
-    title: "Brew kinetics", xlabel: "Time", ylabel: "Tokens", width: 720, height: 400,
-  });
-  document.getElementById("plot").innerHTML = plot.svg;
-  plot.setupInteractivity();   // crosshair, tooltip, click-to-toggle legend
-  console.log(sol.getFinalState());
-</script>
-```
-
-The emitted SVG uses `var(--pv-viz-*, lightFallback)` colors: it renders the
-validated light palette standalone, and follows the host theme if the page
-defines those custom properties (petri-view.css does).
-
-## Minimal ad-hoc page: full editor
-
-```html
-<script type="module" src="https://pflow.xyz/petri-view.js"></script>
-<link rel="stylesheet" href="https://pflow.xyz/petri-view.css">
-<petri-view data-json-editor>
-  <script type="application/ld+json">{ /* JSON-LD model */ }</script>
-</petri-view>
-```
-
-## Discrete simulation
-
-```js
-import * as sim from "https://pflow.xyz/petri-sim.js";
-sim.enabledTransitions(model);        // -> ["brew"]
-const marks = sim.fire(model, "brew"); // -> {"water":[9],"coffee":[1]} or null
-```
-
-`fire` is pure: pass the returned marking back as the third argument to step
-again.
-
-## Related services
-
-- POST https://pflow.xyz/api/svg — render a model to SVG server-side.
-- GET  https://pflow.xyz/schema — the JSON-LD @context.
-- https://pilot.pflow.xyz/mcp — petri-pilot MCP server (JSON-RPC): the same
-  math as tools (petri_ode, petri_rate_scan, petri_ode_sweep,
-  petri_phase_plot, petri_stochastic, petri_fit, petri_optimize, …) plus
-  validation, verification, and full-stack code generation. It accepts a flat
-  model format: `{"name": "...", "places": [{"id","initial"}],
-  "transitions": [{"id"}], "arcs": [{"from","to","weight"}]}`. The editor's
-  Analysis dialog has a "Copy MCP call" button that emits ready-to-send
-  payloads.
-- https://book.pflow.xyz — the book on modeling with Petri nets.
+- [Pinned imports via jsDelivr](https://cdn.jsdelivr.net/gh/pflow-xyz/pflow-xyz@main/public/petri-solver.js):
+  substitute `@main` with a commit SHA for reproducible ad-hoc pages

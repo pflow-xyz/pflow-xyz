@@ -20,6 +20,7 @@ PUBLIC_FILES = [
     "flower-bar.svg",
     "index.html",
     "knapsack-test.json",
+    "llms-full.txt",
     "llms.txt",
     "mstile-150x150.png",
     "p-flower.mp4",
