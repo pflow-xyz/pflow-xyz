@@ -33,7 +33,10 @@ CANVAS = (
 # counterpart" is the intended state rather than a bug.
 #   --pv-paper  : the diagram's light "paper" ground.
 #   --pv-brand-*: the marketing shell, dark in both themes by design.
-THEME_INVARIANT = ("--pv-paper", "--pv-brand-")
+#   --pv-font   : the app typeface. Not a colour at all — it exists as a token
+#                 only because the dialogs are appended to <body> rather than
+#                 into .pv-root, so they cannot inherit the family set there.
+THEME_INVARIANT = ("--pv-paper", "--pv-brand-", "--pv-font")
 
 # Pages whose inline <style> must also theme through tokens.
 INLINE_STYLE_PAGES = ("index.html",)

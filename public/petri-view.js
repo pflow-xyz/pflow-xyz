@@ -5419,7 +5419,11 @@ PetriView = class PetriView extends HTMLElement {
                     <div class="pv-analysis-section" data-show="simulate scan sweep phase">
                         <h3>Time</h3>
                         <div class="pv-analysis-row">
-                            <label>t<sub>end</sub> <input type="number" data-f="tend" step="1" min="0.1" value="${st.tend}"></label>
+                            <!-- The caption is wrapped so it is ONE flex item: the
+                                 label is inline-flex with a gap, and a bare
+                                 "t<sub>end</sub>" splits into two items, rendering
+                                 as "t end" with a gap down the middle. -->
+                            <label><span>t<sub>end</sub></span> <input type="number" data-f="tend" step="1" min="0.1" value="${st.tend}"></label>
                         </div>
                     </div>
                     <div class="pv-analysis-section" data-show="scan sweep">

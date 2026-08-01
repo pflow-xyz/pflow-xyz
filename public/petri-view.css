@@ -9,6 +9,12 @@
    emits; values mirror its built-in light fallbacks.
    ============================================================ */
 :root {
+    /* The app typeface. A token rather than a literal because the dialogs are
+       appended to <body>, NOT inside .pv-root — so they never inherited the
+       family set there and every one of them rendered in the browser's default
+       serif. See the overlay rules below. */
+    --pv-font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+
     /* Theme-invariant: the diagram's paper, light in both themes by design. */
     --pv-paper: #fafafa;
 
@@ -347,7 +353,7 @@ petri-view {
     position: relative;
     width: 100%;
     height: 100%;
-    font-family: system-ui, Arial;
+    font-family: var(--pv-font);
     background: var(--pv-surface-2);
     overflow: hidden;
     display: flex;
@@ -1156,7 +1162,7 @@ canvas.pv-canvas {
     align-items: center;
     gap: 8px;
     user-select: none;
-    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    font-family: var(--pv-font);
 }
 
 .pv-scale-label {
@@ -2120,7 +2126,7 @@ canvas.pv-canvas {
     box-shadow: 0 2px 6px var(--pv-shadow);
     cursor: pointer;
     font-size: 14px;
-    font-family: system-ui, Arial;
+    font-family: var(--pv-font);
     z-index: 1300;
     display: flex;
     align-items: center;
@@ -2409,7 +2415,7 @@ canvas.pv-canvas {
     border-left: 4px solid var(--pv-accent);
     border-radius: 8px;
     padding: 10px 14px;
-    font: 13px/1.45 system-ui, sans-serif;
+    font: 13px/1.45 var(--pv-font);
     box-shadow: 0 6px 24px var(--pv-shadow-md);
     white-space: pre-line;
     animation: pv-toast-in 160ms ease-out;
@@ -2448,7 +2454,7 @@ canvas.pv-canvas {
     border: none;
     border-bottom: 2px solid transparent;
     padding: 8px 14px;
-    font: 600 13px/1 system-ui, sans-serif;
+    font: 600 13px/1 var(--pv-font);
     color: var(--pv-ink-secondary);
     cursor: pointer;
 }
@@ -2678,7 +2684,16 @@ canvas.pv-canvas {
 
     /* The analysis workbench renders its plot at 0px on a phone: the controls
        column keeps its full intrinsic height while the plot's min-height never
-       gets a chance to apply. Give the plot a floor and let the dialog scroll. */
+       gets a chance to apply. Give the plot a floor and let the dialog scroll.
+
+       .pv-analysis-body must also stop being height-constrained here. Stacked,
+       its two children are taller than the `flex: 1` box it gets, and since it
+       does not clip they overflowed it and painted straight through the action
+       row below. On a phone the sheet is the scroller; the body sizes to content. */
+    .pv-analysis-body {
+        flex: 0 0 auto;
+        min-height: 0;
+    }
     .pv-analysis-main {
         min-height: min(45vh, 260px);
         overflow: visible;
@@ -2884,4 +2899,96 @@ canvas.pv-canvas {
     .pv-root.pv-lod-min .pv-label { display: none; }
     .pv-root.pv-lod-min .pv-place[data-marked] .pv-label,
     .pv-root.pv-lod-min .pv-transition.pv-active .pv-label { display: block; }
+}
+
+/* ============================================================
+   Dialog typography
+   Every dialog is appended to <body>, not into .pv-root, so none of them
+   inherited the app typeface — all eleven overlays rendered in the browser's
+   default serif, next to a sans-serif app. Form controls made it worse: they
+   do not inherit font at all, so a single dialog showed Times (container),
+   Arial 18px (buttons) and Arial 12.5px (inputs) at once.
+
+   The control rule uses :where() so it contributes ZERO specificity — the
+   deliberate monospace fields (.pv-input-mono, .pv-textarea, .pv-editor-textarea,
+   .pv-share-textarea) still win without needing !important.
+   ============================================================ */
+.pv-modal-overlay,
+.pv-layout-overlay,
+.pv-diagrams-overlay,
+.pv-edit-diagram-overlay,
+.pv-hamburger-overlay,
+.pv-toast {
+    font-family: var(--pv-font);
+}
+
+:where(.pv-modal-overlay, .pv-layout-overlay, .pv-diagrams-overlay,
+       .pv-edit-diagram-overlay, .pv-hamburger-overlay)
+:where(button, input, select, textarea, label, h1, h2, h3, h4, p, li, td, th) {
+    font-family: inherit;
+}
+
+@media (max-width: 760px), (max-height: 520px) {
+    /* iOS Safari zooms the whole page when a control smaller than 16px takes
+       focus, and leaves it zoomed. The analysis inputs were 12.5px, so tapping
+       a rate field threw the layout every time. */
+    .pv-modal-overlay input,
+    .pv-modal-overlay select,
+    .pv-modal-overlay textarea,
+    .pv-modal-overlay .pv-analysis-section input[type="number"],
+    .pv-modal-overlay .pv-analysis-section input[type="text"],
+    .pv-modal-overlay .pv-analysis-section select {
+        font-size: 16px;
+    }
+
+    /* Action rows are authored right-aligned for a wide dialog; at 390px the
+       five analysis buttons overflowed the sheet and clipped off both edges. */
+    .pv-btn-container {
+        flex-wrap: wrap;
+        justify-content: stretch;
+        gap: 8px;
+    }
+    .pv-btn-container > * {
+        flex: 1 1 auto;
+        min-width: 44%;
+        min-height: 44px;
+    }
+
+    /* Four tabs do not fit on one line at 390px; wrapping them to two rows
+       staggered the underline. Scroll the row instead and keep it one line. */
+    .pv-analysis-tabs {
+        /* `flex: 0 0 auto` is load-bearing. Setting overflow to anything but
+           visible makes this item's automatic minimum size resolve to 0, so the
+           column-flex dialog was free to squash the whole tab row to its 1px
+           bottom border — the tabs vanished while their buttons still measured
+           22px each. */
+        flex: 0 0 auto;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        touch-action: pan-x;
+        scrollbar-width: none;
+    }
+    .pv-analysis-tabs::-webkit-scrollbar { display: none; }
+    .pv-analysis-tab {
+        flex: 0 0 auto;
+        white-space: nowrap;
+        padding: 10px;
+    }
+
+    /* Reclaim horizontal room: the desktop dialog is padded for a 1100px box. */
+    .pv-analysis-dialog { padding: 0 12px 12px; }
+    .pv-dialog-header { padding: 14px 16px; }
+
+    /* Give label rows a real touch target. Deliberately NOT display:flex — the
+       base rule is inline-flex so the label shrink-wraps its control; making it
+       block-level let a width:100% <select> claim the whole line and squeezed the
+       caption ("x axis") into a centred sliver above it. */
+    .pv-analysis-section label {
+        min-height: 32px;
+    }
+    /* An unstyled <sub> inherits the control's font size; keep it subscript-sized
+       so "t_end" reads as one symbol rather than two words. */
+    .pv-analysis-section label sub {
+        font-size: 10px;
+    }
 }
