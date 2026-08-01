@@ -32,6 +32,11 @@ filegroup(
         "petri-sim.js",
         "petri-solver.js",
         "petri-view.js",
+        # petri-view.js reads the breakpoint and tokens this stylesheet
+        # defines, so a consumer vendoring one without the other gets a
+        # component whose JS and CSS disagree. bitwrap-io carried a copy that
+        # was 5 months stale precisely because it was not diffable here.
+        "petri-view.css",
         "seal-cid.mjs",
         "vendor/jsonld.bundle.mjs",
     ],
