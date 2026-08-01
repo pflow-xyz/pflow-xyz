@@ -1,5 +1,5 @@
 {
-  "name": "pflow-xyz",
+  "name": "@pflow-xyz/pflow-xyz",
   "version": "1.21.1",
   "description": "Dependency-free ES modules for Petri nets: mass-action ODE solver (Tsit5) with an interactive SVG plotter, discrete firing semantics, colored-net unfolding, and the <petri-view> editor web component.",
   "type": "module",

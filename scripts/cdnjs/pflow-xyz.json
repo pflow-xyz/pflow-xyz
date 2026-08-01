@@ -8,7 +8,7 @@
   "keywords": ["petri-net", "ode-solver", "simulation", "state-machine", "workflow"],
   "autoupdate": {
     "source": "npm",
-    "target": "pflow-xyz",
+    "target": "@pflow-xyz/pflow-xyz",
     "fileMap": [{
       "basePath": "public",
       "files": ["petri-*.js", "petri-view.css", "diagram-viewer.js", "*.mjs", "vendor/*.mjs"]

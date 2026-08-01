@@ -57,6 +57,17 @@ This means models stay small enough to visualize and verify, while producing rea
 
 ## Quick Start
 
+### npm
+
+```bash
+npm i @pflow-xyz/pflow-xyz
+```
+
+```javascript
+import * as Solver from '@pflow-xyz/pflow-xyz';
+import '@pflow-xyz/pflow-xyz/petri-view.js';
+```
+
 ### CDN
 
 ```html
@@ -165,6 +176,7 @@ pv.importJSON(jsonData);
 | **go-pflow** | [github.com/pflow-xyz/go-pflow](https://github.com/pflow-xyz/go-pflow) |
 | **petri-pilot** | [github.com/pflow-xyz/petri-pilot](https://github.com/pflow-xyz/petri-pilot) |
 | **CDN** | [jsdelivr.com/package/gh/pflow-xyz/pflow-xyz](https://www.jsdelivr.com/package/gh/pflow-xyz/pflow-xyz) |
+| **npm** | [@pflow-xyz/pflow-xyz](https://www.npmjs.com/package/@pflow-xyz/pflow-xyz) |
 | **Schema** | [pflow.xyz/schema](https://pflow.xyz/schema) |
 
 ## License
