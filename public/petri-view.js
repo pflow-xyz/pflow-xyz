@@ -595,9 +595,9 @@ class PetriView extends HTMLElement {
     // This replaced an inline implementation that (a) canonicalized via naive
     // key-sorting instead of URDNA2015 and (b) mis-encoded the dag-json codec
     // varint as [0x01,0x29] instead of [0xA9,0x02] — both of which made the
-    // editor's CID disagree with the stored CID. Parity is now enforced by
-    // `make test-parity` (parity/golden.json). computeCid() strips the top-level
-    // @id itself, so callers may pass the full document.
+    // editor's CID disagree with the stored CID. Parity is enforced by this
+    // repo's CID parity test against parity/golden.json. computeCid() strips
+    // the top-level @id itself, so callers may pass the full document.
     async _computeCidForJsonLd(doc) {
         return computeCid(doc);
     }
