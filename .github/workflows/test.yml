@@ -23,6 +23,9 @@ jobs:
       - name: Run JavaScript tests
         run: deno test public/petri-sim_test.ts
 
+      - name: Verify npm package
+        run: ./scripts/npm-pack-test.sh
+
       - name: Copy public assets for Go embed
         run: cp -r public internal/static/
 

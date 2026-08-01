@@ -1,0 +1,51 @@
+name: npm publish
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: read
+  id-token: write # npm provenance attestation
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Verify tag matches package.json version
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          pkg="$(node -p "require('./package.json').version")"
+          if [ "$tag" != "$pkg" ]; then
+            echo "::error::tag v$tag does not match package.json version $pkg"
+            exit 1
+          fi
+
+      - name: Verify every files entry exists
+        run: |
+          node -e '
+            const fs = require("fs");
+            const missing = require("./package.json").files
+              .filter(f => !f.includes("*"))
+              .filter(f => !fs.existsSync(f));
+            if (missing.length) {
+              console.error("missing from disk:", missing.join(", "));
+              process.exit(1);
+            }
+          '
+
+      - name: Show tarball contents
+        run: npm pack --dry-run
+
+      - name: Publish
+        run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

@@ -1,4 +1,4 @@
-.PHONY: all build run clean test test-js test-parity test-publish publish
+.PHONY: all build run clean test test-js test-parity test-publish test-npm-pack publish
 
 # Build the webserver
 build:
@@ -25,12 +25,19 @@ clean:
 	@echo "Clean complete"
 
 # Run tests
-test: test-js test-parity test-parity-behavior test-publish
+test: test-js test-parity test-parity-behavior test-publish test-npm-pack
 	@go test ./...
 
 # Run JavaScript tests
 test-js:
 	@deno test public/petri-sim_test.ts public/petri-colors_test.ts
+
+# npm package verification: pack the tarball, extract it, assert the import
+# graph ships and site media doesn't, smoke-test the solver from the extracted
+# package, and resolve the exports map from a scratch install. Skips if npm is
+# not installed (same policy as the node edge in the parity tests).
+test-npm-pack:
+	@./scripts/npm-pack-test.sh
 
 # Publisher for cdn.stackdump.com (uses a temp blobs dir; touches no real state)
 test-publish:
