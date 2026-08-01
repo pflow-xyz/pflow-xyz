@@ -1,2 +1,0 @@
-# Patches applied to external Go modules via go_deps.module_override in MODULE.bazel.
-exports_files(glob(["*.patch"]))

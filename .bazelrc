@@ -33,3 +33,13 @@ build:remote --noremote_upload_local_results
 # consumer here is internal/ethsig — signature recovery — where the two backends
 # are interchangeable. Nothing else in this repo needs cgo.
 build --@io_bazel_rules_go//go/config:pure
+
+# gnark-crypto reaches this graph indirectly, via go-ethereum's KZG path, and its
+# amd64/arm64 assembly cross-includes a separate vendoring-hack package that
+# rules_go cannot stage as an asm include (gnark-crypto issue #619). go-pflow
+# solves that with a patch, but a patch means go_deps.module_override, and Bzlmod
+# forbids that tag in a NON-root module — which would make this module
+# undependable, defeating the point of exporting //public. The purego tag selects
+# gnark's pure-Go field arithmetic instead. Nothing here calls into gnark; it is
+# reachable only through go-ethereum code paths this repo does not use.
+build --@io_bazel_rules_go//go/config:tags=purego

@@ -5,6 +5,9 @@ build:
 	@echo "Copying public directory to internal/static..."
 	@rm -rf internal/static/public
 	@cp -r public internal/static/
+	@# Bazel build files are not web assets, and copying BUILD.bazel would make
+	@# internal/static/public a Bazel subpackage, which breaks the embed target.
+	@rm -f internal/static/public/BUILD.bazel internal/static/public/files.bzl
 	@echo "Building webserver..."
 	@go build -o bin/webserver ./cmd/webserver
 	@echo "Build complete: bin/webserver"
