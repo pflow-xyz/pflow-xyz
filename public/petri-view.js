@@ -55,7 +55,10 @@ PetriView = class PetriView extends HTMLElement {
 
     // Bumped when the default split changes, so a stored value from an older
     // layout is ignored rather than pinning returning visitors to it.
-    static DIVIDER_KEY = 'pv-divider-position-v2';
+    // v3: the narrow default changed from a `calc(100% - handle)` basis to
+    // `1 1 0` when the run bar joined the same flex column. A restored v2 value
+    // would claim the whole root and push the bar off the bottom of the screen.
+    static DIVIDER_KEY = 'pv-divider-position-v3';
 
     constructor() {
         super();
@@ -98,10 +101,18 @@ PetriView = class PetriView extends HTMLElement {
         this._panPending = null; // pending pan until movement threshold exceeded
         this._panThreshold = 10; // pixels before pan activates
         this._spaceDown = false;
+        // _minScale is a floor, not a constant. 0.5 is the desktop default, but a
+        // model wider than the viewport cannot be fitted at 0.5 — the tic-tac-toe
+        // net spans ~1600 world px, which needs ~0.24 on a 390px phone.
+        // _recomputeScaleFloor() lowers it per model; it never raises it above 0.5.
         this._minScale = 0.5;
         this._maxScale = 2.5;
         this._scaleMeter = null;
         this._initialView = null;
+        // Once the user has navigated deliberately, stop re-fitting under them.
+        this._userHasPanned = false;
+        this._didInitialFit = false;
+        this._fitting = false; // re-entrancy guard: fitToView() calls _draw()
 
         // sim & history
         this._simRunning = false;
@@ -999,6 +1010,19 @@ PetriView = class PetriView extends HTMLElement {
         }
     }
 
+    // Narrow says "little room"; coarse says "fingers". Behaviour that would be
+    // wrong on a mouse — auto-starting the simulation, panning over nodes — needs
+    // both, because the narrow query also matches a short embedded component.
+    _isTouchDevice() {
+        try {
+            return typeof window !== 'undefined'
+                && typeof window.matchMedia === 'function'
+                && window.matchMedia('(pointer: coarse)').matches;
+        } catch {
+            return false;
+        }
+    }
+
     // A 50/50 split leaves the graph roughly 400px tall on a phone, which is
     // not enough to work in. On a narrow screen the JSON pane therefore starts
     // collapsed to its drag handle; the graph is what the page is for. This is
@@ -1006,8 +1030,13 @@ PetriView = class PetriView extends HTMLElement {
     // tapping the handle opens the pane.
     _defaultCanvasFlex() {
         if (this._isNarrowViewport() && !this._layoutHorizontal) {
-            const px = (this._divider && this._divider.offsetHeight) || 14;
-            return `0 0 calc(100% - ${px}px)`;
+            // Take the slack rather than claiming a fixed share. The column now
+            // holds the canvas, the divider, the collapsed JSON pane AND the run
+            // bar, and a `calc(100% - ...)` basis has to predict all of their
+            // heights — get it wrong and the bar is pushed off the bottom.
+            // Growing from zero is exact by construction; the narrow CSS pins the
+            // JSON pane to `flex: 0 0 auto` so it cannot compete for the slack.
+            return '1 1 0';
         }
         return '0 0 50%';
     }
@@ -1015,12 +1044,23 @@ PetriView = class PetriView extends HTMLElement {
     // Tap (as opposed to drag) on the handle toggles the pane open/closed.
     _toggleEditorPane() {
         if (!this._canvasContainer || !this._jsonEditor) return;
-        // Measure the space the canvas does NOT occupy rather than the pane's
-        // own height: a collapsed pane still reports its vertical padding.
-        const rootPx = this._root.getBoundingClientRect().height;
-        const canvasPx = this._canvasContainer.getBoundingClientRect().height;
-        const collapsed = (rootPx - canvasPx) < 60;
-        this._canvasContainer.style.flex = collapsed ? '0 0 50%' : this._defaultCanvasFlex();
+        // Measure the JSON pane itself. Deriving it from the canvas as
+        // `root - canvas` used to work, but the run bar and fireable sheet are now
+        // siblings in the same column, so that difference is never under the
+        // threshold and the pane could no longer be opened.
+        const jsonPx = this._jsonEditor.getBoundingClientRect().height;
+        const collapsed = jsonPx < 60;
+        if (this._isNarrowViewport() && !this._layoutHorizontal) {
+            // On a phone the canvas grows into the slack, so the pane is what gets
+            // sized — and it is sized by a class, not inline flex, because
+            // collapsing it also means zeroing its height, padding and overflow.
+            // Clear any inline basis a previous divider drag left behind, so the
+            // tap falls back to the class's default share.
+            this._jsonEditor.style.flex = '';
+            this._root.classList.toggle('pv-json-open', collapsed);
+        } else {
+            this._canvasContainer.style.flex = collapsed ? '0 0 50%' : this._defaultCanvasFlex();
+        }
         this._saveDividerPosition();
         requestAnimationFrame(() => {
             this._onResize();
@@ -1110,6 +1150,20 @@ PetriView = class PetriView extends HTMLElement {
                 const maxSize = rootRect.width - paneMin - dividerPx;
                 const clamped = Math.max(minSize, Math.min(maxSize, offsetX));
                 this._canvasContainer.style.flex = `0 0 ${clamped}px`;
+            } else if (narrow) {
+                // Vertical, narrow: the canvas grows into the slack and the JSON
+                // pane is what carries an explicit size, so the drag has to size
+                // the PANE. Sizing the canvas here (as the desktop branch does)
+                // could only ever shrink the canvas — the pane stayed pinned at
+                // height 0 by .pv-json-open, so it never opened and the gap it
+                // left pushed the run bar off the bottom.
+                const dividerPx = this._divider.offsetHeight || 8;
+                const barPx = (this._runBar && this._runBar.offsetHeight) || 0;
+                const available = rootRect.height - dividerPx - barPx;
+                const paneH = Math.max(0, Math.min(available - 120, rootRect.bottom - barPx - e.clientY - dividerPx));
+                const open = paneH > 60;
+                this._root.classList.toggle('pv-json-open', open);
+                this._jsonEditor.style.flex = open ? `0 0 ${Math.round(paneH)}px` : '';
             } else {
                 // Vertical layout (stacked)
                 const dividerPx = this._divider.offsetHeight || 8;
@@ -1178,6 +1232,10 @@ PetriView = class PetriView extends HTMLElement {
         await this._loadModelFromScriptOrAutosave();
         this._normalizeModel();
         this._renderUI();
+        // Frame the model before snapshotting _initialView, so the scale meter's
+        // "1x" reset button restores the fit rather than 1.00x-at-origin.
+        this._recomputeScaleFloor();
+        this.fitToView();
         this._applyViewTransform();
         this._initialView = {...this._view};
         this._pushHistory(true);
@@ -1232,6 +1290,7 @@ PetriView = class PetriView extends HTMLElement {
         this._model = m || {};
         this._normalizeModel();
         this._renderUI();
+        this._refit(); // a different model entirely — frame it
         this._syncLD();
         this._pushHistory();
     }
@@ -2155,12 +2214,37 @@ PetriView = class PetriView extends HTMLElement {
             return false;
         }
         this._setMarking(newMarks);
+        this._stepCount = (this._stepCount || 0) + 1;
         this._renderTokens();
         this._updateTransitionStates();
         this._draw();
+        this._refreshRunUI?.();
         this.dispatchEvent(new CustomEvent('marking-changed', {detail: {marks: newMarks}}));
         this.dispatchEvent(new CustomEvent('transition-fired-success', {detail: {id: tid}}));
         return true;
+    }
+
+    // The marking ↺ restores to. Captured once per model, not once per run: a
+    // baseline that moves every time the simulation is resumed is not a baseline.
+    // `force` is for the paths that genuinely replace the model.
+    _captureRunBaseline(force = false) {
+        if (!force && this._sessionStartMarking) return;
+        this._sessionStartMarking = JSON.parse(JSON.stringify(this._marking()));
+        this._stepCount = 0;
+    }
+
+    // Restore the marking captured when the run started. Firing writes straight
+    // into p.initial, so without this the model you handed someone is consumed by
+    // the first few taps and the only way back is Ctrl+Z — which no phone has.
+    _resetMarking() {
+        if (!this._sessionStartMarking) return;
+        this._setMarking(JSON.parse(JSON.stringify(this._sessionStartMarking)));
+        this._stepCount = 0;
+        this._renderTokens();
+        this._updateTransitionStates();
+        this._draw();
+        this._refreshRunUI?.();
+        this.dispatchEvent(new CustomEvent('marking-changed', {detail: {marks: this._marking()}}));
     }
 
     // ---------------- UI building ----------------
@@ -2292,6 +2376,17 @@ PetriView = class PetriView extends HTMLElement {
         this._updateMenuActive();
         this._updateSelectionHighlights();
         this._draw(); // ensure arc draft and other canvas elements are rendered
+
+        // Only the FIRST render frames the diagram. _renderUI() is the generic
+        // re-render reached from _scheduleUpdate(), so it also runs after every
+        // node drag, arc creation and token edit — reframing there would rescale
+        // the canvas out from under someone who is editing. Model-replacing paths
+        // (revert-to-CID, importJSON, setModel) call _refit() explicitly instead.
+        if (!this._didInitialFit) {
+            this._recomputeScaleFloor();
+            this.fitToView();
+        }
+        this._refreshRunUI?.();
     }
 
     _updatePlaceElement(id, p) {
@@ -3009,15 +3104,66 @@ PetriView = class PetriView extends HTMLElement {
 
     // ---------------- editing menu & modes ----------------
 
+    // Bound once, not per _createMenu() call: the menu is rebuilt whenever the
+    // viewport crosses the narrow breakpoint, and re-adding the listener each
+    // time would fire _onRootClick once per crossing.
+    _bindRootClick() {
+        if (this._rootClickBound) return;
+        this._rootClickBound = true;
+        this._root.addEventListener('click', (ev) => this._onRootClick(ev));
+    }
+
     _createMenu() {
-        if (this._menu) this._menu.remove();
+        if (this._menu) {
+            this._menu.remove();
+            // Null it, not just detach it. _setSimulation and _repositionMenu both
+            // branch on `this._menu`, so a stale reference after a resize into the
+            // narrow layout has them operating on a detached element while the
+            // run bar's real buttons go untouched.
+            this._menu = null;
+        }
+        if (this._runBar) {
+            this._runBar.remove();
+            this._runBar = null;
+        }
+        if (this._isNarrowViewport()) {
+            this._createRunBar();
+            return;
+        }
         this._menu = document.createElement('div');
         this._menu.className = 'pv-menu pv-mode-menu';
         // Position dynamically since it needs absolute positioning
         this._menu.style.bottom = '10px';
         this._menu.style.left = '50%';
         this._menu.style.transform = 'translateX(-50%)';
+        this._menu.appendChild(this._buildToolRow());
 
+        const playBtn = document.createElement('button');
+        playBtn.type = 'button';
+        playBtn.className = 'pv-play pv-play-btn';
+        playBtn.textContent = this._simRunning ? '⏸' : '▶';
+        playBtn.title = this._simRunning ? 'Stop simulation' : 'Start simulation';
+        playBtn.style.width = '44px'; // Slightly wider for play button
+        playBtn.addEventListener('click', (ev) => {
+            ev.stopPropagation();
+            this._setSimulation(!this._simRunning);
+        });
+        this._menu.appendChild(playBtn);
+        this._menuPlayBtn = playBtn;
+
+        this._canvasContainer.appendChild(this._menu);
+        this._bindRootClick();
+
+        // Ensure the menu reflects the current mode (e.g. default 'select') right after creation
+        this._updateMenuActive();
+    }
+
+    // The seven edit-mode buttons, shared by the desktop pill and the phone run
+    // bar's Edit drawer. Returns a fragment so both callers can place it.
+    // _updateMenuActive() and _setSimulation() find these by class, so the buttons
+    // must keep `pv-tool` and `data-mode` regardless of which parent they land in.
+    _buildToolRow() {
+        const frag = document.createDocumentFragment();
         const tools = [
             {mode: 'select', label: '\u26F6', title: 'Select / Fire (1)'},
             {mode: 'add-place', label: '\u25EF', title: 'Add Place (2)'},
@@ -3052,27 +3198,198 @@ PetriView = class PetriView extends HTMLElement {
                     }
                 }
             });
-            this._menu.appendChild(btn);
+            frag.appendChild(btn);
         });
+        return frag;
+    }
 
-        const playBtn = document.createElement('button');
-        playBtn.type = 'button';
-        playBtn.className = 'pv-play pv-play-btn';
-        playBtn.textContent = this._simRunning ? '⏸' : '▶';
-        playBtn.title = this._simRunning ? 'Stop simulation' : 'Start simulation';
-        playBtn.style.width = '44px'; // Slightly wider for play button
-        playBtn.addEventListener('click', (ev) => {
-            ev.stopPropagation();
+    // ---------------- phone run bar ----------------
+    // A docked bar answering the two questions a presenter has: "show me the whole
+    // thing" and "what can I fire next". Edit tools live behind the Edit toggle —
+    // still one tap away, but no longer the default surface.
+    //
+    // It is a child of _root, not _canvasContainer: the mode pill is positioned
+    // against the canvas *pane*, which is why it lands mid-screen once the JSON
+    // pane opens (the deployed page always sets data-json-editor).
+    _createRunBar() {
+        const bar = document.createElement('div');
+        bar.className = 'pv-menu pv-run-bar';
+
+        const mkBtn = (cls, text, title, onClick) => {
+            const b = document.createElement('button');
+            b.type = 'button';
+            b.className = `pv-run-btn ${cls}`;
+            b.textContent = text;
+            b.title = title;
+            b.setAttribute('aria-label', title);
+            b.addEventListener('click', (ev) => {
+                ev.stopPropagation();
+                onClick();
+            });
+            return b;
+        };
+
+        const main = document.createElement('div');
+        main.className = 'pv-run-main';
+
+        main.appendChild(mkBtn('pv-run-fit', '⛶', 'Fit diagram to screen', () => {
+            this._userHasPanned = false;
+            this._recomputeScaleFloor();
+            this.fitToView();
+        }));
+
+        const playBtn = mkBtn('pv-run-play', '▶', 'Run / pause', () => {
             this._setSimulation(!this._simRunning);
         });
-        this._menu.appendChild(playBtn);
+        main.appendChild(playBtn);
         this._menuPlayBtn = playBtn;
 
-        this._canvasContainer.appendChild(this._menu);
-        this._root.addEventListener('click', (ev) => this._onRootClick(ev));
+        // The fireable sheet's trigger. Tapping it lists every enabled transition
+        // by name, which is the only way to find one on a net that does not fit.
+        const fireBtn = mkBtn('pv-run-fire', 'Fireable', 'Show transitions that can fire now', () => {
+            this._toggleFireSheet();
+        });
+        main.appendChild(fireBtn);
+        this._runFireBtn = fireBtn;
 
-        // Ensure the menu reflects the current mode (e.g. default 'select') right after creation
+        const step = document.createElement('span');
+        step.className = 'pv-run-step';
+        main.appendChild(step);
+        this._runStepEl = step;
+
+        main.appendChild(mkBtn('pv-run-reset', '↺', 'Reset to the starting marking', () => {
+            this._resetMarking();
+        }));
+
+        main.appendChild(mkBtn('pv-run-edit', '✎', 'Show editing tools', () => {
+            const open = bar.classList.toggle('pv-run-editing');
+            // Editing and simulation are mutually exclusive: _setMode() refuses any
+            // mode but 'select' while running, and every drag path early-returns.
+            // Only resume what this drawer itself paused, and only on a touch
+            // device — closing the drawer must not start a simulation that was
+            // never running (which is the state on a narrow desktop window).
+            if (open && this._simRunning) {
+                this._drawerPausedSim = true;
+                this._setSimulation(false);
+            } else if (!open && this._drawerPausedSim) {
+                this._drawerPausedSim = false;
+                this._setSimulation(true);
+            }
+        }));
+
+        bar.appendChild(main);
+
+        const tools = document.createElement('div');
+        tools.className = 'pv-run-tools';
+        tools.appendChild(this._buildToolRow());
+        bar.appendChild(tools);
+
+        this._root.appendChild(bar);
+        this._runBar = bar;
+        this._bindRootClick();
+
+        this._createFireSheet();
+        // Default to running: tapping a transition only fires inside
+        // `if (this._simRunning)`, so without this a tap on a phone does nothing.
+        // It also disables node dragging for free via the _simRunning early-returns.
+        //
+        // Requires a coarse pointer as well as a narrow viewport. _isNarrowViewport()
+        // also matches max-height:520px, which a short <petri-view> embedded in a
+        // desktop page satisfies — and silently starting a simulation there would
+        // change behaviour for the repos that vendor this component.
+        // Unconditionally, so ↺ works even where the auto-start below does not.
+        this._captureRunBaseline();
+        if (this._isTouchDevice()) this._setSimulation(true);
         this._updateMenuActive();
+        this._refreshRunUI();
+    }
+
+    // Scrolling list of currently-enabled transitions. Mounted next to the run bar
+    // rather than inside it so its own scroll container is not clipped by the bar.
+    _createFireSheet() {
+        if (this._fireSheet) this._fireSheet.remove();
+        const sheet = document.createElement('div');
+        sheet.className = 'pv-fire-sheet';
+        sheet.hidden = true;
+        const list = document.createElement('div');
+        list.className = 'pv-fire-list';
+        sheet.appendChild(list);
+        // Mounted inside the bar and positioned above it, so opening the sheet
+        // does not resize the canvas pane or disturb the divider split.
+        (this._runBar || this._root).appendChild(sheet);
+        this._fireSheet = sheet;
+        this._fireList = list;
+    }
+
+    _toggleFireSheet(force) {
+        if (!this._fireSheet) return;
+        const show = force === undefined ? this._fireSheet.hidden : force;
+        this._fireSheet.hidden = !show;
+        this._runBar?.classList.toggle('pv-fire-open', show);
+        if (show) this._renderFireList();
+    }
+
+    _renderFireList() {
+        if (!this._fireList) return;
+        const ids = this._enabledIds || [];
+        this._fireList.textContent = '';
+        if (!ids.length) {
+            const empty = document.createElement('div');
+            empty.className = 'pv-fire-empty';
+            empty.textContent = 'Nothing can fire — the net is dead in this marking. Tap ↺ to reset.';
+            this._fireList.appendChild(empty);
+            return;
+        }
+        for (const id of ids) {
+            const t = (this._model.transitions || {})[id] || {};
+            const row = document.createElement('div');
+            row.className = 'pv-fire-row';
+
+            const fire = document.createElement('button');
+            fire.type = 'button';
+            fire.className = 'pv-fire-name';
+            fire.textContent = t.label || id;
+            // _enqueueFire, never _fire: it keeps the debounce and queue draining
+            // that the canvas tap path relies on.
+            fire.addEventListener('click', (ev) => {
+                ev.stopPropagation();
+                this._enqueueFire(id);
+            });
+            row.appendChild(fire);
+
+            const locate = document.createElement('button');
+            locate.type = 'button';
+            locate.className = 'pv-fire-locate';
+            locate.textContent = '◎';
+            locate.title = `Centre ${t.label || id} in view`;
+            locate.setAttribute('aria-label', `Centre ${t.label || id} in view`);
+            locate.addEventListener('click', (ev) => {
+                ev.stopPropagation();
+                this._centerOnNode(id);
+            });
+            row.appendChild(locate);
+
+            this._fireList.appendChild(row);
+        }
+    }
+
+    // Single refresh point for everything the run bar displays. Called from _fire,
+    // _setSimulation, _resetMarking and _renderUI; a no-op on desktop.
+    _refreshRunUI() {
+        if (!this._runBar) return;
+        const n = (this._enabledIds || []).length;
+        if (this._runFireBtn) {
+            this._runFireBtn.textContent = `Fireable (${n})`;
+            this._runFireBtn.classList.toggle('pv-run-dead', n === 0);
+        }
+        if (this._runStepEl) {
+            this._runStepEl.textContent = `${this._stepCount || 0} fired`;
+        }
+        if (this._menuPlayBtn) {
+            this._menuPlayBtn.textContent = this._simRunning ? '⏸' : '▶';
+            this._menuPlayBtn.title = this._simRunning ? 'Pause' : 'Run';
+        }
+        if (this._fireSheet && !this._fireSheet.hidden) this._renderFireList();
     }
 
     async _revertToOriginalCid() {
@@ -3088,6 +3405,7 @@ PetriView = class PetriView extends HTMLElement {
             this._model = data || {};
             this._normalizeModel();
             this._renderUI();
+            this._refit(); // a different revision — frame it
             this._syncLD(true);
             this._pushHistory();
 
@@ -3132,14 +3450,17 @@ PetriView = class PetriView extends HTMLElement {
     }
 
     _updateMenuActive() {
-        if (!this._menu) return;
-        this._menu.querySelectorAll('.pv-tool').forEach(btn => {
+        // The tool buttons live in the desktop pill OR the phone run bar's edit
+        // drawer. Keying off `this._menu` alone left mode highlighting and the
+        // label-edit affordance dead on phones.
+        const host = this._menu || this._runBar;
+        host?.querySelectorAll('.pv-tool').forEach(btn => {
             const on = btn.dataset.toggle === 'true'
                 ? this._labelEditMode
                 : btn.dataset.mode === this._mode;
             btn.classList.toggle('pv-active', on);
         });
-        // Update node highlights
+        // Update node highlights — independent of which surface is mounted.
         this._updateLabelEditHighlights();
     }
 
@@ -3302,14 +3623,21 @@ PetriView = class PetriView extends HTMLElement {
         if (running) {
             this._prevMode = this._mode;
             this._simRunning = true;
+            // Snapshot the marking so ↺ can put the model back. Firing writes
+            // straight into p.initial, so the starting state is otherwise lost.
+            //
+            // Only if we do not already have one. A pause/resume — or opening and
+            // closing the ✎ drawer, which does the same round trip — would
+            // otherwise re-baseline to the already-fired marking, silently turning
+            // ↺ into a no-op and losing the model the presenter started with.
+            // _captureRunBaseline() is the single place that resets it.
+            this._captureRunBaseline();
             this._setMode('select');
             if (this._menuPlayBtn) {
                 this._menuPlayBtn.textContent = '⏸';
                 this._menuPlayBtn.title = 'Stop simulation';
             }
-            if (this._menu) {
-                this._menu.querySelectorAll('.pv-tool').forEach(btn => { btn.disabled = true; });
-            }
+            (this._menu || this._runBar)?.querySelectorAll('.pv-tool').forEach(btn => { btn.disabled = true; });
             this._root.classList.add('pv-simulating');
             this.dispatchEvent(new CustomEvent('simulation-started'));
         } else {
@@ -3318,14 +3646,13 @@ PetriView = class PetriView extends HTMLElement {
                 this._menuPlayBtn.textContent = '▶';
                 this._menuPlayBtn.title = 'Start simulation';
             }
-            if (this._menu) {
-                this._menu.querySelectorAll('.pv-tool').forEach(btn => { btn.disabled = false; });
-            }
+            (this._menu || this._runBar)?.querySelectorAll('.pv-tool').forEach(btn => { btn.disabled = false; });
             this._root.classList.remove('pv-simulating');
             this._setMode(this._prevMode || 'select');
             this._prevMode = null;
             this.dispatchEvent(new CustomEvent('simulation-stopped'));
         }
+        this._refreshRunUI?.();
     }
 
     // ---------------- dragging ----------------
@@ -3336,6 +3663,8 @@ PetriView = class PetriView extends HTMLElement {
     _beginDrag(ev, id, kind) {
         // Prevent dragging while simulation (play) is running
         if (this._simRunning) return;
+        // A second finger is already down: this is a pinch, not a drag.
+        if (this._activeTouches && this._activeTouches.size > 1) return;
 
         ev.preventDefault();
         const el = this._nodes[id];
@@ -3433,11 +3762,40 @@ PetriView = class PetriView extends HTMLElement {
             this._scheduleSync();
             this._scheduleRender();
             this.dispatchEvent(new CustomEvent('node-moved', {detail: {id, kind}}));
+            this._activeNodeDrag = null;
         };
 
         window.addEventListener('pointermove', move);
         window.addEventListener('pointerup', up);
         window.addEventListener('pointercancel', up);
+
+        // Published so a pinch starting on top of this node can abandon the drag.
+        // Restores the pre-drag position and deliberately does NOT persist: a
+        // gesture meant to zoom must not mutate the model being presented.
+        this._activeNodeDrag = {
+            cancel: () => {
+                window.removeEventListener('pointermove', move);
+                window.removeEventListener('pointerup', up);
+                window.removeEventListener('pointercancel', up);
+                try {
+                    el.releasePointerCapture(ev.pointerId);
+                } catch { /* ignore */ }
+                try {
+                    el.style.cursor = '';
+                    document.body.style.cursor = '';
+                } catch { /* ignore */ }
+                el.style.left = `${startLeft}px`;
+                el.style.top = `${startTop}px`;
+                const node = kind === 'place' ? this._model.places[id] : this._model.transitions[id];
+                if (node) {
+                    node.x = Math.round(startLeft + offset);
+                    node.y = Math.round(startTop + offset);
+                }
+                this._dragOccurred = false;
+                this._activeNodeDrag = null;
+                this._draw();
+            },
+        };
     }
 
     _normalizeCoordinates() {
@@ -3473,6 +3831,7 @@ PetriView = class PetriView extends HTMLElement {
     }
 
     _beginGroupDrag(ev, clickedId) {
+        if (this._activeTouches && this._activeTouches.size > 1) return;
         // Prevent dragging while simulation (play) is running
         if (this._simRunning) return;
 
@@ -3564,6 +3923,7 @@ PetriView = class PetriView extends HTMLElement {
     _beginCanvasGroupDrag(ev) {
         // Prevent dragging while simulation (play) is running
         if (this._simRunning) return;
+        if (this._activeTouches && this._activeTouches.size > 1) return;
 
         ev.preventDefault();
         
@@ -3695,6 +4055,33 @@ PetriView = class PetriView extends HTMLElement {
         this._canvas.style.marginTop = `-${extraTop}px`;
         this._ctx.setTransform(this._dpr, 0, 0, this._dpr, 0, 0);
         this._draw();
+
+        // _createMenu() branches on the viewport, but only ran once at connect.
+        // Rotating a tablet or dragging a desktop window across 760px would
+        // otherwise leave the wrong control surface in place — a floating edit
+        // pill on a phone, or a docked run bar on a desktop.
+        const narrow = this._isNarrowViewport();
+        if (this._menuIsNarrow !== undefined && this._menuIsNarrow !== narrow) {
+            this._menuIsNarrow = narrow;
+            this._createMenu();
+        } else if (this._menuIsNarrow === undefined) {
+            this._menuIsNarrow = narrow;
+        }
+        // Rotating the phone changes what "fits", so re-derive the floor and
+        // reframe. Strictly on a VIEWPORT change, never on a bounds change:
+        // _onResize() is also called from every pointermove of a node drag
+        // ("expand canvas if node dragged past edge"), and re-fitting there
+        // rescales the diagram under the pointer while the drag's own
+        // pointer->world mapping still uses the scale captured at drag start —
+        // the node visibly decouples from the finger.
+        const vw = Math.round(viewportW), vh = Math.round(viewportH);
+        const viewportChanged = this._lastViewport?.w !== vw || this._lastViewport?.h !== vh;
+        this._lastViewport = {w: vw, h: vh};
+        const gestureInFlight = !!(this._activeNodeDrag || this._panning || this._pinchState);
+        if (viewportChanged && !this._fitting && !gestureInFlight) {
+            this._recomputeScaleFloor();
+            if (!this._userHasPanned) this.fitToView();
+        }
         // Reposition menu to stay above editor (iPad fix)
         this._repositionMenu();
     }
@@ -3739,7 +4126,113 @@ PetriView = class PetriView extends HTMLElement {
         if (!this._stage) return;
         const {tx, ty, scale} = this._view;
         this._stage.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
+        // Publish the inverse scale so CSS can keep touch targets a constant size
+        // in device pixels while the stage shrinks, and expose coarse level-of-detail
+        // buckets so labels can drop out before they collide into mush.
+        if (this._root) {
+            this._root.style.setProperty('--pv-inv-scale', String(1 / (scale || 1)));
+            this._root.classList.toggle('pv-lod-min', scale < 0.35);
+            this._root.classList.toggle('pv-lod-mid', scale >= 0.35 && scale < 0.7);
+        }
         this._updateScaleMeter();
+    }
+
+    // ---------------- fit to view ----------------
+    // The viewport the diagram has to fit into, in CSS px.
+    _fitViewport() {
+        const el = this._canvasContainer || this._root;
+        if (!el) return null;
+        const r = el.getBoundingClientRect();
+        if (r.width < 1 || r.height < 1) return null;
+        return r;
+    }
+
+    // Scale at which the whole diagram fits the viewport with `padding` px to spare.
+    //
+    // _calculateDiagramBounds() sizes the canvas, so it measures node bodies only.
+    // Node labels are absolutely positioned *below* the node and are not in that
+    // box — fitting to the raw bounds clips the bottom row of labels. LABEL_PAD
+    // is the world-space allowance for them.
+    _fitScale(padding = 24) {
+        const raw = this._calculateDiagramBounds();
+        if (!raw.hasNodes) return null;
+        const rect = this._fitViewport();
+        if (!rect) return null;
+        const LABEL_PAD = 28;
+        const bounds = {...raw, maxY: raw.maxY + LABEL_PAD};
+        const w = Math.max(1, bounds.maxX - bounds.minX);
+        const h = Math.max(1, bounds.maxY - bounds.minY);
+        const availW = Math.max(1, rect.width - padding * 2);
+        const availH = Math.max(1, rect.height - padding * 2);
+        return {fit: Math.min(availW / w, availH / h), bounds, rect};
+    }
+
+    // Lower the zoom floor to whatever this model actually needs. Only ever
+    // loosens the clamp: a model that already fits keeps the 0.5 desktop floor.
+    _recomputeScaleFloor() {
+        const m = this._fitScale();
+        if (!m) return;
+        this._minScale = Math.max(0.05, Math.min(0.5, m.fit * 0.85));
+    }
+
+    // Frame the whole diagram. Never zooms past 1x — a two-node model should not
+    // balloon to fill a phone screen.
+    fitToView({padding = 24} = {}) {
+        if (this._fitting) return;
+        const m = this._fitScale(padding);
+        if (!m) return;
+        this._fitting = true;
+        try {
+            // Never zoom past 1x, and on a mouse never auto-shrink past 0.5x: a
+            // tall model fits a desktop pane at ~0.14x, which is unreadable, and a
+            // desktop user has a scroll wheel and a whole screen to navigate with.
+            // The floor only binds the automatic fit — _minScale is still lowered,
+            // so zooming out further by hand remains possible.
+            const auto = this._isTouchDevice() ? 0 : 0.5;
+            const scale = Math.max(this._minScale, Math.max(auto, Math.min(this._maxScale, Math.min(1, m.fit))));
+            const {bounds, rect} = m;
+            // Centre the bounds box. _canvasOffset is the negative-coordinate shim
+            // _onResize() applies to the canvas, so the stage origin is already
+            // shifted by it; the fit has to account for the same offset.
+            const off = this._canvasOffset || {x: 0, y: 0};
+            const cx = (bounds.minX + bounds.maxX) / 2 + off.x;
+            const cy = (bounds.minY + bounds.maxY) / 2 + off.y;
+            this._view.scale = scale;
+            this._view.tx = rect.width / 2 - cx * scale;
+            this._view.ty = rect.height / 2 - cy * scale;
+            this._applyViewTransform();
+            this._draw();
+            this._didInitialFit = true;
+        } finally {
+            this._fitting = false;
+        }
+    }
+
+    // Reframe for a model the user did not have on screen before. Called from the
+    // paths that REPLACE the model wholesale — not from _renderUI(), which also
+    // runs after ordinary edits where reframing would fight the user.
+    _refit() {
+        this._userHasPanned = false;
+        this._recomputeScaleFloor();
+        this.fitToView();
+        // A different model means a different starting marking for ↺.
+        this._captureRunBaseline(true);
+        this._refreshRunUI?.();
+    }
+
+    // Bring one node to the centre without changing zoom — used by the fireable
+    // sheet so tapping a row shows you where that transition lives.
+    _centerOnNode(id) {
+        const node = (this._model.places || {})[id] || (this._model.transitions || {})[id];
+        if (!node || node.x === undefined) return;
+        const rect = this._fitViewport();
+        if (!rect) return;
+        const off = this._canvasOffset || {x: 0, y: 0};
+        const scale = this._view.scale || 1;
+        this._view.tx = rect.width / 2 - ((node.x || 0) + off.x) * scale;
+        this._view.ty = rect.height / 2 - ((node.y || 0) + off.y) * scale;
+        this._userHasPanned = true;
+        this._applyViewTransform();
     }
 
     // ---------------- token color helpers ----------------
@@ -3941,6 +4434,17 @@ PetriView = class PetriView extends HTMLElement {
         const arcs = this._model.arcs || [];
         const marks = this._marking(); // current marking to evaluate arc/transition state
 
+        // Enablement is per TRANSITION but was being evaluated per ARC below, and
+        // each Sim.enabled() call filters the whole arc list — O(arcs x arcs) per
+        // frame, which on a 118-arc model is ~14k comparisons and 118 throwaway
+        // arrays for a value that only depends on `marks`. Hoisted here.
+        // Recomputed every _draw() on purpose: _setMarking mutates p.initial in
+        // place, so a set cached on `this` would go stale after a fire.
+        const enabledSet = new Set();
+        for (const tid of Object.keys(this._model.transitions || {})) {
+            if (Sim.enabled(this._model, tid, marks)) enabledSet.add(tid);
+        }
+
         // Group arcs by node pairs to calculate curve offsets
         const arcGroups = this._groupArcsByNodePair(arcs);
 
@@ -3999,7 +4503,7 @@ PetriView = class PetriView extends HTMLElement {
 
             // Determine the related transition id for this arc so we can color by its enabled state
             const relatedTransitionId = srcIsPlace ? arc.target : arc.source;
-            const active = !!this._enabled(relatedTransitionId, marks);
+            const active = enabledSet.has(relatedTransitionId);
 
             // Get arc color based on token colors
             const arcColor = this._getArcColor(arc, active);
@@ -4173,16 +4677,27 @@ PetriView = class PetriView extends HTMLElement {
             }
             const cap = Sim.scalarCapacityOf(this._model, id);
             el.toggleAttribute('data-cap-full', Number.isFinite(cap) && tokenCount >= cap);
+            // Lets the level-of-detail rules keep a label on places that hold
+            // tokens even when every other label is dropped.
+            el.toggleAttribute('data-marked', tokenCount > 0);
         }
     }
 
+    // Also publishes the enabled set as this._enabledIds. The green `pv-active`
+    // fill is the only enablement cue today, and it is invisible for any node
+    // outside the viewport — which on a fitted 34-transition net is most of them.
     _updateTransitionStates() {
         const marks = this._marking();
+        const enabled = [];
         for (const [id, el] of Object.entries(this._nodes)) {
             if (!el.classList.contains('pv-transition')) continue;
             const on = this._enabled(id, marks);
             el.classList.toggle('pv-active', !!on);
+            if (on) enabled.push(id);
         }
+        enabled.sort();
+        this._enabledIds = enabled;
+        return enabled;
     }
 
     // ---------------- token breakdown on hover ----------------
@@ -4339,22 +4854,16 @@ PetriView = class PetriView extends HTMLElement {
         const resetBtn = document.createElement('button');
         resetBtn.className = 'pv-scale-reset';
         resetBtn.type = 'button';
-        resetBtn.textContent = '1x';
-        resetBtn.title = 'Reset scale to 1x';
+        resetBtn.textContent = 'fit';
+        resetBtn.title = 'Fit the whole diagram to the view';
         resetBtn.addEventListener('click', (e) => {
             e.stopPropagation();
-            this._view.scale = 1;
-            const rootRect = this._root?.getBoundingClientRect();
-            if (this._initialView && typeof this._initialView.tx === 'number' && typeof this._initialView.ty === 'number') {
-                this._view.tx = this._initialView.tx;
-                this._view.ty = this._initialView.ty;
-            } else if (rootRect) {
-                this._view.tx = Math.round(rootRect.width / 2);
-                this._view.ty = Math.round(rootRect.height / 2);
-            }
+            // Reframing is what people actually want from this button; on a model
+            // wider than the viewport, snapping to 1.00x-at-origin just loses them.
+            this._userHasPanned = false;
+            this._recomputeScaleFloor();
+            this.fitToView();
             this._initialView = {...this._view};
-            this._applyViewTransform();
-            this._draw();
             this._updateScaleMeter();
         });
         container.appendChild(resetBtn);
@@ -4372,21 +4881,24 @@ PetriView = class PetriView extends HTMLElement {
         const legend = document.createElement('div');
         legend.className = 'pv-scale-legend';
         const minEl = document.createElement('span');
-        minEl.textContent = `${min}x`;
         const maxEl = document.createElement('span');
         maxEl.textContent = `${max}x`;
         legend.appendChild(minEl);
         legend.appendChild(maxEl);
         container.appendChild(legend);
 
-        // pointer interactions
+        // pointer interactions. The mapping is logarithmic: _minScale is now
+        // model-derived and can be as low as 0.05, and a linear track would spend
+        // 90% of its length on scales below 1x.
         let dragging = false;
         const setScaleFromClientY = (clientY) => {
             const rect = track.getBoundingClientRect();
             let pos = (rect.bottom - clientY) / rect.height;
             pos = Math.max(0, Math.min(1, pos));
-            const s = min + pos * (max - min);
+            const lo = Math.log(this._minScale || 0.5), hi = Math.log(this._maxScale || 2.5);
+            const s = Math.exp(lo + pos * (hi - lo));
             this._view.scale = Math.round(s * 100) / 100;
+            this._userHasPanned = true;
             this._applyViewTransform();
             this._draw();
             this._updateScaleMeter();
@@ -4418,18 +4930,25 @@ PetriView = class PetriView extends HTMLElement {
         this._scaleMeter._fill = fill;
         this._scaleMeter._thumb = thumb;
         this._scaleMeter._track = track;
+        this._scaleMeter._minLegend = minEl;
         this._updateScaleMeter();
     }
 
     _updateScaleMeter() {
         if (!this._scaleMeter) return;
+        // Read the floor live — _recomputeScaleFloor() moves it per model, so the
+        // values captured when the meter was built go stale on the first load.
         const min = this._minScale || 0.5, max = this._maxScale || 2.5;
         const s = (this._view && this._view.scale) ? Number(this._view.scale) : 1;
-        const frac = Math.max(0, Math.min(1, (s - min) / (max - min)));
-        const pct = Math.round(frac * 100);
+        const lo = Math.log(min), hi = Math.log(max);
+        const frac = hi > lo ? (Math.log(Math.max(min, Math.min(max, s))) - lo) / (hi - lo) : 0;
+        const pct = Math.round(Math.max(0, Math.min(1, frac)) * 100);
         this._scaleMeter._fill.style.height = `${pct}%`;
         this._scaleMeter._thumb.style.bottom = `${pct}%`;
         this._scaleMeter._label.textContent = `${s.toFixed(2)}x`;
+        if (this._scaleMeter._minLegend) {
+            this._scaleMeter._minLegend.textContent = `${min < 0.1 ? min.toFixed(2) : min.toFixed(min < 0.5 ? 2 : 1)}x`;
+        }
     }
 
     // ---------------- help dialog ----------------
@@ -6948,11 +7467,20 @@ PetriView = class PetriView extends HTMLElement {
             this._divider.style.display = 'none';
         }
 
-        // Reset canvas container to full size
+        // Reset canvas container to full size. On a narrow viewport it must GROW
+        // into the slack rather than claim 100%: the run bar is a sibling in the
+        // same flex column, and an inline height:100% (which no stylesheet rule
+        // can outrank) pushed it clean off the bottom of the screen.
         if (this._canvasContainer) {
-            this._canvasContainer.style.flex = '1 1 100%';
-            this._canvasContainer.style.height = '100%';
-            this._canvasContainer.style.minHeight = '100%';
+            if (this._isNarrowViewport()) {
+                this._canvasContainer.style.flex = '1 1 0';
+                this._canvasContainer.style.height = '';
+                this._canvasContainer.style.minHeight = '';
+            } else {
+                this._canvasContainer.style.flex = '1 1 100%';
+                this._canvasContainer.style.height = '100%';
+                this._canvasContainer.style.minHeight = '100%';
+            }
         }
 
         // Reset layout to default
@@ -7065,6 +7593,65 @@ PetriView = class PetriView extends HTMLElement {
     }
 
     // ---------------- global root events (mouse, wheel, pan, keys) ----------------
+    // Tear down an in-flight one-finger pan without disturbing box-select or the
+    // create-on-tap pending state. Shared by the pinch takeover and endPinch.
+    _cancelSinglePointerGesture() {
+        this._panning = null;
+        this._panPending = null;
+        try {
+            this._canvasContainer.style.cursor = '';
+            document.body.style.cursor = '';
+        } catch { /* ignore */ }
+    }
+
+    // Double-tap zooms in on the tapped point; a second double-tap (or a two-finger
+    // tap) reframes. This is the gesture people try first on a diagram, and without
+    // it the only way to zoom on a phone is a two-finger pinch.
+    _handleTapGesture(e, wasPinching) {
+        const t = e.changedTouches && e.changedTouches[0];
+        if (!t) return;
+        if (wasPinching) {
+            // Lifting out of a pinch is not a tap.
+            this._lastTap = null;
+            return;
+        }
+        // Taps on a node belong to the node — firing a transition twice in a row is
+        // the single most common thing to do while presenting, and treating the
+        // second tap as a double-tap both swallowed the fire and threw the zoom.
+        // Double-tap zoom applies to empty canvas only.
+        if (t.target?.closest?.('.pv-node, .pv-weight, .pv-menu, .pv-run-bar, .pv-fire-sheet')) {
+            this._lastTap = null;
+            return;
+        }
+        const now = e.timeStamp || 0;
+        const prev = this._lastTap;
+        this._lastTap = {x: t.clientX, y: t.clientY, t: now};
+        if (!prev) return;
+        if (now - prev.t > 300) return;
+        if (Math.hypot(t.clientX - prev.x, t.clientY - prev.y) > 24) return;
+
+        this._lastTap = null;
+        e.preventDefault?.();
+        const fitScale = this._fitScale()?.fit;
+        const atFit = fitScale != null && this._view.scale <= Math.min(1, fitScale) * 1.05;
+        if (!atFit) {
+            // Already zoomed in — the second double-tap is "show me everything".
+            this._userHasPanned = false;
+            this.fitToView();
+            return;
+        }
+        const r = this._canvasContainer.getBoundingClientRect();
+        const mx = t.clientX - r.left, my = t.clientY - r.top;
+        const prevScale = this._view.scale;
+        const next = Math.min(this._maxScale, prevScale * 2.5);
+        if (next === prevScale) return;
+        this._view.tx = mx - (mx - this._view.tx) * (next / prevScale);
+        this._view.ty = my - (my - this._view.ty) * (next / prevScale);
+        this._view.scale = next;
+        this._userHasPanned = true;
+        this._applyViewTransform();
+    }
+
     _wireRootEvents() {
         // mouse tracking for arc draft
         this._canvasContainer.addEventListener('pointermove', (e) => {
@@ -7085,8 +7672,11 @@ PetriView = class PetriView extends HTMLElement {
             this._view.tx = mx - (mx - this._view.tx) * (next / prev);
             this._view.ty = my - (my - this._view.ty) * (next / prev);
             this._view.scale = next;
+            this._userHasPanned = true;
+            // No _draw(): the canvas is a child of the transformed stage, so the
+            // CSS transform has already moved the drawn arcs. Redrawing here cost
+            // ~4.5ms/frame on a 118-arc model for zero visual difference.
             this._applyViewTransform();
-            this._draw();
         }, {passive: false});
 
         // pinch-to-zoom and two-finger pan for touch devices
@@ -7099,6 +7689,13 @@ PetriView = class PetriView extends HTMLElement {
             }
             if (this._activeTouches.size === 2) {
                 e.preventDefault();
+                // A pinch always begins as a one-finger pointerdown, which has
+                // already started a pan and possibly a node drag. Both write to the
+                // same state the pinch is about to own — leaving them live makes the
+                // diagram jitter and silently moves whatever node the first finger
+                // happened to land on. Tear both down before taking over.
+                this._cancelSinglePointerGesture();
+                this._activeNodeDrag?.cancel();
                 const touches = Array.from(this._activeTouches.values());
                 const dx = touches[1].x - touches[0].x;
                 const dy = touches[1].y - touches[0].y;
@@ -7149,18 +7746,32 @@ PetriView = class PetriView extends HTMLElement {
                 this._view.tx = zoomCx - (zoomCx - this._pinchState.initialTx) * (newScale / prev) + panDx;
                 this._view.ty = zoomCy - (zoomCy - this._pinchState.initialTy) * (newScale / prev) + panDy;
                 this._view.scale = newScale;
+                this._userHasPanned = true;
 
                 this._applyViewTransform();
-                this._draw();
             }
         }, {passive: false});
 
         const endPinch = (e) => {
+            // Sticky for the whole gesture, not just this event: _pinchState is
+            // nulled on the FIRST finger's touchend, so reading it when the last
+            // finger lifts would report "not a pinch" and arm a double-tap.
+            if (this._pinchState) this._gestureWasPinch = true;
+            const wasPinching = !!this._gestureWasPinch;
             for (const touch of e.changedTouches) {
                 this._activeTouches.delete(touch.identifier);
             }
             if (this._activeTouches.size < 2) {
                 this._pinchState = null;
+                // Do NOT hand the surviving finger back to the pan handler: its
+                // _panning origin is from before the pinch, so resuming would snap
+                // the view by the lifted finger's whole offset. Pan resumes on the
+                // next clean touchdown.
+                if (wasPinching) this._cancelSinglePointerGesture();
+            }
+            if (this._activeTouches.size === 0) {
+                this._handleTapGesture(e, wasPinching);
+                this._gestureWasPinch = false;
             }
         };
         this._canvasContainer.addEventListener('touchend', endPinch, {passive: false});
@@ -7274,7 +7885,23 @@ PetriView = class PetriView extends HTMLElement {
         // panning pointer down/move/up
         this._canvasContainer.addEventListener('pointerdown', (e) => {
             // If so, allow left-button drag to pan even without modifiers.
-            const interactiveSelector = '.pv-node, .pv-weight, .pv-menu, .pv-json-editor, .pv-scale-meter, .pv-json-textarea, .pv-tool, .pv-play, .pv-layout-divider';
+            const chromeSelector = '.pv-menu, .pv-json-editor, .pv-scale-meter, .pv-json-textarea, .pv-tool, .pv-play, .pv-layout-divider, .pv-run-bar, .pv-fire-sheet';
+            // On touch, a place's hit area is the 80x80 box plus a 72x72 handle —
+            // far bigger than the 32px circle drawn — so a finger in apparently
+            // empty space grabs a node and the diagram refuses to pan. When
+            // presenting (narrow viewport or sim running), let a *moved* finger pan
+            // from anywhere, including over nodes. The pan still goes through the
+            // _panPending threshold below, so a stationary tap on a node still
+            // dispatches its click and fires the transition.
+            // Requires _simRunning, i.e. presenting mode — NOT merely a narrow
+            // viewport. While editing, a finger on a node must reach _beginDrag;
+            // letting the container also claim the gesture moved the node at twice
+            // the finger's speed, and capturing the pointer here stole the pointerup
+            // that add-arc and long-press depend on.
+            const panOverNodes = e.pointerType === 'touch' && this._simRunning;
+            const interactiveSelector = panOverNodes
+                ? chromeSelector
+                : `.pv-node, .pv-weight, ${chromeSelector}`;
             const clickedInteractive = !!e.target.closest && e.target.closest(interactiveSelector);
             const leftButton = e.button === 0;
 
@@ -7306,6 +7933,9 @@ PetriView = class PetriView extends HTMLElement {
                 return;
             }
 
+            // A second finger is already down — the pinch handler owns the view.
+            if (this._activeTouches && this._activeTouches.size > 1) return;
+
             // Check if we have selected nodes and clicking on canvas (not shift, not on elements)
             // In this case, start a canvas-based group drag instead of panning
             if (!e.shiftKey && leftButton && !clickedInteractive && this._selectedNodes.size > 0 && this._modeCan('canGroupDrag')) {
@@ -7333,8 +7963,9 @@ PetriView = class PetriView extends HTMLElement {
                     pointerId: e.pointerId
                 };
 
-                // If in a mode that creates on click, start as pending (threshold-based)
-                if (createsOnClick && leftButton && !this._spaceDown && !e.altKey && !e.ctrlKey && !e.metaKey && e.button !== 1) {
+                // If in a mode that creates on click — or if this is a touch that may
+                // still turn out to be a tap on a node — start as pending (threshold-based)
+                if ((createsOnClick || panOverNodes) && leftButton && !this._spaceDown && !e.altKey && !e.ctrlKey && !e.metaKey && e.button !== 1) {
                     this._panPending = panState;
                     // capture pointer so we receive move/up events
                     try {
@@ -7392,11 +8023,16 @@ PetriView = class PetriView extends HTMLElement {
                 }
             }
 
+            // Two fingers down: the pinch handler owns the view transform. Without
+            // this guard both handlers write tx/ty from different anchors each
+            // frame and the diagram jitters through every pinch.
+            if (this._pinchState) return;
+
             if (!this._panning) return;
             this._view.tx = this._panning.tx + (e.clientX - this._panning.x);
             this._view.ty = this._panning.ty + (e.clientY - this._panning.y);
+            this._userHasPanned = true;
             this._applyViewTransform();
-            this._draw();
         });
 
         const endPan = (e) => {

@@ -303,6 +303,14 @@
     --pv-shadow: rgba(0, 0, 0, 0.15);
     --pv-shadow-md: rgba(0, 0, 0, 0.2);
     --pv-shadow-lg: rgba(0, 0, 0, 0.3);
+
+    /* NOTE: safe-area insets are written as env() directly at each use site, and
+       always preceded by a plain fallback declaration. Do NOT hoist them into a
+       custom property: `calc(10px + var(--x))` where --x holds an unsupported
+       env() is invalid *at computed-value time*, which resolves to `unset`
+       (i.e. `auto` for an offset) instead of falling back to the previous
+       declaration. That silently threw the Login button to the top-left corner. */
+
     color-scheme: light;
 }
 
@@ -317,14 +325,20 @@ html, body {
     padding: 0;
     height: 100%;
     overflow: hidden;
-    /* Prevent browser pinch-to-zoom - app handles its own pinch gestures */
-    touch-action: none;
+    /* The canvas surfaces declare their own touch-action, so the app still owns
+       its pan/pinch gestures. Declaring `none` at the document level additionally
+       blocked browser pinch-zoom on menus, dialogs and the JSON pane — which
+       fails WCAG 1.4.4 and contradicts the viewport meta in index.html. */
+    overscroll-behavior: none;
 }
 
 petri-view {
     display: block;
     width: 100%;
+    /* svh, not dvh: the shell must not resize as the iOS URL bar animates, and
+       100vh alone puts the bottom ~90px of the app under it. */
     height: 100vh;
+    height: 100svh;
     border: 1px solid var(--pv-border);
     box-sizing: border-box;
 }
@@ -428,14 +442,22 @@ canvas.pv-canvas {
     pointer-events: none;
 }
 
-.pv-label {
+/* Canvas node label. Scoped to .pv-node deliberately: a second, unrelated
+   `.pv-label` further down styles form labels inside dialogs, and at equal
+   specificity the later rule was winning — so every node label on the canvas
+   silently rendered at 14px with a stray 6px bottom margin instead of the 12px
+   authored here. The descendant selector settles it without renaming the class
+   across the component. */
+.pv-node .pv-label {
     position: absolute;
     left: 50%;
     transform: translateX(-50%);
     font-size: 12px;
+    font-weight: 400;
     color: #222;
     top: 100%;
     margin-top: 6px;
+    margin-bottom: 0;
     pointer-events: none;
 }
 
@@ -1125,7 +1147,10 @@ canvas.pv-canvas {
     background: var(--pv-panel-soft);
     border-radius: 10px;
     box-shadow: 0 2px 8px var(--pv-shadow);
-    z-index: 3000;
+    /* Was 3000, which outranked the mode menu (1200), the hamburger and the
+       login button (1300) — a zoom readout has no business painting over the
+       app's own chrome. */
+    z-index: 1100;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -2551,21 +2576,38 @@ canvas.pv-canvas {
     .pv-analysis-body { flex-direction: column; }
     .pv-analysis-controls { width: auto; }
 
-    /* The JSON pane starts collapsed to its handle on a phone (see
-       _defaultCanvasFlex in petri-view.js). These min-heights, sized for a
-       desktop split, would otherwise force it back open and overflow the root. */
-    .pv-root .pv-json-editor { min-height: 0; padding: 8px; }
+    /* The JSON pane starts collapsed to its handle on a phone. The canvas grows
+       from zero into the slack (see _defaultCanvasFlex) and the run bar takes
+       what it needs, so the pane must not compete for height.
+
+       The collapse is explicit rather than intrinsic: once Ace mounts, the pane's
+       natural height is ~180px, so `flex: 0 0 auto` alone would still eat more
+       than half a landscape phone. Collapsed is height 0; .pv-json-open (set by
+       _toggleEditorPane) is the only way it takes space. */
+    .pv-root .pv-json-editor {
+        min-height: 0;
+        flex: 0 0 auto;
+        height: 0;
+        padding: 0 8px;
+        overflow: hidden;
+    }
+    .pv-root.pv-json-open .pv-json-editor {
+        height: auto;
+        flex: 0 0 55%;
+        padding: 8px;
+        overflow: auto;
+    }
     .pv-canvas-container { min-height: 0; }
 
-    /* The scale meter floats over the canvas. At 1400px that costs ~5% of the
-       width; at 390px it was 17% and sat on top of the diagram. */
-    .pv-scale-meter {
-        width: 40px;
-        height: 116px;
-        right: 6px;
-        padding: 6px;
-        gap: 6px;
-    }
+    /* The scale meter is gone on phones, not merely shrunk. It is a desktop
+       affordance: pinch and double-tap already cover zoom, the run bar's ⛶ button
+       covers "show me everything", and parked at right:6px/top:50% it sat squarely
+       on top of the diagram it was reporting on. */
+    .pv-scale-meter { display: none; }
+
+    /* The mode pill is replaced by the docked run bar (_createMenu branches on
+       _isNarrowViewport). Belt-and-braces in case one is left over from a resize. */
+    .pv-mode-menu { display: none; }
 
     /* Keep the handle visually slim but give it a real touch target, and make
        the grip wide enough to read as draggable. */
@@ -2588,19 +2630,258 @@ canvas.pv-canvas {
         min-height: 44px;
     }
 
-    /* The mode menu is a single row of 8 tools. At 44px wide each, the row is
-       424px and overflows a 390px phone, so trade width for a tighter gap and
-       keep the full 44px of touch height. overflow-x is the safety net if a
-       tool is ever added. */
-    .pv-mode-menu {
-        gap: 4px;
-        padding: 4px;
-        max-width: calc(100vw - 16px);
-        overflow-x: auto;
+    /* Keep the app chrome clear of the notch and the rounded corners. */
+    .pv-hamburger-btn { left: 10px; left: calc(10px + env(safe-area-inset-left, 0px)); }
+    .pv-top-right-btn { right: 10px; right: calc(10px + env(safe-area-inset-right, 0px)); }
+}
+
+/* Landscape phone (844x390). The stacked layout is still right — the diagram
+   wants the full width — but 390px of height leaves no room to spend on chrome,
+   so the bar goes on a diet and the fireable sheet gets a shallower cap.
+   Gated on a coarse pointer so a short desktop window is unaffected. */
+@media (max-height: 520px) and (orientation: landscape) and (pointer: coarse) {
+    .pv-run-bar { padding: 4px 8px; padding: 4px 8px calc(4px + env(safe-area-inset-bottom, 0px)); }
+    .pv-run-btn { min-height: 40px; }
+    .pv-fire-sheet { max-height: min(60vh, 220px); }
+
+    /* The wordmark and its fixed-position title band cost ~14% of the height
+       here for no information; the drawer already links home. */
+    .fixed-title { display: none; }
+}
+
+/* Modal dialogs become bottom sheets on a phone: a centred box sized for a
+   desktop viewport overflows a 390x844 screen, and its content is then
+   unreachable because the overlay itself does not scroll. dvh (not svh) here so
+   a software keyboard raised by a focused field does not push it off-screen. */
+@media (max-width: 760px), (max-height: 520px) {
+    .pv-modal-overlay,
+    .pv-layout-overlay,
+    .pv-diagrams-overlay,
+    .pv-edit-diagram-overlay {
+        align-items: flex-end;
+        padding: 0;
     }
-    .pv-mode-menu button {
-        min-width: 38px;
-        min-height: 44px;
+
+    .pv-modal-overlay > *,
+    .pv-layout-overlay > *,
+    .pv-diagrams-overlay > *,
+    .pv-edit-diagram-overlay > * {
+        width: 100%;
+        max-width: none;
+        max-height: 88dvh;
+        overflow-y: auto;
+        touch-action: pan-y;
+        border-radius: 16px 16px 0 0;
+        padding-bottom: 16px;
+        padding-bottom: max(16px, env(safe-area-inset-bottom, 0px));
+    }
+
+    /* The analysis workbench renders its plot at 0px on a phone: the controls
+       column keeps its full intrinsic height while the plot's min-height never
+       gets a chance to apply. Give the plot a floor and let the dialog scroll. */
+    .pv-analysis-main {
+        min-height: min(45vh, 260px);
+        overflow: visible;
+    }
+    .pv-analysis-controls {
         flex: 0 0 auto;
+        max-height: none;
+        overflow: visible;
     }
+}
+
+/* ============================================================
+   Phone run bar and fireable sheet
+   Built by _createRunBar()/_createFireSheet() in petri-view.js, which only
+   run when _isNarrowViewport() is true — so nothing here can reach desktop.
+   The bar is a flex child of .pv-root rather than an absolutely-positioned
+   child of the canvas pane, which is why it stays docked to the bottom edge
+   instead of floating over the diagram once the JSON pane opens.
+   ============================================================ */
+.pv-run-bar {
+    display: none;
+    position: relative; /* containing block for the fireable sheet */
+    flex-direction: column;
+    flex: 0 0 auto;
+    width: 100%;
+    box-sizing: border-box;
+    background: var(--pv-surface);
+    border-top: 1px solid var(--pv-border);
+    border-radius: 0;
+    padding: 6px 8px;
+    padding: 6px 8px calc(6px + env(safe-area-inset-bottom, 0px));
+    gap: 6px;
+    z-index: 1200;
+}
+
+.pv-run-main {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.pv-run-btn {
+    min-width: 44px;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 10px;
+    font-size: 16px;
+    line-height: 1;
+    color: var(--pv-ink);
+    background: var(--pv-surface-2);
+    border: 1px solid var(--pv-border);
+    border-radius: 10px;
+    cursor: pointer;
+}
+
+.pv-run-btn:active { background: var(--pv-surface-3); }
+
+/* The fireable count is the bar's primary affordance, so it gets the accent
+   and takes the slack width. */
+.pv-run-fire {
+    flex: 1 1 auto;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 600;
+    background: var(--pv-accent);
+    border-color: var(--pv-accent-strong);
+    color: var(--pv-accent-ink);
+}
+
+/* Nothing can fire: stop advertising a tap that leads to an empty list. */
+.pv-run-fire.pv-run-dead {
+    background: var(--pv-surface-2);
+    border-color: var(--pv-border);
+    color: var(--pv-ink-muted);
+}
+
+.pv-run-bar.pv-fire-open .pv-run-fire { background: var(--pv-accent-strong); }
+
+.pv-run-step {
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+    color: var(--pv-ink-secondary);
+    white-space: nowrap;
+    padding: 0 2px;
+}
+
+/* Edit tools stay one tap away, but off the presenting surface by default. */
+.pv-run-tools { display: none; gap: 4px; }
+.pv-run-bar.pv-run-editing .pv-run-tools { display: flex; }
+.pv-run-tools .pv-tool {
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: 44px;
+}
+
+.pv-fire-sheet {
+    display: none;
+    /* Anchored above the bar rather than stacked in the root's flex column:
+       opening it must not resize the canvas or move the divider split. */
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 100%;
+    box-sizing: border-box;
+    max-height: min(45vh, 320px);
+    box-shadow: 0 -6px 18px var(--pv-shadow-sm);
+    overflow-y: auto;
+    /* Every ancestor sets touch-action: none for the canvas gestures, so the
+       sheet has to re-enable vertical panning or it cannot be scrolled. */
+    touch-action: pan-y;
+    -webkit-overflow-scrolling: touch;
+    background: var(--pv-surface);
+    border-top: 1px solid var(--pv-border);
+    z-index: 1200;
+}
+
+.pv-fire-row {
+    display: flex;
+    align-items: stretch;
+    border-bottom: 1px solid var(--pv-border);
+}
+
+.pv-fire-name {
+    flex: 1 1 auto;
+    min-height: 44px;
+    text-align: left;
+    padding: 0 12px;
+    font-size: 15px;
+    color: var(--pv-ink);
+    background: none;
+    border: 0;
+    cursor: pointer;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.pv-fire-name:active { background: var(--pv-surface-3); }
+
+.pv-fire-locate {
+    flex: 0 0 auto;
+    min-width: 44px;
+    min-height: 44px;
+    font-size: 16px;
+    color: var(--pv-ink-secondary);
+    background: none;
+    border: 0;
+    border-left: 1px solid var(--pv-border);
+    cursor: pointer;
+}
+
+.pv-fire-empty {
+    padding: 14px 12px;
+    font-size: 13px;
+    color: var(--pv-ink-secondary);
+}
+
+@media (max-width: 760px), (max-height: 520px) {
+    .pv-run-bar { display: flex; }
+    .pv-fire-sheet:not([hidden]) { display: block; }
+
+    /* .pv-root is a flex column and the bar is appended before the JSON editor
+       exists. Order pins it to the bottom regardless of DOM order, so the editor
+       cannot end up underneath it. */
+    .pv-root > .pv-run-bar { order: 99; }
+
+    /* _removeJsonEditor() writes an inline height:100%/min-height:100% here,
+       which would deny the bar any room. */
+    .pv-root > .pv-canvas-container {
+        height: auto;
+        min-height: 0;
+    }
+}
+
+/* ============================================================
+   Label legibility at fit scale (touch devices only)
+   _applyViewTransform() sets --pv-inv-scale and toggles pv-lod-min/pv-lod-mid
+   on .pv-root. Fitting a 30-node net to a 390px phone lands around 0.22x, where
+   every label is drawn at ~2.6 CSS px and adjacent ones overlap into an
+   unreadable smear. Dropping labels by importance is what makes a fitted
+   diagram read as topology rather than noise.
+
+   Scoped to (pointer: coarse) so a mouse user never loses a label; desktop also
+   sits at scale 1, above every threshold, so the classes are absent there anyway.
+   ============================================================ */
+@media (pointer: coarse) {
+    /* An unbreakable id like O00_O11_O22 is far wider than the 80px node box and
+       runs straight through its neighbours. */
+    .pv-node .pv-label {
+        max-width: 92px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    /* Mid zoom: keep places (which carry the marking) and whatever can fire. */
+    .pv-root.pv-lod-mid .pv-transition:not(.pv-active) .pv-label { display: none; }
+
+    /* Far out: labels are sub-pixel. Keep only the two things a presenter is
+       pointing at — where the tokens are, and what can fire next. */
+    .pv-root.pv-lod-min .pv-label { display: none; }
+    .pv-root.pv-lod-min .pv-place[data-marked] .pv-label,
+    .pv-root.pv-lod-min .pv-transition.pv-active .pv-label { display: block; }
 }
