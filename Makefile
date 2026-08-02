@@ -1,4 +1,4 @@
-.PHONY: all build run clean test test-js test-parity test-publish test-npm-pack publish
+.PHONY: all build run clean test test-js test-parity test-publish test-npm-pack test-theme test-version publish
 
 # Build the webserver
 build:
@@ -25,7 +25,7 @@ clean:
 	@echo "Clean complete"
 
 # Run tests
-test: test-js test-parity test-parity-behavior test-publish test-npm-pack test-theme
+test: test-js test-parity test-parity-behavior test-publish test-npm-pack test-theme test-version
 	@go test ./...
 
 # Run JavaScript tests
@@ -39,6 +39,11 @@ test-js:
 # Guard the design-token contract (see scripts/check-theme-tokens.py)
 test-theme:
 	@python3 scripts/check-theme-tokens.py
+
+# The version shown in the hamburger footer is a literal in petri-view.js (no
+# build step can inject it); keep it tied to package.json.
+test-version:
+	@python3 scripts/check-version.py
 
 test-npm-pack:
 	@./scripts/npm-pack-test.sh
