@@ -352,3 +352,20 @@ Environment variables are configured in `~/services`. This service uses:
 - `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` - GitHub OAuth
 - `GOOGLE_ANALYTICS_ID` - Analytics (G-E7Q5BVDGYB)
 - `SUPABASE_JWT_SECRET` - Supabase JWT
+
+## Decommissioning
+
+Visual editor at pflow.xyz (pflow.dev :8081).
+
+See [Archiving, backing up and taking down a project](../stackdump-com/CLAUDE.md#archiving-backing-up-and-taking-down-a-project) for the ecosystem-wide procedure and the ordering. This section records only what **this** project holds, which is the part that differs.
+
+**State that is not in git** (every path below is gitignored):
+
+| Host | Path | Size | What it is |
+|---|---|---|---|
+| pflow.dev | `~/Workspace/pflow-xyz/data/pflow.db` | 47M | saved models |
+
+**Specific to this project:**
+
+- **Canonical source for the shared browser JS** (`petri-sim.js`, `petri-solver.js`, `petri-colors.js`, `seal-cid.mjs`). bitwrap-io, stackedup-gg and modeldao-org vendor copies pinned by sha256 — retiring this orphans those locks.
+- Publishes the `@pflow-xyz/pflow-xyz` npm package. Published versions cannot be unpublished; `npm deprecate` instead.
