@@ -39,7 +39,6 @@ PUBLIC_FILES = [
     "seal-cid.mjs",
     "sealed.json",
     "site.webmanifest",
-    "sitemap.xml",
     "test-solver.html",
     "title.svg",
     "vendor/jsonld.bundle.mjs",

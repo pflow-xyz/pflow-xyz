@@ -34,6 +34,7 @@ type Storage interface {
 	DeleteObject(cid string) error
 	GetObjectAuthor(cid string) (githubUser, githubID string, err error)
 	ListUserDiagrams(githubID string) ([]store.DiagramInfo, error)
+	ListCIDs() ([]string, error)
 }
 
 // FSStorage implements Storage using filesystem
@@ -79,6 +80,10 @@ func (fs *FSStorage) DeleteObject(cid string) error {
 
 func (fs *FSStorage) GetObjectAuthor(cid string) (string, string, error) {
 	return fs.store.GetObjectAuthor(cid)
+}
+
+func (fs *FSStorage) ListCIDs() ([]string, error) {
+	return fs.store.ListCIDs()
 }
 
 func (fs *FSStorage) ListUserDiagrams(githubID string) ([]store.DiagramInfo, error) {
@@ -991,6 +996,13 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Schema reference (content-negotiated: JSON-LD or HTML)
 	if r.URL.Path == "/schema" {
 		s.handleSchema(w, r)
+		return
+	}
+
+	// Sitemap derived from the object store — a static one listed models
+	// that had been deleted, which crawl as the bare landing page.
+	if r.URL.Path == "/sitemap.xml" {
+		s.handleSitemap(w, r)
 		return
 	}
 

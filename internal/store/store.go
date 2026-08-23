@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -397,6 +398,28 @@ type DiagramInfo struct {
 }
 
 // ListUserDiagrams returns all diagrams authored by a specific GitHub user ID
+// ListCIDs returns every stored object CID, sorted. Subdirectories
+// (canonical, signatures) are not objects.
+func (s *FSStore) ListCIDs() ([]string, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	entries, err := os.ReadDir(filepath.Join(s.base, "o"))
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	var cids []string
+	for _, e := range entries {
+		if !e.IsDir() {
+			cids = append(cids, e.Name())
+		}
+	}
+	sort.Strings(cids)
+	return cids, nil
+}
+
 func (s *FSStore) ListUserDiagrams(githubID string) ([]DiagramInfo, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
