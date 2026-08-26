@@ -1,13 +1,27 @@
 {
   "name": "@pflow-xyz/pflow-xyz",
-  "version": "1.24.0",
+  "version": "1.25.0",
   "description": "Dependency-free ES modules for Petri nets: mass-action ODE solver (Tsit5) with an interactive SVG plotter, discrete firing semantics, colored-net unfolding, and the <petri-view> editor web component.",
   "type": "module",
   "license": "MIT",
   "homepage": "https://pflow.xyz",
-  "repository": { "type": "git", "url": "git+https://github.com/pflow-xyz/pflow-xyz.git" },
-  "bugs": { "url": "https://github.com/pflow-xyz/pflow-xyz/issues" },
-  "keywords": ["petri-net", "ode-solver", "tsit5", "simulation", "state-machine", "workflow", "mass-action", "json-ld"],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pflow-xyz/pflow-xyz.git"
+  },
+  "bugs": {
+    "url": "https://github.com/pflow-xyz/pflow-xyz/issues"
+  },
+  "keywords": [
+    "petri-net",
+    "ode-solver",
+    "tsit5",
+    "simulation",
+    "state-machine",
+    "workflow",
+    "mass-action",
+    "json-ld"
+  ],
   "exports": {
     ".": "./public/petri-solver.js",
     "./petri-solver.js": "./public/petri-solver.js",
@@ -19,12 +33,17 @@
     "./seal-cid.mjs": "./public/seal-cid.mjs",
     "./llms.txt": "./public/llms.txt",
     "./llms-full.txt": "./public/llms-full.txt",
-    "./package.json": "./package.json"
+    "./package.json": "./package.json",
+    "./petri-learn.js": "./public/petri-learn.js"
   },
-  "sideEffects": ["./public/petri-view.js", "./public/diagram-viewer.js"],
+  "sideEffects": [
+    "./public/petri-view.js",
+    "./public/diagram-viewer.js"
+  ],
   "files": [
     "public/petri-solver.js",
     "public/petri-sim.js",
+    "public/petri-learn.js",
     "public/petri-colors.js",
     "public/petri-view.js",
     "public/petri-view.css",
@@ -37,5 +56,8 @@
     "LICENSE",
     "README.md"
   ],
-  "publishConfig": { "access": "public", "provenance": true }
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  }
 }
