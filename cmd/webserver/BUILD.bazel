@@ -9,6 +9,7 @@ go_library(
         "metrics.go",
         "share_card.go",
         "share_page.go",
+        "sitemap.go",
     ],
     importpath = "github.com/pflow-xyz/pflow-xyz/cmd/webserver",
     visibility = ["//visibility:private"],
@@ -39,9 +40,10 @@ go_test(
         "content_negotiation_test.go",
         "sample_card_test.go",
         "share_card_test.go",
+        "sitemap_test.go",
     ],
-    embed = [":webserver_lib"],
     # keep: share_card_test.go renders a stored example model from //examples.
     data = ["//examples"],
+    embed = [":webserver_lib"],
     deps = ["//internal/static"],
 )

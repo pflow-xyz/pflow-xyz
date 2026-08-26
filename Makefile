@@ -30,7 +30,14 @@ test: test-js test-parity test-parity-behavior test-publish test-npm-pack test-t
 
 # Run JavaScript tests
 test-js:
-	@deno test public/petri-sim_test.ts public/petri-colors_test.ts
+	@deno test public/petri-sim_test.ts public/petri-colors_test.ts public/petri-learn_test.ts
+
+# Regenerate the differentiable-fitting parity goldens (parity/learn/goldens.json)
+# from go-pflow's learn package. Deliberate, never a side effect of another
+# target: the goldens are the contract public/petri-learn_test.ts replays.
+learn-goldens:
+	@go run ./parity/learn/gen
+	@echo "regenerated parity/learn/goldens.json — run 'make test-js' to verify"
 
 # npm package verification: pack the tarball, extract it, assert the import
 # graph ships and site media doesn't, smoke-test the solver from the extracted
