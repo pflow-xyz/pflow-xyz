@@ -27,6 +27,8 @@ PUBLIC_FILES = [
     "p-flower.webm",
     "petri-colors.js",
     "petri-colors_test.ts",
+    "petri-learn.js",
+    "petri-learn_test.ts",
     "petri-sim.js",
     "petri-sim_test.ts",
     "petri-solver.js",

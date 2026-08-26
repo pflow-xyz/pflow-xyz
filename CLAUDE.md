@@ -248,6 +248,19 @@ in this editor. Locked by `make test-parity-behavior` (`parity/sim/` and
   unfolding. `ODEProblem` calls `expandColors` (see below), so mass action runs
   per color: a transition's flux depends only on the colors its input arcs
   name, and consumes only those.
+- **Differentiable fitting** (`parity/learn` + `public/petri-learn.js`): a JS
+  mirror of go-pflow's `learn` package — forward sensitivities (augmented ODE,
+  analytic Jacobian, the one-sided derivative at flux==0, tied parameters via
+  `SharedScalar`), MSE/relative loss gradients, Adam / gradient-descent /
+  Nelder-Mead / coordinate-descent, `hingeRankLoss`, and a `fitRates`
+  convenience. Goldens in `parity/learn/goldens.json` are generated FROM
+  go-pflow by `make learn-goldens` (regeneration is deliberate, never a build
+  side effect) and replayed by `public/petri-learn_test.ts` in `make test-js`.
+  Fixed-step cases and the analytic-objective optimizer runs are asserted
+  BIT-FOR-BIT (Adam's integer bias-correction pow is ported as `goPowInt`;
+  Go constant-folds `1-beta` exactly, mirrored); adaptive-step cases are
+  asserted at 1e-12 relative because Go's step controller calls `math.Pow`
+  whose amd64 assembly V8 cannot bit-match (measured agreement ~4e-14).
 - Changing firing semantics on either side means changing BOTH engines and
   their tests in lockstep — the differential fails otherwise. go-pflow's side
   of the contract is pinned by Go-native tests in its reachability package.
