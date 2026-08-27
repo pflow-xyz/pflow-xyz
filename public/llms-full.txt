@@ -22,6 +22,18 @@ npm.
   workbench: ODE simulate / rate scan / sweep / phase plot).
 - https://pflow.xyz/petri-view.css — editor styles (design tokens, light +
   dark via prefers-color-scheme).
+- https://pflow.xyz/petri-learn.js — differentiable fitting for Petri-net ODE
+  models: a JS mirror of go-pflow's `learn` package. Forward sensitivities
+  (`LearnableProblem.solveWithSensitivities`, augmented ODE with analytic
+  Jacobian) and reverse-mode/adjoint sensitivities
+  (`LearnableProblem.solveAdjoint`, one backward solve — the tool for a rate
+  function with many parameters, at a cost independent of parameter count).
+  Exports: `LearnableProblem`, `ScalarRateFunc`, `SharedScalar` (tied
+  parameters), `mseLossGrad`/`relativeMseLossGrad`/`mseLossAdjoint`/
+  `relativeMseLossAdjoint`, `adamMinimize`/`nelderMead`/`coordinateDescent`,
+  `hingeRankLoss`, `fit`/`fitGradient`/`fitRates` (the no-boilerplate
+  entry point: fit per-transition scalar rates to observed trajectories).
+  petri-solver.js's bytes are untouched by this module.
 
 The ODE semantics are behaviorally identical to go-pflow
 (github.com/pflow-xyz/go-pflow) — enforced by a differential parity test
@@ -75,13 +87,17 @@ loaded the module, so either source is self-sufficient:
 
 ```js
 const pf = await import("https://pflow.xyz/petri-solver.js")
-  .catch(() => import("https://cdn.jsdelivr.net/gh/pflow-xyz/pflow-xyz@v1.21.1/public/petri-solver.js"));
+  .catch(() => import("https://cdn.jsdelivr.net/gh/pflow-xyz/pflow-xyz@v1.26.0/public/petri-solver.js"));
 ```
 
 Pin a release tag (as above) or commit SHA — `@main` is cached ~12h by
-jsDelivr, so it lags the latest deploy. Once the `pflow-xyz` npm package is
-published, npm-backed CDNs work too: `https://esm.sh/pflow-xyz@1.21.1` or
-`https://unpkg.com/pflow-xyz@1.21.1/public/petri-solver.js`.
+jsDelivr, so it lags the latest deploy. `@pflow-xyz/pflow-xyz` has been on npm
+since 2026-08-01, so npm-backed CDNs work too:
+`https://esm.sh/@pflow-xyz/pflow-xyz@1.26.0/petri-solver.js` or
+`https://unpkg.com/@pflow-xyz/pflow-xyz@1.26.0/petri-solver.js` (same paths
+work for petri-learn.js, petri-sim.js, etc. — see package.json's `exports`
+map). cdnjs listing is pending (needs 800+ npm downloads/month or 200 GitHub
+stars).
 
 ## Minimal ad-hoc page: solve an ODE and plot it
 
@@ -89,7 +105,7 @@ published, npm-backed CDNs work too: `https://esm.sh/pflow-xyz@1.21.1` or
 <div id="plot"></div>
 <script type="module">
   const pf = await import("https://pflow.xyz/petri-solver.js")
-    .catch(() => import("https://cdn.jsdelivr.net/gh/pflow-xyz/pflow-xyz@v1.21.1/public/petri-solver.js"));
+    .catch(() => import("https://cdn.jsdelivr.net/gh/pflow-xyz/pflow-xyz@v1.26.0/public/petri-solver.js"));
 
   const model = { /* JSON-LD model as above */ };
   const net = pf.fromJSON(model);

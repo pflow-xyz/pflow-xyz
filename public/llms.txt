@@ -31,6 +31,10 @@ weight component means "this color is not involved".
   editor web component (with tabbed ODE analysis workbench)
 - [petri-view.css](https://pflow.xyz/petri-view.css): editor styles, light +
   dark themes
+- [petri-learn.js](https://pflow.xyz/petri-learn.js): differentiable fitting
+  for Petri-net ODE models — forward + reverse-mode (adjoint) sensitivities,
+  MSE/relative loss gradients, Adam / Nelder-Mead / coordinate-descent,
+  `fitRates` convenience
 
 ## Services
 
@@ -44,10 +48,12 @@ weight component means "this color is not involved".
 
 - CDN mirrors for strict-CSP hosts that block pflow.xyz — pin a tag, `@main`
   is cached ~12h by jsDelivr:
-  - [jsDelivr](https://cdn.jsdelivr.net/gh/pflow-xyz/pflow-xyz@v1.21.1/public/petri-solver.js)
-  - npm-backed (after `pflow-xyz` is on npm): `https://esm.sh/pflow-xyz@1.21.1`
-    or `https://unpkg.com/pflow-xyz@1.21.1/public/petri-solver.js`
-  - cdnjs (pending acceptance — placeholder, 404s until then):
+  - [jsDelivr](https://cdn.jsdelivr.net/gh/pflow-xyz/pflow-xyz@v1.26.0/public/petri-solver.js)
+  - npm-backed (`@pflow-xyz/pflow-xyz` on npm since 2026-08-01):
+    `https://esm.sh/@pflow-xyz/pflow-xyz@1.26.0/petri-solver.js` or
+    `https://unpkg.com/@pflow-xyz/pflow-xyz@1.26.0/petri-solver.js`
+  - cdnjs (pending acceptance — needs 800+ npm downloads/month or 200 GitHub
+    stars; placeholder, 404s until then):
     `https://cdnjs.cloudflare.com/ajax/libs/pflow-xyz/<version>/petri-solver.js`
 - **claude.ai artifacts cannot load these modules today.** Their CSP allows
   scripts only from `cdnjs.cloudflare.com`; pflow.xyz, jsDelivr, esm.sh, and
