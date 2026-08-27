@@ -21,6 +21,13 @@
  *     learn/minimize.go.
  *   - hingeRankLoss: learn/ranking.go.
  *   - fit / fitGradient / fitRates: learn.Fit's surface.
+ *   - LearnableProblem.solveAdjoint / mseLossAdjoint / relativeMseLossAdjoint:
+ *     reverse-mode (adjoint) sensitivities, mirroring learn/adjoint.go — one
+ *     backward solve yields the full parameter gradient regardless of
+ *     parameter count, the tool for a many-parameter rate where forward
+ *     mode's n*P augmented states would dominate the cost. Same clamp
+ *     conventions as forward mode; deliberately no RMSE adjoint (sqrt after
+ *     the sum does not decompose pointwise — fit MSE, report its root).
  *
  * Parity note: the arithmetic here is expression-for-expression identical to
  * the Go code, so results are bit-identical wherever the summation order can
@@ -29,8 +36,7 @@
  * most two independently-ordered contributions is still bit-exact; a place
  * (or sensitivity row) touched by three or more flux terms from different
  * transitions is where Go's own runs differ from each other in the last bit
- * (see parity/learn). Deliberately NOT ported: SolveAdjoint (adjoint mode is
- * refused with an explanatory error).
+ * (see parity/learn).
  *
  * Vanilla ES module, stdlib only. Imports ./petri-solver.js (canonical solver
  * — unchanged by this module) and ./petri-colors.js.
@@ -627,6 +633,272 @@ export class LearnableProblem {
       stateIndex,
     });
   }
+
+  /**
+   * Reverse-mode (adjoint) gradient: one forward solve plus one backward
+   * (costate) solve produces the FULL parameter gradient, at a cost that does
+   * not scale with parameter count — the tool for a many-parameter rate where
+   * forward mode's n*(P+1) augmented states dominate. Mirror of
+   * learn.SolveAdjoint (learn/adjoint.go).
+   *
+   * This is the continuous adjoint: λ̇ = -Jᵀ(x(t))·λ between observation
+   * times, a jump λ += ∂ℓ/∂x at each observed point, and G = ∫ λᵀ(∂f/∂θ) dt
+   * read off alongside. The backward pass evaluates J on the piecewise-linear
+   * reconstruction of the stored forward trajectory (the same interpolation
+   * the losses use), so gradient error tracks the density of the forward grid
+   * — tightening solver tolerances tightens the gradient by way of the denser
+   * grid the controller then takes. Clamp conventions are forward mode's,
+   * including the one-sided derivative at flux == 0.
+   *
+   * @param {*} data - Dataset (see newDataset)
+   * @param {(place: string, sim: number, obs: number) => [number, number]|null} [pl] -
+   *   point loss+gradient; null selects squared-error terms matching mseLoss
+   *   exactly (diff²/N, N = times.length * places.length)
+   * @param {*} [method] - Butcher tableau (null -> Tsit5)
+   * @param {*} [opts] - solver options (null -> defaultSolverOptions)
+   * @returns {{sol, loss?, grad?, paramIndex, numParams, truncated, backwardSteps?}}
+   */
+  solveAdjoint(data, pl = null, method = null, opts = null) {
+    const idx = this.buildRHSIndex();
+    method = method ?? Tsit5();
+    opts = opts ?? defaultSolverOptions();
+
+    // Forward: a plain solve; the stored dense trajectory is all the
+    // backward pass reads (no second augmented forward integration).
+    const sol = this.solve(method, opts);
+    if (sol.truncated) {
+      return { sol, paramIndex: idx.paramIndex, numParams: idx.P, truncated: true };
+    }
+
+    const n = idx.labels.length;
+    const P = idx.P;
+
+    // Cache the trajectory as dense rows once, indexed like the RHS.
+    const steps = sol.t.length;
+    const X = new Array(steps);
+    for (let k = 0; k < steps; k++) {
+      const st = sol.u[k];
+      const row = new Array(n);
+      for (let i = 0; i < n; i++) row[i] = st[idx.labels[i]];
+      X[k] = row;
+    }
+
+    if (pl === null) {
+      const N = data.times.length * data.places.length || 1;
+      pl = (_place, sim, obs) => {
+        const diff = sim - obs;
+        return [diff * diff / N, 2 * diff / N];
+      };
+    }
+
+    const [t0, tf] = this.tspan;
+
+    // Jump pass: evaluate every observed point once, accumulating the loss
+    // and the per-row costate jumps keyed by clamped observation time. No
+    // extra solve happens here — Loss equals the pointwise sum exactly.
+    let totalLoss = 0.0;
+    const jumps = new Map(); // clamped time -> Map(rowIndex -> accumulated d)
+    for (const place of data.places) {
+      const obsValues = data.observations[place];
+      const expanded = lookupLabels(this.colorMap, place);
+      const rows = [];
+      for (const l of expanded) {
+        const i = idx.stateIndex[l];
+        if (i !== undefined) rows.push(i);
+      }
+      for (let j = 0; j < data.times.length; j++) {
+        const tObs = data.times[j];
+        const [k, alpha] = locateT(sol.t, tObs);
+        let sim = 0.0;
+        for (const i of rows) {
+          let v = X[k][i];
+          if (alpha > 0) v = v * (1 - alpha) + X[k + 1][i] * alpha;
+          sim += v;
+        }
+        const [l, d] = pl(place, sim, obsValues[j]);
+        totalLoss += l;
+        const tc = Math.min(Math.max(tObs, t0), tf);
+        let je = jumps.get(tc);
+        if (je === undefined) { je = new Map(); jumps.set(tc, je); }
+        for (const i of rows) je.set(i, (je.get(i) ?? 0) + d);
+      }
+    }
+
+    const jumpTimes = Array.from(jumps.keys()).sort((a, b) => b - a);
+
+    // Backward state y = [λ(n); G(P)], integrated segment-by-segment in
+    // reversed time τ = t_hi - t: dλ/dτ = +Jᵀλ, dG/dτ = +λᵀ·∂f/∂θ. Synthetic
+    // labels satisfy the solve() plumbing; never exposed.
+    const m = n + P;
+    const segLabels = new Array(m);
+    for (let i = 0; i < m; i++) segLabels[i] = 'adj:' + i;
+    const lam = new Array(n).fill(0);
+    const G = new Array(P).fill(0);
+    let backSteps = 0;
+    const xbuf = new Array(n);
+    const um = {};
+
+    const integrateSeg = (lo, hi) => {
+      if (!(hi > lo)) return;
+      const y0 = {};
+      for (let i = 0; i < n; i++) y0[segLabels[i]] = lam[i];
+      for (let pi = 0; pi < P; pi++) y0[segLabels[n + pi]] = G[pi];
+
+      const rhs = (tau, y) => {
+        const t = hi - tau;
+        const [k, alpha] = locateT(sol.t, t);
+        for (let i = 0; i < n; i++) {
+          let v = X[k][i];
+          if (alpha > 0) v = v * (1 - alpha) + X[k + 1][i] * alpha;
+          xbuf[i] = v;
+        }
+        for (let i = 0; i < n; i++) um[idx.labels[i]] = xbuf[i];
+
+        const dy = new Array(m).fill(0);
+        for (const tr of idx.trs) {
+          let clamped = false;
+          for (const ii of tr.inputs) {
+            if (xbuf[ii] <= 0) { clamped = true; break; }
+          }
+          if (clamped) continue;
+
+          const [kRate, dkdTheta, dkdState] = tr.grad(um, t);
+
+          const nin = tr.inputs.length;
+          const pp = new Array(nin);
+          let prefix = 1.0;
+          for (let q = 0; q < nin; q++) {
+            pp[q] = prefix;
+            prefix *= xbuf[tr.inputs[q]];
+          }
+          const g = prefix;
+          let suffix = 1.0;
+          for (let q = nin - 1; q >= 0; q--) {
+            pp[q] *= suffix;
+            suffix *= xbuf[tr.inputs[q]];
+          }
+
+          const flux = kRate * g;
+          if (flux < 0) continue;
+
+          // a = λᵀ·(stoichiometry column of this transition).
+          let a = 0.0;
+          for (const st of tr.stoich) a += st.s * y[segLabels[st.idx]];
+
+          // b[j] = ∂flux/∂x_j, sparse over inputs ∪ rate state-dependencies.
+          const b = new Map();
+          for (let q = 0; q < nin; q++) {
+            const ii = tr.inputs[q];
+            b.set(ii, (b.get(ii) ?? 0) + kRate * pp[q]);
+          }
+          if (dkdState) {
+            for (const [label, d] of Object.entries(dkdState)) {
+              const ii = idx.stateIndex[label];
+              if (ii !== undefined) b.set(ii, (b.get(ii) ?? 0) + g * d);
+            }
+          }
+          for (const [j, bv] of b) dy[j] += a * bv;
+          for (let pi = tr.ps; pi < tr.pe; pi++) {
+            dy[n + pi] += a * g * dkdTheta[pi - tr.ps];
+          }
+        }
+
+        const out = {};
+        for (let j = 0; j < m; j++) out[segLabels[j]] = dy[j];
+        return out;
+      };
+
+      const segSol = solve({ u0: y0, tspan: [0, hi - lo], f: rhs, colorMap: null }, method, opts);
+      if (solveTruncated(segSol, [0, hi - lo], opts)) {
+        throw new Error('adjoint backward solve truncated: raise maxIters or loosen tolerances');
+      }
+      const final = segSol.u[segSol.u.length - 1];
+      for (let i = 0; i < n; i++) lam[i] = final[segLabels[i]];
+      for (let pi = 0; pi < P; pi++) G[pi] = final[segLabels[n + pi]];
+      backSteps += segSol.t.length - 1;
+    };
+
+    // λ(tf+) = 0; walk the jump times from tf down, integrating the segment
+    // above each jump before applying it. A jump exactly at t0 lands after
+    // the last segment and therefore contributes no gradient.
+    let tHi = tf;
+    for (const jt of jumpTimes) {
+      integrateSeg(jt, tHi);
+      if (jt < tHi) tHi = jt;
+      for (const [i, d] of jumps.get(jt)) lam[i] += d;
+    }
+    integrateSeg(t0, tHi);
+
+    return {
+      sol,
+      loss: totalLoss,
+      grad: G,
+      paramIndex: idx.paramIndex,
+      numParams: P,
+      truncated: false,
+      backwardSteps: backSteps,
+    };
+  }
+}
+
+/** Bracketing index for linear interpolation on a sorted time grid, end-
+ * clamped exactly like interpolateAt: t at or before the first node reads the
+ * first value, t at or past the last reads the last. Returns [k, alpha] such
+ * that x(t) = X[k]*(1-alpha) + X[k+1]*alpha, with k+1 valid whenever alpha >
+ * 0. Mirror of learn.locateT (learn/adjoint.go). */
+function locateT(times, t) {
+  const last = times.length - 1;
+  if (last <= 0 || t <= times[0]) return [0, 0];
+  if (t >= times[last]) return [last, 0];
+  // First index with times[i] >= t (binary search; times is sorted ascending).
+  let lo = 0, hi = last;
+  while (lo < hi) {
+    const mid = (lo + hi) >>> 1;
+    if (times[mid] < t) lo = mid + 1; else hi = mid;
+  }
+  let k = lo;
+  if (times[k] === t) return [k, 0];
+  k--;
+  const dt = times[k + 1] - times[k];
+  if (dt === 0) return [k, 0];
+  return [k, (t - times[k]) / dt];
+}
+
+/**
+ * Reverse-mode counterpart of mseLossGrad: the same MSE objective (Loss
+ * equals mseLoss of the same trajectory), gradient from one backward solve
+ * instead of n*P forward sensitivity states. Mirror of learn.MSELossAdjoint.
+ * @param {*} [method]
+ * @param {*} [opts]
+ */
+export function mseLossAdjoint(prob, data, method = null, opts = null) {
+  return prob.solveAdjoint(data, null, method, opts);
+}
+
+/**
+ * Reverse-mode counterpart of relativeMseLossGrad: per-place 1/meanObs²
+ * weighting (meanObs == 0 falls back to 1), identical loss value, gradient
+ * from one backward solve. Mirror of learn.RelativeMSELossAdjoint.
+ * @param {*} [method]
+ * @param {*} [opts]
+ */
+export function relativeMseLossAdjoint(prob, data, method = null, opts = null) {
+  const means = {};
+  for (const place of data.places) {
+    const obsValues = data.observations[place];
+    let meanObs = 0.0;
+    for (const v of obsValues) meanObs += v;
+    if (obsValues.length > 0) meanObs /= obsValues.length;
+    if (meanObs === 0) meanObs = 1.0;
+    means[place] = meanObs;
+  }
+  const N = data.times.length * data.places.length || 1;
+  const pl = (place, sim, obs) => {
+    const mo = means[place];
+    const diff = (sim - obs) / mo;
+    return [diff * diff / N, 2 * diff / (mo * N)];
+  };
+  return prob.solveAdjoint(data, pl, method, opts);
 }
 
 /** Truncation flag, mirroring solver.Solution.Truncated: the solve exhausted
@@ -1636,4 +1908,6 @@ export default {
   fitGradient,
   fit,
   fitRates,
+  mseLossAdjoint,
+  relativeMseLossAdjoint,
 };

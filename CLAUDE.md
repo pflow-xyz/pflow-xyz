@@ -261,6 +261,19 @@ in this editor. Locked by `make test-parity-behavior` (`parity/sim/` and
   Go constant-folds `1-beta` exactly, mirrored); adaptive-step cases are
   asserted at 1e-12 relative because Go's step controller calls `math.Pow`
   whose amd64 assembly V8 cannot bit-match (measured agreement ~4e-14).
+  **`LearnableProblem.solveAdjoint` / `mseLossAdjoint` / `relativeMseLossAdjoint`**
+  mirror `learn/adjoint.go`'s reverse-mode gradient — one backward (costate)
+  solve produces the full parameter gradient at a cost independent of
+  parameter count, versus forward mode's n·(P+1) augmented states. Goldens
+  (`point1Adjoint`/`point2Adjoint`) are asserted under the SAME exact/tolerance
+  rule as everything else, but that compares JS-adjoint against Go-adjoint,
+  NOT adjoint against forward-mode: the adjoint's forward pass is a plain
+  (unaugmented) solve, so on an adaptive case its accepted-step grid genuinely
+  differs from the augmented sensitivity ODE's, and even on a fixed-step case
+  the gradient is a numerically distinct computation from forward mode's
+  (bit-identical loss, not bit-identical grad) — both correct, different
+  algorithms. No RMSE adjoint exists on either side: sqrt after the sum does
+  not decompose pointwise.
 - Changing firing semantics on either side means changing BOTH engines and
   their tests in lockstep — the differential fails otherwise. go-pflow's side
   of the contract is pinned by Go-native tests in its reachability package.

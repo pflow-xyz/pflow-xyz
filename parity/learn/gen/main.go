@@ -5,11 +5,14 @@
 // For each case the generator runs go-pflow (the reference implementation)
 // with solver.JSParityOptions() and records: the solved final state, the
 // forward-sensitivity matrix at the final (and a mid) accepted step, MSE and
-// relative-MSE loss+gradient at two fixed parameter points, and the full Adam
-// iterate sequence (every (theta, loss, grad) the optimizer evaluated) for a
-// short fixed run. The decay case additionally records a Nelder-Mead call
-// sequence and a learn.Fit result. public/petri-learn_test.ts replays all of
-// it against petri-learn.js.
+// relative-MSE loss+gradient at two fixed parameter points, the REVERSE-mode
+// (adjoint) MSE loss+grad at the same two points via learn.MSELossAdjoint —
+// packed with the same ParamIndex, so it compares directly against the
+// forward-mode grad at that point — and the full Adam iterate sequence (every
+// (theta, loss, grad) the optimizer evaluated) for a short fixed run. The
+// decay case additionally records a Nelder-Mead call sequence and a
+// learn.Fit result. public/petri-learn_test.ts replays all of it against
+// petri-learn.js.
 //
 // Regenerate deliberately with `make learn-goldens` (never as a side effect
 // of another target). The generator refuses to emit non-finite values, so a
@@ -119,6 +122,13 @@ type caseGolden struct {
 	Dataset datasetGolden `json:"dataset"`
 	Point1  pointGolden   `json:"point1"` // at the declared rates
 	Point2  pointGolden   `json:"point2"` // at a second fixed point
+
+	// Adjoint (reverse-mode) loss+grad at the same two points, from
+	// learn.MSELossAdjoint — one backward solve instead of n*P forward
+	// sensitivity states. Grad is packed with the SAME ParamIndex as Point1/2,
+	// so it compares directly against Point1.MSE.Grad / Point2.MSE.Grad.
+	Point1Adjoint lossPoint `json:"point1Adjoint"`
+	Point2Adjoint lossPoint `json:"point2Adjoint"`
 
 	Adam   *adamGolden   `json:"adam,omitempty"`
 	Nelder *nelderGolden `json:"nelder,omitempty"`
@@ -288,6 +298,21 @@ func lossAt(prob *learn.LearnableProblem, data *learn.Dataset, params []float64,
 	}, sens
 }
 
+// adjointAt evaluates MSELossAdjoint at the CURRENT parameter values of prob
+// (the caller has already called SetAllParams, e.g. via a prior lossAt call
+// sharing the same prob) — the reverse-mode counterpart of lossAt's forward
+// computation, packed with the identical ParamIndex so it compares directly
+// against the forward-mode grad already recorded for the same point.
+func adjointAt(prob *learn.LearnableProblem, data *learn.Dataset, opts *solver.Options) lossPoint {
+	res, err := learn.MSELossAdjoint(prob, data, solver.Tsit5(), opts)
+	if err != nil {
+		log.Fatalf("adjoint: %v", err)
+	}
+	mustFinite("adjoint loss", res.Loss)
+	mustFinite("adjoint grad", res.Grad...)
+	return lossPoint{Loss: res.Loss, Grad: res.Grad}
+}
+
 // valueGrad replicates fitGradientCore's gradient evaluation (forward mode,
 // default MSELossGrad): the closure both Adam goldens are recorded through.
 func valueGrad(prob *learn.LearnableProblem, data *learn.Dataset, indices map[string][2]int, opts *solver.Options) func([]float64) (float64, []float64) {
@@ -332,6 +357,9 @@ func buildCase(name string, exact, adaptive bool, model string, tspan [2]float64
 	c.Point1 = p1
 	c.ParamIndex = sens.ParamIndex
 	c.NumParams = sens.NumParams
+	// prob's rates are already set to params0 (lossAt's SetAllParams) — read
+	// the adjoint gradient at the same point before anything mutates them.
+	c.Point1Adjoint = adjointAt(prob, ds, sopts)
 
 	last := len(sens.T) - 1
 	mid := last / 2
@@ -367,6 +395,7 @@ func buildCase(name string, exact, adaptive bool, model string, tspan [2]float64
 	_, indices2 := prob2.GetAllParams()
 	p2, _ := lossAt(prob2, ds, point2, indices2, sopts)
 	c.Point2 = p2
+	c.Point2Adjoint = adjointAt(prob2, ds, sopts)
 
 	// --- Adam iterate sequence via MinimizeGradient with a recording fg ---
 	if withAdam {

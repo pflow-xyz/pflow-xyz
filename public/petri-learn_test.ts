@@ -6,6 +6,18 @@
 // JSParityOptions. This test replays every golden through
 // public/petri-learn.js:
 //
+//   - point1Adjoint/point2Adjoint hold learn.MSELossAdjoint's reverse-mode
+//     loss+grad at the same two points as point1/point2, asserted under the
+//     SAME exact/tolerance rule as everything else. This checks JS-adjoint
+//     against Go-adjoint, not adjoint against forward-mode sensitivities: the
+//     adjoint forward pass is a plain (unaugmented) solve, so on an ADAPTIVE
+//     case its accepted-step grid genuinely differs from the augmented
+//     sensitivity ODE's grid (extra sensitivity states feed the same error
+//     controller), and even a fixed-step case's gradient is a numerically
+//     distinct computation from forward-mode's — bit-identical loss (same
+//     dt grid) but NOT bit-identical grad. Both are correct; they are
+//     different algorithms. See learn/adjoint.go's module doc.
+//
 //   - cases with exact=true (decay-fixed, tied-fixed: JSParityOptions with
 //     adaptive=false) are asserted BIT-FOR-BIT: the JS arithmetic is
 //     expression-for-expression identical to the Go code, no floating-point
@@ -48,6 +60,7 @@ import {
   fitRates,
   newDataset,
   hingeRankLoss,
+  mseLossAdjoint,
 } from "./petri-learn.js";
 
 const ADAPTIVE_REL_TOL = 1e-12;
@@ -181,6 +194,26 @@ for (const c of (goldens as Any).cases) {
     const [rl2, rg2] = relativeMseLossGrad(sens2, data);
     expectNum(rl2, c.point2.relMse.loss, exact, "point2 relMse loss");
     expectVec(rg2, c.point2.relMse.grad, exact, "point2 relMse grad");
+  });
+
+  Deno.test(`learn parity [${c.name}]: adjoint MSE loss+grad (${mode})`, () => {
+    const data = caseDataset(c);
+
+    // Point1: the declared rates.
+    const prob = buildProblem(c);
+    const adj1 = mseLossAdjoint(prob, data, Tsit5(), caseSolverOpts(c));
+    assert(!adj1.truncated, "point1 adjoint truncated");
+    expectNum(adj1.loss, c.point1Adjoint.loss, exact, "point1 adjoint loss");
+    expectVec(adj1.grad, c.point1Adjoint.grad, exact, "point1 adjoint grad");
+
+    // Point2: a second fixed parameter point.
+    const prob2 = buildProblem(c);
+    const [, idx2] = prob2.getAllParams();
+    prob2.setAllParams(c.point2.params, idx2);
+    const adj2 = mseLossAdjoint(prob2, data, Tsit5(), caseSolverOpts(c));
+    assert(!adj2.truncated, "point2 adjoint truncated");
+    expectNum(adj2.loss, c.point2Adjoint.loss, exact, "point2 adjoint loss");
+    expectVec(adj2.grad, c.point2Adjoint.grad, exact, "point2 adjoint grad");
   });
 
   if (c.adam) {
