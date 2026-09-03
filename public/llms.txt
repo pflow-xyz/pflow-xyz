@@ -35,6 +35,11 @@ weight component means "this color is not involved".
   for Petri-net ODE models — forward + reverse-mode (adjoint) sensitivities,
   MSE/relative loss gradients, Adam / Nelder-Mead / coordinate-descent,
   `fitRates` convenience
+- [petri-ssa.js](https://pflow.xyz/petri-ssa.js): portable Gillespie SSA
+  (discrete-stochastic simulation) — byte-exact with go-pflow, pflow-rs and
+  pflow-jl via a fixed PRNG (SplitMix64 → xoshiro256**) and a ported log;
+  `simulate(model, {horizon, samples, realizations, seed})` → ensemble
+  mean/stddev/final per place
 
 ## Services
 

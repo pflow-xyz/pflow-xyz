@@ -34,6 +34,13 @@ npm.
   `hingeRankLoss`, `fit`/`fitGradient`/`fitRates` (the no-boilerplate
   entry point: fit per-transition scalar rates to observed trajectories).
   petri-solver.js's bytes are untouched by this module.
+- https://pflow.xyz/petri-ssa.js — portable Gillespie SSA (discrete-stochastic
+  simulation), byte-exact with go-pflow, pflow-rs and pflow-jl via a fixed
+  PRNG (SplitMix64 → xoshiro256**) and a ported log; no dependency on the
+  other modules. `simulate(model, {horizon, samples, realizations, seed})` →
+  `{ places, times, series: {id: {values, stddev}}, final }` (ensemble
+  mean/stddev/final per place). Exports: splitmix64, Xoshiro256, plog,
+  combinations, compile, simulate.
 
 The ODE semantics are behaviorally identical to go-pflow
 (github.com/pflow-xyz/go-pflow) — enforced by a differential parity test

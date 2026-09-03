@@ -32,6 +32,8 @@ PUBLIC_FILES = [
     "petri-sim.js",
     "petri-sim_test.ts",
     "petri-solver.js",
+    "petri-ssa.js",
+    "petri-ssa_test.ts",
     "petri-view.css",
     "petri-view.js",
     "repo-metadata.json",

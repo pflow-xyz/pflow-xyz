@@ -274,6 +274,29 @@ in this editor. Locked by `make test-parity-behavior` (`parity/sim/` and
   (bit-identical loss, not bit-identical grad) — both correct, different
   algorithms. No RMSE adjoint exists on either side: sqrt after the sum does
   not decompose pointwise.
+- **Discrete-stochastic SSA** (`parity/ssa` + `public/petri-ssa.js`): a
+  Gillespie direct-method simulator held BYTE-EXACT to go-pflow's `stochastic`
+  package (portable path) — and, through the same goldens, to pflow-rs and
+  pflow-jl. Three things are pinned so no platform can leak in: the PRNG
+  (SplitMix64-seeded xoshiro256**, BigInt with explicit 64-bit masks), the
+  logarithm (`plog`, a port of pure-Go `math.log`; `Math.log` differs on ~7%
+  of inputs, `log(3.0)` is the witness, and must never appear on that path),
+  and arithmetic order (propensity sums, cumulative scan, naive population
+  variance — all written in the spec's order). The five goldens in
+  `parity/ssa/*.json` (chain, sir, dimer, gates, coffeeshop) are Go-generated:
+  go-pflow's `cmd/ssa-goldens` writes `stochastic/testdata/portable/*.json` on
+  branch `discrete-stochastic`, and the copies here are byte-identical
+  (`parity/ssa/README.md` names the generating commit and the sha256 of every
+  file; `sha256sum` both sides to verify). `public/petri-ssa_test.ts` replays
+  every double with `!==` in `make test-js` and in CI. This repo consumes the
+  goldens, it does not produce them — `go.mod` pins a go-pflow release without
+  the stochastic package, so there is no Go generator or Go-side test for it
+  here. `compile()` takes `places`/`transitions` as arrays; an id-keyed object
+  is accepted only when no key is integer-like (JS enumerates those first, in
+  numeric order, so the declaration order Go uses would be lost — it throws
+  instead). `petri-ssa.js` is deliberately NOT in `//public:browser_modules`
+  (that list pairs positionally with bitwrap-io's vendored list); no consumer
+  lock changes.
 - Changing firing semantics on either side means changing BOTH engines and
   their tests in lockstep — the differential fails otherwise. go-pflow's side
   of the contract is pinned by Go-native tests in its reachability package.
