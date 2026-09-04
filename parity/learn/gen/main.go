@@ -23,10 +23,12 @@
 // transitions can differ between two Go runs in the last bit (float addition
 // is commutative but not associative). The decay and tied cases are designed
 // so no such sum exists — their goldens are bit-stable and the JS test
-// asserts exact equality. The SIR case has one (place I), so its goldens
-// carry last-bit jitter and the JS test asserts a tight relative tolerance
-// instead; its Adam sequence is excluded (a last-bit difference can flip an
-// adaptive-step acceptance and diverge macroscopically).
+// asserts exact equality for the fixed-step variants. The SIR case has one
+// (place I), so its goldens carry last-bit jitter; its Adam sequence is
+// excluded (a last-bit difference can flip an adaptive-step acceptance and
+// diverge macroscopically). Adaptive cases are asserted at a relative
+// tolerance regardless — the header of public/petri-learn_test.ts has the
+// math.Pow/Math.pow ulp mechanism and the measured numbers.
 package main
 
 import (

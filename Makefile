@@ -1,4 +1,4 @@
-.PHONY: all build run clean test test-js test-parity test-publish test-npm-pack test-theme test-version publish
+.PHONY: all build run clean test test-js test-parity ode-expected learn-goldens test-publish test-npm-pack test-theme test-version publish
 
 # Build the webserver
 build:
@@ -30,7 +30,7 @@ test: test-js test-parity test-parity-behavior test-publish test-npm-pack test-t
 
 # Run JavaScript tests
 test-js:
-	@deno test public/petri-sim_test.ts public/petri-colors_test.ts public/petri-learn_test.ts
+	@deno test --allow-read=parity/ode public/petri-sim_test.ts public/petri-colors_test.ts public/petri-solver_test.ts public/petri-learn_test.ts parity/ode/ode_expected_test.ts
 
 # Regenerate the differentiable-fitting parity goldens (parity/learn/goldens.json)
 # from go-pflow's learn package. Deliberate, never a side effect of another
@@ -38,6 +38,14 @@ test-js:
 learn-goldens:
 	@go run ./parity/learn/gen
 	@echo "regenerated parity/learn/goldens.json — run 'make test-js' to verify"
+
+# Regenerate the ODE parity trajectories (parity/ode/expected.json) from
+# go-pflow's Tsit5 over parity/ode/fixtures.json. Same rule: deliberate only.
+# pflow-rs carries a byte-identical copy under crates/pflow-solver/tests/fixtures/ode/
+# — re-copy both files there after regenerating.
+ode-expected:
+	@go run ./parity/ode/gen
+	@echo "regenerated parity/ode/expected.json — run 'make test-js' to verify"
 
 # npm package verification: pack the tarball, extract it, assert the import
 # graph ships and site media doesn't, smoke-test the solver from the extracted

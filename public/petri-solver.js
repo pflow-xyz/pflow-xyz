@@ -394,7 +394,15 @@ export function Tsit5() {
       [0.09646076681806523, 0.01, 0.4798896504144996, 1.379008574103742, -3.290069515436081, 2.324710524099774, 0]
     ],
     b: [0.09646076681806523, 0.01, 0.4798896504144996, 1.379008574103742, -3.290069515436081, 2.324710524099774, 0],
-    bhat: [0.001780011052226, 0.000816434459657, -0.007880878010262, 0.144711007173263, -0.582357165452555, 0.458082105929187, 1.0 / 66.0]
+    // Embedded 5(4) error-estimate weights: bhat[i] = b[i] - b4[i], the
+    // difference between the 5th-order and embedded 4th-order solutions
+    // (OrdinaryDiffEq's btilde). The last entry is -1/66, NOT +1/66: b[6] = 0
+    // and the embedded weight is 1/66, so the difference is negative. With the
+    // wrong sign the vector summed to 2/66 instead of 0, the estimate was
+    // O(dt) rather than O(dt^5), and step control was first order (step count
+    // grew ~10x per decade of reltol instead of ~10^(1/5)x). The weights must
+    // sum to zero; petri-solver_test.ts asserts it.
+    bhat: [0.001780011052226, 0.000816434459657, -0.007880878010262, 0.144711007173263, -0.582357165452555, 0.458082105929187, -1.0 / 66.0]
   };
 }
 

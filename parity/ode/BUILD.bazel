@@ -8,6 +8,7 @@ go_test(
     # at //public rather than a copy is the whole point of the differential.
     data = [
         "fixtures.json",
+        "expected.json",
         "ode_replay.mjs",
         "//public:solver_engine",
     ],
@@ -15,4 +16,15 @@ go_test(
         "@com_github_pflow_xyz_go_pflow//parser",
         "@com_github_pflow_xyz_go_pflow//solver",
     ],
+)
+
+# Shared ODE parity corpus: the hand-formatted fixture models plus the
+# go-pflow trajectories the JS replay and pflow-rs are held to.
+filegroup(
+    name = "corpus",
+    srcs = [
+        "expected.json",
+        "fixtures.json",
+    ],
+    visibility = ["//visibility:public"],
 )
