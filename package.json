@@ -20,6 +20,8 @@
     "state-machine",
     "workflow",
     "mass-action",
+    "gillespie",
+    "stochastic-simulation",
     "json-ld"
   ],
   "exports": {
@@ -34,7 +36,8 @@
     "./llms.txt": "./public/llms.txt",
     "./llms-full.txt": "./public/llms-full.txt",
     "./package.json": "./package.json",
-    "./petri-learn.js": "./public/petri-learn.js"
+    "./petri-learn.js": "./public/petri-learn.js",
+    "./petri-ssa.js": "./public/petri-ssa.js"
   },
   "sideEffects": [
     "./public/petri-view.js",
@@ -44,6 +47,7 @@
     "public/petri-solver.js",
     "public/petri-sim.js",
     "public/petri-learn.js",
+    "public/petri-ssa.js",
     "public/petri-colors.js",
     "public/petri-view.js",
     "public/petri-view.css",

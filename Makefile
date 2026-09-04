@@ -30,7 +30,7 @@ test: test-js test-parity test-parity-behavior test-publish test-npm-pack test-t
 
 # Run JavaScript tests
 test-js:
-	@deno test --allow-read=parity/ode public/petri-sim_test.ts public/petri-colors_test.ts public/petri-solver_test.ts public/petri-learn_test.ts parity/ode/ode_expected_test.ts
+	@deno test --allow-read=parity/ode public/petri-sim_test.ts public/petri-colors_test.ts public/petri-solver_test.ts public/petri-learn_test.ts public/petri-ssa_test.ts parity/ode/ode_expected_test.ts
 
 # Regenerate the differentiable-fitting parity goldens (parity/learn/goldens.json)
 # from go-pflow's learn package. Deliberate, never a side effect of another
