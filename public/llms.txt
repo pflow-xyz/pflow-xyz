@@ -41,6 +41,14 @@ weight component means "this color is not involved".
   `simulate(model, {horizon, samples, realizations, seed})` → ensemble
   mean/stddev/final per place
 
+**Which one for which question**: `petri-solver.js` refuses (rather than
+silently mismodeling) a net with a read arc, inhibitor, reached capacity or
+guard — use `petri-ssa.js` for those, or whenever token counts are small
+enough that variance is the answer, not noise around it. Above arc weight 1
+the two compute genuinely different rate laws, not a continuous vs.
+discrete version of the same one. Full rules: `docs/engine-selection.md`
+(vendored from go-pflow, `scripts/docs-sync.sh check`).
+
 ## Services
 
 - [Analysis & codegen MCP server](https://pilot.pflow.xyz/mcp): petri-pilot

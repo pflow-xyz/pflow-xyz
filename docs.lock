@@ -1,0 +1,9 @@
+# docs.lock — prose vendored from go-pflow.
+#
+# DO NOT EDIT THE VENDORED FILES IN THIS REPO. Change them in go-pflow
+# and re-run ./scripts/docs-sync.sh sync. 'check' fails the build otherwise.
+#
+# source: github.com/pflow-xyz/go-pflow @ 43720f34b073091cc5a81afc87db828f058d7dde
+#
+# <sha256>  <path in this repo>  <path in go-pflow>
+bde2ef54586fd2b8328543795aff7b1ff9076c082c8125199395eb9627291faa  docs/engine-selection.md  docs/engine-selection.md

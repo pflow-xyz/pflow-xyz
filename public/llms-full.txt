@@ -42,6 +42,19 @@ npm.
   mean/stddev/final per place). Exports: splitmix64, Xoshiro256, plog,
   combinations, compile, simulate.
 
+Which one for which question: petri-solver.js's ODE has no firing instant,
+so it cannot express a read arc, an inhibitor, a reached capacity or a
+guard — the go-pflow reference implementation refuses a model that has any
+of these rather than silently ignore them, and this module's semantics
+match it. Use petri-ssa.js for those, or whenever token counts are small
+enough that variance is the answer rather than noise around it. Above
+input-arc weight 1 the ODE and SSA rate laws diverge genuinely (mass
+action multiplies each input's concentration in once regardless of
+weight; SSA's propensity uses the full combinatorial C(m, weight) term) —
+not a bug in either, a different question. Full rules with a worked
+example: docs/engine-selection.md (vendored from go-pflow,
+scripts/docs-sync.sh check/sync).
+
 The ODE semantics are behaviorally identical to go-pflow
 (github.com/pflow-xyz/go-pflow) — enforced by a differential parity test
 suite — so browser results match server-side analysis.

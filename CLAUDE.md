@@ -108,6 +108,9 @@ examples/                # Example Petri nets in JSON-LD
 - **public/petri-solver.js** - Standalone ODE solver for simulations
 - **internal/seal/seal.go** - CID computation from JSON-LD
 - **internal/store/store.go** - Filesystem storage for objects
+- **docs/engine-selection.md** - which engine (ODE/SSA/SDE) for which
+  question; vendored from go-pflow (`scripts/docs-sync.sh check`/`sync`,
+  same hash-lock pattern as the shared browser JS below)
 
 ## API Endpoints
 
