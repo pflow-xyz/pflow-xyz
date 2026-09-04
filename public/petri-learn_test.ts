@@ -31,17 +31,31 @@
 //     coordinate-descent (Adam's integer-exponent bias-correction pow is
 //     ported bit-exactly as goPowInt).
 //   - adaptive cases (decay, sir, tied: JSParityOptions as-is) are asserted
-//     at 1e-12 relative instead, and that bound is genuinely unreachable to
+//     at 1e-9 relative instead, and that bound is genuinely unreachable to
 //     tighten to zero: Go's adaptive step controller calls math.Pow, whose
 //     fractional-exponent path runs SLEEF-derived amd64 assembly (even
 //     CPU-dependent via FMA) that V8's Math.pow differs from by 1-2 ulp
-//     (measured), perturbing every accepted dt. sir additionally sums three
-//     flux terms into place I from two transitions, and Go iterates its maps
-//     in RANDOMIZED order, so even two Go generator runs differ in the last
-//     bit there (measured <= ~1e-14 relative). sir's Adam sequence is
-//     excluded from the goldens because a last-bit difference can flip an
-//     adaptive-step acceptance and diverge macroscopically. Measured actual
-//     agreement of the adaptive cases is ~1e-14 relative or better.
+//     (measured), perturbing an accepted dt in its last bit. sir additionally
+//     sums three flux terms into place I from two transitions, and Go
+//     iterates its maps in RANDOMIZED order, so even two Go generator runs
+//     differ in the last bit there. sir's Adam sequence is excluded from the
+//     goldens because a last-bit difference can flip an adaptive-step
+//     acceptance and diverge macroscopically.
+//
+//     Measured agreement (2026-09-03, after the Tsit5 error-estimate fix that
+//     took decay from 734 accepted steps to 13): trajectories and
+//     sensitivities <= 2.2e-12, point losses/gradients <= 1.2e-11, and the
+//     Adam iterate sequences <= 9.6e-11 (decay, call 21, grad[0]). Verified
+//     mechanism, not guessed: on decay at that theta the Go and JS grids
+//     agree bit-for-bit through step 4 and differ by exactly one ulp of t
+//     from step 5 (the first controller step whose Math.pow rounds
+//     differently), after which sensitivities differ by ~2e-15 relative —
+//     Adam then compounds that through its moment estimates across 26
+//     sequential evaluations. Before the fix the bound held at ~1e-14 only
+//     because the O(dt) error estimate kept dt near 0.01, where one ulp of dt
+//     is 1.7e-18 absolute; at dtmax=1 it is 2.2e-16, a hundredfold larger
+//     perturbation of the same path. 1e-9 leaves 10x headroom over the
+//     largest measured value.
 
 import { assert, assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import goldens from "../parity/learn/goldens.json" with { type: "json" };
@@ -63,7 +77,7 @@ import {
   mseLossAdjoint,
 } from "./petri-learn.js";
 
-const ADAPTIVE_REL_TOL = 1e-12;
+const ADAPTIVE_REL_TOL = 1e-9;
 
 // deno-lint-ignore no-explicit-any
 type Any = any;
