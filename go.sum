@@ -73,8 +73,8 @@ github.com/multiformats/go-varint v0.1.0 h1:i2wqFp4sdl3IcIxfAonHQV9qU5OsZ4Ts9IOo
 github.com/multiformats/go-varint v0.1.0/go.mod h1:5KVAVXegtfmNQQm/lCY+ATvDzvJJhSkUlGQV9wgObdI=
 github.com/olekukonko/tablewriter v0.0.5 h1:P2Ga83D34wi1o9J6Wh1mRuqd4mF/x/lgBS7N7AbDhec=
 github.com/olekukonko/tablewriter v0.0.5/go.mod h1:hPp6KlRPjbx+hW8ykQs1w3UBbZlj6HuIJcUGPhkA7kY=
-github.com/pflow-xyz/go-pflow v0.25.0 h1:S5PFSRTHqx5zmTtoDak57g0cfrnYNnaBvsT06Q1SJY8=
-github.com/pflow-xyz/go-pflow v0.25.0/go.mod h1:srVGUDapyHz0y0gWmObVc9e7ZBt+CzUDlcMmjoAEDX8=
+github.com/pflow-xyz/go-pflow v0.26.0 h1:gecb4rRWvTmF2esF8odFFKUwMjCX8m0q34NVEHub3KM=
+github.com/pflow-xyz/go-pflow v0.26.0/go.mod h1:srVGUDapyHz0y0gWmObVc9e7ZBt+CzUDlcMmjoAEDX8=
 github.com/piprate/json-gold v0.7.0 h1:bEMirgA5y8Z2loTQfxyIFfY+EflxH1CTP6r/KIlcJNw=
 github.com/piprate/json-gold v0.7.0/go.mod h1:RVhE35veDX19r5gfUAR+IYHkAUuPwJO8Ie/qVeFaIzw=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
