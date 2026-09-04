@@ -31,6 +31,8 @@ PUBLIC_FILES = [
     "petri-learn_test.ts",
     "petri-sim.js",
     "petri-sim_test.ts",
+    "petri-sde.js",
+    "petri-sde_test.ts",
     "petri-solver.js",
     "petri-ssa.js",
     "petri-ssa_test.ts",

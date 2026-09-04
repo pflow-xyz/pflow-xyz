@@ -303,6 +303,24 @@ in this editor. Locked by `make test-parity-behavior` (`parity/sim/` and
 - Changing firing semantics on either side means changing BOTH engines and
   their tests in lockstep — the differential fails otherwise. go-pflow's side
   of the contract is pinned by Go-native tests in its reachability package.
+- **Chemical Langevin SDE** (`public/petri-sde.js`): the third leg of
+  Petri.jl's ODEProblem/JumpProblem/SDEProblem trio (go-pflow ROADMAP.md G6),
+  a port of go-pflow's `stochastic/sde.go`. Continuous state via
+  Euler-Maruyama (20 fixed internal substeps per reported grid point), but
+  with the net's own intrinsic firing noise rather than SSA's discrete events
+  or the ODE's none at all. Reuses `petri-ssa.js`'s `compile()`,
+  `Xoshiro256` and `plog` rather than duplicating them. Refuses a gated model
+  (read arc, inhibitor, reachable capacity) exactly as `Forecast`/
+  `SimulateSDE` do on the Go side. Not yet part of the byte-exact
+  cross-language contract SSA has — no `parity/sde/` goldens exist — but its
+  Gaussian sampler (`GaussianSampler`, Marsaglia polar over `plog` + the
+  IEEE-754-exact `Math.sqrt`, deliberately not Box-Muller which would need a
+  second ported transcendental) is checked bit-for-bit in
+  `public/petri-sde_test.ts` against go-pflow's own
+  `stochastic/portable_test.go` `TestPortableNormalVectors` at seed 42 (Go is
+  the reference implementation; there is no external SDE spec). The
+  remaining tests are consistency checks against this repo's own SSA,
+  mirroring go-pflow's `stochastic/sde_test.go`.
 
 **`public/` is the canonical source for shared browser modules.** bitwrap-io,
 stackedup-gg and modeldao-org each serve their own copy (each embeds its own

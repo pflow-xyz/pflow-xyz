@@ -41,19 +41,36 @@ npm.
   `{ places, times, series: {id: {values, stddev}}, final }` (ensemble
   mean/stddev/final per place). Exports: splitmix64, Xoshiro256, plog,
   combinations, compile, simulate.
+- https://pflow.xyz/petri-sde.js — chemical Langevin SDE, the third leg of
+  Petri.jl's ODEProblem/JumpProblem/SDEProblem trio: continuous state via
+  Euler-Maruyama, but with the net's own intrinsic firing noise rather than
+  SSA's discrete events or the ODE's none at all. Reuses petri-ssa.js's
+  compile(), Xoshiro256 and plog rather than duplicating them.
+  `simulateSDE(model, {horizon, samples, realizations, seed})` → the same
+  shape as simulate(), plus `diverged`/`reason`/`caveats` when the model
+  gates (read arc, inhibitor, reached capacity — none has a continuous
+  analogue). Exports: GaussianSampler, combinationsReal, simulateSDE,
+  CHEMICAL_LANGEVIN_ASSUMPTION. Not yet part of the byte-exact
+  cross-language contract SSA has — its Gaussian sampler is checked
+  bit-for-bit against go-pflow's own reference vectors, but the ensemble
+  output is checked only for consistency against this module's own SSA.
 
 Which one for which question: petri-solver.js's ODE has no firing instant,
 so it cannot express a read arc, an inhibitor, a reached capacity or a
 guard — the go-pflow reference implementation refuses a model that has any
 of these rather than silently ignore them, and this module's semantics
-match it. Use petri-ssa.js for those, or whenever token counts are small
-enough that variance is the answer rather than noise around it. Above
-input-arc weight 1 the ODE and SSA rate laws diverge genuinely (mass
+match it. petri-sde.js refuses the same way, for the same reason. Use
+petri-ssa.js for a gated model, or whenever token counts are small enough
+that variance is the answer rather than noise around it; use petri-sde.js
+when you want that noise without individual discrete events (large
+populations, continuous-state tooling that still needs the fluctuation).
+Above input-arc weight 1 all three rate laws diverge genuinely (mass
 action multiplies each input's concentration in once regardless of
-weight; SSA's propensity uses the full combinatorial C(m, weight) term) —
-not a bug in either, a different question. Full rules with a worked
-example: docs/engine-selection.md (vendored from go-pflow,
-scripts/docs-sync.sh check/sync).
+weight; SSA's and the SDE's propensity use the full combinatorial
+C(m, weight) term, continuous in the SDE's case) — not a bug in any of
+them, a different question. Full rules with a worked example:
+docs/engine-selection.md (vendored from go-pflow, scripts/docs-sync.sh
+check/sync).
 
 The ODE semantics are behaviorally identical to go-pflow
 (github.com/pflow-xyz/go-pflow) — enforced by a differential parity test

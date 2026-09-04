@@ -40,14 +40,23 @@ weight component means "this color is not involved".
   pflow-jl via a fixed PRNG (SplitMix64 → xoshiro256**) and a ported log;
   `simulate(model, {horizon, samples, realizations, seed})` → ensemble
   mean/stddev/final per place
+- [petri-sde.js](https://pflow.xyz/petri-sde.js): chemical Langevin SDE —
+  continuous state with the net's own intrinsic firing noise (Euler-Maruyama
+  over the same propensities/stoichiometry `petri-ssa.js` compiles);
+  `simulateSDE(model, {horizon, samples, realizations, seed})` → same shape
+  as `simulate`, plus `diverged`/`reason`/`caveats` when the model gates
+  (read arc, inhibitor, reached capacity — no continuous analogue). Not yet
+  byte-exact cross-language the way SSA is.
 
 **Which one for which question**: `petri-solver.js` refuses (rather than
 silently mismodeling) a net with a read arc, inhibitor, reached capacity or
-guard — use `petri-ssa.js` for those, or whenever token counts are small
-enough that variance is the answer, not noise around it. Above arc weight 1
-the two compute genuinely different rate laws, not a continuous vs.
-discrete version of the same one. Full rules: `docs/engine-selection.md`
-(vendored from go-pflow, `scripts/docs-sync.sh check`).
+guard — use `petri-ssa.js` (or `petri-sde.js`, same refusal) for those, or
+whenever token counts are small enough that variance is the answer, not
+noise around it; `petri-sde.js` sits between the two — noise, but no
+individual discrete events. Above arc weight 1 the three compute genuinely
+different rate laws, not a continuous vs. discrete version of the same one.
+Full rules: `docs/engine-selection.md` (vendored from go-pflow,
+`scripts/docs-sync.sh check`).
 
 ## Services
 
