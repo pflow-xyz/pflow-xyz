@@ -70,10 +70,10 @@ Full rules: `docs/engine-selection.md` (vendored from go-pflow,
 
 - CDN mirrors for strict-CSP hosts that block pflow.xyz — pin a tag, `@main`
   is cached ~12h by jsDelivr:
-  - [jsDelivr](https://cdn.jsdelivr.net/gh/pflow-xyz/pflow-xyz@v1.26.0/public/petri-solver.js)
+  - [jsDelivr](https://cdn.jsdelivr.net/gh/pflow-xyz/pflow-xyz@v1.27.0/public/petri-solver.js)
   - npm-backed (`@pflow-xyz/pflow-xyz` on npm since 2026-08-01):
-    `https://esm.sh/@pflow-xyz/pflow-xyz@1.26.0/petri-solver.js` or
-    `https://unpkg.com/@pflow-xyz/pflow-xyz@1.26.0/petri-solver.js`
+    `https://esm.sh/@pflow-xyz/pflow-xyz@1.27.0/petri-solver.js` or
+    `https://unpkg.com/@pflow-xyz/pflow-xyz@1.27.0/petri-solver.js`
   - cdnjs (pending acceptance — needs 800+ npm downloads/month or 200 GitHub
     stars; placeholder, 404s until then):
     `https://cdnjs.cloudflare.com/ajax/libs/pflow-xyz/<version>/petri-solver.js`

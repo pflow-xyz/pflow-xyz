@@ -124,14 +124,14 @@ loaded the module, so either source is self-sufficient:
 
 ```js
 const pf = await import("https://pflow.xyz/petri-solver.js")
-  .catch(() => import("https://cdn.jsdelivr.net/gh/pflow-xyz/pflow-xyz@v1.26.0/public/petri-solver.js"));
+  .catch(() => import("https://cdn.jsdelivr.net/gh/pflow-xyz/pflow-xyz@v1.27.0/public/petri-solver.js"));
 ```
 
 Pin a release tag (as above) or commit SHA — `@main` is cached ~12h by
 jsDelivr, so it lags the latest deploy. `@pflow-xyz/pflow-xyz` has been on npm
 since 2026-08-01, so npm-backed CDNs work too:
-`https://esm.sh/@pflow-xyz/pflow-xyz@1.26.0/petri-solver.js` or
-`https://unpkg.com/@pflow-xyz/pflow-xyz@1.26.0/petri-solver.js` (same paths
+`https://esm.sh/@pflow-xyz/pflow-xyz@1.27.0/petri-solver.js` or
+`https://unpkg.com/@pflow-xyz/pflow-xyz@1.27.0/petri-solver.js` (same paths
 work for petri-learn.js, petri-sim.js, etc. — see package.json's `exports`
 map). cdnjs listing is pending (needs 800+ npm downloads/month or 200 GitHub
 stars).
@@ -142,7 +142,7 @@ stars).
 <div id="plot"></div>
 <script type="module">
   const pf = await import("https://pflow.xyz/petri-solver.js")
-    .catch(() => import("https://cdn.jsdelivr.net/gh/pflow-xyz/pflow-xyz@v1.26.0/public/petri-solver.js"));
+    .catch(() => import("https://cdn.jsdelivr.net/gh/pflow-xyz/pflow-xyz@v1.27.0/public/petri-solver.js"));
 
   const model = { /* JSON-LD model as above */ };
   const net = pf.fromJSON(model);
