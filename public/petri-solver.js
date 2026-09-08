@@ -107,8 +107,13 @@ export function fromJSON(data) {
   // Parse places
   if (data.places) {
     for (const [label, placeData] of Object.entries(data.places)) {
-      const initial = placeData.initial || [];
-      const capacity = placeData.capacity || [];
+      // A null entry is the editor's "unbounded" (Infinity serialises as
+      // null); it becomes 0, which every engine already reads as unbounded,
+      // so a mixed vector like [5, null] keeps its color alignment. go-pflow's
+      // parser does the same — parity gate: petri-shape_test.ts.
+      const nullToZero = (v) => Array.isArray(v) ? v.map((c) => (c == null ? 0 : c)) : v;
+      const initial = nullToZero(placeData.initial) || [];
+      const capacity = nullToZero(placeData.capacity) || [];
       const x = placeData.x || 0;
       const y = placeData.y || 0;
       const labelText = placeData.label || null;
