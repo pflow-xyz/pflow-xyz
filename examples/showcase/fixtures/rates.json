@@ -7,5 +7,5 @@
   "leave": 0.5,
   "restock": 0.2
  },
- "_comment": "cafe-kinetics.json declared rates. Needed only against a pilot.pflow.xyz build older than petri-pilot branch fix/showcase-findings, whose petri_ode / petri_stochastic / petri_sde defaulted every rate to 1.0 instead of reading the model; newer builds read the model and take this only as an override"
+ "_comment": "cafe-kinetics.json declared rates, gathered in one place. petri_ode / petri_stochastic / petri_sde read the model's rate fields since petri-pilot ae425b5 and take this only as an override; an older build defaulted every rate to 1.0 and needed it"
 }

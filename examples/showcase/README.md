@@ -43,7 +43,8 @@ Fixtures under `fixtures/` are the inputs the analysis tools need beyond the
 model: `properties.json` (verify), `event-log.json` (conformance),
 `observations.json` (fit), `sample-path.json` (fit_discrete),
 `scenarios.json` (scenario), `extend-operations.json` (extend then diff),
-`firing-sequence.json` (simulate/replay), `rates.json` (see rough edge 1),
+`firing-sequence.json` (simulate/replay), `rates.json` (the declared rates
+in one place; see rough edge 1),
 `ssa-go-seed42.json` (written by `gocheck`).
 
 ## Theme: `cafe.jsonld`
@@ -101,8 +102,9 @@ rates the ODE ends at t=24 with beans 6.1, cups 0.09 and orders 85.3.
 - `petri_verify`: `brewing + machine_free == 1` and
   `barista_free + brewing + ready == 2` proved structurally; `bounded` refuted
   with a witness (`vip_arrives` repeats, covering marking grows); `served=1`
-  reached in 14 firings; the rest `unknown` at the 20 000-state cap. See rough
-  edge 4 for the `queue <= 8` refutation.
+  reached in 14 firings; the rest, including `queue <= 8`, `unknown` at the
+  20 000-state cap. The verdict also carries caveats naming how the analysis
+  net encoded the capacity, the read arc and the weighted inhibitor.
 - `petri_scenario`, five what-ifs on one seed, 10 realizations, 8 h:
 
   | scenario | served | walked out |
@@ -118,10 +120,9 @@ rates the ODE ends at t=24 with beans 6.1, cups 0.09 and orders 85.3.
 - `petri_ode` refuses this model (`diverged: true`) and names why: the read
   arc, two inhibitors, six non-kinetic arcs and the queue capacity that a
   continuous solve cannot honour, with the stochastic engine as the answer.
-  (On the live server before the `fix/showcase-findings` branch it ran anyway
-  and only appended those as caveats; the tool description promised the
-  refusal, the code did not keep it.) The Erlang stages are not a reason to
-  refuse: the check runs on the stage-expanded net.
+  The Erlang stages are not a reason to refuse: the check runs on the
+  stage-expanded net. (Before rough edge 9 it ran anyway and only appended
+  those as caveats.)
 - go-pflow: `ValidateSchedules` and `ValidateParameters` clean; `ExpandStages`
   turns 9 transitions into 11 (`finish_brew@1..3`); `SimulateSchedule` at seed
   42 × 10 gives served 119.5, walked out 39.7, agreeing with the pilot.
@@ -186,8 +187,9 @@ removed and nothing else changed.
 ## IV, V, VI, VII
 
 - **Loyalty DSL** validates (T-invariant `{gift}`) and parses in pflow-rs
-  (`3 states, 3 actions`). Simulation with bindings does not run; see rough
-  edge 5.
+  (`3 states, 3 actions`). `petri_simulate` with bindings earns 10 points for
+  ana, gifts 4 to ben, redeems 3, and refuses the 5-point overdraft by guard
+  (the map ledger is visible to guards and constraints since rough edge 5).
 - **Market**: a 200-cash buy against reserves 4000/1000 returns 47.48 beans at
   5.03 % price impact; the depth curve and impermanent-loss curve (breakeven at
   r = 0.55 and 1.82 for 20 % fee APY over 90 days) are pure algebra;
@@ -203,19 +205,19 @@ removed and nothing else changed.
 
 ## Rough edges found while building this, and fixed
 
-Building the showcase surfaced eight behaviours in petri-pilot's tools. All
-eight are fixed on the petri-pilot branch `fix/showcase-findings`, each with
-a regression test that pins it (`pkg/mcp/showcase_fixes_test.go`) and a
+Building the showcase surfaced ten behaviours in petri-pilot's tools. All
+ten are fixed and deployed on pilot.pflow.xyz (petri-pilot `ae425b5`), each
+with a regression test that pins it (`pkg/mcp/showcase_fixes_test.go`) and a
 skip-guarded replay of these very files (`pkg/mcp/showcase_files_test.go`).
-Until that branch is deployed to pilot.pflow.xyz the live server still shows
-the old behaviour, which is why they stay listed here.
+They stay listed because they describe what the files exercise.
 
 1. `petri_ode`, `petri_stochastic`, `petri_sde`, `petri_fit` and every
    ODE-derived tool defaulted every transition to rate 1.0 and ignored both
    the transitions' `rate` fields and `simulation.solver.rates`. Now every
    tool starts from the model's declared rates (the same helper
    `petri_scenario` always used) and the `rates=` argument overrides.
-   `fixtures/rates.json` remains for the live server.
+   `fixtures/rates.json` documents the declared rates for readers and for
+   any older build.
 2. `petri_analyze` with `full=true` failed on the colored theme with
    `json: unsupported value: +Inf`. Non-finite element impacts are now clamped
    to the largest finite impact and labelled `critical`.
@@ -251,7 +253,7 @@ the old behaviour, which is why they stay listed here.
     bound, read arc as a reversed inhibitor, inhibitor weight as a threshold),
     the way sim.pflow.xyz always did.
 
-The same branch also brings four readings over from sim.pflow.xyz as pilot
+The same change also brought four readings over from sim.pflow.xyz as pilot
 tools on an inline model: `petri_invariants` (Farkas laws, T-invariants,
 siphons and traps with deadlock witnesses), `petri_canonical` (exact
 automorphism orbits and a renaming-invariant id), `petri_lumping` (backward
