@@ -1,0 +1,11 @@
+[
+  "deadlock-free",
+  "bounded",
+  "live",
+  "mutex:brewing,machine_free",
+  "brewing + machine_free == 1",
+  "barista_free + brewing + ready == 2",
+  "unreachable:brewing=2",
+  "reachable:served=1",
+  { "kind": "invariant", "name": "the queue never exceeds its capacity", "expr": "queue <= 8" }
+]

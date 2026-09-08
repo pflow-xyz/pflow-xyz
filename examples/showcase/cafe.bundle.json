@@ -1,0 +1,319 @@
+{
+  "@context": "https://pflow.xyz/schema",
+  "@type": "PetriNetBundle",
+  "name": "cafe-bundle",
+  "description": "Variation VI \u2014 the caf\u00e9 as three independently authored nets composed by links. The counter runs orders, the pantry holds stock, the staff net is the people who can only do one thing at a time. An event link fuses each start_X with the brew_X that pays for it and the acquire_X that takes a barista off the floor; finish_X releases the barista. The staff net names its transitions per drink on purpose: event fusion is transitive, and one shared acquire would fuse espresso and latte into a single start. A guard link lets the counter observe the pantry: start_espresso is gated on beans >= 2 without the counter ever owning a bean. Resource arcs in the pantry and staff nets are kinetic:false so a bigger pantry does not brew faster: demand sets the pace, everything else sets permission. Links that fuse the same transition share one id (espresso_started names both the stock draw and the barista seizure) because the fused transition is named after the link.",
+  "namespace": true,
+  "arc_merge": "sum",
+  "subnets": [
+    {
+      "@type": "PetriNet",
+      "id": "counter",
+      "net_type": "WorkflowNet",
+      "model": {
+        "name": "counter",
+        "places": [
+          {
+            "id": "pending",
+            "initial": 0
+          },
+          {
+            "id": "in_progress",
+            "initial": 0
+          },
+          {
+            "id": "done",
+            "initial": 0
+          }
+        ],
+        "transitions": [
+          {
+            "id": "order",
+            "rate": 20
+          },
+          {
+            "id": "start_espresso",
+            "rate": 720
+          },
+          {
+            "id": "start_latte",
+            "rate": 720
+          },
+          {
+            "id": "finish_espresso",
+            "rate": 20
+          },
+          {
+            "id": "finish_latte",
+            "rate": 12
+          }
+        ],
+        "arcs": [
+          {
+            "from": "order",
+            "to": "pending"
+          },
+          {
+            "from": "pending",
+            "to": "start_espresso"
+          },
+          {
+            "from": "start_espresso",
+            "to": "in_progress"
+          },
+          {
+            "from": "pending",
+            "to": "start_latte"
+          },
+          {
+            "from": "start_latte",
+            "to": "in_progress"
+          },
+          {
+            "from": "in_progress",
+            "to": "finish_espresso"
+          },
+          {
+            "from": "finish_espresso",
+            "to": "done"
+          },
+          {
+            "from": "in_progress",
+            "to": "finish_latte"
+          },
+          {
+            "from": "finish_latte",
+            "to": "done"
+          }
+        ]
+      }
+    },
+    {
+      "@type": "PetriNet",
+      "id": "pantry",
+      "net_type": "ResourceNet",
+      "model": {
+        "name": "pantry",
+        "places": [
+          {
+            "id": "beans",
+            "initial": 60,
+            "exported": true
+          },
+          {
+            "id": "milk",
+            "initial": 30,
+            "exported": true
+          }
+        ],
+        "transitions": [
+          {
+            "id": "brew_espresso"
+          },
+          {
+            "id": "brew_latte"
+          },
+          {
+            "id": "restock",
+            "rate": 0.5
+          }
+        ],
+        "arcs": [
+          {
+            "from": "beans",
+            "to": "brew_espresso",
+            "weight": 2,
+            "kinetic": false
+          },
+          {
+            "from": "beans",
+            "to": "brew_latte",
+            "kinetic": false
+          },
+          {
+            "from": "milk",
+            "to": "brew_latte",
+            "kinetic": false
+          },
+          {
+            "from": "restock",
+            "to": "beans",
+            "weight": 30
+          },
+          {
+            "from": "restock",
+            "to": "milk",
+            "weight": 15
+          }
+        ]
+      },
+      "ports": [
+        {
+          "id": "beans",
+          "kind": "observe",
+          "target": "place",
+          "place": "beans"
+        }
+      ]
+    },
+    {
+      "@type": "PetriNet",
+      "id": "staff",
+      "net_type": "ResourceNet",
+      "model": {
+        "name": "staff",
+        "places": [
+          {
+            "id": "available",
+            "initial": 2,
+            "exported": true
+          },
+          {
+            "id": "busy",
+            "initial": 0
+          }
+        ],
+        "transitions": [
+          {
+            "id": "acquire_espresso"
+          },
+          {
+            "id": "acquire_latte"
+          },
+          {
+            "id": "release_espresso"
+          },
+          {
+            "id": "release_latte"
+          }
+        ],
+        "arcs": [
+          {
+            "from": "available",
+            "to": "acquire_espresso",
+            "kinetic": false
+          },
+          {
+            "from": "acquire_espresso",
+            "to": "busy"
+          },
+          {
+            "from": "busy",
+            "to": "release_espresso",
+            "kinetic": false
+          },
+          {
+            "from": "release_espresso",
+            "to": "available"
+          },
+          {
+            "from": "available",
+            "to": "acquire_latte",
+            "kinetic": false
+          },
+          {
+            "from": "acquire_latte",
+            "to": "busy"
+          },
+          {
+            "from": "busy",
+            "to": "release_latte",
+            "kinetic": false
+          },
+          {
+            "from": "release_latte",
+            "to": "available"
+          }
+        ]
+      }
+    }
+  ],
+  "links": [
+    {
+      "id": "espresso_started",
+      "kind": "event",
+      "from": {
+        "subnet": "counter",
+        "transition": "start_espresso"
+      },
+      "to": {
+        "subnet": "pantry",
+        "transition": "brew_espresso"
+      }
+    },
+    {
+      "id": "latte_started",
+      "kind": "event",
+      "from": {
+        "subnet": "counter",
+        "transition": "start_latte"
+      },
+      "to": {
+        "subnet": "pantry",
+        "transition": "brew_latte"
+      }
+    },
+    {
+      "id": "espresso_started",
+      "kind": "event",
+      "from": {
+        "subnet": "counter",
+        "transition": "start_espresso"
+      },
+      "to": {
+        "subnet": "staff",
+        "transition": "acquire_espresso"
+      }
+    },
+    {
+      "id": "latte_started",
+      "kind": "event",
+      "from": {
+        "subnet": "counter",
+        "transition": "start_latte"
+      },
+      "to": {
+        "subnet": "staff",
+        "transition": "acquire_latte"
+      }
+    },
+    {
+      "id": "espresso_finished",
+      "kind": "event",
+      "from": {
+        "subnet": "counter",
+        "transition": "finish_espresso"
+      },
+      "to": {
+        "subnet": "staff",
+        "transition": "release_espresso"
+      }
+    },
+    {
+      "id": "latte_finished",
+      "kind": "event",
+      "from": {
+        "subnet": "counter",
+        "transition": "finish_latte"
+      },
+      "to": {
+        "subnet": "staff",
+        "transition": "release_latte"
+      }
+    },
+    {
+      "id": "espresso_needs_beans",
+      "kind": "guard",
+      "from": {
+        "subnet": "counter",
+        "transition": "start_espresso"
+      },
+      "to": {
+        "subnet": "pantry",
+        "port": "beans"
+      },
+      "condition": ">= 2",
+      "lowering": "auto"
+    }
+  ]
+}

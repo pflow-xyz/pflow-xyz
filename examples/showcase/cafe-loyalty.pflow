@@ -1,0 +1,29 @@
+;; Variation IV — the café's loyalty ledger in the token-model DSL.
+;; Data places (maps and integers) instead of token counts, guards on
+;; every action, key/value arcs that move amounts between ledger entries,
+;; and one constraint the runtime checks after every firing.
+;; Read by petri-pilot (any petri_* tool accepts it in place of JSON),
+;; by go-pflow's tokenmodel/dsl and by pflow-rs's pflow-dsl / schema! macro.
+(schema cafe-loyalty
+  (version v1.0.0)
+
+  (states
+    (state points :type map[string]int64 :exported)
+    (state total_issued :type int64 :initial 0 :exported)
+    (state redeemed :type int64 :initial 0 :exported))
+
+  (actions
+    (action earn :guard {amount > 0})
+    (action redeem :guard {points[member] >= amount && amount > 0})
+    (action gift :guard {points[from] >= amount && amount > 0 && from != to}))
+
+  (arcs
+    (arc earn -> points :keys (member) :value amount)
+    (arc earn -> total_issued :value amount)
+    (arc points -> redeem :keys (member) :value amount)
+    (arc redeem -> redeemed :value amount)
+    (arc points -> gift :keys (from) :value amount)
+    (arc gift -> points :keys (to) :value amount))
+
+  (constraints
+    (constraint ledger_balances {sum(points) + redeemed == total_issued})))

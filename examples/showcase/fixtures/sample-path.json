@@ -1,0 +1,358 @@
+{
+ "_comment": "one SSA sample path of cafe-kinetics.json (petri_stochastic seed=7, tspan=[0,3], declared rates, record_events=true), times rounded to 1e-4; the input shape petri_fit_discrete takes",
+ "paths": [
+  {
+   "initial": {
+    "beans": 40,
+    "milk": 20,
+    "cups": 30,
+    "orders": 0,
+    "brewing": 0,
+    "served": 0
+   },
+   "horizon": 3,
+   "events": [
+    {
+     "time": 0.0136,
+     "transition": "arrive"
+    },
+    {
+     "time": 0.0186,
+     "transition": "brew_latte"
+    },
+    {
+     "time": 0.0576,
+     "transition": "arrive"
+    },
+    {
+     "time": 0.0615,
+     "transition": "brew_espresso"
+    },
+    {
+     "time": 0.3734,
+     "transition": "serve"
+    },
+    {
+     "time": 0.4537,
+     "transition": "arrive"
+    },
+    {
+     "time": 0.4619,
+     "transition": "brew_latte"
+    },
+    {
+     "time": 0.6134,
+     "transition": "arrive"
+    },
+    {
+     "time": 0.615,
+     "transition": "brew_latte"
+    },
+    {
+     "time": 0.6252,
+     "transition": "arrive"
+    },
+    {
+     "time": 0.6255,
+     "transition": "brew_espresso"
+    },
+    {
+     "time": 0.6373,
+     "transition": "arrive"
+    },
+    {
+     "time": 0.6427,
+     "transition": "brew_espresso"
+    },
+    {
+     "time": 0.6826,
+     "transition": "serve"
+    },
+    {
+     "time": 0.7026,
+     "transition": "serve"
+    },
+    {
+     "time": 0.7062,
+     "transition": "arrive"
+    },
+    {
+     "time": 0.7067,
+     "transition": "brew_latte"
+    },
+    {
+     "time": 0.717,
+     "transition": "serve"
+    },
+    {
+     "time": 0.8494,
+     "transition": "leave"
+    },
+    {
+     "time": 0.8984,
+     "transition": "arrive"
+    },
+    {
+     "time": 0.9002,
+     "transition": "brew_latte"
+    },
+    {
+     "time": 0.9293,
+     "transition": "serve"
+    },
+    {
+     "time": 1.0226,
+     "transition": "arrive"
+    },
+    {
+     "time": 1.0329,
+     "transition": "brew_espresso"
+    },
+    {
+     "time": 1.0342,
+     "transition": "arrive"
+    },
+    {
+     "time": 1.0402,
+     "transition": "brew_espresso"
+    },
+    {
+     "time": 1.1123,
+     "transition": "serve"
+    },
+    {
+     "time": 1.1606,
+     "transition": "serve"
+    },
+    {
+     "time": 1.1887,
+     "transition": "leave"
+    },
+    {
+     "time": 1.2159,
+     "transition": "arrive"
+    },
+    {
+     "time": 1.2168,
+     "transition": "brew_espresso"
+    },
+    {
+     "time": 1.2331,
+     "transition": "arrive"
+    },
+    {
+     "time": 1.2355,
+     "transition": "brew_espresso"
+    },
+    {
+     "time": 1.2623,
+     "transition": "arrive"
+    },
+    {
+     "time": 1.2728,
+     "transition": "brew_espresso"
+    },
+    {
+     "time": 1.352,
+     "transition": "serve"
+    },
+    {
+     "time": 1.3745,
+     "transition": "serve"
+    },
+    {
+     "time": 1.5214,
+     "transition": "leave"
+    },
+    {
+     "time": 1.5403,
+     "transition": "serve"
+    },
+    {
+     "time": 1.6171,
+     "transition": "serve"
+    },
+    {
+     "time": 1.6224,
+     "transition": "arrive"
+    },
+    {
+     "time": 1.6399,
+     "transition": "brew_espresso"
+    },
+    {
+     "time": 1.642,
+     "transition": "arrive"
+    },
+    {
+     "time": 1.6432,
+     "transition": "leave"
+    },
+    {
+     "time": 1.6444,
+     "transition": "brew_latte"
+    },
+    {
+     "time": 1.6465,
+     "transition": "serve"
+    },
+    {
+     "time": 1.6908,
+     "transition": "arrive"
+    },
+    {
+     "time": 1.6961,
+     "transition": "brew_espresso"
+    },
+    {
+     "time": 1.7029,
+     "transition": "arrive"
+    },
+    {
+     "time": 1.7054,
+     "transition": "arrive"
+    },
+    {
+     "time": 1.7058,
+     "transition": "brew_espresso"
+    },
+    {
+     "time": 1.7074,
+     "transition": "serve"
+    },
+    {
+     "time": 1.7254,
+     "transition": "serve"
+    },
+    {
+     "time": 1.746,
+     "transition": "brew_espresso"
+    },
+    {
+     "time": 1.7565,
+     "transition": "arrive"
+    },
+    {
+     "time": 1.7923,
+     "transition": "serve"
+    },
+    {
+     "time": 1.8867,
+     "transition": "leave"
+    },
+    {
+     "time": 1.9565,
+     "transition": "leave"
+    },
+    {
+     "time": 2.0767,
+     "transition": "arrive"
+    },
+    {
+     "time": 2.1003,
+     "transition": "brew_latte"
+    },
+    {
+     "time": 2.1036,
+     "transition": "arrive"
+    },
+    {
+     "time": 2.1044,
+     "transition": "leave"
+    },
+    {
+     "time": 2.1077,
+     "transition": "brew_espresso"
+    },
+    {
+     "time": 2.1081,
+     "transition": "leave"
+    },
+    {
+     "time": 2.1214,
+     "transition": "serve"
+    },
+    {
+     "time": 2.177,
+     "transition": "arrive"
+    },
+    {
+     "time": 2.1962,
+     "transition": "leave"
+    },
+    {
+     "time": 2.2223,
+     "transition": "serve"
+    },
+    {
+     "time": 2.2765,
+     "transition": "brew_latte"
+    },
+    {
+     "time": 2.313,
+     "transition": "serve"
+    },
+    {
+     "time": 2.3247,
+     "transition": "serve"
+    },
+    {
+     "time": 2.3868,
+     "transition": "leave"
+    },
+    {
+     "time": 2.4446,
+     "transition": "leave"
+    },
+    {
+     "time": 2.4514,
+     "transition": "leave"
+    },
+    {
+     "time": 2.4584,
+     "transition": "arrive"
+    },
+    {
+     "time": 2.5115,
+     "transition": "serve"
+    },
+    {
+     "time": 2.563,
+     "transition": "arrive"
+    },
+    {
+     "time": 2.6049,
+     "transition": "arrive"
+    },
+    {
+     "time": 2.605,
+     "transition": "serve"
+    },
+    {
+     "time": 2.6133,
+     "transition": "arrive"
+    },
+    {
+     "time": 2.6664,
+     "transition": "arrive"
+    },
+    {
+     "time": 2.6709,
+     "transition": "leave"
+    },
+    {
+     "time": 2.693,
+     "transition": "brew_espresso"
+    },
+    {
+     "time": 2.7674,
+     "transition": "brew_espresso"
+    },
+    {
+     "time": 2.9782,
+     "transition": "serve"
+    }
+   ]
+  }
+ ]
+}

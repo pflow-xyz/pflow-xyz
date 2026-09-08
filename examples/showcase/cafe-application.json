@@ -1,0 +1,257 @@
+{
+  "name": "cafe-app",
+  "version": "1.0.0",
+  "description": "Variation VII \u2014 the caf\u00e9 as an Application specification. Each entity becomes its own subnet; the fusion order.start_brew + inventory.reserve_stock is one atomic command across both. Every declared field must be read or written by some action: a field is a data place, and an unconnected place fails validation.",
+  "roles": [
+    {
+      "id": "customer",
+      "name": "Customer"
+    },
+    {
+      "id": "barista",
+      "name": "Barista"
+    },
+    {
+      "id": "manager",
+      "name": "Manager",
+      "inherits": [
+        "barista"
+      ]
+    }
+  ],
+  "entities": [
+    {
+      "id": "order",
+      "name": "Order",
+      "description": "one drink for one customer",
+      "fields": [
+        {
+          "id": "drink",
+          "name": "Drink",
+          "type": "string",
+          "required": true
+        },
+        {
+          "id": "customer",
+          "name": "Customer",
+          "type": "string",
+          "required": true
+        },
+        {
+          "id": "total",
+          "name": "Total",
+          "type": "number"
+        }
+      ],
+      "states": [
+        {
+          "id": "new",
+          "name": "New",
+          "initial": true
+        },
+        {
+          "id": "paid",
+          "name": "Paid"
+        },
+        {
+          "id": "brewing",
+          "name": "Brewing"
+        },
+        {
+          "id": "ready",
+          "name": "Ready"
+        },
+        {
+          "id": "picked_up",
+          "name": "Picked up",
+          "terminal": true
+        },
+        {
+          "id": "cancelled",
+          "name": "Cancelled",
+          "terminal": true
+        }
+      ],
+      "actions": [
+        {
+          "id": "place",
+          "name": "Place order",
+          "to_state": "new",
+          "input": [
+            {
+              "id": "drink",
+              "name": "Drink",
+              "type": "string"
+            },
+            {
+              "id": "customer",
+              "name": "Customer",
+              "type": "string"
+            },
+            {
+              "id": "total",
+              "name": "Total",
+              "type": "number"
+            }
+          ],
+          "effects": [
+            {
+              "field": "drink",
+              "value": "drink"
+            },
+            {
+              "field": "customer",
+              "value": "customer"
+            },
+            {
+              "field": "total",
+              "value": "total"
+            }
+          ]
+        },
+        {
+          "id": "pay",
+          "name": "Pay",
+          "from_states": [
+            "new"
+          ],
+          "to_state": "paid"
+        },
+        {
+          "id": "start_brew",
+          "name": "Start brew",
+          "from_states": [
+            "paid"
+          ],
+          "to_state": "brewing"
+        },
+        {
+          "id": "finish_brew",
+          "name": "Finish brew",
+          "from_states": [
+            "brewing"
+          ],
+          "to_state": "ready"
+        },
+        {
+          "id": "pick_up",
+          "name": "Pick up",
+          "from_states": [
+            "ready"
+          ],
+          "to_state": "picked_up"
+        },
+        {
+          "id": "cancel",
+          "name": "Cancel",
+          "from_states": [
+            "new",
+            "paid"
+          ],
+          "to_state": "cancelled"
+        }
+      ],
+      "access": [
+        {
+          "action": "pay",
+          "roles": [
+            "customer"
+          ]
+        },
+        {
+          "action": "start_brew",
+          "roles": [
+            "barista"
+          ]
+        },
+        {
+          "action": "cancel",
+          "roles": [
+            "customer",
+            "manager"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "inventory",
+      "name": "Inventory",
+      "description": "the bean hopper",
+      "fields": [
+        {
+          "id": "beans",
+          "name": "Bean shots",
+          "type": "integer",
+          "required": true,
+          "default": 60
+        }
+      ],
+      "states": [
+        {
+          "id": "stocked",
+          "name": "Stocked",
+          "initial": true
+        },
+        {
+          "id": "low",
+          "name": "Low"
+        }
+      ],
+      "actions": [
+        {
+          "id": "reserve_stock",
+          "name": "Reserve shots",
+          "from_states": [
+            "stocked"
+          ],
+          "to_state": "stocked",
+          "effects": [
+            {
+              "field": "beans",
+              "value": "shots",
+              "op": "subtract"
+            }
+          ],
+          "input": [
+            {
+              "id": "shots",
+              "name": "Shots",
+              "type": "integer"
+            }
+          ]
+        },
+        {
+          "id": "run_low",
+          "name": "Run low",
+          "from_states": [
+            "stocked"
+          ],
+          "to_state": "low"
+        },
+        {
+          "id": "restock",
+          "name": "Restock",
+          "from_states": [
+            "low",
+            "stocked"
+          ],
+          "to_state": "stocked",
+          "effects": [
+            {
+              "field": "beans",
+              "value": "shots",
+              "op": "add"
+            }
+          ],
+          "input": [
+            {
+              "id": "shots",
+              "name": "Shots",
+              "type": "integer"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "modelType": "petriNet",
+  "version": "v0",
+  "name": "cafe-market",
+  "description": "Variation V — where the café buys its beans: a constant-product bean/cash pool in the shape of petri-pilot's constant_product_amm template. The café swaps cash for beans, roasters swap beans for cash, fees accrue to the LP. Mass-action equilibrium approximates x*y = k; the exact per-trade algebra is petri_amm_quote / petri_amm_depth / petri_amm_il (pure functions, no model). Cash carries exogenous geometric-Brownian noise for petri_sde, petri_distribution and petri_risk.",
+  "places": [
+    { "id": "reserve_beans", "description": "beans in the pool (kg)",       "initial": 1000, "x": 80,  "y": 80 },
+    { "id": "reserve_cash",  "description": "cash in the pool",             "initial": 4000, "x": 80,  "y": 240 },
+    { "id": "lp_shares",     "description": "liquidity-provider shares",    "initial": 2000, "x": 80,  "y": 400 },
+    { "id": "cafe_beans",    "description": "beans the café holds",         "initial": 0,    "x": 360, "y": 80 },
+    { "id": "fees_cash",     "description": "fees accrued in cash",         "initial": 0,    "x": 360, "y": 240 },
+    { "id": "fees_beans",    "description": "fees accrued in beans",        "initial": 0,    "x": 360, "y": 400 }
+  ],
+  "transitions": [
+    { "id": "cafe_buys_beans",   "description": "cash in, beans out",  "rate": 0.002, "x": 220, "y": 80 },
+    { "id": "roaster_sells_beans","description": "beans in, cash out", "rate": 0.001, "x": 220, "y": 240 },
+    { "id": "collect_fee_cash",  "description": "LP claims cash fees",  "rate": 0.5,   "x": 500, "y": 240 },
+    { "id": "collect_fee_beans", "description": "LP claims bean fees",  "rate": 0.5,   "x": 500, "y": 400 }
+  ],
+  "arcs": [
+    { "from": "reserve_cash",        "to": "cafe_buys_beans" },
+    { "from": "cafe_buys_beans",     "to": "reserve_beans" },
+    { "from": "cafe_buys_beans",     "to": "cafe_beans" },
+    { "from": "cafe_buys_beans",     "to": "fees_cash" },
+    { "from": "reserve_beans",       "to": "roaster_sells_beans" },
+    { "from": "roaster_sells_beans", "to": "reserve_cash" },
+    { "from": "roaster_sells_beans", "to": "fees_beans" },
+    { "from": "fees_cash",           "to": "collect_fee_cash" },
+    { "from": "fees_beans",          "to": "collect_fee_beans" }
+  ]
+}

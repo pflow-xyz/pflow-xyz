@@ -36,6 +36,16 @@ You can load this example in the viewer:
 - Via CID: `http://localhost:8080/?o=z4EBG9jDsuUdvVN4bUXRHxoDG3p274FfhcJd8BiruRcE1jLCHi8`
 - By embedding the JSON-LD in an HTML page with `<petri-view>` component
 
+### The showcase (`showcase/`)
+
+One café told once per feature family: a colored JSON-LD theme with inhibitor,
+read arc, per-color capacity, roles and a CID, plus variations in the
+go-pflow metamodel shape (kinetics, operations what-ifs, an event-sourced
+order workflow), the token-model DSL, a constant-product bean market, a
+`PetriNetBundle` and an Application spec. `showcase/README.md` maps every
+feature to a file, the tool that consumed it and the verified result;
+`showcase/check.sh` re-runs the offline checks.
+
 ### Other Examples
 
 The other example files demonstrate various Petri net patterns and can be loaded similarly using their CID filenames.

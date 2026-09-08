@@ -1,0 +1,6 @@
+[
+  { "name": "today",         "marking": { "barista_free": 2 } },
+  { "name": "third barista", "marking": { "barista_free": 3 } },
+  { "name": "tour bus",      "rates":   { "vip_arrives": 6 } },
+  { "name": "long rush",     "schedule": { "arrive": [ { "until": 2, "value": 10 }, { "until": 6, "value": 40 }, { "until": 8, "value": 12 } ] } }
+]

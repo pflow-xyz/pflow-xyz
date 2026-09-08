@@ -1,0 +1,14 @@
+# The pflow showcase: one café, told once per feature family. Every file is a
+# fixture; the README is the score. Kept out of the parent glob on purpose —
+# the share-card tests iterate examples/*.jsonld and this directory carries
+# more than JSON-LD.
+filegroup(
+    name = "showcase",
+    srcs = glob([
+        "*.json",
+        "*.jsonld",
+        "*.pflow",
+        "fixtures/*.json",
+    ]),
+    visibility = ["//visibility:public"],
+)

@@ -1,0 +1,8 @@
+[
+  { "op": "add_place", "id": "tip_jar" },
+  { "op": "add_event", "id": "tip_left", "fields": [ { "name": "amount", "type": "number" } ] },
+  { "op": "add_transition", "id": "tip", "event": "tip_left", "guard": "amount > 0",
+    "bindings": [ { "name": "amount", "type": "number", "value": true } ] },
+  { "op": "add_arc", "from": "picked_up", "to": "tip" },
+  { "op": "add_arc", "from": "tip", "to": "tip_jar" }
+]

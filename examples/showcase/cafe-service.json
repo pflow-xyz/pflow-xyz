@@ -1,0 +1,499 @@
+{
+  "name": "cafe-service",
+  "version": "1.0.0",
+  "description": "Variation II \u2014 the caf\u00e9 as an operations what-if model, in the vocabulary sim.pflow.xyz calibrates and diagnoses. Every service is two firings (start_brew seizes a barista and the machine, finish_brew and hand_over release them) so headcount is observably busy. Queue -> start arcs are kinetic:false with a 720/h pickup: a free barista does not notice a waiting customer faster because more are waiting; the declared service time lives on finish_brew, which is Erlang-3 (stages: 3) because a shot takes about as long every time. Demand carries its own day shape (schedule on arrive: dead open, rush, quiet afternoon). The queue has capacity 8 (arrivals balk when it is full) and waiting customers give up at 3/h each (kinetic patience). VIPs arrive through their own source, rate 0 until a scenario raises it, and inhibit routine starts so they take the next free barista. The Open sign is a read arc. Restock is inhibited while beans >= 40. shot_size is a declared parameter binding both bean arcs, so a scenario cannot change one without the other. The objective nets served drinks against walkouts and idle barista-hours.",
+  "places": [
+    {
+      "id": "open",
+      "description": "the Open sign; a read-arc gate on starting drinks",
+      "initial": 1,
+      "x": 80,
+      "y": 60
+    },
+    {
+      "id": "queue",
+      "description": "customers waiting to order (balk at 8)",
+      "initial": 0,
+      "capacity": 8,
+      "x": 80,
+      "y": 200
+    },
+    {
+      "id": "walked_out",
+      "description": "customers who gave up waiting",
+      "initial": 0,
+      "tags": {
+        "outcome": "loss"
+      },
+      "x": 80,
+      "y": 340
+    },
+    {
+      "id": "vip_queue",
+      "description": "VIPs waiting; they pre-empt routine starts",
+      "initial": 0,
+      "x": 80,
+      "y": 480
+    },
+    {
+      "id": "barista_free",
+      "description": "baristas on the floor and free",
+      "initial": 2,
+      "resource": true,
+      "x": 320,
+      "y": 480
+    },
+    {
+      "id": "machine_free",
+      "description": "the espresso machine, when idle",
+      "initial": 1,
+      "resource": true,
+      "x": 320,
+      "y": 60
+    },
+    {
+      "id": "brewing",
+      "description": "drinks in progress",
+      "initial": 0,
+      "x": 560,
+      "y": 200
+    },
+    {
+      "id": "ready",
+      "description": "drinks made, waiting to be handed over",
+      "initial": 0,
+      "x": 800,
+      "y": 200
+    },
+    {
+      "id": "served",
+      "description": "routine drinks handed over",
+      "initial": 0,
+      "tags": {
+        "outcome": "served"
+      },
+      "x": 1040,
+      "y": 200
+    },
+    {
+      "id": "vip_served",
+      "description": "VIP drinks handed over",
+      "initial": 0,
+      "tags": {
+        "outcome": "served"
+      },
+      "x": 560,
+      "y": 480
+    },
+    {
+      "id": "beans",
+      "description": "bean shots in the hopper",
+      "initial": 80,
+      "x": 320,
+      "y": 340
+    },
+    {
+      "id": "idle_hours",
+      "description": "meter: barista-hours paid while idle",
+      "initial": 0,
+      "tags": {
+        "outcome": "none"
+      },
+      "x": 320,
+      "y": 620
+    }
+  ],
+  "transitions": [
+    {
+      "id": "arrive",
+      "description": "customers arriving; declared day shape \u2014 dead open, mid-morning rush, quiet afternoon",
+      "rate": 20,
+      "schedule": [
+        {
+          "until": 2,
+          "value": 10
+        },
+        {
+          "until": 4,
+          "value": 40
+        },
+        {
+          "until": 8,
+          "value": 12
+        }
+      ],
+      "x": 80,
+      "y": 130
+    },
+    {
+      "id": "give_up",
+      "description": "a waiting customer leaves without ordering (patience, ~20 min)",
+      "rate": 3,
+      "x": 80,
+      "y": 270
+    },
+    {
+      "id": "start_brew",
+      "description": "a free barista takes the next customer to the machine (pickup, ~5 s)",
+      "rate": 720,
+      "x": 440,
+      "y": 200
+    },
+    {
+      "id": "finish_brew",
+      "description": "the shot is pulled (~3 min, Erlang-3: predictable)",
+      "rate": 20,
+      "stages": 3,
+      "x": 680,
+      "y": 200
+    },
+    {
+      "id": "hand_over",
+      "description": "drink handed over, barista back on the floor (~1 min)",
+      "rate": 60,
+      "x": 920,
+      "y": 200
+    },
+    {
+      "id": "vip_arrives",
+      "description": "VIPs arriving; rate 0 in the base model (see simulation.solver.rates) until a scenario raises it",
+      "x": 80,
+      "y": 560
+    },
+    {
+      "id": "serve_vip",
+      "description": "a free barista makes the VIP drink at the bar (~4 min, no machine)",
+      "rate": 15,
+      "x": 440,
+      "y": 480
+    },
+    {
+      "id": "restock",
+      "description": "bean delivery of 40 shots (~every 30 min when allowed); inhibited while the hopper holds 40 or more",
+      "rate": 2,
+      "x": 320,
+      "y": 420
+    },
+    {
+      "id": "idle_tick",
+      "description": "meter: one idle barista-hour per free barista per hour",
+      "rate": 1,
+      "x": 320,
+      "y": 560
+    }
+  ],
+  "arcs": [
+    {
+      "from": "arrive",
+      "to": "queue"
+    },
+    {
+      "from": "queue",
+      "to": "give_up"
+    },
+    {
+      "from": "give_up",
+      "to": "walked_out"
+    },
+    {
+      "from": "queue",
+      "to": "start_brew",
+      "kinetic": false
+    },
+    {
+      "from": "barista_free",
+      "to": "start_brew",
+      "kinetic": false
+    },
+    {
+      "from": "machine_free",
+      "to": "start_brew",
+      "kinetic": false
+    },
+    {
+      "from": "beans",
+      "to": "start_brew",
+      "weight": 2,
+      "kinetic": false
+    },
+    {
+      "from": "open",
+      "to": "start_brew",
+      "type": "read"
+    },
+    {
+      "from": "vip_queue",
+      "to": "start_brew",
+      "type": "inhibitor"
+    },
+    {
+      "from": "start_brew",
+      "to": "brewing"
+    },
+    {
+      "from": "brewing",
+      "to": "finish_brew"
+    },
+    {
+      "from": "finish_brew",
+      "to": "ready"
+    },
+    {
+      "from": "finish_brew",
+      "to": "machine_free"
+    },
+    {
+      "from": "ready",
+      "to": "hand_over"
+    },
+    {
+      "from": "hand_over",
+      "to": "served"
+    },
+    {
+      "from": "hand_over",
+      "to": "barista_free"
+    },
+    {
+      "from": "vip_arrives",
+      "to": "vip_queue"
+    },
+    {
+      "from": "vip_queue",
+      "to": "serve_vip"
+    },
+    {
+      "from": "barista_free",
+      "to": "serve_vip",
+      "kinetic": false
+    },
+    {
+      "from": "beans",
+      "to": "serve_vip",
+      "weight": 2,
+      "kinetic": false
+    },
+    {
+      "from": "serve_vip",
+      "to": "vip_served"
+    },
+    {
+      "from": "serve_vip",
+      "to": "barista_free"
+    },
+    {
+      "from": "restock",
+      "to": "beans",
+      "weight": 40
+    },
+    {
+      "from": "beans",
+      "to": "restock",
+      "weight": 40,
+      "type": "inhibitor"
+    },
+    {
+      "from": "barista_free",
+      "to": "idle_tick"
+    },
+    {
+      "from": "idle_tick",
+      "to": "barista_free"
+    },
+    {
+      "from": "idle_tick",
+      "to": "idle_hours"
+    }
+  ],
+  "parameters": [
+    {
+      "id": "shot_size",
+      "description": "bean shots per drink; binds the routine and VIP bean arcs so a scenario moves both",
+      "arcs": [
+        {
+          "from": "beans",
+          "to": "start_brew"
+        },
+        {
+          "from": "beans",
+          "to": "serve_vip"
+        }
+      ],
+      "min": 1,
+      "max": 4
+    }
+  ],
+  "simulation": {
+    "objective": "served + 2 * vip_served - walked_out - 0.1 * idle_hours",
+    "solver": {
+      "tspan": [
+        0,
+        8
+      ],
+      "rates": {
+        "vip_arrives": 0
+      }
+    }
+  },
+  "view": "An operator's shift board: the queue and who is walking out on the left, the machine and baristas in the middle, drinks served on the right. Staffing and the machine are the knobs; the day shape is a fact about demand.",
+  "views": [
+    {
+      "id": "board",
+      "title": "Shift board",
+      "role": "dashboard",
+      "prompt": "Is the queue clearing? Who walked out?",
+      "places": [
+        "queue",
+        "walked_out",
+        "brewing",
+        "ready",
+        "served",
+        "vip_served"
+      ]
+    },
+    {
+      "id": "controls",
+      "title": "Staffing",
+      "role": "controls",
+      "prompt": "Headcount, machine, delivery.",
+      "places": [
+        "barista_free",
+        "machine_free",
+        "beans"
+      ],
+      "transitions": [
+        "arrive",
+        "restock",
+        "vip_arrives"
+      ]
+    },
+    {
+      "id": "advisor",
+      "title": "Advisor",
+      "role": "advisor",
+      "prompt": "Which knob moves the objective most?",
+      "places": [
+        "served",
+        "walked_out",
+        "idle_hours"
+      ]
+    }
+  ],
+  "presentation": {
+    "title": "Caf\u00e9 service",
+    "accent": "#6f4e37",
+    "labels": {
+      "queue": "Waiting",
+      "walked_out": "Walked out",
+      "barista_free": "Baristas free",
+      "machine_free": "Machine idle",
+      "brewing": "Brewing",
+      "ready": "Ready",
+      "served": "Served",
+      "vip_served": "VIP served",
+      "beans": "Bean shots",
+      "idle_hours": "Idle barista-hours",
+      "arrive": "Arrivals",
+      "restock": "Delivery",
+      "vip_arrives": "VIP arrivals"
+    },
+    "units": {
+      "arrive": "customers/h",
+      "give_up": "1/h",
+      "beans": "shots",
+      "idle_hours": "h"
+    },
+    "groups": [
+      {
+        "id": "demand",
+        "title": "Demand",
+        "members": [
+          "arrive",
+          "vip_arrives",
+          "give_up"
+        ]
+      },
+      {
+        "id": "staff",
+        "title": "Staff",
+        "members": [
+          "barista_free",
+          "machine_free"
+        ]
+      },
+      {
+        "id": "stock",
+        "title": "Stock",
+        "members": [
+          "beans",
+          "restock"
+        ]
+      },
+      {
+        "id": "outcomes",
+        "title": "Outcomes",
+        "members": [
+          "served",
+          "vip_served",
+          "walked_out",
+          "idle_hours"
+        ]
+      }
+    ],
+    "disruptions": [
+      {
+        "id": "third_barista",
+        "label": "Third barista",
+        "description": "one more on the floor all day",
+        "marking": {
+          "barista_free": 3
+        }
+      },
+      {
+        "id": "machine_down",
+        "label": "Machine down",
+        "description": "the espresso machine is out of service",
+        "marking": {
+          "machine_free": 0
+        }
+      },
+      {
+        "id": "tour_bus",
+        "label": "Tour bus",
+        "description": "VIP party arriving at 6/h",
+        "rates": {
+          "vip_arrives": 6
+        }
+      },
+      {
+        "id": "long_rush",
+        "label": "Long rush",
+        "description": "the rush runs to hour 6",
+        "schedule": {
+          "arrive": [
+            {
+              "until": 2,
+              "value": 10
+            },
+            {
+              "until": 6,
+              "value": 40
+            },
+            {
+              "until": 8,
+              "value": 12
+            }
+          ]
+        }
+      },
+      {
+        "id": "closed",
+        "label": "Sign off",
+        "description": "nobody flipped the Open sign",
+        "marking": {
+          "open": 0
+        }
+      }
+    ]
+  }
+}
