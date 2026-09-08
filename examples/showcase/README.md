@@ -12,18 +12,25 @@ Every claim below was produced by running the real tool on the real file on
 2026-09-06 against the live `pilot.pflow.xyz/mcp` server and the local
 checkouts. `check.sh` re-runs the offline half.
 
-## Why two JSON shapes
+## Two JSON shapes, one rule
 
-The suite has two model encodings and no tool reads both for every feature:
+The suite has two model encodings, and since go-pflow v0.28.0 the rule
+between them is fixed:
 
-| shape | files here | places/transitions | arcs | carries |
-|---|---|---|---|---|
-| **pflow.xyz JSON-LD** (`@context: https://pflow.xyz/schema`) | `cafe.jsonld` | objects keyed by id | `source`/`target`, `weight` vector, `inhibitTransition` | colors, per-color capacity, roles, labels, positions, `parents`, CID |
-| **go-pflow metamodel** (flat v1) | every `cafe-*.json` | arrays of `{id}` | `from`/`to`, `type: read\|inhibitor`, `kinetic: false` | `rate`, `schedule`, `stages`, `parameters`, `simulation.objective`, `presentation`, `views`, events, roles, access |
+| shape | files here | role |
+|---|---|---|
+| **pflow.xyz JSON-LD** (`@context: https://pflow.xyz/schema`; places and transitions keyed by id, `source`/`target`, per-color vectors, `inhibitTransition`, CID as `@id`) | `cafe.jsonld` | the **editor's wire and identity format**. Every saved model on pflow.xyz is addressed by a CID computed over it, so it does not change. |
+| **go-pflow metamodel** (arrays of `{id}`, `from`/`to`, `type: read\|inhibitor`, `kinetic: false`, `rate`, `schedule`, `stages`, `parameters`, `simulation`, `presentation`, events, roles, access) | every `cafe-*.json` | the **only shape engines and tools read**. |
 
-The pilot accepts both, plus the S-expression token-model DSL
-(`cafe-loyalty.pflow`), a `PetriNetBundle` (`cafe.bundle.json`) and an
-Application spec (`cafe-application.json`).
+An editor document reaches a tool through one converter,
+`parser.ModelFromJSON` in go-pflow: colors unfold to `queue.red`, an
+output-side inhibitor becomes the explicit read arc, arc-less color copies
+are pruned, per-color capacity is summed, labels become descriptions. The
+pilot and sim.pflow.xyz both call it; neither carries an opinion of its own
+about the editor shape any more. The pilot also accepts the S-expression
+token-model DSL (`cafe-loyalty.pflow`), a `PetriNetBundle` (`cafe.bundle.json`)
+and an Application spec (`cafe-application.json`), all of which are the
+metamodel shape underneath.
 
 ## The score
 
