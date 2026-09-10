@@ -10,24 +10,14 @@
 
 ### Demos
 
-Every demo is a full-stack app generated from a Petri net model by [petri-pilot](https://github.com/pflow-xyz/petri-pilot).
+Start with the ODE demos — the fastest way to see the browser solver move a model. Every demo is a full-stack app generated from the same Petri net model by [petri-pilot](https://github.com/pflow-xyz/petri-pilot); the full catalog (games, workflows, ZK proofs) lives there.
 
 | Demo | Concepts | Link |
 |------|----------|------|
-| **Tic-Tac-Toe** | Places, transitions, arcs, ODE analysis | [Play](https://pilot.pflow.xyz/tic-tac-toe/) |
-| **ZK Tic-Tac-Toe** | Zero-knowledge proofs with gnark circuits | [Play](https://pilot.pflow.xyz/zk-tic-tac-toe/) |
-| **Coffee Shop** | Capacity limits, weighted arcs, resource flow | [Play](https://pilot.pflow.xyz/coffeeshop/) |
-| **Texas Hold'em** | Role-based access, guards, event sourcing | [Play](https://pilot.pflow.xyz/texas-holdem/) |
-| **Knapsack** | Optimization via mass-action kinetics | [Play](https://pilot.pflow.xyz/knapsack/) |
 | **Predator-Prey** | Lotka-Volterra dynamics, continuous simulation | [Play](https://pilot.pflow.xyz/predator-prey/) |
-| **Dining Philosophers** | Deadlock detection, mutual exclusion | [Play](https://pilot.pflow.xyz/dining-philosophers/) |
-| **Loan Approval** | Multi-stage workflow, conditional branching | [Play](https://pilot.pflow.xyz/loan-approval/) |
-| **TCP Handshake** | Protocol state machines, sequencing | [Play](https://pilot.pflow.xyz/tcp-handshake/) |
-| **Thermostat** | Feedback loops, threshold-based control | [Play](https://pilot.pflow.xyz/thermostat/) |
-| **Producer-Consumer** | Buffered channels, synchronization | [Play](https://pilot.pflow.xyz/producer-consumer/) |
-| **Hiring Pipeline** | Multi-phase pipeline, resource tracking | [Play](https://pilot.pflow.xyz/hiring-pipeline/) |
 | **Enzyme Kinetics** | Michaelis-Menten, biochemical modeling | [Play](https://pilot.pflow.xyz/enzyme-kinetics/) |
-| **Stoplight** | Cyclic state machines, timing constraints | [Play](https://pilot.pflow.xyz/stoplight/) |
+| **Knapsack** | Optimization via mass-action kinetics | [Play](https://pilot.pflow.xyz/knapsack/) |
+| **Coffee Shop** | Capacity limits, weighted arcs, resource flow | [Play](https://pilot.pflow.xyz/coffeeshop/) |
 
 ---
 
@@ -35,8 +25,10 @@ Every demo is a full-stack app generated from a Petri net model by [petri-pilot]
 
 | Project | Purpose | Language |
 |---------|---------|----------|
-| **[pflow-xyz](https://github.com/pflow-xyz/pflow-xyz)** | Visual editor & ODE simulator | JavaScript |
-| **[go-pflow](https://github.com/pflow-xyz/go-pflow)** | Petri net library, simulation & code generation | Go |
+| **[pflow-xyz](https://github.com/pflow-xyz/pflow-xyz)** | Visual editor + browser ODE simulator, byte-exact to go-pflow | JavaScript |
+| **[go-pflow](https://github.com/pflow-xyz/go-pflow)** | Core library — ODE/SSA/SDE engines, fitting, reachability & verification | Go |
+| **[pflow-rs](https://github.com/pflow-xyz/pflow-rs)** | Rust port — ODE solvers, token-model DSL, ZK provers | Rust |
+| **[pflow-jl](https://github.com/pflow-xyz/pflow-jl)** | Julia port, bridged to AlgebraicPetri.jl for categorical composition | Julia |
 | **[petri-pilot](https://github.com/pflow-xyz/petri-pilot)** | MCP server + full-stack app generation from models | Go |
 | **[book-pflow-xyz](https://github.com/pflow-xyz/book-pflow-xyz)** | "Petri Nets as a Universal Abstraction" — practitioner's guide | mdBook |
 
