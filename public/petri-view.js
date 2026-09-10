@@ -64,7 +64,7 @@ PetriView = class PetriView extends HTMLElement {
     // which a release commit bumps alongside the annotated git tag — there is no
     // build step for this file, so the value cannot be injected. `make
     // test-version` fails the build if the two ever drift.
-    static VERSION = '1.27.0';
+    static VERSION = '1.28.0';
 
     constructor() {
         super();
