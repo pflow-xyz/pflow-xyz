@@ -30,6 +30,7 @@ import sir from "../parity/ssa/sir.json" with { type: "json" };
 import dimer from "../parity/ssa/dimer.json" with { type: "json" };
 import gates from "../parity/ssa/gates.json" with { type: "json" };
 import coffeeshop from "../parity/ssa/coffeeshop.json" with { type: "json" };
+import timed from "../parity/ssa/timed.json" with { type: "json" };
 import { combinations, compile, plog, simulate, splitmix64, Xoshiro256 } from "./petri-ssa.js";
 
 // deno-lint-ignore no-explicit-any
@@ -241,7 +242,7 @@ Deno.test("seed 0 is treated as seed 1 (mirrors go-pflow)", () => {
 
 // ── 4. Fixture replay — the acceptance gate ─────────────────────────────────
 
-const fixtures: Record<string, Any> = { chain, sir, dimer, gates, coffeeshop };
+const fixtures: Record<string, Any> = { chain, sir, dimer, gates, coffeeshop, timed };
 
 for (const [name, fx] of Object.entries(fixtures)) {
   Deno.test(`parity/ssa/${name}.json replays bit-for-bit`, () => {
@@ -291,4 +292,21 @@ Deno.test("gates fixture reaches the read/inhibitor/non-kinetic/capacity branche
     if (!(k >= 0 && k <= 1 && t >= 0 && t <= 1)) throw new Error(`key/toggle out of [0,1] at ${i}`);
     expectNum(k + t, 1, `key+toggle[${i}]`);
   }
+});
+
+Deno.test("timed fixture: delayed transitions are clocks, not races (§5)", () => {
+  const r = simulate(timed.model as Any, timed.options);
+  // Two baristas: the pool mean never exceeds the pool, and is below it while
+  // brews are in flight.
+  for (const v of r.series.barista.values) if (!(v >= 0 && v <= 2)) throw new Error(`barista mean ${v} out of [0,2]`);
+  // Cooling only ever adds: the cooled count is nondecreasing on every grid.
+  const cooled = r.series.cooled.values;
+  for (let i = 1; i < cooled.length; i++) if (cooled[i] < cooled[i - 1]) throw new Error(`cooled fell at ${i}`);
+  // Refusals match go-pflow: a negative delay and a delayed source are errors.
+  let threw = false;
+  try { compile({ places: [{ id: "a", initial: 1 }], transitions: [{ id: "t", delay: -1 }], arcs: [{ from: "a", to: "t" }] }); } catch { threw = true; }
+  if (!threw) throw new Error("negative delay accepted");
+  threw = false;
+  try { compile({ places: [{ id: "b", initial: 0 }], transitions: [{ id: "t", delay: 1 }], arcs: [{ from: "t", to: "b" }] }); } catch { threw = true; }
+  if (!threw) throw new Error("delayed source transition accepted");
 });

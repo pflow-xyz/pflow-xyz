@@ -247,8 +247,13 @@ function orderedList(value, what) {
  * Rejects `guard` on a transition and non-token place kinds: neither exists in
  * the portable contract, and guessing would silently diverge from Go.
  *
+ * A transition with `delay > 0` is timed (spec §5): it has no rate, starts the
+ * instant it is enabled — consuming its inputs then — and produces its outputs
+ * exactly `delay` later. A delayed transition must consume something, or it
+ * would restart forever in zero time; compile() throws, as go-pflow does.
+ *
  * @param {Object} model
- * @typedef {{id: string, rate: number, inputs: Array<[number, number, boolean]>, outputs: Array<[number, number]>, reads: Array<[number, number]>, inhibits: Array<[number, number]>, caps: Array<[number, number, number]>}} CompiledTransition
+ * @typedef {{id: string, rate: number, delay: number, inputs: Array<[number, number, boolean]>, outputs: Array<[number, number]>, reads: Array<[number, number]>, inhibits: Array<[number, number]>, caps: Array<[number, number, number]>}} CompiledTransition
  * @returns {{places: string[], initial: number[], transitions: CompiledTransition[]}}
  */
 export function compile(model) {
@@ -284,7 +289,12 @@ export function compile(model) {
             throw new Error(`petri-ssa: transition ${t.id} carries a guard; guards are not part of the portable contract`);
         }
         const rateRaw = Number(t.rate || 0);
-        const rate = rateRaw === 0 ? 1.0 : rateRaw;
+        const delay = Number(t.delay || 0);
+        if (delay < 0) {
+            throw new Error(`petri-ssa: transition ${t.id} has delay ${delay}, which is negative`);
+        }
+        // A timer, not a race: a delayed transition has no propensity.
+        const rate = delay > 0 ? 0.0 : (rateRaw === 0 ? 1.0 : rateRaw);
         const inputs = [];
         const outputs = [];
         const reads = [];
@@ -312,7 +322,10 @@ export function compile(model) {
             const d = delta.get(p) || 0;
             if (capacity[p] > 0 && d > 0) caps.push([p, d, capacity[p]]);
         }
-        transitions.push({ id: t.id, rate, inputs, outputs, reads, inhibits, caps });
+        if (delay > 0 && inputs.length === 0) {
+            throw new Error(`petri-ssa: transition ${t.id} has delay ${delay} but no consuming input; it would restart forever in zero time`);
+        }
+        transitions.push({ id: t.id, rate, delay, inputs, outputs, reads, inhibits, caps });
     }
 
     return { places, initial, transitions };
@@ -323,6 +336,22 @@ function gated(tr, marking) {
     for (const [p, w] of tr.inhibits) if (marking[p] >= w) return false;
     for (const [p, d, limit] of tr.caps) if (marking[p] + d > limit) return false;
     return true;
+}
+
+// enabled: every constraint lets a delayed transition start — consuming inputs
+// present, and the non-consuming gates open. The exponential path folds the
+// input test into the propensity; a timed transition has none and asks here.
+function enabled(tr, marking) {
+    for (const [p, w] of tr.inputs) if (marking[p] < w) return false;
+    return gated(tr, marking);
+}
+
+// schedulePending: insert keeping the queue sorted by completion time, after
+// any completion already due at the same instant (FIFO among ties).
+function schedulePending(queue, at, tr) {
+    let i = 0;
+    while (i < queue.length && queue[i].at <= at) i++;
+    queue.splice(i, 0, { at, tr });
 }
 
 // ─── 4. One realization ─────────────────────────────────────────────────────
@@ -358,7 +387,32 @@ function realization(compiled, marking, times, rng) {
 
     record();
     const tEnd = times[S - 1]; // NOT options.horizon: they can differ by an ulp
+
+    // §5: delayed firings in progress, sorted by completion time. Delay-free
+    // nets never touch it, so their sample paths are exactly what they were.
+    const queue = [];
+    let timed = false;
+    for (let j = 0; j < nT; j++) if (transitions[j].delay > 0) timed = true;
+    // 0. start every enabled delayed transition at the current instant, in
+    //    declaration order, one start per pass, passes until none starts.
+    const start = () => {
+        if (!timed) return;
+        let again = true;
+        while (again) {
+            again = false;
+            for (let j = 0; j < nT; j++) {
+                const tr = transitions[j];
+                if (tr.delay > 0 && enabled(tr, marking)) {
+                    for (const [p, w] of tr.inputs) marking[p] = marking[p] - w;
+                    schedulePending(queue, t + tr.delay, j);
+                    again = true;
+                }
+            }
+        }
+    };
+
     for (let step = 0; step < MAX_STEPS && t < tEnd; step++) {
+        start();
         // 1. propensities, strictly in transition order, summed left to right
         let a0 = 0.0;
         for (let j = 0; j < nT; j++) {
@@ -373,12 +427,27 @@ function realization(compiled, marking, times, rng) {
             propensity[j] = a;
             a0 = a0 + a;
         }
-        // 2. dead marking: no draw consumed
-        if (a0 <= 0) break;
-        // 3. waiting time: u = 1 - x1 is exact and in (0, 1]
-        const x1 = rng.uniform();
-        const u = 1.0 - x1;
-        const dt = (-plog(u)) / a0;
+        // 2. dead marking with nothing in flight: no draw consumed
+        if (a0 <= 0 && queue.length === 0) break;
+        // 3. waiting time: u = 1 - x1 is exact and in (0, 1]. No draw when
+        //    nothing can race; the clock alone moves time.
+        let dt = Infinity;
+        if (a0 > 0) {
+            const x1 = rng.uniform();
+            const u = 1.0 - x1;
+            dt = (-plog(u)) / a0;
+        }
+        // 3b. a completion due before the draw pre-empts it. The draw is
+        //     discarded, not deferred: the race is memoryless.
+        if (queue.length > 0 && queue[0].at <= t + dt) {
+            const due = queue[0];
+            t = due.at;                 // assigned, not accumulated: same double as Go
+            record();
+            if (t > tEnd) break;
+            queue.shift();
+            for (const [p, w] of transitions[due.tr].outputs) marking[p] = marking[p] + w;
+            continue;
+        }
         // 4./5. advance (unclipped) and record everything the jump passed
         t = t + dt;
         record();

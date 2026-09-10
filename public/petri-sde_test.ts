@@ -113,6 +113,17 @@ Deno.test("simulateSDE refuses a model with a read arc", () => {
   }
 });
 
+Deno.test("simulateSDE refuses a model with a delayed transition (§5)", () => {
+  const model = {
+    places: [{ id: "a", initial: 3 }, { id: "b", initial: 0 }],
+    transitions: [{ id: "t", delay: 1.5 }],
+    arcs: [{ from: "a", to: "t" }, { from: "t", to: "b" }],
+  };
+  const res = simulateSDE(model, { horizon: 1, samples: 2, realizations: 1, seed: 1 });
+  if (!res.diverged) throw new Error("simulateSDE did not refuse a delayed transition");
+  if (!res.caveats?.some((c: string) => c.includes("delay"))) throw new Error(`caveats do not name the delay: ${res.caveats}`);
+});
+
 Deno.test("simulateSDE dispatches with the chemical Langevin assumption named", () => {
   const res = simulateSDE(chain.model as Any, { horizon: 1, samples: 5, realizations: 1, seed: 1 });
   if (res.diverged) throw new Error(`sde diverged on an ungated model: ${res.reason}`);

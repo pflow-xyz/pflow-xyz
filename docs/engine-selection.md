@@ -7,18 +7,39 @@ They can disagree, sometimes sharply, on the same net. This page says when
 to trust which one, using two real nets and their actual output rather
 than a description of what should happen.
 
-This is the canonical copy. `pflow-rs`, `pflow-xyz` and `pflow-jl` each
-carry a byte-identical copy under a hash lock (`docs.lock` in each repo) —
-edit here, then run each consumer's `scripts/docs-sync.sh sync`, the same
-pattern the shared browser JS modules use (see the root `CLAUDE.md`,
-"Shared browser JS: pflow-xyz is canonical"). petri-pilot's MCP tool
-descriptions (`petri_ode`, `petri_stochastic`, `petri_sde`) link back to
-this file rather than re-stating it, so there is exactly one place this
-prose can drift from itself.
+This is the canonical copy. `pflow-rs` and `pflow-xyz` each vendor a copy
+under a hash lock (`docs.lock` in each repo) — edit here, then run each
+consumer's `scripts/docs-sync.sh sync`, the same pattern the shared browser
+JS modules use (see the root `CLAUDE.md`, "Shared browser JS: pflow-xyz is
+canonical"). `pflow-jl` carries a copy only on its `algebraic-petri`
+branch; it is absent from `pflow-jl`'s default `main` branch. **As of this
+writing the vendored copies have drifted from this canonical version and
+are not byte-identical to it**: this file has since gained the "Capability
+matrix" section below and updated the SDE column from "SDE (planned, G6)"
+to "SDE (`stochastic`)" — accurate, because `stochastic/solve.go` declares
+`MethodSDE` and dispatches to `SimulateSDE`, so SDE is implemented, not
+planned — while the committed copies in `pflow-rs`, `pflow-xyz` and
+`pflow-jl`'s `algebraic-petri` branch still lack the Capability matrix
+section and still say "planned". A re-sync of all three is pending; until
+that runs, treat this file as the source of truth and the vendored copies
+as stale. petri-pilot's MCP tool descriptions (`petri_ode`,
+`petri_stochastic`, `petri_sde`) link back to this file rather than
+re-stating it, so there is exactly one canonical place this prose lives.
+
+## Capability matrix
+
+This page is the reasoning. The cell-by-cell contract — what each engine
+does with every arc type, capacity, guard, `kinetic:false`, stages,
+model-declared and option schedules, seeds, portable mode, and which
+result fields each populates, with a file:line for every claim and a list
+of the constructs an engine still ignores silently — is
+[`docs/solver-matrix.md`](solver-matrix.md) in go-pflow. Read that when
+the question is "will this model run on this engine, and what will it
+refuse"; read on here when the question is "which engine should I want".
 
 ## The three engines
 
-| | ODE (`solver`) | SSA (`stochastic`) | SDE (planned, G6) |
+| | ODE (`solver`) | SSA (`stochastic`) | SDE (`stochastic`) |
 |---|---|---|---|
 | State | continuous, real-valued | discrete, integer tokens | continuous, real-valued |
 | What it computes | the mean-field trajectory | one exact sample path (or an ensemble mean ± stdev) | one noisy sample path, cheap enough to sweep |
@@ -135,6 +156,37 @@ reasons to refuse. Until then, "cheap variance band at scale" has no
 engine; `Simulate` at a smaller `Realizations` count, read honestly as an
 approximation, is the fallback.
 
+## Rule 5: a delay is a clock, and only the discrete engine has one
+
+A transition can declare `delay` (a deterministic firing duration in model
+time) instead of a rate. It starts the instant it is enabled, consumes its
+inputs then, and produces its outputs exactly `delay` later; every enabling
+runs its own clock, and between start and completion the tokens are in
+flight — in no place. That is how "a barista held for the whole brew" or
+"a wash cycle takes thirty minutes" is one transition rather than a
+start/finish pair around a stage place.
+
+Only `Simulate` (and a scheduled run, which carries in-flight firings
+across segment boundaries) honours it. `Forecast` and `SimulateSDE` refuse
+through `Gating()`, for the same reason they refuse a guard: mass action
+has no instant at which to start a timer. The portable path carries it: the
+`timed` golden pins the rule byte-for-byte across go-pflow, pflow-rs,
+pflow-xyz and pflow-jl, and each language's SDE refuses a delayed net the
+same way.
+
+Two consequences worth knowing before reading a result:
+
+- A sample taken on the completion instant reads the marking *before* the
+  completion, the same convention as an exponential firing. Probe just
+  after.
+- A run cut off mid-firing reports the tokens it is holding in
+  `Metrics.InFlight`, per delayed transition, so a place total that does
+  not add up at the horizon is accounted for rather than lost.
+
+If the duration is only *roughly* constant and the model must stay
+continuous-compatible, declare `stages` instead: an Erlang-k stage chain is
+ordinary mass action, and every engine can run it.
+
 ## Summary
 
 | Your model has... | Use |
@@ -145,3 +197,4 @@ approximation, is the fallback.
 | any input arc with weight > 1 | expect the two engines to disagree quantitatively; decide which rate law is the one your model actually means |
 | exogenous continuous uncertainty (price, demand) on top of the ODE | `petri_sde` (petri-pilot), today |
 | intrinsic firing noise, cheap enough to sweep | not yet shipped — G6, see ROADMAP.md |
+| a `delay` (deterministic firing duration) | `Simulate` (portable too); the continuous engines refuse — declare `stages` if it must stay continuous |

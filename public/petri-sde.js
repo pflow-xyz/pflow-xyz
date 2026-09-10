@@ -130,6 +130,9 @@ function gatingReasons(compiled) {
     if (compiled.transitions.some((t) => t.caps.length > 0)) {
         reasons.push("a reachable capacity is a post-firing bound, which has no continuous analogue");
     }
+    if (compiled.transitions.some((t) => t.delay > 0)) {
+        reasons.push("a delay is a deterministic timer — inputs consumed at start, outputs a fixed time later — which mass action cannot express");
+    }
     return reasons;
 }
 

@@ -29,10 +29,15 @@ that commit.
 | dimer.json | 5b260cc9b3027c660d87d5a041839941f4deb1107a22728782549bc700e23341 | go-pflow `stochastic/testdata/portable/dimer.json` |
 | gates.json | 9a2a35ef18b5218a1afcda49f1755e47feb9942bf07254533971e1d490df7009 | go-pflow `stochastic/testdata/portable/gates.json` |
 | coffeeshop.json | 2e0402f8d6e0ec32956538e480f76d6e3ec28861cb03211eb97be6a68f9f0c53 | go-pflow `stochastic/testdata/portable/coffeeshop.json`; model = go-pflow `stochastic/testdata/coffeeshop.json` stripped to `id/initial/capacity`, `id/rate`, `from/to/weight` |
+| timed.json | 53c7140c779bc7ce9dde590f2559a345e68cb547ebff0eff2e79da0a99fc3e28 | go-pflow `stochastic/testdata/portable/timed.json`; §5 delayed transitions, added after the five above |
 
 Options per fixture (horizon, samples, realizations, seed): chain
 `{10, 11, 3, 42}`, sir `{40, 81, 8, 11}`, dimer `{5, 21, 4, 7}`, gates
-`{20, 41, 4, 5}`, coffeeshop `{8, 60, 5, 42}`. `gates` is the fifth fixture
+`{20, 41, 4, 5}`, coffeeshop `{8, 60, 5, 42}`, timed `{12, 25, 3, 9}`. `timed`
+is the sixth: delayed transitions (§5 in go-pflow's
+`stochastic/testdata/README.md` — a shared resource on a deterministic clock,
+an infinite-server clock, priority over an exponential rival, and a horizon
+that cuts firings mid-flight). `gates` is the fifth fixture
 beyond the spec's four: read arc, inhibitor, non-kinetic input, capacity bound
 and a self-loop on a full place — the §3.1/§3.3 branches the others never
 reach.
