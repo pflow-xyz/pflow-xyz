@@ -9,12 +9,14 @@
 // exactly as go-pflow's `Forecast`/`SimulateSDE` do: a firing instant is what
 // those need, and continuous diffusion has none.
 //
-// Not yet part of the byte-exact cross-language contract the way SSA is —
-// there is no parity/sde/ fixture set — but the Gaussian sampler is checked
-// bit-for-bit against go-pflow's own `stochastic/portable_test.go`
-// `TestPortableNormalVectors` (Go is the reference implementation for
-// normal(): no external SDE spec, the same role it plays for wait()/uniform()
-// in ssa-spec.md).
+// Part of the byte-exact cross-language contract the way SSA is: `parity/sde/`
+// holds the same five models as `parity/ssa/` (chain, sir, dimer, gates,
+// coffeeshop), replayed bit-for-bit by `petri-sde_test.ts` — closing the
+// pflow-xyz side of a contract go-pflow↔pflow-rs already held. The Gaussian
+// sampler is additionally checked bit-for-bit against go-pflow's own
+// `stochastic/portable_test.go` `TestPortableNormalVectors` (Go is the
+// reference implementation for normal(): no external SDE spec, the same role
+// it plays for wait()/uniform() in ssa-spec.md).
 //
 // No DOM, no dependencies beyond ./petri-ssa.js (PRNG, plog, compile()).
 
@@ -115,21 +117,47 @@ function propensity(t, x) {
 
 /**
  * True if the model has anything an SDE (or the ODE) cannot express: a read
- * arc, an inhibitor, or a reachable capacity. Mirrors go-pflow's
- * `Model.Gating()` at the level petri-ssa.js's `compile()` output can see it.
+ * arc, an inhibitor, a non-kinetic input, or a reachable capacity. Mirrors
+ * go-pflow's `Model.Gating()` wording field for field (arc counts, an
+ * `[a b c]`-style place list) — ported from pflow-rs's `sde.rs::gating_reasons`,
+ * which was itself rewritten to match go-pflow's exact strings so the
+ * `diverged` reason/caveats are part of the byte-exact `parity/sde/` contract,
+ * not just its "contains" cousin.
  * @returns {string[]}
  */
 function gatingReasons(compiled) {
     const reasons = [];
-    if (compiled.transitions.some((t) => t.reads.length > 0)) {
-        reasons.push("a read arc has no continuous analogue");
+
+    const reads = compiled.transitions.reduce((n, t) => n + t.reads.length, 0);
+    const inhibits = compiled.transitions.reduce((n, t) => n + t.inhibits.length, 0);
+    const staticArcs = compiled.transitions.reduce(
+        (n, t) => n + t.inputs.filter(([, , kinetic]) => !kinetic).length,
+        0,
+    );
+
+    if (reads > 0) {
+        reasons.push(`${reads} read arc(s) gate a firing without consuming; a continuous solver cannot test them`);
     }
-    if (compiled.transitions.some((t) => t.inhibits.length > 0)) {
-        reasons.push("an inhibitor arc has no continuous analogue");
+    if (inhibits > 0) {
+        reasons.push(`${inhibits} inhibitor arc(s) block a firing above a threshold; a continuous solver cannot test them`);
     }
-    if (compiled.transitions.some((t) => t.caps.length > 0)) {
-        reasons.push("a reachable capacity is a post-firing bound, which has no continuous analogue");
+    if (staticArcs > 0) {
+        reasons.push(
+            `${staticArcs} non-kinetic input arc(s) gate and consume without scaling the rate; a mass-action solver has no way to omit them from the rate law`,
+        );
     }
+
+    // Distinct places a capacity is declared *and* reachable on (some
+    // transition's net delta there is positive), in place-declaration
+    // order — the same set `compile()` already applied when populating each
+    // transition's `caps`.
+    const caps = compiled.places.filter((_, p) =>
+        compiled.transitions.some((t) => t.caps.some(([cp]) => cp === p))
+    );
+    if (caps.length > 0) {
+        reasons.push(`capacity is declared on [${caps.join(" ")}] but is a post-firing bound, which has no continuous analogue`);
+    }
+
     if (compiled.transitions.some((t) => t.delay > 0)) {
         reasons.push("a delay is a deterministic timer — inputs consumed at start, outputs a fixed time later — which mass action cannot express");
     }
@@ -219,7 +247,7 @@ export function simulateSDE(model, options) {
             series: {},
             final: {},
             diverged: true,
-            reason: `this model constrains firing in ways continuous diffusion cannot express, so the SDE would silently model an unconstrained system. Use the discrete engine (simulate). Specifically: ${caveats.join("; ")}`,
+            reason: `this model constrains firing in ways continuous diffusion cannot express, so the SDE would silently model an unconstrained system. Use the discrete engine (Simulate). Specifically: ${caveats.join("; ")}`,
             caveats,
         };
     }

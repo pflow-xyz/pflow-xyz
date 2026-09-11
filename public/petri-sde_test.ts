@@ -3,13 +3,16 @@
 // ODEProblem/JumpProblem/SDEProblem trio (go-pflow ROADMAP.md G6). Run via
 // `make test-js` (deno test), alongside petri-ssa_test.ts.
 //
-// Unlike SSA, there is no byte-exact cross-language SDE contract yet (no
-// parity/sde/*.json fixtures) — the only bit-for-bit check is the Gaussian
-// sampler against go-pflow's own `stochastic/portable_test.go`
+// `parity/sde/*.json` (chain, sir, dimer, gates, coffeeshop) are byte-exact
+// goldens — same portable-path contract as `parity/ssa/`, compared with
+// `!==`, never a tolerance — closing the pflow-xyz side of the same
+// three-way contract go-pflow↔pflow-rs already held (see `parity/sde/
+// README.md`). The Gaussian sampler is additionally checked bit-for-bit
+// against go-pflow's own `stochastic/portable_test.go`
 // `TestPortableNormalVectors` at seed 42 (Go is the reference implementation
 // for normal(): no external SDE spec, the same role it plays for
-// wait()/uniform() in ssa-spec.md). Everything else here is a consistency
-// check against this repo's own SSA (petri-ssa.js), mirroring go-pflow's
+// wait()/uniform() in ssa-spec.md). The remaining tests are consistency
+// checks against this repo's own SSA (petri-ssa.js), mirroring go-pflow's
 // stochastic/sde_test.go: linear-chain mean tracks SSA, SIR-at-scale
 // variance tracks SSA, weight-2 dimerisation tracks SSA (not the ODE's
 // different rate law).
@@ -18,6 +21,11 @@ import { assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import chain from "../parity/ssa/chain.json" with { type: "json" };
 import sir from "../parity/ssa/sir.json" with { type: "json" };
 import dimer from "../parity/ssa/dimer.json" with { type: "json" };
+import sdeChain from "../parity/sde/chain.json" with { type: "json" };
+import sdeSir from "../parity/sde/sir.json" with { type: "json" };
+import sdeDimer from "../parity/sde/dimer.json" with { type: "json" };
+import sdeGates from "../parity/sde/gates.json" with { type: "json" };
+import sdeCoffeeshop from "../parity/sde/coffeeshop.json" with { type: "json" };
 import { simulate } from "./petri-ssa.js";
 import { CHEMICAL_LANGEVIN_ASSUMPTION, combinationsReal, GaussianSampler, simulateSDE } from "./petri-sde.js";
 
@@ -31,6 +39,19 @@ function bitsOf(x: number): bigint {
 }
 function hex64(v: bigint): string {
   return "0x" + v.toString(16).toUpperCase().padStart(16, "0");
+}
+
+/** Exact comparison: `!==` (not Object.is) — 0 and -0 are the same value here. */
+function expectNum(actual: number, expected: number, ctx: string) {
+  if (actual !== expected) {
+    throw new Error(
+      `${ctx}: expected exact ${expected} (${hex64(bitsOf(expected))}), got ${actual} (${hex64(bitsOf(actual))}), diff ${actual - expected}`,
+    );
+  }
+}
+function expectArr(actual: number[], expected: number[], ctx: string) {
+  assertEquals(actual.length, expected.length, `${ctx}: length`);
+  for (let i = 0; i < expected.length; i++) expectNum(actual[i], expected[i], `${ctx}[${i}]`);
 }
 
 // ── 1. Gaussian sampler ─────────────────────────────────────────────────────
@@ -206,3 +227,45 @@ Deno.test("SDE tracks SSA (not the ODE's different rate law) on weight-2 dimeris
     }
   }
 });
+
+// ── 5. parity/sde fixture replay — the byte-exact acceptance gate ──────────
+
+const sdeFixtures: Record<string, Any> = {
+  chain: sdeChain,
+  sir: sdeSir,
+  dimer: sdeDimer,
+  gates: sdeGates,
+  coffeeshop: sdeCoffeeshop,
+};
+
+for (const [name, fx] of Object.entries(sdeFixtures)) {
+  Deno.test(`parity/sde/${name}.json replays bit-for-bit`, () => {
+    const res = simulateSDE(fx.model, fx.options);
+
+    if (fx.diverged) {
+      if (!res.diverged) {
+        throw new Error(`${name}: expected simulateSDE to refuse (golden is diverged), it did not`);
+      }
+      assertEquals(res.reason, fx.reason, `${name}: reason`);
+      assertEquals(res.caveats, fx.caveats, `${name}: caveats`);
+      return;
+    }
+
+    if (res.diverged) {
+      throw new Error(`${name}: simulateSDE refused an ungated golden: ${res.reason}`);
+    }
+
+    const modelPlaces = (fx.model.places as Any[]).map((p: Any) => p.id).sort();
+    assertEquals(Object.keys(fx.expected.series).sort(), modelPlaces, "golden place set");
+    assertEquals(res.places.slice().sort(), modelPlaces, `${name}: series place set`);
+    assertEquals(Object.keys(res.final).sort(), modelPlaces, `${name}: final place set`);
+
+    expectArr(res.times, fx.expected.times, `${name}.times`);
+    for (const [place, want] of Object.entries(fx.expected.series) as [string, Any][]) {
+      const got = res.series[place];
+      expectArr(got.values, want.values, `${name}.${place}.values`);
+      if (want.stddev) expectArr(got.stddev!, want.stddev, `${name}.${place}.stddev`);
+      expectNum(res.final[place], fx.expected.final[place], `${name}.final.${place}`);
+    }
+  });
+}

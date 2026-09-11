@@ -311,12 +311,16 @@ in this editor. Locked by `make test-parity-behavior` (`parity/sim/` and
   or the ODE's none at all. Reuses `petri-ssa.js`'s `compile()`,
   `Xoshiro256` and `plog` rather than duplicating them. Refuses a gated model
   (read arc, inhibitor, reachable capacity) exactly as `Forecast`/
-  `SimulateSDE` do on the Go side. Not yet part of the byte-exact
-  cross-language contract SSA has — no `parity/sde/` goldens exist — but its
-  Gaussian sampler (`GaussianSampler`, Marsaglia polar over `plog` + the
-  IEEE-754-exact `Math.sqrt`, deliberately not Box-Muller which would need a
-  second ported transcendental) is checked bit-for-bit in
-  `public/petri-sde_test.ts` against go-pflow's own
+  `SimulateSDE` do on the Go side, including matching go-pflow's `Gating()`
+  reason/caveat wording field for field (arc counts, `[a b c]`-style place
+  lists) — ported from pflow-rs's already-corrected `sde.rs::gating_reasons`.
+  Part of the byte-exact cross-language contract SSA has: `parity/sde/`
+  (the same five models as `parity/ssa/`) is replayed bit-for-bit by
+  `public/petri-sde_test.ts`, closing the pflow-xyz side of a contract
+  go-pflow↔pflow-rs already held. Its Gaussian sampler (`GaussianSampler`,
+  Marsaglia polar over `plog` + the IEEE-754-exact `Math.sqrt`, deliberately
+  not Box-Muller which would need a second ported transcendental) is
+  additionally checked bit-for-bit against go-pflow's own
   `stochastic/portable_test.go` `TestPortableNormalVectors` at seed 42 (Go is
   the reference implementation; there is no external SDE spec). The
   remaining tests are consistency checks against this repo's own SSA,
