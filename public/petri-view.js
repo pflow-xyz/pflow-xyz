@@ -4996,6 +4996,17 @@ PetriView = class PetriView extends HTMLElement {
                 — games, workflows, protocols, biochemical models, and optimization problems.
             </p>
 
+            <h3>📊 Sim — Cost-Benefit</h3>
+            <p>
+                <strong>sim.pflow.xyz</strong> turns this model into a cost-benefit
+                what-if machine: store it with one POST and get seeded scenario
+                comparison, disruption injection, calibration against your own data,
+                and automated diagnostics that rank every knob by its measured effect
+                on the outcome — whether that's staffing a shop or deciding what to
+                build next. Try it at
+                <a href="https://sim.pflow.xyz" target="_blank" style="color: #4a90d9;">sim.pflow.xyz</a>.
+            </p>
+
             <h3>Controls & Features</h3>
 
             <h4>Toolbar Buttons:</h4>
@@ -7361,6 +7372,11 @@ PetriView = class PetriView extends HTMLElement {
             window.open('https://pilot.pflow.xyz/code-to-flow/', '_blank', 'noopener,noreferrer');
         });
         menuContainer._menuContent.appendChild(codeToFlowItem);
+
+        const simItem = makeMenuItem('📊 Sim — Cost-Benefit', () => {
+            window.open('https://sim.pflow.xyz', '_blank', 'noopener,noreferrer');
+        });
+        menuContainer._menuContent.appendChild(simItem);
 
         const bookItem = makeMenuItem('📖 Book', () => {
             window.open('https://book.pflow.xyz', '_blank', 'noopener,noreferrer');

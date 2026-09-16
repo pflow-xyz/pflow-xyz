@@ -65,6 +65,10 @@ Full rules: `docs/engine-selection.md` (vendored from go-pflow,
   petri_phase_plot, petri_validate, petri_codegen, …)
 - [Server-side SVG rendering](https://pflow.xyz/api/svg): POST a model,
   get an SVG
+- [sim.pflow.xyz](https://sim.pflow.xyz/mcp): cost-benefit analysis for
+  anything you can describe as a flow — seeded scenarios, disruptions,
+  calibration, and diagnostics that rank every knob by measured effect on
+  the objective
 
 ## Optional
 

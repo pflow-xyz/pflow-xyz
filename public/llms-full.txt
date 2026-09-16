@@ -197,3 +197,8 @@ again.
   Analysis dialog has a "Copy MCP call" button that emits ready-to-send
   payloads.
 - https://book.pflow.xyz — the book on modeling with Petri nets.
+- https://sim.pflow.xyz — cost-benefit analysis for anything you can
+  describe as a flow: store a model with one POST, get seeded scenario
+  comparison, disruption injection, calibration and automated diagnostics
+  that rank every knob by measured influence on the declared objective.
+  MCP server at `https://sim.pflow.xyz/mcp`.

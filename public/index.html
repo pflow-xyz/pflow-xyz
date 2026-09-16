@@ -328,6 +328,15 @@
             color: var(--pf-accent);
         }
 
+        .ecosystem-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 24px;
+            text-align: left;
+            max-width: 480px;
+            margin: 0 auto;
+        }
+
         @media (max-width: 768px) {
             .pipeline-grid {
                 grid-template-columns: 1fr;
@@ -597,6 +606,28 @@
         </div>
     </section>
 
+    <section class="landing-pipeline">
+        <h2>More from the ecosystem</h2>
+        <p class="landing-pipeline-sub">The same model, a different question.</p>
+        <div class="ecosystem-grid">
+            <a href="https://sim.pflow.xyz" class="pipeline-card">
+                <div class="pipeline-icon">
+                    <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="10" cy="14" r="5" stroke="#EBFF00" stroke-width="2" fill="none"/>
+                        <rect x="21" y="9" width="10" height="10" rx="2" stroke="#EBFF00" stroke-width="2" fill="none"/>
+                        <circle cx="38" cy="14" r="5" stroke="#EBFF00" stroke-width="2" fill="none"/>
+                        <line x1="15" y1="14" x2="21" y2="14" stroke="#EBFF00" stroke-width="2"/>
+                        <line x1="31" y1="14" x2="33" y2="14" stroke="#EBFF00" stroke-width="2" stroke-dasharray="3 3"/>
+                        <path d="M6 30h8l4-10 6 20 4-14 3 8h13" stroke="#EBFF00" stroke-width="2" fill="none" stroke-linejoin="round"/>
+                    </svg>
+                </div>
+                <h3>Sim</h3>
+                <p>Cost-benefit analysis for anything you can describe as a flow. Store a model, get seeded scenarios and automated diagnostics that rank every knob by measured effect on the outcome.</p>
+                <span class="pipeline-link">sim.pflow.xyz &rarr;</span>
+            </a>
+        </div>
+    </section>
+
     <div class="landing-about">
         <p>
             Places hold tokens. Transitions move them. Arcs define the rules.
@@ -610,6 +641,7 @@
         <div class="landing-footer-content">
             <div class="landing-footer-links">
                 <a href="https://pilot.pflow.xyz">Petri Pilot</a>
+                <a href="https://sim.pflow.xyz">Sim</a>
                 <a href="https://book.pflow.xyz">Book</a>
                 <a href="https://blog.stackdump.com">Blog</a>
                 <a href="https://github.com/pflow-xyz/pflow-xyz">GitHub</a>
