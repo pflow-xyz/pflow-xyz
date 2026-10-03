@@ -292,10 +292,10 @@ in this editor. Locked by `make test-parity-behavior` (`parity/sim/` and
   (`parity/ssa/README.md` names the generating commit and the sha256 of every
   file; `sha256sum` both sides to verify). `public/petri-ssa_test.ts` replays
   every double with `!==` in `make test-js` and in CI. This repo consumes the
-  goldens, it does not produce them — `go.mod` pins a go-pflow release without
-  the stochastic package, so there is no Go generator or Go-side test for it
-  here. `compile()` takes `places`/`transitions` as arrays; an id-keyed object
-  is accepted only when no key is integer-like (JS enumerates those first, in
+  goldens, it does not produce them — the pinned go-pflow has the stochastic
+  package (`examples/showcase/gocheck` calls it), but there is no Go generator
+  or Go-side golden test for it here. `compile()` takes `places`/`transitions`
+  as arrays; an id-keyed object is accepted only when no key is integer-like (JS enumerates those first, in
   numeric order, so the declaration order Go uses would be lost — it throws
   instead). `petri-ssa.js` is deliberately NOT in `//public:browser_modules`
   (that list pairs positionally with bitwrap-io's vendored list); no consumer

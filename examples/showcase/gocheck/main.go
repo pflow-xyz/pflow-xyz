@@ -1,6 +1,8 @@
 // Command gocheck loads the showcase models through go-pflow directly (no MCP):
 // the colored theme through parser.FromJSON, the operations variation through
-// metamodel validation, ExpandStages and the schedule-aware SSA, and the
+// metamodel validation, ExpandStages and the schedule-aware SSA (with
+// ContinueStreams, so a realization keeps one random stream across the
+// schedule's segments instead of replaying it at each boundary), and the
 // kinetics variation through the portable (byte-exact) SSA, whose final marking
 // it writes to fixtures/ssa-go-seed42.json. Run from the repo root:
 //
@@ -46,7 +48,7 @@ func main() {
 	exp, info, err := svc.ExpandStages()
 	if err != nil { panic(err) }
 	fmt.Printf("ExpandStages: %d -> %d transitions (%+v)\n", len(svc.Transitions), len(exp.Transitions), info)
-	res, err := stochastic.SimulateSchedule(svc, initial(svc), stochastic.Options{Horizon: 8, Samples: 9, Seed: 42, Realizations: 10, Portable: true, Rates: map[string]float64{"vip_arrives": 0}})
+	res, err := stochastic.SimulateSchedule(svc, initial(svc), stochastic.Options{Horizon: 8, Samples: 9, Seed: 42, Realizations: 10, Portable: true, ContinueStreams: true, Rates: map[string]float64{"vip_arrives": 0}})
 	if err != nil { panic(err) }
 	fmt.Printf("SimulateSchedule seed 42 x10: served=%.1f walked_out=%.1f beans=%.1f caveats=%v\n", res.Final["served"], res.Final["walked_out"], res.Final["beans"], res.Caveats)
 
