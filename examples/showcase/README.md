@@ -132,7 +132,13 @@ rates the ODE ends at t=24 with beans 6.1, cups 0.09 and orders 85.3.
   those as caveats.)
 - go-pflow: `ValidateSchedules` and `ValidateParameters` clean; `ExpandStages`
   turns 9 transitions into 11 (`finish_brew@1..3`); `SimulateSchedule` at seed
-  42 × 10 gives served 119.5, walked out 39.7, agreeing with the pilot.
+  42 × 10 with `ContinueStreams` (go-pflow v0.33.0: one random stream per
+  realization for the whole horizon, the race open at a segment boundary
+  carried over) gives served 98.7, walked out 39.9. Without the flag each
+  schedule segment restarts realization r's stream at `Seed+r`, replaying the
+  same draws at hours 2 and 4; that gives 99.8 / 40.8 here. (The 119.5 / 39.7
+  recorded on 2026-09-06, and its agreement with the pilot's table above, did
+  not reproduce on go-pflow v0.31.0 either; re-run 2026-10-03.)
 
 ### The same file on sim.pflow.xyz
 
