@@ -191,6 +191,26 @@ func TestDecorateIndexForShare(t *testing.T) {
 		}
 	})
 
+	// The canonical of a shared model is built from the cid (and the title
+	// override that labels the card), never from the rest of the request URL,
+	// so tracking parameters do not mint new canonical variants.
+	t.Run("canonical is the clean cid url", func(t *testing.T) {
+		r := httptest.NewRequest("GET", "/?cid="+sampleCID+"&utm_source=x&fbclid=y", nil)
+		r.Host = "pflow.xyz"
+		r.Header.Set("X-Forwarded-Proto", "https")
+		s := string(srv.decorateIndexForShare(r, indexHTML))
+		want := `<link rel="canonical" href="https://pflow.xyz/?cid=` + sampleCID + `"/>`
+		if !strings.Contains(s, want) {
+			t.Errorf("canonical not the clean cid url, want %s in\n%s", want, s)
+		}
+		if strings.Contains(s, "utm_source") || strings.Contains(s, "fbclid") {
+			t.Errorf("request query parameters leaked into the head:\n%s", s)
+		}
+		if n := strings.Count(s, `rel="canonical"`); n != 1 {
+			t.Errorf("want exactly one canonical, got %d", n)
+		}
+	})
+
 	t.Run("untouched when no cid", func(t *testing.T) {
 		r := httptest.NewRequest("GET", "/", nil)
 		out := srv.decorateIndexForShare(r, indexHTML)

@@ -1,8 +1,10 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"io"
+	"io/fs"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -86,6 +88,86 @@ func TestHandleSchema_HTML(t *testing.T) {
 	}
 	if !strings.Contains(body, "PetriNet") {
 		t.Error("HTML missing PetriNet term")
+	}
+}
+
+// The HTML representation is what a crawler indexes (it is in the sitemap),
+// so it needs the same canonical + Open Graph + Twitter head the landing page
+// carries.
+func TestHandleSchema_HTMLHeadTags(t *testing.T) {
+	s := newTestServer(t)
+	req := httptest.NewRequest("GET", "/schema", nil)
+	req.Header.Set("Accept", "text/html")
+	w := httptest.NewRecorder()
+	s.handleSchema(w, req)
+
+	body := w.Body.String()
+	head := body[:strings.Index(body, "</head>")]
+	if n := strings.Count(head, `rel="canonical"`); n != 1 {
+		t.Errorf("want exactly one canonical link, got %d", n)
+	}
+	for _, want := range []string{
+		`<link rel="canonical" href="https://pflow.xyz/schema"/>`,
+		`<meta name="description" content=`,
+		`<meta property="og:title" content="pflow.xyz Schema"/>`,
+		`<meta property="og:description" content=`,
+		`<meta property="og:type" content="website"/>`,
+		`<meta property="og:url" content="https://pflow.xyz/schema"/>`,
+		`<meta property="og:image" content="https://pflow.xyz/banner.png"/>`,
+		`<meta name="twitter:card" content="summary_large_image"/>`,
+		`<meta name="twitter:title" content="pflow.xyz Schema"/>`,
+		`<meta name="twitter:description" content=`,
+		`<meta name="twitter:image" content="https://pflow.xyz/banner.png"/>`,
+	} {
+		if !strings.Contains(head, want) {
+			t.Errorf("schema HTML head missing %s", want)
+		}
+	}
+	// The og:image must resolve to a file the server actually ships.
+	if _, err := fs.Stat(s.publicFS, "banner.png"); err != nil {
+		t.Errorf("og:image banner.png is not in the embedded public tree: %v", err)
+	}
+}
+
+// The JSON-LD bytes are the contract other repos' @context resolution depends
+// on; the SEO head tags must not leak into them, and every non-HTML Accept
+// must keep getting exactly the embedded file.
+func TestHandleSchema_JSONLDBytesUnchanged(t *testing.T) {
+	s := newTestServer(t)
+	want, err := fs.ReadFile(s.publicFS, "schema")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, accept := range []string{"", "*/*", "application/ld+json", "application/json", "application/ld+json, text/html;q=0.5"} {
+		req := httptest.NewRequest("GET", "/schema", nil)
+		if accept != "" {
+			req.Header.Set("Accept", accept)
+		}
+		w := httptest.NewRecorder()
+		s.handleSchema(w, req)
+		if ct := w.Header().Get("Content-Type"); ct != "application/ld+json" {
+			t.Errorf("Accept=%q Content-Type = %q, want application/ld+json", accept, ct)
+		}
+		if !bytes.Equal(w.Body.Bytes(), want) {
+			t.Errorf("Accept=%q body differs from the embedded schema file", accept)
+		}
+	}
+}
+
+// Two representations at one URL: a shared cache (CDN, proxy) must key on
+// Accept or it will hand the browser page to a JSON-LD client.
+func TestHandleSchema_VaryAccept(t *testing.T) {
+	s := newTestServer(t)
+	for _, accept := range []string{"text/html", "application/ld+json", ""} {
+		req := httptest.NewRequest("GET", "/schema", nil)
+		if accept != "" {
+			req.Header.Set("Accept", accept)
+		}
+		w := httptest.NewRecorder()
+		s.handleSchema(w, req)
+		if got := w.Header().Values("Vary"); len(got) != 1 || got[0] != "Accept" {
+			t.Errorf("Accept=%q Vary = %q, want [Accept]", accept, got)
+		}
 	}
 }
 
