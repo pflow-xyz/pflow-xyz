@@ -181,6 +181,9 @@ const schemaHTMLTpl = `<!DOCTYPE html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="author" content="Matt York">
+<link rel="me" href="https://github.com/stackdump">
+<link rel="me" href="https://blog.stackdump.com/">
 <title>pflow.xyz Schema</title>
 <style>
 :root {
@@ -242,6 +245,9 @@ const tokenHTMLTpl = `<!DOCTYPE html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{{.Name}} – pflow.xyz token</title>
+<meta name="author" content="Matt York">
+<link rel="me" href="https://github.com/stackdump">
+<link rel="me" href="https://blog.stackdump.com/">
 <style>
 :root {
   --pf-bg: #1C1C1D;
