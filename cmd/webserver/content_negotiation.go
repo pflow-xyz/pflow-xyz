@@ -166,6 +166,9 @@ func (s *Server) handleSchema(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("schema unavailable: %v", err), http.StatusInternalServerError)
 		return
 	}
+	// The body depends on Accept, so a shared cache must key on it or it
+	// serves the browser page to a JSON-LD client (and the reverse).
+	w.Header().Add("Vary", "Accept")
 	if wantsHTML(r) {
 		if err := renderSchemaHTML(w, terms); err != nil {
 			http.Error(w, "render error", http.StatusInternalServerError)
@@ -185,6 +188,19 @@ const schemaHTMLTpl = `<!DOCTYPE html>
 <link rel="me" href="https://github.com/stackdump">
 <link rel="me" href="https://blog.stackdump.com/">
 <title>pflow.xyz Schema</title>
+<meta name="description" content="JSON-LD context for pflow Petri net documents: the vocabulary behind @context https://pflow.xyz/schema."/>
+<meta property="og:title" content="pflow.xyz Schema"/>
+<meta property="og:description" content="JSON-LD context for pflow Petri net documents: the vocabulary behind @context https://pflow.xyz/schema."/>
+<meta property="og:type" content="website"/>
+<link rel="canonical" href="https://pflow.xyz/schema"/>
+<meta property="og:url" content="https://pflow.xyz/schema"/>
+<meta property="og:image" content="https://pflow.xyz/banner.png"/>
+<meta property="og:image:width" content="1280"/>
+<meta property="og:image:height" content="640"/>
+<meta name="twitter:card" content="summary_large_image"/>
+<meta name="twitter:title" content="pflow.xyz Schema"/>
+<meta name="twitter:description" content="JSON-LD context for pflow Petri net documents: the vocabulary behind @context https://pflow.xyz/schema."/>
+<meta name="twitter:image" content="https://pflow.xyz/banner.png"/>
 <style>
 :root {
   --pf-bg: #1C1C1D;
