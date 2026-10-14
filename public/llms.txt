@@ -60,9 +60,9 @@ Full rules: `docs/engine-selection.md` (vendored from go-pflow,
 
 ## Services
 
-- [Analysis & codegen MCP server](https://pilot.pflow.xyz/mcp): petri-pilot
-  JSON-RPC tools (petri_ode, petri_rate_scan, petri_ode_sweep,
-  petri_phase_plot, petri_validate, petri_codegen, …)
+- [Sim MCP server](https://sim.pflow.xyz/mcp): JSON-RPC tools to build,
+  run and check models (sim_create_model, sim_scenario, sim_invariants,
+  sim_reach, sim_verify, …)
 - [Server-side SVG rendering](https://pflow.xyz/api/svg): POST a model,
   get an SVG
 - [sim.pflow.xyz](https://sim.pflow.xyz/mcp): cost-benefit analysis for

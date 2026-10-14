@@ -1,8 +1,8 @@
 {
   "mcpServers": {
-    "petri-pilot": {
+    "sim": {
       "type": "http",
-      "url": "https://pilot.pflow.xyz/mcp"
+      "url": "https://sim.pflow.xyz/mcp"
     }
   }
 }

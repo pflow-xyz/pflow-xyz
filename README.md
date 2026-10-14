@@ -6,18 +6,17 @@
 
 ## Try It Live
 
-**Editor:** [pflow.xyz](https://pflow.xyz) | **Demos:** [pilot.pflow.xyz](https://pilot.pflow.xyz) | **Code to Flow:** [pilot.pflow.xyz/code-to-flow](https://pilot.pflow.xyz/code-to-flow/) | **Book:** [book.pflow.xyz](https://book.pflow.xyz) | **GraphQL:** [pilot.pflow.xyz/graphql/i](https://pilot.pflow.xyz/graphql/i)
+**Editor:** [pflow.xyz](https://pflow.xyz) | **Models you can run and check:** [sim.pflow.xyz](https://sim.pflow.xyz) | **Book:** [book.pflow.xyz](https://book.pflow.xyz)
 
-### Demos
+### Models on sim.pflow.xyz
 
-Start with the ODE demos — the fastest way to see the browser solver move a model. Every demo is a full-stack app generated from the same Petri net model by [petri-pilot](https://github.com/pflow-xyz/petri-pilot); the full catalog (games, workflows, ZK proofs) lives there.
+Describe a decision, process or mechanism to your AI assistant and get back a model you can run and check. Open one to see how it behaves:
 
-| Demo | Concepts | Link |
-|------|----------|------|
-| **Predator-Prey** | Lotka-Volterra dynamics, continuous simulation | [Play](https://pilot.pflow.xyz/predator-prey/) |
-| **Enzyme Kinetics** | Michaelis-Menten, biochemical modeling | [Play](https://pilot.pflow.xyz/enzyme-kinetics/) |
-| **Knapsack** | Optimization via mass-action kinetics | [Play](https://pilot.pflow.xyz/knapsack/) |
-| **Coffee Shop** | Capacity limits, weighted arcs, resource flow | [Play](https://pilot.pflow.xyz/coffeeshop/) |
+| Model | What it shows | Link |
+|-------|---------------|------|
+| **Second car or ride-share?** | A household decision with its spread shown | [Open](https://sim.pflow.xyz/second-car/) |
+| **Cold-chain attack** | How many technicians it takes to beat a freezer defrost attack | [Open](https://sim.pflow.xyz/whatif/?id=7d736018c17edd5d7b083444) |
+| **Baggage hall** | Conveyor health against sorter headcount | [Open](https://sim.pflow.xyz/whatif/?id=3741e97f8256ab15e7a28aed) |
 
 ---
 
@@ -29,14 +28,14 @@ Start with the ODE demos — the fastest way to see the browser solver move a mo
 | **[go-pflow](https://github.com/pflow-xyz/go-pflow)** | Core library — ODE/SSA/SDE engines, fitting, reachability & verification | Go |
 | **[pflow-rs](https://github.com/pflow-xyz/pflow-rs)** | Rust port — ODE solvers, token-model DSL, ZK provers | Rust |
 | **[pflow-jl](https://github.com/pflow-xyz/pflow-jl)** | Julia port, bridged to AlgebraicPetri.jl for categorical composition | Julia |
-| **[petri-pilot](https://github.com/pflow-xyz/petri-pilot)** | MCP server + full-stack app generation from models | Go |
+| **[sim-pflow-xyz](https://sim.pflow.xyz)** | Describe a process, get a model you can run and check (hosted, MCP) | Go |
 | **[book-pflow-xyz](https://github.com/pflow-xyz/book-pflow-xyz)** | "Petri Nets as a Universal Abstraction" — practitioner's guide | mdBook |
 
 ```
-JSON-LD Model ──▶ go-pflow (codegen) ──▶ petri-pilot (serve) ──▶ Running App
-      ▲                                                               │
-      └──────────── pflow-xyz (visual editor) ◀───────────────────────┘
-                    book-pflow-xyz (guide)
+JSON-LD Model ──▶ go-pflow (engines) ──▶ sim.pflow.xyz (run + check)
+      ▲                                          │
+      └──── pflow-xyz (visual editor) ◀──────────┘
+            book-pflow-xyz (guide)
 ```
 
 ### Design Philosophy
@@ -97,7 +96,7 @@ const sol = Solver.solve(prob, Solver.Tsit5(), { dt: 0.01 });
 
 **Editor** — Drag-and-drop places, transitions, arcs. Inhibitor arcs, capacity limits, multi-select, pan & zoom, undo/redo. Light + dark theme (follows `prefers-color-scheme`).
 
-**Analysis workbench** (`9` or ☰ → Analysis) — Tsit5 adaptive solver with mass-action kinetics, in four tabs: time-series **Simulate**, **Rate Scan** (steady state vs one rate), **Sweep** (overlaid trajectories), and **Phase Plot**. Interactive plots (crosshair, click-to-toggle legend), numeric results tables, CSV/JSON export, and a "Copy MCP call" button that emits the equivalent petri-pilot `tools/call` payload.
+**Analysis workbench** (`9` or ☰ → Analysis) — Tsit5 adaptive solver with mass-action kinetics, in four tabs: time-series **Simulate**, **Rate Scan** (steady state vs one rate), **Sweep** (overlaid trajectories), and **Phase Plot**. Interactive plots (crosshair, click-to-toggle legend), numeric results tables, CSV/JSON export, and a "Copy MCP call" button that emits an MCP `tools/call` payload.
 
 **Ad-hoc pages** — every module is served from pflow.xyz with `Access-Control-Allow-Origin: *`, so a scratch HTML file (or an AI assistant writing one) can `import "https://pflow.xyz/petri-solver.js"` directly. See [pflow.xyz/llms.txt](https://pflow.xyz/llms.txt) for copy-paste recipes and the model format.
 
@@ -120,25 +119,20 @@ const sol = Solver.solve(prob, Solver.Tsit5(), { dt: 0.01 });
 
 ## AI-Assisted Development (MCP)
 
-[petri-pilot](https://github.com/pflow-xyz/petri-pilot) provides an MCP server for AI assistants to design models and generate apps. This repo ships a `.mcp.json` pointing at the hosted server, so Claude Code picks it up automatically (in the terminal and on the web). To add it to other clients:
+[sim.pflow.xyz](https://sim.pflow.xyz) provides an MCP server for AI assistants to build, run and check models. This repo ships a `.mcp.json` pointing at the hosted server, so Claude Code picks it up automatically (in the terminal and on the web). To add it to other clients:
 
 ```bash
-claude mcp add --transport http petri-pilot https://pilot.pflow.xyz/mcp
+claude mcp add --transport http sim https://sim.pflow.xyz/mcp
 ```
 
 | Tool | Description |
 |------|-------------|
-| `petri_validate` | Structural correctness |
-| `petri_simulate` | Fire transitions, verify behavior |
-| `petri_analyze` | Reachability, deadlocks, liveness |
-| `petri_codegen` | Generate Go backend |
-| `petri_frontend` | Generate ES modules frontend |
-| `petri_application` | Full-stack app from spec |
-
-```bash
-petri-pilot codegen -o ./myapp -pkg myapp model.json
-petri-pilot frontend -o ./myapp/frontend model.json
-```
+| `sim_create_model` | Store a model from a description or net |
+| `sim_scenario` | Seeded what-if runs |
+| `sim_invariants` | Conservation laws |
+| `sim_reach` | Reachability and deadlocks |
+| `sim_verify` | Check properties of a model |
+| `sim_code_to_flow` | Turn code into a flow model |
 
 ---
 
@@ -161,12 +155,9 @@ pv.importJSON(jsonData);
 | Resource | URL |
 |----------|-----|
 | **Live Editor** | [pflow.xyz](https://pflow.xyz) |
-| **Demos** | [pilot.pflow.xyz](https://pilot.pflow.xyz) |
-| **Code to Flow** | [pilot.pflow.xyz/code-to-flow](https://pilot.pflow.xyz/code-to-flow/) |
+| **Sim** | [sim.pflow.xyz](https://sim.pflow.xyz) |
 | **Book** | [book.pflow.xyz](https://book.pflow.xyz) |
-| **GraphQL** | [pilot.pflow.xyz/graphql/i](https://pilot.pflow.xyz/graphql/i) |
 | **go-pflow** | [github.com/pflow-xyz/go-pflow](https://github.com/pflow-xyz/go-pflow) |
-| **petri-pilot** | [github.com/pflow-xyz/petri-pilot](https://github.com/pflow-xyz/petri-pilot) |
 | **CDN** | [jsdelivr.com/package/gh/pflow-xyz/pflow-xyz](https://www.jsdelivr.com/package/gh/pflow-xyz/pflow-xyz) |
 | **npm** | [@pflow-xyz/pflow-xyz](https://www.npmjs.com/package/@pflow-xyz/pflow-xyz) |
 | **Schema** | [pflow.xyz/schema](https://pflow.xyz/schema) |

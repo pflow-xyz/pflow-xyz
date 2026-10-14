@@ -4989,13 +4989,6 @@ PetriView = class PetriView extends HTMLElement {
                 Read it at <a href="https://book.pflow.xyz" target="_blank" style="color: #4a90d9;">book.pflow.xyz</a>.
             </p>
 
-            <h3>🚀 Petri Pilot</h3>
-            <p>
-                <strong>Petri Pilot</strong> generates full-stack apps from Petri net models.
-                Try 14 live demos at <a href="https://pilot.pflow.xyz" target="_blank" style="color: #4a90d9;">pilot.pflow.xyz</a>
-                — games, workflows, protocols, biochemical models, and optimization problems.
-            </p>
-
             <h3>📊 Sim — Cost-Benefit</h3>
             <p>
                 <strong>sim.pflow.xyz</strong> turns this model into a cost-benefit
@@ -5147,97 +5140,6 @@ PetriView = class PetriView extends HTMLElement {
             document.body.removeChild(overlay);
         });
         dialog.appendChild(closeBtn);
-
-        document.body.appendChild(overlay);
-
-        // Close on overlay click
-        overlay.addEventListener('click', (e) => {
-            if (e.target === overlay) {
-                document.body.removeChild(overlay);
-            }
-        });
-    }
-
-    // ---------------- Petri Pilot dialog ----------------
-    _showPetriPilotDialog() {
-        // Create modal overlay
-        const { overlay, dialog } = this._createModalOverlay({
-            className: 'pv-help-dialog',
-            dialogClass: 'pv-modal-dialog'
-        });
-
-        // Title
-        const title = document.createElement('h2');
-        title.className = 'pv-help-title';
-        title.textContent = '🚀 Petri Pilot';
-        dialog.appendChild(title);
-
-        // Content
-        const content = document.createElement('div');
-        content.className = 'pv-help-content';
-
-        content.innerHTML = `
-            <h3>What is Petri Pilot?</h3>
-            <p>
-                <strong>Petri Pilot</strong> generates full-stack applications from Petri net models —
-                event-sourced Go backends, ES modules frontends, GraphQL APIs, and SQLite persistence.
-                Design visually, generate code, run instantly.
-            </p>
-
-            <h3>Live Demos</h3>
-            <p>Every demo is a running app generated from a Petri net model:</p>
-            <ul style="column-count: 2; column-gap: 24px;">
-                <li><a href="https://pilot.pflow.xyz/tic-tac-toe/" target="_blank" style="color: #4a90d9;">Tic-Tac-Toe</a> — state machines, ODE analysis</li>
-                <li><a href="https://pilot.pflow.xyz/zk-tic-tac-toe/" target="_blank" style="color: #4a90d9;">ZK Tic-Tac-Toe</a> — zero-knowledge proofs</li>
-                <li><a href="https://pilot.pflow.xyz/coffeeshop/" target="_blank" style="color: #4a90d9;">Coffee Shop</a> — capacity, weighted arcs</li>
-                <li><a href="https://pilot.pflow.xyz/texas-holdem/" target="_blank" style="color: #4a90d9;">Texas Hold'em</a> — roles, guards, event sourcing</li>
-                <li><a href="https://pilot.pflow.xyz/knapsack/" target="_blank" style="color: #4a90d9;">Knapsack</a> — optimization, mass-action kinetics</li>
-                <li><a href="https://pilot.pflow.xyz/predator-prey/" target="_blank" style="color: #4a90d9;">Predator-Prey</a> — Lotka-Volterra dynamics</li>
-                <li><a href="https://pilot.pflow.xyz/dining-philosophers/" target="_blank" style="color: #4a90d9;">Dining Philosophers</a> — deadlock, mutual exclusion</li>
-                <li><a href="https://pilot.pflow.xyz/loan-approval/" target="_blank" style="color: #4a90d9;">Loan Approval</a> — multi-stage workflow</li>
-                <li><a href="https://pilot.pflow.xyz/tcp-handshake/" target="_blank" style="color: #4a90d9;">TCP Handshake</a> — protocol state machines</li>
-                <li><a href="https://pilot.pflow.xyz/thermostat/" target="_blank" style="color: #4a90d9;">Thermostat</a> — feedback loops, control</li>
-                <li><a href="https://pilot.pflow.xyz/producer-consumer/" target="_blank" style="color: #4a90d9;">Producer-Consumer</a> — buffered channels</li>
-                <li><a href="https://pilot.pflow.xyz/hiring-pipeline/" target="_blank" style="color: #4a90d9;">Hiring Pipeline</a> — multi-phase tracking</li>
-                <li><a href="https://pilot.pflow.xyz/enzyme-kinetics/" target="_blank" style="color: #4a90d9;">Enzyme Kinetics</a> — Michaelis-Menten</li>
-                <li><a href="https://pilot.pflow.xyz/stoplight/" target="_blank" style="color: #4a90d9;">Stoplight</a> — cyclic state machines</li>
-            </ul>
-
-            <h3>MCP Integration</h3>
-            <p>
-                Use Petri Pilot tools via <strong>MCP</strong> from AI assistants —
-                validate, simulate, analyze, and generate full-stack apps from models.
-            </p>
-        `;
-
-        dialog.appendChild(content);
-
-        // Button container
-        const buttonContainer = document.createElement('div');
-        buttonContainer.style.cssText = 'display: flex; gap: 12px; justify-content: center; margin-top: 20px;';
-
-        // Visit Petri Pilot button
-        const visitBtn = document.createElement('button');
-        visitBtn.className = 'pv-help-close-btn';
-        visitBtn.style.cssText = 'background: #4a9eda; color: white;';
-        visitBtn.textContent = 'Visit Petri Pilot →';
-        visitBtn.type = 'button';
-        visitBtn.addEventListener('click', () => {
-            window.open('https://pilot.pflow.xyz', '_blank', 'noopener,noreferrer');
-        });
-        buttonContainer.appendChild(visitBtn);
-
-        // Close button
-        const closeBtn = document.createElement('button');
-        closeBtn.className = 'pv-help-close-btn';
-        closeBtn.textContent = 'Close';
-        closeBtn.type = 'button';
-        closeBtn.addEventListener('click', () => {
-            document.body.removeChild(overlay);
-        });
-        buttonContainer.appendChild(closeBtn);
-
-        dialog.appendChild(buttonContainer);
 
         document.body.appendChild(overlay);
 
@@ -7362,16 +7264,6 @@ PetriView = class PetriView extends HTMLElement {
             this._showHelpDialog();
         });
         menuContainer._menuContent.appendChild(helpItem);
-
-        const petriPilotItem = makeMenuItem('🚀 Petri Pilot', () => {
-            this._showPetriPilotDialog();
-        });
-        menuContainer._menuContent.appendChild(petriPilotItem);
-
-        const codeToFlowItem = makeMenuItem('🔄 Code to Flow', () => {
-            window.open('https://pilot.pflow.xyz/code-to-flow/', '_blank', 'noopener,noreferrer');
-        });
-        menuContainer._menuContent.appendChild(codeToFlowItem);
 
         const simItem = makeMenuItem('📊 Sim — Cost-Benefit', () => {
             window.open('https://sim.pflow.xyz', '_blank', 'noopener,noreferrer');

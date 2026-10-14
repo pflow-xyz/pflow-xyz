@@ -188,14 +188,9 @@ again.
 
 - POST https://pflow.xyz/api/svg — render a model to SVG server-side.
 - GET  https://pflow.xyz/schema — the JSON-LD @context.
-- https://pilot.pflow.xyz/mcp — petri-pilot MCP server (JSON-RPC): the same
-  math as tools (petri_ode, petri_rate_scan, petri_ode_sweep,
-  petri_phase_plot, petri_stochastic, petri_fit, petri_optimize, …) plus
-  validation, verification, and full-stack code generation. It accepts a flat
-  model format: `{"name": "...", "places": [{"id","initial"}],
-  "transitions": [{"id"}], "arcs": [{"from","to","weight"}]}`. The editor's
-  Analysis dialog has a "Copy MCP call" button that emits ready-to-send
-  payloads.
+- https://sim.pflow.xyz/mcp — sim MCP server (JSON-RPC): build, run and
+  check models (sim_create_model, sim_scenario, sim_invariants, sim_reach,
+  sim_verify, …).
 - https://book.pflow.xyz — the book on modeling with Petri nets.
 - https://sim.pflow.xyz — cost-benefit analysis for anything you can
   describe as a flow: store a model with one POST, get seeded scenario
