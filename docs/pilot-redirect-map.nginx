@@ -1,0 +1,29 @@
+# Managed copy of the map in pilot.pflow.xyz's nginx vhost (pflow.dev:/etc/nginx/sites-available/pilot.pflow.xyz).
+map $pilot_slug $pilot_target {
+    default https://sim.pflow.xyz/whatif/;
+    cafe https://sim.pflow.xyz/whatif/?id=3ab9e15cde5c02b463c31354;
+    coffeeshop https://sim.pflow.xyz/whatif/?id=3ab9e15cde5c02b463c31354;
+    predator-prey https://sim.pflow.xyz/whatif/?id=0b76c369b203dce8a78f6f0a;
+    vet-clinic https://sim.pflow.xyz/whatif/?id=ae6ab5aeb95dd994bc561479;
+    tic-tac-toe https://sim.pflow.xyz/whatif/?id=5a08c67862a2eb55799f5229;
+    zk-tic-tac-toe https://sim.pflow.xyz/whatif/?id=5a08c67862a2eb55799f5229;
+    optimal-play https://sim.pflow.xyz/whatif/?id=5a08c67862a2eb55799f5229;
+    loan-approval https://sim.pflow.xyz/whatif/?id=c31a8daf73535d8dc1145f29;
+    hiring-pipeline https://sim.pflow.xyz/whatif/?id=6ac4486b25bbf45311168086;
+    learn https://sim.pflow.xyz/help/;
+    advanced https://sim.pflow.xyz/help/;
+    patterns https://sim.pflow.xyz/help/;
+    code-to-flow https://sim.pflow.xyz/help/;
+    enzyme-kinetics https://sim.pflow.xyz/whatif/;
+    knapsack https://sim.pflow.xyz/whatif/;
+    galton-board https://sim.pflow.xyz/whatif/;
+    thermostat https://sim.pflow.xyz/whatif/;
+    stoplight https://sim.pflow.xyz/whatif/;
+    tcp-handshake https://sim.pflow.xyz/whatif/;
+    producer-consumer https://sim.pflow.xyz/whatif/;
+    dining-philosophers https://sim.pflow.xyz/whatif/;
+    texas-holdem https://sim.pflow.xyz/whatif/;
+    poker-hand https://sim.pflow.xyz/whatif/;
+    march-madness-2026 https://sim.pflow.xyz/whatif/;
+    zk-intro https://sim.pflow.xyz/whatif/;
+}
