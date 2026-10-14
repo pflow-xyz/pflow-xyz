@@ -7,12 +7,12 @@
          so its own pan/zoom gestures are unaffected. -->
     <meta content="width=device-width, initial-scale=1" name="viewport"/>
     <title>pflow - Visual Editor for Petri Nets</title>
-    <meta name="description" content="One abstraction for state machines, resource flows, game mechanics, and token standards. Build Petri net models you can simulate, analyze, and generate code from."/>
+    <meta name="description" content="Draw a Petri net, run it, and check it. A visual editor for state machines, resource flows and token standards, with the same models available to check at sim.pflow.xyz."/>
     <meta name="author" content="Matt York">
     <link rel="me" href="https://github.com/stackdump">
     <link rel="me" href="https://blog.stackdump.com/">
     <meta property="og:title" content="pflow - Visual Editor for Petri Nets"/>
-    <meta property="og:description" content="One abstraction for state machines, resource flows, game mechanics, and token standards."/>
+    <meta property="og:description" content="Draw a Petri net, run it, and check it. A visual editor with simulation and a front door at sim.pflow.xyz."/>
     <meta property="og:type" content="website"/>
     <link rel="canonical" href="https://pflow.xyz/"/>
     <meta property="og:url" content="https://pflow.xyz/"/>
@@ -21,7 +21,7 @@
     <meta property="og:image:height" content="640"/>
     <meta name="twitter:card" content="summary_large_image"/>
     <meta name="twitter:title" content="pflow - Visual Editor for Petri Nets"/>
-    <meta name="twitter:description" content="One abstraction for state machines, resource flows, game mechanics, and token standards."/>
+    <meta name="twitter:description" content="Draw a Petri net, run it, and check it. A visual editor with simulation and a front door at sim.pflow.xyz."/>
     <meta name="twitter:image" content="https://pflow.xyz/banner.png"/>
     <link href="petri-view.css" rel="stylesheet"/>
     <script src="petri-view.js" type="module"></script>
@@ -479,6 +479,8 @@
     <nav class="landing-nav">
         <a href="/"><img alt="pflow" src="title.svg"/></a>
         <div class="landing-nav-links">
+            <a href="https://sim.pflow.xyz">Sim</a>
+            <a href="https://book.pflow.xyz">Book</a>
             <a href="https://github.com/pflow-xyz/pflow-xyz">GitHub</a>
         </div>
     </nav>
@@ -491,16 +493,27 @@
         <div class="landing-hero-overlay"></div>
         <div class="landing-hero-content">
             <h1>Visual Editor for Petri Nets</h1>
-            <p>One abstraction for state machines, resource flows, game mechanics, and token standards. Build models you can simulate, analyze, and generate code from.</p>
+            <p>Draw a process as places, transitions and arcs, then run it and see what it does. Prefer to start from a description? <a href="https://sim.pflow.xyz" style="color:var(--pf-accent)">sim.pflow.xyz</a> turns one into a model you can run and check.</p>
             <div class="landing-hero-buttons">
                 <a class="btn-primary" href="#" id="open-editor-btn">Open Editor</a>
-                <a class="btn-secondary" href="https://book.pflow.xyz">Read the Book</a>
+                <a class="btn-secondary" href="https://sim.pflow.xyz">Describe it instead (sim)</a>
             </div>
         </div>
     </section>
 
+    <section class="landing-pipeline">
+        <h2>Or start from a description</h2>
+        <p class="landing-pipeline-sub">Describe a decision, process or mechanism to your AI assistant and get back a model you can run and check. Some to open on sim.pflow.xyz:</p>
+        <div class="pipeline-grid">
+            <a href="https://sim.pflow.xyz/second-car/" class="pipeline-card"><h3>Second car or ride-share?</h3><p>A household decision with the spread shown, free with no sign-up.</p><span class="pipeline-link">Open &rarr;</span></a>
+            <a href="https://sim.pflow.xyz/whatif/?id=7d736018c17edd5d7b083444" class="pipeline-card"><h3>Cold-chain attack</h3><p>How many technicians does it take to beat a freezer defrost attack?</p><span class="pipeline-link">Open &rarr;</span></a>
+            <a href="https://sim.pflow.xyz/whatif/?id=3741e97f8256ab15e7a28aed" class="pipeline-card"><h3>Baggage hall</h3><p>Conveyor health against sorter headcount, and which one moves missed bags.</p><span class="pipeline-link">Open &rarr;</span></a>
+        </div>
+    </section>
+
     <section class="landing-section">
-        <h2>Example Models</h2>
+        <h2>Example models, open in the editor</h2>
+        <p class="landing-pipeline-sub" style="text-align:center;margin:-16px 0 32px">Each one is a saved net with a content-addressed ID. Open it, change a weight, run it. The same kind of model is what <a href="https://sim.pflow.xyz" style="color:var(--pf-accent)">sim.pflow.xyz</a> builds from a description.</p>
         <div class="model-grid">
             <a class="model-card" href="/?cid=z4EBG9j3NhEnaxZBEpXXCvyMbR9utkgUZoPBQFxS99qSehUwuBL&amp;title=Coffee+Shop" data-cid="z4EBG9j3NhEnaxZBEpXXCvyMbR9utkgUZoPBQFxS99qSehUwuBL" data-title="Coffee Shop">
                 <div class="model-card-img">
@@ -560,8 +573,8 @@
     </section>
 
     <section class="landing-pipeline">
-        <h2>Draw &rarr; Generate &rarr; Prove</h2>
-        <p class="landing-pipeline-sub">One model flows through the entire stack.</p>
+        <h2>Draw &rarr; Check &rarr; Prove</h2>
+        <p class="landing-pipeline-sub">One model, three questions: what is it, what does it do, can it be audited.</p>
         <div class="pipeline-grid">
             <a href="#" id="pipeline-draw" class="pipeline-card">
                 <div class="pipeline-icon">
@@ -576,10 +589,10 @@
                     </svg>
                 </div>
                 <h3>Draw</h3>
-                <p>Build state machines visually. Places, transitions, arcs — the model is a directed graph stored as JSON-LD with content-addressed identity.</p>
+                <p>Build state machines visually. Places, transitions, arcs: the model is a directed graph stored as JSON-LD with content-addressed identity.</p>
                 <span class="pipeline-link">pflow.xyz</span>
             </a>
-            <a href="https://pilot.pflow.xyz" class="pipeline-card">
+            <a href="https://sim.pflow.xyz" class="pipeline-card">
                 <div class="pipeline-icon">
                     <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <rect x="4" y="6" width="40" height="30" rx="2" stroke="#EBFF00" stroke-width="2" fill="none"/>
@@ -590,9 +603,9 @@
                         <line x1="24" y1="36" x2="24" y2="39" stroke="#EBFF00" stroke-width="2"/>
                     </svg>
                 </div>
-                <h3>Generate</h3>
-                <p>AI constrained by the model produces correct code. The topology defines what's valid — the LLM fills in the implementation. Not prompting. Specifying.</p>
-                <span class="pipeline-link">pilot.pflow.xyz &rarr;</span>
+                <h3>Check</h3>
+                <p>Describe a decision or a process and get back a model that is seeded, repeatable and checked knob by knob, instead of a confident guess. Start from words, not from a canvas.</p>
+                <span class="pipeline-link">sim.pflow.xyz &rarr;</span>
             </a>
             <a href="https://blog.stackdump.com/posts/zk-petri-nets" class="pipeline-card">
                 <div class="pipeline-icon">
@@ -603,30 +616,30 @@
                     </svg>
                 </div>
                 <h3>Prove</h3>
-                <p>ZK circuits verify every transition is valid without revealing state. Groth16 proofs from net topology — the model becomes its own audit trail.</p>
-                <span class="pipeline-link">Read about ZK &rarr;</span>
+                <p>ZK circuits verify every transition is valid without revealing state. Groth16 proofs from net topology, so the model carries its own audit trail.</p>
+                <span class="pipeline-link">Further reading: ZK Petri nets &rarr;</span>
             </a>
         </div>
     </section>
 
     <section class="landing-pipeline">
-        <h2>More from the ecosystem</h2>
-        <p class="landing-pipeline-sub">The same model, a different question.</p>
-        <div class="ecosystem-grid">
-            <a href="https://sim.pflow.xyz" class="pipeline-card">
-                <div class="pipeline-icon">
-                    <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <circle cx="10" cy="14" r="5" stroke="#EBFF00" stroke-width="2" fill="none"/>
-                        <rect x="21" y="9" width="10" height="10" rx="2" stroke="#EBFF00" stroke-width="2" fill="none"/>
-                        <circle cx="38" cy="14" r="5" stroke="#EBFF00" stroke-width="2" fill="none"/>
-                        <line x1="15" y1="14" x2="21" y2="14" stroke="#EBFF00" stroke-width="2"/>
-                        <line x1="31" y1="14" x2="33" y2="14" stroke="#EBFF00" stroke-width="2" stroke-dasharray="3 3"/>
-                        <path d="M6 30h8l4-10 6 20 4-14 3 8h13" stroke="#EBFF00" stroke-width="2" fill="none" stroke-linejoin="round"/>
-                    </svg>
-                </div>
-                <h3>Sim</h3>
-                <p>Cost-benefit analysis for anything you can describe as a flow. Store a model, get seeded scenarios and automated diagnostics that rank every knob by measured effect on the outcome.</p>
-                <span class="pipeline-link">sim.pflow.xyz &rarr;</span>
+        <h2>Go deeper</h2>
+        <p class="landing-pipeline-sub">The editor is the hands-on part. These explain why it works.</p>
+        <div class="pipeline-grid">
+            <a href="https://book.pflow.xyz" class="pipeline-card">
+                <h3>The book</h3>
+                <p>A worked introduction to Petri nets: the formalism, the solvers, and the models above taken apart step by step.</p>
+                <span class="pipeline-link">book.pflow.xyz &rarr;</span>
+            </a>
+            <a href="https://blog.stackdump.com" class="pipeline-card">
+                <h3>The blog</h3>
+                <p>Technical notes on Petri nets and the systems built on them.</p>
+                <span class="pipeline-link">blog.stackdump.com &rarr;</span>
+            </a>
+            <a href="https://blog.stackdump.com/posts/zk-petri-nets" class="pipeline-card">
+                <h3>ZK Petri nets</h3>
+                <p>How a net's topology becomes a circuit, and what a proof of a valid transition does and does not show.</p>
+                <span class="pipeline-link">Read the post &rarr;</span>
             </a>
         </div>
     </section>
@@ -634,19 +647,19 @@
     <div class="landing-about">
         <p>
             Places hold tokens. Transitions move them. Arcs define the rules.
-            From coffee shops to poker games to blockchain bridges —
-            the same formal structure, the same tools, the same proofs.
+            From coffee shops to poker games to blockchain bridges, it is the
+            same structure, so the same tools apply.
         </p>
-        <a href="https://book.pflow.xyz">Read the book &rarr;</a>
+        <a href="https://sim.pflow.xyz">Try a model on sim.pflow.xyz &rarr;</a>
     </div>
 
     <footer class="landing-footer">
         <div class="landing-footer-content">
             <div class="landing-footer-links">
-                <a href="https://pilot.pflow.xyz">Petri Pilot</a>
                 <a href="https://sim.pflow.xyz">Sim</a>
                 <a href="https://book.pflow.xyz">Book</a>
                 <a href="https://blog.stackdump.com">Blog</a>
+                <a href="https://pilot.pflow.xyz">Petri Pilot (code generator)</a>
                 <a href="https://github.com/pflow-xyz/pflow-xyz">GitHub</a>
             </div>
             <span class="landing-footer-copy">&copy; Stackdump.com LLC</span>
