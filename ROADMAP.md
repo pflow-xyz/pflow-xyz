@@ -30,4 +30,6 @@ Directions to consider:
 
 **Decided (2026-10-15).** Mostly client-side: the browser engines (byte-exact to go-pflow) run the simulation and analysis, with calls to a Gemini LLM to help design the net and build the analysis, the way sim does. Unlike sim, which leads with outcomes and keeps Petri nets as the engine, the goal here is to show users the Petri net design itself: the guided flow should end with a net they can see, read and edit.
 
-Open questions: where the Gemini key lives (user-supplied key in the browser vs a thin server-side proxy), and how the guided flow coexists with the current expert-facing Analysis dialog.
+**LLM access.** A thin proxy on the pflow.xyz webserver holds the Gemini key; the browser never sees it. Only authenticated users may call it, using the existing GitHub sign-in (internal/auth, GitHub token verified server-side), with per-user rate limits. sim-pflow-xyz already calls Gemini (pkg/simmcp) and is the reference for prompts.
+
+Open questions: how the guided flow coexists with the current expert-facing Analysis dialog.
