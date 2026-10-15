@@ -28,6 +28,6 @@ Directions to consider:
 - **Share with sim.** Open the same net on sim.pflow.xyz, or store it there,
   without re-entering it.
 
-Open questions: how much of this runs client-side (the browser engines are
-byte-exact to go-pflow) versus calling sim; and how the guided flow coexists
-with the current expert-facing Analysis dialog.
+**Decided (2026-10-15).** Mostly client-side: the browser engines (byte-exact to go-pflow) run the simulation and analysis, with calls to a Gemini LLM to help design the net and build the analysis, the way sim does. Unlike sim, which leads with outcomes and keeps Petri nets as the engine, the goal here is to show users the Petri net design itself: the guided flow should end with a net they can see, read and edit.
+
+Open questions: where the Gemini key lives (user-supplied key in the browser vs a thin server-side proxy), and how the guided flow coexists with the current expert-facing Analysis dialog.
