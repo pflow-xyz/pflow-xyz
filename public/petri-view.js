@@ -5077,7 +5077,7 @@ PetriView = class PetriView extends HTMLElement {
             <h3>Analysis Workbench</h3>
             <p>
                 Continuous-time math tools for the current model, computed in the browser with the same
-                mass-action semantics and Tsit5 solver options as go-pflow and Petri Pilot.
+                mass-action semantics and Tsit5 solver options as go-pflow.
                 Open it from the hamburger menu (<strong>🧮 Analysis</strong>) or press <strong>9</strong>.
             </p>
 
@@ -5094,9 +5094,6 @@ PetriView = class PetriView extends HTMLElement {
             <h4>Results:</h4>
             <ul>
                 <li><strong>CSV / JSON:</strong> Download the raw series behind any plot</li>
-                <li><strong>Copy MCP call:</strong> Copies the equivalent Petri Pilot MCP <code>tools/call</code>
-                payload (petri_ode, petri_rate_scan, petri_ode_sweep, petri_phase_plot) so an AI assistant —
-                or <code>curl https://pilot.pflow.xyz/mcp</code> — can reproduce the analysis</li>
                 <li><strong>Rate=0 disables a transition:</strong> useful for knapsack-style exclusion tests
                 and quick sensitivity checks</li>
             </ul>
@@ -5162,10 +5159,9 @@ PetriView = class PetriView extends HTMLElement {
     // ---------------- Analysis workbench (ODE + math tools) ----------------
     //
     // One tabbed dialog for the continuous-math tools, computed client-side
-    // with petri-solver.js. Tabs mirror petri-pilot's MCP tools (petri_ode,
-    // petri_rate_scan, petri_ode_sweep, petri_phase_plot) — the solver options
-    // match pilot's JSParityOptions, so a result here is reproducible via MCP,
-    // and "Copy MCP call" emits the equivalent tools/call payload.
+    // with petri-solver.js: Simulate, Rate Scan, Sweep and Phase Plot. The solver
+    // options default to go-pflow's solver.JSParityOptions(), so a result here
+    // is reproducible with go-pflow's Tsit5.
 
     _escHtml(s) {
         return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
@@ -5204,49 +5200,6 @@ PetriView = class PetriView extends HTMLElement {
         a.download = filename;
         a.click();
         setTimeout(() => URL.revokeObjectURL(url), 1000);
-    }
-
-    /**
-     * Convert the JSON-LD model to petri-pilot's flat schema (v1), the format
-     * its MCP tools accept. Color vectors are summed — pilot's math tools are
-     * scalar; the note field flags it when information was folded.
-     */
-    _pilotModelJSON() {
-        const m = this._model;
-        const out = {
-            name: (document.title || 'pflow-model').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'pflow-model',
-            places: [],
-            transitions: [],
-            arcs: [],
-        };
-        let folded = false;
-        for (const [id, p] of Object.entries(m.places || {})) {
-            const init = Array.isArray(p.initial) ? p.initial : [p.initial || 0];
-            if (init.length > 1) folded = true;
-            out.places.push({ id, initial: init.reduce((a, b) => a + (b || 0), 0), x: p.x || 0, y: p.y || 0 });
-        }
-        for (const [id, t] of Object.entries(m.transitions || {})) {
-            out.transitions.push({ id, x: t.x || 0, y: t.y || 0 });
-        }
-        for (const a of (m.arcs || [])) {
-            const w = Array.isArray(a.weight) ? a.weight : [a.weight || 1];
-            if (w.length > 1) folded = true;
-            const arc = { from: a.source, to: a.target, weight: w.reduce((x, y) => x + (y || 0), 0) || 1 };
-            if (a.inhibitTransition) arc.inhibit = true;
-            out.arcs.push(arc);
-        }
-        if (folded) out.description = 'Exported from pflow.xyz; multi-color token vectors were summed to scalars.';
-        return out;
-    }
-
-    /** JSON-RPC tools/call payload for pilot.pflow.xyz/mcp. */
-    _pilotCall(tool, args) {
-        return JSON.stringify({
-            jsonrpc: '2.0',
-            id: 1,
-            method: 'tools/call',
-            params: { name: tool, arguments: { model: JSON.stringify(this._pilotModelJSON()), ...args } },
-        }, null, 2);
     }
 
     /** Solve the current model's ODE once. Options default to JS/Go parity values. */
@@ -5409,7 +5362,6 @@ PetriView = class PetriView extends HTMLElement {
                 <button type="button" class="pv-btn pv-btn-primary" data-act="run">Run</button>
                 <button type="button" class="pv-btn" data-act="csv" disabled>CSV</button>
                 <button type="button" class="pv-btn" data-act="json" disabled>JSON</button>
-                <button type="button" class="pv-btn" data-act="mcp" title="Copy the equivalent petri-pilot MCP tools/call payload">Copy MCP call</button>
                 <button type="button" class="pv-btn" data-act="gist" disabled>Export to Gist</button>
                 <button type="button" class="pv-btn" data-act="close">Close</button>
             </div>`;
@@ -5626,34 +5578,6 @@ PetriView = class PetriView extends HTMLElement {
             if (lastResult) this._downloadFile(lastResult.filename + '.json', JSON.stringify(lastResult.json, null, 2), 'application/json');
         });
         gistBtn.addEventListener('click', () => this._exportODESimulationToGist({}));
-        $('[data-act="mcp"]').addEventListener('click', () => {
-            readState();
-            const calls = {
-                simulate: () => this._pilotCall('petri_ode', { rates: JSON.stringify(st.rates), tspan: `[0,${st.tend}]` }),
-                scan: () => this._pilotCall('petri_rate_scan', {
-                    transition: st.scanTransition,
-                    range: `[${st.range.start},${st.range.stop},${st.range.n}]`,
-                    observables: JSON.stringify(st.selected),
-                    fixed_rates: JSON.stringify(st.rates),
-                }),
-                sweep: () => this._pilotCall('petri_ode_sweep', {
-                    transition: st.scanTransition,
-                    observable: st.sweepObservable,
-                    range: `[${st.range.start},${st.range.stop},${st.range.n}]`,
-                    fixed_rates: JSON.stringify(st.rates),
-                    tspan: `[0,${st.tend}]`,
-                }),
-                phase: () => this._pilotCall('petri_phase_plot', {
-                    place_x: st.phaseX, place_y: st.phaseY,
-                    rates: JSON.stringify(st.rates), tspan: `[0,${st.tend}]`,
-                }),
-            };
-            const payload = calls[st.tab]();
-            navigator.clipboard.writeText(payload).then(
-                () => this._toast('MCP tools/call payload copied — POST it to https://pilot.pflow.xyz/mcp'),
-                () => this._toast('Clipboard unavailable', 'error'),
-            );
-        });
 
         dialog.tabIndex = -1;
         dialog.focus();

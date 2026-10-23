@@ -48,7 +48,7 @@ bazel test --config=remote //... # use the shared bazel.stackdump.com cache
 
 Pins mirror the ecosystem line — `rules_go 0.61.1 / gazelle 0.51.3 / Go SDK
 1.26.0` — so action keys match graph-wide and the shared remote cache is reusable
-across go-pflow, bitwrap-io and petri-pilot.
+across go-pflow, bitwrap-io and sim-pflow-xyz.
 
 **Decisions baked in:**
 
@@ -351,9 +351,7 @@ makes "this color is not involved" unexpressible — plus missing the aggregate
 consumption and capacity checks. Nothing failed, because nothing compared.
 
 Not covered, deliberately: modeldao-org's `petri-view.js` (a genuine 1404-line
-fork, not drift) and petri-pilot / pflow-pilot's `pflow-engine.js` (a derived
-unified ODE + event-sourcing runtime, not a copy). Those need the shared parts
-extracted, not a file swap.
+fork, not drift). It needs the shared parts extracted, not a file swap.
 
 **Colored-net unfolding (`public/petri-colors.js`).** A direct port of
 go-pflow's `petri/colors.go`; every rule has a counterpart there. `expandColors`
@@ -398,7 +396,6 @@ All services run on pflow.dev behind nginx. Manage with the `~/services` command
 
 | Service | Port | URL |
 |---------|------|-----|
-| pflow-pilot | 8083 | pilot.pflow.xyz |
 | pflow-xyz | 8081 | pflow.xyz |
 | blog-stackdump | 8082 | blog.stackdump.com |
 | modeldao-org | 8084 | modeldao.org |

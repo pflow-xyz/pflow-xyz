@@ -9,8 +9,8 @@ pflow-rs, pflow-xyz and pflow-jl, the polyglot coffee machine, and the
 colored coffee-shop example this directory's theme names as its parent.
 
 Every claim below was produced by running the real tool on the real file on
-2026-09-06 against the live `pilot.pflow.xyz/mcp` server and the local
-checkouts. `check.sh` re-runs the offline half.
+2026-09-06 against the `petri_*` MCP server then live (since retired in
+favour of sim.pflow.xyz) and the local checkouts. `check.sh` re-runs the offline half.
 
 ## Two JSON shapes, one rule
 
@@ -25,9 +25,9 @@ between them is fixed:
 An editor document reaches a tool through one converter,
 `parser.ModelFromJSON` in go-pflow: colors unfold to `queue.red`, an
 output-side inhibitor becomes the explicit read arc, arc-less color copies
-are pruned, per-color capacity is summed, labels become descriptions. The
-pilot and sim.pflow.xyz both call it; neither carries an opinion of its own
-about the editor shape any more. The pilot also accepts the S-expression
+are pruned, per-color capacity is summed, labels become descriptions.
+sim.pflow.xyz calls it and carries no opinion of its own about the editor
+shape. The `petri_*` tools below also accepted the S-expression
 token-model DSL (`cafe-loyalty.pflow`), a `PetriNetBundle` (`cafe.bundle.json`)
 and an Application spec (`cafe-application.json`), all of which are the
 metamodel shape underneath.
@@ -137,7 +137,7 @@ rates the ODE ends at t=24 with beans 6.1, cups 0.09 and orders 85.3.
   carried over) gives served 98.7, walked out 39.9. Without the flag each
   schedule segment restarts realization r's stream at `Seed+r`, replaying the
   same draws at hours 2 and 4; that gives 99.8 / 40.8 here. (The 119.5 / 39.7
-  recorded on 2026-09-06, and its agreement with the pilot's table above, did
+  recorded on 2026-09-06, and its agreement with the `petri_scenario` table above, did
   not reproduce on go-pflow v0.31.0 either; re-run 2026-10-03.)
 
 ### The same file on sim.pflow.xyz
@@ -153,7 +153,7 @@ rates the ODE ends at t=24 with beans 6.1, cups 0.09 and orders 85.3.
   all marked; CTMC lumpability refused (state space over the 4000 cap) and
   constrained lumping refused (the objective is a free expression), each with
   the reason.
-- `sim_invariants` derives the same three conservation laws the pilot proves
+- `sim_invariants` derives the same three conservation laws the `petri_*` tools found above
   (`open == 1`, `brewing + machine_free == 1`,
   `barista_free + brewing + ready == 2`) and names its lossless encodings of
   the capacity, the read arc and the weighted inhibitor.
@@ -162,7 +162,7 @@ rates the ODE ends at t=24 with beans 6.1, cups 0.09 and orders 85.3.
   nothing else (47 / 82); tour bus 42 + 46 VIP / 85; machine down 0 / 106.
   The staged `finish_brew` is reported in its own vocabulary (Erlang-3, lower
   spread) in the assumptions.
-- `sim_verify` agrees with the pilot: the two invariants and the mutex proved
+- `sim_verify` agrees with `petri_verify`: the two invariants and the mutex proved
   structurally, `bounded` refuted by the VIP source, `queue <= 8` unknown at
   the state cap.
 - `sim_classify` refuses place-level lumping and names why: two inhibitors,
@@ -218,10 +218,10 @@ removed and nothing else changed.
 
 ## Rough edges found while building this, and fixed
 
-Building the showcase surfaced ten behaviours in petri-pilot's tools. All
-ten are fixed and deployed on pilot.pflow.xyz (petri-pilot `ae425b5`), each
-with a regression test that pins it (`pkg/mcp/showcase_fixes_test.go`) and a
-skip-guarded replay of these very files (`pkg/mcp/showcase_files_test.go`).
+Building the showcase surfaced ten behaviours in the `petri_*` MCP tools.
+All ten were fixed (commit `ae425b5`) before that server was retired, each
+with a regression test that pinned it and a skip-guarded replay of these
+very files.
 They stay listed because they describe what the files exercise.
 
 1. `petri_ode`, `petri_stochastic`, `petri_sde`, `petri_fit` and every
@@ -249,7 +249,7 @@ They stay listed because they describe what the files exercise.
    `minOf`/`maxOf` total a ledger map, and the DSL's `:initial` values reach
    the runtime.
 6. `petri_preview` of `permissions` ignored `roles` and `access`. Flat v1
-   declarations and the v2 `petri-pilot/roles` / `petri-pilot/access`
+   declarations and the v2 roles / access
    extensions now reach both preview and plain `petri_codegen`.
 7. `petri_conformance` replays the whole marking, so a resource net never fits
    a per-case log; the tool description now says to give it the per-case
@@ -266,16 +266,15 @@ They stay listed because they describe what the files exercise.
     bound, read arc as a reversed inhibitor, inhibitor weight as a threshold),
     the way sim.pflow.xyz always did.
 
-The same change also brought four readings over from sim.pflow.xyz as pilot
+The same change also brought four readings over from sim.pflow.xyz as `petri_*`
 tools on an inline model: `petri_invariants` (Farkas laws, T-invariants,
 siphons and traps with deadlock witnesses), `petri_canonical` (exact
 automorphism orbits and a renaming-invariant id), `petri_lumping` (backward
 differential equivalence and constrained lumping) and `petri_dataset` (a
 seeded event log in the shape `petri_conformance` replays). And sim gained
-what pilot had and it lacked: `sim_conformance`, `sim_extend`, `sim_diff`,
-`sim_code_to_flow`, `sim_optimize` and `sim_param_heatmap`, plus the three
-shared-package fixes above; a checksum lock (`scripts/shared-pkg.sh`) now
-keeps the packages the two repos share byte-identical.
+what the `petri_*` server had and it lacked: `sim_conformance`, `sim_extend`,
+`sim_diff`, `sim_code_to_flow`, `sim_optimize` and `sim_param_heatmap`, plus
+the three shared-package fixes above.
 
 ## Running it
 

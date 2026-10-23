@@ -3,7 +3,7 @@
 # DO NOT EDIT THE VENDORED FILES IN THIS REPO. Change them in go-pflow
 # and re-run ./scripts/docs-sync.sh sync. 'check' fails the build otherwise.
 #
-# source: github.com/pflow-xyz/go-pflow @ d84dc017bfe42acd03176b74a7bb91878d72d5f1
+# source: github.com/pflow-xyz/go-pflow @ 81d74039774ee412a0553ec99dc81de18e9bedd8
 #
 # <sha256>  <path in this repo>  <path in go-pflow>
-0acd0e235f91a821cfea41071928cb3a4bb383a78354e6d8c843877f98f7014f  docs/engine-selection.md  docs/engine-selection.md
+356a69a68d12aade5daca9a5a5145116be2d535e6cde21a0996f078239880042  docs/engine-selection.md  docs/engine-selection.md

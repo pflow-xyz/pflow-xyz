@@ -2,8 +2,7 @@
 ;; Data places (maps and integers) instead of token counts, guards on
 ;; every action, key/value arcs that move amounts between ledger entries,
 ;; and one constraint the runtime checks after every firing.
-;; Read by petri-pilot (any petri_* tool accepts it in place of JSON),
-;; by go-pflow's tokenmodel/dsl and by pflow-rs's pflow-dsl / schema! macro.
+;; Read by go-pflow's tokenmodel/dsl and by pflow-rs's pflow-dsl / schema! macro.
 (schema cafe-loyalty
   (version v1.0.0)
 

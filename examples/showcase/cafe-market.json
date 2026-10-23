@@ -2,7 +2,7 @@
   "modelType": "petriNet",
   "version": "v0",
   "name": "cafe-market",
-  "description": "Variation V — where the café buys its beans: a constant-product bean/cash pool in the shape of petri-pilot's constant_product_amm template. The café swaps cash for beans, roasters swap beans for cash, fees accrue to the LP. Mass-action equilibrium approximates x*y = k; the exact per-trade algebra is petri_amm_quote / petri_amm_depth / petri_amm_il (pure functions, no model). Cash carries exogenous geometric-Brownian noise for petri_sde, petri_distribution and petri_risk.",
+  "description": "Variation V — where the café buys its beans: a constant-product bean/cash pool in the shape of a constant_product_amm template. The café swaps cash for beans, roasters swap beans for cash, fees accrue to the LP. Mass-action equilibrium approximates x*y = k; the exact per-trade algebra is petri_amm_quote / petri_amm_depth / petri_amm_il (pure functions, no model). Cash carries exogenous geometric-Brownian noise for petri_sde, petri_distribution and petri_risk.",
   "places": [
     { "id": "reserve_beans", "description": "beans in the pool (kg)",       "initial": 1000, "x": 80,  "y": 80 },
     { "id": "reserve_cash",  "description": "cash in the pool",             "initial": 4000, "x": 80,  "y": 240 },
