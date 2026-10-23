@@ -41,13 +41,19 @@
             --pf-radius: 4px;
         }
 
-        /* Override petri-view.css html/body lock when landing is visible */
+        /* Override petri-view.css html/body lock when landing is visible.
+           Only the root scrolls: if body were also overflow:auto it would be a
+           scroll container of its own, and with petri-view.css's
+           overscroll-behavior:none the wheel would stop at body and never
+           chain to the viewport (keyboard scrolling still worked). */
         html.landing-active,
         html.landing-active body {
-            overflow: auto !important;
             height: auto !important;
             touch-action: auto !important;
+            overscroll-behavior: auto !important;
         }
+        html.landing-active { overflow: auto !important; }
+        html.landing-active body { overflow: visible !important; }
 
         /* Landing page styles */
         #landing {
