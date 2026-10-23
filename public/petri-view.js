@@ -4989,15 +4989,23 @@ PetriView = class PetriView extends HTMLElement {
                 Read it at <a href="https://book.pflow.xyz" target="_blank" style="color: #4a90d9;">book.pflow.xyz</a>.
             </p>
 
-            <h3>📊 Sim — Cost-Benefit</h3>
+            <h3>📊 Sim — Run & Check</h3>
             <p>
-                <strong>sim.pflow.xyz</strong> turns this model into a cost-benefit
-                what-if machine: store it with one POST and get seeded scenario
-                comparison, disruption injection, calibration against your own data,
-                and automated diagnostics that rank every knob by its measured effect
-                on the outcome — whether that's staffing a shop or deciding what to
-                build next. Try it at
+                <strong>sim.pflow.xyz</strong> runs and checks this model: describe a
+                process to your AI assistant (it has an MCP server) or store this net,
+                then compare seeded what-if scenarios, prove invariants and reachability,
+                calibrate rates against your own event logs, and see which knobs move
+                the outcome. Try it at
                 <a href="https://sim.pflow.xyz" target="_blank" style="color: #4a90d9;">sim.pflow.xyz</a>.
+            </p>
+
+            <h3>🖥 Native App</h3>
+            <p>
+                <strong>pflow-native</strong> is a desktop editor and simulator for the same
+                JSON-LD models, built on pflow-rs: token game, ODE and stochastic simulation,
+                invariants, reachability and process mining, all drivable from a CLI or an
+                MCP server. Source at
+                <a href="https://github.com/pflow-xyz/pflow-native" target="_blank" style="color: #4a90d9;">github.com/pflow-xyz/pflow-native</a>.
             </p>
 
             <h3>Controls & Features</h3>
@@ -7265,7 +7273,7 @@ PetriView = class PetriView extends HTMLElement {
         });
         menuContainer._menuContent.appendChild(helpItem);
 
-        const simItem = makeMenuItem('📊 Sim — Cost-Benefit', () => {
+        const simItem = makeMenuItem('📊 Sim — Run & Check', () => {
             window.open('https://sim.pflow.xyz', '_blank', 'noopener,noreferrer');
         });
         menuContainer._menuContent.appendChild(simItem);
@@ -7274,6 +7282,11 @@ PetriView = class PetriView extends HTMLElement {
             window.open('https://book.pflow.xyz', '_blank', 'noopener,noreferrer');
         });
         menuContainer._menuContent.appendChild(bookItem);
+
+        const nativeItem = makeMenuItem('🖥 Native App', () => {
+            window.open('https://github.com/pflow-xyz/pflow-native', '_blank', 'noopener,noreferrer');
+        });
+        menuContainer._menuContent.appendChild(nativeItem);
 
         const githubItem = makeMenuItem('GitHub', () => {
             window.open('https://github.com/pflow-xyz/pflow-xyz', '_blank', 'noopener,noreferrer');

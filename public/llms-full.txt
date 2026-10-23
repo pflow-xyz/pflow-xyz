@@ -192,8 +192,11 @@ again.
   check models (sim_create_model, sim_scenario, sim_invariants, sim_reach,
   sim_verify, …).
 - https://book.pflow.xyz — the book on modeling with Petri nets.
-- https://sim.pflow.xyz — cost-benefit analysis for anything you can
-  describe as a flow: store a model with one POST, get seeded scenario
-  comparison, disruption injection, calibration and automated diagnostics
-  that rank every knob by measured influence on the declared objective.
+- https://sim.pflow.xyz — describe a process, get a model you can run
+  and check: store a model with one POST, then seeded scenario comparison,
+  invariants and reachability proofs, calibration against event logs, and
+  diagnostics that rank every knob by measured influence on the objective.
   MCP server at `https://sim.pflow.xyz/mcp`.
+- https://github.com/pflow-xyz/pflow-native — native desktop editor and
+  simulator for the same JSON-LD models (pflow-rs), with a CLI and an MCP
+  server (`pflow-native-cli mcp`).

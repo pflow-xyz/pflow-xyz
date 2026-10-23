@@ -65,10 +65,12 @@ Full rules: `docs/engine-selection.md` (vendored from go-pflow,
   sim_reach, sim_verify, …)
 - [Server-side SVG rendering](https://pflow.xyz/api/svg): POST a model,
   get an SVG
-- [sim.pflow.xyz](https://sim.pflow.xyz/mcp): cost-benefit analysis for
-  anything you can describe as a flow — seeded scenarios, disruptions,
-  calibration, and diagnostics that rank every knob by measured effect on
-  the objective
+- [sim.pflow.xyz](https://sim.pflow.xyz/mcp): describe a process, get a
+  model you can run and check — seeded scenarios, invariant and
+  reachability proofs, calibration, and diagnostics that rank every knob by
+  measured effect on the objective
+- [pflow-native](https://github.com/pflow-xyz/pflow-native): native desktop
+  editor and simulator for the same models, with a CLI and an MCP server
 
 ## Optional
 
