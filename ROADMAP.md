@@ -422,23 +422,23 @@ console.
 
 ### Open decisions
 
-1. **One parity matrix or two.** The proposal: add a **Web** status column
+1. ⏳ *Pending.* **One parity matrix or two.** The proposal: add a **Web** status column
    to `pflow-native/FEATURES.md` rather than keep a second matrix here,
    because a copy drifts and then lies. The cost is that pflow.xyz status
    lives in another repo.
-2. **Where the wasm shim lives.** pflow-native `crates/wasm` (proposed,
+2. ✅ *Decided: pflow-native `crates/wasm` (commit `62923ff`).* **Where the wasm shim lives.** pflow-native `crates/wasm` (proposed,
    since the registry is there), or a `pflow-wasm` crate in pflow-rs after
    §D's ports move upstream.
-3. **Where shared app-view JS lives.** `deriveRoles` and the disruption
+3. ⏳ *Half done: copied into `public/petri-roles.js`, pinned by `parity/roles/`; sim does not vendor it yet.* **Where shared app-view JS lives.** `deriveRoles` and the disruption
    grouping are sim's today. The ecosystem rule makes `pflow-xyz/public`
    canonical for shared browser JS, so the proposal is to move the
    derivation here and have sim vendor it (sim already keeps a
    `pflow-js.lock`). The sim-specific panels stay in sim.
-4. **The schema terms.** Whether `goals` and `views` belong in the
+4. ✅ *Built as proposed: optional terms in the net.* **The schema terms.** Whether `goals` and `views` belong in the
    content-addressed net (sim puts views in the hash, because their
    references are validated) or in a sidecar keyed by CID. Proposed: in the
    net, as optional terms, for the same reason sim gives.
-5. **The tool-call cap and quota unit.** Proposed: 8 tool calls per turn,
+5. ✅ *Built as proposed, plus at most 6 model calls per message.* **The tool-call cap and quota unit.** Proposed: 8 tool calls per turn,
    with the quota charged per model call.
 
 ### Order
@@ -448,3 +448,70 @@ console.
 The chat (phase 4) comes before the full workbench (phase 3) on purpose.
 Once the structural analyses exist, it has something worth calling, and the
 advisor's catalog fills in as phase 3's commands land.
+
+### Status (2026-10-25)
+
+Phases 0–8 are built and deployed (PRs #96–#104, merged to `main` as #105).
+"Attach to my tab" (phase 8) is deferred, as planned. The phase-by-phase
+log, with every choice made without asking, is
+[docs/workbench-progress.md](docs/workbench-progress.md);
+`git grep -n "REVIEW:"` finds the same choices in the code.
+
+**The LLM features ship dark.** Drafting (phase 1) and the Assistant (phase 4)
+appear only once `GEMINI_API_KEY` is set in pflow-xyz's `~/services`
+environment on pflow.dev, followed by `~/services restart pflow-xyz`. They
+have been tested only against a scripted model, never live Gemini.
+
+### Pending choices
+
+Each item below shipped with a default, so nothing is blocked. Each still
+wants an owner's decision.
+
+**To turn on the LLM features**
+1. **The Gemini key.** Use a dedicated key with a budget alert on its Google
+   project (slice-1 open decision 2).
+2. **Launch audience.** Everyone signed in, or `PFLOW_LLM_ALLOW=stackdump`
+   for a soft launch first (slice-1 decision 4).
+3. **Limits.** The defaults are 30 per user per day, burst 3, 500 a day
+   globally (`PFLOW_LLM_*`). The Assistant spends one unit per model call,
+   up to 6 per message, so is 30 a day enough for chat?
+4. **First live run.** Run `make llm-eval GEMINI_API_KEY=…` once and commit
+   `testdata/llm/`, so prompt changes have a regression net.
+
+**Behaviour that shipped with a default**
+
+5. **Unknown keys in a net are warnings, not errors** (Check net).
+   Otherwise sim exports and older nets would not load. Strict mode, used
+   only for drafts, makes them errors.
+6. **Check net is `analysis.check`.** `analysis.validate` is pflow-native's
+   pflow-validation, so the id means the same in both apps.
+7. **Native edits replace the document with the engine's export**
+   (`compose.fuse`). Offsets renumber and capacity reads 0 instead of null:
+   the same net, but different bytes and a different CID from a hand edit.
+8. **The refinement gate allows edits that leave the defect weight
+   unchanged.** sim's gate requires a strict decrease. An increase is
+   flagged and needs "Apply anyway".
+9. **Interview steps advance on a "Next: <step>" marker** in the reply,
+   not on a structured field.
+10. **No fungible classes in the App view.** Each member of a set like
+    `fork_0..fork_4` gets its own control. sim's server classifier, or native
+    `analysis.classify`, could collapse them.
+11. **`/mcp`.** `pflow_save` needs a GitHub bearer token (`/api/save` does
+    not); there is no OAuth server for MCP clients and no rate limit beyond
+    the per-call bounds.
+12. **Not yet exposed:** rate fitting (it needs an event-log import), data
+    conformance (the "data_match" goal is listed as unavailable), and a
+    two-net structural diff.
+
+**Follow-ups in other repos**
+
+13. **pflow-native:** `file.cid` and `file.seal` should hash the session
+    rates (they disagree with pflow.xyz on `with-rates.jsonld`).
+14. **pflow-native:** compile the SSA in document order, then drop the sort
+    from `public/petri-wasm_test.ts`'s parity test.
+15. **pflow-native:** a Web column in FEATURES.md (open decision 1).
+16. **sim-pflow-xyz:** vendor `public/petri-roles.js` with a lock (open
+    decision 3); regenerate `parity/roles/` when sim's derivation changes.
+17. **Workspace CLAUDE.md:** it says there is no auto-deploy on pflow.dev,
+    but pflow-xyz has a push webhook (`cmd/webserver/deploy.go`). A push to
+    `main` is a deploy.
