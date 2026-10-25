@@ -512,6 +512,17 @@ wants an owner's decision.
 15. **pflow-native:** a Web column in FEATURES.md (open decision 1).
 16. **sim-pflow-xyz:** vendor `public/petri-roles.js` with a lock (open
     decision 3); regenerate `parity/roles/` when sim's derivation changes.
-17. **Workspace CLAUDE.md:** it says there is no auto-deploy on pflow.dev,
+17. **nginx on pflow.dev (`/etc/nginx/sites-available/pflow.xyz`, hand-maintained;
+    the console's drift check does not cover its body).** Two rules still
+    block parts of the deploy:
+    - **`location ^~ /mcp` 301-redirects to `pilot.pflow.xyz`** (the retired
+      petri-pilot), so `/mcp` never reaches the server. It should
+      `proxy_pass http://0.0.0.0:8081` like `/api/`.
+    - **The static-extension allowlist has no `wasm`**, so
+      `/vendor/pflow-native-wasm/pflow_native_wasm_bg.wasm` is a 404 and
+      the Structure, Simulate, Components and goal features that use
+      pflow-native's engine fail in production. Add `wasm` to
+      `location ~* \.(html|css|js|...|mp4)$`.
+18. **Workspace CLAUDE.md:** it says there is no auto-deploy on pflow.dev,
     but pflow-xyz has a push webhook (`cmd/webserver/deploy.go`). A push to
     `main` is a deploy.
