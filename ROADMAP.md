@@ -260,7 +260,7 @@ before the tool loop raises the stakes.
   same seed gives the same numbers in the browser, pflow-native and sim on
   the coffee-shop fixture.
 
-#### Phase 4: The chat modal and the in-page MCP
+#### Phase 4: The chat modal and the in-page MCP ✅ (ships dark)
 
 - **`POST /api/llm/turn`.**
   - It reuses slice 1's auth, quota, usage log and error table.

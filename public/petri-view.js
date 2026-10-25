@@ -1315,6 +1315,15 @@ PetriView = class PetriView extends HTMLElement {
         ui.openDraftDialog(this);
     }
 
+    async _openChat(opts) {
+        try {
+            const ui = await import('./petri-chat-ui.js');
+            await ui.openChat(this, opts);
+        } catch (e) {
+            this._toast('The assistant is not available: ' + e.message, 'error');
+        }
+    }
+
     async _openDraftNotes() {
         const ui = await import('./petri-draft-ui.js');
         ui.showDraftNotes(this);
@@ -7351,7 +7360,15 @@ PetriView = class PetriView extends HTMLElement {
         });
         notesItem.style.display = this._draftNotes ? '' : 'none';
         menuContainer._menuContent.appendChild(notesItem);
-        this._llmStatus().then(s => { if (s.enabled) draftItem.style.display = ''; });
+        const chatItem = makeMenuItem('💬 Assistant', () => {
+            this._openChat();
+        });
+        chatItem.style.display = 'none';
+        menuContainer._menuContent.appendChild(chatItem);
+        this._llmStatus().then(s => {
+            if (s.enabled) draftItem.style.display = '';
+            if (s.enabled && s.chat) chatItem.style.display = '';
+        });
 
         const simulationItem = makeMenuItem('🧮 Analysis (ODE, scans, phase)', () => {
             this._showSimulationDialog();

@@ -163,6 +163,7 @@ func (g *Gemini) Complete(ctx context.Context, req Request) (*Response, error) {
 		}
 	}
 	out.Text = text.String()
+	out.Parts = gr.Candidates[0].Content.Parts
 	if out.Text == "" && len(out.Calls) == 0 {
 		return nil, fmt.Errorf("%w: empty candidate (finish reason %q)", ErrBadReply, gr.Candidates[0].FinishReason)
 	}

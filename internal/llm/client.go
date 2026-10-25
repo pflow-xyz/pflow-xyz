@@ -27,6 +27,9 @@ type Part struct {
 	Text             string            `json:"text,omitempty"`
 	FunctionCall     *FunctionCall     `json:"functionCall,omitempty"`
 	FunctionResponse *FunctionResponse `json:"functionResponse,omitempty"`
+	// ThoughtSignature is Gemini's opaque token for a thinking model's
+	// reasoning; it must be sent back unchanged with the part it came on.
+	ThoughtSignature string `json:"thoughtSignature,omitempty"`
 }
 
 // FunctionCall is the model asking for a tool to run.
@@ -64,6 +67,7 @@ type Request struct {
 type Response struct {
 	Text         string
 	Calls        []FunctionCall
+	Parts        []Part // the candidate's parts, verbatim, to send back next turn
 	Model        string
 	InputTokens  int
 	OutputTokens int

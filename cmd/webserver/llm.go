@@ -79,6 +79,13 @@ type llmService struct {
 	limiter  *llm.Limiter
 	verifier auth.Verifier
 	allow    map[string]bool // lower-cased GitHub logins; nil = every signed-in user
+
+	// The chat's tools (llm_turn.go), from public/llm-tools.json. nil when
+	// the manifest is missing: drafting still works, the chat reports off.
+	tools        map[string]bool
+	toolDecls    []llm.FunctionDecl
+	toolsVersion string
+	modeExtra    map[string]string // per-mode context appended to the guidance (phases 5, 6)
 }
 
 // newLLMService builds the proxy from the environment. With no
@@ -158,7 +165,7 @@ func (s *Server) handleLLMStatus(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]any{"enabled": false, "signed_in": false})
 		return
 	}
-	out := map[string]any{"enabled": true, "signed_in": false, "model": svc.client.Model()}
+	out := map[string]any{"enabled": true, "chat": svc.tools != nil, "signed_in": false, "model": svc.client.Model()}
 	if token := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer "); strings.TrimSpace(token) != "" {
 		if u, err := svc.verifier.Verify(r.Context(), token); err == nil {
 			left, reset := svc.limiter.Remaining(u.ID)
@@ -305,6 +312,12 @@ func (s *Server) configureLLM(dataDir string) {
 		log.Printf("LLM drafting: disabled (no GEMINI_API_KEY)")
 	default:
 		s.llm = svc
+		if m, decls, names, err := loadToolManifest(s.publicFS); err != nil {
+			log.Printf("LLM chat: disabled (%v)", err)
+		} else {
+			svc.tools, svc.toolDecls, svc.toolsVersion = names, decls, m.Version
+			log.Printf("LLM chat: %d tools (%s)", len(decls), m.Version)
+		}
 		who := "every signed-in user"
 		if svc.allow != nil {
 			who = fmt.Sprintf("%d allowlisted login(s)", len(svc.allow))

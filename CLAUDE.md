@@ -115,6 +115,7 @@ examples/                # Example Petri nets in JSON-LD
 - **cmd/webserver/llm.go** - the Gemini proxy handlers; prompt in `cmd/webserver/prompts/draft-net-v1.md`; `internal/llm` (client, limits, usage log); `internal/auth/verifier.go` (timeout + verified-token cache)
 - **public/petri-wasm.js** - runs pflow-native's commands in its wasm build (`public/vendor/pflow-native-wasm/`, gzip-only `.wasm` served by `cmd/webserver/wasm.go`; refresh with `scripts/sync-native-wasm.mjs`, lock in `pflow-native-wasm.lock`)
 - **public/petri-analysis-ui.js** - the Structure dialog (invariants, siphons, verify, reach, reachability graph, …)
+- **public/petri-chat.js** / **petri-chat-ui.js** - the Assistant: the tool loop (sandbox edits, Apply as one undo step) and its docked panel; **petri-tools.js** maps registry commands to LLM tools
 - **public/petri-results.js** - renders artifacts by kind (Analysis dialog, Results dialog)
 - **docs/workbench-progress.md** - progress and decisions-to-review log for the ROADMAP's LLM workbench phases
 - **docs/engine-selection.md** - which engine (ODE/SSA/SDE) for which
@@ -135,6 +136,7 @@ examples/                # Example Petri nets in JSON-LD
 - `GET /share-card/{cid}.png` - 1200×630 social share card (raster) — used as `og:image` because Twitter/Mastodon/Bluesky drop SVG og:images
 - `GET /api/llm/status` - whether LLM drafting is on, and (signed in) the caller's quota left today
 - `POST /api/llm/draft` - `{description}` → a draft net from Gemini (GitHub sign-in required; per-user and global daily limits). Same-origin only; the browser gates the draft (`public/petri-draft.js`) before loading it
+- `POST /api/llm/turn` - one model call of the editor's Assistant: `{mode, net, messages}` → the model's message and the tool calls it may make (tools = `public/llm-tools.json`, run in the browser; regenerate with `node scripts/gen-llm-tools.mjs`)
 - `GET /?cid={cid}` - SPA shell, decorated with Open Graph / Twitter / JSON-LD `<head>` meta tags pointing at the share card (see `cmd/webserver/share_page.go`)
 
 Content negotiation for `/schema` and `/tokens/{color}` is implemented in `cmd/webserver/content_negotiation.go`. Browsers (Accept includes `text/html` ranked above JSON) get a styled dark-theme page; everything else (curl, no Accept, `*/*`) gets JSON-LD.

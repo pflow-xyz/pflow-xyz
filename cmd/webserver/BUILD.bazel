@@ -6,6 +6,7 @@ go_library(
         "content_negotiation.go",
         "deploy.go",
         "llm.go",
+        "llm_turn.go",
         "main.go",
         "metrics.go",
         "share_card.go",
@@ -13,7 +14,10 @@ go_library(
         "sitemap.go",
         "wasm.go",
     ],
-    embedsrcs = ["prompts/draft-net-v1.md"],
+    embedsrcs = [
+        "prompts/draft-net-v1.md",
+        "prompts/turn-v1.md",
+    ],
     importpath = "github.com/pflow-xyz/pflow-xyz/cmd/webserver",
     visibility = ["//visibility:private"],
     deps = [
@@ -45,6 +49,7 @@ go_test(
         "content_negotiation_test.go",
         "llm_eval_test.go",
         "llm_test.go",
+        "llm_turn_test.go",
         "sample_card_test.go",
         "share_card_test.go",
         "sitemap_test.go",
