@@ -39,6 +39,8 @@ PUBLIC_FILES = [
     "petri-chat-ui.js",
     "petri-chat.js",
     "petri-chat_test.ts",
+    "petri-clipboard.js",
+    "petri-clipboard_test.ts",
     "petri-appview-ui.js",
     "petri-commands_test.ts",
     "petri-roles.js",
