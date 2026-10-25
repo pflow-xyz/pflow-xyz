@@ -711,6 +711,43 @@
       }
     },
     {
+      "name": "sim_what_if",
+      "command": "sim.what_if",
+      "description": "What if one more. The same seeded stochastic runs with and without delta more tokens in one place (sim.compare on one shared seed): an overlay of both and a table of final means. The shared seed makes the difference measure the change, not the dice.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "place": {
+            "description": "the place that gets more tokens",
+            "type": "string"
+          },
+          "delta": {
+            "description": "tokens to add (default 1; may be negative)",
+            "type": "integer"
+          },
+          "t_end": {
+            "description": "horizon (default 10)",
+            "type": "number",
+            "minimum": 1e-9
+          },
+          "runs": {
+            "description": "realizations per arm (default 16, ≤ 200)",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 200
+          },
+          "seed": {
+            "description": "shared seed (default 7)",
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "place"
+        ]
+      }
+    },
+    {
       "name": "sim_recommend",
       "command": "sim.recommend",
       "description": "Which engine?. Which engine to run this net with, and why (docs/engine-selection.md): constraints the ODE cannot see (inhibitor or read arcs, capacities) need the SSA; small token counts make the ODE's mean misleading and the SSA's spread matter; large unconstrained populations suit the ODE (and the SDE for noise). Also proposes a horizon, a seed and a run count."

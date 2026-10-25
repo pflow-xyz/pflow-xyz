@@ -725,6 +725,30 @@ export const COMMANDS = [
         },
     },
     {
+        id: 'sim.what_if', label: 'What if one more',
+        help: 'The same seeded stochastic runs with and without delta more tokens in one place (sim.compare on one shared seed): an overlay of both and a table of final means. The shared seed makes the difference measure the change, not the dice.',
+        args: args({
+            place: str('the place that gets more tokens'), delta: int('tokens to add (default 1; may be negative)'),
+            t_end: num('horizon (default 10)', { minimum: 1e-9 }), runs: int('realizations per arm (default 16, ≤ 200)', { minimum: 1, maximum: 200 }),
+            seed: int('shared seed (default 7)', { minimum: 0 }),
+        }, ['place']),
+        journal: true,
+        run: async (c, a) => {
+            const m = c.model();
+            const p = needNode(m, a.place, 'place');
+            const now = p.initial.reduce((x, y) => x + y, 0);
+            const delta = a.delta ?? 1;
+            if (now + delta < 0) throw new CommandError(`${a.place} has ${now}; cannot remove ${-delta}`);
+            const base = { hours: a.t_end ?? 10, realizations: a.runs ?? 16, seed: a.seed ?? 7 };
+            const label = `${delta >= 0 ? '+' : ''}${delta} ${a.place}`;
+            const out = await c.registry.execute('sim.compare', {
+                seed: base.seed,
+                scenarios: [{ name: 'as is', ...base }, { name: label, ...base, marking: { [a.place]: now + delta } }],
+            });
+            return { ...out, place: a.place, from: now, to: now + delta };
+        },
+    },
+    {
         id: 'sim.recommend', label: 'Which engine?',
         help: 'Which engine to run this net with, and why (docs/engine-selection.md): constraints the ODE cannot see (inhibitor or read arcs, capacities) need the SSA; small token counts make the ODE\'s mean misleading and the SSA\'s spread matter; large unconstrained populations suit the ODE (and the SDE for noise). Also proposes a horizon, a seed and a run count.',
         args: args(), journal: false,

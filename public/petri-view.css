@@ -3313,3 +3313,28 @@ canvas.pv-canvas {
     fill: var(--pv-accent);
     stroke: var(--pv-ink);
 }
+
+/* What do you want to know? (petri-goals-ui.js) */
+.pv-goals-search {
+    width: 100%;
+    box-sizing: border-box;
+    font: inherit;
+    padding: 6px 8px;
+    margin: 6px 0;
+}
+.pv-goals-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 8px 0;
+}
+.pv-goals-off {
+    opacity: 0.6;
+}
+.pv-goals-caveat {
+    border-left: 3px solid var(--pv-warning);
+    padding-left: 8px;
+}
+.pv-goals-inputs > div {
+    margin: 4px 0;
+}
