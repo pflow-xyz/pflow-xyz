@@ -381,7 +381,7 @@ console.
   roles and controls here as in sim's `/whatif/` console. A parity test
   runs both derivations on the same nets.
 
-#### Phase 8: MCP outside the page (optional)
+#### Phase 8: MCP outside the page (optional) ✅ `/mcp`; attach-to-tab deferred
 
 - **A remote `/mcp` on pflow.xyz.** Stateless tools over a posted net or a
   CID: validate, analyze, simulate, save and get. It uses GitHub OAuth, so

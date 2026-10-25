@@ -141,6 +141,7 @@ examples/                # Example Petri nets in JSON-LD
 - `GET /api/llm/status` - whether LLM drafting is on, and (signed in) the caller's quota left today
 - `POST /api/llm/draft` - `{description}` → a draft net from Gemini (GitHub sign-in required; per-user and global daily limits). Same-origin only; the browser gates the draft (`public/petri-draft.js`) before loading it
 - `POST /api/llm/turn` - one model call of the editor's Assistant: `{mode, net, messages}` → the model's message and the tool calls it may make (tools = `public/llm-tools.json`, run in the browser; regenerate with `node scripts/gen-llm-tools.mjs`)
+- `POST /mcp` - pflow.xyz as an MCP server (stateless JSON-RPC): pflow_check, pflow_cid, pflow_get, pflow_simulate, pflow_reachability, pflow_links, pflow_save (GitHub bearer) on the server's go-pflow engines (`cmd/webserver/mcp.go`)
 - `GET /?cid={cid}` - SPA shell, decorated with Open Graph / Twitter / JSON-LD `<head>` meta tags pointing at the share card (see `cmd/webserver/share_page.go`)
 
 Content negotiation for `/schema` and `/tokens/{color}` is implemented in `cmd/webserver/content_negotiation.go`. Browsers (Accept includes `text/html` ranked above JSON) get a styled dark-theme page; everything else (curl, no Accept, `*/*`) gets JSON-LD.
