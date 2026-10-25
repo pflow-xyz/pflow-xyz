@@ -25,7 +25,7 @@ themselves.
 | 4 Chat modal + in-page MCP | ✅ merged into `workbench` (ships dark) | `phase4` |
 | 5 Goal advisor | ✅ merged into `workbench` | `phase5` |
 | 6 Model refinement | ✅ merged into `workbench` | `phase6` |
-| 7 App view | | |
+| 7 App view | ✅ merged into `workbench` | `phase7` |
 | 8 MCP outside the page | | |
 
 ## Phase 0: foundations
@@ -505,3 +505,69 @@ queue, the checks were clean, the weight was 0, and the chips showed.
    engine replays it) is **not adopted**. The behaviour checks after every
    edit round cover the same failure (a net that does not do what the model
    thinks) with the engine's own answer.
+
+## Phase 7: the app view and question-shaped controls
+
+What landed:
+
+- **`public/petri-roles.js`.** sim's derivation (`web/lib/sim-derive.js` at
+  `ea76b34e`), copied verbatim from `deriveRoles` down: pools, sources,
+  losses, queues, terminals, services, and the derived disruptions with
+  `applyDisruptions`. A small adapter reads the editor's format (read and
+  inhibitor arc directions, labels, the net's own rates document), and
+  `groupDisruptions` groups them by the question they ask.
+- **Parity with sim's own module.** `scripts/gen-roles-goldens.mjs --sim
+  ../sim-pflow-xyz` runs sim's `sim-derive.js` on seven sim-format models
+  (the vet clinic, the coffee shop, five fidelity models with inhibitor and
+  read arcs) and writes `parity/roles/*.json`. `public/petri-roles_test.ts`
+  converts each model to the editor's format and requires identical roles
+  and disruptions. All seven match.
+- **Views.** A validated `views` term with sim's rules: bare-identifier
+  ids, unique; roles from board, dashboard, controls, advisor, trust, log;
+  every place, transition and link must exist. Set with `net.set_views`;
+  Check net checks it.
+- **New commands.** `analysis.roles` returns the roles and the grouped
+  what-ifs. `file.export_sim` exports the net in sim's model shape (read
+  arcs place → transition, rates, labels as tags), for `sim_create_model`.
+- **📱 App view** (`public/petri-appview-ui.js`), docked on the left, with
+  the net still visible.
+  - Controls are phrased as questions: "What if I had more…" (pools), "How
+    fast work arrives", "How soon people give up", "How fast each step is
+    done".
+  - The derived "What if…" disruptions are grouped by question.
+  - Every control says which nodes it touches and highlights them on the
+    canvas on hover.
+  - "Run the day" runs a seeded `sim.scenario` with the overrides and
+    disruptions merged. It reports outcomes (terminal places, mean ± sd),
+    the busiest resource, and the engine's assumptions and caveats verbatim
+    (the trust screen).
+  - A net with views gets one tab per view.
+  - "Copy for sim" puts the sim-shaped net on the clipboard.
+
+**Phase 7's exit check:** the coffee-shop and vet-clinic fixtures (and five
+more) derive the same roles and disruptions here as sim's own module does.
+
+Verified: `make test` (261 JS tests) and `bazel test`. In a browser: the
+controls derive from a café net, hover highlights the canvas, three baristas
+run to served 22.75 ± 4.1 with the busiest resource named, and view tabs
+filter controls and survive a reload.
+
+### Decisions to review (phase 7)
+
+1. **The derivation is copied, not shared, for now.** pflow-xyz should be
+   canonical (open decision 3). Until sim vendors `petri-roles.js` with a
+   lock, the goldens are what keep the two from drifting.
+   `compareBumps` and `previewSupport` stay in sim: they need sim's
+   classifier and sim's browser engine.
+2. **The rates document is the net's own:** initial totals and `rate`
+   (default 1.0), with **no fungible classes**. sim's server classifier
+   collapses fork_0..fork_4 into one control; here each is its own. A
+   follow-up could use native `analysis.classify`.
+3. **"Share with sim" is copy and paste** ("Copy for sim" →
+   `sim_create_model`). sim's publish needs its own Google sign-in, so
+   pflow.xyz does not proxy it; `sim_publish_app` with
+   `/lib/app-template.html` remains the route to a hosted app.
+4. **"Run the day" uses native `sim.scenario`**, sim's engine semantics:
+   SSA, an hours horizon (capped at 168), 16 runs, seed 7.
+5. **View tabs filter controls** to the view's places and transitions. A
+   view with neither shows everything.

@@ -773,6 +773,46 @@
       }
     },
     {
+      "name": "net_set_views",
+      "command": "net.set_views",
+      "description": "Set views. Declare the net's app screens (sim's Model.View): each a named projection, the places and transitions one screen presents, a role (board, dashboard, controls, advisor, trust, log), an optional title and prompt, and links to the views it navigates to. Every reference is checked; an empty list removes them.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "views": {
+            "description": "[{id, role?, title?, prompt?, places?, transitions?, links?}]",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "views"
+        ]
+      }
+    },
+    {
+      "name": "file_export_sim",
+      "command": "file.export_sim",
+      "description": "Export for sim.pflow.xyz. The net in sim.pflow.xyz's model shape (places with initial counts, transitions with rates, arcs as from/to with read and inhibitor types, labels as tags), ready for sim_create_model. Read arcs are written place → transition, as sim expects."
+    },
+    {
+      "name": "analysis_roles",
+      "command": "analysis.roles",
+      "description": "Roles. What a console knows about the net before anyone runs it (sim's deriveRoles): pools an operator could add to, arrival sources, losses (patience), queues, terminal outcomes and services, and the disruptions those imply, grouped by the question they ask. The App view is built from this.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "horizon": {
+            "description": "hours the derived waves span (default 8)",
+            "type": "number",
+            "minimum": 1
+          }
+        }
+      }
+    },
+    {
       "name": "analysis_behaviour",
       "command": "analysis.behaviour",
       "description": "Behaviour checks. sim's builder checks on the token game: parts of the net not connected to the rest, transitions that never fire, places nothing ever fills, a reachable marking where nothing can fire (with a trace), and a place growing past the token bound. One bounded exploration (max_states markings); when the bound is hit, claims needing the whole space are left out, not guessed.",

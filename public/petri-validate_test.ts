@@ -103,13 +103,13 @@ Deno.test("validateNet: sim.pflow.xyz's list format is named, not misread", () =
 Deno.test("validateNet: defaults and unknown keys warn; strict makes unknown keys errors", () => {
     const n = net();
     delete n.token;
-    n.views = [{ id: "board" }];
+    n.presentation = { accent: "#fff" }; // sim's theming block: not an editor term
     n.transitions.serve.event = "served";
     const r = validateNet(n);
     assertEquals(r.errors, []);
-    assertEquals(paths(r.warnings).sort(), ["token", "transitions.serve.event", "views"]);
+    assertEquals(paths(r.warnings).sort(), ["presentation", "token", "transitions.serve.event"]);
     const s = validateNet(n, { strict: true });
-    assertEquals(paths(s.errors).sort(), ["transitions.serve.event", "views"]);
+    assertEquals(paths(s.errors).sort(), ["presentation", "transitions.serve.event"]);
 });
 
 Deno.test("validateNet: shape warnings — unconnected nodes, nothing enabled, all-zero weights", () => {
