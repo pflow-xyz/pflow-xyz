@@ -3035,3 +3035,76 @@ canvas.pv-canvas {
     white-space: pre-wrap;
     font-size: 0.85em;
 }
+
+/* Guided modelling: the Describe dialog, the empty-canvas prompt, Draft notes */
+.pv-draft-text {
+    width: 100%;
+    box-sizing: border-box;
+    font: inherit;
+    padding: 8px;
+}
+.pv-draft-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.85em;
+    opacity: 0.8;
+    margin: 4px 0 8px;
+}
+.pv-draft-examples {
+    margin: 4px 0 8px;
+}
+.pv-draft-note,
+.pv-draft-progress {
+    font-size: 0.9em;
+}
+.pv-draft-issues code {
+    white-space: pre-wrap;
+}
+.pv-draft-prompt {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 5;
+    padding: 12px 18px;
+    font-size: 1rem;
+}
+.pv-draft-notes {
+    position: fixed;
+    top: 64px;
+    right: 16px;
+    width: min(360px, calc(100vw - 32px));
+    max-height: calc(100vh - 96px);
+    overflow: auto;
+    z-index: 1000;
+    padding: 12px 16px;
+    border-radius: 8px;
+    background: var(--pv-surface);
+    color: var(--pv-ink);
+    box-shadow: 0 4px 24px var(--pv-shadow-lg);
+    font-size: 0.9em;
+}
+.pv-draft-notes-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.pv-draft-notes h4 {
+    margin: 12px 0 4px;
+}
+.pv-draft-legend {
+    padding-left: 16px;
+}
+.pv-draft-locate {
+    background: none;
+    border: none;
+    padding: 0;
+    color: inherit;
+    cursor: pointer;
+    text-decoration: underline dotted;
+}
+.pv-draft-kind,
+.pv-draft-small {
+    opacity: 0.7;
+    font-size: 0.85em;
+}

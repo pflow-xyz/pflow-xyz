@@ -110,6 +110,9 @@ examples/                # Example Petri nets in JSON-LD
 - **internal/store/store.go** - Filesystem storage for objects
 - **public/petri-commands.js** - the command registry: every editor action as a named command with JSON Schema args (pflow-native's ids), a headless host, artifacts. `<petri-view>.execute(id, args)` runs one
 - **public/petri-validate.js** - Check net: the strict validator (what `normalizeModel` would repair, with paths) and engine smoke checks; `scripts/check-nets.mjs` runs it on files
+- **public/petri-draft.js** - the load gate for LLM drafts: `validateDraft`, deterministic `draftToNet`, strict `validateNet` + engine checks
+- **public/petri-draft-ui.js** - the Describe dialog, the `/api/llm/draft` call and the Draft notes panel (loaded only when `/api/llm/status` says enabled)
+- **cmd/webserver/llm.go** - the Gemini proxy handlers; prompt in `cmd/webserver/prompts/draft-net-v1.md`; `internal/llm` (client, limits, usage log); `internal/auth/verifier.go` (timeout + verified-token cache)
 - **public/petri-results.js** - renders artifacts by kind (Analysis dialog, Results dialog)
 - **docs/workbench-progress.md** - progress and decisions-to-review log for the ROADMAP's LLM workbench phases
 - **docs/engine-selection.md** - which engine (ODE/SSA/SDE) for which
@@ -128,6 +131,8 @@ examples/                # Example Petri nets in JSON-LD
 - `GET /tokens/{color}` - JSON-LD token type (HTML page when `Accept: text/html`); accepts CSS named colors and bare hex (e.g. `red`, `ff0000`, `red,blue`)
 - `GET /share-card/{cid}.svg` - 1200×630 social share card (vector) for the stored net
 - `GET /share-card/{cid}.png` - 1200×630 social share card (raster) — used as `og:image` because Twitter/Mastodon/Bluesky drop SVG og:images
+- `GET /api/llm/status` - whether LLM drafting is on, and (signed in) the caller's quota left today
+- `POST /api/llm/draft` - `{description}` → a draft net from Gemini (GitHub sign-in required; per-user and global daily limits). Same-origin only; the browser gates the draft (`public/petri-draft.js`) before loading it
 - `GET /?cid={cid}` - SPA shell, decorated with Open Graph / Twitter / JSON-LD `<head>` meta tags pointing at the share card (see `cmd/webserver/share_page.go`)
 
 Content negotiation for `/schema` and `/tokens/{color}` is implemented in `cmd/webserver/content_negotiation.go`. Browsers (Accept includes `text/html` ranked above JSON) get a styled dark-theme page; everything else (curl, no Accept, `*/*`) gets JSON-LD.
@@ -137,7 +142,16 @@ Content negotiation for `/schema` and `/tokens/{color}` is implemented in `cmd/w
 ```bash
 GITHUB_CLIENT_ID        # GitHub OAuth App client ID
 GITHUB_CLIENT_SECRET    # GitHub OAuth App client secret
+GEMINI_API_KEY          # Gemini API key; unset = LLM drafting off (the routes report disabled)
+PFLOW_LLM_MODEL         # default gemini-2.5-flash
+PFLOW_LLM_ALLOW         # comma-separated GitHub logins allowed to draft; unset = every signed-in user
+PFLOW_LLM_DAILY_LIMIT   # per user per UTC day (default 30); also PFLOW_LLM_GLOBAL_DAILY_LIMIT (500),
+                        # PFLOW_LLM_BURST (3) and PFLOW_LLM_REFILL_S (20)
 ```
+
+The LLM usage log is `data/llm/usage-YYYY-MM.jsonl` (one `start` line per upstream call, which is what the
+daily caps count, and a `done` line with tokens, status and latency). It is replayed at startup so the caps
+survive restarts. `make llm-eval GEMINI_API_KEY=...` runs the opt-in live prompt eval.
 
 ## Code Conventions
 
@@ -439,6 +453,7 @@ See [Archiving, backing up and taking down a project](../stackdump-com/CLAUDE.md
 | Host | Path | Size | What it is |
 |---|---|---|---|
 | pflow.dev | `~/Workspace/pflow-xyz/data/pflow.db` | 47M | saved models |
+| pflow.dev | `~/Workspace/pflow-xyz/data/llm/usage-*.jsonl` | (new) | LLM usage and cost log (GitHub id, login, tokens, status); exists only once `GEMINI_API_KEY` is set |
 
 **Specific to this project:**
 

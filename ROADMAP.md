@@ -212,7 +212,7 @@ Status lives in the parity matrix
   alone (load, edit, run the ODE, export), and the Analysis dialog contains
   no logic of its own.
 
-#### Phase 1: Describe it, get a draft (slice 1, as designed)
+#### Phase 1: Describe it, get a draft (slice 1, as designed) ✅ (ships dark until `GEMINI_API_KEY` is set)
 
 Ship [guided-modelling-slice1.md](docs/design/guided-modelling-slice1.md)
 unchanged: the proxy, auth, quota, the draft contract and the load gate.

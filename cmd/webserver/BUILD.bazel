@@ -5,16 +5,19 @@ go_library(
     srcs = [
         "content_negotiation.go",
         "deploy.go",
+        "llm.go",
         "main.go",
         "metrics.go",
         "share_card.go",
         "share_page.go",
         "sitemap.go",
     ],
+    embedsrcs = ["prompts/draft-net-v1.md"],
     importpath = "github.com/pflow-xyz/pflow-xyz/cmd/webserver",
     visibility = ["//visibility:private"],
     deps = [
         "//internal/auth",
+        "//internal/llm",
         "//internal/seal",
         "//internal/static",
         "//internal/store",
@@ -39,6 +42,8 @@ go_test(
     srcs = [
         "author_identity_test.go",
         "content_negotiation_test.go",
+        "llm_eval_test.go",
+        "llm_test.go",
         "sample_card_test.go",
         "share_card_test.go",
         "sitemap_test.go",
@@ -46,5 +51,9 @@ go_test(
     # keep: share_card_test.go renders a stored example model from //examples.
     data = ["//examples"],
     embed = [":webserver_lib"],
-    deps = ["//internal/static"],
+    deps = [
+        "//internal/auth",
+        "//internal/llm",
+        "//internal/static",
+    ],
 )
