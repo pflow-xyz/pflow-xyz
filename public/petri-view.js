@@ -2196,6 +2196,13 @@ PetriView = class PetriView extends HTMLElement {
         this._pushHistory();
     }
 
+    /** Write changed transition rates into the document, as one undo step. */
+    _setRates(rates) {
+        if (Sim.setTransitionRates(this._model, rates).length === 0) return;
+        this._syncLD();
+        this._pushHistory();
+    }
+
     _capacityOf(pid) {
         return Sim.capacityOf(this._model, pid);
     }
@@ -5262,7 +5269,9 @@ PetriView = class PetriView extends HTMLElement {
             };
         }
         const st = this._analysisState;
-        for (const t of transitionIds) if (!(t in st.rates)) st.rates[t] = 1.0;
+        // Rates live in the document (each transition's `rate`, default 1.0),
+        // so they survive a reload, undo with the net and travel with a share.
+        st.rates = Sim.transitionRates(this._model);
         if (!st.selected) st.selected = placeIds.slice(0, 8);
         st.selected = st.selected.filter(p => placeIds.includes(p));
         if (!placeIds.includes(st.phaseX)) st.phaseX = placeIds[0];
@@ -5405,8 +5414,9 @@ PetriView = class PetriView extends HTMLElement {
             st.selected = $$('[data-place]').filter(c => c.checked).map(c => c.dataset.place);
             for (const inp of $$('[data-rate]')) {
                 const v = parseFloat(inp.value);
-                st.rates[inp.dataset.rate] = isNaN(v) ? 1.0 : v;
+                st.rates[inp.dataset.rate] = isNaN(v) || v < 0 ? 1.0 : v;
             }
+            this._setRates(st.rates);
         };
 
         const showTab = (tabId) => {

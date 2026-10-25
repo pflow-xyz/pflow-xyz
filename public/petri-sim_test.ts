@@ -9,6 +9,9 @@ import {
     enabled,
     fire,
     enabledTransitions,
+    rateOf,
+    transitionRates,
+    setTransitionRates,
 } from "./petri-sim.js";
 
 // --- helpers ---
@@ -400,4 +403,38 @@ Deno.test("scalar weight 0 still defaults to 1", () => {
   const next = fire(model, "t", marking(model));
   if (next === null) throw new Error("scalar-0 arc should behave as weight 1");
   if (next.a[0] !== 0) throw new Error("should consume 1 token");
+});
+
+// --- rates (each transition's `rate`, default 1.0) ---
+
+Deno.test("rateOf: absent, invalid and negative rates read as 1.0", () => {
+    const m = model({}, { a: {}, b: { rate: 2.5 }, c: { rate: -1 }, d: { rate: "3" }, e: { rate: 0 } }, []);
+    assertEquals(rateOf(m, "a"), 1.0);
+    assertEquals(rateOf(m, "b"), 2.5);
+    assertEquals(rateOf(m, "c"), 1.0);
+    assertEquals(rateOf(m, "d"), 1.0);
+    assertEquals(rateOf(m, "e"), 0); // rate 0 disables, as in the Analysis dialog
+    assertEquals(rateOf(m, "missing"), 1.0);
+});
+
+Deno.test("transitionRates: one entry per transition", () => {
+    const m = model({}, { a: {}, b: { rate: 4 } }, []);
+    assertEquals(transitionRates(m), { a: 1.0, b: 4 });
+});
+
+Deno.test("setTransitionRates: default rates leave the document byte-identical", () => {
+    const m = model({ p: { initial: [1] } }, { a: {}, b: {} }, [{ source: "p", target: "a" }]);
+    const before = JSON.stringify(m);
+    assertEquals(setTransitionRates(m, transitionRates(m)), []);
+    assertEquals(JSON.stringify(m), before); // so its CID is unchanged too
+});
+
+Deno.test("setTransitionRates: writes only changed, valid rates", () => {
+    const m = model({}, { a: {}, b: { rate: 2 }, c: {} }, []);
+    assertEquals(setTransitionRates(m, { a: 3, b: 2, c: -1, nope: 5 }), ["a"]);
+    assertEquals(m.transitions.a.rate, 3);
+    assertEquals(m.transitions.b.rate, 2);
+    assertEquals("rate" in m.transitions.c, false);
+    assertEquals(setTransitionRates(m, { a: 1.0 }), ["a"]); // back to the default is still a change
+    assertEquals(m.transitions.a.rate, 1.0);
 });

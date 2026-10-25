@@ -235,3 +235,50 @@ export function enabledTransitions(model, marks) {
     marks = marks || marking(model);
     return Object.keys(model.transitions || {}).filter(tid => enabled(model, tid, marks));
 }
+
+/**
+ * The rate a transition carries in the document: its `rate` field when that is
+ * a finite, non-negative number, otherwise 1.0 (the mass-action default every
+ * engine here uses). `rate` is a plain per-transition term; under the sealing
+ * context's @vocab it is https://pflow.xyz/schema#rate, so a net that carries
+ * no rates seals to the same CID it always did.
+ * @param {Object} model
+ * @param {string} tid
+ * @returns {number}
+ */
+export function rateOf(model, tid) {
+    const r = model.transitions?.[tid]?.rate;
+    return typeof r === 'number' && Number.isFinite(r) && r >= 0 ? r : 1.0;
+}
+
+/**
+ * Every transition's rate (see rateOf), keyed by transition id.
+ * @param {Object} model
+ * @returns {Object.<string, number>}
+ */
+export function transitionRates(model) {
+    const out = {};
+    for (const tid of Object.keys(model.transitions || {})) out[tid] = rateOf(model, tid);
+    return out;
+}
+
+/**
+ * Write rates into the model's transitions, in place. A transition gains a
+ * `rate` field only when its rate changes, so a net whose rates were never
+ * touched stays byte-identical (and keeps its CID). Unknown ids, and values
+ * that are not finite and non-negative, are ignored.
+ * @param {Object} model
+ * @param {Object.<string, number>} rates
+ * @returns {string[]} the ids whose rate changed
+ */
+export function setTransitionRates(model, rates) {
+    const changed = [];
+    for (const [tid, v] of Object.entries(rates || {})) {
+        const t = model.transitions?.[tid];
+        if (!t || typeof v !== 'number' || !Number.isFinite(v) || v < 0) continue;
+        if (rateOf(model, tid) === v) continue;
+        t.rate = v;
+        changed.push(tid);
+    }
+    return changed;
+}
