@@ -1292,7 +1292,57 @@ PetriView = class PetriView extends HTMLElement {
         }
     }
 
+    // ---------------- command registry ----------------
+    // The host petri-commands.js drives: the document, its undo history, the
+    // token game and the view. Commands never touch this._model directly;
+    // they hand the host a normalized copy to commit as one undo step.
+    _commandHost() {
+        if (this._cmdHost) return this._cmdHost;
+        this._cmdHost = {
+            capabilities: new Set(['view']),
+            getModel: () => this._model,
+            commit: (next) => {
+                this._model = next;
+                this._renderUI();
+                this._syncLD();
+                this._pushHistory();
+            },
+            undo: () => { const n = this._history.length; this._undoAction(); return this._history.length !== n; },
+            redo: () => { const n = this._redo.length; this._redoAction(); return this._redo.length !== n; },
+            fire: (tid) => { this._captureRunBaseline(); return this._fire(tid); },
+            resetMarking: () => this._resetMarking(),
+            fit: () => this.fitToView(),
+        };
+        return this._cmdHost;
+    }
+
+    /** The command registry (petri-commands.js), loaded on first use. */
+    async commands() {
+        if (!this._registry) {
+            const { Registry } = await import('./petri-commands.js');
+            this._registry ||= new Registry(this._commandHost());
+        }
+        return this._registry;
+    }
+
+    /** Copy the MCP tools/call params that re-run an artifact's command. */
+    _copyMcpCall(art) {
+        if (!art) return;
+        const text = JSON.stringify({ name: art.source.command, arguments: art.source.args || {} }, null, 2);
+        this._copyToClipboard(text, () => this._toast('MCP call copied'), () => this._toast(text));
+    }
+
     // ---------------- public API ----------------
+    /** Run a registry command: await el.execute('net.add_place', {x: 10, y: 20}). */
+    async execute(id, args = {}) {
+        return (await this.commands()).execute(id, args);
+    }
+
+    /** The registry's commands: id, label, help and a JSON Schema for the arguments. */
+    async listCommands() {
+        return (await this.commands()).list();
+    }
+
     setModel(m) {
         this._model = m || {};
         this._checkIncoming(this._model);
@@ -5117,28 +5167,18 @@ PetriView = class PetriView extends HTMLElement {
 
     // ---------------- Check net ----------------
     async _showCheckDialog() {
-        let mod;
+        let reg, R;
         try {
-            mod = await import('./petri-validate.js');
+            [reg, R] = await Promise.all([this.commands(), import('./petri-results.js')]);
         } catch {
             this._toast('Check is not available here', 'error');
             return;
         }
-        // The current net, as it would be saved (Infinity capacities are null in JSON).
-        const doc = JSON.parse(JSON.stringify(this._model));
-        const now = mod.validateNet(doc);
-        const smoke = now.ok ? await mod.smokeCheck(doc) : null;
+        const out = await reg.execute('analysis.validate');
+        const art = reg.artifact(out.artifact);
         const atLoad = this._loadCheck && this._loadCheck.errors.length ? this._loadCheck : null;
         const esc = (s) => this._escHtml(s);
-        const rows = (issues) => issues.map(i =>
-            `<tr><td><code>${esc(i.path || '(net)')}</code></td><td>${esc(i.message)}</td></tr>`).join('');
-        const table = (title, issues) => issues.length
-            ? `<h3>${esc(title)} (${issues.length})</h3><table class="pv-analysis-table"><thead><tr><th>Where</th><th>What</th></tr></thead><tbody>${rows(issues)}</tbody></table>`
-            : '';
-        let verdict;
-        if (!now.ok) verdict = `${now.errors.length} error${now.errors.length === 1 ? '' : 's'}: the editor reads this net only by repairing it.`;
-        else if (smoke && !smoke.ok) verdict = 'The net is well formed, but an engine refuses it.';
-        else verdict = `No errors. The engines accept it${smoke && smoke.cid ? `, and it seals as <code>${esc(smoke.cid)}</code>` : ''}.`;
+        const loadRows = atLoad ? atLoad.errors.map(i => [i.path || '(net)', i.message]) : [];
 
         const overlay = document.createElement('div');
         overlay.className = 'pv-modal-overlay';
@@ -5151,12 +5191,10 @@ PetriView = class PetriView extends HTMLElement {
                 <h2 class="pv-dialog-header-title">Check net</h2>
                 <button type="button" class="pv-dialog-close-icon" data-act="close" title="Close (Esc)">×</button>
             </div>
-            <p>${verdict}</p>
-            ${table('Errors', now.errors)}
-            ${smoke ? table('Engine checks', smoke.errors) : ''}
-            ${table('Warnings', now.warnings)}
-            ${atLoad ? table('Repaired when it was loaded', atLoad.errors) : ''}
+            ${R.reportHtml(art)}
+            ${atLoad ? `<h3>${esc('Repaired when it was loaded')} (${loadRows.length})</h3>${R.tableHtml(['Where', 'What'], loadRows, { numeric: false })}` : ''}
             <div class="pv-btn-container">
+                <button type="button" class="pv-btn" data-act="mcp" title="Copy the tools/call that re-runs this check">Copy MCP call</button>
                 <button type="button" class="pv-btn" data-act="close">Close</button>
             </div>`;
         overlay.appendChild(dialog);
@@ -5165,6 +5203,76 @@ PetriView = class PetriView extends HTMLElement {
         overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
         overlay.addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.stopPropagation(); close(); } });
         dialog.querySelectorAll('[data-act="close"]').forEach(b => b.addEventListener('click', close));
+        dialog.querySelector('[data-act="mcp"]').addEventListener('click', () => this._copyMcpCall(art));
+        overlay.tabIndex = -1;
+        overlay.focus();
+    }
+
+    // ---------------- Results ----------------
+    // Every artifact the registry holds this session, newest first, each
+    // viewable, exportable and re-runnable as an MCP call.
+    async _showResultsDialog() {
+        let reg, R;
+        try {
+            [reg, R] = await Promise.all([this.commands(), import('./petri-results.js')]);
+            if (!this._solverModule) this._solverModule = await import('./petri-solver.js');
+        } catch {
+            this._toast('Results are not available here', 'error');
+            return;
+        }
+        const arts = reg.artifacts().reverse();
+        const esc = (s) => this._escHtml(s);
+        const overlay = document.createElement('div');
+        overlay.className = 'pv-modal-overlay';
+        const dialog = document.createElement('div');
+        dialog.className = 'pv-modal-dialog pv-modal-dialog-xl';
+        dialog.setAttribute('role', 'dialog');
+        dialog.setAttribute('aria-label', 'Results');
+        dialog.innerHTML = `
+            <div class="pv-dialog-header">
+                <h2 class="pv-dialog-header-title">Results</h2>
+                <button type="button" class="pv-dialog-close-icon" data-act="close" title="Close (Esc)">×</button>
+            </div>
+            ${arts.length ? `<div class="pv-results-list">${arts.map(a => `
+                <button type="button" class="pv-btn pv-results-item" data-id="${esc(a.id)}">
+                    ${esc(a.title)} <span class="pv-results-meta">${esc(a.data.kind)} · ${esc(a.source.command)} · ${esc(a.id)}</span>
+                </button>`).join('')}</div>`
+                : '<p>No results yet. Run an analysis (🧮) or a check (✅), or call a command with el.execute().</p>'}
+            <div class="pv-results-view"></div>
+            <div class="pv-btn-container">
+                <button type="button" class="pv-btn" data-act="csv" disabled>CSV</button>
+                <button type="button" class="pv-btn" data-act="json" disabled>JSON</button>
+                <button type="button" class="pv-btn" data-act="mcp" disabled>Copy MCP call</button>
+                <button type="button" class="pv-btn" data-act="close">Close</button>
+            </div>`;
+        overlay.appendChild(dialog);
+        document.body.appendChild(overlay);
+        const $ = (sel) => dialog.querySelector(sel);
+        const view = $('.pv-results-view');
+        let current = null;
+        const show = (id) => {
+            current = reg.artifact(id);
+            const out = R.renderArtifact(this._solverModule, current);
+            view.innerHTML = (out.svg || '') + out.html;
+            if (out.plotData) this._solverModule.SVGPlotter.setupInteractivity(out.plotData);
+            $('[data-act="csv"]').disabled = !['timeseries', 'table', 'report'].includes(current.data.kind);
+            $('[data-act="json"]').disabled = false;
+            $('[data-act="mcp"]').disabled = false;
+        };
+        dialog.querySelectorAll('.pv-results-item').forEach(b => b.addEventListener('click', () => show(b.dataset.id)));
+        const download = async (format) => {
+            if (!current) return;
+            const out = await reg.execute('export.artifact', { id: current.id, format });
+            this._downloadFile(out.filename, out.content, out.mime);
+        };
+        $('[data-act="csv"]').addEventListener('click', () => download('csv'));
+        $('[data-act="json"]').addEventListener('click', () => download('json'));
+        $('[data-act="mcp"]').addEventListener('click', () => this._copyMcpCall(current));
+        const close = () => overlay.remove();
+        overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+        overlay.addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.stopPropagation(); close(); } });
+        dialog.querySelectorAll('[data-act="close"]').forEach(b => b.addEventListener('click', close));
+        if (arts.length) show(arts[0].id);
         overlay.tabIndex = -1;
         overlay.focus();
     }
@@ -5377,6 +5485,7 @@ PetriView = class PetriView extends HTMLElement {
                 <button type="button" class="pv-btn pv-btn-primary" data-act="run">Run</button>
                 <button type="button" class="pv-btn" data-act="csv" disabled>CSV</button>
                 <button type="button" class="pv-btn" data-act="json" disabled>JSON</button>
+                <button type="button" class="pv-btn" data-act="mcp" disabled title="Copy the tools/call that re-runs this result">Copy MCP call</button>
                 <button type="button" class="pv-btn" data-act="gist" disabled>Export to Gist</button>
                 <button type="button" class="pv-btn" data-act="close">Close</button>
             </div>`;
@@ -5393,7 +5502,8 @@ PetriView = class PetriView extends HTMLElement {
         const csvBtn = $('[data-act="csv"]');
         const jsonBtn = $('[data-act="json"]');
         const gistBtn = $('[data-act="gist"]');
-        let lastResult = null; // {csv, json, filename}
+        const mcpBtn = $('[data-act="mcp"]');
+        let lastResult = null; // the last run's artifact
 
         const close = () => {
             overlay.remove();
@@ -5448,122 +5558,74 @@ PetriView = class PetriView extends HTMLElement {
                 rows.map(r => `<tr>${r.map((c, i) => `<td${i ? ' class="pv-num"' : ''}>${esc(c)}</td>`).join('')}</tr>`).join('')
             }</tbody></table>`;
         };
-        const toCSV = (headers, rows) =>
-            [headers, ...rows].map(r => r.map(c => /[",\n]/.test(String(c)) ? `"${String(c).replace(/"/g, '""')}"` : c).join(',')).join('\n');
         const fmt = (v) => typeof v === 'number' ? +v.toPrecision(6) : v;
 
-        const renderPlot = (plotter) => {
-            const result = { svg: plotter.render(), plotData: plotter.lastPlotData };
-            plotEl.innerHTML = result.svg;
-            this._solverModule.SVGPlotter.setupInteractivity(result.plotData);
-            return result;
+        const showPlot = (plot) => {
+            plotEl.innerHTML = plot.svg;
+            this._solverModule.SVGPlotter.setupInteractivity(plot.plotData);
+            return plot;
         };
+        const odeArgs = () => ({ dt: st.dt, abstol: st.abstol, reltol: st.reltol });
+        const rangeArgs = () => ({ from: st.range.start, to: st.range.stop, steps: st.range.n });
 
+        // Each tab collects its form into a command's arguments and runs it
+        // through the registry (petri-commands.js): the same commands the chat
+        // and MCP clients call. The dialog only renders the artifact it gets
+        // back (petri-results.js). 600 points keeps the plots as fine as they
+        // were before the registry; REVIEW: CSV exports now carry those 600
+        // samples rather than every adaptive solver step.
         const runners = {
-            simulate: () => {
+            simulate: async (reg, R) => {
                 if (st.selected.length === 0) throw new Error('Select at least one place to plot');
-                const { net, sol } = this._odeSolve(st.rates, [0, st.tend], st);
-                const P = this._solverModule.SVGPlotter;
-                const plotter = new P(860, 420);
-                plotter.setTitle('ODE simulation · Tsit5').setXLabel('Time').setYLabel('Token count');
-                const keep = this._downsample(sol.t);
-                for (const v of st.selected) {
-                    const y = sol.getVariable(v);
-                    plotter.addSeries(keep.map(i => sol.t[i]), keep.map(i => y[i]), v);
-                }
-                const plotResult = renderPlot(plotter);
-                const initial = this._solverModule.setState(net);
-                const final = sol.getFinalState();
-                const rows = Object.keys(final).map(p => [p, fmt(initial[p] ?? 0), fmt(final[p]), fmt(final[p] - (initial[p] ?? 0))]);
-                resultsTable(['Place', 'Initial', 'Final', 'Δ'], rows);
+                const out = await reg.execute('sim.ode', { t_end: st.tend, points: 600, places: st.selected, ...odeArgs() });
+                const art = reg.artifact(out.artifact);
+                const plot = showPlot(R.plotTimeSeries(this._solverModule, art, { title: 'ODE simulation · Tsit5' }));
+                resultsTable(['Place', 'Initial', 'Final', 'Δ'],
+                    Object.keys(out.final).map(p => [p, fmt(out.initial[p]), fmt(out.final[p]), fmt(out.delta[p])]));
                 // Feed the Gist exporter (kept API: reads this._lastODESimulation)
                 this._lastODESimulation = {
-                    svg: plotResult.svg, selectedVars: st.selected, rates: { ...st.rates },
+                    svg: plot.svg, selectedVars: st.selected, rates: { ...art.meta.rates },
                     tstart: 0, tend: st.tend, dt: st.dt, abstol: st.abstol, reltol: st.reltol,
-                    solution: sol, net,
+                    solution: { getFinalState: () => ({ ...out.final }) },
+                    net: this._solverModule.fromJSON(this._model),
                 };
                 if (this._authInitialized && this._user) gistBtn.disabled = false;
-                const headers = ['t', ...st.selected];
-                const series = st.selected.map(v => sol.getVariable(v));
-                const csvRows = sol.t.map((t, i) => [t, ...series.map(s => s[i])]);
-                return {
-                    csv: toCSV(headers, csvRows),
-                    json: { tool: 'petri_ode', tspan: [0, st.tend], rates: st.rates, t: sol.t, series: Object.fromEntries(st.selected.map((v, i) => [v, series[i]])), final },
-                    filename: 'ode-simulation',
-                };
+                return art;
             },
-            scan: () => {
+            scan: async (reg, R) => {
                 if (st.selected.length === 0) throw new Error('Select at least one place to observe');
-                const values = [];
-                for (let i = 0; i < st.range.n; i++) {
-                    values.push(st.range.start + (st.range.stop - st.range.start) * i / (st.range.n - 1));
-                }
-                const finals = values.map(v => {
-                    const { sol } = this._odeSolve({ ...st.rates, [st.scanTransition]: v }, [0, st.scanTend ?? Math.max(50, st.tend)], st);
-                    return sol.getFinalState();
+                const out = await reg.execute('opt.rate_scan', {
+                    transition: st.scanTransition, ...rangeArgs(), t_end: st.scanTend ?? Math.max(50, st.tend),
+                    places: st.selected, ...odeArgs(),
                 });
-                const P = this._solverModule.SVGPlotter;
-                const plotter = new P(860, 420);
-                plotter.setTitle(`Steady state vs rate(${st.scanTransition})`).setXLabel(`rate(${st.scanTransition})`).setYLabel('Token count');
-                for (const p of st.selected) {
-                    plotter.addSeries(values, finals.map(f => f[p] ?? 0), p, null, { markers: true });
-                }
-                renderPlot(plotter);
+                const art = reg.artifact(out.artifact);
+                showPlot(R.plotTimeSeries(this._solverModule, art, { mode: 'markers', title: `Steady state vs rate(${st.scanTransition})` }));
                 resultsTable([`rate(${st.scanTransition})`, ...st.selected],
-                    values.map((v, i) => [fmt(v), ...st.selected.map(p => fmt(finals[i][p] ?? 0))]));
-                return {
-                    csv: toCSV([`rate`, ...st.selected], values.map((v, i) => [v, ...st.selected.map(p => finals[i][p] ?? 0)])),
-                    json: { tool: 'petri_rate_scan', transition: st.scanTransition, values, observables: st.selected, results: finals },
-                    filename: `rate-scan-${st.scanTransition}`,
-                };
+                    out.rates.map((v, i) => [fmt(v), ...st.selected.map(p => fmt(out.final[i][p] ?? 0))]));
+                return art;
             },
-            sweep: () => {
-                const values = [];
-                for (let i = 0; i < st.range.n; i++) {
-                    values.push(st.range.start + (st.range.stop - st.range.start) * i / (st.range.n - 1));
-                }
-                const P = this._solverModule.SVGPlotter;
-                const plotter = new P(860, 420);
-                plotter.setTitle(`${st.sweepObservable} across rate(${st.scanTransition})`).setXLabel('Time').setYLabel(st.sweepObservable);
-                const trajectories = [];
-                for (const v of values) {
-                    const { sol } = this._odeSolve({ ...st.rates, [st.scanTransition]: v }, [0, st.tend], st);
-                    const y = sol.getVariable(st.sweepObservable);
-                    const keep = this._downsample(sol.t);
-                    plotter.addSeries(keep.map(i => sol.t[i]), keep.map(i => y[i]), `k=${+v.toPrecision(3)}`);
-                    trajectories.push({ rate: v, final: y[y.length - 1] });
-                }
-                renderPlot(plotter);
+            sweep: async (reg, R) => {
+                const out = await reg.execute('opt.sweep', {
+                    transition: st.scanTransition, place: st.sweepObservable, ...rangeArgs(), t_end: st.tend, points: 600, ...odeArgs(),
+                });
+                const art = reg.artifact(out.artifact);
+                showPlot(R.plotTimeSeries(this._solverModule, art, { yLabel: st.sweepObservable }));
                 resultsTable([`rate(${st.scanTransition})`, `${st.sweepObservable} final`],
-                    trajectories.map(tr => [fmt(tr.rate), fmt(tr.final)]));
-                return {
-                    csv: toCSV(['rate', 'final'], trajectories.map(tr => [tr.rate, tr.final])),
-                    json: { tool: 'petri_ode_sweep', transition: st.scanTransition, observable: st.sweepObservable, trajectories },
-                    filename: `sweep-${st.scanTransition}-${st.sweepObservable}`,
-                };
+                    out.finals.map(tr => [fmt(tr.rate), fmt(tr.final)]));
+                return art;
             },
-            phase: () => {
-                const { sol } = this._odeSolve(st.rates, [0, st.tend], st);
-                const xs = sol.getVariable(st.phaseX);
-                const ys = sol.getVariable(st.phaseY);
-                const keep = this._downsample(xs);
-                const P = this._solverModule.SVGPlotter;
-                const plotter = new P(860, 460, { hoverMode: 'point', clampYZero: false });
-                plotter.setTitle(`Phase: ${st.phaseY} vs ${st.phaseX}`).setXLabel(st.phaseX).setYLabel(st.phaseY);
-                plotter.addSeries(keep.map(i => xs[i]), keep.map(i => ys[i]), 'trajectory');
-                // start / end markers as tiny series
-                plotter.addSeries([xs[0]], [ys[0]], 'start', null, { markers: true });
-                plotter.addSeries([xs[xs.length - 1]], [ys[ys.length - 1]], 'end', null, { markers: true });
-                renderPlot(plotter);
+            phase: async (reg, R) => {
+                const places = st.phaseX === st.phaseY ? [st.phaseX] : [st.phaseX, st.phaseY];
+                const out = await reg.execute('sim.ode', { t_end: st.tend, points: 600, places, ...odeArgs() });
+                const art = reg.artifact(out.artifact);
+                showPlot(R.plotTimeSeries(this._solverModule, art, { mode: 'phase', x: st.phaseX, y: st.phaseY }));
+                const xs = art.data.series.find(s => s.name === st.phaseX).values;
+                const ys = art.data.series.find(s => s.name === st.phaseY).values;
                 resultsTable(['', st.phaseX, st.phaseY], [
                     ['start', fmt(xs[0]), fmt(ys[0])],
                     ['end', fmt(xs[xs.length - 1]), fmt(ys[ys.length - 1])],
                 ]);
-                return {
-                    csv: toCSV(['t', st.phaseX, st.phaseY], sol.t.map((t, i) => [t, xs[i], ys[i]])),
-                    json: { tool: 'petri_phase_plot', placeX: st.phaseX, placeY: st.phaseY, t: sol.t, x: xs, y: ys },
-                    filename: `phase-${st.phaseX}-${st.phaseY}`,
-                };
+                return art;
             },
         };
 
@@ -5573,9 +5635,11 @@ PetriView = class PetriView extends HTMLElement {
             runBtn.textContent = 'Running…';
             await new Promise(r => setTimeout(r, 10)); // let the button repaint
             try {
-                lastResult = runners[st.tab]();
+                const [reg, R] = await Promise.all([this.commands(), import('./petri-results.js')]);
+                lastResult = await runners[st.tab](reg, R);
                 csvBtn.disabled = false;
                 jsonBtn.disabled = false;
+                mcpBtn.disabled = false;
             } catch (err) {
                 console.error('Analysis error:', err);
                 this._toast('Analysis failed: ' + err.message, 'error');
@@ -5587,12 +5651,14 @@ PetriView = class PetriView extends HTMLElement {
             }
         });
 
-        csvBtn.addEventListener('click', () => {
-            if (lastResult) this._downloadFile(lastResult.filename + '.csv', lastResult.csv, 'text/csv');
-        });
-        jsonBtn.addEventListener('click', () => {
-            if (lastResult) this._downloadFile(lastResult.filename + '.json', JSON.stringify(lastResult.json, null, 2), 'application/json');
-        });
+        const download = async (format) => {
+            if (!lastResult) return;
+            const out = await (await this.commands()).execute('export.artifact', { id: lastResult.id, format });
+            this._downloadFile(out.filename, out.content, out.mime);
+        };
+        csvBtn.addEventListener('click', () => download('csv'));
+        jsonBtn.addEventListener('click', () => download('json'));
+        mcpBtn.addEventListener('click', () => this._copyMcpCall(lastResult));
         gistBtn.addEventListener('click', () => this._exportODESimulationToGist({}));
 
         dialog.tabIndex = -1;
@@ -7188,6 +7254,11 @@ PetriView = class PetriView extends HTMLElement {
             this._showCheckDialog();
         });
         menuContainer._menuContent.appendChild(checkItem);
+
+        const resultsItem = makeMenuItem('📊 Results', () => {
+            this._showResultsDialog();
+        });
+        menuContainer._menuContent.appendChild(resultsItem);
         
         const layoutAlgoItem = makeMenuItem('🎨 Layout Algorithms', () => {
             this._showLayoutAlgorithmsDialog();

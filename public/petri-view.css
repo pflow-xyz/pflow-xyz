@@ -3011,3 +3011,27 @@ canvas.pv-canvas {
     color: var(--pv-ink-secondary);
     text-decoration: underline;
 }
+
+/* Results dialog (petri-results.js renders the artifact itself) */
+.pv-results-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 8px 0 12px;
+}
+.pv-results-item {
+    text-align: left;
+}
+.pv-results-meta {
+    opacity: 0.7;
+    font-size: 0.85em;
+    margin-left: 6px;
+}
+.pv-results-view {
+    max-height: 60vh;
+    overflow: auto;
+}
+.pv-result-json {
+    white-space: pre-wrap;
+    font-size: 0.85em;
+}
