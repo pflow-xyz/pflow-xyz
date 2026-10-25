@@ -14,7 +14,9 @@ package main
 //   - annotations: every tool carries readOnlyHint and destructiveHint (the
 //     claude.ai connector directory rejects a tool without one);
 //   - a per-call timeout, so one tool cannot hold a request for minutes;
-//   - a result-size guard, so one answer cannot exceed a client's budget.
+//   - a cap on calls running at once, so a burst cannot starve the server;
+//   - a result-size guard, so one answer cannot exceed a client's budget;
+//   - protocol-version negotiation, and which tools a connection is offered.
 
 import (
 	"context"
@@ -43,14 +45,27 @@ const (
 	// the tools are bounded well inside this, so hitting it means a bug or an
 	// adversarial net, and an error beats a hung request.
 	mcpCallTimeoutDefault = 60 * time.Second
-	// mcpMaxResultBytes is about 25k tokens of JSON (≈ 4 bytes a token).
-	mcpMaxResultBytes = 100 << 10
-	maxEditOps        = 500
-	maxSSASteps       = 5_000_000
+	// mcpMaxResultBytes keeps a result under the directory's 25k-token limit.
+	// Prose runs about 4 bytes a token, but these results are mostly numbers
+	// (trajectories, matrices), which tokenize nearer 2.5, so budget for that.
+	mcpMaxResultBytes = 60 << 10
+	// mcpMaxConcurrentCalls bounds tool calls running at once, across every
+	// client. Claude's connector traffic all arrives from Anthropic's egress
+	// range, so a per-IP limit would throttle every Claude user as one.
+	mcpMaxConcurrentCalls = 8
+	maxEditOps            = 500
+	maxSSASteps           = 5_000_000
 )
 
 // mcpCallTimeout is a variable so a test can shorten it.
 var mcpCallTimeout = mcpCallTimeoutDefault
+
+// mcpQueueWait is how long a call waits for a free slot before it is turned
+// away as busy; a variable so a test can shorten it.
+var mcpQueueWait = 5 * time.Second
+
+// mcpSlots holds one token per running tool call.
+var mcpSlots = make(chan struct{}, mcpMaxConcurrentCalls)
 
 // ---- annotations ----
 
@@ -123,14 +138,69 @@ func allMCPTools() []mcpTool {
 	return append(mcpTools(), registryTools()...)
 }
 
+// ---- protocol version and the tools a connection is offered ----
+
+// mcpProtocolVersions are the revisions this server answers as. The tools
+// use nothing that differs between them.
+var mcpProtocolVersions = map[string]bool{"2024-11-05": true, "2025-03-26": true, "2025-06-18": true, "2025-11-25": true}
+
+// negotiateProtocolVersion answers with the client's revision when it is one
+// of ours and with mcpProtocolVersion otherwise, as initialize requires; a
+// client that cannot speak that one disconnects.
+func negotiateProtocolVersion(requested string) string {
+	if mcpProtocolVersions[requested] {
+		return requested
+	}
+	return mcpProtocolVersion
+}
+
+// bearerToken is the request's Authorization bearer token, or "".
+func bearerToken(r *http.Request) string {
+	h := strings.TrimSpace(r.Header.Get("Authorization"))
+	if len(h) < 7 || !strings.EqualFold(h[:7], "Bearer ") {
+		return ""
+	}
+	return strings.TrimSpace(h[7:])
+}
+
+// listedMCPTools is tools/list's answer. pflow_save is offered only to a
+// connection that sends a bearer token: a connector added without one (the
+// directory's authless listing, a claude.ai custom connector) can never save,
+// and a tool that always fails should not be offered. tools/call still knows
+// it, so a stray call gets save's own error rather than "unknown tool".
+func listedMCPTools(r *http.Request) []mcpTool {
+	all := allMCPTools()
+	if bearerToken(r) != "" {
+		return all
+	}
+	out := make([]mcpTool, 0, len(all))
+	for _, t := range all {
+		if t.Name != "pflow_save" {
+			out = append(out, t)
+		}
+	}
+	return out
+}
+
 // ---- timeout and size guard ----
 
-// callMCPTool runs a tool under mcpCallTimeout. The handler gets a request
-// carrying the deadline, so the engines that take a context (SSA) stop on
-// their own; the rest are bounded by their inputs and, if one is not, the
-// caller still gets an answer on time (the goroutine finishes in the
-// background).
+// callMCPTool runs a tool under mcpCallTimeout, once a slot is free. The
+// handler gets a request carrying the deadline, so the engines that take a
+// context (SSA) stop on their own; the rest are bounded by their inputs and,
+// if one is not, the caller still gets an answer on time (the goroutine
+// finishes in the background, holding its slot until it does, so the cap
+// counts the work actually running).
 func callMCPTool(s *Server, r *http.Request, t *mcpTool, args map[string]any) (any, error) {
+	wait := time.NewTimer(mcpQueueWait)
+	select {
+	case mcpSlots <- struct{}{}:
+		wait.Stop()
+	case <-wait.C:
+		return nil, fmt.Errorf("pflow.xyz is busy (%d tool calls running); try again in a few seconds", mcpMaxConcurrentCalls)
+	case <-r.Context().Done():
+		wait.Stop()
+		return nil, errors.New("the request was cancelled")
+	}
 	ctx, cancel := context.WithTimeout(r.Context(), mcpCallTimeout)
 	defer cancel()
 	type outcome struct {
@@ -139,13 +209,18 @@ func callMCPTool(s *Server, r *http.Request, t *mcpTool, args map[string]any) (a
 	}
 	done := make(chan outcome, 1)
 	go func() {
-		defer func() {
-			if p := recover(); p != nil {
-				done <- outcome{nil, fmt.Errorf("internal error in %s", t.Name)}
-			}
+		var o outcome
+		func() {
+			defer func() {
+				if p := recover(); p != nil {
+					o = outcome{nil, fmt.Errorf("internal error in %s", t.Name)}
+				}
+			}()
+			out, err := t.run(s, r.WithContext(ctx), args)
+			o = outcome{out, err}
 		}()
-		out, err := t.run(s, r.WithContext(ctx), args)
-		done <- outcome{out, err}
+		<-mcpSlots // free the slot before answering, so a caller that got its answer sees it free
+		done <- o
 	}()
 	select {
 	case o := <-done:

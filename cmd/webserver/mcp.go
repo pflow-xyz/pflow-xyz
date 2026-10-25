@@ -341,7 +341,7 @@ func mcpLinks(s *Server, r *http.Request, args map[string]any) (any, error) {
 func mcpSave(s *Server, r *http.Request, args map[string]any) (any, error) {
 	// REVIEW: /api/save stores anonymously when no token is sent; over MCP a
 	// token is required, because an agent can loop where a person clicks.
-	token := strings.TrimSpace(strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer "))
+	token := bearerToken(r)
 	if token == "" {
 		return nil, errors.New("saving needs the connection's Authorization: Bearer <GitHub token>")
 	}
@@ -429,22 +429,19 @@ func (s *Server) mcpDispatch(r *http.Request, req rpcRequest) (rpcResponse, bool
 			ProtocolVersion string `json:"protocolVersion"`
 		}
 		json.Unmarshal(req.Params, &p)
-		version := mcpProtocolVersion
-		if p.ProtocolVersion != "" {
-			version = p.ProtocolVersion // echo the client's; the tools do not depend on it
-		}
 		resp.Result = map[string]any{
-			"protocolVersion": version,
+			"protocolVersion": negotiateProtocolVersion(p.ProtocolVersion),
 			"capabilities":    map[string]any{"tools": map[string]any{}},
 			"serverInfo":      map[string]any{"name": "pflow.xyz", "version": "workbench-1"},
 			"instructions": "pflow.xyz: Petri nets in the pflow.xyz JSON-LD format. Check, seal, simulate (ODE) and explore " +
 				"(reachability) a net on the server's go-pflow engines; pflow_links opens one in the editor, where the " +
-				"structural analyses, stochastic runs and the Assistant live. pflow_save needs a GitHub bearer token.",
+				"structural analyses, stochastic runs and the Assistant live. pflow_save is listed only for a connection " +
+				"that sends a GitHub bearer token.",
 		}
 	case "ping":
 		resp.Result = map[string]any{}
 	case "tools/list":
-		tools := allMCPTools()
+		tools := listedMCPTools(r)
 		list := make([]map[string]any, 0, len(tools))
 		for _, t := range tools {
 			list = append(list, toolDescriptor(t))
