@@ -11,6 +11,7 @@ go_library(
         "share_card.go",
         "share_page.go",
         "sitemap.go",
+        "wasm.go",
     ],
     embedsrcs = ["prompts/draft-net-v1.md"],
     importpath = "github.com/pflow-xyz/pflow-xyz/cmd/webserver",
@@ -47,6 +48,7 @@ go_test(
         "sample_card_test.go",
         "share_card_test.go",
         "sitemap_test.go",
+        "wasm_test.go",
     ],
     # keep: share_card_test.go renders a stored example model from //examples.
     data = ["//examples"],

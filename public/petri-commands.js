@@ -16,7 +16,16 @@
 //                         updates its run counter and events)
 //   resetMarking()?       back to the marking the run started from (optional)
 //   fit()?                frame the net (only a host with a view)
+//   setMarking(m)?        load a marking ({place: [counts]}) as the token
+//                         game's, keeping the run baseline (sim.goto)
+//   highlight(nodes, weights, label)? / clearHighlight()?
+//                         mark nodes on the canvas (a set, a trace step)
 //   capabilities          a Set; commands that need e.g. 'view' say so
+//
+// Commands the JS engines lack (structural analysis and, later, the
+// simulation workbench) are pflow-native's own, run in its wasm build through
+// petri-wasm.js. Their specs are a vendored snapshot
+// (vendor/pflow-native-wasm/commands.js), so listing them loads no wasm.
 //
 // createHeadlessHost() is a host with no DOM, for tests and agents; the
 // <petri-view> element implements the same interface. No DOM here: deno tests
@@ -30,6 +39,7 @@
 // out, so a result has one format whether a dialog, the chat or an agent
 // asked for it.
 import * as Sim from './petri-sim.js';
+import { NATIVE_COMMANDS } from './vendor/pflow-native-wasm/commands.js';
 
 export class CommandError extends Error {
     constructor(message, code = 'invalid') {
@@ -644,8 +654,11 @@ export const COMMANDS = [
 
     // ---- analysis ----
     {
-        id: 'analysis.validate', label: 'Check net',
-        help: 'The strict check: every problem the editor would otherwise repair quietly, with a path, plus warnings. With engines (default true) and no errors, also runs the firing rule, the ODE solver\'s reading and CID sealing. Stores a report artifact.',
+        // REVIEW: named analysis.check, not analysis.validate: pflow-native's
+        // analysis.validate is pflow-validation's checks (exposed below from
+        // wasm), and one id must mean one thing in both apps.
+        id: 'analysis.check', label: 'Check net',
+        help: 'The editor\'s strict check: every problem the editor would otherwise repair quietly, with a path, plus warnings. With engines (default true) and no errors, also runs the firing rule, the ODE solver\'s reading and CID sealing. Stores a report artifact.',
         args: args({ strict: bool('a key the editor does not write is an error (default false)'), engines: bool('run the engine checks too (default true)') }),
         journal: false,
         run: async (c, a) => {
@@ -656,6 +669,73 @@ export const COMMANDS = [
             const report = { ok: r.ok && (!smoke || smoke.ok), errors: [...r.errors, ...(smoke ? smoke.errors : [])], warnings: r.warnings, cid: smoke?.cid ?? null };
             const art = c.store('Check net', { kind: 'report', ...report });
             return { artifact: art.id, ...report };
+        },
+    },
+
+    {
+        id: 'sim.goto', label: 'Go to marking',
+        help: 'Load a marking from a result onto the net: a step of a trace artifact (step), or a state of a graph artifact (node). The run baseline is kept, so Reset marking returns to where the run started.',
+        args: args({ id: str('trace or graph artifact id'), step: int('trace step index', { minimum: 0 }), node: str('graph node id (its data.marking is loaded)') }, ['id']),
+        journal: true,
+        run: (c, a) => {
+            const art = c.registry.artifact(a.id);
+            let marking, fired = null;
+            if (art.data.kind === 'trace') {
+                const steps = art.data.steps || [];
+                const i = a.step ?? steps.length - 1;
+                if (i >= steps.length) throw new CommandError(`step ${i}: the trace has ${steps.length} step(s)`);
+                marking = steps[i].marking;
+                fired = steps[i].transition || null;
+            } else if (art.data.kind === 'graph') {
+                if (a.node === undefined) throw new CommandError('a graph needs node');
+                const n = (art.data.nodes || []).find((x) => x.id === a.node);
+                if (!n) throw new CommandError(`no node "${a.node}" in ${a.id}`, 'not_found');
+                marking = n.data && n.data.marking;
+            } else {
+                throw new CommandError(`${a.id} is a ${art.data.kind}; sim.goto takes a trace or a graph`);
+            }
+            if (!marking) throw new CommandError('that step carries no marking');
+            const m = c.model();
+            const next = {};
+            for (const [pid, v] of Object.entries(marking)) {
+                if (!own(m.places, pid)) continue;
+                // ω (unbounded, from coverability) cannot be a token count.
+                if ([].concat(v).some((x) => typeof x !== 'number')) throw new CommandError(`${pid} is ω (unbounded) in that state; it cannot be loaded`);
+                next[pid] = [].concat(v);
+            }
+            if (c.host.setMarking) c.host.setMarking(next);
+            else c.edit('go to marking', (d) => { for (const [pid, v] of Object.entries(next)) d.places[pid].initial = [...v]; });
+            if (fired && c.host.highlight) c.host.highlight([fired], null, `fired ${fired}`);
+            return { marking: Sim.marking(c.model()), fired };
+        },
+    },
+    {
+        id: 'view.highlight', label: 'Highlight nodes', help: 'Mark places/transitions on the canvas, optionally with a number badge each (e.g. invariant coefficients).',
+        args: args({ nodes: strList('place/transition ids'), label: str('what the highlight means'), weights: { type: 'object', description: '{node: number} badges' } }, ['nodes']),
+        journal: false, requires: ['view'],
+        run: (c, a) => {
+            const m = c.model();
+            for (const id of a.nodes) needNode(m, id);
+            c.host.highlight(a.nodes, a.weights || null, a.label || '');
+            return { highlighted: a.nodes };
+        },
+    },
+    {
+        id: 'view.clear_highlight', label: 'Clear highlight', help: 'Remove the canvas highlight.',
+        args: args(), journal: false, requires: ['view'],
+        run: (c) => { c.host.clearHighlight(); return {}; },
+    },
+    {
+        id: 'artifact.show_set', label: 'Show set', help: 'Highlight one node set of a sets artifact (an invariant\'s support, a siphon, an orbit) on the canvas; without a view, return it.',
+        args: args({ id: str('artifact id'), index: int('set index (default 0)', { minimum: 0 }) }, ['id']),
+        journal: false,
+        run: (c, a) => {
+            const art = c.registry.artifact(a.id);
+            if (art.data.kind !== 'sets') throw new CommandError(`${a.id} is a ${art.data.kind}, not a sets artifact`);
+            const set = (art.data.sets || [])[a.index ?? 0];
+            if (!set) throw new CommandError(`set ${a.index ?? 0}: ${a.id} has ${(art.data.sets || []).length}`);
+            if (c.host.highlight) c.host.highlight(set.nodes, set.weights || null, set.label || '');
+            return { set };
         },
     },
 
@@ -683,6 +763,27 @@ export const COMMANDS = [
         run: (c) => { c.host.fit(); return {}; },
     },
 ];
+
+// ---------------------------------------------------------------------------
+// pflow-native commands, run in wasm
+// ---------------------------------------------------------------------------
+
+/**
+ * pflow-native's commands the editor exposes, as registry specs. Each runs in
+ * the wasm engine (petri-wasm.js) against the current document; the artifacts
+ * it makes land in this registry.
+ */
+export function nativeCommands(specs = NATIVE_COMMANDS) {
+    return specs.map((s) => ({
+        id: s.id, label: s.label, help: s.help, journal: s.journal, native: true,
+        args: { ...s.args, type: 'object', properties: s.args.properties || {}, required: s.args.required || [] },
+        run: async (c, a) => {
+            const { runNative } = await import('./petri-wasm.js');
+            // JSON round trip: unbounded capacities (Infinity) become null, as saved.
+            return runNative(JSON.parse(JSON.stringify(c.model())), s.id, a, c.store);
+        },
+    }));
+}
 
 // ---------------------------------------------------------------------------
 // Export
@@ -728,7 +829,7 @@ export class Registry {
      * @param {Object} host see the header
      * @param {CommandSpec[]} [commands]
      */
-    constructor(host, commands = COMMANDS) {
+    constructor(host, commands = [...COMMANDS, ...nativeCommands()]) {
         this.host = host;
         this._specs = new Map(commands.map((s) => [s.id, s]));
         this._artifacts = [];
@@ -744,6 +845,7 @@ export class Registry {
         return [...this._specs.values()].map((s) => ({
             id: s.id, label: s.label, help: s.help, args: s.args, journal: s.journal,
             available: (s.requires || []).every((r) => caps.has(r)),
+            native: !!s.native,
         }));
     }
 
@@ -876,6 +978,12 @@ export function createHeadlessHost(model) {
             for (const [pid, v] of Object.entries(next)) d.places[pid].initial = [...v];
             this.commit(d);
             return true;
+        },
+        setMarking(marks) {
+            if (!baseline) baseline = Sim.marking(doc);
+            const d = structuredClone(doc);
+            for (const [pid, v] of Object.entries(marks)) if (d.places[pid]) d.places[pid].initial = [...v];
+            this.commit(d);
         },
         resetMarking() {
             if (!baseline) return;

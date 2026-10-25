@@ -219,7 +219,7 @@ unchanged: the proxy, auth, quota, the draft contract and the load gate.
 It is the proxy's first consumer and proves the cost and abuse controls
 before the tool loop raises the stakes.
 
-#### Phase 2: Structural analysis in the browser
+#### Phase 2: Structural analysis in the browser ✅
 
 - **Wasm spike, which is a decision gate.** Measure bundle size (gzip),
   cold load and first `execute` on the gallery nets, and run the parity

@@ -1360,8 +1360,54 @@ PetriView = class PetriView extends HTMLElement {
             fire: (tid) => { this._captureRunBaseline(); return this._fire(tid); },
             resetMarking: () => this._resetMarking(),
             fit: () => this.fitToView(),
+            setMarking: (marks) => {
+                this._captureRunBaseline(); // ↺ returns to where the run started
+                this._setMarking(marks);
+                this._renderTokens();
+                this._updateTransitionStates();
+                this._draw();
+                this._refreshRunUI?.();
+                this.dispatchEvent(new CustomEvent('marking-changed', {detail: {marks: this._marking()}}));
+            },
+            highlight: (nodes, weights, label) => this._highlightNodes(nodes, weights, label),
+            clearHighlight: () => this._highlightNodes([]),
         };
         return this._cmdHost;
+    }
+
+    // Mark nodes on the canvas (an invariant's support, a siphon, the fired
+    // transition of a trace step), with optional number badges. An empty list
+    // clears it. The highlight is view state: not in the document, not undone.
+    _highlightNodes(nodes, weights = null, label = '') {
+        for (const id of this._highlighted || []) {
+            const el = this._nodes[id];
+            if (!el) continue;
+            el.classList.remove('pv-highlight');
+            el.querySelector(':scope > .pv-highlight-badge')?.remove();
+        }
+        this._highlighted = [];
+        for (const id of nodes) {
+            const el = this._nodes[id];
+            if (!el) continue;
+            el.classList.add('pv-highlight');
+            if (weights && weights[id] !== undefined) {
+                const b = document.createElement('span');
+                b.className = 'pv-highlight-badge';
+                b.textContent = String(+Number(weights[id]).toPrecision(4));
+                el.appendChild(b);
+            }
+            this._highlighted.push(id);
+        }
+        if (nodes.length && label) this._toast(label);
+    }
+
+    async _openStructureDialog() {
+        try {
+            const ui = await import('./petri-analysis-ui.js');
+            await ui.openStructureDialog(this);
+        } catch (e) {
+            this._toast('Structure analysis is not available here: ' + e.message, 'error');
+        }
     }
 
     /** The command registry (petri-commands.js), loaded on first use. */
@@ -5223,7 +5269,7 @@ PetriView = class PetriView extends HTMLElement {
             this._toast('Check is not available here', 'error');
             return;
         }
-        const out = await reg.execute('analysis.validate');
+        const out = await reg.execute('analysis.check');
         const art = reg.artifact(out.artifact);
         const atLoad = this._loadCheck && this._loadCheck.errors.length ? this._loadCheck : null;
         const esc = (s) => this._escHtml(s);
@@ -5304,6 +5350,7 @@ PetriView = class PetriView extends HTMLElement {
             const out = R.renderArtifact(this._solverModule, current);
             view.innerHTML = (out.svg || '') + out.html;
             if (out.plotData) this._solverModule.SVGPlotter.setupInteractivity(out.plotData);
+            R.wireArtifact(view, current, (id, a) => reg.execute(id, a), (m) => this._toast(m, 'error'));
             $('[data-act="csv"]').disabled = !['timeseries', 'table', 'report'].includes(current.data.kind);
             $('[data-act="json"]').disabled = false;
             $('[data-act="mcp"]').disabled = false;
@@ -7310,6 +7357,11 @@ PetriView = class PetriView extends HTMLElement {
             this._showSimulationDialog();
         });
         menuContainer._menuContent.appendChild(simulationItem);
+
+        const structureItem = makeMenuItem('🔬 Structure (invariants, verify, reach)', () => {
+            this._openStructureDialog();
+        });
+        menuContainer._menuContent.appendChild(structureItem);
 
         const checkItem = makeMenuItem('✅ Check net', () => {
             this._showCheckDialog();
