@@ -2304,6 +2304,7 @@ PetriView = class PetriView extends HTMLElement {
         const prev = this._history[this._history.length - 1];
         this._model = JSON.parse(prev);
         this._renderUI();
+        this._pruneSelection();
         this._syncLD();
     }
 
@@ -2313,7 +2314,17 @@ PetriView = class PetriView extends HTMLElement {
         this._history.push(nxt);
         this._model = JSON.parse(nxt);
         this._renderUI();
+        this._pruneSelection();
         this._syncLD();
+    }
+
+    /** Drop selected ids that are no longer a place or transition (after undo/redo swaps the model). */
+    _pruneSelection() {
+        const {places = {}, transitions = {}} = this._model || {};
+        for (const id of Array.from(this._selectedNodes)) {
+            if (!places[id] && !transitions[id]) this._selectedNodes.delete(id);
+        }
+        this._updateSelectionHighlights();
     }
 
     // ---------------- marking & firing ----------------

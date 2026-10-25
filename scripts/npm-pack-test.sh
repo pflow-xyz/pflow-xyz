@@ -26,6 +26,7 @@ required=(
   public/petri-sim.js
   public/petri-ssa.js
   public/petri-colors.js
+  public/petri-clipboard.js
   public/petri-view.js
   public/petri-view.css
   public/diagram-viewer.js
