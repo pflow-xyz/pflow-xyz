@@ -1060,6 +1060,11 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		// The vendored wasm shim is stored gzip-compressed only (wasm.go).
+		if s.serveGzippedWasm(w, r) {
+			return
+		}
+
 		// Serve other static files. The browser modules (petri-solver.js,
 		// petri-sim.js, petri-view.js, …) are meant to be importable from
 		// ad-hoc pages on other origins — module scripts are always

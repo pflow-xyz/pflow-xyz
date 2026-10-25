@@ -113,6 +113,8 @@ examples/                # Example Petri nets in JSON-LD
 - **public/petri-draft.js** - the load gate for LLM drafts: `validateDraft`, deterministic `draftToNet`, strict `validateNet` + engine checks
 - **public/petri-draft-ui.js** - the Describe dialog, the `/api/llm/draft` call and the Draft notes panel (loaded only when `/api/llm/status` says enabled)
 - **cmd/webserver/llm.go** - the Gemini proxy handlers; prompt in `cmd/webserver/prompts/draft-net-v1.md`; `internal/llm` (client, limits, usage log); `internal/auth/verifier.go` (timeout + verified-token cache)
+- **public/petri-wasm.js** - runs pflow-native's commands in its wasm build (`public/vendor/pflow-native-wasm/`, gzip-only `.wasm` served by `cmd/webserver/wasm.go`; refresh with `scripts/sync-native-wasm.mjs`, lock in `pflow-native-wasm.lock`)
+- **public/petri-analysis-ui.js** - the Structure dialog (invariants, siphons, verify, reach, reachability graph, …)
 - **public/petri-results.js** - renders artifacts by kind (Analysis dialog, Results dialog)
 - **docs/workbench-progress.md** - progress and decisions-to-review log for the ROADMAP's LLM workbench phases
 - **docs/engine-selection.md** - which engine (ODE/SSA/SDE) for which

@@ -20,7 +20,7 @@ themselves.
 |---|---|---|
 | 0 Foundations | ✅ merged into `workbench` | `phase0` |
 | 1 Describe it, get a draft | ✅ merged into `workbench` (ships dark) | `phase1` |
-| 2 Structural analysis | | |
+| 2 Structural analysis | ✅ merged into `workbench` | `phase2` |
 | 3 Simulation workbench | | |
 | 4 Chat modal + in-page MCP | | |
 | 5 Goal advisor | | |
@@ -179,3 +179,70 @@ draft shows each problem with its path and loads nothing.
   with `opt-level=z` plus LTO.
 - **This settles open decision 2:** the shim lives in pflow-native
   `crates/wasm`.
+
+## Phase 2: structural analysis in the browser
+
+What landed:
+
+- **pflow-native's engine, vendored.** `public/vendor/pflow-native-wasm/`
+  holds the wasm-bindgen glue, the `.wasm` gzip-only, and `commands.js`, a
+  snapshot of the specs of the 9 exposed commands. `pflow-native-wasm.lock`
+  records the version, commit and sha256s. `scripts/sync-native-wasm.mjs`
+  regenerates all of it from a `make wasm-shim` build.
+- **The gzip gate.** The webserver serves `X.wasm` from `X.wasm.gz` with
+  `Content-Encoding: gzip` (`cmd/webserver/wasm.go`), because nginx on
+  pflow.dev compresses only text/html.
+- **`public/petri-wasm.js`, the bridge.** It loads the engine on first use,
+  loads the current document, runs the command, and moves every artifact the
+  result names into the JS registry, rewriting the ids.
+- **The registry.**
+  - The native commands are `analysis.validate`, `incidence`, `invariants`,
+    `siphons`, `verify`, `reach`, `reachability`, `canonical` and
+    `classify`.
+  - Native's `sim.goto`, `view.highlight`, `view.clear_highlight` and
+    `artifact.show_set` are now JS commands.
+  - `analysis.validate` (Check net) was renamed `analysis.check`.
+- **The UI.** A Structure dialog (`public/petri-analysis-ui.js`) and the
+  Results dialog render the new kinds: matrix, sets, trace, a layered
+  reachability graph, and a readable generic report. Show highlights a set
+  on the canvas, with coefficient badges. Go loads a trace step or a graph
+  state as the marking; Reset marking returns.
+
+**Wasm gate (the ROADMAP's decision gate): passed.**
+
+| Measure | Value |
+|---|---|
+| Bundle, gzip (opt-level z + LTO, codegen-units 1) | 1,161,646 B (raw 6.2 MB) |
+| Cold load plus the first analysis, browser via local server | about 1.4 s |
+| Init and first `analysis.invariants` on SIR (Node, pflow-native's numbers) | 16 ms, 13 ms |
+| Commands in the engine / exposed | 175 / 9 |
+
+Splitting per namespace was not needed.
+
+Verified:
+- `make test`: 199 JS tests, including 9 that run the real wasm through the
+  registry and check the lock.
+- `go test`, including the gzip-serving test.
+- In a browser: invariants highlight with badges, verify's counterexample
+  replays with Go, the graph renders, reach answers, Reset marking returns.
+
+### Decisions to review (phase 2)
+
+1. **The vendored shim was built from pflow-native `62923ff`, which is
+   local only, not pushed.** It was built from a separate local clone, so
+   pflow-native's working tree was not touched. Push pflow-native, then
+   re-run `scripts/sync-native-wasm.mjs` if the commit changes.
+2. **The size profile is set in the environment**
+   (`CARGO_PROFILE_RELEASE_OPT_LEVEL=z`, `_LTO=true`, `_CODEGEN_UNITS=1`),
+   not in pflow-native's `Cargo.toml`. A plain `make wasm-shim` gives
+   1.63 MB gzip.
+3. **The engine is reloaded with the whole document on every native call.**
+   This is simple and keeps one source of truth, and costs a parse per call.
+   Fine at these sizes.
+4. **Analyses run from the current marking** (native's semantics). After a
+   Go, the next analysis starts from that marking. Reset marking undoes it.
+5. **`analysis.check` is the new name** of phase 0's `analysis.validate`, so
+   that `analysis.validate` means pflow-validation in both apps.
+6. **The `.wasm` is stored gzip-only** in git (1.16 MB), not raw (6.2 MB).
+7. **Not done:** pflow-native's FEATURES.md has no "Web" column yet (open
+   decision 1). That is another repo, with an active session on it.

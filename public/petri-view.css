@@ -3108,3 +3108,82 @@ canvas.pv-canvas {
     opacity: 0.7;
     font-size: 0.85em;
 }
+
+/* Structure results on the canvas and in dialogs */
+.pv-node.pv-highlight {
+    box-shadow: 0 0 0 4px var(--pv-accent), 0 0 12px var(--pv-accent);
+    border-radius: 50%;
+}
+.pv-node.pv-transition.pv-highlight {
+    border-radius: 2px;
+}
+.pv-node .pv-highlight-badge {
+    position: absolute;
+    top: -10px;
+    right: -10px;
+    min-width: 18px;
+    padding: 0 4px;
+    border-radius: 9px;
+    background: var(--pv-accent);
+    color: var(--pv-accent-ink);
+    font-size: 11px;
+    line-height: 18px;
+    text-align: center;
+    pointer-events: none;
+}
+.pv-structure-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 8px 0;
+}
+.pv-structure-targets {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 6px 0;
+}
+.pv-structure-targets input {
+    width: 5em;
+}
+.pv-structure-results {
+    max-height: 55vh;
+    overflow: auto;
+}
+.pv-result-dim {
+    opacity: 0.7;
+    font-size: 0.85em;
+}
+.pv-result-sets li,
+.pv-result-trace li,
+.pv-result-states li {
+    margin: 3px 0;
+}
+.pv-result-graph {
+    max-width: 100%;
+    height: auto;
+}
+.pv-graph-edge {
+    stroke: var(--pv-ink-muted);
+    stroke-width: 1;
+}
+.pv-graph-node {
+    fill: var(--pv-surface);
+    stroke: var(--pv-ink);
+    stroke-width: 1.5;
+}
+.pv-graph-initial {
+    stroke: var(--pv-accent);
+    stroke-width: 3;
+}
+.pv-graph-dead {
+    fill: var(--pv-danger-surface);
+    stroke: var(--pv-danger);
+}
+.pv-graph-label {
+    font-size: 9px;
+    fill: var(--pv-ink-secondary);
+}
+.pv-graph-hit {
+    cursor: pointer;
+}

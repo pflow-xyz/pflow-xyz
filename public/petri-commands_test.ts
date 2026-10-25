@@ -137,9 +137,9 @@ Deno.test("registry: rate scan and sweep store time-series artifacts", async () 
     assertEquals((await r.execute("artifact.list")).artifacts.map((a: any) => a.kind), ["timeseries", "timeseries"]);
 });
 
-Deno.test("registry: analysis.validate stores a report and exports it as CSV", async () => {
+Deno.test("registry: analysis.check stores a report and exports it as CSV", async () => {
     const r = reg({ places: { p: { initial: [0], capacity: [0], x: 0, y: 0 } }, transitions: {}, arcs: [] });
-    const out = await r.execute("analysis.validate");
+    const out = await r.execute("analysis.check");
     assert(out.ok);
     assert(out.cid.startsWith("z"));
     assertEquals(out.warnings.map((w: any) => w.path), ["places.p"]);
