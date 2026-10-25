@@ -20,10 +20,12 @@ import { join } from 'node:path';
 import { gzipSync } from 'node:zlib';
 
 // The native commands the editor's registry exposes. Phase 2 (structural
-// analysis); phase 3 adds the simulation workbench's.
+// analysis) and phase 3 (the simulation workbench).
 export const EXPOSED = [
   'analysis.validate', 'analysis.incidence', 'analysis.invariants', 'analysis.siphons',
   'analysis.verify', 'analysis.reach', 'analysis.reachability', 'analysis.canonical', 'analysis.classify',
+  // phase 3: the simulation workbench (sim.ssa and sim.sde stay the JS engines')
+  'sim.equilibrium', 'sim.scenario', 'sim.compare', 'sim.crosscheck', 'analysis.diagnose', 'opt.heatmap', 'opt.optimize',
 ];
 
 const arg = (name, dflt) => {

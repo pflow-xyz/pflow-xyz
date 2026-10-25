@@ -170,5 +170,271 @@ export const NATIVE_COMMANDS = [
       "additionalProperties": false
     },
     "journal": true
+  },
+  {
+    "id": "sim.equilibrium",
+    "label": "Find Equilibrium",
+    "help": "Integrate the ODE from the current marking and rates until pflow-solver's equilibrium detector fires (|du/dt| below tolerance) or t_max runs out; stores a report.",
+    "args": {
+      "type": "object",
+      "properties": {
+        "t_max": {
+          "type": "number",
+          "description": "give up at this time (default 1000)"
+        },
+        "tolerance": {
+          "type": "number",
+          "description": "largest |du/dt| counted as still (default 1e-6)"
+        },
+        "method": {
+          "type": "string",
+          "description": "tsit5 (default), rk45, rk4, euler, heun, midpoint, bs32"
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+    "journal": true
+  },
+  {
+    "id": "sim.scenario",
+    "label": "Run Scenario",
+    "help": "A sim_scenario what-if from the current marking: {name, marking, rates, schedule, hours, samples, realizations, seed, summary, engine: ssa|ode}. Stores a mean±sd time series and a per-place finals table; returns finals, metrics, depletion and contention. Unknown fields are refused.",
+    "args": {
+      "type": "object",
+      "properties": {
+        "scenario": {
+          "description": "scenario object (or a string holding one), e.g. {\"hours\":8,\"realizations\":16,\"marking\":{\"S\":500},\"rates\":{\"infect\":0.002}}"
+        }
+      },
+      "required": [
+        "scenario"
+      ],
+      "additionalProperties": false
+    },
+    "journal": true
+  },
+  {
+    "id": "sim.compare",
+    "label": "Compare Scenarios",
+    "help": "Run several scenarios on one shared seed (sim_compare): an overlay time series (group = scenario) and a scenario × place table of final means.",
+    "args": {
+      "type": "object",
+      "properties": {
+        "scenarios": {
+          "description": "array (or a string holding one) of ≤ 20 scenarios, as sim.scenario takes; they must share hours and samples"
+        },
+        "seed": {
+          "type": "integer",
+          "description": "the shared seed (default: the first scenario's, else 20260809)"
+        }
+      },
+      "required": [
+        "scenarios"
+      ],
+      "additionalProperties": false
+    },
+    "journal": true
+  },
+  {
+    "id": "sim.crosscheck",
+    "label": "Cross-check SSA / ODE / Invariants",
+    "help": "sim_crosscheck: SSA ensemble mean against the mass-action ODE, and the net's P-invariants (Farkas) checked along both trajectories. Stores an overlay (group ssa/ode) and a report with per-place agreement and a verdict.",
+    "args": {
+      "type": "object",
+      "properties": {
+        "t_end": {
+          "type": "number",
+          "description": "horizon (default 8, ≤ 168)"
+        },
+        "runs": {
+          "type": "integer",
+          "description": "SSA realizations (default 24, ≤ 200)"
+        },
+        "seed": {
+          "type": "integer",
+          "description": "RNG seed (default 20260809)"
+        },
+        "points": {
+          "type": "integer",
+          "description": "sample points (default 101, 2..5000)"
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+    "journal": true
+  },
+  {
+    "id": "analysis.diagnose",
+    "label": "Diagnose (Influence)",
+    "help": "Which knobs move the outcome (sim_diagnose's influence reading, on the ODE): each transition's rate at rate·(1 ± delta), and +1 initial token on each place, against the observable's value at t_end. Stores a tornado chart ranked by |influence| and a report, with sim's SSA noise floor (spread across three seeds) when `noise` is on.",
+    "args": {
+      "type": "object",
+      "properties": {
+        "observable": {
+          "type": "string",
+          "description": "place (display name, or base id summing colors); default: the sinks (produced, never consumed)"
+        },
+        "t_end": {
+          "type": "number",
+          "description": "horizon (default 10)"
+        },
+        "delta": {
+          "type": "number",
+          "description": "relative rate perturbation in (0, 1] (default 0.5, sim's ×1.5 probe)"
+        },
+        "noise": {
+          "type": "boolean",
+          "description": "estimate the SSA noise floor (default true)"
+        },
+        "seed": {
+          "type": "integer",
+          "description": "noise-floor seed (default 1)"
+        },
+        "from_current": {
+          "type": "boolean",
+          "description": "start from the canvas marking instead of the declared initial marking"
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+    "journal": true
+  },
+  {
+    "id": "opt.heatmap",
+    "label": "Parameter Heatmap",
+    "help": "Vary two transitions' rates over a grid (≤ 40 × 40) and map the observable place's value at t_end (sim_param_heatmap). Uses coarser solver defaults (abstol 1e-4, dtmax t_end/20) since only the final state is read.",
+    "args": {
+      "type": "object",
+      "properties": {
+        "param_x": {
+          "type": "string",
+          "description": "transition on the x axis"
+        },
+        "param_y": {
+          "type": "string",
+          "description": "transition on the y axis"
+        },
+        "x_from": {
+          "type": "number",
+          "description": "first x rate (≥ 0)"
+        },
+        "x_to": {
+          "type": "number",
+          "description": "last x rate (≥ 0)"
+        },
+        "y_from": {
+          "type": "number",
+          "description": "first y rate (≥ 0)"
+        },
+        "y_to": {
+          "type": "number",
+          "description": "last y rate (≥ 0)"
+        },
+        "observable": {
+          "type": "string",
+          "description": "place whose final value fills the grid (a base id sums its colors)"
+        },
+        "steps": {
+          "type": "integer",
+          "description": "cells per axis, 2..40 (default 10)"
+        },
+        "x_steps": {
+          "type": "integer",
+          "description": "cells on x (overrides steps)"
+        },
+        "y_steps": {
+          "type": "integer",
+          "description": "cells on y (overrides steps)"
+        },
+        "t_end": {
+          "type": "number",
+          "description": "horizon per run (default 10)"
+        },
+        "log": {
+          "type": "boolean",
+          "description": "space both axes in log10 (needs positive bounds)"
+        },
+        "method": {
+          "type": "string",
+          "description": "tsit5 (default), rk45, rk4, euler, heun, midpoint, bs32"
+        },
+        "dt": {
+          "type": "number",
+          "description": "initial step (default 0.01)"
+        },
+        "abstol": {
+          "type": "number",
+          "description": "absolute tolerance (default 1e-4)"
+        },
+        "reltol": {
+          "type": "number",
+          "description": "relative tolerance (default 1e-3)"
+        }
+      },
+      "required": [
+        "param_x",
+        "param_y",
+        "x_from",
+        "x_to",
+        "y_from",
+        "y_to",
+        "observable"
+      ],
+      "additionalProperties": false
+    },
+    "journal": true
+  },
+  {
+    "id": "opt.optimize",
+    "label": "Optimize (Pareto)",
+    "help": "Monte Carlo over transition rates (seeded): one ODE run per sample, objectives read at t_end, non-dominated samples flagged (sim_optimize). Stores a scatter (Pareto highlighted) and a table of every sample.",
+    "args": {
+      "type": "object",
+      "properties": {
+        "parameters": {
+          "description": "[{transition, min, max, log?}] (or sim's {transition: [min, max]})"
+        },
+        "objectives": {
+          "description": "[{place, sense: \"max\"|\"min\"}] (`direction` is accepted for sense)"
+        },
+        "samples": {
+          "type": "integer",
+          "description": "Monte Carlo samples, 1..2000 (default 100)"
+        },
+        "seed": {
+          "type": "integer",
+          "description": "sampling seed (default 42)"
+        },
+        "t_end": {
+          "type": "number",
+          "description": "horizon per run (default 10)"
+        },
+        "method": {
+          "type": "string",
+          "description": "tsit5 (default), rk45, rk4, euler, heun, midpoint, bs32"
+        },
+        "dt": {
+          "type": "number",
+          "description": "initial step (default 0.01)"
+        },
+        "abstol": {
+          "type": "number",
+          "description": "absolute tolerance (default 1e-4)"
+        },
+        "reltol": {
+          "type": "number",
+          "description": "relative tolerance (default 1e-3)"
+        }
+      },
+      "required": [
+        "parameters",
+        "objectives"
+      ],
+      "additionalProperties": false
+    },
+    "journal": true
   }
 ];

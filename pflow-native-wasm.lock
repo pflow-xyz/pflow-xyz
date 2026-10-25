@@ -12,7 +12,14 @@
     "analysis.reach",
     "analysis.reachability",
     "analysis.canonical",
-    "analysis.classify"
+    "analysis.classify",
+    "sim.equilibrium",
+    "sim.scenario",
+    "sim.compare",
+    "sim.crosscheck",
+    "analysis.diagnose",
+    "opt.heatmap",
+    "opt.optimize"
   ],
   "files": {
     "pflow_native_wasm.js": "81b02978047e3fe80315065fa87665c4536165c2386ddfa21df6d4adf9050e4b",

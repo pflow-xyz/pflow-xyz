@@ -182,6 +182,44 @@ async function solver() {
     return solverModule;
 }
 
+// ---------------------------------------------------------------------------
+// Stochastic engines (petri-ssa.js, petri-sde.js: byte-exact with go-pflow's
+// portable SSA, and so with pflow-native's sim.ssa on the same seed)
+// ---------------------------------------------------------------------------
+
+/**
+ * What would make the ODE (and the SDE) misread this net: the four firing-
+ * instant constraints of docs/engine-selection.md, Rule 1 (guards aside: the
+ * editor format has none). Returns plain-language reasons.
+ */
+export function gatingReasons(m) {
+    const reasons = [];
+    const reads = m.arcs.filter((a) => a.inhibitTransition && own(m.transitions, a.source));
+    const inhib = m.arcs.filter((a) => a.inhibitTransition && own(m.places, a.source));
+    if (inhib.length) reasons.push(`inhibitor arc(s) ${inhib.map((a) => `${a.source} → ${a.target}`).join(', ')}`);
+    if (reads.length) reasons.push(`read arc(s) ${reads.map((a) => `${a.source} → ${a.target}`).join(', ')}`);
+    const capped = Object.entries(m.places).filter(([, p]) => p.capacity.some((c) => Number.isFinite(c) && c > 0)).map(([id]) => id);
+    if (capped.length) reasons.push(`capacity on ${capped.join(', ')}`);
+    return reasons;
+}
+
+function stochasticSeries(out, places, x) {
+    return places.map((p) => {
+        const s = out.series[p];
+        const entry = { name: p, values: s ? s.values : x.map(() => 0) };
+        if (s && s.stddev) entry.band = s.stddev;
+        return entry;
+    });
+}
+
+const stochasticArgs = {
+    t_end: num('end time (default 10, ≤ 10000)', { minimum: 1e-9, maximum: 10000 }),
+    seed: int('RNG seed (default 1); realization r uses seed + r', { minimum: 0 }),
+    runs: int('realizations averaged (default 1, ≤ 200)', { minimum: 1, maximum: 200 }),
+    points: int('sample points from 0 to t_end (default 101, 2..5000)', { minimum: 2, maximum: 5000 }),
+    places: strList('places to keep (default: all)'),
+};
+
 const odeOptions = {
     method: str('tsit5 (the only method in the browser; pflow-native also has rk45, rk4, euler, heun, midpoint, bs32)'),
     dt: num('initial step (default 0.01)', { minimum: 1e-12 }),
@@ -649,6 +687,81 @@ export const COMMANDS = [
             const art = c.store(`${a.place} across rate(${a.transition})`, { kind: 'timeseries', x_label: 'time', x: grid, series },
                 { transition: a.transition, place: a.place, t_end: tEnd, rates: base, finals });
             return { artifact: art.id, finals };
+        },
+    },
+
+    {
+        id: 'sim.ssa', label: 'Run SSA',
+        help: 'Gillespie stochastic simulation from the current marking with the document\'s rates (petri-ssa.js: go-pflow\'s portable SSA, byte-exact with pflow-native\'s sim.ssa on the same seed). runs > 1 averages realizations and stores the mean with a ±1 sd band. Exact for small token counts and for nets the ODE cannot read (inhibitor or read arcs, capacities).',
+        args: args(stochasticArgs), journal: true,
+        run: async (c, a) => {
+            const m = c.model();
+            const places = placesArg(m, a.places);
+            const ssa = await import('./petri-ssa.js');
+            const opts = { horizon: a.t_end ?? 10, samples: a.points ?? 101, realizations: a.runs ?? 1, seed: a.seed ?? 1 };
+            const out = ssa.simulate(JSON.parse(JSON.stringify(m)), opts);
+            const art = c.store(`SSA to t=${opts.horizon} (${opts.realizations} run${opts.realizations === 1 ? '' : 's'}, seed ${opts.seed})`, {
+                kind: 'timeseries', x_label: 'time', x: out.times, series: stochasticSeries(out, places, out.times),
+            }, { engine: 'ssa', ...opts, rates: Sim.transitionRates(m) });
+            return { artifact: art.id, final: out.final, seed: opts.seed, runs: opts.realizations };
+        },
+    },
+    {
+        id: 'sim.sde', label: 'Run SDE',
+        help: 'Chemical Langevin SDE (petri-sde.js) from the current marking: continuous with intrinsic noise, cheap at large populations. Same output shape as sim.ssa. Refuses nets with inhibitor or read arcs or reachable capacities, which a diffusion cannot express (use sim.ssa).',
+        args: args({ ...stochasticArgs, dt: num('integration step (default: (t_end / (points-1)) / 20)', { minimum: 1e-12 }) }), journal: true,
+        run: async (c, a) => {
+            const m = c.model();
+            const places = placesArg(m, a.places);
+            const sde = await import('./petri-sde.js');
+            const opts = { horizon: a.t_end ?? 10, samples: a.points ?? 101, realizations: a.runs ?? 1, seed: a.seed ?? 1 };
+            if (a.dt !== undefined) opts.dt = a.dt;
+            const out = sde.simulateSDE(JSON.parse(JSON.stringify(m)), opts);
+            if (out.diverged) throw new CommandError(out.reason, 'refused');
+            const art = c.store(`SDE to t=${opts.horizon} (${opts.realizations} run${opts.realizations === 1 ? '' : 's'}, seed ${opts.seed})`, {
+                kind: 'timeseries', x_label: 'time', x: out.times, series: stochasticSeries(out, places, out.times),
+            }, { engine: 'sde', ...opts, rates: Sim.transitionRates(m) });
+            return { artifact: art.id, final: out.final, seed: opts.seed, runs: opts.realizations };
+        },
+    },
+    {
+        id: 'sim.recommend', label: 'Which engine?',
+        help: 'Which engine to run this net with, and why (docs/engine-selection.md): constraints the ODE cannot see (inhibitor or read arcs, capacities) need the SSA; small token counts make the ODE\'s mean misleading and the SSA\'s spread matter; large unconstrained populations suit the ODE (and the SDE for noise). Also proposes a horizon, a seed and a run count.',
+        args: args(), journal: false,
+        run: (c) => {
+            const m = c.model();
+            const gating = gatingReasons(m);
+            const tokens = Object.values(m.places).reduce((s, p) => s + p.initial.reduce((a, b) => a + b, 0), 0);
+            // How fast one token moves through each transition at the initial
+            // marking: mass action makes a token on one input wait on the
+            // tokens of the others (rate × the other inputs' counts; for SIR's
+            // infection, 0.005 × I per susceptible). The horizon is a few time
+            // constants of the slowest that can fire now, as a round number.
+            // REVIEW: a heuristic; every run states the horizon it used.
+            const marks = Sim.marking(m);
+            const effective = Object.keys(m.transitions).map((t) => {
+                const counts = m.arcs.filter((a) => a.target === t && own(m.places, a.source) && !a.inhibitTransition)
+                    .map((a) => (marks[a.source] || [0]).reduce((x, y) => x + y, 0));
+                if (counts.some((c) => c === 0)) return 0; // cannot fire now
+                const prod = counts.reduce((x, y) => x * y, 1);
+                return Sim.rateOf(m, t) * (counts.length ? prod / Math.max(...counts) : 1);
+            }).filter((r) => r > 0);
+            const slowest = effective.length ? Math.min(...effective) : 1;
+            const raw = Math.min(10000, Math.max(1, 5 / slowest));
+            const t_end = Number((10 ** Math.floor(Math.log10(raw))) * Math.ceil(raw / 10 ** Math.floor(Math.log10(raw))));
+            let engine, why;
+            if (gating.length) {
+                engine = 'ssa';
+                why = `The net has ${gating.join('; ')}. These only make sense at a firing instant, which the ODE and the SDE do not have, so they would silently model an unconstrained system. Use the SSA.`;
+            } else if (tokens < 100) {
+                engine = 'ssa';
+                why = `Only ${tokens} token(s) in all: at counts this small the ODE's mean-field curve can mislead (an outbreak that fizzles, a queue that empties), and the spread between runs is part of the answer. Run the SSA with several runs; compare with the ODE for the average.`;
+            } else {
+                engine = 'ode';
+                why = `No firing-instant constraints and ${tokens} tokens: the ODE's mean is a good guide and costs nothing. Use the SSA (or the SDE, cheaper at this size) when the spread matters.`;
+            }
+            return { engine, why, gating, tokens, t_end, seed: 1, runs: engine === 'ode' ? 1 : 20,
+                call: engine === 'ode' ? { command: 'sim.ode', args: { t_end } } : { command: 'sim.ssa', args: { t_end, runs: 20, seed: 1 } } };
         },
     },
 
