@@ -47,6 +47,7 @@ PUBLIC_FILES = [
     "llm-tools.json",
     "petri-tools.js",
     "petri-validate.js",
+    "petri-workbench-ui.js",
     "petri-wasm.js",
     "petri-wasm_test.ts",
     "petri-validate_test.ts",

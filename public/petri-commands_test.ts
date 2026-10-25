@@ -174,3 +174,27 @@ Deno.test("registry: listeners see every call, success or failure", async () => 
     await r.execute("sim.fire", { id: "nope" }).catch(() => {});
     assertEquals(seen, [["net.add_place", true], ["sim.fire", false]]);
 });
+
+Deno.test("registry: sim.ssa is seeded and banded; sim.sde refuses a gated net; sim.recommend explains", async () => {
+    const net = {
+        places: { S: { initial: [9], capacity: [0], x: 0, y: 0 }, I: { initial: [1], capacity: [0], x: 0, y: 0 } },
+        transitions: { infect: { x: 0, y: 0, rate: 0.5 } },
+        arcs: [{ source: "S", target: "infect", weight: [1] }, { source: "I", target: "infect", weight: [1] }, { source: "infect", target: "I", weight: [2] }],
+    };
+    const r = reg(net);
+    const a = await r.execute("sim.ssa", { t_end: 5, runs: 4, seed: 3, points: 6 });
+    const b = await r.execute("sim.ssa", { t_end: 5, runs: 4, seed: 3, points: 6 });
+    assertEquals(a.final, b.final); // same seed, same answer
+    const art = r.artifact(a.artifact);
+    assertEquals(art.data.x.length, 6);
+    assert(Array.isArray(art.data.series[0].band));
+    assertEquals(art.meta.engine, "ssa");
+    const rec = await r.execute("sim.recommend");
+    assertEquals(rec.engine, "ssa"); // 10 tokens: small counts
+    assert(/small/.test(rec.why));
+
+    // I grows, so its capacity is reachable: a post-firing bound the SDE cannot express.
+    const gated = reg({ ...net, places: { ...net.places, I: { initial: [1], capacity: [5], x: 0, y: 0 } } });
+    await assertRejects(() => gated.execute("sim.sde", { t_end: 1 }), CommandError, "capacity");
+    assert((await gated.execute("sim.recommend")).gating.length === 1);
+});

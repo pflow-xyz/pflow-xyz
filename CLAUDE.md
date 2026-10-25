@@ -114,6 +114,7 @@ examples/                # Example Petri nets in JSON-LD
 - **public/petri-draft-ui.js** - the Describe dialog, the `/api/llm/draft` call and the Draft notes panel (loaded only when `/api/llm/status` says enabled)
 - **cmd/webserver/llm.go** - the Gemini proxy handlers; prompt in `cmd/webserver/prompts/draft-net-v1.md`; `internal/llm` (client, limits, usage log); `internal/auth/verifier.go` (timeout + verified-token cache)
 - **public/petri-wasm.js** - runs pflow-native's commands in its wasm build (`public/vendor/pflow-native-wasm/`, gzip-only `.wasm` served by `cmd/webserver/wasm.go`; refresh with `scripts/sync-native-wasm.mjs`, lock in `pflow-native-wasm.lock`)
+- **public/petri-workbench-ui.js** - the Simulate dialog (SSA/SDE, influence, what-if, heatmap, optimize, crosscheck, equilibrium)
 - **public/petri-analysis-ui.js** - the Structure dialog (invariants, siphons, verify, reach, reachability graph, …)
 - **public/petri-chat.js** / **petri-chat-ui.js** - the Assistant: the tool loop (sandbox edits, Apply as one undo step) and its docked panel; **petri-tools.js** maps registry commands to LLM tools
 - **public/petri-results.js** - renders artifacts by kind (Analysis dialog, Results dialog)

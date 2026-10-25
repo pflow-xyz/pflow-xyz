@@ -21,7 +21,7 @@ themselves.
 | 0 Foundations | ✅ merged into `workbench` | `phase0` |
 | 1 Describe it, get a draft | ✅ merged into `workbench` (ships dark) | `phase1` |
 | 2 Structural analysis | ✅ merged into `workbench` | `phase2` |
-| 3 Simulation workbench | | |
+| 3 Simulation workbench | ✅ merged into `workbench` | `phase3` |
 | 4 Chat modal + in-page MCP | ✅ merged into `workbench` (ships dark) | `phase4` |
 | 5 Goal advisor | | |
 | 6 Model refinement | | |
@@ -313,3 +313,65 @@ Verified:
    function-calling body follows the API as documented, and thought
    signatures are preserved. The first live session is the real test: see
    "To turn it on" under phase 1.
+
+## Phase 3: the simulation workbench
+
+What landed:
+
+- **JS engines as commands, under pflow-native's ids and argument names.**
+  - `sim.ssa` (petri-ssa.js) and `sim.sde` (petri-sde.js).
+  - Seeded; realizations are averaged, with a ±1 sd band.
+  - `sim.sde` refuses gated nets and says to use the SSA.
+- **`sim.recommend`** applies docs/engine-selection.md's two rules:
+  - inhibitor or read arcs, or a capacity, mean the SSA;
+  - small populations mean the SSA with several runs;
+  - otherwise the ODE.
+
+  It explains why, and proposes a horizon, a seed and a run count. The
+  horizon is a few per-token time constants at the initial marking.
+- **pflow-native, through wasm:** `sim.equilibrium`, `sim.scenario`,
+  `sim.compare`, `sim.crosscheck`, `analysis.diagnose`, `opt.heatmap` and
+  `opt.optimize` (16 native commands exposed in all).
+- **Renderers:** bands, bars (the tornado), heatmap, and scatter (the Pareto
+  front).
+- **The Simulate dialog** (`public/petri-workbench-ui.js`). Its tabs are
+  Stochastic, Which knob matters, What if one more, Two-rate heatmap,
+  Optimize, SSA vs ODE, and Equilibrium. Every tab is one command, and the
+  dialog shows the suggested engine and why.
+
+**Phase 3's exit check: same seed, same numbers.** A test runs the browser's
+`sim.ssa` and pflow-native's wasm `sim.ssa` on the shared coffee-shop golden
+(8 time units, 5 runs, seed 42, 60 points) and requires every value to be
+equal, not just close.
+
+Verified: `make test` (213 JS tests), and in a browser every Simulate tab
+produced and rendered its artifacts.
+
+### Found: pflow-native's SSA visits transitions in sorted-id order
+
+petri-ssa.js and go-pflow's portable goldens use **document order** for
+transitions. pflow-native's `sim.ssa` uses **id order** (`sim.rs` builds
+from sorted maps).
+- On a net whose transitions are listed alphabetically, the two agree to the
+  bit.
+- Otherwise the seeded paths differ, though they are statistically the same.
+
+Minimal case: two transitions `zeta`, `alpha` racing for one place, seed 5.
+The parity test lists transitions in sorted order (marked `REVIEW:`), so
+everything else is still pinned. **A pflow-native follow-up:** compile the
+SSA in document order, then drop the sort from the test.
+
+### Decisions to review (phase 3)
+
+1. **Bands are drawn as dashed ±1 sd lines.** The plotter has no filled
+   bands.
+2. **`sim.recommend`'s horizon is a heuristic** (5 × the slowest per-token
+   time constant, rounded). Every run states the horizon it used.
+3. **Optimize** offers one maximise objective and one optional minimise
+   objective in the dialog. The command takes any list.
+4. **"What if one more" is `sim.compare`** with two scenarios on one seed.
+   Its default engine is sim's: the SSA.
+5. **`opt.fit` (rate fitting) is not exposed yet.** It reads observed data
+   from an artifact in native's own session, which the bridge does not
+   share. The JS fitter (petri-learn.js) needs a data-import UI first. A
+   follow-up.

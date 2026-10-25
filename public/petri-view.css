@@ -3286,3 +3286,30 @@ canvas.pv-canvas {
     font: inherit;
     resize: vertical;
 }
+
+/* Bars (tornado), heatmap and scatter results */
+.pv-result-bars,
+.pv-result-heatmap,
+.pv-result-scatter {
+    max-width: 100%;
+    height: auto;
+}
+.pv-bars-bar {
+    fill: var(--pv-accent);
+}
+.pv-bars-axis {
+    stroke: var(--pv-ink-muted);
+    stroke-width: 1;
+}
+.pv-bars-label,
+.pv-bars-value {
+    font-size: 11px;
+    fill: var(--pv-ink-secondary);
+}
+.pv-scatter-pt {
+    fill: var(--pv-ink-muted);
+}
+.pv-scatter-front {
+    fill: var(--pv-accent);
+    stroke: var(--pv-ink);
+}

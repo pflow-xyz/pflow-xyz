@@ -1410,6 +1410,15 @@ PetriView = class PetriView extends HTMLElement {
         if (nodes.length && label) this._toast(label);
     }
 
+    async _openWorkbench(opts) {
+        try {
+            const ui = await import('./petri-workbench-ui.js');
+            await ui.openWorkbench(this, opts);
+        } catch (e) {
+            this._toast('Simulate is not available here: ' + e.message, 'error');
+        }
+    }
+
     async _openStructureDialog() {
         try {
             const ui = await import('./petri-analysis-ui.js');
@@ -7374,6 +7383,11 @@ PetriView = class PetriView extends HTMLElement {
             this._showSimulationDialog();
         });
         menuContainer._menuContent.appendChild(simulationItem);
+
+        const workbenchItem = makeMenuItem('🎲 Simulate (stochastic, influence, what-if)', () => {
+            this._openWorkbench();
+        });
+        menuContainer._menuContent.appendChild(workbenchItem);
 
         const structureItem = makeMenuItem('🔬 Structure (invariants, verify, reach)', () => {
             this._openStructureDialog();

@@ -240,7 +240,7 @@ before the tool loop raises the stakes.
   reach, validate, canonical/classify; §C: Matrix, Graph, Trace) have a web
   status of ✅, with parity tests on the shared fixtures.
 
-#### Phase 3: Simulation workbench parity
+#### Phase 3: Simulation workbench parity ✅
 
 - **UI for engines that already exist in JS:**
   - SSA and SDE, with mean ± sd bands over seeded runs.

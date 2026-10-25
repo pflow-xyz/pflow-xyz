@@ -7,7 +7,9 @@
 // a result looks the same wherever it was asked for.
 //
 // Kinds rendered here: timeseries (lines, markers, or a phase plot of two of
-// its series), report, table, matrix, sets, trace and graph. A kind without a
+// its series, with ±sd bands as dashed bounds), report, table, matrix, sets,
+// trace, graph, bars (a tornado when bars carry lo/hi), heatmap and scatter
+// (Pareto points highlighted). A kind without a
 // renderer yet falls back to its JSON, so a new producer is never invisible.
 //
 // Interactive pieces carry data attributes the caller wires to registry
@@ -65,9 +67,19 @@ export function plotTimeSeries(solver, art, o = {}) {
     }
     const plotter = new P(o.width || 860, o.height || 420);
     plotter.setTitle(o.title || art.title).setXLabel(d.x_label).setYLabel(o.yLabel || 'Token count');
-    for (const s of d.series) {
-        plotter.addSeries(d.x, s.values, s.group || s.name, null, mode === 'markers' ? { markers: true } : {});
-    }
+    // Groups (a swept rate, a scenario) are labelled "name (group)" when there
+    // is more than one name, so overlays stay readable.
+    const names = new Set(d.series.map((s) => s.name));
+    d.series.forEach((s) => {
+        const label = s.group ? (names.size > 1 ? `${s.name} (${s.group})` : s.group) : s.name;
+        plotter.addSeries(d.x, s.values, label, null, mode === 'markers' ? { markers: true } : {});
+        if (Array.isArray(s.band)) {
+            // mean ± 1 sd, drawn as dashed bounds in the series' colour
+            const color = plotter.series[plotter.series.length - 1].color;
+            plotter.addSeries(d.x, s.values.map((v, i) => v + s.band[i]), `${label} +1 sd`, color, { dash: '3,3' });
+            plotter.addSeries(d.x, s.values.map((v, i) => Math.max(0, v - s.band[i])), `${label} −1 sd`, color, { dash: '3,3' });
+        }
+    });
     return { svg: plotter.render(), plotData: plotter.lastPlotData };
 }
 
@@ -162,6 +174,64 @@ function graphHtml(d) {
     return `<svg class="pv-result-graph" viewBox="0 0 ${width} ${height}" width="${Math.min(width, 860)}" role="img" aria-label="reachability graph">${edges}${circles}</svg>` + list;
 }
 
+// A ranked bar chart; a tornado when bars carry lo/hi (diagnose's influence).
+function barsHtml(d) {
+    const bars = d.bars || [];
+    if (!bars.length) return '<p>No bars.</p>';
+    const ext = Math.max(1e-12, ...bars.flatMap((b) => [Math.abs(b.value), Math.abs(b.lo ?? 0), Math.abs(b.hi ?? 0)]));
+    const W = 560, rowH = 22, labelW = 200, mid = labelW + (W - labelW) / 2, half = (W - labelW) / 2 - 10;
+    const x = (v) => mid + (v / ext) * half;
+    const rows = bars.map((b, i) => {
+        const y = i * rowH + 6;
+        const lo = b.lo ?? Math.min(0, b.value), hi = b.hi ?? Math.max(0, b.value);
+        const x0 = x(Math.min(lo, hi)), x1 = x(Math.max(lo, hi));
+        return `<text x="${labelW - 6}" y="${y + 12}" text-anchor="end" class="pv-bars-label">${escHtml(b.name)}</text>`
+            + `<rect x="${x0.toFixed(1)}" y="${y}" width="${Math.max(1, x1 - x0).toFixed(1)}" height="${rowH - 8}" class="pv-bars-bar"><title>${escHtml(`${b.name}: ${fmt(b.value)}${b.lo !== undefined ? ` (${fmt(b.lo)} … ${fmt(b.hi)})` : ''}`)}</title></rect>`
+            + `<text x="${W - 4}" y="${y + 12}" text-anchor="end" class="pv-bars-value">${escHtml(fmt(b.value))}</text>`;
+    }).join('');
+    const h = bars.length * rowH + 24;
+    return `<svg class="pv-result-bars" viewBox="0 0 ${W + 50} ${h}" width="${W + 50}" role="img" aria-label="${escHtml(d.value_label || 'bars')}">`
+        + `<line x1="${mid}" y1="0" x2="${mid}" y2="${h - 18}" class="pv-bars-axis"/>${rows}`
+        + `<text x="${mid}" y="${h - 4}" text-anchor="middle" class="pv-bars-label">${escHtml(d.value_label || '')}</text></svg>`;
+}
+
+// A grid of values: a colour per cell (the viz ramp tokens), the value on hover.
+function heatmapHtml(d) {
+    const z = d.z || [];
+    const vals = z.flat().filter((v) => Number.isFinite(v));
+    const lo = Math.min(...vals), hi = Math.max(...vals);
+    const cell = Math.max(8, Math.min(36, Math.floor(480 / Math.max(d.xs.length, d.ys.length))));
+    const left = 60, top = 10;
+    const cells = [];
+    z.forEach((row, iy) => row.forEach((v, ix) => {
+        const t = hi > lo ? (v - lo) / (hi - lo) : 0.5;
+        cells.push(`<rect x="${left + ix * cell}" y="${top + (d.ys.length - 1 - iy) * cell}" width="${cell}" height="${cell}" style="fill: var(--pv-accent); fill-opacity: ${(0.08 + 0.92 * t).toFixed(3)}"><title>${escHtml(`${d.x_label}=${fmt(d.xs[ix])}, ${d.y_label}=${fmt(d.ys[iy])}: ${fmt(v)}`)}</title></rect>`);
+    }));
+    const W = left + d.xs.length * cell + 10, H = top + d.ys.length * cell + 40;
+    return `<svg class="pv-result-heatmap" viewBox="0 0 ${W} ${H}" width="${W}" role="img" aria-label="heatmap">${cells.join('')}`
+        + `<text x="${left}" y="${H - 20}" class="pv-bars-label">${escHtml(d.x_label)}: ${escHtml(fmt(d.xs[0]))} … ${escHtml(fmt(d.xs[d.xs.length - 1]))}</text>`
+        + `<text x="${left}" y="${H - 6}" class="pv-bars-label">${escHtml(d.y_label)}: ${escHtml(fmt(d.ys[0]))} (bottom) … ${escHtml(fmt(d.ys[d.ys.length - 1]))}</text></svg>`
+        + `<p class="pv-result-dim">Darker is higher: ${escHtml(fmt(lo))} … ${escHtml(fmt(hi))}.</p>`;
+}
+
+// Points, with the highlighted ones (the Pareto front) drawn solid.
+function scatterHtml(d) {
+    const pts = d.points || [];
+    if (!pts.length) return '<p>No points.</p>';
+    const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]);
+    const [x0, x1, y0, y1] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
+    const W = 520, H = 320, m = 40;
+    const sx = (v) => m + (x1 > x0 ? (v - x0) / (x1 - x0) : 0.5) * (W - 2 * m);
+    const sy = (v) => H - m - (y1 > y0 ? (v - y0) / (y1 - y0) : 0.5) * (H - 2 * m);
+    const hl = new Set(d.highlight || []);
+    const dots = pts.map((p, i) => `<circle cx="${sx(p[0]).toFixed(1)}" cy="${sy(p[1]).toFixed(1)}" r="${hl.has(i) ? 5 : 3}" class="${hl.has(i) ? 'pv-scatter-front' : 'pv-scatter-pt'}"><title>${escHtml(`#${i}: ${fmt(p[0])}, ${fmt(p[1])}`)}</title></circle>`).join('');
+    return `<svg class="pv-result-scatter" viewBox="0 0 ${W} ${H}" width="${W}" role="img" aria-label="scatter">`
+        + `<line x1="${m}" y1="${H - m}" x2="${W - m}" y2="${H - m}" class="pv-bars-axis"/><line x1="${m}" y1="${m}" x2="${m}" y2="${H - m}" class="pv-bars-axis"/>${dots}`
+        + `<text x="${W / 2}" y="${H - 8}" text-anchor="middle" class="pv-bars-label">${escHtml(d.x_label)}</text>`
+        + `<text x="12" y="${H / 2}" text-anchor="middle" class="pv-bars-label" transform="rotate(-90 12 ${H / 2})">${escHtml(d.y_label)}</text></svg>`
+        + (hl.size ? `<p class="pv-result-dim">${hl.size} point(s) on the Pareto front, drawn larger.</p>` : '');
+}
+
 function jsonHtml(v) {
     return `<pre class="pv-result-json">${escHtml(JSON.stringify(v, null, 2))}</pre>`;
 }
@@ -182,6 +252,9 @@ export function renderArtifact(solver, art, o = {}) {
     if (d.kind === 'sets') return { html: setsHtml(d) };
     if (d.kind === 'trace') return { html: traceHtml(d) };
     if (d.kind === 'graph') return { html: graphHtml(d) };
+    if (d.kind === 'bars') return { html: barsHtml(d) };
+    if (d.kind === 'heatmap') return { html: heatmapHtml(d) };
+    if (d.kind === 'scatter') return { html: scatterHtml(d) };
     return { html: jsonHtml(d) };
 }
 
