@@ -53,7 +53,7 @@ func TestMCPHandshakeAndList(t *testing.T) {
 	}
 	_, out = mcpCall(t, s, `{"jsonrpc":"2.0","id":2,"method":"tools/list"}`)
 	tools := out["result"].(map[string]any)["tools"].([]any)
-	if len(tools) != 7 {
+	if len(tools) != len(allMCPTools()) {
 		t.Fatalf("%d tools", len(tools))
 	}
 	_, out = mcpCall(t, s, `{"jsonrpc":"2.0","id":3,"method":"nope"}`)
