@@ -80,6 +80,10 @@
       "@id": "https://pflow.xyz/schema#priority",
       "@type": "http://www.w3.org/2001/XMLSchema#integer"
     },
+    "rate": {
+      "@id": "https://pflow.xyz/schema#rate",
+      "@type": "http://www.w3.org/2001/XMLSchema#double"
+    },
 
     "PetriNetSeal": {
       "@id": "https://pflow.xyz/schema#PetriNetSeal",

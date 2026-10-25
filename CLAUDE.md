@@ -108,6 +108,10 @@ examples/                # Example Petri nets in JSON-LD
 - **public/petri-solver.js** - Standalone ODE solver for simulations
 - **internal/seal/seal.go** - CID computation from JSON-LD
 - **internal/store/store.go** - Filesystem storage for objects
+- **public/petri-commands.js** - the command registry: every editor action as a named command with JSON Schema args (pflow-native's ids), a headless host, artifacts. `<petri-view>.execute(id, args)` runs one
+- **public/petri-validate.js** - Check net: the strict validator (what `normalizeModel` would repair, with paths) and engine smoke checks; `scripts/check-nets.mjs` runs it on files
+- **public/petri-results.js** - renders artifacts by kind (Analysis dialog, Results dialog)
+- **docs/workbench-progress.md** - progress and decisions-to-review log for the ROADMAP's LLM workbench phases
 - **docs/engine-selection.md** - which engine (ODE/SSA/SDE) for which
   question; vendored from go-pflow (`scripts/docs-sync.sh check`/`sync`,
   same hash-lock pattern as the shared browser JS below)

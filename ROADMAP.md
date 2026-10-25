@@ -166,10 +166,12 @@ Wasm adds what JS lacks and is loaded only when one of those commands runs.
 
 ### Phases
 
-Each phase ends with an exit criterion. Status lives in the parity matrix
+Each phase ends with an exit criterion. Progress, and every choice made
+without asking, is logged in [docs/workbench-progress.md](docs/workbench-progress.md).
+Status lives in the parity matrix
 (see open decision 1), not here.
 
-#### Phase 0: Foundations (no LLM)
+#### Phase 0: Foundations (no LLM) ✅
 
 - **Rates, goals and views in the model.** This resolves slice 1's open
   decision 1 now, because every later phase needs rates that survive a
@@ -177,16 +179,34 @@ Each phase ends with an exit criterion. Status lives in the parity matrix
   - Add the optional schema terms `rate` (transition), `goals` and
     `views`. **An absent term must leave the canonical form unchanged**, so
     every existing CID still verifies.
-  - Land it in lockstep in `internal/seal`, `seal-cid.mjs`,
-    `public/schema`, the parity goldens and pflow-native's `cid.rs`.
-- **The command registry** in `petri-commands.js`. Wrap every existing
+  - **Found (2026-10-24): the sealing context needs no change.** Its
+    `@vocab` (`https://pflow.xyz/schema#`) already maps any key, so `rate`,
+    `goals` and `views` hash as `schema#rate` and so on. Only a key that is
+    present enters the N-Quads. `internal/seal` and `seal-cid.mjs` stay as
+    they are. The work is in the editor, the published `public/schema` and
+    the parity goldens.
+  - ✅ **`rate`.** The Analysis dialog reads each transition's `rate`
+    (default 1.0) and writes back only the rates the user changes, as one
+    undo step, so an untouched net keeps its bytes and its CID. Helpers are
+    `rateOf`, `transitionRates` and `setTransitionRates` in `petri-sim.js`.
+    The `with-rates.jsonld` golden pins Go and JS on rates of 0, 0.001,
+    0.25 and 720.
+  - **pflow-native follow-up.** `file.load_json` moves `rate` out of the
+    document into session rates (`take_rates`), so `file.cid` hashes a net
+    with rates without them and disagrees with pflow.xyz on that golden.
+    `file.cid` and `file.seal` should seal `with_rates`, and the fixture
+    should join `crates/core/tests/fixtures/cid/`.
+  - `goals` and `views` wait for their validators (phases 6 and 7). A term
+    with no checks would be stored unchecked, which is what sim's views
+    rule against.
+- ✅ **The command registry** in `petri-commands.js`. Wrap every existing
   menu action and Analysis-dialog run. Undo stays whole-snapshot. Queries
   are not journalled.
-- **Typed results.** A Results panel renders artifacts by kind: TimeSeries,
+- ✅ **Typed results.** A Results panel renders artifacts by kind: TimeSeries,
   Table, Report, Trace, Sets, Matrix, Graph, Bars, Heatmap, Scatter. These
   are pflow-native's kinds, so exports match. Every result exports to CSV
   and JSON, and "copy as MCP call" is on every result.
-- **The strict validator** from slice 1 (`validateNet`), shared by load,
+- ✅ **The strict validator** from slice 1 (`validateNet`), shared by load,
   paste, the LLM gate and `/api/save`.
 - **Done when** a deno test drives the editor headless through the registry
   alone (load, edit, run the ODE, export), and the Analysis dialog contains
