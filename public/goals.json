@@ -1,0 +1,130 @@
+{
+  "version": "goals-v1",
+  "_comment": "The goal advisor's catalog (ROADMAP phase 5): what people want to know, mapped to the registry commands that answer it. Data, not prompt: the 'What do you want to know?' picker runs these plans, and /api/llm/turn gives the catalog to the Assistant's analyse mode. A plan step's args may reference $input.<name> (asked of the person) and $stepN.<field> (an earlier step's result). Every available goal is run end to end by public/petri-goals_test.ts.",
+  "goals": [
+    {
+      "id": "stuck",
+      "question": "Can it get stuck?",
+      "phrases": ["deadlock", "freeze", "hang", "get stuck", "stop", "jam"],
+      "inputs": [],
+      "plan": [
+        { "command": "analysis.verify", "args": { "properties": [{ "kind": "deadlock-free" }] } },
+        { "command": "analysis.siphons", "args": {} }
+      ],
+      "answer": "No (proved, or no deadlock within the states searched), or yes with a firing trace to a stuck marking you can replay with Go.",
+      "caveat": "A bounded search that finds no deadlock is not a proof unless it says exhaustive; siphons that can empty are where a deadlock would come from."
+    },
+    {
+      "id": "can_happen",
+      "question": "Can this situation ever happen?",
+      "phrases": ["reachable", "ever", "possible", "can it reach", "end up", "none left", "nobody left"],
+      "inputs": [{ "name": "to", "kind": "marking", "label": "the situation: target token counts (blank = any)" }],
+      "plan": [{ "command": "analysis.reach", "args": { "to": "$input.to" } }],
+      "answer": "Yes, with the shortest firing sequence that gets there; no, with a conservation law that rules it out; or unknown when the search budget ran out.",
+      "caveat": "Unknown is not no. Reachability here is untimed: rates play no part."
+    },
+    {
+      "id": "unbounded",
+      "question": "Does anything grow without limit?",
+      "phrases": ["unbounded", "grow forever", "pile up", "overflow", "explode", "infinite"],
+      "inputs": [],
+      "plan": [
+        { "command": "analysis.verify", "args": { "properties": [{ "kind": "bounded" }] } },
+        { "command": "analysis.reachability", "args": { "max_states": 2000 } }
+      ],
+      "answer": "The places that can grow without limit (marked ω in the coverability graph), or a proof that every place is bounded.",
+      "caveat": "Bounded from this marking is weaker than structurally bounded (from any marking); the verdict says which."
+    },
+    {
+      "id": "conserved",
+      "question": "Is anything conserved?",
+      "phrases": ["conserved", "invariant", "stays the same", "total", "never changes", "balance"],
+      "inputs": [],
+      "plan": [{ "command": "analysis.invariants", "args": { "kind": "p" } }],
+      "answer": "Each weighted sum of places that is the same at every reachable marking, with its value now; Show highlights it on the net.",
+      "caveat": "These come from the arc structure alone; they hold for any rates."
+    },
+    {
+      "id": "average",
+      "question": "What happens on average?",
+      "phrases": ["on average", "typically", "over time", "trajectory", "how does it evolve", "mean"],
+      "inputs": [],
+      "plan": [
+        { "command": "sim.recommend", "args": {} },
+        { "command": "sim.ode", "args": { "t_end": "$step0.t_end" } }
+      ],
+      "answer": "The mean-field trajectory of every place, and where each ends up.",
+      "caveat": "The ODE is mean-field: wrong at small token counts and blind to inhibitor or read arcs and capacities (the recommendation says so when it applies)."
+    },
+    {
+      "id": "risk",
+      "question": "How bad can it get? What's the spread?",
+      "phrases": ["risk", "worst case", "spread", "variance", "how bad", "uncertain", "chance"],
+      "inputs": [],
+      "plan": [
+        { "command": "sim.recommend", "args": {} },
+        { "command": "sim.ssa", "args": { "t_end": "$step0.t_end", "runs": 20, "seed": 1 } }
+      ],
+      "answer": "The mean of 20 seeded stochastic runs with a ±1 standard-deviation band; the same seed always gives the same answer.",
+      "caveat": "Twenty runs give a spread, not a tail probability; raise runs for rare events. The seed and run count are stated."
+    },
+    {
+      "id": "knob",
+      "question": "Which knob matters?",
+      "phrases": ["which matters", "sensitive", "influence", "lever", "what should I change", "biggest effect"],
+      "inputs": [{ "name": "observable", "kind": "place", "label": "the outcome to watch", "optional": true }],
+      "plan": [
+        { "command": "sim.recommend", "args": {} },
+        { "command": "analysis.diagnose", "args": { "observable": "$input.observable", "t_end": "$step0.t_end" } }
+      ],
+      "answer": "Every rate and every place's initial count ranked by its effect on the outcome, against a measured noise floor.",
+      "caveat": "A knob under the noise floor has no measured effect, which is not the same as no effect."
+    },
+    {
+      "id": "one_more",
+      "question": "What if I had one more …?",
+      "phrases": ["one more", "another", "extra", "add a", "hire", "if I had"],
+      "inputs": [{ "name": "place", "kind": "place", "label": "one more token in" }],
+      "plan": [
+        { "command": "sim.recommend", "args": {} },
+        { "command": "sim.what_if", "args": { "place": "$input.place", "delta": 1, "t_end": "$step0.t_end", "runs": 16, "seed": 7 } }
+      ],
+      "answer": "The same seeded runs with and without the extra token, overlaid, and the difference in every place's final mean.",
+      "caveat": "Both arms share the seed, so the difference measures the change, not the dice; it is still a sample of 16 runs."
+    },
+    {
+      "id": "best_setting",
+      "question": "What's the best setting for a rate?",
+      "phrases": ["best", "optimal", "optimize", "maximize", "minimize", "tune", "set the rate"],
+      "inputs": [
+        { "name": "transition", "kind": "transition", "label": "the rate to vary" },
+        { "name": "max_rate", "kind": "number", "label": "up to rate", "default": 2 }
+      ],
+      "plan": [
+        { "command": "sim.recommend", "args": {} },
+        { "command": "opt.rate_scan", "args": { "transition": "$input.transition", "from": 0, "to": "$input.max_rate", "steps": 13, "t_end": "$step0.t_end" } }
+      ],
+      "answer": "Every place's value at the horizon against the rate, so you can read off where the outcome you care about peaks or levels off.",
+      "caveat": "The objective is yours to state: the scan shows every place, it does not pick one. For several rates at once, use Optimize."
+    },
+    {
+      "id": "data_match",
+      "question": "Does my data match the model?",
+      "phrases": ["data", "event log", "fit", "calibrate", "conformance", "observed"],
+      "available": false,
+      "inputs": [],
+      "plan": [],
+      "answer": "Fitness (how many recorded cases the net can replay), the worst traces, and rates learned from the timings.",
+      "caveat": "Not in the browser yet: conformance and calibration need an event-log import. pflow-native (data.conformance, data.calibrate) and sim.pflow.xyz (sim_conformance, sim_calibrate) have them."
+    },
+    {
+      "id": "same_net",
+      "question": "Is this the same net as another one?",
+      "phrases": ["same as", "isomorphic", "equivalent", "duplicate", "renamed"],
+      "inputs": [],
+      "plan": [{ "command": "analysis.canonical", "args": {} }],
+      "answer": "An id that is equal for two nets exactly when they differ only by renaming, plus the net's symmetries.",
+      "caveat": "Compare the id with the other net's (run this on both); a structural diff of two nets is not in the browser yet."
+    }
+  ]
+}

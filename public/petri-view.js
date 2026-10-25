@@ -1419,6 +1419,15 @@ PetriView = class PetriView extends HTMLElement {
         }
     }
 
+    async _openGoals() {
+        try {
+            const ui = await import('./petri-goals-ui.js');
+            await ui.openGoals(this);
+        } catch (e) {
+            this._toast('The goal advisor is not available here: ' + e.message, 'error');
+        }
+    }
+
     async _openStructureDialog() {
         try {
             const ui = await import('./petri-analysis-ui.js');
@@ -7383,6 +7392,11 @@ PetriView = class PetriView extends HTMLElement {
             this._showSimulationDialog();
         });
         menuContainer._menuContent.appendChild(simulationItem);
+
+        const goalsItem = makeMenuItem('❓ What do you want to know?', () => {
+            this._openGoals();
+        });
+        menuContainer._menuContent.appendChild(goalsItem);
 
         const workbenchItem = makeMenuItem('🎲 Simulate (stochastic, influence, what-if)', () => {
             this._openWorkbench();

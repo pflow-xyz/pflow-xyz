@@ -23,7 +23,7 @@ themselves.
 | 2 Structural analysis | ✅ merged into `workbench` | `phase2` |
 | 3 Simulation workbench | ✅ merged into `workbench` | `phase3` |
 | 4 Chat modal + in-page MCP | ✅ merged into `workbench` (ships dark) | `phase4` |
-| 5 Goal advisor | | |
+| 5 Goal advisor | ✅ merged into `workbench` | `phase5` |
 | 6 Model refinement | | |
 | 7 App view | | |
 | 8 MCP outside the page | | |
@@ -375,3 +375,60 @@ SSA in document order, then drop the sort from the test.
    from an artifact in native's own session, which the bridge does not
    share. The JS fitter (petri-learn.js) needs a data-import UI first. A
    follow-up.
+
+## Phase 5: the goal advisor ("what do you want to know?")
+
+What landed:
+
+- **`public/goals.json`**, the catalog, as data. It has 11 goals: stuck,
+  can_happen, unbounded, conserved, average, risk, knob, one_more,
+  best_setting, data_match and same_net. Each pairs the question in plain
+  words with phrases, the inputs it needs, a plan of registry commands
+  (with `$input.x` / `$stepN.field` references), what the answer looks like,
+  and the caveat the answer must carry. `data_match` is marked unavailable:
+  conformance needs an event-log import.
+- **`public/petri-goals.js`.** Load the catalog, resolve references, run a
+  plan step by step through any registry, and rank goals by the person's
+  words (the no-LLM router).
+- **`public/petri-goals-ui.js`, the "❓ What do you want to know?" picker.**
+  It works signed out.
+  - Type a question, or pick a goal.
+  - See its inputs, its plan (as commands), the answer's shape and the
+    caveat.
+  - Run it: each step's artifacts render, and Show / Go point at the
+    canvas.
+  - "Ask the Assistant instead" hands the question to the chat's analyse
+    mode.
+- **A new command, `sim.what_if {place, delta, t_end, runs, seed}`:** the
+  "one more X" comparison on one shared seed. The chat can call it too.
+- **The server.** `/api/llm/turn`'s analyse mode gets a routing brief built
+  from the same `goals.json`, through `cmd/webserver/llm_goals.go`. The
+  brief: map the person's words to one goal, state the plan and ask before
+  running it unless they already said to, then answer with the evidence and
+  the caveat.
+
+Verified:
+- `make test`: 237 JS tests. Every available goal runs end to end on an SIR
+  fixture; every plan names a registry command; 11 paraphrases route to the
+  right goal.
+- Go: the catalog reaches analyse mode only.
+- `bazel test //cmd/webserver:webserver_test`.
+- In a browser, signed out: "what if I had one more nurse" routed to
+  one_more and ran; "can it get stuck" ran verify and siphons, with Go
+  buttons on the counterexample.
+
+### Decisions to review (phase 5)
+
+1. **Routing without the LLM is phrase matching** (`matchGoals`). The 11
+   paraphrase tests stand in for the slice-1 `llm-eval` routing check until
+   a key is available.
+2. **Two goals are narrower than the roadmap's table.**
+   - best_setting scans one rate (`opt.rate_scan`); Optimize in the Simulate
+     dialog covers several rates.
+   - same_net gives the canonical id, to compare by hand; a two-net diff is
+     not in the browser.
+3. **Plans state their inputs.** One_more asks for the place, can_happen for
+   the target counts, best_setting for the transition and its range.
+4. **The analyse brief asks before running** unless the person already said
+   "run it". That is the roadmap's "a plan the user approves before it runs",
+   enforced by the prompt, not by the UI.

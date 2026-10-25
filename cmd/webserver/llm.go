@@ -317,6 +317,12 @@ func (s *Server) configureLLM(dataDir string) {
 		} else {
 			svc.tools, svc.toolDecls, svc.toolsVersion = names, decls, m.Version
 			log.Printf("LLM chat: %d tools (%s)", len(decls), m.Version)
+			if text, n, err := goalCatalogText(s.publicFS); err != nil {
+				log.Printf("LLM chat: no goal catalog (%v)", err)
+			} else {
+				svc.modeExtra = map[string]string{"analyse": text}
+				log.Printf("LLM chat: %d goals for analyse mode", n)
+			}
 		}
 		who := "every signed-in user"
 		if svc.allow != nil {

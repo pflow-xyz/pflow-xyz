@@ -281,7 +281,7 @@ before the tool loop raises the stakes.
   replayed on the canvas, each step visible in the Tools panel, and a
   quota-exhausted user gets the 429 path from slice 1.
 
-#### Phase 5: The goal advisor ("what should I run?")
+#### Phase 5: The goal advisor ("what should I run?") ✅
 
 People know their goal, not the analysis that answers it. The advisor maps
 one to the other. **The map is data, not prompt:** a checked-in goal catalog
