@@ -1236,6 +1236,7 @@ PetriView = class PetriView extends HTMLElement {
         this._buildRoot();
         this._ldScript = this.querySelector('script[type="application/ld+json"]');
         await this._loadModelFromScriptOrAutosave();
+        this._checkIncoming(this._model);
         this._normalizeModel();
         this._renderUI();
         // Frame the model before snapshotting _initialView, so the scale meter's
@@ -1294,6 +1295,7 @@ PetriView = class PetriView extends HTMLElement {
     // ---------------- public API ----------------
     setModel(m) {
         this._model = m || {};
+        this._checkIncoming(this._model);
         this._normalizeModel();
         this._renderUI();
         this._refit(); // a different model entirely — frame it
@@ -1934,75 +1936,24 @@ PetriView = class PetriView extends HTMLElement {
 
     // ---------------- model normalization ----------------
     _normalizeModel() {
-        const m = this._model || (this._model = {});
-        m['@context'] ||= 'https://pflow.xyz/schema';
-        m['@type'] ||= 'PetriNet';
-        m['@version'] ||= '1.1'; // <-- added default version
-        m.token ||= ['https://pflow.xyz/tokens/black'];
-        m.places ||= {};
-        m.transitions ||= {};
-        m.arcs ||= [];
+        this._model = Sim.normalizeModel(this._model);
+    }
 
-        for (const [id, p] of Object.entries(m.places)) {
-            p['@type'] ||= 'Place';
-
-            // offsets/coords
-            p.offset = Number.isFinite(p.offset) ? Number(p.offset) : Number(p.offset ?? 0);
-            p.x = Number.isFinite(p.x) ? Number(p.x) : Number(p.x || 0);
-            p.y = Number.isFinite(p.y) ? Number(p.y) : Number(p.y || 0);
-
-            // initial: allow 0, coerce safely
-            if (!Array.isArray(p.initial)) p.initial = [p.initial];
-            p.initial = p.initial.map(v => {
-                const n = (typeof v === 'string' && v.trim() === '') ? 0 : Number(v);
-                return Number.isFinite(n) ? n : 0;
-            });
-
-            // capacity: null/undefined/0 => Infinity (unbounded).
-            // capacity=0 means unbounded per standard Petri net convention.
-            if (!Array.isArray(p.capacity)) p.capacity = [p.capacity];
-            p.capacity = p.capacity.map(v => {
-                if (v === null || v === undefined) return Infinity;
-                const n = Number(v);
-                if (!Number.isFinite(n) || n === 0) return Infinity;
-                return n;
-            });
-
-            // Validate: initial tokens should not exceed capacity for each color
-            // Clamp initial tokens to capacity to fix invalid states
-            const maxLen = Math.max(p.initial.length, p.capacity.length);
-            while (p.initial.length < maxLen) p.initial.push(0);
-            while (p.capacity.length < maxLen) p.capacity.push(Infinity);
-            
-            for (let i = 0; i < maxLen; i++) {
-                const cap = p.capacity[i];
-                if (Number.isFinite(cap) && p.initial[i] > cap) {
-                    console.warn(`Place ${id}: initial[${i}]=${p.initial[i]} exceeds capacity[${i}]=${cap}. Clamping to capacity.`);
-                    p.initial[i] = cap;
-                }
+    // Check a document as it arrives, before normalizeModel repairs it
+    // quietly, and say so when it had to repair something. petri-validate.js
+    // is loaded on demand; a vendored copy of this component without it skips
+    // the check.
+    _checkIncoming(doc) {
+        let snapshot;
+        try { snapshot = structuredClone(doc); } catch { return; }
+        import('./petri-validate.js').then(({ validateNet }) => {
+            const report = validateNet(snapshot);
+            this._loadCheck = report;
+            if (report.errors.length) {
+                const n = report.errors.length;
+                this._toast(`Check: this net had ${n} problem${n === 1 ? '' : 's'} the editor repaired on load. Menu → Check net shows them.`, 'error', 8000);
             }
-        }
-
-
-        for (const [id, t] of Object.entries(m.transitions)) {
-            t['@type'] ||= 'Transition';
-            t.x = Number(t.x || 0);
-            t.y = Number(t.y || 0);
-        }
-        for (const a of m.arcs) {
-            a['@type'] ||= 'Arrow';
-            if (a.weight == null) a.weight = [1];
-            if (!Array.isArray(a.weight)) a.weight = [Number(a.weight) || 1];
-            // Vector components preserve explicit 0 ("this color is not
-            // involved") — the engine contract petri-sim.js:getArcWeight and
-            // the parity suite rely on; only a scalar weight of 0 defaults to 1
-            // (handled above).
-            a.weight = a.weight.map(w => {
-                const n = Number(w);
-                return Number.isFinite(n) && n >= 0 ? n : 1;
-            });
-            a.inhibitTransition = !!a.inhibitTransition;
-        }
+        }).catch(() => {});
     }
 
     async _loadModelFromScriptOrAutosave() {
@@ -3549,6 +3500,7 @@ PetriView = class PetriView extends HTMLElement {
         this._updateSelectionHighlights();
     }
 
+    // Same rule as labelProblem() in petri-validate.js, which checks loaded nets.
     _validateLabel(text) {
         if (!text || text.trim().length === 0) {
             return 'Label cannot be empty';
@@ -5161,6 +5113,60 @@ PetriView = class PetriView extends HTMLElement {
                 document.body.removeChild(overlay);
             }
         });
+    }
+
+    // ---------------- Check net ----------------
+    async _showCheckDialog() {
+        let mod;
+        try {
+            mod = await import('./petri-validate.js');
+        } catch {
+            this._toast('Check is not available here', 'error');
+            return;
+        }
+        // The current net, as it would be saved (Infinity capacities are null in JSON).
+        const doc = JSON.parse(JSON.stringify(this._model));
+        const now = mod.validateNet(doc);
+        const smoke = now.ok ? await mod.smokeCheck(doc) : null;
+        const atLoad = this._loadCheck && this._loadCheck.errors.length ? this._loadCheck : null;
+        const esc = (s) => this._escHtml(s);
+        const rows = (issues) => issues.map(i =>
+            `<tr><td><code>${esc(i.path || '(net)')}</code></td><td>${esc(i.message)}</td></tr>`).join('');
+        const table = (title, issues) => issues.length
+            ? `<h3>${esc(title)} (${issues.length})</h3><table class="pv-analysis-table"><thead><tr><th>Where</th><th>What</th></tr></thead><tbody>${rows(issues)}</tbody></table>`
+            : '';
+        let verdict;
+        if (!now.ok) verdict = `${now.errors.length} error${now.errors.length === 1 ? '' : 's'}: the editor reads this net only by repairing it.`;
+        else if (smoke && !smoke.ok) verdict = 'The net is well formed, but an engine refuses it.';
+        else verdict = `No errors. The engines accept it${smoke && smoke.cid ? `, and it seals as <code>${esc(smoke.cid)}</code>` : ''}.`;
+
+        const overlay = document.createElement('div');
+        overlay.className = 'pv-modal-overlay';
+        const dialog = document.createElement('div');
+        dialog.className = 'pv-modal-dialog pv-modal-dialog-wide';
+        dialog.setAttribute('role', 'dialog');
+        dialog.setAttribute('aria-label', 'Check net');
+        dialog.innerHTML = `
+            <div class="pv-dialog-header">
+                <h2 class="pv-dialog-header-title">Check net</h2>
+                <button type="button" class="pv-dialog-close-icon" data-act="close" title="Close (Esc)">×</button>
+            </div>
+            <p>${verdict}</p>
+            ${table('Errors', now.errors)}
+            ${smoke ? table('Engine checks', smoke.errors) : ''}
+            ${table('Warnings', now.warnings)}
+            ${atLoad ? table('Repaired when it was loaded', atLoad.errors) : ''}
+            <div class="pv-btn-container">
+                <button type="button" class="pv-btn" data-act="close">Close</button>
+            </div>`;
+        overlay.appendChild(dialog);
+        document.body.appendChild(overlay);
+        const close = () => overlay.remove();
+        overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+        overlay.addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.stopPropagation(); close(); } });
+        dialog.querySelectorAll('[data-act="close"]').forEach(b => b.addEventListener('click', close));
+        overlay.tabIndex = -1;
+        overlay.focus();
     }
 
     // ---------------- Analysis workbench (ODE + math tools) ----------------
@@ -7177,6 +7183,11 @@ PetriView = class PetriView extends HTMLElement {
             this._showSimulationDialog();
         });
         menuContainer._menuContent.appendChild(simulationItem);
+
+        const checkItem = makeMenuItem('✅ Check net', () => {
+            this._showCheckDialog();
+        });
+        menuContainer._menuContent.appendChild(checkItem);
         
         const layoutAlgoItem = makeMenuItem('🎨 Layout Algorithms', () => {
             this._showLayoutAlgorithmsDialog();

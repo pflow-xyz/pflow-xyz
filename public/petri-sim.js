@@ -282,3 +282,85 @@ export function setTransitionRates(model, rates) {
     }
     return changed;
 }
+
+/**
+ * Fill a net's defaults and repair what the editor can read, in place, and
+ * return it. This is the editor's tolerant reading: a missing vector gets its
+ * default, a bad number becomes 0 (or weight 1), capacity 0/null becomes
+ * unbounded (Infinity) and an initial marking over capacity is clamped.
+ * petri-validate.js reports each of those repairs instead of making them.
+ * @param {Object} [m]
+ * @returns {Object} m
+ */
+export function normalizeModel(m) {
+    m = m || {};
+    m['@context'] ||= 'https://pflow.xyz/schema';
+    m['@type'] ||= 'PetriNet';
+    m['@version'] ||= '1.1'; // <-- added default version
+    m.token ||= ['https://pflow.xyz/tokens/black'];
+    m.places ||= {};
+    m.transitions ||= {};
+    m.arcs ||= [];
+
+    for (const [id, p] of Object.entries(m.places)) {
+        p['@type'] ||= 'Place';
+
+        // offsets/coords
+        p.offset = Number.isFinite(p.offset) ? Number(p.offset) : Number(p.offset ?? 0);
+        p.x = Number.isFinite(p.x) ? Number(p.x) : Number(p.x || 0);
+        p.y = Number.isFinite(p.y) ? Number(p.y) : Number(p.y || 0);
+
+        // initial: allow 0, coerce safely
+        if (!Array.isArray(p.initial)) p.initial = [p.initial];
+        p.initial = p.initial.map(v => {
+            const n = (typeof v === 'string' && v.trim() === '') ? 0 : Number(v);
+            return Number.isFinite(n) ? n : 0;
+        });
+
+        // capacity: null/undefined/0 => Infinity (unbounded).
+        // capacity=0 means unbounded per standard Petri net convention.
+        if (!Array.isArray(p.capacity)) p.capacity = [p.capacity];
+        p.capacity = p.capacity.map(v => {
+            if (v === null || v === undefined) return Infinity;
+            const n = Number(v);
+            if (!Number.isFinite(n) || n === 0) return Infinity;
+            return n;
+        });
+
+        // Validate: initial tokens should not exceed capacity for each color
+        // Clamp initial tokens to capacity to fix invalid states
+        const maxLen = Math.max(p.initial.length, p.capacity.length);
+        while (p.initial.length < maxLen) p.initial.push(0);
+        while (p.capacity.length < maxLen) p.capacity.push(Infinity);
+
+        for (let i = 0; i < maxLen; i++) {
+            const cap = p.capacity[i];
+            if (Number.isFinite(cap) && p.initial[i] > cap) {
+                console.warn(`Place ${id}: initial[${i}]=${p.initial[i]} exceeds capacity[${i}]=${cap}. Clamping to capacity.`);
+                p.initial[i] = cap;
+            }
+        }
+    }
+
+
+    for (const [id, t] of Object.entries(m.transitions)) {
+        t['@type'] ||= 'Transition';
+        t.x = Number(t.x || 0);
+        t.y = Number(t.y || 0);
+    }
+    for (const a of m.arcs) {
+        a['@type'] ||= 'Arrow';
+        if (a.weight == null) a.weight = [1];
+        if (!Array.isArray(a.weight)) a.weight = [Number(a.weight) || 1];
+        // Vector components preserve explicit 0 ("this color is not
+        // involved") — the engine contract petri-sim.js:getArcWeight and
+        // the parity suite rely on; only a scalar weight of 0 defaults to 1
+        // (handled above).
+        a.weight = a.weight.map(w => {
+            const n = Number(w);
+            return Number.isFinite(n) && n >= 0 ? n : 1;
+        });
+        a.inhibitTransition = !!a.inhibitTransition;
+    }
+    return m;
+}
