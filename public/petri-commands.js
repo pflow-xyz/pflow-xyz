@@ -894,6 +894,54 @@ export const COMMANDS = [
         },
     },
     {
+        id: 'net.set_views', label: 'Set views',
+        help: 'Declare the net\'s app screens (sim\'s Model.View): each a named projection, the places and transitions one screen presents, a role (board, dashboard, controls, advisor, trust, log), an optional title and prompt, and links to the views it navigates to. Every reference is checked; an empty list removes them.',
+        args: args({ views: { type: 'array', items: { type: 'object' }, description: '[{id, role?, title?, prompt?, places?, transitions?, links?}]' } }, ['views']),
+        journal: true,
+        run: async (c, a) => {
+            const { validateNet } = await import('./petri-validate.js');
+            const probe = JSON.parse(JSON.stringify(c.model()));
+            probe.views = a.views;
+            const bad = validateNet(probe).errors.filter((e) => e.path.startsWith('views'));
+            if (bad.length) throw new CommandError(bad.map((e) => `${e.path}: ${e.message}`).join('; '));
+            c.edit('set views', (m) => { if (a.views.length) m.views = structuredClone(a.views); else delete m.views; });
+            return { views: c.model().views || [] };
+        },
+    },
+    {
+        id: 'file.export_sim', label: 'Export for sim.pflow.xyz',
+        help: 'The net in sim.pflow.xyz\'s model shape (places with initial counts, transitions with rates, arcs as from/to with read and inhibitor types, labels as tags), ready for sim_create_model. Read arcs are written place → transition, as sim expects.',
+        args: args(), journal: false,
+        run: async (c) => {
+            const { toSim } = await import('./petri-roles.js');
+            const m = c.model();
+            const { model, rates } = toSim(m);
+            const out = {
+                name: m.name || 'pflow.xyz net',
+                ...(m.description ? { description: m.description } : {}),
+                places: model.places.map((pl) => ({ ...pl, initial: rates.initial[pl.id] })),
+                transitions: model.transitions.map((t) => ({ ...t, rate: rates.rates[t.id] })),
+                arcs: model.arcs.map((x) => {
+                    const arc = (m.arcs || []).find((y) => (y.source === x.from && y.target === x.to) || (y.source === x.to && y.target === x.from));
+                    const w = arc ? Sim.getArcWeight(arc)[0] : 1;
+                    return { ...x, ...(w !== 1 ? { weight: w } : {}) };
+                }),
+                ...(m.views ? { views: m.views } : {}),
+            };
+            return { model: out };
+        },
+    },
+    {
+        id: 'analysis.roles', label: 'Roles',
+        help: 'What a console knows about the net before anyone runs it (sim\'s deriveRoles): pools an operator could add to, arrival sources, losses (patience), queues, terminal outcomes and services, and the disruptions those imply, grouped by the question they ask. The App view is built from this.',
+        args: args({ horizon: num('hours the derived waves span (default 8)', { minimum: 1 }) }), journal: false,
+        run: async (c, a) => {
+            const { rolesOf, groupDisruptions } = await import('./petri-roles.js');
+            const { roles, disruptions } = rolesOf(c.model(), a.horizon ?? 8);
+            return { roles, disruptions, groups: groupDisruptions(disruptions).map((g) => ({ question: g.question, ids: g.items.map((d) => d.id) })) };
+        },
+    },
+    {
         id: 'analysis.behaviour', label: 'Behaviour checks',
         help: 'sim\'s builder checks on the token game: parts of the net not connected to the rest, transitions that never fire, places nothing ever fills, a reachable marking where nothing can fire (with a trace), and a place growing past the token bound. One bounded exploration (max_states markings); when the bound is hit, claims needing the whole space are left out, not guessed.',
         args: args({ max_states: int('markings to explore (default 2000, ≤ 50000)', { minimum: 10, maximum: 50000 }), unbounded_tokens: int('a place past this many tokens counts as unbounded (default 1000)', { minimum: 1 }) }),

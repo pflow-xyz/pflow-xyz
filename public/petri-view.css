@@ -3364,3 +3364,42 @@ canvas.pv-canvas {
     color: var(--pv-success);
     border-color: var(--pv-success);
 }
+
+/* The App view (petri-appview-ui.js): docked on the left, the net stays visible */
+.pv-appview {
+    position: fixed;
+    top: 64px;
+    left: 16px;
+    bottom: 16px;
+    width: min(400px, calc(100vw - 32px));
+    overflow: auto;
+    z-index: 999;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: var(--pv-surface);
+    color: var(--pv-ink);
+    box-shadow: 0 4px 24px var(--pv-shadow-lg);
+    font-size: 0.9em;
+}
+.pv-appview h4 {
+    margin: 10px 0 4px;
+}
+.pv-appview-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    margin: 3px 0;
+}
+.pv-appview-row input[type="number"] {
+    width: 6em;
+}
+.pv-appview-touch {
+    opacity: 0.65;
+    font-size: 0.8em;
+}
+.pv-appview-views {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px;
+}

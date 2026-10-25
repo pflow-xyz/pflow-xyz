@@ -349,7 +349,7 @@ needs. Adopt them as ideas and data, not as imported code (sim is private).
   interview, to a net with no checks failing and a defect weight of 0. The
   path is replayable from the Tools panel, and every edit can be undone.
 
-#### Phase 7: The app view and question-shaped controls, adopted from sim
+#### Phase 7: The app view and question-shaped controls, adopted from sim ✅
 
 sim presents a model as an app: a console whose controls are the questions
 an operator asks. Adopt that, while keeping the net visible beside the

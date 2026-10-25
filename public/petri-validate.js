@@ -23,7 +23,12 @@ import { normalizeModel, enabledTransitions } from './petri-sim.js';
 // The keys the editor itself writes (and that stored nets carry). Anything
 // else is preserved but reported; in strict mode it is an error.
 const NET_KEYS = new Set(['@context', '@id', '@type', '@version', 'name', 'description', 'author',
-    'token', 'places', 'transitions', 'arcs', 'parents', 'goals']);
+    'token', 'places', 'transitions', 'arcs', 'parents', 'goals', 'views']);
+
+// sim's view roles (pkg/modelstore/store.go viewRoles) and keys.
+export const VIEW_ROLES = ['board', 'dashboard', 'controls', 'advisor', 'trust', 'log'];
+const VIEW_KEYS = new Set(['id', 'role', 'title', 'prompt', 'places', 'transitions', 'links']);
+const IDENT = /^[A-Za-z0-9_]+$/;
 const PLACE_KEYS = new Set(['@type', 'label', 'description', 'initial', 'capacity', 'x', 'y', 'offset']);
 const TRANSITION_KEYS = new Set(['@type', 'label', 'description', 'x', 'y', 'offset', 'role', 'rate']);
 const ARC_KEYS = new Set(['@type', 'source', 'target', 'weight', 'inhibitTransition']);
@@ -207,6 +212,37 @@ export function validateNet(doc, opts = {}) {
                 for (const [pid, n] of Object.entries(g.to)) {
                     if (!Object.prototype.hasOwnProperty.call(places, pid)) err(`${path}.to.${pid}`, `"${pid}" is not a declared place`);
                     else if (!isCount(n)) err(`${path}.to.${pid}`, `${JSON.stringify(n)} is not a count`);
+                }
+            });
+        }
+    }
+
+    // ---- views: validated projections (sim's Model.View) ----
+    if ('views' in doc) {
+        if (!Array.isArray(doc.views)) {
+            err('views', 'must be a list of {id, role, places, transitions, links}');
+        } else {
+            const ids = new Set();
+            doc.views.forEach((vw, i) => {
+                if (isObject(vw) && typeof vw.id === 'string') {
+                    if (ids.has(vw.id)) err(`views[${i}].id`, `"${vw.id}" is used twice`);
+                    ids.add(vw.id);
+                }
+            });
+            doc.views.forEach((vw, i) => {
+                const path = `views[${i}]`;
+                if (!isObject(vw)) { err(path, 'must be an object'); return; }
+                if (typeof vw.id !== 'string' || !IDENT.test(vw.id)) err(`${path}.id`, 'a bare identifier (letters, digits, underscore)');
+                for (const k of Object.keys(vw)) if (!VIEW_KEYS.has(k)) err(`${path}.${k}`, 'not a view field (id, role, title, prompt, places, transitions, links)');
+                if (vw.role !== undefined && vw.role !== '' && !VIEW_ROLES.includes(vw.role)) err(`${path}.role`, `"${vw.role}"; known roles are ${VIEW_ROLES.join(', ')}`);
+                for (const k of ['title', 'prompt']) if (k in vw && typeof vw[k] !== 'string') err(`${path}.${k}`, 'must be a string');
+                for (const [k, coll, what] of [['places', places, 'place'], ['transitions', transitions, 'transition'], ['links', null, 'view']]) {
+                    if (!(k in vw)) continue;
+                    if (!Array.isArray(vw[k])) { err(`${path}.${k}`, 'must be a list of ids'); continue; }
+                    for (const id of vw[k]) {
+                        const ok = coll ? Object.prototype.hasOwnProperty.call(coll, id) : ids.has(id);
+                        if (!ok) err(`${path}.${k}`, `"${id}" is not a ${what}`);
+                    }
                 }
             });
         }

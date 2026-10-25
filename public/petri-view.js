@@ -1419,6 +1419,15 @@ PetriView = class PetriView extends HTMLElement {
         }
     }
 
+    async _openAppView() {
+        try {
+            const ui = await import('./petri-appview-ui.js');
+            await ui.openAppView(this);
+        } catch (e) {
+            this._toast('The app view is not available here: ' + e.message, 'error');
+        }
+    }
+
     async _openComponents() {
         try {
             const ui = await import('./petri-components-ui.js');
@@ -7401,6 +7410,11 @@ PetriView = class PetriView extends HTMLElement {
             this._showSimulationDialog();
         });
         menuContainer._menuContent.appendChild(simulationItem);
+
+        const appViewItem = makeMenuItem('📱 App view', () => {
+            this._openAppView();
+        });
+        menuContainer._menuContent.appendChild(appViewItem);
 
         const componentsItem = makeMenuItem('🧩 Components', () => {
             this._openComponents();
