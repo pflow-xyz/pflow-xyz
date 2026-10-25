@@ -313,7 +313,7 @@ one to the other. **The map is data, not prompt:** a checked-in goal catalog
   end in a browser test, and the opt-in prompt eval (`llm-eval`, from slice
   1) routes a set of paraphrased goals to the right catalog entries.
 
-#### Phase 6: Model refinement, adopted from sim
+#### Phase 6: Model refinement, adopted from sim ✅
 
 sim's builder (`pkg/builder`) and `sim_refine` hold most of what this
 needs. Adopt them as ideas and data, not as imported code (sim is private).

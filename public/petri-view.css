@@ -3338,3 +3338,29 @@ canvas.pv-canvas {
 .pv-goals-inputs > div {
     margin: 4px 0;
 }
+
+/* Build mode's interview steps */
+.pv-chat-steps {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px;
+}
+.pv-chat-step {
+    font: inherit;
+    font-size: 0.8em;
+    padding: 1px 8px;
+    border-radius: 10px;
+    border: 1px solid var(--pv-border);
+    background: none;
+    color: var(--pv-ink-muted);
+    cursor: pointer;
+}
+.pv-chat-step.pv-active {
+    background: var(--pv-accent);
+    border-color: var(--pv-accent);
+    color: var(--pv-accent-ink);
+}
+.pv-chat-step-past {
+    color: var(--pv-success);
+    border-color: var(--pv-success);
+}

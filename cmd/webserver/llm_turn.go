@@ -48,6 +48,19 @@ var modeGuidance = map[string]string{
 		"use tools only to look things up. Do not edit.",
 }
 
+// stepGuidance is sim's interview (sim-pflow-xyz pkg/builder/llm.go
+// stepGuidance), adapted: the editor's tools instead of sim's operation
+// vocabulary, the editor's components (compose_fuse) for the calibration
+// discipline, and "Next: <step>" in the reply instead of a step_done field.
+var stepGuidance = map[string]string{
+	"describe":  `Interview step "describe": understand the process. What kind of operation, what question they want answered (staffing? capacity? walkouts? can it get stuck?), the busiest arrival volume. One focused question per turn; prefer concrete numbers. Do not edit yet unless something is unambiguous. When you can name the resources, the activities and the question, end your reply with "Next: structure".`,
+	"structure": `Interview step "structure": build places, transitions and arcs together, activity by activity. Calibration discipline: a resource is held across two firings (start_X takes it into in_X, finish_X returns it); the queue → start_X pickup is fast (rate 720 per hour); every queue needs a patience transition to a walked_out sink; outcomes people count get sink places. compose_components lists ready-made parts that already follow this (arrivals, service, hazard, inventory, decision, mailbox, datastore); compose_fuse adds one, fusing its ports onto existing places. Confirm each activity with the person as you add it. When the net covers every activity and resource named, end with "Next: rates".`,
+	"rates":     `Interview step "rates": put a rate on every transition (sim_set_rate, per hour unless they said otherwise; a 6-minute service is rate 10). Ask for real numbers; suggest defaults only when they do not know, and say so. Declare what the net should be able to reach with net_set_goals (e.g. everyone served). When no transition is left at the default 1.0 by accident, end with "Next: validate".`,
+	"validate":  `Interview step "validate": run analysis_check and analysis_defects (the refinement gate: 0 is clean) and fix what they report with edits. The behaviour checks that come back after your edits are the engine's; fix them or say why they are intended (an end state that cannot fire is often fine). When the check is clean and the defect weight is 0 (or every remaining defect is explained), end with "Next: preview".`,
+	"preview":   `Interview step "preview": run a short simulation (sim_recommend, then the engine it suggests) and say in plain words whether the headline numbers look like the person's real operation; adjust rates or initial counts if not. When they are satisfied, tell them to Apply the pending edits and end with "Next: done".`,
+	"done":      `The interview is finished: the person applies the net. Answer questions; edit only if asked.`,
+}
+
 // toolManifest is public/llm-tools.json (scripts/gen-llm-tools.mjs).
 type toolManifest struct {
 	Version string `json:"version"`
@@ -82,6 +95,7 @@ func loadToolManifest(public fs.FS) (*toolManifest, []llm.FunctionDecl, map[stri
 
 type turnRequest struct {
 	Mode     string          `json:"mode"`
+	Step     string          `json:"step,omitempty"` // build mode's interview step (stepGuidance)
 	Net      json.RawMessage `json:"net"`
 	Messages []llm.Message   `json:"messages"`
 }
@@ -89,6 +103,14 @@ type turnRequest struct {
 func validTurn(req *turnRequest) error {
 	if _, ok := modeGuidance[req.Mode]; !ok {
 		return errors.New("mode must be build, analyse or explain")
+	}
+	if req.Step != "" {
+		if req.Mode != "build" {
+			return errors.New("step is for build mode")
+		}
+		if _, ok := stepGuidance[req.Step]; !ok {
+			return errors.New("step must be describe, structure, rates, validate, preview or done")
+		}
 	}
 	if len(req.Net) > maxNetSummary {
 		return fmt.Errorf("net summary over %d bytes", maxNetSummary)
@@ -166,6 +188,9 @@ func (s *Server) handleLLMTurn(w http.ResponseWriter, r *http.Request) {
 	lead := modeGuidance[req.Mode]
 	if extra := svc.modeExtra[req.Mode]; extra != "" {
 		lead += "\n\n" + extra
+	}
+	if g := stepGuidance[req.Step]; g != "" {
+		lead += "\n\n" + g
 	}
 	if len(req.Net) > 0 {
 		lead += "\n\nThe net now (net_info):\n" + string(req.Net)

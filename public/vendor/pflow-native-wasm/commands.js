@@ -436,5 +436,77 @@ export const NATIVE_COMMANDS = [
       "additionalProperties": false
     },
     "journal": true
+  },
+  {
+    "id": "compose.components",
+    "label": "Components",
+    "help": "The component library: sim.pflow.xyz's registry (arrivals, service, hazard, inventory, decision, mailbox, datastore) and pflow-compose's templates (sir, seir, queue, producer-consumer, workflow) and subnets (bounded-queue, resource-pool), each with its ports (role: in/out/inout/observe), params with defaults, and discipline notes.",
+    "args": {
+      "type": "object",
+      "properties": {},
+      "required": [],
+      "additionalProperties": false
+    },
+    "journal": false
+  },
+  {
+    "id": "compose.fuse",
+    "label": "Fuse Component…",
+    "help": "Instantiate a library component into the open net (sim_compose): its nodes are renamed <prefix>_<id> and placed at (x, y) (default: right of the net), and each port in `attach` is fused onto an existing place (the shared place replaces the component's copy). Declared rates become session rates. On a net with several token colors, `color` picks the one the component's tokens and weights use. One undo step.",
+    "args": {
+      "type": "object",
+      "properties": {
+        "component": {
+          "type": "string",
+          "description": "library component name (compose.components)"
+        },
+        "attach": {
+          "description": "{port: existing place id} fusions"
+        },
+        "params": {
+          "description": "{param: number} overrides of the defaults"
+        },
+        "prefix": {
+          "type": "string",
+          "description": "instance prefix for created ids (default: the component name)"
+        },
+        "x": {
+          "type": "number",
+          "description": "left of the placed component (default: right of the net)"
+        },
+        "y": {
+          "type": "number",
+          "description": "top of the placed component (default: the net's top)"
+        },
+        "color": {
+          "description": "token color (index or name) on a multi-color net"
+        }
+      },
+      "required": [
+        "component"
+      ],
+      "additionalProperties": false
+    },
+    "journal": true,
+    "edits": true
+  },
+  {
+    "id": "compose.extend",
+    "label": "Extend (Edit Ops)…",
+    "help": "Apply sim_extend's structural edit ops to the open net, each as the matching registry command, all as one undo step (any failure rolls everything back): add_place {id, initial, capacity, x, y, label}, add_transition {id, rate, x, y, label}, add_arc {from, to, weight, type: \"\"|inhibitor|read}, remove_place / remove_transition / remove {id} (arcs go too), remove_arc {from, to}, set_rate {id, rate}, set_initial {id, initial}, set_capacity {id, capacity}, set_arc {from, to, weight, type}, rename {id, new_id}, set_label {id, label}, move {id, x, y}. Returns the steps run and the before/after diff.",
+    "args": {
+      "type": "object",
+      "properties": {
+        "ops": {
+          "description": "array of {op, ...} objects (or a JSON string of one)"
+        }
+      },
+      "required": [
+        "ops"
+      ],
+      "additionalProperties": false
+    },
+    "journal": true,
+    "edits": true
   }
 ];

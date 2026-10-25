@@ -1419,6 +1419,15 @@ PetriView = class PetriView extends HTMLElement {
         }
     }
 
+    async _openComponents() {
+        try {
+            const ui = await import('./petri-components-ui.js');
+            await ui.openComponents(this);
+        } catch (e) {
+            this._toast('Components are not available here: ' + e.message, 'error');
+        }
+    }
+
     async _openGoals() {
         try {
             const ui = await import('./petri-goals-ui.js');
@@ -7392,6 +7401,11 @@ PetriView = class PetriView extends HTMLElement {
             this._showSimulationDialog();
         });
         menuContainer._menuContent.appendChild(simulationItem);
+
+        const componentsItem = makeMenuItem('🧩 Components', () => {
+            this._openComponents();
+        });
+        menuContainer._menuContent.appendChild(componentsItem);
 
         const goalsItem = makeMenuItem('❓ What do you want to know?', () => {
             this._openGoals();

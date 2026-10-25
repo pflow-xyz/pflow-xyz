@@ -173,6 +173,88 @@ function checkWithinCapacity(id, p) {
 const colorsOf = (m) => Math.max(1, (m.token || []).length);
 
 // ---------------------------------------------------------------------------
+// Behaviour checks (sim's pkg/builder/checks.go, in JS on the editor's own
+// firing rule): one bounded exploration of the reachable markings. A bound
+// hit makes the claims that need the whole space ("never fires", "never
+// marked") unavailable rather than guessed; only what a partial search can
+// still prove is kept (a deadlock found, a place past the token bound).
+// ---------------------------------------------------------------------------
+
+const keyOf = (marks) => JSON.stringify(Object.keys(marks).sort().map((k) => marks[k]));
+
+export function exploreBehaviour(m, { maxStates = 2000, unboundedTokens = 1000 } = {}) {
+    const start = Sim.marking(m);
+    const seen = new Map([[keyOf(start), { marks: start, parent: null, via: null }]]);
+    const queue = [keyOf(start)];
+    const fired = new Set();
+    const marked = new Set(Object.keys(start).filter((p) => start[p].some((x) => x > 0)));
+    let deadlock = null, unbounded = null, exhaustive = true;
+    while (queue.length) {
+        const k = queue.shift();
+        const { marks } = seen.get(k);
+        const en = Sim.enabledTransitions(m, marks);
+        if (!en.length && !deadlock) deadlock = k;
+        for (const t of en) {
+            const next = Sim.fire(m, t, marks);
+            if (!next) continue;
+            fired.add(t);
+            for (const [p, v] of Object.entries(next)) {
+                if (v.some((x) => x > 0)) marked.add(p);
+                if (!unbounded && v.some((x) => x > unboundedTokens)) unbounded = p;
+            }
+            const nk = keyOf(next);
+            if (seen.has(nk)) continue;
+            if (seen.size >= maxStates) { exhaustive = false; continue; }
+            seen.set(nk, { marks: next, parent: k, via: t });
+            queue.push(nk);
+        }
+        if (unbounded) { exhaustive = false; break; }
+    }
+    const trace = (k) => {
+        const steps = [];
+        for (let cur = k; cur; cur = seen.get(cur).parent) steps.unshift({ transition: seen.get(cur).via || '', marking: seen.get(cur).marks });
+        return steps;
+    };
+    return { states: seen.size, exhaustive, fired, marked, deadlock: deadlock ? trace(deadlock) : null, unbounded };
+}
+
+function components(m) {
+    const ids = [...Object.keys(m.places), ...Object.keys(m.transitions)];
+    const adj = new Map(ids.map((id) => [id, new Set()]));
+    for (const a of m.arcs) { adj.get(a.source)?.add(a.target); adj.get(a.target)?.add(a.source); }
+    const seen = new Set(), parts = [];
+    for (const id of ids) {
+        if (seen.has(id)) continue;
+        const part = [], stack = [id];
+        seen.add(id);
+        while (stack.length) {
+            const x = stack.pop();
+            part.push(x);
+            for (const y of adj.get(x)) if (!seen.has(y)) { seen.add(y); stack.push(y); }
+        }
+        parts.push(part);
+    }
+    return parts;
+}
+
+/** Whether the weighted place sum y is conserved by every transition (yᵀC = 0). */
+export function conserves(m, y) {
+    for (const p of Object.keys(y)) if (!own(m.places, p)) return false;
+    for (const t of Object.keys(m.transitions)) {
+        let d = 0;
+        for (const a of m.arcs) {
+            if (a.inhibitTransition) continue; // inhibitor and read arcs move nothing
+            const w = getWeightSum(a);
+            if (a.target === t && own(y, a.source)) d -= y[a.source] * w;
+            if (a.source === t && own(y, a.target)) d += y[a.target] * w;
+        }
+        if (Math.abs(d) > 1e-9) return false;
+    }
+    return true;
+}
+const getWeightSum = (a) => Sim.getArcWeight(a).reduce((x, y) => x + y, 0);
+
+// ---------------------------------------------------------------------------
 // ODE helpers (petri-solver.js is loaded on first use)
 // ---------------------------------------------------------------------------
 
@@ -789,6 +871,97 @@ export const COMMANDS = [
         },
     },
 
+    {
+        id: 'net.set_goals', label: 'Set goals',
+        help: 'Declare the net\'s reachability goals: markings it should be able to reach, e.g. [{"label": "everyone served", "to": {"served": 10}}]. "to" constrains only the places it names. The refinement gate (analysis.defects) counts a goal analysis.reach answers "no" to. An empty list removes them.',
+        args: args({ goals: { type: 'array', items: { type: 'object' }, description: '[{label?, to: {place: count}}]' } }, ['goals']),
+        journal: true,
+        run: (c, a) => {
+            c.edit('set goals', (m) => {
+                a.goals.forEach((g, i) => {
+                    if (!isObject(g) || !isObject(g.to) || !Object.keys(g.to).length) throw new CommandError(`goals[${i}]: needs a "to" marking`);
+                    for (const [pid, n] of Object.entries(g.to)) {
+                        needNode(m, pid, 'place');
+                        if (!Number.isInteger(n) || n < 0) throw new CommandError(`goals[${i}].to.${pid}: a count ≥ 0`);
+                    }
+                    if (g.label !== undefined) checkLabel(g.label);
+                    for (const k of Object.keys(g)) if (k !== 'label' && k !== 'to') throw new CommandError(`goals[${i}].${k}: a goal has only label and to`);
+                });
+                if (a.goals.length) m.goals = a.goals.map((g) => ({ ...(g.label ? { label: g.label } : {}), to: { ...g.to } }));
+                else delete m.goals;
+            });
+            return { goals: c.model().goals || [] };
+        },
+    },
+    {
+        id: 'analysis.behaviour', label: 'Behaviour checks',
+        help: 'sim\'s builder checks on the token game: parts of the net not connected to the rest, transitions that never fire, places nothing ever fills, a reachable marking where nothing can fire (with a trace), and a place growing past the token bound. One bounded exploration (max_states markings); when the bound is hit, claims needing the whole space are left out, not guessed.',
+        args: args({ max_states: int('markings to explore (default 2000, ≤ 50000)', { minimum: 10, maximum: 50000 }), unbounded_tokens: int('a place past this many tokens counts as unbounded (default 1000)', { minimum: 1 }) }),
+        journal: false,
+        run: (c, a) => {
+            const m = c.model();
+            const ex = exploreBehaviour(m, { maxStates: a.max_states ?? 2000, unboundedTokens: a.unbounded_tokens ?? 1000 });
+            const findings = [];
+            const parts = components(m);
+            if (parts.length > 1) {
+                const small = parts.slice().sort((x, y) => x.length - y.length).slice(0, -1);
+                findings.push({ category: 'disconnected', nodes: small.flat(), message: `${parts.length} separate parts; ${small.map((s) => s.join(', ')).join(' | ')} not connected to the rest` });
+            }
+            if (ex.exhaustive) {
+                const dead = Object.keys(m.transitions).filter((t) => !ex.fired.has(t));
+                if (dead.length) findings.push({ category: 'dead_transition', nodes: dead, message: `never fires from this marking: ${dead.join(', ')}` });
+                const empty = Object.keys(m.places).filter((p) => !ex.marked.has(p));
+                if (empty.length) findings.push({ category: 'unreachable_place', nodes: empty, message: `nothing ever puts a token in: ${empty.join(', ')}` });
+            }
+            let trace = null;
+            if (ex.deadlock) {
+                trace = c.store(`Deadlock after ${ex.deadlock.length - 1} firing(s)`, { kind: 'trace', steps: ex.deadlock });
+                findings.push({ category: 'deadlock', nodes: [], message: `a reachable marking where nothing can fire (see ${trace.id}; fine if it is the intended end state)` });
+            }
+            if (ex.unbounded) findings.push({ category: 'unbounded', nodes: [ex.unbounded], message: `${ex.unbounded} grows past ${a.unbounded_tokens ?? 1000} tokens` });
+            const report = { findings, states: ex.states, exhaustive: ex.exhaustive,
+                note: ex.exhaustive ? 'every reachable marking was explored' : `stopped at ${ex.states} markings: "never fires" and "never filled" are not claimed` };
+            const art = c.store('Behaviour checks', { kind: 'report', ...report });
+            return { artifact: art.id, ...(trace ? { trace: trace.id } : {}), ...report };
+        },
+    },
+    {
+        id: 'analysis.defects', label: 'Defect weight',
+        help: 'sim\'s refinement gate, engine-computed: dead transitions + unmarked siphons (that can empty and stop transitions for good) + declared goals analysis.reach answers "no" to + conservation laws of a baseline that no longer hold. 0 is clean. Pass baseline_laws (P-invariant coefficient maps, e.g. from the net before an edit) to count lost laws; leave it out to count none.',
+        args: args({ baseline_laws: { type: 'array', items: { type: 'object' }, description: '[{place: coefficient}] from an earlier net' }, max_states: int('budget for the exploration and each goal (default 2000)', { minimum: 10, maximum: 50000 }) }),
+        journal: false,
+        run: async (c, a) => {
+            const m = c.model();
+            const notes = [];
+            const ex = exploreBehaviour(m, { maxStates: a.max_states ?? 2000 });
+            const dead = ex.exhaustive ? Object.keys(m.transitions).filter((t) => !ex.fired.has(t)) : [];
+            if (!ex.exhaustive) notes.push('the exploration hit its bound, so dead transitions are not counted');
+            let siphons = [];
+            try {
+                const s = await c.registry.execute('analysis.siphons');
+                // unmarked = empty at the current marking: the transitions needing it never fire again
+                siphons = (s.minimal_siphons || []).filter((x) => x.marked === false).map((x) => x.places);
+            } catch (e) {
+                notes.push(`siphons not checked: ${e.message}`);
+            }
+            const unreachable = [];
+            for (const [i, g] of (m.goals || []).entries()) {
+                try {
+                    const r = await c.registry.execute('analysis.reach', { to: g.to, max_states: a.max_states ?? 2000 });
+                    if (r.answer === 'no') unreachable.push(g.label || `goal ${i}`);
+                    if (r.answer === 'unknown') notes.push(`${g.label || `goal ${i}`}: unknown within the budget (not counted)`);
+                } catch (e) {
+                    notes.push(`${g.label || `goal ${i}`} not checked: ${e.message}`);
+                }
+            }
+            const lost = (a.baseline_laws || []).filter((y) => !conserves(m, y)).map((y) => Object.entries(y).map(([p, w]) => (w === 1 ? p : `${w}·${p}`)).join(' + '));
+            const weight = dead.length + siphons.length + unreachable.length + lost.length;
+            const report = { weight, dead_transitions: dead, unmarked_siphons: siphons, unreachable_goals: unreachable, lost_laws: lost, notes };
+            const art = c.store(`Defect weight ${weight}`, { kind: 'report', ...report });
+            return { artifact: art.id, ...report };
+        },
+    },
+
     // ---- analysis ----
     {
         // REVIEW: named analysis.check, not analysis.validate: pflow-native's
@@ -917,7 +1090,19 @@ export function nativeCommands(specs = NATIVE_COMMANDS) {
         run: async (c, a) => {
             const { runNative } = await import('./petri-wasm.js');
             // JSON round trip: unbounded capacities (Infinity) become null, as saved.
-            return runNative(JSON.parse(JSON.stringify(c.model())), s.id, a, c.store);
+            const before = JSON.parse(JSON.stringify(c.model()));
+            const out = await runNative(before, s.id, a, c.store, { edits: !!s.edits, full: true });
+            if (s.edits && out.doc) {
+                // The engine edited the net (compose.fuse, compose.extend):
+                // its export becomes the document, as one undo step. Keep the
+                // editor's token list and goals, which the engine does not carry.
+                const doc = out.doc;
+                if (!(doc.token || []).length) doc.token = before.token;
+                if (before.goals) doc.goals = before.goals;
+                for (const k of ['name', 'description', 'parents']) if (before[k] !== undefined && doc[k] === undefined) doc[k] = before[k];
+                c.host.commit(Sim.normalizeModel(doc), s.id);
+            }
+            return out.result;
         },
     }));
 }

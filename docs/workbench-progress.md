@@ -24,7 +24,7 @@ themselves.
 | 3 Simulation workbench | ✅ merged into `workbench` | `phase3` |
 | 4 Chat modal + in-page MCP | ✅ merged into `workbench` (ships dark) | `phase4` |
 | 5 Goal advisor | ✅ merged into `workbench` | `phase5` |
-| 6 Model refinement | | |
+| 6 Model refinement | ✅ merged into `workbench` | `phase6` |
 | 7 App view | | |
 | 8 MCP outside the page | | |
 
@@ -432,3 +432,76 @@ Verified:
 4. **The analyse brief asks before running** unless the person already said
    "run it". That is the roadmap's "a plan the user approves before it runs",
    enforced by the prompt, not by the UI.
+
+## Phase 6: model refinement, adopted from sim
+
+What landed:
+
+- **`analysis.behaviour`**, sim's builder checks (`pkg/builder/checks.go`)
+  in JS on the editor's own firing rule: disconnected parts, dead
+  transitions, places nothing fills, a reachable marking where nothing fires
+  (with a replayable trace), and unbounded growth. One bounded exploration:
+  when the bound is hit, "never fires" and "never filled" are not claimed.
+- **`analysis.defects`**, sim's refinement gate as a number: dead
+  transitions + unmarked siphons (empty at the current marking) + declared
+  goals that `analysis.reach` answers "no" to + conservation laws of a
+  baseline that no longer hold. 0 is clean.
+- **Goals in the net.** `net.set_goals {goals: [{label?, to}]}`, a validated
+  `goals` term (Check net checks it), carried through native edits.
+- **sim's components** (arrivals, service, hazard, inventory, decision,
+  mailbox, datastore) and pflow-compose's templates, through native
+  `compose.components`, `compose.fuse` and `compose.extend`. The bridge now
+  commits a native edit's exported net as one undo step, keeping the
+  editor's token list, goals, name and description.
+- **Build mode is sim's interview.**
+  - The steps are describe → structure → rates → validate → preview → done.
+    Each call sends its `step`, and the server adds sim's step guidance,
+    adapted to the editor's tools and components (`stepGuidance` in
+    `llm_turn.go`).
+  - The model ends a reply with "Next: <step>". The browser takes forward
+    moves only, from that closed vocabulary.
+  - After any round with edits, the engine's behaviour checks go back to the
+    model with the tool results.
+  - Step chips are shown in the panel; click one to move by hand.
+- **The pending-edits bar shows the gate:** "Defect weight 1 → 0", with what
+  counts. An increase is flagged, and Apply becomes "Apply anyway".
+- **🧩 Components**, a palette dialog: pick a part, fuse its ports onto
+  existing places, set its parameters.
+
+**Phase 6's exit check** (`public/petri-refine_test.ts`): a scripted
+interview starts from "we run a help desk".
+- It goes through all six steps.
+- It fuses arrivals and service through `compose_fuse` and adds patience
+  and goals.
+- The engine's checks come back after each edit round.
+- It ends with `analysis.check` clean, a defect weight of 0, and no failing
+  behaviour check.
+- It is applied as one undo step.
+
+Verified: `make test` (246 JS tests), Go tests (step guidance and its
+validation), and in a browser: the palette fused arrivals and service onto a
+queue, the checks were clean, the weight was 0, and the chips showed.
+
+### Decisions to review (phase 6)
+
+1. **The step marker is in the reply text** ("Next: rates"), parsed against
+   a closed list, instead of sim's `step_done` JSON field. Our protocol is
+   tool calls, not a JSON envelope.
+2. **The gate allows edits that leave the weight unchanged**, which
+   interactive editing needs. sim's gate requires a strict decrease.
+   Increases are flagged and need "Apply anyway"; nothing is ever applied
+   automatically.
+3. **"Unmarked siphon" means empty at the current marking** (`marked:
+   false`), as sim counts it. Asserted classes (sim's fourth term) do not
+   exist in the editor, so they count 0.
+4. **Native edits replace the document with the engine's export.** It
+   renumbers place `offset`s and writes capacity 0 where the editor had
+   null; both mean the same, but the bytes, and so the CID, differ from a
+   hand edit.
+5. **A deadlock finding is advice:** "fine if it is the intended end
+   state". It does not count in the weight; sim's gate does not count it
+   either.
+6. **sim's rehearsal option** (the model plays its draft forward and the
+   engine replays it) is **not adopted**. The behaviour checks after every
+   edit round cover the same failure (a net that does not do what the model
+   thinks) with the engine's own answer.

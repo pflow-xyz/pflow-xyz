@@ -48,9 +48,10 @@ export async function openChat(view, { mode } = {}) {
         view._chatPanel.querySelector('.pv-chat-input').focus();
         return view._chatPanel;
     }
-    const [{ ChatSession }, R, manifest, reg, status] = await Promise.all([
+    const [stepsMod, R, manifest, reg, status] = await Promise.all([
         import('./petri-chat.js'), import('./petri-results.js'), loadManifest(), view.commands(), view._llmStatus(true),
     ]);
+    const { ChatSession } = stepsMod;
     if (!view._solverModule) view._solverModule = await import('./petri-solver.js');
 
     const panel = document.createElement('aside');
@@ -63,6 +64,7 @@ export async function openChat(view, { mode } = {}) {
             <button type="button" class="pv-btn" data-act="new" title="Start a new conversation">New</button>
             <button type="button" class="pv-dialog-close-icon" data-act="close" title="Close">×</button>
         </div>
+        <div class="pv-chat-steps" hidden></div>
         <div class="pv-chat-quota pv-result-dim"></div>
         <div class="pv-chat-log" aria-live="polite"></div>
         <div class="pv-chat-pending" hidden></div>
@@ -86,6 +88,14 @@ export async function openChat(view, { mode } = {}) {
     if (status.remaining_today !== undefined) $('.pv-chat-quota').textContent = `${status.remaining_today} model calls left today`;
 
     let chat = new ChatSession({ live: reg, manifest, post: turnPoster(view), mode: mode || 'analyse' });
+    const renderSteps = () => {
+        const box = $('.pv-chat-steps');
+        box.hidden = chat.mode !== 'build';
+        const { STEPS } = stepsMod;
+        const at = STEPS.indexOf(chat.step);
+        box.innerHTML = STEPS.map((s, i) => `<button type="button" class="pv-chat-step${i === at ? ' pv-active' : i < at ? ' pv-chat-step-past' : ''}" data-step="${s}" title="Move the interview to ${s}">${s}</button>`).join('');
+        box.querySelectorAll('[data-step]').forEach((b) => b.addEventListener('click', () => { chat.step = b.dataset.step; renderSteps(); }));
+    };
     const setMode = (m) => {
         chat.setMode(m);
         panel.querySelectorAll('.pv-chat-mode').forEach((b) => {
@@ -96,6 +106,8 @@ export async function openChat(view, { mode } = {}) {
     };
     panel._setMode = setMode;
     setMode(chat.mode);
+    renderSteps();
+    panel.querySelectorAll('.pv-chat-mode').forEach((b) => b.addEventListener('click', renderSteps));
     panel.querySelectorAll('.pv-chat-mode').forEach((b) => b.addEventListener('click', () => setMode(b.dataset.mode)));
 
     const say = (who, text) => {
@@ -106,16 +118,26 @@ export async function openChat(view, { mode } = {}) {
         log.scrollTop = log.scrollHeight;
     };
 
-    const renderPending = () => {
+    const renderPending = async () => {
         const box = $('.pv-chat-pending');
         if (!chat.pending) { box.hidden = true; box.innerHTML = ''; return; }
+        let gate = '';
+        try {
+            const w = await chat.weights();
+            const parts = (r) => [...r.dead_transitions.map((t) => `dead ${t}`), ...r.unmarked_siphons.map((s) => `empty siphon {${s.join(', ')}}`),
+                ...r.unreachable_goals.map((g) => `unreachable goal: ${g}`), ...r.lost_laws.map((l) => `lost law ${l}`)];
+            gate = `<p class="${w.worse ? 'pv-chat-err' : 'pv-result-dim'}">Defect weight ${w.before.weight} → ${w.after.weight}${w.worse ? ': these edits make the net worse' : ''}.
+                ${parts(w.after).length ? `<br>${esc(parts(w.after).join('; '))}` : ''}</p>`;
+            box.dataset.worse = w.worse ? '1' : '';
+        } catch { /* the gate is advice */ }
         const d = chat.diff();
         const lines = [...d.added.map((x) => `+ ${x}`), ...d.removed.map((x) => `− ${x}`), ...d.changed.map((x) => `~ ${x}`),
             ...d.arcsAdded.map((x) => `+ arc ${x}`), ...d.arcsRemoved.map((x) => `− arc ${x}`)];
         box.hidden = false;
         box.innerHTML = `<strong>Pending edits</strong> (not on the net yet)
             <ul>${lines.slice(0, 30).map((l) => `<li><code>${esc(l)}</code></li>`).join('')}${lines.length > 30 ? `<li>… ${lines.length - 30} more</li>` : ''}${d.empty ? '<li>no structural change (marking or undo only)</li>' : ''}</ul>
-            <button type="button" class="pv-btn pv-btn-primary" data-act="apply">Apply (one undo step)</button>
+            ${gate}
+            <button type="button" class="pv-btn pv-btn-primary" data-act="apply">${box.dataset.worse ? 'Apply anyway' : 'Apply'} (one undo step)</button>
             <button type="button" class="pv-btn" data-act="discard">Discard</button>`;
         box.querySelector('[data-act="apply"]').addEventListener('click', () => { chat.apply(); renderPending(); say('note', 'Applied. Undo brings the previous net back.'); });
         box.querySelector('[data-act="discard"]').addEventListener('click', () => { chat.discard(); renderPending(); say('note', 'Discarded the pending edits.'); });
@@ -180,6 +202,8 @@ export async function openChat(view, { mode } = {}) {
                 if (ev.type === 'reply') say('assistant', ev.text);
                 if (ev.type === 'call') { renderCall(ev.entry); $('.pv-chat-status').textContent = `ran ${ev.entry.command || ev.entry.name}`; }
                 if (ev.type === 'quota') $('.pv-chat-quota').textContent = `${ev.remaining} model calls left today`;
+                if (ev.type === 'step') { renderSteps(); say('note', `Interview step: ${ev.step}`); }
+                if (ev.type === 'checks' && ev.report.findings.length) say('note', `Checks: ${ev.report.findings.map((f) => f.category).join(', ')}`);
             });
             if (out.stopped) say('note', out.stopped);
         } catch (err) {
