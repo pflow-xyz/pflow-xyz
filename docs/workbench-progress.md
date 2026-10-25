@@ -19,7 +19,7 @@ themselves.
 | Phase | State | PR |
 |---|---|---|
 | 0 Foundations | ✅ merged into `workbench` | `phase0` |
-| 1 Describe it, get a draft | | |
+| 1 Describe it, get a draft | ✅ merged into `workbench` (ships dark) | `phase1` |
 | 2 Structural analysis | | |
 | 3 Simulation workbench | | |
 | 4 Chat modal + in-page MCP | | |
@@ -86,3 +86,96 @@ toast, and `el.execute` edits with undo.
   rates (`with_rates`). Today they disagree with pflow.xyz on
   `with-rates.jsonld`. Add that golden to
   `crates/core/tests/fixtures/cid/`.
+
+## Phase 1: describe it, get a draft
+
+Slice 1 as designed in `docs/design/guided-modelling-slice1.md`, except where
+noted below.
+
+What landed:
+
+- **The proxy** (`cmd/webserver/llm.go`). `GET /api/llm/status` and
+  `POST /api/llm/draft`, same-origin only, with the slice-1 status table
+  (400/401/403/405/413/429/502/503/504). The prompt is embedded
+  (`prompts/draft-net-v1.md`) and the draft `responseSchema` is set at
+  decoding time.
+- **`internal/llm`.**
+  - A provider-neutral `Client`. Messages can carry function calls and
+    responses, ready for phase 4.
+  - A REST Gemini client: the key goes in `x-goog-api-key`, the timeout is
+    45 s, replies are capped at 256 KB, and upstream error bodies are never
+    passed on.
+  - `Limiter`: a burst bucket, one call in flight per user, per-user and
+    global daily counts, and a JSONL usage log replayed at startup. It fails
+    closed.
+- **`internal/auth/verifier.go`.** A GitHub verifier with a 5 s timeout,
+  plus a 10-minute verified-token cache keyed by sha256. Failures are never
+  cached.
+- **The browser.**
+  - `public/petri-draft.js` is the load gate: `validateDraft`, a
+    deterministic `draftToNet`, then strict `validateNet` and the engine
+    checks.
+  - `public/petri-draft-ui.js` holds the Describe dialog (examples, counter,
+    quota, the replace warning, cancel), the sign-in round trip that keeps
+    the text, the failure view with paths and the raw reply, and the Draft
+    notes panel (summary, assumptions, a legend that selects and centres
+    nodes, rates, Regenerate).
+  - The entry points are a menu item and an empty-canvas prompt. Both appear
+    only when the status says enabled.
+- **Tests.** Go: the client, limits (including replay and fail-closed) and
+  the handlers, with no live calls. JS: 22 draft-gate tests, with one
+  negative fixture per rule. `make llm-eval GEMINI_API_KEY=…` is the opt-in
+  live eval. Its 20 descriptions go to `testdata/llm/`, which the JS suite
+  replays.
+
+Verified: `make test`, `bazel test` on the touched packages, and in a
+browser with the LLM routes stubbed in-page. Hidden when disabled; the
+empty-canvas prompt; Generate → gate → load → layout; Undo restores the
+previous net in one step; the notes legend selects and centres nodes; a bad
+draft shows each problem with its path and loads nothing.
+
+**To turn it on**, on pflow.dev, after `workbench` is merged to `main`:
+1. Add `GEMINI_API_KEY` (a dedicated key with a budget alert on its Google
+   project), and optionally `PFLOW_LLM_ALLOW=stackdump` for a soft launch,
+   to the pflow-xyz environment in `~/services`.
+2. Run `~/services restart pflow-xyz`.
+3. Run `make llm-eval GEMINI_API_KEY=…` once and commit `testdata/llm/`, so
+   the replay tests have something to replay.
+
+### Decisions to review (phase 1)
+
+1. **The draft's rates go into the net** (each transition's `rate`). Slice 1
+   kept them in the session because the format had no rate term. Phase 0
+   added one.
+2. **Defaults are the design's proposals:** 30 drafts per user per day,
+   burst 3 refilling every 20 s, 500 a day globally. The usage log is JSONL
+   (no SQLite), the provider seam is kept, and saved nets carry no
+   provenance.
+3. **Charging.** A `start` line is written before the upstream call, and
+   that line is the charge. A `done` line follows with tokens, status and
+   latency. Replay counts the `start` lines.
+4. **GitHub answers.** A 401 or 403 from GitHub means signed out (401 to the
+   client). Any other failure answers 503, never 401.
+5. **The laid-out draft is not its own undo step.** One Undo goes straight
+   back to the previous net. Redo returns the grid-placed draft, not the
+   laid-out one.
+6. **The few-shot example** is a coffee shop modelled on the café showcase,
+   not a verbatim showcase net, which is in a different format.
+7. **Not done from the design's test plan:**
+   - recorded replies, which need the key;
+   - the Go test asserting that go-pflow accepts exactly the nets
+     `validateNet` accepts (a follow-up).
+
+## Notes from the pflow-native session (2026-10-24)
+
+- **The wasm shim exists:** pflow-native commit `62923ff`, `crates/wasm`
+  (`pflow-native-wasm`). It is local on the Mac and not pushed yet.
+  - API: `new Engine()`, `listCommands(prefix)`, `execute(id, argsJson)`,
+    `batch(stepsJson)`, `load(jsonld)`, `Engine.version()`.
+  - Built without services, http, zk, rnn or png, with `make wasm-shim`
+    (wasm-bindgen `--target web`) into `target/wasm-shim/`.
+- **Spike numbers, under Node:** 175 commands, 16 ms init, 13 ms for the
+  first `analysis.invariants` on SIR. The bundle is 1.63 MB gzip, or 1.16 MB
+  with `opt-level=z` plus LTO.
+- **This settles open decision 2:** the shim lives in pflow-native
+  `crates/wasm`.

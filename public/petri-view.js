@@ -1292,6 +1292,54 @@ PetriView = class PetriView extends HTMLElement {
         }
     }
 
+    // ---------------- guided modelling (LLM drafting) ----------------
+    // /api/llm/status decides whether drafting is offered. A server without
+    // the route (a vendored copy of this component) answers 404, which reads
+    // as disabled, and petri-draft-ui.js is then never loaded.
+    _llmStatus(force = false) {
+        if (!force && this._llmStatusPromise) return this._llmStatusPromise;
+        const headers = this._authToken ? { Authorization: `Bearer ${this._authToken}` } : {};
+        this._llmStatusPromise = fetch('/api/llm/status', { headers })
+            .then(r => (r.ok ? r.json() : { enabled: false }))
+            .catch(() => ({ enabled: false }))
+            .then(s => {
+                this._llmEnabled = !!s.enabled;
+                this._updateDraftPrompt();
+                return s;
+            });
+        return this._llmStatusPromise;
+    }
+
+    async _openDraftDialog() {
+        const ui = await import('./petri-draft-ui.js');
+        ui.openDraftDialog(this);
+    }
+
+    async _openDraftNotes() {
+        const ui = await import('./petri-draft-ui.js');
+        ui.showDraftNotes(this);
+    }
+
+    // The empty-canvas prompt: a newcomer arrives at an empty canvas, so this is
+    // the main way in. Shown only while the net is empty and drafting is enabled.
+    _updateDraftPrompt() {
+        if (!this._root) return;
+        const m = this._model || {};
+        const empty = !Object.keys(m.places || {}).length && !Object.keys(m.transitions || {}).length;
+        const show = this._llmEnabled && empty;
+        let btn = this._draftPromptBtn;
+        if (show && !btn) {
+            btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'pv-btn pv-draft-prompt';
+            btn.textContent = '✨ Describe a process in words → get a draft net';
+            btn.addEventListener('click', () => this._openDraftDialog());
+            this._root.appendChild(btn);
+            this._draftPromptBtn = btn;
+        }
+        if (btn) btn.style.display = show ? '' : 'none';
+    }
+
     // ---------------- command registry ----------------
     // The host petri-commands.js drives: the document, its undo history, the
     // token game and the view. Commands never touch this._model directly;
@@ -2401,6 +2449,7 @@ PetriView = class PetriView extends HTMLElement {
             this.fitToView();
         }
         this._refreshRunUI?.();
+        this._updateDraftPrompt();
     }
 
     _updatePlaceElement(id, p) {
@@ -7245,6 +7294,18 @@ PetriView = class PetriView extends HTMLElement {
         }
 
         // Standard menu items
+        const draftItem = makeMenuItem('✨ Describe a process…', () => {
+            this._openDraftDialog();
+        });
+        draftItem.style.display = 'none';
+        menuContainer._menuContent.appendChild(draftItem);
+        const notesItem = makeMenuItem('📝 Draft notes', () => {
+            this._openDraftNotes();
+        });
+        notesItem.style.display = this._draftNotes ? '' : 'none';
+        menuContainer._menuContent.appendChild(notesItem);
+        this._llmStatus().then(s => { if (s.enabled) draftItem.style.display = ''; });
+
         const simulationItem = makeMenuItem('🧮 Analysis (ODE, scans, phase)', () => {
             this._showSimulationDialog();
         });

@@ -176,6 +176,7 @@ type Server struct {
 	publicFS          fs.FS
 	googleAnalyticsID string
 	schemaCache       schemaCache
+	llm               *llmService // nil when no GEMINI_API_KEY: the LLM routes report disabled
 }
 
 // handleCORS handles CORS preflight requests
@@ -987,6 +988,16 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// LLM proxy (llm.go): same-origin only, no handleCORS.
+	if r.URL.Path == "/api/llm/status" {
+		s.handleLLMStatus(w, r)
+		return
+	}
+	if r.URL.Path == "/api/llm/draft" {
+		s.handleLLMDraft(w, r)
+		return
+	}
+
 	// Token type route
 	if strings.HasPrefix(r.URL.Path, "/tokens/") {
 		s.handleTokenType(w, r)
@@ -1084,6 +1095,8 @@ func main() {
 		storage:  storage,
 		publicFS: publicFS,
 	}
+
+	server.configureLLM(*dataDir)
 
 	// Configure Google Analytics if set
 	if gaID := os.Getenv("GOOGLE_ANALYTICS_ID"); gaID != "" {
