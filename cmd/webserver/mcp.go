@@ -100,7 +100,7 @@ func mcpTools() []mcpTool {
 		},
 		{
 			Name:        "pflow_simulate",
-			Description: "Integrate the mass-action ODE (go-pflow Tsit5) from the net's initial marking, with each transition's rate (default 1.0) unless rates overrides it. Returns every place's final value and a sampled trajectory. Mean-field: wrong at small token counts and blind to inhibitor/read arcs and capacities.",
+			Description: "Integrate the mass-action ODE (go-pflow Tsit5) from the net's initial marking, with each transition's rate (default 1.0) unless rates overrides it. Returns every place's final value and a sampled trajectory. Mean-field: wrong at small token counts. A net with inhibitor/read arcs or capacities, which a continuous solver cannot test, runs instead on go-pflow's discrete SSA (mean of 20 seeded paths), the engine the page uses; engine and gates say so.",
 			InputSchema: obj(map[string]any{
 				"net":    netArg,
 				"t_end":  map[string]any{"type": "number", "description": "end time (default 10, ≤ 10000)"},
@@ -246,6 +246,10 @@ func mcpSimulate(_ *Server, _ *http.Request, args map[string]any) (any, error) {
 			rates[k] = f
 		}
 	}
+	n := int(pts)
+	if gm := gatedModel(doc, rates); len(gm.Gating()) > 0 {
+		return simulateGated(rates, tEnd, n, gm.Gating(), gm)
+	}
 	sol := solver.Solve(solver.NewProblem(net, net.SetState(nil), [2]float64{0, tEnd}, net.SetRates(rates)), solver.Tsit5(), solver.DefaultOptions())
 	final := sol.GetFinalState()
 	places := make([]string, 0, len(final))
@@ -253,7 +257,6 @@ func mcpSimulate(_ *Server, _ *http.Request, args map[string]any) (any, error) {
 		places = append(places, p)
 	}
 	sort.Strings(places)
-	n := int(pts)
 	times := make([]float64, n)
 	series := map[string][]float64{}
 	for i := 0; i < n; i++ {
