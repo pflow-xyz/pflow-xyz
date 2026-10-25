@@ -176,6 +176,8 @@ type Server struct {
 	publicFS          fs.FS
 	googleAnalyticsID string
 	schemaCache       schemaCache
+	llm               *llmService   // nil when no GEMINI_API_KEY: the LLM routes report disabled
+	mcpVerifier       auth.Verifier // /mcp's pflow_save sign-in check (mcp.go); built on first use
 }
 
 // handleCORS handles CORS preflight requests
@@ -987,6 +989,26 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// LLM proxy (llm.go): same-origin only, no handleCORS.
+	if r.URL.Path == "/api/llm/status" {
+		s.handleLLMStatus(w, r)
+		return
+	}
+	if r.URL.Path == "/api/llm/draft" {
+		s.handleLLMDraft(w, r)
+		return
+	}
+	if r.URL.Path == "/api/llm/turn" {
+		s.handleLLMTurn(w, r)
+		return
+	}
+
+	// pflow.xyz as an MCP server (mcp.go): stateless JSON-RPC over POST.
+	if r.URL.Path == "/mcp" {
+		s.handleMCP(w, r)
+		return
+	}
+
 	// Token type route
 	if strings.HasPrefix(r.URL.Path, "/tokens/") {
 		s.handleTokenType(w, r)
@@ -1049,6 +1071,11 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		// The vendored wasm shim is stored gzip-compressed only (wasm.go).
+		if s.serveGzippedWasm(w, r) {
+			return
+		}
+
 		// Serve other static files. The browser modules (petri-solver.js,
 		// petri-sim.js, petri-view.js, …) are meant to be importable from
 		// ad-hoc pages on other origins — module scripts are always
@@ -1084,6 +1111,8 @@ func main() {
 		storage:  storage,
 		publicFS: publicFS,
 	}
+
+	server.configureLLM(*dataDir)
 
 	// Configure Google Analytics if set
 	if gaID := os.Getenv("GOOGLE_ANALYTICS_ID"); gaID != "" {

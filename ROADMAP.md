@@ -166,10 +166,12 @@ Wasm adds what JS lacks and is loaded only when one of those commands runs.
 
 ### Phases
 
-Each phase ends with an exit criterion. Status lives in the parity matrix
+Each phase ends with an exit criterion. Progress, and every choice made
+without asking, is logged in [docs/workbench-progress.md](docs/workbench-progress.md).
+Status lives in the parity matrix
 (see open decision 1), not here.
 
-#### Phase 0: Foundations (no LLM)
+#### Phase 0: Foundations (no LLM) ✅
 
 - **Rates, goals and views in the model.** This resolves slice 1's open
   decision 1 now, because every later phase needs rates that survive a
@@ -177,29 +179,47 @@ Each phase ends with an exit criterion. Status lives in the parity matrix
   - Add the optional schema terms `rate` (transition), `goals` and
     `views`. **An absent term must leave the canonical form unchanged**, so
     every existing CID still verifies.
-  - Land it in lockstep in `internal/seal`, `seal-cid.mjs`,
-    `public/schema`, the parity goldens and pflow-native's `cid.rs`.
-- **The command registry** in `petri-commands.js`. Wrap every existing
+  - **Found (2026-10-24): the sealing context needs no change.** Its
+    `@vocab` (`https://pflow.xyz/schema#`) already maps any key, so `rate`,
+    `goals` and `views` hash as `schema#rate` and so on. Only a key that is
+    present enters the N-Quads. `internal/seal` and `seal-cid.mjs` stay as
+    they are. The work is in the editor, the published `public/schema` and
+    the parity goldens.
+  - ✅ **`rate`.** The Analysis dialog reads each transition's `rate`
+    (default 1.0) and writes back only the rates the user changes, as one
+    undo step, so an untouched net keeps its bytes and its CID. Helpers are
+    `rateOf`, `transitionRates` and `setTransitionRates` in `petri-sim.js`.
+    The `with-rates.jsonld` golden pins Go and JS on rates of 0, 0.001,
+    0.25 and 720.
+  - **pflow-native follow-up.** `file.load_json` moves `rate` out of the
+    document into session rates (`take_rates`), so `file.cid` hashes a net
+    with rates without them and disagrees with pflow.xyz on that golden.
+    `file.cid` and `file.seal` should seal `with_rates`, and the fixture
+    should join `crates/core/tests/fixtures/cid/`.
+  - `goals` and `views` wait for their validators (phases 6 and 7). A term
+    with no checks would be stored unchecked, which is what sim's views
+    rule against.
+- ✅ **The command registry** in `petri-commands.js`. Wrap every existing
   menu action and Analysis-dialog run. Undo stays whole-snapshot. Queries
   are not journalled.
-- **Typed results.** A Results panel renders artifacts by kind: TimeSeries,
+- ✅ **Typed results.** A Results panel renders artifacts by kind: TimeSeries,
   Table, Report, Trace, Sets, Matrix, Graph, Bars, Heatmap, Scatter. These
   are pflow-native's kinds, so exports match. Every result exports to CSV
   and JSON, and "copy as MCP call" is on every result.
-- **The strict validator** from slice 1 (`validateNet`), shared by load,
+- ✅ **The strict validator** from slice 1 (`validateNet`), shared by load,
   paste, the LLM gate and `/api/save`.
 - **Done when** a deno test drives the editor headless through the registry
   alone (load, edit, run the ODE, export), and the Analysis dialog contains
   no logic of its own.
 
-#### Phase 1: Describe it, get a draft (slice 1, as designed)
+#### Phase 1: Describe it, get a draft (slice 1, as designed) ✅ (ships dark until `GEMINI_API_KEY` is set)
 
 Ship [guided-modelling-slice1.md](docs/design/guided-modelling-slice1.md)
 unchanged: the proxy, auth, quota, the draft contract and the load gate.
 It is the proxy's first consumer and proves the cost and abuse controls
 before the tool loop raises the stakes.
 
-#### Phase 2: Structural analysis in the browser
+#### Phase 2: Structural analysis in the browser ✅
 
 - **Wasm spike, which is a decision gate.** Measure bundle size (gzip),
   cold load and first `execute` on the gallery nets, and run the parity
@@ -220,7 +240,7 @@ before the tool loop raises the stakes.
   reach, validate, canonical/classify; §C: Matrix, Graph, Trace) have a web
   status of ✅, with parity tests on the shared fixtures.
 
-#### Phase 3: Simulation workbench parity
+#### Phase 3: Simulation workbench parity ✅
 
 - **UI for engines that already exist in JS:**
   - SSA and SDE, with mean ± sd bands over seeded runs.
@@ -240,7 +260,7 @@ before the tool loop raises the stakes.
   same seed gives the same numbers in the browser, pflow-native and sim on
   the coffee-shop fixture.
 
-#### Phase 4: The chat modal and the in-page MCP
+#### Phase 4: The chat modal and the in-page MCP ✅ (ships dark)
 
 - **`POST /api/llm/turn`.**
   - It reuses slice 1's auth, quota, usage log and error table.
@@ -261,7 +281,7 @@ before the tool loop raises the stakes.
   replayed on the canvas, each step visible in the Tools panel, and a
   quota-exhausted user gets the 429 path from slice 1.
 
-#### Phase 5: The goal advisor ("what should I run?")
+#### Phase 5: The goal advisor ("what should I run?") ✅
 
 People know their goal, not the analysis that answers it. The advisor maps
 one to the other. **The map is data, not prompt:** a checked-in goal catalog
@@ -293,7 +313,7 @@ one to the other. **The map is data, not prompt:** a checked-in goal catalog
   end in a browser test, and the opt-in prompt eval (`llm-eval`, from slice
   1) routes a set of paraphrased goals to the right catalog entries.
 
-#### Phase 6: Model refinement, adopted from sim
+#### Phase 6: Model refinement, adopted from sim ✅
 
 sim's builder (`pkg/builder`) and `sim_refine` hold most of what this
 needs. Adopt them as ideas and data, not as imported code (sim is private).
@@ -329,7 +349,7 @@ needs. Adopt them as ideas and data, not as imported code (sim is private).
   interview, to a net with no checks failing and a defect weight of 0. The
   path is replayable from the Tools panel, and every edit can be undone.
 
-#### Phase 7: The app view and question-shaped controls, adopted from sim
+#### Phase 7: The app view and question-shaped controls, adopted from sim ✅
 
 sim presents a model as an app: a console whose controls are the questions
 an operator asks. Adopt that, while keeping the net visible beside the
@@ -361,7 +381,7 @@ console.
   roles and controls here as in sim's `/whatif/` console. A parity test
   runs both derivations on the same nets.
 
-#### Phase 8: MCP outside the page (optional)
+#### Phase 8: MCP outside the page (optional) ✅ `/mcp`; attach-to-tab deferred
 
 - **A remote `/mcp` on pflow.xyz.** Stateless tools over a posted net or a
   CID: validate, analyze, simulate, save and get. It uses GitHub OAuth, so
@@ -402,23 +422,23 @@ console.
 
 ### Open decisions
 
-1. **One parity matrix or two.** The proposal: add a **Web** status column
+1. ⏳ *Pending.* **One parity matrix or two.** The proposal: add a **Web** status column
    to `pflow-native/FEATURES.md` rather than keep a second matrix here,
    because a copy drifts and then lies. The cost is that pflow.xyz status
    lives in another repo.
-2. **Where the wasm shim lives.** pflow-native `crates/wasm` (proposed,
+2. ✅ *Decided: pflow-native `crates/wasm` (commit `62923ff`).* **Where the wasm shim lives.** pflow-native `crates/wasm` (proposed,
    since the registry is there), or a `pflow-wasm` crate in pflow-rs after
    §D's ports move upstream.
-3. **Where shared app-view JS lives.** `deriveRoles` and the disruption
+3. ⏳ *Half done: copied into `public/petri-roles.js`, pinned by `parity/roles/`; sim does not vendor it yet.* **Where shared app-view JS lives.** `deriveRoles` and the disruption
    grouping are sim's today. The ecosystem rule makes `pflow-xyz/public`
    canonical for shared browser JS, so the proposal is to move the
    derivation here and have sim vendor it (sim already keeps a
    `pflow-js.lock`). The sim-specific panels stay in sim.
-4. **The schema terms.** Whether `goals` and `views` belong in the
+4. ✅ *Built as proposed: optional terms in the net.* **The schema terms.** Whether `goals` and `views` belong in the
    content-addressed net (sim puts views in the hash, because their
    references are validated) or in a sidecar keyed by CID. Proposed: in the
    net, as optional terms, for the same reason sim gives.
-5. **The tool-call cap and quota unit.** Proposed: 8 tool calls per turn,
+5. ✅ *Built as proposed, plus at most 6 model calls per message.* **The tool-call cap and quota unit.** Proposed: 8 tool calls per turn,
    with the quota charged per model call.
 
 ### Order
@@ -428,3 +448,70 @@ console.
 The chat (phase 4) comes before the full workbench (phase 3) on purpose.
 Once the structural analyses exist, it has something worth calling, and the
 advisor's catalog fills in as phase 3's commands land.
+
+### Status (2026-10-25)
+
+Phases 0–8 are built and deployed (PRs #96–#104, merged to `main` as #105).
+"Attach to my tab" (phase 8) is deferred, as planned. The phase-by-phase
+log, with every choice made without asking, is
+[docs/workbench-progress.md](docs/workbench-progress.md);
+`git grep -n "REVIEW:"` finds the same choices in the code.
+
+**The LLM features ship dark.** Drafting (phase 1) and the Assistant (phase 4)
+appear only once `GEMINI_API_KEY` is set in pflow-xyz's `~/services`
+environment on pflow.dev, followed by `~/services restart pflow-xyz`. They
+have been tested only against a scripted model, never live Gemini.
+
+### Pending choices
+
+Each item below shipped with a default, so nothing is blocked. Each still
+wants an owner's decision.
+
+**To turn on the LLM features**
+1. **The Gemini key.** Use a dedicated key with a budget alert on its Google
+   project (slice-1 open decision 2).
+2. **Launch audience.** Everyone signed in, or `PFLOW_LLM_ALLOW=stackdump`
+   for a soft launch first (slice-1 decision 4).
+3. **Limits.** The defaults are 30 per user per day, burst 3, 500 a day
+   globally (`PFLOW_LLM_*`). The Assistant spends one unit per model call,
+   up to 6 per message, so is 30 a day enough for chat?
+4. **First live run.** Run `make llm-eval GEMINI_API_KEY=…` once and commit
+   `testdata/llm/`, so prompt changes have a regression net.
+
+**Behaviour that shipped with a default**
+
+5. **Unknown keys in a net are warnings, not errors** (Check net).
+   Otherwise sim exports and older nets would not load. Strict mode, used
+   only for drafts, makes them errors.
+6. **Check net is `analysis.check`.** `analysis.validate` is pflow-native's
+   pflow-validation, so the id means the same in both apps.
+7. **Native edits replace the document with the engine's export**
+   (`compose.fuse`). Offsets renumber and capacity reads 0 instead of null:
+   the same net, but different bytes and a different CID from a hand edit.
+8. **The refinement gate allows edits that leave the defect weight
+   unchanged.** sim's gate requires a strict decrease. An increase is
+   flagged and needs "Apply anyway".
+9. **Interview steps advance on a "Next: <step>" marker** in the reply,
+   not on a structured field.
+10. **No fungible classes in the App view.** Each member of a set like
+    `fork_0..fork_4` gets its own control. sim's server classifier, or native
+    `analysis.classify`, could collapse them.
+11. **`/mcp`.** `pflow_save` needs a GitHub bearer token (`/api/save` does
+    not); there is no OAuth server for MCP clients and no rate limit beyond
+    the per-call bounds.
+12. **Not yet exposed:** rate fitting (it needs an event-log import), data
+    conformance (the "data_match" goal is listed as unavailable), and a
+    two-net structural diff.
+
+**Follow-ups in other repos**
+
+13. **pflow-native:** `file.cid` and `file.seal` should hash the session
+    rates (they disagree with pflow.xyz on `with-rates.jsonld`).
+14. **pflow-native:** compile the SSA in document order, then drop the sort
+    from `public/petri-wasm_test.ts`'s parity test.
+15. **pflow-native:** a Web column in FEATURES.md (open decision 1).
+16. **sim-pflow-xyz:** vendor `public/petri-roles.js` with a lock (open
+    decision 3); regenerate `parity/roles/` when sim's derivation changes.
+17. **Workspace CLAUDE.md:** it says there is no auto-deploy on pflow.dev,
+    but pflow-xyz has a push webhook (`cmd/webserver/deploy.go`). A push to
+    `main` is a deploy.

@@ -3011,3 +3011,395 @@ canvas.pv-canvas {
     color: var(--pv-ink-secondary);
     text-decoration: underline;
 }
+
+/* Results dialog (petri-results.js renders the artifact itself) */
+.pv-results-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 8px 0 12px;
+}
+.pv-results-item {
+    text-align: left;
+}
+.pv-results-meta {
+    opacity: 0.7;
+    font-size: 0.85em;
+    margin-left: 6px;
+}
+.pv-results-view {
+    max-height: 60vh;
+    overflow: auto;
+}
+.pv-result-json {
+    white-space: pre-wrap;
+    font-size: 0.85em;
+}
+
+/* Guided modelling: the Describe dialog, the empty-canvas prompt, Draft notes */
+.pv-draft-text {
+    width: 100%;
+    box-sizing: border-box;
+    font: inherit;
+    padding: 8px;
+}
+.pv-draft-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.85em;
+    opacity: 0.8;
+    margin: 4px 0 8px;
+}
+.pv-draft-examples {
+    margin: 4px 0 8px;
+}
+.pv-draft-note,
+.pv-draft-progress {
+    font-size: 0.9em;
+}
+.pv-draft-issues code {
+    white-space: pre-wrap;
+}
+.pv-draft-prompt {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 5;
+    padding: 12px 18px;
+    font-size: 1rem;
+}
+.pv-draft-notes {
+    position: fixed;
+    top: 64px;
+    right: 16px;
+    width: min(360px, calc(100vw - 32px));
+    max-height: calc(100vh - 96px);
+    overflow: auto;
+    z-index: 1000;
+    padding: 12px 16px;
+    border-radius: 8px;
+    background: var(--pv-surface);
+    color: var(--pv-ink);
+    box-shadow: 0 4px 24px var(--pv-shadow-lg);
+    font-size: 0.9em;
+}
+.pv-draft-notes-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.pv-draft-notes h4 {
+    margin: 12px 0 4px;
+}
+.pv-draft-legend {
+    padding-left: 16px;
+}
+.pv-draft-locate {
+    background: none;
+    border: none;
+    padding: 0;
+    color: inherit;
+    cursor: pointer;
+    text-decoration: underline dotted;
+}
+.pv-draft-kind,
+.pv-draft-small {
+    opacity: 0.7;
+    font-size: 0.85em;
+}
+
+/* Structure results on the canvas and in dialogs */
+.pv-node.pv-highlight {
+    box-shadow: 0 0 0 4px var(--pv-accent), 0 0 12px var(--pv-accent);
+    border-radius: 50%;
+}
+.pv-node.pv-transition.pv-highlight {
+    border-radius: 2px;
+}
+.pv-node .pv-highlight-badge {
+    position: absolute;
+    top: -10px;
+    right: -10px;
+    min-width: 18px;
+    padding: 0 4px;
+    border-radius: 9px;
+    background: var(--pv-accent);
+    color: var(--pv-accent-ink);
+    font-size: 11px;
+    line-height: 18px;
+    text-align: center;
+    pointer-events: none;
+}
+.pv-structure-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 8px 0;
+}
+.pv-structure-targets {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 6px 0;
+}
+.pv-structure-targets input {
+    width: 5em;
+}
+.pv-structure-results {
+    max-height: 55vh;
+    overflow: auto;
+}
+.pv-result-dim {
+    opacity: 0.7;
+    font-size: 0.85em;
+}
+.pv-result-sets li,
+.pv-result-trace li,
+.pv-result-states li {
+    margin: 3px 0;
+}
+.pv-result-graph {
+    max-width: 100%;
+    height: auto;
+}
+.pv-graph-edge {
+    stroke: var(--pv-ink-muted);
+    stroke-width: 1;
+}
+.pv-graph-node {
+    fill: var(--pv-surface);
+    stroke: var(--pv-ink);
+    stroke-width: 1.5;
+}
+.pv-graph-initial {
+    stroke: var(--pv-accent);
+    stroke-width: 3;
+}
+.pv-graph-dead {
+    fill: var(--pv-danger-surface);
+    stroke: var(--pv-danger);
+}
+.pv-graph-label {
+    font-size: 9px;
+    fill: var(--pv-ink-secondary);
+}
+.pv-graph-hit {
+    cursor: pointer;
+}
+
+/* The Assistant panel (petri-chat-ui.js): docked, not modal */
+.pv-chat {
+    position: fixed;
+    top: 64px;
+    right: 16px;
+    bottom: 16px;
+    width: min(420px, calc(100vw - 32px));
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    z-index: 1000;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: var(--pv-surface);
+    color: var(--pv-ink);
+    box-shadow: 0 4px 24px var(--pv-shadow-lg);
+    font-size: 0.9em;
+}
+.pv-chat-head {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.pv-chat-modes {
+    display: flex;
+    gap: 2px;
+    margin-left: auto;
+}
+.pv-chat-mode.pv-active {
+    background: var(--pv-accent);
+    color: var(--pv-accent-ink);
+}
+.pv-chat-log {
+    flex: 1;
+    overflow: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.pv-chat-msg {
+    white-space: pre-wrap;
+    padding: 6px 8px;
+    border-radius: 6px;
+    max-width: 92%;
+}
+.pv-chat-user {
+    align-self: flex-end;
+    background: var(--pv-info-surface);
+    color: var(--pv-info-ink);
+}
+.pv-chat-assistant {
+    align-self: flex-start;
+    background: var(--pv-panel);
+}
+.pv-chat-note {
+    align-self: center;
+    opacity: 0.75;
+    font-size: 0.9em;
+}
+.pv-chat-pending {
+    border: 1px solid var(--pv-warning);
+    border-radius: 6px;
+    padding: 6px 8px;
+    max-height: 30vh;
+    overflow: auto;
+}
+.pv-chat-tools {
+    max-height: 30vh;
+    overflow: auto;
+}
+.pv-chat-calls {
+    padding-left: 18px;
+}
+.pv-chat-call {
+    margin: 4px 0;
+}
+.pv-chat-err {
+    color: var(--pv-danger);
+}
+.pv-chat-call-acts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 2px;
+}
+.pv-chat-art svg {
+    max-width: 100%;
+    height: auto;
+}
+.pv-chat-form {
+    display: flex;
+    gap: 6px;
+}
+.pv-chat-input {
+    flex: 1;
+    font: inherit;
+    resize: vertical;
+}
+
+/* Bars (tornado), heatmap and scatter results */
+.pv-result-bars,
+.pv-result-heatmap,
+.pv-result-scatter {
+    max-width: 100%;
+    height: auto;
+}
+.pv-bars-bar {
+    fill: var(--pv-accent);
+}
+.pv-bars-axis {
+    stroke: var(--pv-ink-muted);
+    stroke-width: 1;
+}
+.pv-bars-label,
+.pv-bars-value {
+    font-size: 11px;
+    fill: var(--pv-ink-secondary);
+}
+.pv-scatter-pt {
+    fill: var(--pv-ink-muted);
+}
+.pv-scatter-front {
+    fill: var(--pv-accent);
+    stroke: var(--pv-ink);
+}
+
+/* What do you want to know? (petri-goals-ui.js) */
+.pv-goals-search {
+    width: 100%;
+    box-sizing: border-box;
+    font: inherit;
+    padding: 6px 8px;
+    margin: 6px 0;
+}
+.pv-goals-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 8px 0;
+}
+.pv-goals-off {
+    opacity: 0.6;
+}
+.pv-goals-caveat {
+    border-left: 3px solid var(--pv-warning);
+    padding-left: 8px;
+}
+.pv-goals-inputs > div {
+    margin: 4px 0;
+}
+
+/* Build mode's interview steps */
+.pv-chat-steps {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px;
+}
+.pv-chat-step {
+    font: inherit;
+    font-size: 0.8em;
+    padding: 1px 8px;
+    border-radius: 10px;
+    border: 1px solid var(--pv-border);
+    background: none;
+    color: var(--pv-ink-muted);
+    cursor: pointer;
+}
+.pv-chat-step.pv-active {
+    background: var(--pv-accent);
+    border-color: var(--pv-accent);
+    color: var(--pv-accent-ink);
+}
+.pv-chat-step-past {
+    color: var(--pv-success);
+    border-color: var(--pv-success);
+}
+
+/* The App view (petri-appview-ui.js): docked on the left, the net stays visible */
+.pv-appview {
+    position: fixed;
+    top: 64px;
+    left: 16px;
+    bottom: 16px;
+    width: min(400px, calc(100vw - 32px));
+    overflow: auto;
+    z-index: 999;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: var(--pv-surface);
+    color: var(--pv-ink);
+    box-shadow: 0 4px 24px var(--pv-shadow-lg);
+    font-size: 0.9em;
+}
+.pv-appview h4 {
+    margin: 10px 0 4px;
+}
+.pv-appview-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    margin: 3px 0;
+}
+.pv-appview-row input[type="number"] {
+    width: 6em;
+}
+.pv-appview-touch {
+    opacity: 0.65;
+    font-size: 0.8em;
+}
+.pv-appview-views {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px;
+}

@@ -1,0 +1,1464 @@
+{
+  "version": "tools-v1",
+  "tools": [
+    {
+      "name": "file_new",
+      "command": "file.new",
+      "description": "New. Replace the document with an empty net."
+    },
+    {
+      "name": "file_export_json",
+      "command": "file.export_json",
+      "description": "Export JSON. The document as pflow.xyz JSON-LD (unbounded capacities as null)."
+    },
+    {
+      "name": "file_cid",
+      "command": "file.cid",
+      "description": "Compute CID. The CID the document seals to (the same as /api/save and pflow-native file.cid)."
+    },
+    {
+      "name": "edit_undo",
+      "command": "edit.undo",
+      "description": "Undo. Undo the last edit."
+    },
+    {
+      "name": "edit_redo",
+      "command": "edit.redo",
+      "description": "Redo. Redo the last undone edit."
+    },
+    {
+      "name": "edit_delete",
+      "command": "edit.delete",
+      "description": "Delete. Delete places and transitions, with every arc that touches them.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "ids": {
+            "description": "node ids",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "ids"
+        ]
+      }
+    },
+    {
+      "name": "net_info",
+      "command": "net.info",
+      "description": "Net info. Counts, ids, labels and rates: a summary of the net."
+    },
+    {
+      "name": "net_add_place",
+      "command": "net.add_place",
+      "description": "Add place. Add a place at (x, y).",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "x": {
+            "description": "x",
+            "type": "number"
+          },
+          "y": {
+            "description": "y",
+            "type": "number"
+          },
+          "id": {
+            "description": "id (default: the first free p0, p1, …)",
+            "type": "string"
+          },
+          "label": {
+            "description": "label",
+            "type": "string"
+          },
+          "initial": {
+            "description": "initial tokens (default 0)",
+            "type": "array",
+            "minimum": 0,
+            "items": {
+              "type": "integer"
+            }
+          },
+          "capacity": {
+            "description": "capacity; 0 or null = unbounded (default)",
+            "type": "array",
+            "nullable": true,
+            "minimum": 0,
+            "items": {
+              "type": "integer"
+            }
+          }
+        },
+        "required": [
+          "x",
+          "y"
+        ]
+      }
+    },
+    {
+      "name": "net_add_transition",
+      "command": "net.add_transition",
+      "description": "Add transition. Add a transition at (x, y).",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "x": {
+            "description": "x",
+            "type": "number"
+          },
+          "y": {
+            "description": "y",
+            "type": "number"
+          },
+          "id": {
+            "description": "id (default: the first free t0, t1, …)",
+            "type": "string"
+          },
+          "label": {
+            "description": "label",
+            "type": "string"
+          },
+          "rate": {
+            "description": "rate (default 1.0)",
+            "type": "number",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "x",
+          "y"
+        ]
+      }
+    },
+    {
+      "name": "net_add_arc",
+      "command": "net.add_arc",
+      "description": "Add arc. Add an arc between a place and a transition. inhibit on place→transition is an inhibitor arc; on transition→place it is a read arc (the editor's output-side inhibit).",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "source": {
+            "description": "source id",
+            "type": "string"
+          },
+          "target": {
+            "description": "target id",
+            "type": "string"
+          },
+          "weight": {
+            "description": "weight (default 1)",
+            "type": "array",
+            "minimum": 0,
+            "items": {
+              "type": "integer"
+            }
+          },
+          "inhibit": {
+            "description": "inhibitor / read arc (default false)",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "source",
+          "target"
+        ]
+      }
+    },
+    {
+      "name": "net_set_arc",
+      "command": "net.set_arc",
+      "description": "Set arc. Change an arc's weight or whether it inhibits.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "source": {
+            "description": "source id",
+            "type": "string"
+          },
+          "target": {
+            "description": "target id",
+            "type": "string"
+          },
+          "weight": {
+            "description": "weight",
+            "type": "array",
+            "minimum": 0,
+            "items": {
+              "type": "integer"
+            }
+          },
+          "inhibit": {
+            "description": "inhibitor / read arc",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "source",
+          "target"
+        ]
+      }
+    },
+    {
+      "name": "net_delete_arc",
+      "command": "net.delete_arc",
+      "description": "Delete arc. Delete the arc(s) from source to target.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "source": {
+            "description": "source id",
+            "type": "string"
+          },
+          "target": {
+            "description": "target id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source",
+          "target"
+        ]
+      }
+    },
+    {
+      "name": "net_set_place",
+      "command": "net.set_place",
+      "description": "Set place. Set a place's initial marking and/or capacity (0 or null = unbounded). An initial marking over capacity is refused, not clamped.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "description": "place id",
+            "type": "string"
+          },
+          "initial": {
+            "description": "initial tokens",
+            "type": "array",
+            "minimum": 0,
+            "items": {
+              "type": "integer"
+            }
+          },
+          "capacity": {
+            "description": "capacity; 0 or null = unbounded",
+            "type": "array",
+            "nullable": true,
+            "minimum": 0,
+            "items": {
+              "type": "integer"
+            }
+          }
+        },
+        "required": [
+          "id"
+        ]
+      }
+    },
+    {
+      "name": "net_set_label",
+      "command": "net.set_label",
+      "description": "Set label. Set a node's label (≤ 100 characters, one line).",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "description": "node id",
+            "type": "string"
+          },
+          "label": {
+            "description": "new label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "label"
+        ]
+      }
+    },
+    {
+      "name": "net_add_tokens",
+      "command": "net.add_tokens",
+      "description": "Add tokens. Add (or with a negative delta, remove) tokens of one color. Refused below zero or over capacity.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "description": "place id",
+            "type": "string"
+          },
+          "delta": {
+            "description": "tokens to add (default 1)",
+            "type": "integer"
+          },
+          "color": {
+            "description": "color index (default 0)",
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "id"
+        ]
+      }
+    },
+    {
+      "name": "net_move",
+      "command": "net.move",
+      "description": "Move node. Move a node to (x, y).",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "description": "node id",
+            "type": "string"
+          },
+          "x": {
+            "description": "x",
+            "type": "number"
+          },
+          "y": {
+            "description": "y",
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "x",
+          "y"
+        ]
+      }
+    },
+    {
+      "name": "net_rename",
+      "command": "net.rename",
+      "description": "Rename node. Change a node's id, updating every arc.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "description": "current id",
+            "type": "string"
+          },
+          "new_id": {
+            "description": "new id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "new_id"
+        ]
+      }
+    },
+    {
+      "name": "net_set_details",
+      "command": "net.set_details",
+      "description": "Edit details. Set the net's name and description (an empty string removes one).",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "description": "diagram name",
+            "type": "string"
+          },
+          "description": {
+            "description": "description",
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "name": "sim_enabled",
+      "command": "sim.enabled",
+      "description": "Enabled transitions. The transitions enabled at the current marking."
+    },
+    {
+      "name": "sim_marking",
+      "command": "sim.marking",
+      "description": "Marking. The current marking, per place, per color."
+    },
+    {
+      "name": "sim_fire",
+      "command": "sim.fire",
+      "description": "Fire. Fire one transition (the token game). Refused when it is not enabled.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "description": "transition id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ]
+      }
+    },
+    {
+      "name": "sim_reset",
+      "command": "sim.reset",
+      "description": "Reset marking. Back to the marking the run started from."
+    },
+    {
+      "name": "sim_set_rate",
+      "command": "sim.set_rate",
+      "description": "Set rate. Set a transition's rate (≥ 0; 0 disables it in the ODE). Rates are part of the document.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "description": "transition id",
+            "type": "string"
+          },
+          "rate": {
+            "description": "rate ≥ 0",
+            "type": "number",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "id",
+          "rate"
+        ]
+      }
+    },
+    {
+      "name": "sim_ode",
+      "command": "sim.ode",
+      "description": "Run ODE. Integrate the mass-action ODE from the current marking (Tsit5, the document's rates) and store a time-series artifact. The result carries initial, final and delta per place.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "t_end": {
+            "description": "end time (default 10)",
+            "type": "number",
+            "minimum": 1e-9
+          },
+          "points": {
+            "description": "max points stored (default 200)",
+            "type": "integer",
+            "minimum": 2,
+            "maximum": 100000
+          },
+          "places": {
+            "description": "places to keep (default: all)",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "method": {
+            "description": "tsit5 (the only method in the browser; pflow-native also has rk45, rk4, euler, heun, midpoint, bs32)",
+            "type": "string"
+          },
+          "dt": {
+            "description": "initial step (default 0.01)",
+            "type": "number",
+            "minimum": 1e-12
+          },
+          "abstol": {
+            "description": "absolute tolerance (default 1e-6)",
+            "type": "number",
+            "minimum": 1e-15
+          },
+          "reltol": {
+            "description": "relative tolerance (default 1e-3)",
+            "type": "number",
+            "minimum": 1e-15
+          },
+          "dtmax": {
+            "description": "largest step (default: unbounded)",
+            "type": "number",
+            "minimum": 1e-12
+          }
+        }
+      }
+    },
+    {
+      "name": "opt_rate_scan",
+      "command": "opt.rate_scan",
+      "description": "Rate scan. Sweep one transition's rate and record each place's value at t_end (the editor's steady-state reading, not a detected equilibrium). Stores a time-series artifact whose x axis is the rate.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "transition": {
+            "description": "transition whose rate is scanned",
+            "type": "string"
+          },
+          "from": {
+            "description": "first rate",
+            "type": "number",
+            "minimum": 0
+          },
+          "to": {
+            "description": "last rate",
+            "type": "number",
+            "minimum": 0
+          },
+          "steps": {
+            "description": "rates tried (default 9, at most 25)",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 25
+          },
+          "t_end": {
+            "description": "end time of each run (default 50)",
+            "type": "number",
+            "minimum": 1e-9
+          },
+          "places": {
+            "description": "places to record (default: all)",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "method": {
+            "description": "tsit5 (the only method in the browser; pflow-native also has rk45, rk4, euler, heun, midpoint, bs32)",
+            "type": "string"
+          },
+          "dt": {
+            "description": "initial step (default 0.01)",
+            "type": "number",
+            "minimum": 1e-12
+          },
+          "abstol": {
+            "description": "absolute tolerance (default 1e-6)",
+            "type": "number",
+            "minimum": 1e-15
+          },
+          "reltol": {
+            "description": "relative tolerance (default 1e-3)",
+            "type": "number",
+            "minimum": 1e-15
+          },
+          "dtmax": {
+            "description": "largest step (default: unbounded)",
+            "type": "number",
+            "minimum": 1e-12
+          }
+        },
+        "required": [
+          "transition",
+          "from",
+          "to"
+        ]
+      }
+    },
+    {
+      "name": "opt_sweep",
+      "command": "opt.sweep",
+      "description": "Sweep. One place's trajectory for each of several rates of one transition, resampled onto one time grid. Stores a time-series artifact with one series per rate (group k=<rate>).",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "transition": {
+            "description": "transition whose rate is swept",
+            "type": "string"
+          },
+          "place": {
+            "description": "place observed",
+            "type": "string"
+          },
+          "from": {
+            "description": "first rate",
+            "type": "number",
+            "minimum": 0
+          },
+          "to": {
+            "description": "last rate",
+            "type": "number",
+            "minimum": 0
+          },
+          "steps": {
+            "description": "rates tried (default 9, at most 25)",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 25
+          },
+          "t_end": {
+            "description": "end time (default 10)",
+            "type": "number",
+            "minimum": 1e-9
+          },
+          "points": {
+            "description": "grid points (default 200)",
+            "type": "integer",
+            "minimum": 2,
+            "maximum": 10000
+          },
+          "method": {
+            "description": "tsit5 (the only method in the browser; pflow-native also has rk45, rk4, euler, heun, midpoint, bs32)",
+            "type": "string"
+          },
+          "dt": {
+            "description": "initial step (default 0.01)",
+            "type": "number",
+            "minimum": 1e-12
+          },
+          "abstol": {
+            "description": "absolute tolerance (default 1e-6)",
+            "type": "number",
+            "minimum": 1e-15
+          },
+          "reltol": {
+            "description": "relative tolerance (default 1e-3)",
+            "type": "number",
+            "minimum": 1e-15
+          },
+          "dtmax": {
+            "description": "largest step (default: unbounded)",
+            "type": "number",
+            "minimum": 1e-12
+          }
+        },
+        "required": [
+          "transition",
+          "place",
+          "from",
+          "to"
+        ]
+      }
+    },
+    {
+      "name": "sim_ssa",
+      "command": "sim.ssa",
+      "description": "Run SSA. Gillespie stochastic simulation from the current marking with the document's rates (petri-ssa.js: go-pflow's portable SSA, byte-exact with pflow-native's sim.ssa on the same seed). runs > 1 averages realizations and stores the mean with a ±1 sd band. Exact for small token counts and for nets the ODE cannot read (inhibitor or read arcs, capacities).",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "t_end": {
+            "description": "end time (default 10, ≤ 10000)",
+            "type": "number",
+            "minimum": 1e-9,
+            "maximum": 10000
+          },
+          "seed": {
+            "description": "RNG seed (default 1); realization r uses seed + r",
+            "type": "integer",
+            "minimum": 0
+          },
+          "runs": {
+            "description": "realizations averaged (default 1, ≤ 200)",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 200
+          },
+          "points": {
+            "description": "sample points from 0 to t_end (default 101, 2..5000)",
+            "type": "integer",
+            "minimum": 2,
+            "maximum": 5000
+          },
+          "places": {
+            "description": "places to keep (default: all)",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "sim_sde",
+      "command": "sim.sde",
+      "description": "Run SDE. Chemical Langevin SDE (petri-sde.js) from the current marking: continuous with intrinsic noise, cheap at large populations. Same output shape as sim.ssa. Refuses nets with inhibitor or read arcs or reachable capacities, which a diffusion cannot express (use sim.ssa).",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "t_end": {
+            "description": "end time (default 10, ≤ 10000)",
+            "type": "number",
+            "minimum": 1e-9,
+            "maximum": 10000
+          },
+          "seed": {
+            "description": "RNG seed (default 1); realization r uses seed + r",
+            "type": "integer",
+            "minimum": 0
+          },
+          "runs": {
+            "description": "realizations averaged (default 1, ≤ 200)",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 200
+          },
+          "points": {
+            "description": "sample points from 0 to t_end (default 101, 2..5000)",
+            "type": "integer",
+            "minimum": 2,
+            "maximum": 5000
+          },
+          "places": {
+            "description": "places to keep (default: all)",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "dt": {
+            "description": "integration step (default: (t_end / (points-1)) / 20)",
+            "type": "number",
+            "minimum": 1e-12
+          }
+        }
+      }
+    },
+    {
+      "name": "sim_what_if",
+      "command": "sim.what_if",
+      "description": "What if one more. The same seeded stochastic runs with and without delta more tokens in one place (sim.compare on one shared seed): an overlay of both and a table of final means. The shared seed makes the difference measure the change, not the dice.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "place": {
+            "description": "the place that gets more tokens",
+            "type": "string"
+          },
+          "delta": {
+            "description": "tokens to add (default 1; may be negative)",
+            "type": "integer"
+          },
+          "t_end": {
+            "description": "horizon (default 10)",
+            "type": "number",
+            "minimum": 1e-9
+          },
+          "runs": {
+            "description": "realizations per arm (default 16, ≤ 200)",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 200
+          },
+          "seed": {
+            "description": "shared seed (default 7)",
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "place"
+        ]
+      }
+    },
+    {
+      "name": "sim_recommend",
+      "command": "sim.recommend",
+      "description": "Which engine?. Which engine to run this net with, and why (docs/engine-selection.md): constraints the ODE cannot see (inhibitor or read arcs, capacities) need the SSA; small token counts make the ODE's mean misleading and the SSA's spread matter; large unconstrained populations suit the ODE (and the SDE for noise). Also proposes a horizon, a seed and a run count."
+    },
+    {
+      "name": "net_set_goals",
+      "command": "net.set_goals",
+      "description": "Set goals. Declare the net's reachability goals: markings it should be able to reach, e.g. [{\"label\": \"everyone served\", \"to\": {\"served\": 10}}]. \"to\" constrains only the places it names. The refinement gate (analysis.defects) counts a goal analysis.reach answers \"no\" to. An empty list removes them.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "goals": {
+            "description": "[{label?, to: {place: count}}]",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "goals"
+        ]
+      }
+    },
+    {
+      "name": "net_set_views",
+      "command": "net.set_views",
+      "description": "Set views. Declare the net's app screens (sim's Model.View): each a named projection, the places and transitions one screen presents, a role (board, dashboard, controls, advisor, trust, log), an optional title and prompt, and links to the views it navigates to. Every reference is checked; an empty list removes them.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "views": {
+            "description": "[{id, role?, title?, prompt?, places?, transitions?, links?}]",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "views"
+        ]
+      }
+    },
+    {
+      "name": "file_export_sim",
+      "command": "file.export_sim",
+      "description": "Export for sim.pflow.xyz. The net in sim.pflow.xyz's model shape (places with initial counts, transitions with rates, arcs as from/to with read and inhibitor types, labels as tags), ready for sim_create_model. Read arcs are written place → transition, as sim expects."
+    },
+    {
+      "name": "analysis_roles",
+      "command": "analysis.roles",
+      "description": "Roles. What a console knows about the net before anyone runs it (sim's deriveRoles): pools an operator could add to, arrival sources, losses (patience), queues, terminal outcomes and services, and the disruptions those imply, grouped by the question they ask. The App view is built from this.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "horizon": {
+            "description": "hours the derived waves span (default 8)",
+            "type": "number",
+            "minimum": 1
+          }
+        }
+      }
+    },
+    {
+      "name": "analysis_behaviour",
+      "command": "analysis.behaviour",
+      "description": "Behaviour checks. sim's builder checks on the token game: parts of the net not connected to the rest, transitions that never fire, places nothing ever fills, a reachable marking where nothing can fire (with a trace), and a place growing past the token bound. One bounded exploration (max_states markings); when the bound is hit, claims needing the whole space are left out, not guessed.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "max_states": {
+            "description": "markings to explore (default 2000, ≤ 50000)",
+            "type": "integer",
+            "minimum": 10,
+            "maximum": 50000
+          },
+          "unbounded_tokens": {
+            "description": "a place past this many tokens counts as unbounded (default 1000)",
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      }
+    },
+    {
+      "name": "analysis_defects",
+      "command": "analysis.defects",
+      "description": "Defect weight. sim's refinement gate, engine-computed: dead transitions + unmarked siphons (that can empty and stop transitions for good) + declared goals analysis.reach answers \"no\" to + conservation laws of a baseline that no longer hold. 0 is clean. Pass baseline_laws (P-invariant coefficient maps, e.g. from the net before an edit) to count lost laws; leave it out to count none.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "baseline_laws": {
+            "description": "[{place: coefficient}] from an earlier net",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "max_states": {
+            "description": "budget for the exploration and each goal (default 2000)",
+            "type": "integer",
+            "minimum": 10,
+            "maximum": 50000
+          }
+        }
+      }
+    },
+    {
+      "name": "analysis_check",
+      "command": "analysis.check",
+      "description": "Check net. The editor's strict check: every problem the editor would otherwise repair quietly, with a path, plus warnings. With engines (default true) and no errors, also runs the firing rule, the ODE solver's reading and CID sealing. Stores a report artifact.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "strict": {
+            "description": "a key the editor does not write is an error (default false)",
+            "type": "boolean"
+          },
+          "engines": {
+            "description": "run the engine checks too (default true)",
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    {
+      "name": "sim_goto",
+      "command": "sim.goto",
+      "description": "Go to marking. Load a marking from a result onto the net: a step of a trace artifact (step), or a state of a graph artifact (node). The run baseline is kept, so Reset marking returns to where the run started.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "description": "trace or graph artifact id",
+            "type": "string"
+          },
+          "step": {
+            "description": "trace step index",
+            "type": "integer",
+            "minimum": 0
+          },
+          "node": {
+            "description": "graph node id (its data.marking is loaded)",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ]
+      }
+    },
+    {
+      "name": "view_highlight",
+      "command": "view.highlight",
+      "description": "Highlight nodes. Mark places/transitions on the canvas, optionally with a number badge each (e.g. invariant coefficients).",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "nodes": {
+            "description": "place/transition ids",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "label": {
+            "description": "what the highlight means",
+            "type": "string"
+          },
+          "weights": {
+            "type": "string",
+            "description": "{node: number} badges (pass a JSON value as a string)"
+          }
+        },
+        "required": [
+          "nodes"
+        ]
+      },
+      "json_args": [
+        "weights"
+      ]
+    },
+    {
+      "name": "view_clear_highlight",
+      "command": "view.clear_highlight",
+      "description": "Clear highlight. Remove the canvas highlight."
+    },
+    {
+      "name": "artifact_show_set",
+      "command": "artifact.show_set",
+      "description": "Show set. Highlight one node set of a sets artifact (an invariant's support, a siphon, an orbit) on the canvas; without a view, return it.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "description": "artifact id",
+            "type": "string"
+          },
+          "index": {
+            "description": "set index (default 0)",
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "id"
+        ]
+      }
+    },
+    {
+      "name": "artifact_list",
+      "command": "artifact.list",
+      "description": "Results. The stored artifacts, newest last: id, title, kind and the command that made each."
+    },
+    {
+      "name": "artifact_get",
+      "command": "artifact.get",
+      "description": "Get result. One artifact in full.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "description": "artifact id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ]
+      }
+    },
+    {
+      "name": "view_fit",
+      "command": "view.fit",
+      "description": "Fit to view. Frame the whole net."
+    },
+    {
+      "name": "analysis_validate",
+      "command": "analysis.validate",
+      "description": "Validate. pflow-validation's structural checks (structure, connectivity, deadlocks, unboundedness, conservation) as a table, with a summary report. `reachability` also explores the state space (up to max_states).",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "reachability": {
+            "description": "also run a bounded reachability analysis (default false)",
+            "type": "boolean"
+          },
+          "max_states": {
+            "description": "state limit for it, 1..200000 (default 10000)",
+            "type": "integer"
+          }
+        }
+      }
+    },
+    {
+      "name": "analysis_incidence",
+      "command": "analysis.incidence",
+      "description": "Incidence Matrix. The incidence matrix C = post − pre (rows: places in document order, `place.color` per used colour on a coloured net; columns: transitions). Read and inhibitor arcs move nothing, so they do not enter it. Returns pre and post too."
+    },
+    {
+      "name": "analysis_invariants",
+      "command": "analysis.invariants",
+      "description": "Invariants. Minimal semi-positive P-invariants (conservation laws, valued at the current marking) and T-invariants (firing counts that return the net to its marking), by Farkas elimination. Stores one node set per invariant (show one on the net) and the basis as a matrix; reports P-coverage (covered ⇒ structurally bounded) and T-coverage.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "description": "\"p\", \"t\" or \"both\" (default both)",
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "name": "analysis_siphons",
+      "command": "analysis.siphons",
+      "description": "Siphons & Traps. Every minimal siphon and trap, from the arc structure alone (sim_invariants' siphon/trap report). Marks each siphon empty at the current marking (a deadlock witness: the transitions needing it never fire again) and whether it contains a marked trap (Commoner's property, which certifies deadlock freedom for ordinary nets and liveness for free-choice ones). Refuses nets over 128 token places or a search over budget."
+    },
+    {
+      "name": "analysis_verify",
+      "command": "analysis.verify",
+      "description": "Verify Properties. Check properties (sim_verify's JSON): deadlock-free, bounded (with bound k > 0: every place ≤ k), live, terminating, reachable/unreachable {target}, invariant {expr}, mutual-exclusion {places, bound}, conserves. Each verdict is proved / refuted / unknown with its method (structural holds for any initial marking; exhaustive for this one; partial = truncated). Every refutation with a replayable counterexample stores a trace.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "properties": {
+            "type": "string",
+            "description": "array of properties (or a JSON string of one); default bounded + deadlock-free (pass a JSON value as a string)"
+          },
+          "max_states": {
+            "description": "exhaustive-search budget, 1..100000 (default 20000)",
+            "type": "integer"
+          },
+          "from_current": {
+            "description": "verify from the canvas marking instead of the declared initial marking",
+            "type": "boolean"
+          }
+        }
+      },
+      "json_args": [
+        "properties"
+      ]
+    },
+    {
+      "name": "analysis_reach",
+      "command": "analysis.reach",
+      "description": "Reach Marking. Is `to` reachable (sim_reach)? `to` constrains only the places it names, each to exactly that count. yes: a shortest firing sequence, stored as a trace; no: a P-invariant whose weighted sum separates from and to (valid whatever inhibitors, read arcs or capacities allow), or an exhaustive search; unknown: the budget ran out (not a no).",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "to": {
+            "type": "string",
+            "description": "{place: n} or {place: [per color]} (null entries free); place.color names one color (pass a JSON value as a string)"
+          },
+          "from": {
+            "type": "string",
+            "description": "sparse override on the start marking, same shape as to (pass a JSON value as a string)"
+          },
+          "from_current": {
+            "description": "start from the canvas marking instead of the declared initial marking",
+            "type": "boolean"
+          },
+          "max_states": {
+            "description": "search budget, 1..100000 (default 20000)",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "to"
+        ]
+      },
+      "json_args": [
+        "to",
+        "from"
+      ]
+    },
+    {
+      "name": "analysis_reachability",
+      "command": "analysis.reachability",
+      "description": "Reachability Graph. Explore every marking reachable from the initial (or current) marking under the token game's firing rule. When a marking strictly covers an ancestor through a pump of monotone transitions, the places that grew become ω (Karp–Miller coverability), so an unbounded net still gives a finite graph. Stores a graph (node per marking, edge per firing) and a report.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "max_states": {
+            "description": "markings to keep, 1..20000 (default 2000); beyond it the graph is truncated",
+            "type": "integer"
+          },
+          "from_current": {
+            "description": "start from the canvas marking instead of the declared initial marking",
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    {
+      "name": "analysis_canonical",
+      "command": "analysis.canonical",
+      "description": "Canonical Id & Orbits. An isomorphism-invariant id (equal for two nets that differ only by renaming) and the exact automorphism orbits, by individualization-refinement (a port of sim_canonical). One node set per non-trivial orbit. Refuses past a 1,000,000-step budget."
+    },
+    {
+      "name": "analysis_classify",
+      "command": "analysis.classify",
+      "description": "Classify. Classes of nodes the net cannot tell apart, by colour refinement (a port of sim_classify without its sampled experiments): quantitative colour → FungibleSet candidates, settled by the exact orbits when verify is on; structural colour → Roles. One node set per class.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "scope": {
+            "description": "\"all\" (places and transitions, default), \"places\", \"transitions\" or \"pools\" (sim's: conserved/bounded places marked initially)",
+            "type": "string"
+          },
+          "verify": {
+            "description": "settle fungible candidates by the exact orbit search (default true)",
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    {
+      "name": "sim_equilibrium",
+      "command": "sim.equilibrium",
+      "description": "Find Equilibrium. Integrate the ODE from the current marking and rates until pflow-solver's equilibrium detector fires (|du/dt| below tolerance) or t_max runs out; stores a report.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "t_max": {
+            "description": "give up at this time (default 1000)",
+            "type": "number"
+          },
+          "tolerance": {
+            "description": "largest |du/dt| counted as still (default 1e-6)",
+            "type": "number"
+          },
+          "method": {
+            "description": "tsit5 (default), rk45, rk4, euler, heun, midpoint, bs32",
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "name": "sim_scenario",
+      "command": "sim.scenario",
+      "description": "Run Scenario. A sim_scenario what-if from the current marking: {name, marking, rates, schedule, hours, samples, realizations, seed, summary, engine: ssa|ode}. Stores a mean±sd time series and a per-place finals table; returns finals, metrics, depletion and contention. Unknown fields are refused.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "scenario": {
+            "type": "string",
+            "description": "scenario object (or a string holding one), e.g. {\"hours\":8,\"realizations\":16,\"marking\":{\"S\":500},\"rates\":{\"infect\":0.002}} (pass a JSON value as a string)"
+          }
+        },
+        "required": [
+          "scenario"
+        ]
+      },
+      "json_args": [
+        "scenario"
+      ]
+    },
+    {
+      "name": "sim_compare",
+      "command": "sim.compare",
+      "description": "Compare Scenarios. Run several scenarios on one shared seed (sim_compare): an overlay time series (group = scenario) and a scenario × place table of final means.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "scenarios": {
+            "type": "string",
+            "description": "array (or a string holding one) of ≤ 20 scenarios, as sim.scenario takes; they must share hours and samples (pass a JSON value as a string)"
+          },
+          "seed": {
+            "description": "the shared seed (default: the first scenario's, else 20260809)",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "scenarios"
+        ]
+      },
+      "json_args": [
+        "scenarios"
+      ]
+    },
+    {
+      "name": "sim_crosscheck",
+      "command": "sim.crosscheck",
+      "description": "Cross-check SSA / ODE / Invariants. sim_crosscheck: SSA ensemble mean against the mass-action ODE, and the net's P-invariants (Farkas) checked along both trajectories. Stores an overlay (group ssa/ode) and a report with per-place agreement and a verdict.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "t_end": {
+            "description": "horizon (default 8, ≤ 168)",
+            "type": "number"
+          },
+          "runs": {
+            "description": "SSA realizations (default 24, ≤ 200)",
+            "type": "integer"
+          },
+          "seed": {
+            "description": "RNG seed (default 20260809)",
+            "type": "integer"
+          },
+          "points": {
+            "description": "sample points (default 101, 2..5000)",
+            "type": "integer"
+          }
+        }
+      }
+    },
+    {
+      "name": "analysis_diagnose",
+      "command": "analysis.diagnose",
+      "description": "Diagnose (Influence). Which knobs move the outcome (sim_diagnose's influence reading, on the ODE): each transition's rate at rate·(1 ± delta), and +1 initial token on each place, against the observable's value at t_end. Stores a tornado chart ranked by |influence| and a report, with sim's SSA noise floor (spread across three seeds) when `noise` is on.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "observable": {
+            "description": "place (display name, or base id summing colors); default: the sinks (produced, never consumed)",
+            "type": "string"
+          },
+          "t_end": {
+            "description": "horizon (default 10)",
+            "type": "number"
+          },
+          "delta": {
+            "description": "relative rate perturbation in (0, 1] (default 0.5, sim's ×1.5 probe)",
+            "type": "number"
+          },
+          "noise": {
+            "description": "estimate the SSA noise floor (default true)",
+            "type": "boolean"
+          },
+          "seed": {
+            "description": "noise-floor seed (default 1)",
+            "type": "integer"
+          },
+          "from_current": {
+            "description": "start from the canvas marking instead of the declared initial marking",
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    {
+      "name": "opt_heatmap",
+      "command": "opt.heatmap",
+      "description": "Parameter Heatmap. Vary two transitions' rates over a grid (≤ 40 × 40) and map the observable place's value at t_end (sim_param_heatmap). Uses coarser solver defaults (abstol 1e-4, dtmax t_end/20) since only the final state is read.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "param_x": {
+            "description": "transition on the x axis",
+            "type": "string"
+          },
+          "param_y": {
+            "description": "transition on the y axis",
+            "type": "string"
+          },
+          "x_from": {
+            "description": "first x rate (≥ 0)",
+            "type": "number"
+          },
+          "x_to": {
+            "description": "last x rate (≥ 0)",
+            "type": "number"
+          },
+          "y_from": {
+            "description": "first y rate (≥ 0)",
+            "type": "number"
+          },
+          "y_to": {
+            "description": "last y rate (≥ 0)",
+            "type": "number"
+          },
+          "observable": {
+            "description": "place whose final value fills the grid (a base id sums its colors)",
+            "type": "string"
+          },
+          "steps": {
+            "description": "cells per axis, 2..40 (default 10)",
+            "type": "integer"
+          },
+          "x_steps": {
+            "description": "cells on x (overrides steps)",
+            "type": "integer"
+          },
+          "y_steps": {
+            "description": "cells on y (overrides steps)",
+            "type": "integer"
+          },
+          "t_end": {
+            "description": "horizon per run (default 10)",
+            "type": "number"
+          },
+          "log": {
+            "description": "space both axes in log10 (needs positive bounds)",
+            "type": "boolean"
+          },
+          "method": {
+            "description": "tsit5 (default), rk45, rk4, euler, heun, midpoint, bs32",
+            "type": "string"
+          },
+          "dt": {
+            "description": "initial step (default 0.01)",
+            "type": "number"
+          },
+          "abstol": {
+            "description": "absolute tolerance (default 1e-4)",
+            "type": "number"
+          },
+          "reltol": {
+            "description": "relative tolerance (default 1e-3)",
+            "type": "number"
+          }
+        },
+        "required": [
+          "param_x",
+          "param_y",
+          "x_from",
+          "x_to",
+          "y_from",
+          "y_to",
+          "observable"
+        ]
+      }
+    },
+    {
+      "name": "opt_optimize",
+      "command": "opt.optimize",
+      "description": "Optimize (Pareto). Monte Carlo over transition rates (seeded): one ODE run per sample, objectives read at t_end, non-dominated samples flagged (sim_optimize). Stores a scatter (Pareto highlighted) and a table of every sample.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "parameters": {
+            "type": "string",
+            "description": "[{transition, min, max, log?}] (or sim's {transition: [min, max]}) (pass a JSON value as a string)"
+          },
+          "objectives": {
+            "type": "string",
+            "description": "[{place, sense: \"max\"|\"min\"}] (`direction` is accepted for sense) (pass a JSON value as a string)"
+          },
+          "samples": {
+            "description": "Monte Carlo samples, 1..2000 (default 100)",
+            "type": "integer"
+          },
+          "seed": {
+            "description": "sampling seed (default 42)",
+            "type": "integer"
+          },
+          "t_end": {
+            "description": "horizon per run (default 10)",
+            "type": "number"
+          },
+          "method": {
+            "description": "tsit5 (default), rk45, rk4, euler, heun, midpoint, bs32",
+            "type": "string"
+          },
+          "dt": {
+            "description": "initial step (default 0.01)",
+            "type": "number"
+          },
+          "abstol": {
+            "description": "absolute tolerance (default 1e-4)",
+            "type": "number"
+          },
+          "reltol": {
+            "description": "relative tolerance (default 1e-3)",
+            "type": "number"
+          }
+        },
+        "required": [
+          "parameters",
+          "objectives"
+        ]
+      },
+      "json_args": [
+        "parameters",
+        "objectives"
+      ]
+    },
+    {
+      "name": "compose_components",
+      "command": "compose.components",
+      "description": "Components. The component library: sim.pflow.xyz's registry (arrivals, service, hazard, inventory, decision, mailbox, datastore) and pflow-compose's templates (sir, seir, queue, producer-consumer, workflow) and subnets (bounded-queue, resource-pool), each with its ports (role: in/out/inout/observe), params with defaults, and discipline notes."
+    },
+    {
+      "name": "compose_fuse",
+      "command": "compose.fuse",
+      "description": "Fuse Component…. Instantiate a library component into the open net (sim_compose): its nodes are renamed <prefix>_<id> and placed at (x, y) (default: right of the net), and each port in `attach` is fused onto an existing place (the shared place replaces the component's copy). Declared rates become session rates. On a net with several token colors, `color` picks the one the component's tokens and weights use. One undo step.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "component": {
+            "description": "library component name (compose.components)",
+            "type": "string"
+          },
+          "attach": {
+            "type": "string",
+            "description": "{port: existing place id} fusions (pass a JSON value as a string)"
+          },
+          "params": {
+            "type": "string",
+            "description": "{param: number} overrides of the defaults (pass a JSON value as a string)"
+          },
+          "prefix": {
+            "description": "instance prefix for created ids (default: the component name)",
+            "type": "string"
+          },
+          "x": {
+            "description": "left of the placed component (default: right of the net)",
+            "type": "number"
+          },
+          "y": {
+            "description": "top of the placed component (default: the net's top)",
+            "type": "number"
+          },
+          "color": {
+            "type": "string",
+            "description": "token color (index or name) on a multi-color net (pass a JSON value as a string)"
+          }
+        },
+        "required": [
+          "component"
+        ]
+      },
+      "json_args": [
+        "attach",
+        "params",
+        "color"
+      ]
+    },
+    {
+      "name": "compose_extend",
+      "command": "compose.extend",
+      "description": "Extend (Edit Ops)…. Apply sim_extend's structural edit ops to the open net, each as the matching registry command, all as one undo step (any failure rolls everything back): add_place {id, initial, capacity, x, y, label}, add_transition {id, rate, x, y, label}, add_arc {from, to, weight, type: \"\"|inhibitor|read}, remove_place / remove_transition / remove {id} (arcs go too), remove_arc {from, to}, set_rate {id, rate}, set_initial {id, initial}, set_capacity {id, capacity}, set_arc {from, to, weight, type}, rename {id, new_id}, set_label {id, label}, move {id, x, y}. Returns the steps run and the before/after diff.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "ops": {
+            "type": "string",
+            "description": "array of {op, ...} objects (or a JSON string of one) (pass a JSON value as a string)"
+          }
+        },
+        "required": [
+          "ops"
+        ]
+      },
+      "json_args": [
+        "ops"
+      ]
+    }
+  ]
+}

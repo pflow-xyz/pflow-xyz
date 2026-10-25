@@ -1,4 +1,4 @@
-.PHONY: all build run clean test test-js test-parity ode-expected learn-goldens test-publish test-npm-pack test-theme test-version publish
+.PHONY: all llm-eval build run clean test test-js test-parity ode-expected learn-goldens test-publish test-npm-pack test-theme test-version publish
 
 # Build the webserver
 build:
@@ -30,7 +30,7 @@ test: test-js test-parity test-parity-behavior test-publish test-npm-pack test-t
 
 # Run JavaScript tests
 test-js:
-	@deno test --allow-read=parity/ode,parity/editor-shape public/petri-sim_test.ts public/petri-colors_test.ts public/petri-shape_test.ts public/petri-solver_test.ts public/petri-learn_test.ts public/petri-ssa_test.ts public/petri-sde_test.ts parity/ode/ode_expected_test.ts
+	@deno test --allow-read=parity/ode,parity/editor-shape,parity/fixtures,parity/ssa,parity/roles,examples,testdata,public,pflow-native-wasm.lock public/petri-sim_test.ts public/petri-colors_test.ts public/petri-shape_test.ts public/petri-solver_test.ts public/petri-learn_test.ts public/petri-ssa_test.ts public/petri-sde_test.ts public/petri-validate_test.ts public/petri-commands_test.ts public/petri-draft_test.ts public/petri-wasm_test.ts public/petri-chat_test.ts public/petri-goals_test.ts public/petri-refine_test.ts public/petri-roles_test.ts parity/ode/ode_expected_test.ts
 
 # Regenerate the differentiable-fitting parity goldens (parity/learn/goldens.json)
 # from go-pflow's learn package. Deliberate, never a side effect of another
@@ -118,3 +118,12 @@ bazel-test:
 # single list //public and //internal/static both read.
 bazel-gazelle:
 	@bazel run //:gazelle
+
+# Live prompt-quality eval for /api/llm/draft (opt-in, never in make test or CI):
+# captures Gemini's replies to cmd/webserver/llm_eval_test.go's descriptions
+# into testdata/llm/ and runs them through the browser's load gate.
+#   make llm-eval GEMINI_API_KEY=...
+llm-eval:
+	@test -n "$(GEMINI_API_KEY)" || { echo "usage: make llm-eval GEMINI_API_KEY=..."; exit 2; }
+	@PFLOW_LLM_EVAL=1 GEMINI_API_KEY="$(GEMINI_API_KEY)" go test ./cmd/webserver/ -run TestLLMEvalLive -count=1 -v | grep -v '^20[0-9][0-9]/'
+	@node scripts/llm-eval.mjs testdata/llm/*.json
