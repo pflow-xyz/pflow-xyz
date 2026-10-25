@@ -6,11 +6,19 @@ section, kept while the phases were built in one unattended run starting
 marked `REVIEW:` in the code and listed under **Decisions to review** below
 and in that phase's PR.
 
+**How it merges.** A push to `main` deploys pflow.xyz: the push webhook in
+`cmd/webserver/deploy.go` pulls, verifies the signature, builds and
+restarts. So each phase PR merges into the **`workbench`** integration
+branch, with signed merges made on valoper, and **`workbench → main` is left
+open for review.** Merging that PR is the deploy. Everything that needs a
+secret (the Gemini key) ships dark: with no key, the LLM features hide
+themselves.
+
 ## Status
 
 | Phase | State | PR |
 |---|---|---|
-| 0 Foundations | ✅ merged | `phase0` |
+| 0 Foundations | ✅ merged into `workbench` | `phase0` |
 | 1 Describe it, get a draft | | |
 | 2 Structural analysis | | |
 | 3 Simulation workbench | | |
