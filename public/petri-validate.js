@@ -23,7 +23,7 @@ import { normalizeModel, enabledTransitions } from './petri-sim.js';
 // The keys the editor itself writes (and that stored nets carry). Anything
 // else is preserved but reported; in strict mode it is an error.
 const NET_KEYS = new Set(['@context', '@id', '@type', '@version', 'name', 'description', 'author',
-    'token', 'places', 'transitions', 'arcs', 'parents']);
+    'token', 'places', 'transitions', 'arcs', 'parents', 'goals']);
 const PLACE_KEYS = new Set(['@type', 'label', 'description', 'initial', 'capacity', 'x', 'y', 'offset']);
 const TRANSITION_KEYS = new Set(['@type', 'label', 'description', 'x', 'y', 'offset', 'role', 'rate']);
 const ARC_KEYS = new Set(['@type', 'source', 'target', 'weight', 'inhibitTransition']);
@@ -193,6 +193,24 @@ export function validateNet(doc, opts = {}) {
         }
         unknownKeys(path, a, ARC_KEYS);
     });
+
+    // ---- goals: declared reachability targets (net.set_goals) ----
+    if ('goals' in doc) {
+        if (!Array.isArray(doc.goals)) {
+            err('goals', 'must be a list of {label?, to}');
+        } else {
+            doc.goals.forEach((g, i) => {
+                const path = `goals[${i}]`;
+                if (!isObject(g) || !isObject(g.to)) { err(path, 'needs a "to" marking {place: count}'); return; }
+                for (const k of Object.keys(g)) if (k !== 'label' && k !== 'to') err(`${path}.${k}`, 'a goal has only label and to');
+                if ('label' in g) { const pr = labelProblem(g.label); if (pr) err(`${path}.label`, pr); }
+                for (const [pid, n] of Object.entries(g.to)) {
+                    if (!Object.prototype.hasOwnProperty.call(places, pid)) err(`${path}.to.${pid}`, `"${pid}" is not a declared place`);
+                    else if (!isCount(n)) err(`${path}.to.${pid}`, `${JSON.stringify(n)} is not a count`);
+                }
+            });
+        }
+    }
 
     // ---- shape (only when the references above hold) ----
     if (errors.length === 0) {

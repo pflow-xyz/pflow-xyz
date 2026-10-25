@@ -92,8 +92,10 @@ Deno.test("chat: an edit is a preview until applied, then one undo step", async 
     assert(check.ok && check.result.ok);
     // the function responses went back in order, with the edit note
     const toolTurn = sent[1].messages[sent[1].messages.length - 1];
-    assertEquals(toolTurn.parts.length, 4);
+    assertEquals(toolTurn.parts.filter((p: any) => p.functionResponse).length, 4);
     assert(toolTurn.parts[0].functionResponse.response.note.includes("sandbox"));
+    // build mode: the engine's behaviour checks follow the edit round
+    assert(toolTurn.parts.some((p: any) => typeof p.text === "string" && p.text.startsWith("Checks after your edits")));
     // the net summary sent with round 2 already shows the sandbox's edits
     assertEquals(sent[1].net.places.map((p: any) => p.id), ["S", "I", "R"]);
 

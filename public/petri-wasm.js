@@ -81,9 +81,11 @@ function rewriteIds(result, map) {
  * Run one native command against `model` (the editor's document).
  * `store(title, data, meta, source)` files an artifact in the JS registry and
  * returns it; native artifact ids in the result are rewritten to the JS ids.
+ * opts.full returns {result, doc}, where doc is the engine's document after
+ * the command when opts.edits (for commands that edit the net).
  * @returns {Promise<Object>} the command's result
  */
-export async function runNative(model, id, args, store) {
+export async function runNative(model, id, args, store, opts = {}) {
     const { engine } = await loadEngine();
     engineState.loaded = true;
     try {
@@ -109,7 +111,12 @@ export async function runNative(model, id, args, store) {
             const kept = store(art.title, art.data, { native: { id: nid, version: (await loadEngine()).version } });
             map.set(nid, kept.id);
         }
-        return rewriteIds(result, map);
+        const rewritten = rewriteIds(result, map);
+        if (!opts.full) return rewritten;
+        // An editing command (compose.fuse, compose.extend) changed the
+        // engine's document: hand back its export, rates included.
+        const doc = opts.edits ? parseJSON(engine.execute('file.export_json', JSON.stringify({ rates: true }))) : null;
+        return { result: rewritten, doc };
     } finally {
         try { engine.execute('artifact.clear', '{}'); } catch { /* older engines: harmless */ }
     }

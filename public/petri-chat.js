@@ -26,6 +26,26 @@ const VIEW = new Set(['view.highlight', 'view.clear_highlight', 'view.fit', 'art
 
 export const MODES = ['build', 'analyse', 'explain'];
 
+// sim's interview steps (pkg/builder): the server adds each step's guidance
+// to the build mode's brief. The model ends a reply with "Next: <step>" when
+// a step is complete; only a forward move is taken.
+export const STEPS = ['describe', 'structure', 'rates', 'validate', 'preview', 'done'];
+
+/** The step a reply asks to move to, or null. */
+export function nextStepIn(text, current) {
+    const m = /\bNext:\s*(describe|structure|rates|validate|preview|done)\b/i.exec(String(text || ''));
+    if (!m) return null;
+    const to = m[1].toLowerCase();
+    return STEPS.indexOf(to) > STEPS.indexOf(current) ? to : null;
+}
+
+function checksText(report) {
+    if (!report.findings.length) return `Checks after your edits (the engine's): none failed (${report.exhaustive ? 'every reachable marking explored' : report.note}).`;
+    return `Checks after your edits (the engine's, not yours to dispute; fix them or say why they are intended):\n`
+        + report.findings.map((f) => `- ${f.category}: ${f.message}`).join('\n')
+        + (report.exhaustive ? '' : `\n(${report.note})`);
+}
+
 export class ChatSession {
     /**
      * @param {Object} o
@@ -35,11 +55,12 @@ export class ChatSession {
      * @param {string} [o.mode]
      * @param {number} [o.maxRounds] model calls per message at most (default 6)
      */
-    constructor({ live, manifest, post, mode = 'analyse', maxRounds = 6 }) {
+    constructor({ live, manifest, post, mode = 'analyse', maxRounds = 6, step = 'describe' }) {
         this.live = live;
         this.manifest = manifest;
         this.post = post;
         this.mode = mode;
+        this.step = step;
         this.maxRounds = maxRounds;
         this.messages = [];
         /** {round, name, command, args, ok, result?, error?, artifacts: string[], ms} */
@@ -114,12 +135,19 @@ export class ChatSession {
         let reply = '';
         for (let round = 1; round <= this.maxRounds; round++) {
             onEvent({ type: 'round', round });
-            const resp = await this.post({ mode: this.mode, net: await this._netSummary(), messages: this.messages });
+            const body = { mode: this.mode, net: await this._netSummary(), messages: this.messages };
+            if (this.mode === 'build') body.step = this.step;
+            const resp = await this.post(body);
             if (resp.remaining_today !== undefined) onEvent({ type: 'quota', remaining: resp.remaining_today, reset: resp.reset });
             this.messages.push(resp.message && resp.message.parts?.length ? resp.message : { role: 'model', parts: [{ text: resp.reply || '…' }] });
             if (resp.reply) {
                 reply = resp.reply;
                 onEvent({ type: 'reply', text: resp.reply });
+                const to = this.mode === 'build' ? nextStepIn(resp.reply, this.step) : null;
+                if (to) {
+                    this.step = to;
+                    onEvent({ type: 'step', step: to });
+                }
             }
             const calls = resp.tool_calls || [];
             const refused = resp.refused || [];
@@ -131,9 +159,34 @@ export class ChatSession {
                 parts.push({ functionResponse: this._responseFor(entry) });
             }
             for (const r of refused) parts.push({ functionResponse: { name: r.name, response: { error: `refused: ${r.reason}` } } });
+            // Build mode: after a round that edited the net, the engine's
+            // behaviour checks go back with the tool results (sim's builder
+            // feeds its checks back the same way).
+            if (this.mode === 'build' && this.calls.some((e) => e.round === round && e.ok && isEdit(e.command))) {
+                try {
+                    const report = await this.sandbox.execute('analysis.behaviour');
+                    this.lastChecks = report;
+                    onEvent({ type: 'checks', report });
+                    parts.push({ text: checksText(report) });
+                } catch { /* the checks are advice; never stop the loop */ }
+            }
             this.messages.push({ role: 'user', parts });
         }
         return { reply, rounds: this.maxRounds, stopped: `stopped after ${this.maxRounds} model calls; ask to continue` };
+    }
+
+    /**
+     * The refinement gate (sim's defect weight) for the live net and the
+     * sandbox: dead transitions, unmarked siphons, unreachable goals, and,
+     * for the sandbox, the live net's conservation laws it no longer keeps.
+     * @returns {Promise<{before: Object, after: Object, worse: boolean}>}
+     */
+    async weights() {
+        const inv = await this.live.execute('analysis.invariants', { kind: 'p' }).catch(() => null);
+        const laws = (inv?.p_invariants || []).map((p) => p.coefficients);
+        const before = await this.live.execute('analysis.defects', {});
+        const after = await this.sandbox.execute('analysis.defects', { baseline_laws: laws });
+        return { before, after, worse: after.weight > before.weight };
     }
 
     /** What applying would change: nodes, arcs, rates and the marking. */

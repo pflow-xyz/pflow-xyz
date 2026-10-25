@@ -136,3 +136,23 @@ func TestLLMTurnWithoutManifestIsOff(t *testing.T) {
 		t.Fatalf("status %v", st)
 	}
 }
+
+func TestLLMTurnBuildStepGuidance(t *testing.T) {
+	c := &turnClient{resp: &llm.Response{Text: "ok", Parts: []llm.Part{{Text: "ok"}}}}
+	s := turnServer(t, c)
+	body := `{"mode":"build","step":"rates","messages":[{"role":"user","parts":[{"text":"rates next"}]}]}`
+	if rec := do(t, s, "POST", "/api/llm/turn", "good", body); rec.Code != 200 {
+		t.Fatalf("%d %s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(c.last.Messages[0].Parts[0].Text, `Interview step "rates"`) {
+		t.Fatal("the step's guidance must travel with build mode")
+	}
+	for _, bad := range []string{
+		`{"mode":"analyse","step":"rates","messages":[{"role":"user","parts":[{"text":"x"}]}]}`,
+		`{"mode":"build","step":"dance","messages":[{"role":"user","parts":[{"text":"x"}]}]}`,
+	} {
+		if rec := do(t, s, "POST", "/api/llm/turn", "good", bad); rec.Code != 400 {
+			t.Errorf("%s: %d", bad, rec.Code)
+		}
+	}
+}

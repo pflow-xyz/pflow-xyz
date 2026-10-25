@@ -753,6 +753,70 @@
       "description": "Which engine?. Which engine to run this net with, and why (docs/engine-selection.md): constraints the ODE cannot see (inhibitor or read arcs, capacities) need the SSA; small token counts make the ODE's mean misleading and the SSA's spread matter; large unconstrained populations suit the ODE (and the SDE for noise). Also proposes a horizon, a seed and a run count."
     },
     {
+      "name": "net_set_goals",
+      "command": "net.set_goals",
+      "description": "Set goals. Declare the net's reachability goals: markings it should be able to reach, e.g. [{\"label\": \"everyone served\", \"to\": {\"served\": 10}}]. \"to\" constrains only the places it names. The refinement gate (analysis.defects) counts a goal analysis.reach answers \"no\" to. An empty list removes them.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "goals": {
+            "description": "[{label?, to: {place: count}}]",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "goals"
+        ]
+      }
+    },
+    {
+      "name": "analysis_behaviour",
+      "command": "analysis.behaviour",
+      "description": "Behaviour checks. sim's builder checks on the token game: parts of the net not connected to the rest, transitions that never fire, places nothing ever fills, a reachable marking where nothing can fire (with a trace), and a place growing past the token bound. One bounded exploration (max_states markings); when the bound is hit, claims needing the whole space are left out, not guessed.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "max_states": {
+            "description": "markings to explore (default 2000, ≤ 50000)",
+            "type": "integer",
+            "minimum": 10,
+            "maximum": 50000
+          },
+          "unbounded_tokens": {
+            "description": "a place past this many tokens counts as unbounded (default 1000)",
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      }
+    },
+    {
+      "name": "analysis_defects",
+      "command": "analysis.defects",
+      "description": "Defect weight. sim's refinement gate, engine-computed: dead transitions + unmarked siphons (that can empty and stop transitions for good) + declared goals analysis.reach answers \"no\" to + conservation laws of a baseline that no longer hold. 0 is clean. Pass baseline_laws (P-invariant coefficient maps, e.g. from the net before an edit) to count lost laws; leave it out to count none.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "baseline_laws": {
+            "description": "[{place: coefficient}] from an earlier net",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "max_states": {
+            "description": "budget for the exploration and each goal (default 2000)",
+            "type": "integer",
+            "minimum": 10,
+            "maximum": 50000
+          }
+        }
+      }
+    },
+    {
       "name": "analysis_check",
       "command": "analysis.check",
       "description": "Check net. The editor's strict check: every problem the editor would otherwise repair quietly, with a path, plus warnings. With engines (default true) and no errors, also runs the firing rule, the ODE solver's reading and CID sealing. Stores a report artifact.",
@@ -1283,6 +1347,77 @@
       "json_args": [
         "parameters",
         "objectives"
+      ]
+    },
+    {
+      "name": "compose_components",
+      "command": "compose.components",
+      "description": "Components. The component library: sim.pflow.xyz's registry (arrivals, service, hazard, inventory, decision, mailbox, datastore) and pflow-compose's templates (sir, seir, queue, producer-consumer, workflow) and subnets (bounded-queue, resource-pool), each with its ports (role: in/out/inout/observe), params with defaults, and discipline notes."
+    },
+    {
+      "name": "compose_fuse",
+      "command": "compose.fuse",
+      "description": "Fuse Component…. Instantiate a library component into the open net (sim_compose): its nodes are renamed <prefix>_<id> and placed at (x, y) (default: right of the net), and each port in `attach` is fused onto an existing place (the shared place replaces the component's copy). Declared rates become session rates. On a net with several token colors, `color` picks the one the component's tokens and weights use. One undo step.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "component": {
+            "description": "library component name (compose.components)",
+            "type": "string"
+          },
+          "attach": {
+            "type": "string",
+            "description": "{port: existing place id} fusions (pass a JSON value as a string)"
+          },
+          "params": {
+            "type": "string",
+            "description": "{param: number} overrides of the defaults (pass a JSON value as a string)"
+          },
+          "prefix": {
+            "description": "instance prefix for created ids (default: the component name)",
+            "type": "string"
+          },
+          "x": {
+            "description": "left of the placed component (default: right of the net)",
+            "type": "number"
+          },
+          "y": {
+            "description": "top of the placed component (default: the net's top)",
+            "type": "number"
+          },
+          "color": {
+            "type": "string",
+            "description": "token color (index or name) on a multi-color net (pass a JSON value as a string)"
+          }
+        },
+        "required": [
+          "component"
+        ]
+      },
+      "json_args": [
+        "attach",
+        "params",
+        "color"
+      ]
+    },
+    {
+      "name": "compose_extend",
+      "command": "compose.extend",
+      "description": "Extend (Edit Ops)…. Apply sim_extend's structural edit ops to the open net, each as the matching registry command, all as one undo step (any failure rolls everything back): add_place {id, initial, capacity, x, y, label}, add_transition {id, rate, x, y, label}, add_arc {from, to, weight, type: \"\"|inhibitor|read}, remove_place / remove_transition / remove {id} (arcs go too), remove_arc {from, to}, set_rate {id, rate}, set_initial {id, initial}, set_capacity {id, capacity}, set_arc {from, to, weight, type}, rename {id, new_id}, set_label {id, label}, move {id, x, y}. Returns the steps run and the before/after diff.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "ops": {
+            "type": "string",
+            "description": "array of {op, ...} objects (or a JSON string of one) (pass a JSON value as a string)"
+          }
+        },
+        "required": [
+          "ops"
+        ]
+      },
+      "json_args": [
+        "ops"
       ]
     }
   ]

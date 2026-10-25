@@ -59,7 +59,10 @@ go_test(
     ],
     # keep: share_card_test.go renders a stored example model from //examples.
     # keep: llm_goals_test.go reads public/goals.json, the catalog the server embeds.
-    data = ["//examples", "//public:public_files"],
+    data = [
+        "//examples",
+        "//public:public_files",
+    ],
     embed = [":webserver_lib"],
     deps = [
         "//internal/auth",
