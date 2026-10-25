@@ -444,10 +444,10 @@ func (s *Server) mcpDispatch(r *http.Request, req rpcRequest) (rpcResponse, bool
 	case "ping":
 		resp.Result = map[string]any{}
 	case "tools/list":
-		tools := mcpTools()
+		tools := allMCPTools()
 		list := make([]map[string]any, 0, len(tools))
 		for _, t := range tools {
-			list = append(list, map[string]any{"name": t.Name, "description": t.Description, "inputSchema": t.InputSchema})
+			list = append(list, toolDescriptor(t))
 		}
 		resp.Result = map[string]any{"tools": list}
 	case "tools/call":
@@ -460,7 +460,7 @@ func (s *Server) mcpDispatch(r *http.Request, req rpcRequest) (rpcResponse, bool
 			break
 		}
 		var tool *mcpTool
-		for _, t := range mcpTools() {
+		for _, t := range allMCPTools() {
 			if t.Name == p.Name {
 				t := t
 				tool = &t
@@ -473,13 +473,12 @@ func (s *Server) mcpDispatch(r *http.Request, req rpcRequest) (rpcResponse, bool
 		if p.Arguments == nil {
 			p.Arguments = map[string]any{}
 		}
-		out, err := tool.run(s, r, p.Arguments)
+		out, err := callMCPTool(s, r, tool, p.Arguments)
 		if err != nil {
 			resp.Result = map[string]any{"isError": true, "content": []map[string]any{{"type": "text", "text": err.Error()}}}
 			break
 		}
-		text, _ := json.Marshal(out)
-		resp.Result = map[string]any{"content": []map[string]any{{"type": "text", "text": string(text)}}, "structuredContent": out}
+		resp.Result = mcpResult(out)
 	default:
 		resp.Error = &rpcError{-32601, fmt.Sprintf("method %q not found", req.Method)}
 	}
