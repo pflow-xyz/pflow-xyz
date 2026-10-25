@@ -176,7 +176,8 @@ type Server struct {
 	publicFS          fs.FS
 	googleAnalyticsID string
 	schemaCache       schemaCache
-	llm               *llmService // nil when no GEMINI_API_KEY: the LLM routes report disabled
+	llm               *llmService   // nil when no GEMINI_API_KEY: the LLM routes report disabled
+	mcpVerifier       auth.Verifier // /mcp's pflow_save sign-in check (mcp.go); built on first use
 }
 
 // handleCORS handles CORS preflight requests
@@ -999,6 +1000,12 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	if r.URL.Path == "/api/llm/turn" {
 		s.handleLLMTurn(w, r)
+		return
+	}
+
+	// pflow.xyz as an MCP server (mcp.go): stateless JSON-RPC over POST.
+	if r.URL.Path == "/mcp" {
+		s.handleMCP(w, r)
 		return
 	}
 

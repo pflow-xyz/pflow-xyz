@@ -26,7 +26,7 @@ themselves.
 | 5 Goal advisor | ✅ merged into `workbench` | `phase5` |
 | 6 Model refinement | ✅ merged into `workbench` | `phase6` |
 | 7 App view | ✅ merged into `workbench` | `phase7` |
-| 8 MCP outside the page | | |
+| 8 MCP outside the page | ✅ `/mcp` merged into `workbench`; "attach to my tab" deferred | `phase8` |
 
 ## Phase 0: foundations
 
@@ -571,3 +571,75 @@ filter controls and survive a reload.
    SSA, an hours horizon (capped at 168), 16 runs, seed 7.
 5. **View tabs filter controls** to the view's places and transitions. A
    view with neither shows everything.
+
+## Phase 8: MCP outside the page
+
+What landed:
+
+- **`POST /mcp`** (`cmd/webserver/mcp.go`). pflow.xyz is an MCP server
+  using Streamable HTTP in its stateless form: one JSON-RPC message (or a
+  batch) per POST, a JSON reply, `initialize` / `ping` / `tools/list` /
+  `tools/call`, and 202 for notifications. GET answers 405, since there is
+  no event stream.
+- **Tools, on the server's own Go engines:**
+  - `pflow_check`: a go-pflow parse, plus the JSON-LD checks `/api/save`
+    applies;
+  - `pflow_cid`: the same sealer as `/api/save`;
+  - `pflow_get`;
+  - `pflow_simulate`: go-pflow Tsit5, with each transition's rate,
+    overridable, and a sampled trajectory;
+  - `pflow_reachability`: go-pflow's analyzer. A search stopped by its
+    budget reports bounded and live as unknown, rather than what go-pflow
+    saw so far;
+  - `pflow_links`: the editor, SVG and JSON-LD URLs;
+  - `pflow_save`: needs `Authorization: Bearer <GitHub token>` on the
+    connection.
+- **Bounds:** a 512 KiB body, horizon ≤ 10000, ≤ 20000 states, ≤ 200
+  samples.
+
+To try it: `claude mcp add --transport http pflow https://pflow.xyz/mcp`
+(after the merge to `main`). Add `--header "Authorization: Bearer <token>"`
+to save.
+
+Verified: Go tests (handshake, list, every tool, errors as tool errors, save
+needing and checking a token, no overclaiming on an incomplete search),
+`bazel test`, and a live `curl` against a local server.
+
+### Decisions to review (phase 8)
+
+1. **"Attach to my tab" is not built**, as the roadmap says: deferred until
+   phases 4–7 show what people do.
+2. **`/mcp` uses the Go engines, not the browser registry**, so its tool set
+   is smaller than the Assistant's. The rich analyses stay in the editor,
+   and `pflow_links` sends a person there.
+3. **`pflow_save` needs a token**, unlike `/api/save`. There is no OAuth
+   server for MCP clients (sim has one); a client passes the GitHub token as
+   a header.
+4. **No rate limit on `/mcp`** beyond the per-call bounds. The tools are
+   cheap and bounded; add a per-IP bucket if it is abused.
+5. **The protocol version echoes what the client asks for.** The tools do
+   not depend on it.
+
+---
+
+## How to review all of this
+
+1. **Read this file's "Decisions to review" sections.** Every `REVIEW:`
+   comment in the code is one of them: `git grep -n "REVIEW:"`.
+2. **The PRs, in merge order:** #96 (phase 0), #97 (1), #98 (2), #99 (4),
+   #100 (3), #101 (5), #102 (6), #103 (7), and phase 8. Each is merged into
+   `workbench`.
+3. **Run it locally:** `make build && ./bin/webserver -port 18080`.
+   Everything except the Assistant and drafting works signed out with no
+   key. To exercise those, set `GEMINI_API_KEY` (and optionally
+   `PFLOW_LLM_ALLOW=stackdump`).
+4. **The `workbench → main` PR is the deploy.** Merging it pushes `main`,
+   and the webhook rebuilds pflow.xyz. Merge it locally with a signed merge,
+   as `deploy.go` runs `git verify-commit`. The LLM features stay dark until
+   the key is in `~/services` on pflow.dev.
+5. **Follow-ups outside this repo:**
+   - **pflow-native:** `file.cid` should hash the session rates (phase 0).
+   - **pflow-native:** compile the SSA in document order (phase 3).
+   - **pflow-native:** a Web column in FEATURES.md (open decision 1).
+   - **sim-pflow-xyz:** vendor `public/petri-roles.js` with a lock (phase
+     7, open decision 3).
