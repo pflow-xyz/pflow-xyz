@@ -997,6 +997,10 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		s.handleLLMDraft(w, r)
 		return
 	}
+	if r.URL.Path == "/api/llm/turn" {
+		s.handleLLMTurn(w, r)
+		return
+	}
 
 	// Token type route
 	if strings.HasPrefix(r.URL.Path, "/tokens/") {

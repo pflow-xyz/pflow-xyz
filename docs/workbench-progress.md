@@ -22,7 +22,7 @@ themselves.
 | 1 Describe it, get a draft | ✅ merged into `workbench` (ships dark) | `phase1` |
 | 2 Structural analysis | ✅ merged into `workbench` | `phase2` |
 | 3 Simulation workbench | | |
-| 4 Chat modal + in-page MCP | | |
+| 4 Chat modal + in-page MCP | ✅ merged into `workbench` (ships dark) | `phase4` |
 | 5 Goal advisor | | |
 | 6 Model refinement | | |
 | 7 App view | | |
@@ -228,10 +228,9 @@ Verified:
 
 ### Decisions to review (phase 2)
 
-1. **The vendored shim was built from pflow-native `62923ff`, which is
-   local only, not pushed.** It was built from a separate local clone, so
-   pflow-native's working tree was not touched. Push pflow-native, then
-   re-run `scripts/sync-native-wasm.mjs` if the commit changes.
+1. ~~**The vendored shim was built from pflow-native `62923ff`, which is
+   local only, not pushed.**~~ Resolved: the pflow-native session pushed
+   `62923ff` to github.com/pflow-xyz/pflow-native `main` on 2026-10-24.
 2. **The size profile is set in the environment**
    (`CARGO_PROFILE_RELEASE_OPT_LEVEL=z`, `_LTO=true`, `_CODEGEN_UNITS=1`),
    not in pflow-native's `Cargo.toml`. A plain `make wasm-shim` gives
@@ -246,3 +245,71 @@ Verified:
 6. **The `.wasm` is stored gzip-only** in git (1.16 MB), not raw (6.2 MB).
 7. **Not done:** pflow-native's FEATURES.md has no "Web" column yet (open
    decision 1). That is another repo, with an active session on it.
+
+## Phase 4: the Assistant (chat) and the in-page MCP
+
+What landed:
+
+- **`POST /api/llm/turn`** (`cmd/webserver/llm_turn.go`, prompt
+  `prompts/turn-v1.md`).
+  - The server is stateless: the browser sends the mode, a bounded net
+    summary and the whole conversation each call.
+  - The server adds the fixed system prompt and declares the manifest's
+    tools. It refuses any call the manifest does not name, and accepts at
+    most 8 calls per reply.
+  - It charges one quota unit per model call and returns the model's message
+    verbatim, so Gemini's thought signatures go back next turn.
+  - The mode and the net travel as user content, never in the system prompt.
+  - `/api/llm/status` reports `chat`.
+- **The tool manifest** (`public/llm-tools.json`, 43 tools) is generated
+  from the registry by `scripts/gen-llm-tools.mjs`. It is cut down to
+  Gemini's schema subset, with free-form arguments passed as JSON strings.
+  The server reads it from its embedded `public/`, and a test fails on
+  drift. `public/petri-tools.js` maps names both ways and compacts results
+  for the model.
+- **The loop** (`public/petri-chat.js`, no DOM).
+  - Edits and analyses run in a sandbox registry, so the model can check its
+    own edits.
+  - View commands act on the live canvas.
+  - Artifacts land in the editor's shared store, so they appear in Results.
+  - Apply commits the sandbox as one undo step; Discard drops it.
+  - At most 6 model calls per message.
+- **The panel** (`public/petri-chat-ui.js`).
+  - Docked, not modal, with Build / Analyse / Explain modes.
+  - The conversation, a quota line, and a pending-edits diff with Apply /
+    Discard.
+  - The Tools section lists every call with its arguments, timing and
+    errors. Each artifact can be opened inline (Show / Go wired to the
+    canvas), and each call can be rerun or copied as an MCP call.
+  - Menu: 💬 Assistant, shown only when the status says `chat`.
+
+Verified:
+- `make test`: 209 JS tests. Go tests cover the manifest gate, the per-reply
+  cap, the thought-signature round trip, validation, and "no manifest means
+  off".
+- `bazel build //...`.
+- In a browser with a scripted model in place of Gemini: 3 model calls, 4
+  edits and an invariants run. The live net was untouched until Apply, the
+  diff was shown, the artifact rendered inline, and one Undo reverted.
+
+### Decisions to review (phase 4)
+
+1. **The server is stateless.** The conversation lives in the browser and is
+   re-sent each call, capped at 256 KiB and 80 messages. "New" starts over.
+2. **Limits.** Quota is charged per model call (as sim's `sim_generate`
+   does). There are at most 8 tool calls per reply and 6 model calls per
+   message; "ask to continue" after that.
+3. **Analyses run on the sandbox.** They see pending edits. Moving the
+   marking (`sim.fire`, `sim.goto`, `sim.reset`) counts as an edit and needs
+   Apply to reach the canvas.
+4. **Explain mode refuses edits in the browser**, as well as saying so in
+   the prompt.
+5. **The chat does not get `file.load_json` or `export.artifact`.**
+6. **Tool names:** the command id with its first `.` as `_`. Free-form
+   arguments (`to`, `from`, `properties`, `weights`) go as JSON strings.
+7. **Every call sends the whole manifest** (about 20 KB, roughly 5k tokens).
+   Fine for Flash; trimming by mode is a later option.
+8. **Not exercised against live Gemini** (no key in this run). The
+   function-calling body follows the API as documented, and thought
+   signatures are preserved. The first live session is the real test: see
+   "To turn it on" under phase 1.

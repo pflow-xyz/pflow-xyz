@@ -3187,3 +3187,102 @@ canvas.pv-canvas {
 .pv-graph-hit {
     cursor: pointer;
 }
+
+/* The Assistant panel (petri-chat-ui.js): docked, not modal */
+.pv-chat {
+    position: fixed;
+    top: 64px;
+    right: 16px;
+    bottom: 16px;
+    width: min(420px, calc(100vw - 32px));
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    z-index: 1000;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: var(--pv-surface);
+    color: var(--pv-ink);
+    box-shadow: 0 4px 24px var(--pv-shadow-lg);
+    font-size: 0.9em;
+}
+.pv-chat-head {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.pv-chat-modes {
+    display: flex;
+    gap: 2px;
+    margin-left: auto;
+}
+.pv-chat-mode.pv-active {
+    background: var(--pv-accent);
+    color: var(--pv-accent-ink);
+}
+.pv-chat-log {
+    flex: 1;
+    overflow: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.pv-chat-msg {
+    white-space: pre-wrap;
+    padding: 6px 8px;
+    border-radius: 6px;
+    max-width: 92%;
+}
+.pv-chat-user {
+    align-self: flex-end;
+    background: var(--pv-info-surface);
+    color: var(--pv-info-ink);
+}
+.pv-chat-assistant {
+    align-self: flex-start;
+    background: var(--pv-panel);
+}
+.pv-chat-note {
+    align-self: center;
+    opacity: 0.75;
+    font-size: 0.9em;
+}
+.pv-chat-pending {
+    border: 1px solid var(--pv-warning);
+    border-radius: 6px;
+    padding: 6px 8px;
+    max-height: 30vh;
+    overflow: auto;
+}
+.pv-chat-tools {
+    max-height: 30vh;
+    overflow: auto;
+}
+.pv-chat-calls {
+    padding-left: 18px;
+}
+.pv-chat-call {
+    margin: 4px 0;
+}
+.pv-chat-err {
+    color: var(--pv-danger);
+}
+.pv-chat-call-acts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 2px;
+}
+.pv-chat-art svg {
+    max-width: 100%;
+    height: auto;
+}
+.pv-chat-form {
+    display: flex;
+    gap: 6px;
+}
+.pv-chat-input {
+    flex: 1;
+    font: inherit;
+    resize: vertical;
+}

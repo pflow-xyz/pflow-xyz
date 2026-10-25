@@ -1,0 +1,899 @@
+{
+  "version": "tools-v1",
+  "tools": [
+    {
+      "name": "file_new",
+      "command": "file.new",
+      "description": "New. Replace the document with an empty net."
+    },
+    {
+      "name": "file_export_json",
+      "command": "file.export_json",
+      "description": "Export JSON. The document as pflow.xyz JSON-LD (unbounded capacities as null)."
+    },
+    {
+      "name": "file_cid",
+      "command": "file.cid",
+      "description": "Compute CID. The CID the document seals to (the same as /api/save and pflow-native file.cid)."
+    },
+    {
+      "name": "edit_undo",
+      "command": "edit.undo",
+      "description": "Undo. Undo the last edit."
+    },
+    {
+      "name": "edit_redo",
+      "command": "edit.redo",
+      "description": "Redo. Redo the last undone edit."
+    },
+    {
+      "name": "edit_delete",
+      "command": "edit.delete",
+      "description": "Delete. Delete places and transitions, with every arc that touches them.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "ids": {
+            "description": "node ids",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "ids"
+        ]
+      }
+    },
+    {
+      "name": "net_info",
+      "command": "net.info",
+      "description": "Net info. Counts, ids, labels and rates: a summary of the net."
+    },
+    {
+      "name": "net_add_place",
+      "command": "net.add_place",
+      "description": "Add place. Add a place at (x, y).",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "x": {
+            "description": "x",
+            "type": "number"
+          },
+          "y": {
+            "description": "y",
+            "type": "number"
+          },
+          "id": {
+            "description": "id (default: the first free p0, p1, …)",
+            "type": "string"
+          },
+          "label": {
+            "description": "label",
+            "type": "string"
+          },
+          "initial": {
+            "description": "initial tokens (default 0)",
+            "type": "array",
+            "minimum": 0,
+            "items": {
+              "type": "integer"
+            }
+          },
+          "capacity": {
+            "description": "capacity; 0 or null = unbounded (default)",
+            "type": "array",
+            "nullable": true,
+            "minimum": 0,
+            "items": {
+              "type": "integer"
+            }
+          }
+        },
+        "required": [
+          "x",
+          "y"
+        ]
+      }
+    },
+    {
+      "name": "net_add_transition",
+      "command": "net.add_transition",
+      "description": "Add transition. Add a transition at (x, y).",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "x": {
+            "description": "x",
+            "type": "number"
+          },
+          "y": {
+            "description": "y",
+            "type": "number"
+          },
+          "id": {
+            "description": "id (default: the first free t0, t1, …)",
+            "type": "string"
+          },
+          "label": {
+            "description": "label",
+            "type": "string"
+          },
+          "rate": {
+            "description": "rate (default 1.0)",
+            "type": "number",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "x",
+          "y"
+        ]
+      }
+    },
+    {
+      "name": "net_add_arc",
+      "command": "net.add_arc",
+      "description": "Add arc. Add an arc between a place and a transition. inhibit on place→transition is an inhibitor arc; on transition→place it is a read arc (the editor's output-side inhibit).",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "source": {
+            "description": "source id",
+            "type": "string"
+          },
+          "target": {
+            "description": "target id",
+            "type": "string"
+          },
+          "weight": {
+            "description": "weight (default 1)",
+            "type": "array",
+            "minimum": 0,
+            "items": {
+              "type": "integer"
+            }
+          },
+          "inhibit": {
+            "description": "inhibitor / read arc (default false)",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "source",
+          "target"
+        ]
+      }
+    },
+    {
+      "name": "net_set_arc",
+      "command": "net.set_arc",
+      "description": "Set arc. Change an arc's weight or whether it inhibits.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "source": {
+            "description": "source id",
+            "type": "string"
+          },
+          "target": {
+            "description": "target id",
+            "type": "string"
+          },
+          "weight": {
+            "description": "weight",
+            "type": "array",
+            "minimum": 0,
+            "items": {
+              "type": "integer"
+            }
+          },
+          "inhibit": {
+            "description": "inhibitor / read arc",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "source",
+          "target"
+        ]
+      }
+    },
+    {
+      "name": "net_delete_arc",
+      "command": "net.delete_arc",
+      "description": "Delete arc. Delete the arc(s) from source to target.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "source": {
+            "description": "source id",
+            "type": "string"
+          },
+          "target": {
+            "description": "target id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source",
+          "target"
+        ]
+      }
+    },
+    {
+      "name": "net_set_place",
+      "command": "net.set_place",
+      "description": "Set place. Set a place's initial marking and/or capacity (0 or null = unbounded). An initial marking over capacity is refused, not clamped.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "description": "place id",
+            "type": "string"
+          },
+          "initial": {
+            "description": "initial tokens",
+            "type": "array",
+            "minimum": 0,
+            "items": {
+              "type": "integer"
+            }
+          },
+          "capacity": {
+            "description": "capacity; 0 or null = unbounded",
+            "type": "array",
+            "nullable": true,
+            "minimum": 0,
+            "items": {
+              "type": "integer"
+            }
+          }
+        },
+        "required": [
+          "id"
+        ]
+      }
+    },
+    {
+      "name": "net_set_label",
+      "command": "net.set_label",
+      "description": "Set label. Set a node's label (≤ 100 characters, one line).",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "description": "node id",
+            "type": "string"
+          },
+          "label": {
+            "description": "new label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "label"
+        ]
+      }
+    },
+    {
+      "name": "net_add_tokens",
+      "command": "net.add_tokens",
+      "description": "Add tokens. Add (or with a negative delta, remove) tokens of one color. Refused below zero or over capacity.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "description": "place id",
+            "type": "string"
+          },
+          "delta": {
+            "description": "tokens to add (default 1)",
+            "type": "integer"
+          },
+          "color": {
+            "description": "color index (default 0)",
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "id"
+        ]
+      }
+    },
+    {
+      "name": "net_move",
+      "command": "net.move",
+      "description": "Move node. Move a node to (x, y).",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "description": "node id",
+            "type": "string"
+          },
+          "x": {
+            "description": "x",
+            "type": "number"
+          },
+          "y": {
+            "description": "y",
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "x",
+          "y"
+        ]
+      }
+    },
+    {
+      "name": "net_rename",
+      "command": "net.rename",
+      "description": "Rename node. Change a node's id, updating every arc.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "description": "current id",
+            "type": "string"
+          },
+          "new_id": {
+            "description": "new id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "new_id"
+        ]
+      }
+    },
+    {
+      "name": "net_set_details",
+      "command": "net.set_details",
+      "description": "Edit details. Set the net's name and description (an empty string removes one).",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "description": "diagram name",
+            "type": "string"
+          },
+          "description": {
+            "description": "description",
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "name": "sim_enabled",
+      "command": "sim.enabled",
+      "description": "Enabled transitions. The transitions enabled at the current marking."
+    },
+    {
+      "name": "sim_marking",
+      "command": "sim.marking",
+      "description": "Marking. The current marking, per place, per color."
+    },
+    {
+      "name": "sim_fire",
+      "command": "sim.fire",
+      "description": "Fire. Fire one transition (the token game). Refused when it is not enabled.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "description": "transition id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ]
+      }
+    },
+    {
+      "name": "sim_reset",
+      "command": "sim.reset",
+      "description": "Reset marking. Back to the marking the run started from."
+    },
+    {
+      "name": "sim_set_rate",
+      "command": "sim.set_rate",
+      "description": "Set rate. Set a transition's rate (≥ 0; 0 disables it in the ODE). Rates are part of the document.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "description": "transition id",
+            "type": "string"
+          },
+          "rate": {
+            "description": "rate ≥ 0",
+            "type": "number",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "id",
+          "rate"
+        ]
+      }
+    },
+    {
+      "name": "sim_ode",
+      "command": "sim.ode",
+      "description": "Run ODE. Integrate the mass-action ODE from the current marking (Tsit5, the document's rates) and store a time-series artifact. The result carries initial, final and delta per place.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "t_end": {
+            "description": "end time (default 10)",
+            "type": "number",
+            "minimum": 1e-9
+          },
+          "points": {
+            "description": "max points stored (default 200)",
+            "type": "integer",
+            "minimum": 2,
+            "maximum": 100000
+          },
+          "places": {
+            "description": "places to keep (default: all)",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "method": {
+            "description": "tsit5 (the only method in the browser; pflow-native also has rk45, rk4, euler, heun, midpoint, bs32)",
+            "type": "string"
+          },
+          "dt": {
+            "description": "initial step (default 0.01)",
+            "type": "number",
+            "minimum": 1e-12
+          },
+          "abstol": {
+            "description": "absolute tolerance (default 1e-6)",
+            "type": "number",
+            "minimum": 1e-15
+          },
+          "reltol": {
+            "description": "relative tolerance (default 1e-3)",
+            "type": "number",
+            "minimum": 1e-15
+          },
+          "dtmax": {
+            "description": "largest step (default: unbounded)",
+            "type": "number",
+            "minimum": 1e-12
+          }
+        }
+      }
+    },
+    {
+      "name": "opt_rate_scan",
+      "command": "opt.rate_scan",
+      "description": "Rate scan. Sweep one transition's rate and record each place's value at t_end (the editor's steady-state reading, not a detected equilibrium). Stores a time-series artifact whose x axis is the rate.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "transition": {
+            "description": "transition whose rate is scanned",
+            "type": "string"
+          },
+          "from": {
+            "description": "first rate",
+            "type": "number",
+            "minimum": 0
+          },
+          "to": {
+            "description": "last rate",
+            "type": "number",
+            "minimum": 0
+          },
+          "steps": {
+            "description": "rates tried (default 9, at most 25)",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 25
+          },
+          "t_end": {
+            "description": "end time of each run (default 50)",
+            "type": "number",
+            "minimum": 1e-9
+          },
+          "places": {
+            "description": "places to record (default: all)",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "method": {
+            "description": "tsit5 (the only method in the browser; pflow-native also has rk45, rk4, euler, heun, midpoint, bs32)",
+            "type": "string"
+          },
+          "dt": {
+            "description": "initial step (default 0.01)",
+            "type": "number",
+            "minimum": 1e-12
+          },
+          "abstol": {
+            "description": "absolute tolerance (default 1e-6)",
+            "type": "number",
+            "minimum": 1e-15
+          },
+          "reltol": {
+            "description": "relative tolerance (default 1e-3)",
+            "type": "number",
+            "minimum": 1e-15
+          },
+          "dtmax": {
+            "description": "largest step (default: unbounded)",
+            "type": "number",
+            "minimum": 1e-12
+          }
+        },
+        "required": [
+          "transition",
+          "from",
+          "to"
+        ]
+      }
+    },
+    {
+      "name": "opt_sweep",
+      "command": "opt.sweep",
+      "description": "Sweep. One place's trajectory for each of several rates of one transition, resampled onto one time grid. Stores a time-series artifact with one series per rate (group k=<rate>).",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "transition": {
+            "description": "transition whose rate is swept",
+            "type": "string"
+          },
+          "place": {
+            "description": "place observed",
+            "type": "string"
+          },
+          "from": {
+            "description": "first rate",
+            "type": "number",
+            "minimum": 0
+          },
+          "to": {
+            "description": "last rate",
+            "type": "number",
+            "minimum": 0
+          },
+          "steps": {
+            "description": "rates tried (default 9, at most 25)",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 25
+          },
+          "t_end": {
+            "description": "end time (default 10)",
+            "type": "number",
+            "minimum": 1e-9
+          },
+          "points": {
+            "description": "grid points (default 200)",
+            "type": "integer",
+            "minimum": 2,
+            "maximum": 10000
+          },
+          "method": {
+            "description": "tsit5 (the only method in the browser; pflow-native also has rk45, rk4, euler, heun, midpoint, bs32)",
+            "type": "string"
+          },
+          "dt": {
+            "description": "initial step (default 0.01)",
+            "type": "number",
+            "minimum": 1e-12
+          },
+          "abstol": {
+            "description": "absolute tolerance (default 1e-6)",
+            "type": "number",
+            "minimum": 1e-15
+          },
+          "reltol": {
+            "description": "relative tolerance (default 1e-3)",
+            "type": "number",
+            "minimum": 1e-15
+          },
+          "dtmax": {
+            "description": "largest step (default: unbounded)",
+            "type": "number",
+            "minimum": 1e-12
+          }
+        },
+        "required": [
+          "transition",
+          "place",
+          "from",
+          "to"
+        ]
+      }
+    },
+    {
+      "name": "analysis_check",
+      "command": "analysis.check",
+      "description": "Check net. The editor's strict check: every problem the editor would otherwise repair quietly, with a path, plus warnings. With engines (default true) and no errors, also runs the firing rule, the ODE solver's reading and CID sealing. Stores a report artifact.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "strict": {
+            "description": "a key the editor does not write is an error (default false)",
+            "type": "boolean"
+          },
+          "engines": {
+            "description": "run the engine checks too (default true)",
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    {
+      "name": "sim_goto",
+      "command": "sim.goto",
+      "description": "Go to marking. Load a marking from a result onto the net: a step of a trace artifact (step), or a state of a graph artifact (node). The run baseline is kept, so Reset marking returns to where the run started.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "description": "trace or graph artifact id",
+            "type": "string"
+          },
+          "step": {
+            "description": "trace step index",
+            "type": "integer",
+            "minimum": 0
+          },
+          "node": {
+            "description": "graph node id (its data.marking is loaded)",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ]
+      }
+    },
+    {
+      "name": "view_highlight",
+      "command": "view.highlight",
+      "description": "Highlight nodes. Mark places/transitions on the canvas, optionally with a number badge each (e.g. invariant coefficients).",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "nodes": {
+            "description": "place/transition ids",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "label": {
+            "description": "what the highlight means",
+            "type": "string"
+          },
+          "weights": {
+            "type": "string",
+            "description": "{node: number} badges (pass a JSON value as a string)"
+          }
+        },
+        "required": [
+          "nodes"
+        ]
+      },
+      "json_args": [
+        "weights"
+      ]
+    },
+    {
+      "name": "view_clear_highlight",
+      "command": "view.clear_highlight",
+      "description": "Clear highlight. Remove the canvas highlight."
+    },
+    {
+      "name": "artifact_show_set",
+      "command": "artifact.show_set",
+      "description": "Show set. Highlight one node set of a sets artifact (an invariant's support, a siphon, an orbit) on the canvas; without a view, return it.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "description": "artifact id",
+            "type": "string"
+          },
+          "index": {
+            "description": "set index (default 0)",
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "id"
+        ]
+      }
+    },
+    {
+      "name": "artifact_list",
+      "command": "artifact.list",
+      "description": "Results. The stored artifacts, newest last: id, title, kind and the command that made each."
+    },
+    {
+      "name": "artifact_get",
+      "command": "artifact.get",
+      "description": "Get result. One artifact in full.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "description": "artifact id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ]
+      }
+    },
+    {
+      "name": "view_fit",
+      "command": "view.fit",
+      "description": "Fit to view. Frame the whole net."
+    },
+    {
+      "name": "analysis_validate",
+      "command": "analysis.validate",
+      "description": "Validate. pflow-validation's structural checks (structure, connectivity, deadlocks, unboundedness, conservation) as a table, with a summary report. `reachability` also explores the state space (up to max_states).",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "reachability": {
+            "description": "also run a bounded reachability analysis (default false)",
+            "type": "boolean"
+          },
+          "max_states": {
+            "description": "state limit for it, 1..200000 (default 10000)",
+            "type": "integer"
+          }
+        }
+      }
+    },
+    {
+      "name": "analysis_incidence",
+      "command": "analysis.incidence",
+      "description": "Incidence Matrix. The incidence matrix C = post − pre (rows: places in document order, `place.color` per used colour on a coloured net; columns: transitions). Read and inhibitor arcs move nothing, so they do not enter it. Returns pre and post too."
+    },
+    {
+      "name": "analysis_invariants",
+      "command": "analysis.invariants",
+      "description": "Invariants. Minimal semi-positive P-invariants (conservation laws, valued at the current marking) and T-invariants (firing counts that return the net to its marking), by Farkas elimination. Stores one node set per invariant (show one on the net) and the basis as a matrix; reports P-coverage (covered ⇒ structurally bounded) and T-coverage.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "description": "\"p\", \"t\" or \"both\" (default both)",
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "name": "analysis_siphons",
+      "command": "analysis.siphons",
+      "description": "Siphons & Traps. Every minimal siphon and trap, from the arc structure alone (sim_invariants' siphon/trap report). Marks each siphon empty at the current marking (a deadlock witness: the transitions needing it never fire again) and whether it contains a marked trap (Commoner's property, which certifies deadlock freedom for ordinary nets and liveness for free-choice ones). Refuses nets over 128 token places or a search over budget."
+    },
+    {
+      "name": "analysis_verify",
+      "command": "analysis.verify",
+      "description": "Verify Properties. Check properties (sim_verify's JSON): deadlock-free, bounded (with bound k > 0: every place ≤ k), live, terminating, reachable/unreachable {target}, invariant {expr}, mutual-exclusion {places, bound}, conserves. Each verdict is proved / refuted / unknown with its method (structural holds for any initial marking; exhaustive for this one; partial = truncated). Every refutation with a replayable counterexample stores a trace.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "properties": {
+            "type": "string",
+            "description": "array of properties (or a JSON string of one); default bounded + deadlock-free (pass a JSON value as a string)"
+          },
+          "max_states": {
+            "description": "exhaustive-search budget, 1..100000 (default 20000)",
+            "type": "integer"
+          },
+          "from_current": {
+            "description": "verify from the canvas marking instead of the declared initial marking",
+            "type": "boolean"
+          }
+        }
+      },
+      "json_args": [
+        "properties"
+      ]
+    },
+    {
+      "name": "analysis_reach",
+      "command": "analysis.reach",
+      "description": "Reach Marking. Is `to` reachable (sim_reach)? `to` constrains only the places it names, each to exactly that count. yes: a shortest firing sequence, stored as a trace; no: a P-invariant whose weighted sum separates from and to (valid whatever inhibitors, read arcs or capacities allow), or an exhaustive search; unknown: the budget ran out (not a no).",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "to": {
+            "type": "string",
+            "description": "{place: n} or {place: [per color]} (null entries free); place.color names one color (pass a JSON value as a string)"
+          },
+          "from": {
+            "type": "string",
+            "description": "sparse override on the start marking, same shape as to (pass a JSON value as a string)"
+          },
+          "from_current": {
+            "description": "start from the canvas marking instead of the declared initial marking",
+            "type": "boolean"
+          },
+          "max_states": {
+            "description": "search budget, 1..100000 (default 20000)",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "to"
+        ]
+      },
+      "json_args": [
+        "to",
+        "from"
+      ]
+    },
+    {
+      "name": "analysis_reachability",
+      "command": "analysis.reachability",
+      "description": "Reachability Graph. Explore every marking reachable from the initial (or current) marking under the token game's firing rule. When a marking strictly covers an ancestor through a pump of monotone transitions, the places that grew become ω (Karp–Miller coverability), so an unbounded net still gives a finite graph. Stores a graph (node per marking, edge per firing) and a report.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "max_states": {
+            "description": "markings to keep, 1..20000 (default 2000); beyond it the graph is truncated",
+            "type": "integer"
+          },
+          "from_current": {
+            "description": "start from the canvas marking instead of the declared initial marking",
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    {
+      "name": "analysis_canonical",
+      "command": "analysis.canonical",
+      "description": "Canonical Id & Orbits. An isomorphism-invariant id (equal for two nets that differ only by renaming) and the exact automorphism orbits, by individualization-refinement (a port of sim_canonical). One node set per non-trivial orbit. Refuses past a 1,000,000-step budget."
+    },
+    {
+      "name": "analysis_classify",
+      "command": "analysis.classify",
+      "description": "Classify. Classes of nodes the net cannot tell apart, by colour refinement (a port of sim_classify without its sampled experiments): quantitative colour → FungibleSet candidates, settled by the exact orbits when verify is on; structural colour → Roles. One node set per class.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "scope": {
+            "description": "\"all\" (places and transitions, default), \"places\", \"transitions\" or \"pools\" (sim's: conserved/bounded places marked initially)",
+            "type": "string"
+          },
+          "verify": {
+            "description": "settle fungible candidates by the exact orbit search (default true)",
+            "type": "boolean"
+          }
+        }
+      }
+    }
+  ]
+}

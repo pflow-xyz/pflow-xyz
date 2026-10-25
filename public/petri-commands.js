@@ -829,11 +829,16 @@ export class Registry {
      * @param {Object} host see the header
      * @param {CommandSpec[]} [commands]
      */
-    constructor(host, commands = [...COMMANDS, ...nativeCommands()]) {
+    /**
+     * @param {Object} [opts]
+     * @param {{items: Array, next: number}} [opts.store] an artifact store to
+     *   share with another registry (the chat's sandbox shares the editor's,
+     *   so its results show up in Results too)
+     */
+    constructor(host, commands = [...COMMANDS, ...nativeCommands()], opts = {}) {
         this.host = host;
         this._specs = new Map(commands.map((s) => [s.id, s]));
-        this._artifacts = [];
-        this._nextArtifact = 1;
+        this._store = opts.store || { items: [], next: 1 };
         this._listeners = new Set();
         /** Steps of journalled commands that succeeded, oldest first. */
         this.journal = [];
@@ -855,11 +860,11 @@ export class Registry {
         return this.list().find((x) => x.id === id);
     }
 
-    artifacts() { return [...this._artifacts]; }
+    artifacts() { return [...this._store.items]; }
 
     artifact(id) {
-        const a = this._artifacts.find((x) => x.id === id);
-        if (!a) throw new CommandError(`no artifact "${id}"${this._artifacts.length ? ` (have ${this._artifacts.map((x) => x.id).join(', ')})` : ''}`, 'not_found');
+        const a = this._store.items.find((x) => x.id === id);
+        if (!a) throw new CommandError(`no artifact "${id}"${this._store.items.length ? ` (have ${this._store.items.map((x) => x.id).join(', ')})` : ''}`, 'not_found');
         return a;
     }
 
@@ -920,12 +925,12 @@ export class Registry {
                 host.commit(Sim.normalizeModel(draft), label);
             },
             store: (title, data, meta) => {
-                const art = { id: `a${this._nextArtifact++}`, title, source: step, data };
+                const art = { id: `a${this._store.next++}`, title, source: step, data };
                 // REVIEW: `meta` (the run's inputs and summary) is a pflow.xyz
                 // extension; pflow-native's Artifact has no such field.
                 if (meta) art.meta = meta;
-                this._artifacts.push(art);
-                if (this._artifacts.length > MAX_ARTIFACTS) this._artifacts.shift();
+                this._store.items.push(art);
+                if (this._store.items.length > MAX_ARTIFACTS) this._store.items.shift();
                 return art;
             },
         };
