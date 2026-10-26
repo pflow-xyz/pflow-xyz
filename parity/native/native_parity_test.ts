@@ -20,6 +20,7 @@
 // without a case fails here.
 import { assert, assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { loadEngine } from "../../public/petri-wasm.js";
+import { diff } from "./diff.ts";
 import { NATIVE_COMMANDS } from "../../public/vendor/pflow-native-wasm/commands.js";
 
 const gz = await Deno.readFile(new URL("../../public/vendor/pflow-native-wasm/pflow_native_wasm_bg.wasm.gz", import.meta.url));
@@ -31,34 +32,6 @@ const cases = JSON.parse(await Deno.readTextFile(new URL("./cases.json", import.
 const lock = JSON.parse(await Deno.readTextFile(new URL("../../pflow-native-wasm.lock", import.meta.url)));
 
 const DEFAULT_TOL = 1e-9;
-
-/** Differences between expected and actual, as "path: reason" lines. */
-export function diff(exp: unknown, act: unknown, path: string, tol: number, ignore: Set<string>, out: string[] = []): string[] {
-    if (typeof exp === "number" && typeof act === "number") {
-        if (exp === act) return out;
-        if (Number.isInteger(exp) && Number.isInteger(act)) { out.push(`${path}: ${exp} != ${act}`); return out; }
-        const scale = Math.max(Math.abs(exp), Math.abs(act));
-        if (Math.abs(exp - act) > tol * Math.max(scale, 1e-12)) out.push(`${path}: ${exp} != ${act} (rel ${(Math.abs(exp - act) / scale).toExponential(2)} > ${tol})`);
-        return out;
-    }
-    if (Array.isArray(exp) || Array.isArray(act)) {
-        if (!Array.isArray(exp) || !Array.isArray(act)) { out.push(`${path}: array vs ${typeof (Array.isArray(exp) ? act : exp)}`); return out; }
-        if (exp.length !== act.length) { out.push(`${path}: length ${exp.length} != ${act.length}`); return out; }
-        exp.forEach((x, i) => diff(x, act[i], `${path}[${i}]`, tol, ignore, out));
-        return out;
-    }
-    if (exp && act && typeof exp === "object" && typeof act === "object") {
-        const ek = Object.keys(exp).filter((k) => !ignore.has(k)).sort();
-        const ak = Object.keys(act).filter((k) => !ignore.has(k)).sort();
-        if (ek.join("\0") !== ak.join("\0")) {
-            out.push(`${path}: keys differ (only native: ${ek.filter((k) => !ak.includes(k)).join(",") || "-"}; only wasm: ${ak.filter((k) => !ek.includes(k)).join(",") || "-"})`);
-        }
-        for (const k of ek) if (ak.includes(k)) diff((exp as any)[k], (act as any)[k], `${path}.${k}`, tol, ignore, out);
-        return out;
-    }
-    if (exp !== act) out.push(`${path}: ${JSON.stringify(exp)} != ${JSON.stringify(act)}`);
-    return out;
-}
 
 Deno.test("diff: integers exact, fractions by tolerance, ignored keys skipped", () => {
     const none = new Set<string>();

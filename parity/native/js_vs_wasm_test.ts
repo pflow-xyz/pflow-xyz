@@ -26,7 +26,7 @@
 import { assert, assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { loadEngine } from "../../public/petri-wasm.js";
 import { Registry, createHeadlessHost } from "../../public/petri-commands.js";
-import { diff } from "./native_parity_test.ts";
+import { diff } from "./diff.ts";
 
 const gz = await Deno.readFile(new URL("../../public/vendor/pflow-native-wasm/pflow_native_wasm_bg.wasm.gz", import.meta.url));
 const wasm = new Uint8Array(await new Response(new Blob([gz as BufferSource]).stream().pipeThrough(new DecompressionStream("gzip"))).arrayBuffer());
