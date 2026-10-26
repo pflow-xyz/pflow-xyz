@@ -1,0 +1,14 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "userfiles",
+    srcs = ["userfiles.go"],
+    importpath = "github.com/pflow-xyz/pflow-xyz/internal/userfiles",
+    visibility = ["//:__subpackages__"],
+)
+
+go_test(
+    name = "userfiles_test",
+    srcs = ["userfiles_test.go"],
+    embed = [":userfiles"],
+)

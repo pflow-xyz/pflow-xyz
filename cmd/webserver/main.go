@@ -174,6 +174,7 @@ func validateKeys(data interface{}) error {
 type Server struct {
 	storage           Storage
 	publicFS          fs.FS
+	files             *fileService // /api/files, each account's own files (files.go)
 	googleAnalyticsID string
 	schemaCache       schemaCache
 	llm               *llmService   // nil when no GEMINI_API_KEY: the LLM routes report disabled
@@ -1019,6 +1020,11 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		s.handlePostSVG(w, r)
 		return
 	}
+	// Account files (files.go): signed-in, same-origin only, no handleCORS.
+	if r.URL.Path == filesPrefix || strings.HasPrefix(r.URL.Path, filesPrefix+"/") {
+		s.handleFiles(w, r)
+		return
+	}
 
 	// LLM proxy (llm.go): same-origin only, no handleCORS.
 	if r.URL.Path == "/api/llm/status" {
@@ -1151,6 +1157,8 @@ func main() {
 		server.googleAnalyticsID = gaID
 		log.Printf("Google Analytics: %s", gaID)
 	}
+
+	server.configureFiles(*dataDir)
 
 	// Start server
 	addr := fmt.Sprintf(":%d", *port)
