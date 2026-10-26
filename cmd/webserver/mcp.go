@@ -387,6 +387,11 @@ func mcpSave(s *Server, r *http.Request, args map[string]any) (any, error) {
 // ---- JSON-RPC ----
 
 func (s *Server) handleMCP(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodGet && strings.Contains(r.Header.Get("Accept"), "text/html") {
+		// Someone opened the connector URL in a browser: show the docs.
+		http.Redirect(w, r, "/mcp.html", http.StatusFound)
+		return
+	}
 	if r.Method != http.MethodPost {
 		w.Header().Set("Allow", "POST")
 		http.Error(w, "this MCP endpoint is stateless: POST JSON-RPC, no event stream", http.StatusMethodNotAllowed)

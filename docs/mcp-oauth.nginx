@@ -1,0 +1,19 @@
+# Add to the pflow.xyz server block in pflow.dev:/etc/nginx/sites-available/pflow.xyz,
+# next to `location = /mcp`, then `sudo nginx -t && sudo systemctl reload nginx`.
+#
+# MCP clients (Claude) discover sign-in for /mcp from these two documents
+# (RFC 9728 and RFC 8414, cmd/webserver/mcp_oauth.go). Without them the vhost's
+# catch-all answers 404 and pflow_save cannot sign anyone in.
+# Everything else sign-in needs is already proxied: /auth/ (authorize, login,
+# token, register, provider callbacks), /mcp, and *.html (terms, privacy, docs).
+location ^~ /.well-known/oauth-protected-resource {
+    proxy_pass http://0.0.0.0:8081;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-Proto $scheme;
+}
+
+location = /.well-known/oauth-authorization-server {
+    proxy_pass http://0.0.0.0:8081;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-Proto $scheme;
+}

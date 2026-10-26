@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MCP connector · pflow.xyz</title>
+<meta name="description" content="Connect Claude or any MCP client to pflow.xyz to build, check, simulate and save Petri nets.">
+<link rel="icon" href="/favicon.ico">
+<meta name="author" content="Matt York">
+<link rel="me" href="https://github.com/stackdump">
+<link rel="me" href="https://blog.stackdump.com/">
+<style>
+body{font:16px/1.6 system-ui,sans-serif;max-width:46rem;margin:2.5rem auto;padding:0 1rem;color:#1a1a1a;background:#fff}
+@media (prefers-color-scheme:dark){body{color:#e8e8e8;background:#16161a}a{color:#8ab4f8}code,pre{background:#26262c}}
+h1{font-size:1.8rem;margin-bottom:.25rem}h2{font-size:1.25rem;margin-top:2.25rem}
+code,pre{background:#f2f2f4;border-radius:4px}code{padding:.1rem .3rem}pre{padding:.75rem 1rem;overflow-x:auto}
+table{border-collapse:collapse;width:100%}td{padding:.35rem .5rem;border-top:1px solid #8884;vertical-align:top}
+td:first-child{white-space:nowrap}nav a{margin-right:1rem}.lede{font-size:1.1rem}
+</style>
+</head>
+<body>
+<nav><a href="/">pflow.xyz</a><a href="/terms.html">Terms</a><a href="/privacy.html">Privacy</a></nav>
+<h1>pflow.xyz MCP connector</h1>
+<p class="lede">Build, check, simulate and analyse Petri nets in the pflow.xyz format from Claude or any MCP client, then open them in the pflow.xyz editor.</p>
+
+<p>Connector URL:</p>
+<pre>https://pflow.xyz/mcp</pre>
+
+<h2>Set it up</h2>
+<p><b>Claude (web, desktop and mobile):</b> open Settings, then Connectors, choose Add custom connector, and paste the URL above. No sign-in is needed to start.</p>
+<p><b>Claude Code:</b></p>
+<pre>claude mcp add --transport http pflow https://pflow.xyz/mcp</pre>
+<p><b>Other clients:</b> it is a stateless Streamable HTTP server. POST JSON-RPC to the URL; there is no event stream.</p>
+
+<h2>Signing in</h2>
+<p>Every tool works without an account except <code>pflow_save</code>. The first time you save, your client opens a pflow.xyz page where you sign in with GitHub or Google. The saved net is then recorded as yours. Saved nets are public, so don't save anything private. pflow.xyz keeps only your account id (and your GitHub username), never a password; see the <a href="/privacy.html">privacy policy</a>.</p>
+
+<h2>Try asking</h2>
+<ul>
+<li>"Build a Petri net for a two-philosopher dining problem with pflow and tell me whether it can deadlock."</li>
+<li>"Here's my pflow net. Simulate it to t=50 and tell me where the tokens end up."</li>
+<li>"Find the place invariants of this net, then give me a link to open it in the pflow.xyz editor."</li>
+</ul>
+
+<h2>Tools</h2>
+<table>
+<tr><td><code>pflow_edit</code></td><td>Build a net or change one with a list of edits, applied all together or not at all.</td></tr>
+<tr><td><code>pflow_info</code></td><td>Summarise a net: places, transitions, arcs, marking and what is enabled.</td></tr>
+<tr><td><code>pflow_check</code></td><td>Parse a net and report its size and anything it refuses.</td></tr>
+<tr><td><code>pflow_validate</code></td><td>Structural checks: connectivity, deadlocks, boundedness, conservation.</td></tr>
+<tr><td><code>pflow_verify</code></td><td>Prove or refute properties, with an invariant proof or a replayable counterexample.</td></tr>
+<tr><td><code>pflow_fire</code></td><td>Play the token game: fire a sequence of transitions.</td></tr>
+<tr><td><code>pflow_reachability</code></td><td>Explore reachable markings: state count, deadlocks, dead transitions, liveness.</td></tr>
+<tr><td><code>pflow_invariants</code></td><td>P- and T-invariants (conservation laws and cycles).</td></tr>
+<tr><td><code>pflow_incidence</code></td><td>The incidence matrix.</td></tr>
+<tr><td><code>pflow_simulate</code></td><td>Mass-action ODE simulation with a sampled trajectory.</td></tr>
+<tr><td><code>pflow_ssa</code></td><td>Seeded stochastic (Gillespie) simulation.</td></tr>
+<tr><td><code>pflow_rate_scan</code></td><td>Sweep one rate and see how the outcome moves.</td></tr>
+<tr><td><code>pflow_export</code></td><td>The net as normalised JSON-LD or as an SVG drawing.</td></tr>
+<tr><td><code>pflow_cid</code></td><td>The content id a net seals to.</td></tr>
+<tr><td><code>pflow_links</code></td><td>Links to see a net: the editor, its SVG and its JSON-LD.</td></tr>
+<tr><td><code>pflow_get</code></td><td>Fetch a stored net by its content id.</td></tr>
+<tr><td><code>pflow_save</code></td><td>Store a net on pflow.xyz as yours (needs sign-in; stored nets are public).</td></tr>
+</table>
+
+<h2>Limits</h2>
+<ul>
+<li>Each tool call has 60 seconds.</li>
+<li>Up to 8 calls run at once across all users; past that you get a "busy" error to retry.</li>
+<li>Large results are cut down; ask for fewer samples, a shorter time span or a smaller net.</li>
+</ul>
+
+<h2>Troubleshooting</h2>
+<ul>
+<li><b>"Busy" error:</b> the server is at its limit for a moment. Try again shortly.</li>
+<li><b>Save asks you to sign in again:</b> sign-ins last up to 30 days. Sign in again from your client, or remove and re-add the connector.</li>
+<li><b>Sign-in page says the app or redirect isn't allowed:</b> the client sent a redirect address pflow.xyz doesn't accept. Remove and re-add the connector; if it keeps happening, open an issue.</li>
+<li><b>A net is refused:</b> run <code>pflow_check</code> on it to see why, or open it in the <a href="/">editor</a>, which can repair most problems.</li>
+<li><b>Result was cut down:</b> narrow the request, as in Limits above.</li>
+</ul>
+
+<h2>Support</h2>
+<p>Report problems or ask questions at <a href="https://github.com/pflow-xyz/pflow-xyz/issues">github.com/pflow-xyz/pflow-xyz/issues</a>. Use of the connector is covered by the <a href="/terms.html">terms</a> and <a href="/privacy.html">privacy policy</a>.</p>
+</body>
+</html>
