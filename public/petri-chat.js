@@ -22,12 +22,15 @@ import { NATIVE_COMMANDS } from './vendor/pflow-native-wasm/commands.js';
 // lives in it): they make the sandbox differ from the live net.
 const EDITS = new Set(['file.new', 'edit.undo', 'edit.redo', 'edit.delete', 'sim.fire', 'sim.reset', 'sim.set_rate', 'sim.goto']);
 // pflow-native's commands that edit the net or move its marking (compose.fuse,
-// file.open_example, sim.run, data.discover …), and the ones that edit it only
-// when called with apply (opt.fit, opt.distill, data.calibrate).
+// file.open_example, sim.run, data.discover …), the ones that edit it only
+// when called with apply (opt.fit, opt.distill, data.calibrate), and the one
+// that edits it only when its `model` names the open net (system.set_port).
 const NATIVE_EDITS = new Set(NATIVE_COMMANDS.filter((s) => s.edits || s.setsMarking).map((s) => s.id));
 const NATIVE_EDITS_ON_APPLY = new Set(NATIVE_COMMANDS.filter((s) => s.editsOnApply).map((s) => s.id));
+const NATIVE_EDITS_ON_CURRENT = new Map(NATIVE_COMMANDS.filter((s) => s.editsOnCurrent).map((s) => [s.id, s.editsOnCurrent]));
 const isEdit = (id, args) => EDITS.has(id) || (id.startsWith('net.') && id !== 'net.info') || NATIVE_EDITS.has(id)
-    || (NATIVE_EDITS_ON_APPLY.has(id) && !!args?.apply);
+    || (NATIVE_EDITS_ON_APPLY.has(id) && !!args?.apply)
+    || (NATIVE_EDITS_ON_CURRENT.has(id) && [undefined, 'current'].includes(args?.[NATIVE_EDITS_ON_CURRENT.get(id)]));
 // Commands that act on the canvas: always the live registry.
 const VIEW = new Set(['view.highlight', 'view.clear_highlight', 'view.fit', 'artifact.show_set']);
 

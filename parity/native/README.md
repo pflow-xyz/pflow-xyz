@@ -11,9 +11,21 @@ vendored files only.
 the cases in `cases.json`; the test replays the same inputs through the vendored
 wasm and compares. Comparison: strings, structure and integers exact; any number
 with a fraction to a relative 1e-9 (a case may set another `tolerance` and say
-why); keys named in a step's `ignore` skipped for that step. Every command in
+why); keys named in a step's `ignore` skipped for that step, and so are the
+cells of a table artifact's column of that name. Every command in
 `NATIVE_COMMANDS` must have at least one successful golden case — the test says
 which one is missing.
+
+Each case runs on its own memory store, natively as in wasm (the generator makes
+one the thread's store per case, as each wasm `Engine` does), so the `store.*`
+cases never touch a data directory. **The wasm build has no clock**
+(`store::canon::now_ms` is 0 on wasm32): a stored model's `created` is 0 and an
+edge's `at` the zero time, where natively both are the time, and an edge's id
+hashes its `at`. The store cases ignore those keys, and no compared listing
+holds two clock-stamped edges, whose order (by time, then id) would differ too.
+In the browser that means `store.list` cannot order by age and edges sort by id;
+a pflow-native follow-up (read the time through `web_time`, as `provenance`
+already does).
 
 `cases.json` — one **session** per case: load a fixture (paths relative to
 `parity/`: the shared `parity/fixtures/` nets and `native/fixtures/`: `sir` with
@@ -47,7 +59,8 @@ run; the rest is deterministic.
    `commands.js` and rewrites the lock. It fails when an exposed id collides with
    a JS command, or when the engine has a command that is neither exposed, a JS
    id, nor listed in `NOT_EXPOSED` (a new command needs a decision).
-3. Set the `rev` in `gen/Cargo.toml` to `COMMIT`, then `make native-goldens`.
+3. Set the `rev` in `gen/Cargo.toml` and the `pflow_native` string in
+   `gen/src/main.rs` to `COMMIT`, then `make native-goldens`.
 4. `node scripts/gen-llm-tools.mjs` (the chat's tool manifest) and `make test-js`.
 
 ## JS vs wasm (`js_vs_wasm_test.ts`)

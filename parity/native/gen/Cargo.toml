@@ -1,8 +1,8 @@
 # Generator for parity/native/goldens.json: runs parity/native/cases.json through
 # pflow-native's registry, natively (not wasm), exactly as the wasm Engine does
-# (file.load_json, then Session::execute). It is not part of the Go build or the
-# Bazel graph (no .go files, no BUILD file) and has its own workspace so no
-# parent Cargo workspace adopts it.
+# (its own memory store, file.load_json unjournaled, then Session::execute). It
+# is not part of the Go build or the Bazel graph (no .go files, no BUILD file)
+# and has its own workspace so no parent Cargo workspace adopts it.
 #
 # The rev is the pflow-native commit the vendored wasm
 # (public/vendor/pflow-native-wasm, pflow-native-wasm.lock) was built from; the
@@ -17,5 +17,5 @@ publish = false
 
 [dependencies]
 # default features: the same set as the wasm build (no services, http, zk, rnn, png).
-pflow-native-core = { git = "https://github.com/pflow-xyz/pflow-native", rev = "1a44427b8ca0a6af56f6f629e810fb9c38f09a5b" }
+pflow-native-core = { git = "https://github.com/pflow-xyz/pflow-native", rev = "42f919ab00cf59ec9b212e4278203aca24d7c331" }
 serde_json = { version = "1", features = ["preserve_order", "float_roundtrip"] }

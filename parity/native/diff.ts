@@ -1,7 +1,23 @@
 // diff.ts — the comparison the parity tests share (native_parity_test.ts, js_vs_wasm_test.ts).
 
+const isTable = (v: any) => v && typeof v === "object" && v.kind === "table" && Array.isArray(v.columns) && Array.isArray(v.rows);
+
+// A table's cells sit in rows, by column: a key named in `ignore` also names a
+// column, whose cells are blanked on both sides before the comparison (the
+// columns themselves are still compared).
+function maskColumns(t: any, columns: unknown[], ignore: Set<string>) {
+    const skip = columns.map((c) => typeof c === "string" && ignore.has(c));
+    if (!skip.some(Boolean)) return t;
+    return { ...t, rows: t.rows.map((r: unknown) => (Array.isArray(r) ? r.map((c, i) => (skip[i] ? null : c)) : r)) };
+}
+
 /** Differences between expected and actual, as "path: reason" lines. */
 export function diff(exp: unknown, act: unknown, path: string, tol: number, ignore: Set<string>, out: string[] = []): string[] {
+    if (ignore.size && isTable(exp) && isTable(act)) {
+        const columns = (exp as any).columns;
+        exp = maskColumns(exp, columns, ignore);
+        act = maskColumns(act, columns, ignore);
+    }
     if (typeof exp === "number" && typeof act === "number") {
         if (exp === act) return out;
         if (Number.isInteger(exp) && Number.isInteger(act)) { out.push(`${path}: ${exp} != ${act}`); return out; }

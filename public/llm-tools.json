@@ -1967,6 +1967,416 @@
           "log"
         ]
       }
+    },
+    {
+      "name": "model_list",
+      "command": "model.list",
+      "description": "List Models. Names in the model library with their sizes."
+    },
+    {
+      "name": "model_get",
+      "command": "model.get",
+      "description": "Get Model. A library model (or \"current\") as pflow.xyz JSON-LD.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "description": "library name or \"current\"",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ]
+      }
+    },
+    {
+      "name": "model_open",
+      "command": "model.open",
+      "description": "Open from Library…. Make a library model the open net (undoable; the previous net is not saved to the library).",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "description": "library name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ]
+      }
+    },
+    {
+      "name": "compose_diff",
+      "command": "compose.diff",
+      "description": "Diff Models…. Structural diff of two models (sim_diff): library names or \"current\". Stores a table (kind, id, change, before, after), a summary report, a side-by-side drawing, and, when one side is the open net, node sets (added / removed / changed) to highlight on the canvas.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "a": {
+            "description": "before: library name or \"current\" (default)",
+            "type": "string"
+          },
+          "b": {
+            "description": "after: library name or \"current\"",
+            "type": "string"
+          }
+        },
+        "required": [
+          "b"
+        ]
+      }
+    },
+    {
+      "name": "system_ports",
+      "command": "system.ports",
+      "description": "List Ports. Declared ports of a model, or (no model) of the open net and every library model that declares any.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "model": {
+            "description": "library model name or \"current\"",
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "name": "system_binding",
+      "command": "system.binding",
+      "description": "Get Binding. A binding by id with its check computed now (sim_get_binding): ok (with the unit verdict), refused (a model changed since it was bound) or uncheckable (a model it names is gone).",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "description": "binding id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ]
+      }
+    },
+    {
+      "name": "system_bindings",
+      "command": "system.bindings",
+      "description": "List Bindings. Every binding (or those touching `model`), with its check verdict now.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "model": {
+            "description": "only bindings from or to this model",
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "name": "system_show",
+      "command": "system.show",
+      "description": "Show System…. A stored system's view, computed now (sim_system {id}): each model (present or missing) with its ports, each binding with its check, whether the set runs as a pipeline (order, loops, maxHours), and for every port what is bound to it and what else in the system could be. Stores a Graph and a Report.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "description": "system name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ]
+      }
+    },
+    {
+      "name": "system_list",
+      "command": "system.list",
+      "description": "List Systems. Stored systems with their models and bindings."
+    },
+    {
+      "name": "system_run",
+      "command": "system.run",
+      "description": "Run Pipeline…. Run a system (or a list of bindings) as a pipeline (sim_run_pipeline): every model runs as itself in topological order, each binding's source place trajectory resampled into the target transition's rate schedule (× transform × conversion, shifted by its delay); a loop through a delayed binding is solved by sweeps to its fixed point. Stores a TimeSeries overlay (group = model), a Report (order, loop verdict, per-binding flows, assumptions) and, with graph: true, an annotated Graph.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "description": "stored system to run",
+            "type": "string"
+          },
+          "bindings": {
+            "description": "binding ids to run instead of a system",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "hours": {
+            "description": "horizon shared by every model (default 8, ≤ 10000)",
+            "type": "number"
+          },
+          "t_end": {
+            "description": "alias of hours",
+            "type": "number"
+          },
+          "engine": {
+            "description": "ode (default: mass-action ODE, deterministic) or ssa (sim's scenario engine)",
+            "type": "string"
+          },
+          "seed": {
+            "description": "ssa: shared seed (default 1)",
+            "type": "integer"
+          },
+          "realizations": {
+            "description": "ssa: realizations per model (default 1, ≤ 200)",
+            "type": "integer"
+          },
+          "sweeps": {
+            "description": "most sweeps per loop (2..24; default: as many as the loop's delay guarantees)",
+            "type": "integer"
+          },
+          "tolerance": {
+            "description": "a loop also settles when its cut schedule moves by at most this (rate/h) between sweeps (default 0: exact fixed point)",
+            "type": "number"
+          },
+          "graph": {
+            "description": "also store a Graph annotated with the run",
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    {
+      "name": "note_list",
+      "command": "note.list",
+      "description": "Notes. Every note, oldest first, with its target; `orphaned` when its node or result is gone."
+    },
+    {
+      "name": "macro_list",
+      "command": "macro.list",
+      "description": "List Macros. Macro names and step counts."
+    },
+    {
+      "name": "macro_get",
+      "command": "macro.get",
+      "description": "Get Macro. A macro's steps.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "description": "macro name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ]
+      }
+    },
+    {
+      "name": "macro_play",
+      "command": "macro.play",
+      "description": "Play Macro. Replay a macro as one undo step (rolled back if any step fails).",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "description": "macro name (default \"last\")",
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "name": "store_get",
+      "command": "store.get",
+      "description": "Get Stored Model. A stored model's pflow.xyz JSON-LD (with @id = its CID).",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "cid": {
+            "description": "model CID",
+            "type": "string"
+          }
+        },
+        "required": [
+          "cid"
+        ]
+      }
+    },
+    {
+      "name": "store_open",
+      "command": "store.open",
+      "description": "Open from Store…. Make a stored model the open net (undoable; the net has no file path).",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "cid": {
+            "description": "model CID",
+            "type": "string"
+          }
+        },
+        "required": [
+          "cid"
+        ]
+      }
+    },
+    {
+      "name": "store_list",
+      "command": "store.list",
+      "description": "List Stored Models. Stored models, newest first, with title, size, created (ms), collections, license and successor. `query` filters by title or CID substring. Stores a table artifact.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "description": "case-insensitive substring of the title or CID",
+            "type": "string"
+          },
+          "limit": {
+            "description": "at most this many rows (default 100)",
+            "type": "integer"
+          }
+        }
+      }
+    },
+    {
+      "name": "store_edges",
+      "command": "store.edges",
+      "description": "Edges. Every relation touching an entity, as subject or object, ordered by time. Stores a table artifact.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "description": "entity id",
+            "type": "string"
+          },
+          "predicate": {
+            "description": "only this predicate's edges",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ]
+      }
+    },
+    {
+      "name": "store_neighbors",
+      "command": "store.neighbors",
+      "description": "Neighbors. One hop from an entity through the registry (sim_neighbors): no predicate = objects of its outgoing edges; an inverse name (narrower) reads its stored predicate backwards; a symmetric one counts both ways. direction: out (default), in, both.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "description": "entity id",
+            "type": "string"
+          },
+          "predicate": {
+            "description": "restrict to this predicate",
+            "type": "string"
+          },
+          "direction": {
+            "description": "out | in | both",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ]
+      }
+    },
+    {
+      "name": "store_query",
+      "command": "store.query",
+      "description": "Query Graph…. Conjunctive pattern query over the edges (sim_query): {select, where: [{subject, predicate, object, mode: edge|path|closure, maxHops}]}, ?name for variables; no variables = a yes/no question. Stores table and graph artifacts.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "pattern": {
+            "type": "string",
+            "description": "the query: {select?, where}, a pattern list, or its JSON text (pass a JSON value as a string)"
+          }
+        },
+        "required": [
+          "pattern"
+        ]
+      },
+      "json_args": [
+        "pattern"
+      ]
+    },
+    {
+      "name": "store_collection_list",
+      "command": "store.collection_list",
+      "description": "List Collections. Collections with their member counts. Stores a table artifact."
+    },
+    {
+      "name": "store_migration_offers",
+      "command": "store.migration_offers",
+      "description": "Migration Offers. What supersession does to each edge of a superseded model: taxonomic edges are offered for the current successor (with the link check on the proposed edge); tool-written and structural edges stay. Stores a table artifact.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "cid": {
+            "description": "the superseded model's CID",
+            "type": "string"
+          },
+          "predicate": {
+            "description": "only this predicate's edges",
+            "type": "string"
+          }
+        },
+        "required": [
+          "cid"
+        ]
+      }
+    },
+    {
+      "name": "store_map_get",
+      "command": "store.map_get",
+      "description": "Get Table. A stored table's data by id.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "description": "map id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ]
+      }
+    },
+    {
+      "name": "store_map_list",
+      "command": "store.map_list",
+      "description": "List Tables. The id and key count of every stored table. Stores a table artifact."
+    },
+    {
+      "name": "store_graph",
+      "command": "store.graph",
+      "description": "Knowledge Graph. The store as a graph: models, collections and the edges between them (plus provenance parents). `around` limits it to `depth` hops (default 2) of one entity.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "around": {
+            "description": "entity id (or collection name) to centre on",
+            "type": "string"
+          },
+          "depth": {
+            "description": "hops from `around` (default 2)",
+            "type": "integer"
+          }
+        }
+      }
+    },
+    {
+      "name": "store_info",
+      "command": "store.info",
+      "description": "Store Info. Where the store lives, what it holds, and the predicate registry."
     }
   ]
 }

@@ -14,7 +14,28 @@
 //   2. runs the command;
 //   3. exports every artifact the result names (export.artifact, json) and
 //      clears the engine's own, so results live in ONE place: the JS
-//      registry, which renders and exports them like any other.
+//      registry, which renders and exports them like any other;
+//   4. saves the session state if the call changed it (below).
+//
+// The page keeps one engine. What outlives a document in it (the model
+// library, systems, macros, notes and the content-addressed store) is the
+// SESSION STATE: saved in browser storage after every call that changes it
+// (Engine session.dump_state, compared with the last copy saved), and restored
+// once when the engine loads (Engine.restoreState), before any command runs.
+// Step 1 keeps it (load replaces only the document) and step 3 clears only
+// results, which are not part of it: the engine's results never outlive a
+// call, so the saved copy leaves them out.
+//
+// Storage is IndexedDB (idbStorage): the state carries every stored model and
+// library net as text, which outgrows localStorage's ~5 MB per origin quickly,
+// and an IndexedDB write does not block the page. localStorage is the fallback
+// where IndexedDB is missing; with neither (or in tests, unless they pass one)
+// the session lives in memory only. Storage that fails to read starts the
+// engine empty and saves nothing that session, so a broken read never ends in
+// an empty state written over a good one. A saved state the engine refuses (a
+// newer format, a damaged part) is set aside under its own key, not
+// overwritten, and the engine starts empty. Two tabs each keep their own
+// engine, and the last one to save wins (there is no cross-tab sync).
 //
 // The JS engines (token game, ODE, SSA, SDE) stay the engines of record for
 // what they do; nothing here replaces them.
@@ -23,28 +44,229 @@ const VENDOR = new URL('./vendor/pflow-native-wasm/', import.meta.url);
 
 let enginePromise = null;
 
+// The parts of session.dump_state the page saves: everything but the results
+// (artifacts), which the bridge clears after every call.
+const SAVED_PARTS = JSON.stringify({ parts: ['models', 'systems', 'macros', 'recording', 'notes', 'store'] });
+
+// The browser storage the session state is saved in, chosen on the first
+// load (undefined until then; null = none) and kept across dropEngine().
+let storage;
+// The last state written (or restored), so an unchanged state is not written
+// again; and whether this page saves at all (off after a failed read, see
+// restoreSaved).
+let lastSaved = null;
+let canSave = true;
+let saving = Promise.resolve();
+
 // Keys of a native result that hold artifact ids (one id or a list of them).
 const ARTIFACT_KEYS = new Set(['artifact', 'artifacts', 'sets', 'report', 'trace', 'traces', 'graph', 'matrices', 'p_basis', 't_basis', 'table', 'bars', 'heatmap', 'scatter', 'series', 'log', 'data', 'timeseries', 'overlay']);
 const ARTIFACT_ID = /^a\d+$/;
 
 /**
- * The engine, initialised once. In the browser the .wasm is fetched next to
- * the vendored glue (the server sends it gzip-encoded). Tests pass `bytes`.
- * @param {{bytes?: BufferSource}} [o]
+ * The engine, initialised once, with the saved session state restored. In the
+ * browser the .wasm is fetched next to the vendored glue (the server sends it
+ * gzip-encoded). Tests pass `bytes`, and `storage` (memoryStorage()) to
+ * exercise saving; the default is browserStorage().
+ * @param {{bytes?: BufferSource, storage?: SessionStorage|null}} [o]
  */
 export function loadEngine(o = {}) {
+    if (o.storage !== undefined) storage = o.storage;
     enginePromise ||= (async () => {
         const glue = await import(new URL('pflow_native_wasm.js', VENDOR).href);
         if (o.bytes) glue.initSync({ module: o.bytes });
         else await glue.default({ module_or_path: new URL('pflow_native_wasm_bg.wasm', VENDOR) });
-        return { glue, engine: new glue.Engine(), version: glue.Engine.version() };
+        if (storage === undefined) storage = browserStorage();
+        const engine = new glue.Engine();
+        await restoreSaved(engine);
+        return { glue, engine, version: glue.Engine.version() };
     })();
     enginePromise.catch(() => { enginePromise = null; });
     return enginePromise;
 }
 
-/** True once loadEngine() has resolved (for UI that wants to say "loading…"). */
-export const engineState = { loaded: false };
+/**
+ * Forget the engine: the next loadEngine() makes a new one and restores the
+ * saved state into it, as a page reload does. The storage choice is kept.
+ * Resolves once the pending saves have landed.
+ */
+export async function dropEngine() {
+    const p = enginePromise;
+    enginePromise = null;
+    await saving;
+    if (p) {
+        try { (await p).engine.free(); } catch { /* never loaded */ }
+    }
+    engineState.loaded = false;
+}
+
+/**
+ * True once loadEngine() has resolved (for UI that wants to say "loading…"),
+ * and what the start-up restore did: `storage` (indexeddb, localstorage,
+ * memory or none), `restored` (the engine's summary of what came back, or
+ * null when nothing was saved), `refused` (why a saved state was set aside),
+ * `saving` (false when this page saves nothing, see restoreSaved).
+ */
+/** @type {{loaded: boolean, storage: string, restored: Object|null, refused: string|null, saving: boolean}} */
+export const engineState = { loaded: false, storage: 'none', restored: null, refused: null, saving: true };
+
+function warn(msg, e) {
+    if (typeof console === 'undefined') return;
+    if (e === undefined) console.warn(`[pflow-native] ${msg}`);
+    else console.warn(`[pflow-native] ${msg}`, e);
+}
+
+// The state the page saves, as the engine dumps it.
+function dumpSaved(engine) {
+    return engine.execute('session.dump_state', SAVED_PARTS);
+}
+
+/**
+ * Restore the saved session state into a new engine. Nothing saved: an empty
+ * session. A read that fails: an empty session that saves nothing this page
+ * (the copy it could not read may still be good). A state the engine refuses:
+ * set aside under its own key and an empty session; if setting it aside fails
+ * too, nothing is saved this page, so the refused copy is never overwritten.
+ */
+async function restoreSaved(engine) {
+    Object.assign(engineState, { storage: storage?.kind || 'none', restored: null, refused: null, saving: true });
+    canSave = !!storage;
+    lastSaved = null;
+    if (storage) {
+        let saved = null;
+        try {
+            saved = await storage.load();
+        } catch (e) {
+            warn('could not read the saved session; starting empty, and saving nothing this page', e);
+            canSave = false;
+        }
+        if (saved != null) {
+            try {
+                const summary = JSON.parse(engine.restoreState(typeof saved === 'string' ? saved : JSON.stringify(saved)));
+                engineState.restored = summary;
+                for (const w of summary.warnings || []) warn(w);
+            } catch (e) {
+                const why = String(e?.message || e);
+                engineState.refused = why;
+                warn(`the saved session was refused (${why}); it is set aside and the engine starts empty`);
+                try {
+                    await storage.setAside(saved, why);
+                } catch (e2) {
+                    warn('could not set the refused session aside; saving nothing this page so it is not overwritten', e2);
+                    canSave = false;
+                }
+            }
+        }
+    }
+    engineState.saving = canSave;
+    try { lastSaved = dumpSaved(engine); } catch { /* an engine without session.dump_state */ }
+}
+
+/**
+ * Save the engine's session state if it changed since the last save. Writes
+ * are chained, so they land in order; a failed write is reported, not thrown
+ * (the command that caused it succeeded), and the next change retries.
+ */
+function saveIfChanged(engine) {
+    if (!storage || !canSave) return saving;
+    let now;
+    try { now = dumpSaved(engine); } catch (e) { warn('could not dump the session state', e); return saving; }
+    if (now === lastSaved) return saving;
+    lastSaved = now;
+    saving = saving.then(() => storage.save(now)).catch((e) => {
+        warn('could not save the session state', e);
+        lastSaved = null;
+    });
+    return saving;
+}
+
+// ---- browser storage ----
+
+/**
+ * @typedef {Object} SessionStorage
+ * @property {string} kind
+ * @property {() => Promise<string|null>} load      the saved state, or null
+ * @property {(text: string) => Promise<void>} save
+ * @property {(text: string, why: string) => Promise<void>} setAside
+ *   keep a refused state under its own key and clear the main one
+ */
+
+const STATE_KEY = 'pflow-native-session';
+
+/** IndexedDB: database `pflow-native`, object store `state`, key `pflow-native-session`. */
+export function idbStorage(idb = globalThis.indexedDB, dbName = 'pflow-native') {
+    let dbp = null;
+    const open = () => (dbp ||= new Promise((resolve, reject) => {
+        const req = idb.open(dbName, 1);
+        req.onupgradeneeded = () => req.result.createObjectStore('state');
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+        req.onblocked = () => reject(new Error('IndexedDB open blocked by another tab'));
+    }).catch((e) => { dbp = null; throw e; }));
+    const tx = async (mode, fn) => {
+        const db = await open();
+        return new Promise((resolve, reject) => {
+            const t = db.transaction('state', mode);
+            const req = fn(t.objectStore('state'));
+            t.oncomplete = () => resolve(req?.result);
+            t.onerror = () => reject(t.error);
+            t.onabort = () => reject(t.error || new Error('IndexedDB transaction aborted'));
+        });
+    };
+    return {
+        kind: 'indexeddb',
+        load: async () => (await tx('readonly', (st) => st.get(STATE_KEY))) ?? null,
+        save: async (text) => { await tx('readwrite', (st) => st.put(text, STATE_KEY)); },
+        setAside: async (text, why) => {
+            await tx('readwrite', (st) => {
+                st.put({ text, why, at: new Date().toISOString() }, `${STATE_KEY}.refused.${Date.now()}`);
+                return st.delete(STATE_KEY);
+            });
+        },
+    };
+}
+
+/**
+ * localStorage (or any Storage-shaped object): key `pflow-native-session`.
+ * @param {{getItem(k: string): string|null, setItem(k: string, v: string): void, removeItem(k: string): void}} [ls]
+ */
+export function localStorageStorage(ls = globalThis.localStorage) {
+    return {
+        kind: 'localstorage',
+        load: async () => ls.getItem(STATE_KEY),
+        save: async (text) => { ls.setItem(STATE_KEY, text); },
+        setAside: async (text, why) => {
+            ls.setItem(`${STATE_KEY}.refused.${Date.now()}`, JSON.stringify({ text, why, at: new Date().toISOString() }));
+            ls.removeItem(STATE_KEY);
+        },
+    };
+}
+
+/** In memory, for tests: `data` is a Map standing in for the browser's storage. */
+export function memoryStorage(data = new Map()) {
+    return {
+        kind: 'memory',
+        data,
+        load: async () => data.get(STATE_KEY) ?? null,
+        save: async (text) => { data.set(STATE_KEY, text); },
+        setAside: async (text, why) => {
+            data.set(`${STATE_KEY}.refused.${data.size}`, { text, why });
+            data.delete(STATE_KEY);
+        },
+    };
+}
+
+/**
+ * The page's storage: IndexedDB, else localStorage, else none. Only in a
+ * page (a document): a test runner's localStorage would outlive the test.
+ */
+export function browserStorage() {
+    if (typeof document === 'undefined') return null;
+    try {
+        if (globalThis.indexedDB) return idbStorage();
+        if (globalThis.localStorage) return localStorageStorage();
+    } catch { /* storage access denied (some privacy modes throw on the getter) */ }
+    return null;
+}
 
 function parseJSON(s) {
     return typeof s === 'string' ? JSON.parse(s) : s;
@@ -92,7 +314,7 @@ function rewriteIds(result, map) {
  * @returns {Promise<Object>} the command's result
  */
 export async function runNative(model, id, args, store, opts = {}) {
-    const { engine } = await loadEngine();
+    const { engine, version } = await loadEngine();
     engineState.loaded = true;
     try {
         const map = new Map();
@@ -123,7 +345,7 @@ export async function runNative(model, id, args, store, opts = {}) {
             } catch {
                 continue; // a stale id in a result is not worth failing the command over
             }
-            const kept = store(art.title, art.data, { native: { id: nid, version: (await loadEngine()).version } });
+            const kept = store(art.title, art.data, { native: { id: nid, version } });
             map.set(nid, kept.id);
         }
         const rewritten = rewriteIds(result, map);
@@ -134,6 +356,7 @@ export async function runNative(model, id, args, store, opts = {}) {
         return { result: rewritten, doc };
     } finally {
         try { engine.execute('artifact.clear', '{}'); } catch { /* older engines: harmless */ }
+        await saveIfChanged(engine);
     }
 }
 
