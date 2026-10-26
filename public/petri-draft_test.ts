@@ -161,7 +161,9 @@ for (const name of recordedFiles.sort()) {
     Deno.test(`recorded reply ${name} still loads (or is refused for the same reason)`, async () => {
         const rec = JSON.parse(await Deno.readTextFile(new URL(name, recorded)));
         if (rec.error || !rec.raw) return;
-        const r = await gateDraft(JSON.parse(rec.raw));
+        let draft;
+        try { draft = JSON.parse(rec.raw); } catch { return; } // truncated or non-JSON reply: nothing to gate; make llm-eval reports it
+        const r = await gateDraft(draft);
         if (rec.expect === "refused") assert(!r.ok);
         else if (rec.expect !== undefined) assert(r.ok, JSON.stringify(r.errors));
     });

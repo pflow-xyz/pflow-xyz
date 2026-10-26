@@ -273,7 +273,7 @@ func (s *Server) handleLLMDraft(w http.ResponseWriter, r *http.Request) {
 		Messages:        []llm.Message{{Role: "user", Parts: []llm.Part{{Text: desc}}}},
 		ResponseSchema:  draftSchema,
 		Temperature:     0.2,
-		MaxOutputTokens: 4096,
+		MaxOutputTokens: 16384,
 	})
 	if err != nil {
 		status, msg := upstreamStatus(err)

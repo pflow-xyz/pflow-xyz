@@ -219,7 +219,7 @@ func (s *Server) handleLLMTurn(w http.ResponseWriter, r *http.Request) {
 		Messages:        msgs,
 		Tools:           svc.toolDecls,
 		Temperature:     0.2,
-		MaxOutputTokens: 4096,
+		MaxOutputTokens: 16384,
 	})
 	if err != nil {
 		status, msg := upstreamStatus(err)
