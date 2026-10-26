@@ -113,7 +113,7 @@ examples/                # Example Petri nets in JSON-LD
 - **public/petri-draft.js** - the load gate for LLM drafts: `validateDraft`, deterministic `draftToNet`, strict `validateNet` + engine checks
 - **public/petri-draft-ui.js** - the Describe dialog, the `/api/llm/draft` call and the Draft notes panel (loaded only when `/api/llm/status` says enabled)
 - **cmd/webserver/llm.go** - the Gemini proxy handlers; prompt in `cmd/webserver/prompts/draft-net-v1.md`; `internal/llm` (client, limits, usage log); `internal/auth/verifier.go` (timeout + verified-token cache)
-- **public/petri-wasm.js** - runs pflow-native's commands in its wasm build (`public/vendor/pflow-native-wasm/`, gzip-only `.wasm` served by `cmd/webserver/wasm.go`; refresh with `scripts/sync-native-wasm.mjs`, lock in `pflow-native-wasm.lock`)
+- **public/petri-wasm.js** - runs pflow-native's commands in its wasm build (`public/vendor/pflow-native-wasm/`, gzip-only `.wasm` served by `cmd/webserver/wasm.go`; refresh with `scripts/sync-native-wasm.mjs`, lock in `pflow-native-wasm.lock`); `EXPOSED`/`NOT_EXPOSED` in the sync script say which of its 175 commands the page gets and why; `parity/native/` holds the native-vs-wasm goldens (`make native-goldens`) and the JS-vs-wasm differential (see its README)
 - **public/goals.json** + **petri-goals.js** / **petri-goals-ui.js** - the goal advisor: goals → plans of registry commands (also the Assistant's analyse-mode brief, `cmd/webserver/llm_goals.go`)
 - **public/petri-roles.js** + **petri-appview-ui.js** - sim's role derivation (pinned to sim by `parity/roles/`, `scripts/gen-roles-goldens.mjs`) and the App view built on it
 - **public/petri-components-ui.js** - the component palette (sim's components via native compose.fuse)

@@ -1,0 +1,135 @@
+{
+  "@context": "https://pflow.xyz/schema",
+  "@type": "PetriNet",
+  "@version": "1.1",
+  "name": "Gated queue",
+  "token": [
+    "https://pflow.xyz/tokens/black"
+  ],
+  "places": {
+    "Queue": {
+      "@type": "Place",
+      "initial": [
+        0
+      ],
+      "capacity": [
+        3
+      ],
+      "x": 200,
+      "y": 100
+    },
+    "Done": {
+      "@type": "Place",
+      "initial": [
+        0
+      ],
+      "capacity": [
+        4
+      ],
+      "x": 340,
+      "y": 100
+    },
+    "Lock": {
+      "@type": "Place",
+      "initial": [
+        0
+      ],
+      "capacity": [
+        0
+      ],
+      "x": 200,
+      "y": 220
+    }
+  },
+  "transitions": {
+    "arrive": {
+      "@type": "Transition",
+      "x": 60,
+      "y": 100,
+      "rate": 2.0
+    },
+    "serve": {
+      "@type": "Transition",
+      "x": 270,
+      "y": 100,
+      "rate": 3.0
+    },
+    "halt": {
+      "@type": "Transition",
+      "x": 340,
+      "y": 220,
+      "rate": 0.5
+    },
+    "unlock": {
+      "@type": "Transition",
+      "x": 120,
+      "y": 220,
+      "rate": 1.0
+    }
+  },
+  "arcs": [
+    {
+      "@type": "Arrow",
+      "source": "arrive",
+      "target": "Queue",
+      "weight": [
+        1
+      ],
+      "inhibitTransition": false
+    },
+    {
+      "@type": "Arrow",
+      "source": "Queue",
+      "target": "serve",
+      "weight": [
+        1
+      ],
+      "inhibitTransition": false
+    },
+    {
+      "@type": "Arrow",
+      "source": "serve",
+      "target": "Done",
+      "weight": [
+        1
+      ],
+      "inhibitTransition": false
+    },
+    {
+      "@type": "Arrow",
+      "source": "Lock",
+      "target": "serve",
+      "weight": [
+        1
+      ],
+      "inhibitTransition": true
+    },
+    {
+      "@type": "Arrow",
+      "source": "Done",
+      "target": "halt",
+      "weight": [
+        1
+      ],
+      "inhibitTransition": false
+    },
+    {
+      "@type": "Arrow",
+      "source": "halt",
+      "target": "Lock",
+      "weight": [
+        1
+      ],
+      "inhibitTransition": false
+    },
+    {
+      "@type": "Arrow",
+      "source": "Lock",
+      "target": "unlock",
+      "weight": [
+        1
+      ],
+      "inhibitTransition": false
+    }
+  ]
+}

@@ -36,7 +36,7 @@ export async function openStructureDialog(view) {
             <button type="button" class="pv-dialog-close-icon" data-act="close" title="Close (Esc)">×</button>
         </div>
         <p class="pv-result-dim">What the net can and cannot do, from its arcs and its marking, before any simulation.
-           These run in pflow-native's engine (wasm, about 1.2 MB, loaded on first use).</p>
+           These run in pflow-native's engine (wasm, about 1.6 MB, loaded on first use).</p>
         <div class="pv-structure-buttons">
             ${specs.map((s) => `<button type="button" class="pv-btn" data-cmd="${esc(s.id)}" title="${esc(s.help)}">${esc(s.label)}</button>`).join('')}
         </div>

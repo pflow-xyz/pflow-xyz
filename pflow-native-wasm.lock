@@ -1,7 +1,7 @@
 {
   "_comment": "pflow-native wasm shim vendored by scripts/sync-native-wasm.mjs; checked by public/petri-wasm_test.ts",
   "version": "0.8.0",
-  "commit": "62923ff",
+  "commit": "1a44427b8ca0a6af56f6f629e810fb9c38f09a5b",
   "commands": 175,
   "exposed": [
     "analysis.validate",
@@ -22,15 +22,34 @@
     "opt.optimize",
     "compose.components",
     "compose.fuse",
-    "compose.extend"
+    "compose.extend",
+    "sim.run",
+    "sim.evaluate",
+    "opt.fit",
+    "opt.distill",
+    "export.svg",
+    "file.examples",
+    "file.open_example",
+    "file.seal",
+    "net.layout",
+    "net.set_colors",
+    "provenance.verify_receipt",
+    "provenance.check_witness",
+    "data.load_log",
+    "data.log_info",
+    "data.calibrate",
+    "data.conformance",
+    "data.replay",
+    "data.generate",
+    "data.discover"
   ],
   "files": {
     "pflow_native_wasm.js": "81b02978047e3fe80315065fa87665c4536165c2386ddfa21df6d4adf9050e4b",
-    "pflow_native_wasm_bg.wasm": "94872b2772ffd1faa90befc82f4918577c2c034091776dee1244abbdaa5ee82f",
-    "pflow_native_wasm_bg.wasm.gz": "63c3dc945a3678fc7c6873006a58a3f19a411409774e5a67b1635155658ca533"
+    "pflow_native_wasm_bg.wasm": "f0d8bf461f9f51dcbccb82ef3e069e5b6c0079c0a032247f1e66c6c89a3f572e",
+    "pflow_native_wasm_bg.wasm.gz": "99c85c8872b52f0fecd8725bdbed52a87e353a6a12ba665abbe447a21314cd74"
   },
   "bytes": {
-    "wasm": 6249263,
-    "gzip": 1161646
+    "wasm": 6093780,
+    "gzip": 1641250
   }
 }

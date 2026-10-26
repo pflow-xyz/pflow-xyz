@@ -1,0 +1,282 @@
+{
+"_comment": "Inputs of the native-vs-wasm parity corpus. Each case is one session: load the fixture (paths relative to parity/), run the steps in order. A step may carry `generate_only` (run by the generator, not replayed: its output is volatile and a later step takes it as input via {\"$result\": [step, key...]}), `ignore` (key names whose values are volatile and not compared) and `tolerance` (relative tolerance for floats, default 1e-9). parity/native/goldens.json is generated from this by parity/native/gen; native_parity_test.ts replays it through the vendored wasm.",
+"cases": [
+{"name": "analysis.validate/sir", "fixture": "native/fixtures/sir.jsonld", "steps": [
+  {"command": "analysis.validate"}
+]},
+{"name": "analysis.validate/gated-reachability", "fixture": "native/fixtures/gated.jsonld", "steps": [
+  {"command": "analysis.validate", "args": {"reachability": true, "max_states": 500}}
+]},
+{"name": "analysis.incidence/sir", "fixture": "native/fixtures/sir.jsonld", "steps": [
+  {"command": "analysis.incidence"}
+]},
+{"name": "analysis.incidence/coffee-colored", "fixture": "fixtures/with-rates.jsonld", "steps": [
+  {"command": "analysis.incidence"}
+]},
+{"name": "analysis.invariants/sir", "fixture": "native/fixtures/sir.jsonld", "steps": [
+  {"command": "analysis.invariants"}
+]},
+{"name": "analysis.invariants/coffee-colored", "fixture": "fixtures/with-rates.jsonld", "steps": [
+  {"command": "analysis.invariants"}
+]},
+{"name": "analysis.invariants/gated", "fixture": "native/fixtures/gated.jsonld", "steps": [
+  {"command": "analysis.invariants"}
+]},
+{"name": "analysis.siphons/sir", "fixture": "native/fixtures/sir.jsonld", "steps": [
+  {"command": "analysis.siphons"}
+]},
+{"name": "analysis.siphons/gated", "fixture": "native/fixtures/gated.jsonld", "steps": [
+  {"command": "analysis.siphons"}
+]},
+{"name": "analysis.verify/sir-default", "fixture": "native/fixtures/sir.jsonld", "steps": [
+  {"command": "analysis.verify"}
+]},
+{"name": "analysis.verify/gated", "fixture": "native/fixtures/gated.jsonld", "steps": [
+  {"command": "analysis.verify", "args": {"properties": [{"kind": "bounded", "bound": 3}, {"kind": "deadlock-free"}, {"kind": "live"}]}}
+]},
+{"name": "analysis.reach/sir-yes", "fixture": "native/fixtures/sir.jsonld", "steps": [
+  {"command": "analysis.reach", "args": {"to": {"R": 10}}}
+]},
+{"name": "analysis.reach/sir-no", "fixture": "native/fixtures/sir.jsonld", "steps": [
+  {"command": "analysis.reach", "args": {"to": {"S": 10}}}
+]},
+{"name": "analysis.reach/gated-capacity", "fixture": "native/fixtures/gated.jsonld", "steps": [
+  {"command": "analysis.reach", "args": {"to": {"Done": 4}}},
+  {"command": "analysis.reach", "args": {"to": {"Queue": 4}}}
+]},
+{"name": "analysis.reachability/sir", "fixture": "native/fixtures/sir.jsonld", "steps": [
+  {"command": "analysis.reachability"}
+]},
+{"name": "analysis.reachability/gated", "fixture": "native/fixtures/gated.jsonld", "steps": [
+  {"command": "analysis.reachability"}
+]},
+{"name": "analysis.canonical/sir", "fixture": "native/fixtures/sir.jsonld", "steps": [
+  {"command": "analysis.canonical"}
+]},
+{"name": "analysis.canonical/net-a", "fixture": "fixtures/net-a.jsonld", "steps": [
+  {"command": "analysis.canonical"}
+]},
+{"name": "analysis.classify/sir", "fixture": "native/fixtures/sir.jsonld", "steps": [
+  {"command": "analysis.classify"}
+]},
+{"name": "analysis.classify/coffee-colored", "fixture": "fixtures/with-rates.jsonld", "steps": [
+  {"command": "analysis.classify", "args": {"scope": "places"}}
+]},
+{"name": "analysis.diagnose/sir", "fixture": "native/fixtures/sir.jsonld", "steps": [
+  {"command": "analysis.diagnose", "args": {"observable": "R", "t_end": 10, "noise": false}}
+]},
+{"name": "sim.equilibrium/sir", "fixture": "native/fixtures/sir.jsonld", "steps": [
+  {"command": "sim.equilibrium", "args": {"t_max": 500}}
+]},
+{"name": "sim.scenario/sir", "fixture": "native/fixtures/sir.jsonld", "steps": [
+  {"command": "sim.scenario", "args": {"scenario": {"hours": 4, "realizations": 3, "seed": 5, "engine": "ssa"}}},
+  {"command": "sim.scenario", "args": {"scenario": {"hours": 4, "engine": "ode"}}}
+]},
+{"name": "sim.compare/sir", "fixture": "native/fixtures/sir.jsonld", "steps": [
+  {"command": "sim.compare", "args": {"seed": 7, "scenarios": [{"name": "as is", "hours": 5, "realizations": 4}, {"name": "one more I", "hours": 5, "realizations": 4, "marking": {"I": 2}}]}}
+]},
+{"name": "sim.crosscheck/sir", "fixture": "native/fixtures/sir.jsonld", "steps": [
+  {"command": "sim.crosscheck", "args": {"t_end": 5, "runs": 4, "seed": 1}}
+]},
+{"name": "opt.heatmap/sir", "fixture": "native/fixtures/sir.jsonld", "steps": [
+  {"command": "opt.heatmap", "args": {"param_x": "infect", "param_y": "recover", "x_from": 0.01, "x_to": 0.1, "y_from": 0.05, "y_to": 0.5, "observable": "R", "steps": 4}}
+]},
+{"name": "opt.optimize/sir", "fixture": "native/fixtures/sir.jsonld", "steps": [
+  {"command": "opt.optimize", "args": {"parameters": [{"transition": "recover", "min": 0.05, "max": 0.5}], "objectives": [{"place": "R", "sense": "max"}], "samples": 20, "seed": 1}}
+]},
+{"name": "compose.components/sir", "fixture": "native/fixtures/sir.jsonld", "steps": [
+  {"command": "compose.components"}
+]},
+{"name": "compose.fuse/sir-service", "fixture": "native/fixtures/sir.jsonld", "steps": [
+  {"command": "compose.fuse", "args": {"component": "service", "attach": {"queue": "I", "served": "R"}, "prefix": "svc"}}
+]},
+{"name": "compose.extend/sir", "fixture": "native/fixtures/sir.jsonld", "steps": [
+  {"command": "compose.extend", "args": {"ops": [{"op": "add_place", "id": "X", "initial": 2, "x": 10, "y": 10}, {"op": "add_arc", "from": "X", "to": "infect"}, {"op": "set_rate", "id": "infect", "rate": 0.1}]}}
+]},
+{"name": "sim.run/sir", "fixture": "native/fixtures/sir.jsonld", "steps": [
+  {"command": "sim.run", "args": {"steps": 5, "seed": 3}}
+]},
+{"name": "sim.run/gated", "fixture": "native/fixtures/gated.jsonld", "steps": [
+  {"command": "sim.run", "args": {"steps": 12, "seed": 7}},
+  {"command": "sim.run"}
+]},
+{"name": "sim.evaluate/tic-tac-toe-ssa", "fixture": "fixtures/knapsack.jsonld", "steps": [
+  {"command": "file.open_example", "args": {"name": "tic-tac-toe"}},
+  {"command": "sim.evaluate", "args": {"player": "x", "rollouts": 5, "horizon": 2}}
+]},
+{"name": "sim.evaluate/tic-tac-toe-playouts", "fixture": "native/fixtures/sir.jsonld", "steps": [
+  {"command": "file.open_example", "args": {"name": "tic-tac-toe"}},
+  {"command": "sim.evaluate", "args": {"player": "x", "depth": 6, "rollouts": 5}}
+]},
+{"name": "sim.evaluate/not-a-game", "fixture": "native/fixtures/sir.jsonld", "steps": [
+  {"command": "sim.evaluate"}
+]},
+{"name": "opt.fit/sir-recovers-rate", "fixture": "native/fixtures/sir.jsonld", "steps": [
+  {"command": "sim.set_rate", "args": {"id": "infect", "rate": 0.08}},
+  {"command": "sim.ode", "args": {"t_end": 20, "points": 21}},
+  {"command": "sim.set_rate", "args": {"id": "infect", "rate": 0.03}},
+  {"command": "opt.fit", "args": {"data": "a1", "parameters": ["infect"], "max_iters": 200}},
+  {"command": "opt.fit", "args": {"data": "a1", "parameters": ["infect"], "max_iters": 200, "apply": true}}
+]},
+{"name": "opt.distill/tic-tac-toe", "fixture": "native/fixtures/sir.jsonld", "steps": [
+  {"command": "file.open_example", "args": {"name": "tic-tac-toe"}},
+  {"command": "opt.distill", "args": {"games": 3, "positions": 4, "iters": 3, "realizations": 3}}
+]},
+{"name": "opt.distill/not-a-game", "fixture": "native/fixtures/sir.jsonld", "steps": [
+  {"command": "opt.distill"}
+]},
+{"name": "export.svg/sir", "fixture": "native/fixtures/sir.jsonld", "steps": [
+  {"command": "export.svg"}
+]},
+{"name": "export.svg/gated", "fixture": "native/fixtures/gated.jsonld", "steps": [
+  {"command": "export.svg"}
+]},
+{"name": "file.examples", "fixture": "native/fixtures/sir.jsonld", "steps": [
+  {"command": "file.examples"}
+]},
+{"name": "file.open_example/coffee-shop", "fixture": "native/fixtures/sir.jsonld", "steps": [
+  {"command": "file.open_example", "args": {"name": "coffee-shop"}}
+]},
+{"name": "file.open_example/tic-tac-toe", "fixture": "native/fixtures/sir.jsonld", "steps": [
+  {"command": "file.open_example", "args": {"name": "tic-tac-toe"}}
+]},
+{"name": "file.open_example/enzyme-kinetics", "fixture": "native/fixtures/sir.jsonld", "steps": [
+  {"command": "file.open_example", "args": {"name": "enzyme-kinetics"}}
+]},
+{"name": "file.open_example/predator-prey", "fixture": "native/fixtures/sir.jsonld", "steps": [
+  {"command": "file.open_example", "args": {"name": "predator-prey"}}
+]},
+{"name": "file.open_example/producer-consumer", "fixture": "native/fixtures/sir.jsonld", "steps": [
+  {"command": "file.open_example", "args": {"name": "producer-consumer"}}
+]},
+{"name": "file.open_example/usdc-bridge", "fixture": "native/fixtures/sir.jsonld", "steps": [
+  {"command": "file.open_example", "args": {"name": "usdc-bridge"}}
+]},
+{"name": "file.open_example/sir", "fixture": "native/fixtures/sir.jsonld", "steps": [
+  {"command": "file.open_example", "args": {"name": "sir"}}
+]},
+{"name": "file.open_example/unknown", "fixture": "native/fixtures/sir.jsonld", "steps": [
+  {"command": "file.open_example", "args": {"name": "nope"}}
+]},
+{"name": "file.seal/sir", "fixture": "native/fixtures/sir.jsonld", "steps": [
+  {"command": "file.seal"},
+  {"command": "file.seal"}
+]},
+{"name": "file.seal/knapsack", "fixture": "fixtures/knapsack.jsonld", "steps": [
+  {"command": "file.seal"}
+]},
+{"name": "net.layout/sugiyama", "fixture": "native/fixtures/sir.jsonld", "steps": [
+  {"command": "net.layout", "args": {"algorithm": "sugiyama"}}
+]},
+{"name": "net.layout/grid", "fixture": "native/fixtures/sir.jsonld", "steps": [
+  {"command": "net.layout", "args": {"algorithm": "grid"}}
+]},
+{"name": "net.layout/bipartite", "fixture": "native/fixtures/sir.jsonld", "steps": [
+  {"command": "net.layout", "args": {"algorithm": "bipartite"}}
+]},
+{"name": "net.layout/circular", "fixture": "native/fixtures/sir.jsonld", "steps": [
+  {"command": "net.layout", "args": {"algorithm": "circular"}}
+]},
+{"name": "net.layout/string", "fixture": "native/fixtures/sir.jsonld", "steps": [
+  {"command": "net.layout", "args": {"algorithm": "string"}}
+]},
+{"name": "net.layout/gated-sugiyama", "fixture": "native/fixtures/gated.jsonld", "steps": [
+  {"command": "net.layout", "args": {"algorithm": "sugiyama"}}
+]},
+{"name": "net.set_colors/sir", "fixture": "native/fixtures/sir.jsonld", "steps": [
+  {"command": "net.set_colors", "args": {"token": ["red", "blue"]}},
+  {"command": "net.set_colors", "args": {"token": ["#00aa00"]}},
+  {"command": "net.set_colors", "args": {"token": []}}
+]},
+{"name": "net.set_colors/coffee-colored", "fixture": "fixtures/with-rates.jsonld", "steps": [
+  {"command": "net.set_colors", "args": {"token": ["red", "brown"]}}
+]},
+{"name": "provenance.verify_receipt/sir", "fixture": "native/fixtures/sir.jsonld", "steps": [
+  {"command": "sim.receipt", "args": {"scenario": {"hours": 4, "realizations": 4, "seed": 3}}, "generate_only": true},
+  {"command": "provenance.verify_receipt", "args": {"receipt": {"$result": [0]}}, "ignore": ["keyId", "keyNote", "trustedKey"]},
+  {"command": "provenance.verify_receipt", "args": {"receipt": {"$result": [0, "receipt"]}, "replay": false}, "ignore": ["keyId", "keyNote", "trustedKey"]}
+]},
+{"name": "provenance.verify_receipt/not-a-receipt", "fixture": "native/fixtures/sir.jsonld", "steps": [
+  {"command": "provenance.verify_receipt", "args": {"receipt": {}}}
+]},
+{"name": "provenance.check_witness/trace-artifact", "fixture": "native/fixtures/sir.jsonld", "steps": [
+  {"command": "analysis.reach", "args": {"to": {"R": 10}}},
+  {"command": "provenance.check_witness", "args": {"artifact": "a1"}}
+]},
+{"name": "provenance.check_witness/reach-answer", "fixture": "native/fixtures/sir.jsonld", "steps": [
+  {"command": "analysis.reach", "args": {"to": {"S": 10}}},
+  {"command": "provenance.check_witness", "args": {"reach": {"$result": [0]}}}
+]},
+{"name": "provenance.check_witness/trace-inline", "fixture": "native/fixtures/sir.jsonld", "steps": [
+  {"command": "provenance.check_witness", "args": {"trace": ["infect", "recover"]}},
+  {"command": "provenance.check_witness", "args": {"trace": ["recover", "recover"]}}
+]},
+{"name": "provenance.check_witness/morphism", "fixture": "native/fixtures/sir.jsonld", "steps": [
+  {"command": "provenance.check_witness", "args": {"morphism": {"definition": "coloured-net-v1", "subject": "current", "object": "current", "map": {"places": {"S": "S", "I": "I", "R": "R"}, "transitions": {"infect": "infect", "recover": "recover"}}}}}
+]},
+{"name": "provenance.check_witness/nothing", "fixture": "native/fixtures/sir.jsonld", "steps": [
+  {"command": "provenance.check_witness"}
+]},
+{"name": "data.generate/sir", "fixture": "native/fixtures/sir.jsonld", "steps": [
+  {"command": "data.generate", "args": {"cases": 6, "seed": 2, "max_steps": 20}}
+]},
+{"name": "data.generate/gated", "fixture": "native/fixtures/gated.jsonld", "steps": [
+  {"command": "data.generate", "args": {"cases": 4, "seed": 9, "max_steps": 15}}
+]},
+{"name": "data.load_log/csv", "fixture": "native/fixtures/sir.jsonld", "steps": [
+  {"command": "data.load_log", "args": {"text": "case_id,activity,timestamp\nc1,infect,2026-01-01T00:00:00Z\nc1,recover,2026-01-01T01:00:00Z\nc2,infect,2026-01-01T02:30:00Z\nc2,infect,2026-01-01T03:00:00Z\nc2,recover,2026-01-01T05:00:00Z\n", "title": "Hand-made log"}},
+  {"command": "data.log_info", "args": {"log": "a1"}}
+]},
+{"name": "data.load_log/jsonl", "fixture": "native/fixtures/sir.jsonld", "steps": [
+  {"command": "data.load_log", "args": {"text": "{\"case_id\":\"c1\",\"activity\":\"infect\",\"timestamp\":\"2026-01-01T00:00:00Z\"}\n{\"case_id\":\"c1\",\"activity\":\"recover\",\"timestamp\":\"2026-01-01T02:00:00Z\"}\n", "format": "jsonl"}}
+]},
+{"name": "data.load_log/columns", "fixture": "native/fixtures/sir.jsonld", "steps": [
+  {"command": "data.load_log", "args": {"text": "id;step;at\nc1;infect;2026-01-01T00:00:00Z\nc1;recover;2026-01-01T02:00:00Z\n", "delimiter": ";", "case": "id", "activity": "step", "time": "at"}}
+]},
+{"name": "data.load_log/no-input", "fixture": "native/fixtures/sir.jsonld", "steps": [
+  {"command": "data.load_log"}
+]},
+{"name": "data.log_info/generated", "fixture": "native/fixtures/sir.jsonld", "steps": [
+  {"command": "data.generate", "args": {"cases": 5, "seed": 4, "max_steps": 20}},
+  {"command": "data.log_info", "args": {"log": "a1"}}
+]},
+{"name": "data.calibrate/sir", "fixture": "native/fixtures/sir.jsonld", "steps": [
+  {"command": "data.generate", "args": {"cases": 8, "seed": 3, "max_steps": 30}},
+  {"command": "data.calibrate", "args": {"log": "a1"}},
+  {"command": "data.calibrate", "args": {"log": "a1", "unit": "min", "conformance": false}},
+  {"command": "data.calibrate", "args": {"log": "a1", "apply": true}}
+]},
+{"name": "data.conformance/sir", "fixture": "native/fixtures/sir.jsonld", "steps": [
+  {"command": "data.load_log", "args": {"text": "case_id,activity,timestamp\nc1,infect,2026-01-01T00:00:00Z\nc1,recover,2026-01-01T01:00:00Z\nc2,infect,2026-01-01T02:30:00Z\nc2,infect,2026-01-01T03:00:00Z\nc2,recover,2026-01-01T05:00:00Z\n"}},
+  {"command": "data.conformance", "args": {"log": "a1"}},
+  {"command": "data.conformance", "args": {"log": "a1", "max_traces": 1}}
+]},
+{"name": "data.replay/log", "fixture": "native/fixtures/sir.jsonld", "steps": [
+  {"command": "data.load_log", "args": {"text": "case_id,activity,timestamp\nc1,infect,2026-01-01T00:00:00Z\nc1,recover,2026-01-01T01:00:00Z\nc2,infect,2026-01-01T02:30:00Z\nc2,infect,2026-01-01T03:00:00Z\nc2,recover,2026-01-01T05:00:00Z\n"}},
+  {"command": "data.replay", "args": {"log": "a1"}},
+  {"command": "data.replay", "args": {"log": "a1", "case": "c2", "repair_depth": 2}}
+]},
+{"name": "data.replay/events", "fixture": "native/fixtures/sir.jsonld", "steps": [
+  {"command": "data.replay", "args": {"events": [{"case": "1", "activity": "infect"}, {"case": "1", "activity": "recover"}, {"case": "2", "activity": "recover"}]}}
+]},
+{"name": "data.discover/alpha", "fixture": "native/fixtures/sir.jsonld", "steps": [
+  {"command": "data.generate", "args": {"cases": 8, "seed": 3, "max_steps": 30}},
+  {"command": "data.discover", "args": {"log": "a1"}}
+]},
+{"name": "data.discover/heuristic", "fixture": "native/fixtures/sir.jsonld", "steps": [
+  {"command": "data.generate", "args": {"cases": 8, "seed": 3, "max_steps": 30}},
+  {"command": "data.discover", "args": {"log": "a1", "method": "heuristic", "threshold": 0.6}}
+]},
+{"name": "data.discover/sequential", "fixture": "native/fixtures/sir.jsonld", "steps": [
+  {"command": "data.load_log", "args": {"text": "case_id,activity,timestamp\nc1,infect,2026-01-01T00:00:00Z\nc1,recover,2026-01-01T01:00:00Z\nc2,infect,2026-01-01T02:30:00Z\nc2,infect,2026-01-01T03:00:00Z\nc2,recover,2026-01-01T05:00:00Z\n"}},
+  {"command": "data.discover", "args": {"log": "a1", "method": "sequential"}}
+]},
+{"name": "sim.marking-after-edits/gated", "fixture": "native/fixtures/gated.jsonld", "steps": [
+  {"command": "sim.run", "args": {"steps": 6, "seed": 1}},
+  {"command": "sim.reset"},
+  {"command": "sim.marking"},
+  {"command": "sim.enabled"},
+  {"command": "net.info"}
+]}
+]
+}

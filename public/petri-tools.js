@@ -24,7 +24,7 @@ export const MANIFEST_VERSION = 'tools-v1';
 
 // Commands the chat does not get: a whole-document load (the chat edits
 // through commands instead), and export (text for a file, not for a model).
-export const EXCLUDED = new Set(['file.load_json', 'export.artifact']);
+export const EXCLUDED = new Set(['file.load_json', 'export.artifact', 'export.svg']);
 
 export const toolName = (id) => id.replace('.', '_');
 export const commandId = (name) => name.replace('_', '.');

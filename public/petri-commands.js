@@ -22,10 +22,13 @@
 //                         mark nodes on the canvas (a set, a trace step)
 //   capabilities          a Set; commands that need e.g. 'view' say so
 //
-// Commands the JS engines lack (structural analysis and, later, the
-// simulation workbench) are pflow-native's own, run in its wasm build through
+// Commands the JS engines lack (structural analysis, the simulation workbench,
+// event-log mining, …) are pflow-native's own, run in its wasm build through
 // petri-wasm.js. Their specs are a vendored snapshot
-// (vendor/pflow-native-wasm/commands.js), so listing them loads no wasm.
+// (vendor/pflow-native-wasm/commands.js), so listing them loads no wasm. A
+// native id never shares an id with a JS command: the sync script and the
+// Registry constructor both refuse it. Which commands are exposed, and which are
+// left out and why, is in scripts/sync-native-wasm.mjs.
 //
 // createHeadlessHost() is a host with no DOM, for tests and agents; the
 // <petri-view> element implements the same interface. No DOM here: deno tests
@@ -1139,17 +1142,29 @@ export function nativeCommands(specs = NATIVE_COMMANDS) {
             const { runNative } = await import('./petri-wasm.js');
             // JSON round trip: unbounded capacities (Infinity) become null, as saved.
             const before = JSON.parse(JSON.stringify(c.model()));
-            const out = await runNative(before, s.id, a, c.store, { edits: !!s.edits, full: true });
-            if (s.edits && out.doc) {
-                // The engine edited the net (compose.fuse, compose.extend):
-                // its export becomes the document, as one undo step. Keep the
-                // editor's token list and goals, which the engine does not carry.
+            // compose.*, file.open_example, net.layout… always edit; fit,
+            // distill and calibrate edit (the rates) when called with apply.
+            const editing = !!s.edits || !!(s.editsOnApply && a.apply);
+            const out = await runNative(before, s.id, a, c.store, {
+                edits: editing, full: true, artifactArgs: s.artifactArgs,
+                lookup: (id) => c.registry.artifact(id),
+            });
+            if (editing && out.doc) {
+                // The engine edited the net: its export becomes the document,
+                // as one undo step. A replacing command (file.open_example,
+                // data.discover) brings a whole new net; the others keep the
+                // editor's token list, name, description, parents and goals,
+                // which the engine does not carry.
                 const doc = out.doc;
-                if (!(doc.token || []).length) doc.token = before.token;
-                if (before.goals) doc.goals = before.goals;
-                for (const k of ['name', 'description', 'parents']) if (before[k] !== undefined && doc[k] === undefined) doc[k] = before[k];
+                if (s.edits !== 'replace') {
+                    if (!(doc.token || []).length) doc.token = s.id === 'net.set_colors' ? ['https://pflow.xyz/tokens/black'] : before.token;
+                    if (before.goals) doc.goals = before.goals;
+                    for (const k of ['name', 'description', 'parents']) if (before[k] !== undefined && doc[k] === undefined) doc[k] = before[k];
+                }
                 c.host.commit(Sim.normalizeModel(doc), s.id);
             }
+            if (s.setsMarking && out.result?.marking && c.host.setMarking) c.host.setMarking(out.result.marking);
+            if (s.textResult && typeof out.result === 'string') return { [s.textResult]: out.result };
             return out.result;
         },
     }));
@@ -1207,6 +1222,13 @@ export class Registry {
      */
     constructor(host, commands = [...COMMANDS, ...nativeCommands()], opts = {}) {
         this.host = host;
+        // A command id is registered once. The Map would otherwise let a later
+        // spec (a native one) silently replace an earlier one (a JS one).
+        const seen = new Set();
+        for (const s of commands) {
+            if (seen.has(s.id)) throw new Error(`command id registered twice: ${s.id} (a native command must not share an id with a JS command)`);
+            seen.add(s.id);
+        }
         this._specs = new Map(commands.map((s) => [s.id, s]));
         this._store = opts.store || { items: [], next: 1 };
         this._listeners = new Set();

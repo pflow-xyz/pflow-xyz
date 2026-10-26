@@ -12,7 +12,7 @@ import (
 // serveGzippedWasm answers a request for X.wasm from the embedded X.wasm.gz.
 //
 // public/vendor/pflow-native-wasm/ keeps pflow-native's wasm shim only
-// gzip-compressed (about 6 MB raw, about 1.2 MB gzip; ROADMAP phase 2), and
+// gzip-compressed (about 6 MB raw, about 1.6 MB gzip; ROADMAP phase 2), and
 // nginx on pflow.dev compresses only text/html. A client that accepts gzip
 // (every browser) gets the stored bytes with Content-Encoding: gzip; any
 // other gets them decompressed. It reports false when there is no X.wasm.gz,
