@@ -173,3 +173,32 @@ Deno.test("diffNets: rates, markings and arcs", () => {
     assertEquals(d.changed, ["place S: initial [9] → [8]", "transition infect: rate null → 2"]);
     assertEquals(d.arcsRemoved, ["infect → I ×[2]"]);
 });
+
+Deno.test("chat: auto labels the first round, then the tool loop runs in the chosen mode", async () => {
+    const reg = live();
+    const { post, sent } = scripted([
+        { reply: "Looking.", mode: "explain", auto: { mode: "explain", sentiment: "confused", confidence: 0.9 }, tool_calls: [
+            { name: "net_add_place", args: { x: 0, y: 50, id: "Z" } },
+        ] },
+        { reply: "I did not edit.", tool_calls: [] },
+    ]);
+    const chat = new ChatSession({ live: reg, manifest, post, mode: "auto" });
+    const events: any[] = [];
+    await chat.send("what is S?", (e: any) => events.push(e));
+    assertEquals(sent[0].mode, "auto");
+    assertEquals(sent[0].prev_mode, undefined);
+    assertEquals(sent[1].mode, "explain"); // later rounds carry the resolved mode
+    assertEquals(events.find((e) => e.type === "auto").sentiment, "confused");
+    // explain never edits, even though the model asked
+    const add = chat.calls.find((c: any) => c.name === "net_add_place");
+    assert(!add.ok && add.error.includes("explain mode does not edit"));
+    // the next message labels again and tells the server where the conversation was
+    await chat.send("ok");
+    assertEquals(sent[2].mode, "auto");
+    assertEquals(sent[2].prev_mode, "explain");
+});
+
+Deno.test("chat: auto stays read-only until the server has labelled a message", () => {
+    const chat = new ChatSession({ live: live(), manifest, post: async () => ({}), mode: "auto" });
+    assertEquals(chat.effectiveMode, "analyse");
+});

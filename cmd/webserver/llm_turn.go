@@ -94,18 +94,25 @@ func loadToolManifest(public fs.FS) (*toolManifest, []llm.FunctionDecl, map[stri
 }
 
 type turnRequest struct {
-	Mode     string          `json:"mode"`
-	Step     string          `json:"step,omitempty"` // build mode's interview step (stepGuidance)
+	Mode     string          `json:"mode"`                // build, analyse, explain, or auto (llm_classify.go)
+	PrevMode string          `json:"prev_mode,omitempty"` // auto: the mode the conversation was in
+	Step     string          `json:"step,omitempty"`      // build mode's interview step (stepGuidance)
 	Net      json.RawMessage `json:"net"`
 	Messages []llm.Message   `json:"messages"`
 }
 
 func validTurn(req *turnRequest) error {
-	if _, ok := modeGuidance[req.Mode]; !ok {
-		return errors.New("mode must be build, analyse or explain")
+	if _, ok := modeGuidance[req.Mode]; !ok && req.Mode != "auto" {
+		return errors.New("mode must be auto, build, analyse or explain")
+	}
+	if req.Mode == "auto" && lastUserText(req.Messages) == "" {
+		return errors.New("auto mode labels the person's message; the last message has no text")
+	}
+	if req.PrevMode != "" && req.Mode != "auto" {
+		return errors.New("prev_mode is for auto mode")
 	}
 	if req.Step != "" {
-		if req.Mode != "build" {
+		if req.Mode != "build" && req.Mode != "auto" {
 			return errors.New("step is for build mode")
 		}
 		if _, ok := stepGuidance[req.Step]; !ok {
@@ -183,6 +190,17 @@ func (s *Server) handleLLMTurn(w http.ResponseWriter, r *http.Request) {
 	if done == nil {
 		return
 	}
+	// Auto: label the message first (not charged), then run the turn in the
+	// mode it chose. Past this point req.Mode is always a real mode.
+	var label *classification
+	if req.Mode == "auto" {
+		c := svc.classify(r.Context(), lastUserText(req.Messages), req.PrevMode)
+		label = &c
+		req.Mode = c.Mode
+		if req.Mode != "build" {
+			req.Step = ""
+		}
+	}
 	// The mode and the net travel as user content, never in the system
 	// prompt: a label in a shared net is data, not an instruction.
 	lead := modeGuidance[req.Mode]
@@ -232,7 +250,7 @@ func (s *Server) handleLLMTurn(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	left, reset := svc.limiter.Remaining(u.ID)
-	writeJSON(w, http.StatusOK, map[string]any{
+	out := map[string]any{
 		"message":         llm.Message{Role: "model", Parts: resp.Parts},
 		"reply":           strings.TrimSpace(resp.Text),
 		"tool_calls":      accepted,
@@ -243,5 +261,10 @@ func (s *Server) handleLLMTurn(w http.ResponseWriter, r *http.Request) {
 		"usage":           map[string]int{"input_tokens": resp.InputTokens, "output_tokens": resp.OutputTokens},
 		"remaining_today": left,
 		"reset":           reset.Format(time.RFC3339),
-	})
+		"mode":            req.Mode,
+	}
+	if label != nil {
+		out["auto"] = label
+	}
+	writeJSON(w, http.StatusOK, out)
 }

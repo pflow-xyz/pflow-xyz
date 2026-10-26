@@ -34,7 +34,10 @@ const isEdit = (id, args) => EDITS.has(id) || (id.startsWith('net.') && id !== '
 // Commands that act on the canvas: always the live registry.
 const VIEW = new Set(['view.highlight', 'view.clear_highlight', 'view.fit', 'artifact.show_set']);
 
-export const MODES = ['build', 'analyse', 'explain'];
+export const MODES = ['auto', 'build', 'analyse', 'explain'];
+
+// 'auto' lets the server label each message (intent and sentiment); the
+// label picks one of the three real modes for that message's tool loop.
 
 // sim's interview steps (pkg/builder): the server adds each step's guidance
 // to the build mode's brief. The model ends a reply with "Next: <step>" when
@@ -70,6 +73,8 @@ export class ChatSession {
         this.manifest = manifest;
         this.post = post;
         this.mode = mode;
+        /** In auto mode: the mode the last message resolved to (analyse, the read-only one, until one has). */
+        this.resolved = null;
         this.step = step;
         this.maxRounds = maxRounds;
         this.messages = [];
@@ -95,6 +100,11 @@ export class ChatSession {
         this.mode = mode;
     }
 
+    /** The mode the tools run under: the chosen one, or auto's latest label. */
+    get effectiveMode() {
+        return this.mode === 'auto' ? (this.resolved || 'analyse') : this.mode;
+    }
+
     async _netSummary() {
         const info = await this.sandbox.execute('net.info');
         const s = JSON.stringify(info);
@@ -109,7 +119,7 @@ export class ChatSession {
             const [id, args] = decodeCall(this.manifest, call);
             entry.command = id;
             entry.args = args;
-            if (this.mode === 'explain' && isEdit(id, args)) throw new Error('explain mode does not edit; switch to build to change the net');
+            if (this.effectiveMode === 'explain' && isEdit(id, args)) throw new Error('explain mode does not edit; switch to build to change the net');
             if (!this.pending && !VIEW.has(id)) this._reseed();
             const reg = VIEW.has(id) ? this.live : this.sandbox;
             const before = new Set(reg.artifacts().map((a) => a.id));
@@ -136,7 +146,9 @@ export class ChatSession {
     /**
      * Send the person's message and run the loop until the model answers
      * without tools, or maxRounds model calls. onEvent receives
-     * {type: 'reply' | 'call' | 'round' | 'quota', ...} as it happens.
+     * {type: 'reply' | 'call' | 'round' | 'quota' | 'auto', ...} as it happens.
+     * @param {string} text
+     * @param {(e: Object) => void} [onEvent]
      * @returns {Promise<{reply: string, rounds: number, stopped?: string}>}
      */
     async send(text, onEvent = () => {}) {
@@ -145,15 +157,23 @@ export class ChatSession {
         let reply = '';
         for (let round = 1; round <= this.maxRounds; round++) {
             onEvent({ type: 'round', round });
-            const body = { mode: this.mode, net: await this._netSummary(), messages: this.messages };
-            if (this.mode === 'build') body.step = this.step;
+            // Auto asks the server to label the message on the first round only;
+            // later rounds (tool results) carry the mode it chose.
+            const labelling = this.mode === 'auto' && round === 1;
+            const body = { mode: labelling ? 'auto' : this.effectiveMode, net: await this._netSummary(), messages: this.messages };
+            if (labelling && this.resolved) body.prev_mode = this.resolved;
+            if (labelling || this.effectiveMode === 'build') body.step = this.step;
             const resp = await this.post(body);
+            if (labelling && resp.auto) {
+                this.resolved = resp.auto.mode;
+                onEvent({ type: 'auto', ...resp.auto });
+            }
             if (resp.remaining_today !== undefined) onEvent({ type: 'quota', remaining: resp.remaining_today, reset: resp.reset });
             this.messages.push(resp.message && resp.message.parts?.length ? resp.message : { role: 'model', parts: [{ text: resp.reply || '…' }] });
             if (resp.reply) {
                 reply = resp.reply;
                 onEvent({ type: 'reply', text: resp.reply });
-                const to = this.mode === 'build' ? nextStepIn(resp.reply, this.step) : null;
+                const to = this.effectiveMode === 'build' ? nextStepIn(resp.reply, this.step) : null;
                 if (to) {
                     this.step = to;
                     onEvent({ type: 'step', step: to });
@@ -172,7 +192,7 @@ export class ChatSession {
             // Build mode: after a round that edited the net, the engine's
             // behaviour checks go back with the tool results (sim's builder
             // feeds its checks back the same way).
-            if (this.mode === 'build' && this.calls.some((e) => e.round === round && e.ok && isEdit(e.command, e.args))) {
+            if (this.effectiveMode === 'build' && this.calls.some((e) => e.round === round && e.ok && isEdit(e.command, e.args))) {
                 try {
                     const report = await this.sandbox.execute('analysis.behaviour');
                     this.lastChecks = report;
