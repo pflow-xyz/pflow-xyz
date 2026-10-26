@@ -1724,7 +1724,7 @@
     {
       "name": "provenance_verify_receipt",
       "command": "provenance.verify_receipt",
-      "description": "Verify Receipt. Check a run receipt two ways, as sim's /api/receipts/verify: the Ed25519 signature against the key it embeds (trustedKey says whether that is this machine's key), and a replay of its certified scenario on the model it names (the open net, or a library model with that CID), which must reproduce resultHash.",
+      "description": "Verify Receipt. Check a run receipt two ways, as sim's /api/receipts/verify: the Ed25519 signature against the key it embeds (trustedKey says whether that is this machine's key), and a replay of its certified scenario on the model it names (the open net, or a library model with that CID; also once their rates have changed, rebuilt under the receipt's modelRates), which must reproduce resultHash. A receipt without modelRates that was issued with session rates names the net under those rates; they are rebuilt from the rates its scenario ran with, unless the scenario overrode one, and then it is found only where they are again (set them back, or a library copy saved under them).",
       "parameters": {
         "type": "object",
         "properties": {
