@@ -1,0 +1,10 @@
+{
+  "description": "Online orders are placed, paid, packed and shipped. A fraud hold stops an order from being packed until it is cleared.",
+  "model": "gemini-3.8-flash",
+  "prompt": "draft-net-v1",
+  "raw": "{\n  \"name\": \"Online order fulfillment\",\n  \"summary\": \"Online orders are placed, paid, packed, and shipped, with packing paused whenever a fraud hold is active until it is cleared.\",\n  \"places\": [\n    {\n      \"id\": \"placed_orders\",\n      \"label\": \"Placed orders\",\n      \"description\": \"New orders awaiting customer payment.\",\n      \"initial\": 0,\n      \"capacity\": 0\n    },\n    {\n      \"id\": \"paid_orders\",\n      \"label\": \"Paid orders\",\n      \"description\": \"Orders that are paid and ready to be packed.\",\n      \"initial\": 0,\n      \"capacity\": ",
+  "usage": {
+    "in": 1273,
+    "out": 153
+  }
+}
