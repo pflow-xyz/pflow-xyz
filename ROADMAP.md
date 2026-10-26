@@ -459,10 +459,11 @@ log, with every choice made without asking, is
 on pflow.dev was updated on 2026-10-25 to proxy `/mcp` to the server and to
 serve `.wasm`.
 
-**The LLM features ship dark.** Drafting (phase 1) and the Assistant (phase 4)
-appear only once `GEMINI_API_KEY` is set in pflow-xyz's `~/services`
-environment on pflow.dev, followed by `~/services restart pflow-xyz`. They
-have been tested only against a scripted model, never live Gemini.
+**The LLM features soft-launched on 2026-10-26.** Drafting (phase 1) and the
+Assistant (phase 4) are on in production, limited to the `stackdump` login
+(`PFLOW_LLM_ALLOW=stackdump`). `GEMINI_API_KEY` and the allowlist live in
+`~/.env-services/pflow-xyz` on pflow.dev (mode 600). They have been tested
+only against a scripted model, never live Gemini.
 
 ### Pending choices
 
@@ -470,10 +471,11 @@ Each item below shipped with a default, so nothing is blocked. Each still
 wants an owner's decision.
 
 **To turn on the LLM features**
-1. **The Gemini key.** Use a dedicated key with a budget alert on its Google
-   project (slice-1 open decision 2).
-2. **Launch audience.** Everyone signed in, or `PFLOW_LLM_ALLOW=stackdump`
-   for a soft launch first (slice-1 decision 4).
+1. ✅ *Decided: key `pflow-xyz-llm` in pflow-dev-486219, restricted to the
+   Generative Language API, $20/mo budget alert at 50/90/100%.* **The Gemini
+   key.** (slice-1 open decision 2)
+2. ✅ *Decided: soft launch with PFLOW_LLM_ALLOW=stackdump, 2026-10-26.*
+   **Launch audience.** (slice-1 decision 4)
 3. **Limits.** The defaults are 30 per user per day, burst 3, 500 a day
    globally (`PFLOW_LLM_*`). The Assistant spends one unit per model call,
    up to 6 per message, so is 30 a day enough for chat?
