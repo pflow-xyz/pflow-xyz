@@ -6,6 +6,10 @@
 //! - parity/native/mcp_goldens.json: every case of parity/native/mcp_cases.json,
 //!   for the /mcp workbench tools (cmd/webserver/mcp_workbench_parity_test.go).
 //!
+//! Every session has its own memory store, as each wasm Engine has (made the
+//! thread's store, so a store.* case never touches the user's data directory),
+//! and loads its fixture unjournaled, as the wasm Engine's `load` does.
+//!
 //! A registry case is one session: load the fixture (`file.load_json`, as the
 //! wasm Engine's `load` does), then run each step with `Session::execute`.
 //! After every step the artifacts it made are exported (`export.artifact`,
@@ -24,13 +28,15 @@
 //! (paths are relative to the repository root; run it from there)
 
 use pflow_native_core::session::Session;
+use pflow_native_core::store::{self, Store};
 use serde_json::{json, Map, Value};
 use std::collections::BTreeSet;
 use std::fs;
+use std::sync::Arc;
 
 /// The pflow-native commit Cargo.toml pins; both test suites compare it with
 /// pflow-native-wasm.lock.
-const PFLOW_NATIVE: &str = "1a44427b8ca0a6af56f6f629e810fb9c38f09a5b";
+const PFLOW_NATIVE: &str = "44db841ae492c1a3afaa7e7ebc9588baa098a8d9";
 
 fn arg(name: &str, dflt: &str) -> String {
     let flag = format!("--{name}");
@@ -62,8 +68,9 @@ fn resolve(v: &Value, results: &[Value]) -> Value {
 /// A session with `fixture` (a path under parity/) loaded.
 fn session(name: &str, fixture: &str) -> Session {
     let text = fs::read_to_string(format!("parity/{fixture}")).unwrap_or_else(|e| panic!("{name}: fixture {fixture}: {e}"));
+    store::set_thread_store(Some(Arc::new(Store::memory())));
     let mut sess = Session::default();
-    sess.execute("file.load_json", json!({ "json": text }))
+    sess.execute_unjournaled("file.load_json", json!({ "json": text }))
         .unwrap_or_else(|e| panic!("{name}: loading {fixture}: {e}"));
     sess
 }

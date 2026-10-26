@@ -1,5 +1,5 @@
 {
-"_comment": "Inputs of the native-vs-wasm parity corpus. Each case is one session: load the fixture (paths relative to parity/), run the steps in order. A step may carry `generate_only` (run by the generator, not replayed: its output is volatile and a later step takes it as input via {\"$result\": [step, key...]}), `ignore` (key names whose values are volatile and not compared) and `tolerance` (relative tolerance for floats, default 1e-9). parity/native/goldens.json is generated from this by parity/native/gen; native_parity_test.ts replays it through the vendored wasm.",
+"_comment": "Inputs of the native-vs-wasm parity corpus. Each case is one session: load the fixture (paths relative to parity/), run the steps in order. A step may carry `generate_only` (run by the generator, not replayed: its output is volatile and a later step takes it as input via {\"$result\": [step, key...]}), `ignore` (key names whose values are volatile and not compared) and `tolerance` (relative tolerance for floats, default 1e-9). A key in `ignore` also names a table artifact's column, whose cells are then skipped. The store cases ignore what the clock writes: natively a stored model's `created` and an edge's `at` are the time, in wasm (no clock) 0 and the zero time, and an edge's id hashes its `at`; so no compared listing holds two clock-stamped edges, whose order (by time, then id) would differ too. parity/native/goldens.json is generated from this by parity/native/gen; native_parity_test.ts replays it through the vendored wasm.",
 "cases": [
 {"name": "analysis.validate/sir", "fixture": "native/fixtures/sir.jsonld", "steps": [
   {"command": "analysis.validate"}
@@ -270,6 +270,107 @@
 {"name": "data.discover/sequential", "fixture": "native/fixtures/sir.jsonld", "steps": [
   {"command": "data.load_log", "args": {"text": "case_id,activity,timestamp\nc1,infect,2026-01-01T00:00:00Z\nc1,recover,2026-01-01T01:00:00Z\nc2,infect,2026-01-01T02:30:00Z\nc2,infect,2026-01-01T03:00:00Z\nc2,recover,2026-01-01T05:00:00Z\n"}},
   {"command": "data.discover", "args": {"log": "a1", "method": "sequential"}}
+]},
+{"name": "model.library/save-import-open-delete", "fixture": "native/fixtures/sir.jsonld", "steps": [
+  {"command": "model.save", "args": {"name": "sir"}},
+  {"command": "model.save", "args": {"name": "sir"}},
+  {"command": "model.import", "args": {"name": "shop", "example": "coffee-shop"}},
+  {"command": "model.list"},
+  {"command": "model.get", "args": {"name": "sir"}},
+  {"command": "model.get", "args": {"name": "nope"}},
+  {"command": "compose.diff", "args": {"a": "sir", "b": "shop"}},
+  {"command": "model.open", "args": {"name": "shop"}},
+  {"command": "compose.diff", "args": {"a": "sir", "b": "current"}},
+  {"command": "model.delete", "args": {"name": "sir"}},
+  {"command": "model.list"}
+]},
+{"name": "system.pipeline/ports-bind-create-run", "fixture": "native/fixtures/sir.jsonld", "steps": [
+  {"command": "model.import", "args": {"name": "a", "example": "sir"}},
+  {"command": "model.import", "args": {"name": "b", "example": "sir"}},
+  {"command": "system.set_port", "args": {"model": "a", "id": "I", "direction": "out", "kind": "People"}},
+  {"command": "system.set_port", "args": {"model": "b", "id": "infect", "direction": "in", "kind": "People"}},
+  {"command": "system.ports"},
+  {"command": "system.bind", "args": {"from_model": "a", "from_port": "I", "to_model": "b", "to_port": "infect", "transform": 0.1}},
+  {"command": "system.bindings"},
+  {"command": "system.binding", "args": {"id": {"$result": [5, "id"]}}},
+  {"command": "system.create", "args": {"name": "flow", "models": ["a", "b"], "bindings": [{"$result": [5, "id"]}]}},
+  {"command": "system.list"},
+  {"command": "system.show", "args": {"name": "flow"}},
+  {"command": "system.run", "args": {"name": "flow", "hours": 4}},
+  {"command": "system.delete", "args": {"name": "flow"}},
+  {"command": "system.unbind", "args": {"id": {"$result": [5, "id"]}}},
+  {"command": "system.bindings"},
+  {"command": "system.set_port", "args": {"id": "R", "direction": "out", "kind": "People"}},
+  {"command": "system.ports", "args": {"model": "current"}}
+]},
+{"name": "note.pins/add-list-delete-clear", "fixture": "native/fixtures/sir.jsonld", "steps": [
+  {"command": "note.add", "args": {"text": "look here", "node": "S"}},
+  {"command": "note.add", "args": {"text": "the whole net", "author": "matt"}},
+  {"command": "note.add", "args": {"text": "a spot", "x": 120, "y": 40}},
+  {"command": "note.list"},
+  {"command": "note.delete", "args": {"id": "n1"}},
+  {"command": "note.clear", "args": {"author": "matt"}},
+  {"command": "note.list"},
+  {"command": "note.clear"},
+  {"command": "note.list"}
+]},
+{"name": "macro.steps/define-play-delete", "fixture": "native/fixtures/sir.jsonld", "steps": [
+  {"command": "macro.define", "args": {"name": "two", "steps": [
+    {"command": "net.add_place", "args": {"x": 10, "y": 10, "id": "P1"}},
+    {"command": "net.add_place", "args": {"x": 90, "y": 10, "id": "P2"}}
+  ]}},
+  {"command": "macro.list"},
+  {"command": "macro.get", "args": {"name": "two"}},
+  {"command": "macro.play", "args": {"name": "two"}},
+  {"command": "macro.play", "args": {"name": "missing"}},
+  {"command": "macro.delete", "args": {"name": "two"}},
+  {"command": "macro.list"}
+]},
+{"name": "store.models/put-get-list-map-collection-open", "fixture": "native/fixtures/sir.jsonld", "steps": [
+  {"command": "store.put", "args": {"title": "SIR"}, "ignore": ["created"]},
+  {"command": "store.put", "args": {"title": "again"}, "ignore": ["created"]},
+  {"command": "store.get", "args": {"cid": {"$result": [0, "cid"]}}},
+  {"command": "store.list", "ignore": ["created"]},
+  {"command": "store.map_put", "args": {"data": {"k": "v", "n": 2}}},
+  {"command": "store.map_put", "args": {"data": {"n": 2, "k": "v"}}},
+  {"command": "store.map_get", "args": {"id": {"$result": [4, "id"]}}},
+  {"command": "store.map_list"},
+  {"command": "store.collection_create", "args": {"name": "kept"}},
+  {"command": "store.collection_list"},
+  {"command": "store.info"},
+  {"command": "model.import", "args": {"name": "shop", "example": "coffee-shop"}},
+  {"command": "store.put", "args": {"model": "shop", "title": "Shop"}, "ignore": ["created"]},
+  {"command": "store.open", "args": {"cid": {"$result": [12, "cid"]}}},
+  {"command": "store.delete", "args": {"cid": {"$result": [12, "cid"]}}},
+  {"command": "store.list", "ignore": ["created"]},
+  {"command": "store.get", "args": {"cid": {"$result": [12, "cid"]}}}
+]},
+{"name": "store.edges/link-edges-query-graph-collect", "fixture": "native/fixtures/sir.jsonld", "steps": [
+  {"command": "store.put", "args": {"title": "SIR"}, "ignore": ["created"]},
+  {"command": "model.import", "args": {"name": "shop", "example": "coffee-shop"}},
+  {"command": "store.put", "args": {"model": "shop", "title": "Shop"}, "ignore": ["created"]},
+  {"command": "store.link", "args": {"subject": {"$result": [0, "cid"]}, "predicate": "related", "object": {"$result": [2, "cid"]}}, "ignore": ["id"]},
+  {"command": "store.link", "args": {"subject": {"$result": [0, "cid"]}, "predicate": "related", "object": {"$result": [2, "cid"]}}, "ignore": ["id"]},
+  {"command": "store.edges", "args": {"id": {"$result": [0, "cid"]}}, "ignore": ["id", "at"]},
+  {"command": "store.neighbors", "args": {"id": {"$result": [0, "cid"]}, "predicate": "related", "direction": "both"}},
+  {"command": "store.query", "args": {"pattern": {"where": [{"subject": "?a", "predicate": "related", "object": "?b"}]}}, "ignore": ["support", "used", "id"]},
+  {"command": "store.graph", "ignore": ["id"]},
+  {"command": "store.collection_create", "args": {"name": "kept"}},
+  {"command": "store.collection_add", "args": {"collection": "kept", "cid": {"$result": [0, "cid"]}}, "ignore": ["id"]},
+  {"command": "store.collection_list"}
+]},
+{"name": "store.lineage/supersede-migrate-license", "fixture": "native/fixtures/sir.jsonld", "steps": [
+  {"command": "store.put", "args": {"title": "v1"}, "ignore": ["created"]},
+  {"command": "model.import", "args": {"name": "v2", "example": "coffee-shop"}},
+  {"command": "store.put", "args": {"model": "v2", "title": "v2"}, "ignore": ["created"]},
+  {"command": "store.link", "args": {"subject": {"$result": [0, "cid"]}, "predicate": "@type", "object": "QueueingSystem"}, "ignore": ["id"]},
+  {"command": "store.supersede", "args": {"old": {"$result": [0, "cid"]}, "new": {"$result": [2, "cid"]}}},
+  {"command": "store.migration_offers", "args": {"cid": {"$result": [0, "cid"]}}, "ignore": ["id", "at"]},
+  {"command": "store.accept_migration", "args": {"old": {"$result": [0, "cid"]}, "new": {"$result": [2, "cid"]}}, "ignore": ["edge", "provenance"]},
+  {"command": "store.license", "args": {"cid": {"$result": [2, "cid"]}, "license": "CC0-1.0"}},
+  {"command": "store.license", "args": {"cid": {"$result": [2, "cid"]}, "license": "CC-BY-4.0"}},
+  {"command": "store.delete", "args": {"cid": {"$result": [2, "cid"]}, "force": true}},
+  {"command": "store.list", "args": {"query": "v2"}, "ignore": ["created"]}
 ]},
 {"name": "sim.marking-after-edits/gated", "fixture": "native/fixtures/gated.jsonld", "steps": [
   {"command": "sim.run", "args": {"steps": 6, "seed": 1}},

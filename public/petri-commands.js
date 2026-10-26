@@ -21,6 +21,11 @@
 //   highlight(nodes, weights, label)? / clearHighlight()?
 //                         mark nodes on the canvas (a set, a trace step)
 //   capabilities          a Set; commands that need e.g. 'view' say so
+//   authToken()?          the signed-in user's GitHub token, or null: the
+//                         account-file commands (file.save, file.open, …)
+//                         refuse without one
+//   fetch(url, init)?     their HTTP client (default globalThis.fetch)
+//   apiBase?              their server ('' = same origin; an agent names one)
 //
 // Commands the JS engines lack (structural analysis, the simulation workbench,
 // event-log mining, …) are pflow-native's own, run in its wasm build through
@@ -356,6 +361,102 @@ function placesArg(model, places) {
     return places;
 }
 
+// Replace the document with `doc` as one undo step, after the strict check
+// (file.load_json, file.open): refused on errors unless repair.
+async function loadNet(c, doc, repair, label) {
+    const { validateNet, formatIssue } = await import('./petri-validate.js');
+    const report = validateNet(doc);
+    if (!report.ok && !repair) {
+        throw new CommandError(`the net has ${report.errors.length} error(s): ${report.errors.slice(0, 5).map(formatIssue).join('; ')}${report.errors.length > 5 ? '; …' : ''}`, 'invalid_net');
+    }
+    c.host.commit(Sim.normalizeModel(structuredClone(doc)), label);
+    return { errors: report.errors, warnings: report.warnings };
+}
+
+// ---------------------------------------------------------------------------
+// Account files: pflow-native's file-system writes, the web way
+// ---------------------------------------------------------------------------
+//
+// pflow-native writes the user's disk: file.save and file.open take a path,
+// and export.* writes one when given. A page has no disk (and this one asks
+// for no File System Access), so the same verbs work on the signed-in user's
+// own files on the server instead: /api/files (cmd/webserver/files.go,
+// docs/account-files.md). A name stands in for the path, and replacing a file
+// you have needs overwrite: true, as pflow-native's model.save. The host
+// supplies the sign-in; without a token every one of these refuses with
+// SIGN_IN_TO_SAVE and sends nothing.
+
+/** Extensions an account file may have (internal/userfiles Kinds). */
+export const ACCOUNT_FILE_EXTENSIONS = ['.csv', '.json', '.jsonl', '.jsonld', '.png', '.svg', '.txt'];
+const NET_EXTENSIONS = ['.json', '.jsonld'];
+const ACCOUNT_MIME = {
+    '.json': 'application/json', '.jsonld': 'application/ld+json', '.svg': 'image/svg+xml', '.png': 'image/png',
+    '.csv': 'text/csv', '.jsonl': 'application/jsonl', '.txt': 'text/plain',
+};
+export const SIGN_IN_TO_SAVE = 'Sign in to save: your files are kept in your pflow.xyz account, and you are not signed in (sign in with GitHub)';
+const ACCOUNT_ERRORS = {
+    400: 'invalid', 401: 'unauthenticated', 403: 'forbidden', 404: 'not_found', 405: 'unsupported',
+    409: 'conflict', 413: 'too_large', 503: 'unavailable', 507: 'quota',
+};
+
+/**
+ * Check a file name as the server does (letters, digits, '.', '_', '-', at
+ * most 100, a known extension) and return its lower-cased extension.
+ */
+export function checkAccountName(name, exts = ACCOUNT_FILE_EXTENSIONS) {
+    if (typeof name !== 'string' || name.length === 0 || name.length > 100) throw new CommandError('name: 1 to 100 characters');
+    if (!/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(name) || name.includes('..')) {
+        throw new CommandError(`name "${name}": use letters, digits, '.', '_' and '-', starting with a letter or digit`);
+    }
+    const dot = name.lastIndexOf('.');
+    const ext = dot > 0 ? name.slice(dot).toLowerCase() : '';
+    if (!exts.includes(ext)) throw new CommandError(`name "${name}": the extension must be one of ${exts.join(' ')}`);
+    return ext;
+}
+
+// A net's file name: .json is added when the name has no extension.
+function netFileName(name) {
+    const n = typeof name === 'string' && !name.includes('.') ? `${name}.json` : name;
+    checkAccountName(n, NET_EXTENSIONS);
+    return n;
+}
+
+/** One /api/files request with the host's sign-in. Throws a CommandError for any refusal. */
+async function accountFetch(host, method, name = '', opts = {}) {
+    const token = typeof host.authToken === 'function' ? host.authToken() : null;
+    if (!token) throw new CommandError(SIGN_IN_TO_SAVE, 'unauthenticated');
+    const url = `${host.apiBase || ''}/api/files${name ? `/${name}` : ''}${opts.overwrite ? '?overwrite=true' : ''}`;
+    const headers = { Authorization: `Bearer ${token}` };
+    if (opts.contentType) headers['Content-Type'] = opts.contentType;
+    const init = { method, headers, ...(opts.body !== undefined ? { body: opts.body } : {}) };
+    // Called unbound: a browser's fetch refuses to run with a host as `this`.
+    const fetchFn = host.fetch || globalThis.fetch;
+    let res;
+    try {
+        res = await fetchFn(url, init);
+    } catch (e) {
+        throw new CommandError(`cannot reach the server for your files: ${e?.message || e}`, 'unavailable');
+    }
+    if (!res.ok) {
+        let msg = '';
+        try { msg = (await res.json()).error || ''; } catch { /* not JSON (a proxy's error page) */ }
+        if (res.status === 401) msg = msg || SIGN_IN_TO_SAVE;
+        throw new CommandError(msg || `the server answered ${res.status}`, ACCOUNT_ERRORS[res.status] || 'failed');
+    }
+    return res;
+}
+
+async function accountSave(host, name, body, overwrite, contentType) {
+    const res = await accountFetch(host, 'PUT', name, { body, overwrite: !!overwrite, contentType });
+    return res.json();
+}
+
+function base64(bytes) {
+    let s = '';
+    for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+    return btoa(s);
+}
+
 function linspace(from, to, steps) {
     if (steps === 1) return [from];
     return Array.from({ length: steps }, (_, i) => from + (to - from) * i / (steps - 1));
@@ -395,13 +496,7 @@ export const COMMANDS = [
             if (typeof doc === 'string') {
                 try { doc = JSON.parse(doc); } catch (e) { throw new CommandError(`json: not JSON (${e.message})`); }
             }
-            const { validateNet, formatIssue } = await import('./petri-validate.js');
-            const report = validateNet(doc);
-            if (!report.ok && !a.repair) {
-                throw new CommandError(`the net has ${report.errors.length} error(s): ${report.errors.slice(0, 5).map(formatIssue).join('; ')}${report.errors.length > 5 ? '; …' : ''}`, 'invalid_net');
-            }
-            c.host.commit(Sim.normalizeModel(structuredClone(doc)), 'load JSON');
-            return { errors: report.errors, warnings: report.warnings };
+            return loadNet(c, doc, a.repair, 'load JSON');
         },
     },
     {
@@ -415,6 +510,80 @@ export const COMMANDS = [
         run: async (c) => {
             const { computeCid } = await import('./seal-cid.mjs');
             return { cid: await computeCid(JSON.parse(JSON.stringify(c.model()))) };
+        },
+    },
+
+    // ---- account files (pflow-native's file-system writes, saved to your account) ----
+    {
+        id: 'file.save', label: 'Save to my account',
+        help: 'Save the document as pflow.xyz JSON-LD under `name` in your pflow.xyz account (needs you signed in). pflow-native\'s file.save writes a path on disk; the page saves over HTTPS to your own files instead. A name you already have is refused unless overwrite is true. A name without an extension gets .json.',
+        args: args({ name: str('file name in your account, e.g. sir.json (.json or .jsonld)'), overwrite: bool('replace your file of that name (default false)') }, ['name']),
+        journal: false,
+        run: (c, a) => {
+            const name = netFileName(a.name);
+            const body = JSON.stringify(JSON.parse(JSON.stringify(c.model())), null, 2) + '\n';
+            return accountSave(c.host, name, body, a.overwrite, ACCOUNT_MIME[checkAccountName(name)]);
+        },
+    },
+    {
+        id: 'file.open', label: 'Open from my account',
+        help: 'Replace the document with a net saved in your account (needs you signed in); pflow-native\'s file.open reads a path. Checked as file.load_json checks: refused when the strict check finds errors, unless repair is true.',
+        args: args({ name: str('a .json or .jsonld file in your account (see file.list)'), repair: bool('load even if the check finds errors (default false)') }, ['name']),
+        journal: true,
+        run: async (c, a) => {
+            checkAccountName(a.name, NET_EXTENSIONS);
+            const text = await (await accountFetch(c.host, 'GET', a.name)).text();
+            let doc;
+            try { doc = JSON.parse(text); } catch (e) { throw new CommandError(`${a.name}: not JSON (${e.message})`); }
+            return { name: a.name, ...(await loadNet(c, doc, a.repair, `open ${a.name}`)) };
+        },
+    },
+    {
+        id: 'file.list', label: 'My files',
+        help: 'The files in your account (needs you signed in): name, size, modified and kind of each, with your usage and the limits.',
+        args: args(), journal: false,
+        run: async (c) => (await accountFetch(c.host, 'GET')).json(),
+    },
+    {
+        id: 'file.get', label: 'Read a file',
+        help: 'One file from your account (needs you signed in): text as `content`, a PNG as `content_base64`. Pass a CSV or JSONL log on to data.load_log as its text.',
+        args: args({ name: str('file name in your account') }, ['name']),
+        journal: false,
+        run: async (c, a) => {
+            const ext = checkAccountName(a.name);
+            const res = await accountFetch(c.host, 'GET', a.name);
+            const mime = ACCOUNT_MIME[ext];
+            if (ext === '.png') {
+                const bytes = new Uint8Array(await res.arrayBuffer());
+                return { name: a.name, mime, size: bytes.length, content_base64: base64(bytes) };
+            }
+            const content = await res.text();
+            return { name: a.name, mime, size: new TextEncoder().encode(content).length, content };
+        },
+    },
+    {
+        id: 'file.write', label: 'Write a file',
+        help: 'Write text to `name` in your account (needs you signed in): an export.svg result as .svg, a table as .csv, a log as .jsonl. pflow-native\'s export commands write a `path`; this is the page\'s way. A name you already have is refused unless overwrite is true, and the server checks the text matches the extension.',
+        args: args({
+            name: str('file name with its extension: .svg, .csv, .json, .jsonld, .jsonl or .txt'),
+            content: str('the text to write'),
+            overwrite: bool('replace your file of that name (default false)'),
+        }, ['name', 'content']),
+        journal: false,
+        run: (c, a) => {
+            const ext = checkAccountName(a.name);
+            if (ext === '.png') throw new CommandError('file.write writes text, and the page renders no PNG (pflow-native\'s export.png does)', 'unsupported');
+            return accountSave(c.host, a.name, a.content, a.overwrite, ACCOUNT_MIME[ext]);
+        },
+    },
+    {
+        id: 'file.delete', label: 'Delete a file',
+        help: 'Delete one file from your account (needs you signed in).',
+        args: args({ name: str('file name in your account') }, ['name']),
+        journal: false,
+        run: async (c, a) => {
+            checkAccountName(a.name);
+            return (await accountFetch(c.host, 'DELETE', a.name)).json();
         },
     },
 
@@ -1112,10 +1281,24 @@ export const COMMANDS = [
         run: (c, a) => ({ artifact: c.registry.artifact(a.id) }),
     },
     {
-        id: 'export.artifact', label: 'Export result', help: 'An artifact as CSV or JSON text, with a filename.',
-        args: args({ id: str('artifact id'), format: { type: 'string', enum: ['csv', 'json'], description: 'csv (default) or json' } }, ['id']),
+        id: 'export.artifact', label: 'Export result',
+        help: 'An artifact as CSV or JSON text, with a filename. With `name`, saved to that file in your account instead (needs you signed in), as pflow-native writes its `path`.',
+        args: args({
+            id: str('artifact id'), format: { type: 'string', enum: ['csv', 'json'], description: 'csv (default) or json' },
+            name: str('save to this file in your account (.csv or .json, as the format)'),
+            overwrite: bool('with name: replace your file of that name (default false)'),
+        }, ['id']),
         journal: false,
-        run: (c, a) => exportArtifact(c.registry.artifact(a.id), a.format ?? 'csv'),
+        run: async (c, a) => {
+            const format = a.format ?? 'csv';
+            const out = exportArtifact(c.registry.artifact(a.id), format);
+            if (a.name === undefined) {
+                if (a.overwrite !== undefined) throw new CommandError('export.artifact: overwrite goes with name');
+                return out;
+            }
+            if (checkAccountName(a.name) !== `.${format}`) throw new CommandError(`name "${a.name}": a ${format} export is saved as .${format}`);
+            return { ...(await accountSave(c.host, a.name, out.content, a.overwrite, out.mime)), filename: out.filename };
+        },
     },
 
     // ---- view ----
@@ -1137,14 +1320,20 @@ export const COMMANDS = [
 export function nativeCommands(specs = NATIVE_COMMANDS) {
     return specs.map((s) => ({
         id: s.id, label: s.label, help: s.help, journal: s.journal, native: true,
+        // Writes the session state the page keeps in browser storage (the
+        // model library, systems, notes, macros, the store): petri-wasm.js.
+        ...(s.writesState ? { writesState: true } : {}),
         args: { ...s.args, type: 'object', properties: s.args.properties || {}, required: s.args.required || [] },
         run: async (c, a) => {
             const { runNative } = await import('./petri-wasm.js');
             // JSON round trip: unbounded capacities (Infinity) become null, as saved.
             const before = JSON.parse(JSON.stringify(c.model()));
             // compose.*, file.open_example, net.layout… always edit; fit,
-            // distill and calibrate edit (the rates) when called with apply.
-            const editing = !!s.edits || !!(s.editsOnApply && a.apply);
+            // distill and calibrate edit (the rates) when called with apply;
+            // system.set_port edits the open net only when its `model` names
+            // it (absent or "current"), the library otherwise.
+            const onCurrent = s.editsOnCurrent && (a[s.editsOnCurrent] === undefined || a[s.editsOnCurrent] === 'current');
+            const editing = !!s.edits || !!(s.editsOnApply && a.apply) || !!onCurrent;
             const out = await runNative(before, s.id, a, c.store, {
                 edits: editing, full: true, artifactArgs: s.artifactArgs,
                 lookup: (id) => c.registry.artifact(id),
@@ -1236,13 +1425,14 @@ export class Registry {
         this.journal = [];
     }
 
-    /** The command specs as plain data: id, label, help, args (JSON Schema), journal, available. */
+    /** The command specs as plain data: id, label, help, args (JSON Schema), journal, available, native, writesState. */
     list() {
         const caps = this.host.capabilities || new Set();
         return [...this._specs.values()].map((s) => ({
             id: s.id, label: s.label, help: s.help, args: s.args, journal: s.journal,
             available: (s.requires || []).every((r) => caps.has(r)),
             native: !!s.native,
+            ...(s.writesState ? { writesState: true } : {}),
         }));
     }
 
@@ -1339,8 +1529,13 @@ export class Registry {
 // A host with no DOM
 // ---------------------------------------------------------------------------
 
-/** A host that keeps the document, its history and a run baseline in memory. */
-export function createHeadlessHost(model) {
+/**
+ * A host that keeps the document, its history and a run baseline in memory.
+ * opts.token, opts.fetch and opts.apiBase sign the account-file commands in
+ * (an agent's GitHub token and server; tests pass a fake fetch). Without a
+ * token they refuse, as the page does signed out.
+ */
+export function createHeadlessHost(model, opts = {}) {
     let doc = Sim.normalizeModel(structuredClone(model ?? emptyNet()));
     const snap = () => JSON.stringify(doc);
     const history = [snap()];
@@ -1348,6 +1543,9 @@ export function createHeadlessHost(model) {
     let baseline = null;
     return {
         capabilities: new Set(),
+        authToken: () => opts.token || null,
+        ...(opts.fetch ? { fetch: opts.fetch } : {}),
+        apiBase: opts.apiBase || '',
         getModel: () => doc,
         commit(next) {
             doc = next;

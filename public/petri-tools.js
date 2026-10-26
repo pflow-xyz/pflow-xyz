@@ -24,10 +24,22 @@ export const MANIFEST_VERSION = 'tools-v1';
 
 // Commands the chat does not get: a whole-document load (the chat edits
 // through commands instead), and export (text for a file, not for a model).
+// Nor any command that writes the session state the page saves in browser
+// storage (spec.writesState: model.save, store.put, note.add, …): that is the
+// person's own library and store, written at once, which the chat's sandbox
+// cannot preview the way it previews an edit of the net (store.license is
+// irrevocable). The chat still reads them (model.list, store.query, …) and
+// opens a library or stored model into its sandbox (model.open, store.open).
 export const EXCLUDED = new Set(['file.load_json', 'export.artifact', 'export.svg']);
 
 export const toolName = (id) => id.replace('.', '_');
 export const commandId = (name) => name.replace('_', '.');
+
+// Nor the account files (file.save … file.delete): a write to the person's
+// account is theirs to make, not the model's, and a read would send their
+// saved files to the model's provider. (The chat's sandbox host carries no
+// sign-in either, so they would only refuse.)
+for (const id of ['file.save', 'file.open', 'file.list', 'file.get', 'file.write', 'file.delete']) EXCLUDED.add(id);
 
 function cleanSchema(s, path, jsonArgs) {
     const out = {};
@@ -68,7 +80,7 @@ function cleanSchema(s, path, jsonArgs) {
 export function buildManifest(specs) {
     const tools = [];
     for (const s of specs) {
-        if (EXCLUDED.has(s.id)) continue;
+        if (EXCLUDED.has(s.id) || s.writesState) continue;
         const jsonArgs = [];
         const props = {};
         for (const [k, v] of Object.entries(s.args.properties || {})) props[k] = cleanSchema(v, k, jsonArgs);
