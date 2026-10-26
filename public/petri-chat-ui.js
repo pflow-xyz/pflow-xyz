@@ -10,7 +10,7 @@
 // Wording rule (as for drafting): replies are the assistant's; results are
 // the engines'. The panel never restyles a reply as a result.
 
-const MODES = [['build', 'Build'], ['analyse', 'Analyse'], ['explain', 'Explain']];
+const MODES = [['auto', 'Auto'], ['build', 'Build'], ['analyse', 'Analyse'], ['explain', 'Explain']];
 
 function esc(s) {
     return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -66,6 +66,7 @@ export async function openChat(view, { mode } = {}) {
         </div>
         <div class="pv-chat-steps" hidden></div>
         <div class="pv-chat-quota pv-result-dim"></div>
+        <div class="pv-chat-detected pv-result-dim" hidden></div>
         <div class="pv-chat-log" aria-live="polite"></div>
         <div class="pv-chat-pending" hidden></div>
         <details class="pv-chat-tools"><summary>Tools <span class="pv-chat-tools-count">(0)</span></summary><ol class="pv-chat-calls"></ol></details>
@@ -87,10 +88,10 @@ export async function openChat(view, { mode } = {}) {
     }
     if (status.remaining_today !== undefined) $('.pv-chat-quota').textContent = `${status.remaining_today} model calls left today`;
 
-    let chat = new ChatSession({ live: reg, manifest, post: turnPoster(view), mode: mode || 'analyse' });
+    let chat = new ChatSession({ live: reg, manifest, post: turnPoster(view), mode: mode || 'auto' });
     const renderSteps = () => {
         const box = $('.pv-chat-steps');
-        box.hidden = chat.mode !== 'build';
+        box.hidden = chat.effectiveMode !== 'build';
         const { STEPS } = stepsMod;
         const at = STEPS.indexOf(chat.step);
         box.innerHTML = STEPS.map((s, i) => `<button type="button" class="pv-chat-step${i === at ? ' pv-active' : i < at ? ' pv-chat-step-past' : ''}" data-step="${s}" title="Move the interview to ${s}">${s}</button>`).join('');
@@ -109,6 +110,20 @@ export async function openChat(view, { mode } = {}) {
     renderSteps();
     panel.querySelectorAll('.pv-chat-mode').forEach((b) => b.addEventListener('click', renderSteps));
     panel.querySelectorAll('.pv-chat-mode').forEach((b) => b.addEventListener('click', () => setMode(b.dataset.mode)));
+
+    const FEELS = { frustrated: 'sounds frustrated', confused: 'sounds unsure', positive: 'sounds happy' };
+    // Auto mode: show what it picked, with a button per mode to override it
+    // (the next message then runs in that mode, as if chosen by hand).
+    const showDetected = (a) => {
+        const box = $('.pv-chat-detected');
+        const label = MODES.find(([m]) => m === a.mode)[1];
+        const feel = FEELS[a.sentiment] ? ` · ${FEELS[a.sentiment]}` : '';
+        box.hidden = false;
+        box.innerHTML = `Detected: <strong>${esc(label)}</strong>${a.fallback ? ' (unsure, kept the previous mode)' : ''}${esc(feel)}
+            ${MODES.filter(([m]) => m !== 'auto' && m !== a.mode).map(([m, l]) => `<button type="button" class="pv-btn" data-force="${m}">Use ${esc(l)}</button>`).join('')}`;
+        box.querySelectorAll('[data-force]').forEach((b) => b.addEventListener('click', () => { setMode(b.dataset.force); box.hidden = true; renderSteps(); }));
+        if (a.sentiment === 'frustrated' || a.sentiment === 'confused') $('.pv-chat-input').placeholder = 'Say what is unclear, or ask me to explain step by step…';
+    };
 
     const say = (who, text) => {
         const p = document.createElement('div');
@@ -177,6 +192,7 @@ export async function openChat(view, { mode } = {}) {
     $('[data-act="new"]').addEventListener('click', () => {
         const m = chat.mode;
         chat = new ChatSession({ live: reg, manifest, post: turnPoster(view), mode: m });
+        $('.pv-chat-detected').hidden = true;
         log.innerHTML = '';
         $('.pv-chat-calls').innerHTML = '';
         $('.pv-chat-tools-count').textContent = '(0)';
@@ -201,6 +217,7 @@ export async function openChat(view, { mode } = {}) {
                 if (ev.type === 'round') $('.pv-chat-status').textContent = ev.round === 1 ? 'Thinking…' : `Thinking… (step ${ev.round})`;
                 if (ev.type === 'reply') say('assistant', ev.text);
                 if (ev.type === 'call') { renderCall(ev.entry); $('.pv-chat-status').textContent = `ran ${ev.entry.command || ev.entry.name}`; }
+                if (ev.type === 'auto') { showDetected(ev); renderSteps(); }
                 if (ev.type === 'quota') $('.pv-chat-quota').textContent = `${ev.remaining} model calls left today`;
                 if (ev.type === 'step') { renderSteps(); say('note', `Interview step: ${ev.step}`); }
                 if (ev.type === 'checks' && ev.report.findings.length) say('note', `Checks: ${ev.report.findings.map((f) => f.category).join(', ')}`);

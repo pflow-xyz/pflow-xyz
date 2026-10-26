@@ -82,10 +82,11 @@ type llmService struct {
 
 	// The chat's tools (llm_turn.go), from public/llm-tools.json. nil when
 	// the manifest is missing: drafting still works, the chat reports off.
-	tools        map[string]bool
-	toolDecls    []llm.FunctionDecl
-	toolsVersion string
-	modeExtra    map[string]string // per-mode context appended to the guidance (phases 5, 6)
+	tools         map[string]bool
+	toolDecls     []llm.FunctionDecl
+	toolsVersion  string
+	classifyModel string            // auto mode's labeller (PFLOW_LLM_CLASSIFIER_MODEL)
+	modeExtra     map[string]string // per-mode context appended to the guidance (phases 5, 6)
 }
 
 // newLLMService builds the proxy from the environment. With no
@@ -103,6 +104,9 @@ func newLLMService(getenv func(string) string, dataDir string) (*llmService, err
 		client:   llm.NewGemini(key, getenv("PFLOW_LLM_MODEL")),
 		limiter:  lim,
 		verifier: auth.NewCachingVerifier(auth.NewGitHubVerifier()),
+	}
+	if svc.classifyModel = getenv("PFLOW_LLM_CLASSIFIER_MODEL"); svc.classifyModel == "" {
+		svc.classifyModel = defaultClassifyModel
 	}
 	if a := strings.TrimSpace(getenv("PFLOW_LLM_ALLOW")); a != "" {
 		svc.allow = map[string]bool{}

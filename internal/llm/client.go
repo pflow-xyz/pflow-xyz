@@ -60,6 +60,7 @@ type Request struct {
 	Tools           []FunctionDecl
 	Temperature     float64
 	MaxOutputTokens int
+	Model           string // overrides the client's model for this call when set
 }
 
 // Response is what came back. Text is the concatenated text parts; Calls the

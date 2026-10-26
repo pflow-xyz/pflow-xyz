@@ -103,7 +103,11 @@ func (g *Gemini) Complete(ctx context.Context, req Request) (*Response, error) {
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	url := fmt.Sprintf("%s/models/%s:generateContent", strings.TrimRight(g.BaseURL, "/"), g.ModelID)
+	model := g.ModelID
+	if req.Model != "" {
+		model = req.Model
+	}
+	url := fmt.Sprintf("%s/models/%s:generateContent", strings.TrimRight(g.BaseURL, "/"), model)
 	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(raw))
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrUpstream, err)
@@ -146,7 +150,7 @@ func (g *Gemini) Complete(ctx context.Context, req Request) (*Response, error) {
 		return nil, fmt.Errorf("%w: no candidates", ErrBadReply)
 	}
 	out := &Response{
-		Model:        g.ModelID,
+		Model:        model,
 		InputTokens:  gr.UsageMetadata.PromptTokenCount,
 		OutputTokens: gr.UsageMetadata.CandidatesTokenCount,
 	}
