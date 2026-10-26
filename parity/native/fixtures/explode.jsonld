@@ -1,0 +1,51 @@
+{
+  "@context": "https://pflow.xyz/schema",
+  "@type": "PetriNet",
+  "@version": "1.1",
+  "name": "Unbounded growth",
+  "description": "grow takes one A and puts back two: A grows as e^(rate t). Over a long horizon the continuous engines overflow, and native writes the overflowed values as null.",
+  "token": [
+    "https://pflow.xyz/tokens/black"
+  ],
+  "places": {
+    "A": {
+      "@type": "Place",
+      "initial": [
+        5
+      ],
+      "capacity": [
+        0
+      ],
+      "x": 0,
+      "y": 0
+    }
+  },
+  "transitions": {
+    "grow": {
+      "@type": "Transition",
+      "x": 0,
+      "y": 0,
+      "rate": 3
+    }
+  },
+  "arcs": [
+    {
+      "@type": "Arrow",
+      "source": "A",
+      "target": "grow",
+      "weight": [
+        1
+      ],
+      "inhibitTransition": false
+    },
+    {
+      "@type": "Arrow",
+      "source": "grow",
+      "target": "A",
+      "weight": [
+        2
+      ],
+      "inhibitTransition": false
+    }
+  ]
+}

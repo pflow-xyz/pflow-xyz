@@ -14,6 +14,8 @@ go_library(
         "mcp_oauth.go",
         "mcp_registry.go",
         "mcp_simulate_gated.go",
+        "mcp_workbench.go",
+        "mcp_workbench_engine.go",
         "metrics.go",
         "share_card.go",
         "share_page.go",
@@ -72,6 +74,8 @@ go_test(
         "mcp_registry_test.go",
         "mcp_simulate_gated_test.go",
         "mcp_test.go",
+        "mcp_workbench_parity_test.go",
+        "mcp_workbench_test.go",
         "sample_card_test.go",
         "share_card_test.go",
         "sitemap_test.go",
@@ -79,8 +83,12 @@ go_test(
     ],
     # keep: share_card_test.go renders a stored example model from //examples.
     # keep: llm_goals_test.go reads public/goals.json, the catalog the server embeds.
+    # keep: mcp_workbench_parity_test.go replays parity/native/mcp_goldens.json on its
+    # fixtures and checks the goldens' pflow-native commit against pflow-native-wasm.lock.
     data = [
+        "//:pflow-native-wasm.lock",
         "//examples",
+        "//parity:native_mcp",
         "//public:public_files",
     ],
     embed = [":webserver_lib"],
@@ -89,5 +97,6 @@ go_test(
         "//internal/llm",
         "//internal/static",
         "//internal/userfiles",
+        "@com_github_pflow_xyz_go_pflow//solver",
     ],
 )

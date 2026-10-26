@@ -135,7 +135,7 @@ func toolDescriptor(t mcpTool) map[string]any {
 
 // allMCPTools is the original seven plus the registry tools.
 func allMCPTools() []mcpTool {
-	return append(mcpTools(), registryTools()...)
+	return append(append(mcpTools(), registryTools()...), workbenchTools()...)
 }
 
 // ---- protocol version and the tools a connection is offered ----
