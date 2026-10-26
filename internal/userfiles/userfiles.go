@@ -389,7 +389,8 @@ func (s *Store) diskUsage() (int64, error) {
 	}
 	var total int64
 	for _, e := range entries {
-		if !e.IsDir() {
+		// As in scan: ask the Root, not the DirEntry.
+		if fi, err := top.Lstat(e.Name()); err != nil || !fi.IsDir() {
 			continue
 		}
 		r, err := top.OpenRoot(e.Name())
@@ -426,18 +427,22 @@ func scan(r *os.Root, cleanTemps bool) ([]Info, Usage, error) {
 	var u Usage
 	for _, e := range entries {
 		name := e.Name()
+		// Stat through the Root, not e.Info()/e.Type(): before Go 1.26 a
+		// DirEntry from a directory opened by an os.Root lstats its name
+		// against the process's working directory, so every file looked
+		// missing (Go 1.25 is what go.mod, and so CI, builds with).
 		if cleanTemps && strings.HasPrefix(name, ".tmp-") {
-			if fi, err := e.Info(); err == nil && time.Since(fi.ModTime()) > staleTemp {
+			if fi, err := r.Lstat(name); err == nil && time.Since(fi.ModTime()) > staleTemp {
 				r.Remove(name)
 			}
 			continue
 		}
 		k, err := CheckName(name)
-		if err != nil || !e.Type().IsRegular() {
+		if err != nil {
 			continue
 		}
-		fi, err := e.Info()
-		if err != nil {
+		fi, err := r.Lstat(name)
+		if err != nil || !fi.Mode().IsRegular() {
 			continue
 		}
 		out = append(out, Info{Name: name, Size: fi.Size(), Modified: fi.ModTime().UTC(), Kind: k.Name})
