@@ -19,7 +19,8 @@ const ringNet = `{"@context":"https://pflow.xyz/schema","@type":"PetriNet","toke
 
 func TestMCPEveryToolIsAnnotated(t *testing.T) {
 	s := &Server{}
-	_, out := mcpCall(t, s, `{"jsonrpc":"2.0","id":2,"method":"tools/list"}`)
+	// with a bearer token, so pflow_save is listed too
+	_, out := mcpCall(t, s, `{"jsonrpc":"2.0","id":2,"method":"tools/list"}`, "Authorization", "Bearer x")
 	tools := out["result"].(map[string]any)["tools"].([]any)
 	if len(tools) < 17 {
 		t.Fatalf("%d tools listed", len(tools))
@@ -245,5 +246,58 @@ func TestMCPCallTimeout(t *testing.T) {
 	_, err := callMCPTool(&Server{}, httptest.NewRequest("POST", "/mcp", nil), slow, nil)
 	if err == nil || !strings.Contains(err.Error(), "gave up") {
 		t.Fatalf("expected a timeout, got %v", err)
+	}
+}
+
+func TestMCPSaveListedOnlyWithAToken(t *testing.T) {
+	s := &Server{}
+	names := func(hdr ...string) map[string]bool {
+		_, out := mcpCall(t, s, `{"jsonrpc":"2.0","id":2,"method":"tools/list"}`, hdr...)
+		seen := map[string]bool{}
+		for _, raw := range out["result"].(map[string]any)["tools"].([]any) {
+			seen[raw.(map[string]any)["name"].(string)] = true
+		}
+		return seen
+	}
+	if anon := names(); anon["pflow_save"] || !anon["pflow_check"] || len(anon) != len(allMCPTools())-1 {
+		t.Fatalf("without a token: %v", anon)
+	}
+	if signed := names("Authorization", "bearer abc"); !signed["pflow_save"] || len(signed) != len(allMCPTools()) {
+		t.Fatalf("with a token: %v", signed)
+	}
+	if names("Authorization", "Basic abc")["pflow_save"] {
+		t.Fatal("a non-bearer Authorization is not a token")
+	}
+}
+
+func TestMCPProtocolVersion(t *testing.T) {
+	for req, want := range map[string]string{"2025-11-25": "2025-11-25", "2025-03-26": "2025-03-26", "2099-01-01": mcpProtocolVersion, "": mcpProtocolVersion} {
+		_, out := mcpCall(t, &Server{}, `{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"`+req+`","capabilities":{}}}`)
+		if got := out["result"].(map[string]any)["protocolVersion"]; got != want {
+			t.Errorf("asked %q: answered %v, want %s", req, got, want)
+		}
+	}
+}
+
+func TestMCPBusyWhenSlotsAreFull(t *testing.T) {
+	old := mcpQueueWait
+	mcpQueueWait = 20 * time.Millisecond
+	defer func() { mcpQueueWait = old }()
+	for i := 0; i < mcpMaxConcurrentCalls; i++ {
+		mcpSlots <- struct{}{}
+	}
+	quick := &mcpTool{Name: "quick", run: func(*Server, *http.Request, map[string]any) (any, error) { return map[string]any{}, nil }}
+	_, err := callMCPTool(&Server{}, httptest.NewRequest("POST", "/mcp", nil), quick, nil)
+	for i := 0; i < mcpMaxConcurrentCalls; i++ {
+		<-mcpSlots
+	}
+	if err == nil || !strings.Contains(err.Error(), "busy") {
+		t.Fatalf("expected busy, got %v", err)
+	}
+	if _, err := callMCPTool(&Server{}, httptest.NewRequest("POST", "/mcp", nil), quick, nil); err != nil {
+		t.Fatalf("a free slot runs the call: %v", err)
+	}
+	if len(mcpSlots) != 0 {
+		t.Fatalf("%d slot(s) still held after the call", len(mcpSlots))
 	}
 }
