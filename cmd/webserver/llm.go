@@ -85,6 +85,7 @@ type llmService struct {
 	tools         map[string]bool
 	toolDecls     []llm.FunctionDecl
 	toolsVersion  string
+	autoStats     *llm.AutoStats    // anonymous auto-mode label counts (nil = not recorded)
 	classifyModel string            // auto mode's labeller (PFLOW_LLM_CLASSIFIER_MODEL)
 	modeExtra     map[string]string // per-mode context appended to the guidance (phases 5, 6)
 }
@@ -100,10 +101,15 @@ func newLLMService(getenv func(string) string, dataDir string) (*llmService, err
 	if err != nil {
 		return nil, err
 	}
+	stats, err := llm.NewAutoStats(filepath.Join(dataDir, "llm"))
+	if err != nil {
+		return nil, err
+	}
 	svc := &llmService{
-		client:   llm.NewGemini(key, getenv("PFLOW_LLM_MODEL")),
-		limiter:  lim,
-		verifier: auth.NewCachingVerifier(auth.NewGitHubVerifier()),
+		autoStats: stats,
+		client:    llm.NewGemini(key, getenv("PFLOW_LLM_MODEL")),
+		limiter:   lim,
+		verifier:  auth.NewCachingVerifier(auth.NewGitHubVerifier()),
 	}
 	if svc.classifyModel = getenv("PFLOW_LLM_CLASSIFIER_MODEL"); svc.classifyModel == "" {
 		svc.classifyModel = defaultClassifyModel
