@@ -479,8 +479,10 @@ wants an owner's decision.
 3. **Limits.** The defaults are 30 per user per day, burst 3, 500 a day
    globally (`PFLOW_LLM_*`). The Assistant spends one unit per model call,
    up to 6 per message, so is 30 a day enough for chat?
-4. **First live run.** Run `make llm-eval GEMINI_API_KEY=…` once and commit
-   `testdata/llm/`, so prompt changes have a regression net.
+4. ✅ **First live run.** *Done 2026-10-26* on `gemini-3.8-flash`: 17/20 (85%)
+   pass the gate first time; `testdata/llm/` committed as the regression net.
+   The 3 failures (01, 04, 08) are "reply is not JSON" — raw replies cut off
+   mid-object, probably thinking tokens eating the 4096 `MaxOutputTokens`.
 
 **Behaviour that shipped with a default**
 

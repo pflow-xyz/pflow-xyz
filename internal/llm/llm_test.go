@@ -63,7 +63,7 @@ func TestGeminiRequestShape(t *testing.T) {
 	if got.key != "SECRET-KEY" || strings.Contains(got.path, "SECRET") {
 		t.Fatalf("key must travel in x-goog-api-key only: path %q header %q", got.path, got.key)
 	}
-	if got.path != "/models/gemini-2.5-flash:generateContent" {
+	if got.path != "/models/gemini-3.8-flash:generateContent" {
 		t.Fatalf("path %q", got.path)
 	}
 	sys := got.body["systemInstruction"].(map[string]any)["parts"].([]any)[0].(map[string]any)["text"]

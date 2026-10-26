@@ -22,16 +22,16 @@ const MaxReplyBytes = 256 << 10
 // pflow.dev has no metadata server.
 type Gemini struct {
 	Key     string
-	ModelID string        // default gemini-2.5-flash
+	ModelID string        // default gemini-3.8-flash
 	BaseURL string        // default https://generativelanguage.googleapis.com/v1beta
 	Timeout time.Duration // default 45 s
 	HTTP    *http.Client
 }
 
-// NewGemini returns a client for key and model ("" = gemini-2.5-flash).
+// NewGemini returns a client for key and model ("" = gemini-3.8-flash).
 func NewGemini(key, model string) *Gemini {
 	if model == "" {
-		model = "gemini-2.5-flash"
+		model = "gemini-3.8-flash"
 	}
 	return &Gemini{Key: key, ModelID: model, BaseURL: "https://generativelanguage.googleapis.com/v1beta",
 		Timeout: 45 * time.Second, HTTP: &http.Client{}}

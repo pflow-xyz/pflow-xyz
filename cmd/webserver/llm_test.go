@@ -129,7 +129,7 @@ func TestLLMDraftSuccess(t *testing.T) {
 	if out["prompt"] != draftPromptVersion || out["remaining_today"] != float64(llm.DefaultLimits.Daily-1) {
 		t.Fatalf("response %v", out)
 	}
-	if c.last.System != draftPromptV1 || c.last.Temperature != 0.2 || c.last.MaxOutputTokens != 4096 || c.last.ResponseSchema == nil {
+	if c.last.System != draftPromptV1 || c.last.Temperature != 0.2 || c.last.MaxOutputTokens != 16384 || c.last.ResponseSchema == nil {
 		t.Fatalf("request %+v", c.last)
 	}
 	if len(c.last.Messages) != 1 || c.last.Messages[0].Role != "user" || c.last.Messages[0].Parts[0].Text != "A coffee shop" {

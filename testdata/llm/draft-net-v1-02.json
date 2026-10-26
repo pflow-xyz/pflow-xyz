@@ -1,0 +1,10 @@
+{
+  "description": "An SIR epidemic in a town of 1000 people.",
+  "model": "gemini-3.8-flash",
+  "prompt": "draft-net-v1",
+  "raw": "{\"name\": \"SIR Epidemic Model\", \"summary\": \"Classic Susceptible-Infectious-Recovered disease dynamic for a town of 1,000 people.\", \"places\": [{\"id\": \"susceptible\", \"label\": \"Susceptible\", \"description\": \"Healthy individuals who can contract the disease.\", \"initial\": 999, \"capacity\": 1000}, {\"id\": \"infectious\", \"label\": \"Infectious\", \"description\": \"Infected individuals capable of transmitting the disease.\", \"initial\": 1, \"capacity\": 1000}, {\"id\": \"recovered\", \"label\": \"Recovered\", \"description\": \"Individuals who have recovered and developed immunity.\", \"initial\": 0, \"capacity\": 1000}], \"transitions\": [{\"id\": \"infect\", \"label\": \"Transmission\", \"description\": \"A susceptible individual catches the infection through contact with an infectious person.\", \"rate\": 0.3}, {\"id\": \"recover\", \"label\": \"Recovery\", \"description\": \"An infectious individual clears the infection and gains immunity.\", \"rate\": 0.1}], \"arcs\": [{\"from\": \"susceptible\", \"to\": \"infect\", \"weight\": 1, \"inhibitor\": false}, {\"from\": \"infectious\", \"to\": \"infect\", \"weight\": 1, \"inhibitor\": false}, {\"from\": \"infect\", \"to\": \"infectious\", \"weight\": 2, \"inhibitor\": false}, {\"from\": \"infectious\", \"to\": \"recover\", \"weight\": 1, \"inhibitor\": false}, {\"from\": \"recover\", \"to\": \"recovered\", \"weight\": 1, \"inhibitor\": false}], \"assumptions\": [\"Rates are per day.\", \"Population starts with 999 susceptible people and 1 initial infected person.\", \"Transmission consumes 1 susceptible and 1 infectious token, producing 2 infectious tokens.\", \"Average recovery duration is 10 days (rate 0.1 per day).\", \"Immunity is permanent (no reinfection or waning immunity).\", \"Vital dynamics (births and deaths) are excluded.\"]}",
+  "usage": {
+    "in": 1262,
+    "out": 458
+  }
+}

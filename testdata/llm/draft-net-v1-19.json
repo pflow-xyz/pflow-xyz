@@ -1,0 +1,10 @@
+{
+  "description": "(empty)",
+  "model": "gemini-3.8-flash",
+  "prompt": "draft-net-v1",
+  "raw": "{\"name\":\"Empty Process\",\"summary\":\"A minimal draft because no process description was provided.\",\"places\":[{\"id\":\"idle\",\"label\":\"Idle\",\"description\":\"Default initial state.\",\"initial\":1,\"capacity\":0}],\"transitions\":[{\"id\":\"do_nothing\",\"label\":\"Do nothing\",\"description\":\"Default placeholder transition.\",\"rate\":1.0}],\"arcs\":[{\"from\":\"idle\",\"to\":\"do_nothing\",\"weight\":1,\"inhibitor\":false}],\"assumptions\":[\"The description was empty and did not describe a process.\",\"Rates are arbitrary per hour.\"]}",
+  "usage": {
+    "in": 1251,
+    "out": 116
+  }
+}

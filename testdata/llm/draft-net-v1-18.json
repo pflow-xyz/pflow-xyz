@@ -1,0 +1,10 @@
+{
+  "description": "what is the capital of France",
+  "model": "gemini-3.8-flash",
+  "prompt": "draft-net-v1",
+  "raw": "{\"name\": \"Not a process\", \"summary\": \"A placeholder net generated because the prompt was not a process description.\", \"places\": [{\"id\": \"state\", \"label\": \"Initial state\", \"description\": \"Default placeholder place.\", \"initial\": 1, \"capacity\": 0}], \"transitions\": [{\"id\": \"step\", \"label\": \"Default step\", \"description\": \"Default placeholder transition.\", \"rate\": 1.0}], \"arcs\": [{\"from\": \"state\", \"to\": \"step\", \"weight\": 1, \"inhibitor\": false}], \"assumptions\": [\"The description did not describe a process.\", \"Rates are per hour.\"]}",
+  "usage": {
+    "in": 1254,
+    "out": 140
+  }
+}
