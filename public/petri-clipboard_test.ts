@@ -585,18 +585,29 @@ Deno.test("an empty clip or net on the system clipboard is nothing to paste, so 
     assertEquals((clipFromText(JSON.stringify({ pflowClip: { version: 1 }, transitions: { t: transition(0, 0) } })) as any).kind, "clip");
 });
 
-Deno.test("choosePaste with preferMemory: the buffer wins over whatever the system clipboard holds", () => {
+Deno.test("choosePaste with preferMemory: the buffer wins over a pflow.xyz clip, not over what came from elsewhere", () => {
     const memory = copySelection(sir(), ["R"]);
+    // a pflow.xyz clip may be this editor's own older copy; text that is no clip falls back anyway
+    for (const t of [clipV1Text(), "text", null]) {
+        assertEquals(choosePaste(t, memory, { preferMemory: true }), { clip: memory, from: "memory" });
+    }
+    // a pflow-native clip or a plain net was not written by this editor: it is newer, and pastes
+    const native = JSON.parse(clipV1Text());
+    native.pflowClip.origin = "pflow-native";
+    assertEquals(choosePaste(JSON.stringify(native), memory, { preferMemory: true }).from, "system");
+    const plain = JSON.parse(clipV1Text());
+    delete plain.pflowClip;
+    assertEquals(choosePaste(JSON.stringify(plain), memory, { preferMemory: true }).from, "system");
+    // a newer clip version is still refused, as the spec says, not swapped for the buffer
     const v2 = JSON.parse(clipV1Text());
     v2.pflowClip.version = 2;
-    for (const t of [clipV1Text(), JSON.stringify(v2), "text", null]) {
-        assertEquals(choosePaste(t, memory, { preferMemory: true }), { clip: memory, from: "memory" });
+    for (const m of [memory, null]) {
+        const refused = choosePaste(JSON.stringify(v2), m, { preferMemory: true });
+        assertEquals(refused.clip, null);
+        assert(refused.refusal);
     }
     // with no buffer the system clipboard is read as usual
     assertEquals(choosePaste(clipV1Text(), null, { preferMemory: true }).from, "system");
-    const refused = choosePaste(JSON.stringify(v2), null, { preferMemory: true });
-    assertEquals(refused.clip, null);
-    assert(refused.refusal);
 });
 
 Deno.test("integer-like ids keep their written order, in and out", () => {

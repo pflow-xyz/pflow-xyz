@@ -367,17 +367,21 @@ export function clipFromText(text) {
  * could not be read); `memoryClip` the editor's in-memory clip. A clip (or a
  * pflow net) on the system clipboard wins; a newer clip version is refused,
  * with a message, and nothing is pasted; any other text falls back to the
- * in-memory clip. With preferMemory (the editor's last write to the system
- * clipboard failed, so whatever clip is there is older than its own), the
- * in-memory clip wins whenever there is one.
+ * in-memory clip. preferMemory says the editor's last write to the system
+ * clipboard failed: a pflow.xyz clip still there may then be an older copy of
+ * its own, so the in-memory clip wins over it. Anything this editor could not
+ * have written (a pflow-native clip, a plain net, a newer clip version) came
+ * from elsewhere after that write, and is read as usual.
  * @param {*} text
  * @param {Object|null} memoryClip
  * @param {{preferMemory?: boolean}} [opts]
  * @returns {{clip: Object|null, from: 'system'|'memory'|null, refusal?: string}}
  */
 export function choosePaste(text, memoryClip, {preferMemory = false} = {}) {
-    if (preferMemory && memoryClip) return {clip: memoryClip, from: 'memory'};
     const read = clipFromText(text);
+    if (preferMemory && memoryClip && read.kind === 'clip' && read.origin === CLIP_ORIGIN) {
+        return {clip: memoryClip, from: 'memory'};
+    }
     if (read.kind === 'clip') return {clip: read.clip, from: 'system'};
     if (read.kind === 'refused') return {clip: null, from: null, refusal: read.message};
     return memoryClip ? {clip: memoryClip, from: 'memory'} : {clip: null, from: null};
