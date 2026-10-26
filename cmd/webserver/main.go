@@ -1096,7 +1096,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				http.Error(w, "Not found", http.StatusNotFound)
 				return
 			}
-			data = s.decorateIndexForShare(r, data)
+			data, status := s.decorateIndexForShare(r, data)
 			data = s.injectAnalytics(data)
 			w.Header().Set("Content-Type", "text/html")
 			// Short cache so unfurl bots don't thrash, but not immutable —
@@ -1104,6 +1104,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			if r.URL.Query().Get("cid") != "" {
 				w.Header().Set("Cache-Control", "public, max-age=300")
 			}
+			w.WriteHeader(status)
 			w.Write(data)
 			return
 		}

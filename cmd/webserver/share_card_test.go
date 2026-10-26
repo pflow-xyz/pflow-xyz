@@ -155,7 +155,7 @@ func TestDecorateIndexForShare(t *testing.T) {
 	t.Run("decorated when cid present", func(t *testing.T) {
 		r := httptest.NewRequest("GET", "/?cid="+sampleCID, nil)
 		r.Host = "pflow.xyz"
-		out := srv.decorateIndexForShare(r, indexHTML)
+		out, _ := srv.decorateIndexForShare(r, indexHTML)
 		s := string(out)
 		for _, want := range []string{
 			`property="og:image"`,
@@ -179,7 +179,7 @@ func TestDecorateIndexForShare(t *testing.T) {
 			`</head><body></body></html>`)
 		r := httptest.NewRequest("GET", "/?cid="+sampleCID, nil)
 		r.Host = "pflow.xyz"
-		out := srv.decorateIndexForShare(r, staticHTML)
+		out, _ := srv.decorateIndexForShare(r, staticHTML)
 		s := string(out)
 		// Static values must be gone.
 		if strings.Contains(s, `static title`) || strings.Contains(s, `static.png`) || strings.Contains(s, `static desc`) {
@@ -198,7 +198,8 @@ func TestDecorateIndexForShare(t *testing.T) {
 		r := httptest.NewRequest("GET", "/?cid="+sampleCID+"&utm_source=x&fbclid=y", nil)
 		r.Host = "pflow.xyz"
 		r.Header.Set("X-Forwarded-Proto", "https")
-		s := string(srv.decorateIndexForShare(r, indexHTML))
+		out, _ := srv.decorateIndexForShare(r, indexHTML)
+		s := string(out)
 		want := `<link rel="canonical" href="https://pflow.xyz/?cid=` + sampleCID + `"/>`
 		if !strings.Contains(s, want) {
 			t.Errorf("canonical not the clean cid url, want %s in\n%s", want, s)
@@ -213,7 +214,7 @@ func TestDecorateIndexForShare(t *testing.T) {
 
 	t.Run("untouched when no cid", func(t *testing.T) {
 		r := httptest.NewRequest("GET", "/", nil)
-		out := srv.decorateIndexForShare(r, indexHTML)
+		out, _ := srv.decorateIndexForShare(r, indexHTML)
 		if !bytes.Equal(out, indexHTML) {
 			t.Errorf("expected unchanged html when no cid")
 		}
@@ -221,7 +222,7 @@ func TestDecorateIndexForShare(t *testing.T) {
 
 	t.Run("untouched when invalid cid", func(t *testing.T) {
 		r := httptest.NewRequest("GET", "/?cid=garbage", nil)
-		out := srv.decorateIndexForShare(r, indexHTML)
+		out, _ := srv.decorateIndexForShare(r, indexHTML)
 		if !bytes.Equal(out, indexHTML) {
 			t.Errorf("expected unchanged html when cid invalid")
 		}
@@ -241,10 +242,10 @@ func TestStripSVGWrapper(t *testing.T) {
 
 func TestTokenColorHex(t *testing.T) {
 	cases := map[string]string{
-		"https://pflow.xyz/tokens/red": "#dc3545",
-		"#abcdef":                      "#abcdef",
-		"ff0000":                       "#ff0000",
-		"":                             "",
+		"https://pflow.xyz/tokens/red":         "#dc3545",
+		"#abcdef":                              "#abcdef",
+		"ff0000":                               "#ff0000",
+		"":                                     "",
 		"https://pflow.xyz/tokens/nonexistent": "",
 	}
 	for in, want := range cases {
