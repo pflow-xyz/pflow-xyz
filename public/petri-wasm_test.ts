@@ -1,7 +1,8 @@
 import { assert, assertEquals, assertRejects, assertThrows } from "https://deno.land/std@0.224.0/assert/mod.ts";
-import { loadEngine } from "./petri-wasm.js";
+import { dropEngine, engineState, loadEngine, localStorageStorage, memoryStorage } from "./petri-wasm.js";
 import { COMMANDS, CommandError, Registry, createHeadlessHost, nativeCommands } from "./petri-commands.js";
 import { NATIVE_COMMANDS, NATIVE_VERSION } from "./vendor/pflow-native-wasm/commands.js";
+import { EDITS, EDITS_ON_CURRENT, EXPOSED, REPLACES, STRIP_ARGS, WRITES_STATE, checkExposure } from "../scripts/sync-native-wasm.mjs";
 
 // The vendored shim is stored gzip-only; decompress it the way a browser's
 // Content-Encoding: gzip would.
@@ -22,9 +23,9 @@ Deno.test("vendor: the bundle matches pflow-native-wasm.lock", async () => {
     assertEquals(NATIVE_COMMANDS.map((c: any) => c.id), lock.exposed);
 });
 
-// Arguments the snapshot drops on purpose (they read or write the host's files):
-// scripts/sync-native-wasm.mjs STRIP_ARGS.
-const STRIPPED: Record<string, string[]> = { "export.svg": ["path"], "data.load_log": ["path"] };
+// Arguments the snapshot drops on purpose (they read or write the host's
+// files, or pin a note to an engine result): scripts/sync-native-wasm.mjs STRIP_ARGS.
+const STRIPPED: Record<string, string[]> = STRIP_ARGS;
 
 Deno.test("vendor: the snapshot specs match the engine's own", async () => {
     const { engine } = await loadEngine();
@@ -46,10 +47,29 @@ Deno.test("vendor: no exposed native id is a JS command's id, and the registry r
     assertThrows(() => new Registry(createHeadlessHost(), [...COMMANDS, ...dup]), Error, "registered twice: net.info");
 });
 
+Deno.test("vendor: every engine command is exposed, a JS id or not exposed, exactly once (the sync's guard)", async () => {
+    const { engine } = await loadEngine();
+    const ids = JSON.parse(engine.listCommands("")).map((c: any) => c.id);
+    assertEquals(checkExposure(ids, COMMANDS.map((c: any) => c.id)), { clashes: [], unaccounted: [], contradictions: [], missing: [] });
+    assertEquals(NATIVE_COMMANDS.map((c: any) => c.id), EXPOSED);
+    // the snapshot carries the flags the bridge and the chat act on
+    for (const c of NATIVE_COMMANDS as any[]) {
+        assertEquals(!!c.edits, EDITS.includes(c.id), `${c.id} edits`);
+        if (c.edits) assertEquals(c.edits === "replace", REPLACES.includes(c.id), `${c.id} replaces`);
+        assertEquals(!!c.editsOnCurrent, EDITS_ON_CURRENT.includes(c.id), `${c.id} editsOnCurrent`);
+        assertEquals(!!c.writesState, WRITES_STATE.includes(c.id), `${c.id} writesState`);
+    }
+    // the session commands are in, the engine's own state API is not
+    for (const id of ["model.save", "store.put", "note.add", "macro.play", "system.bind"]) assert(EXPOSED.includes(id), id);
+    for (const id of ["session.dump_state", "session.restore_state", "artifact.put", "macro.record", "job.start", "command.batch", "file.open", "file.save"]) assert(!EXPOSED.includes(id), id);
+});
+
 Deno.test("vendor: the path arguments are not accepted (no file access from the page)", async () => {
     const r: any = new Registry(createHeadlessHost(sir()));
     await assertRejects(() => r.execute("export.svg", { path: "/tmp/x.svg" }), CommandError, 'unknown argument "path"');
     await assertRejects(() => r.execute("data.load_log", { path: "/tmp/x.csv" }), CommandError, 'unknown argument "path"');
+    await assertRejects(() => r.execute("model.import", { name: "x", path: "/tmp/x.json" }), CommandError, 'unknown argument "path"');
+    await assertRejects(() => r.execute("note.add", { text: "x", artifact: "a1" }), CommandError, 'unknown argument "artifact"');
 });
 
 const sir = () => ({
@@ -349,4 +369,216 @@ Deno.test("native: the chat's tool manifest has the new commands, and not export
     const names = new Set(manifest.tools.map((t: any) => t.command));
     for (const id of ["sim.run", "opt.fit", "data.generate", "net.layout", "file.open_example"]) assert(names.has(id), id);
     assert(!names.has("export.svg"));
+    // the session state: the chat reads it and opens from it, but writes none of it
+    for (const id of ["model.list", "model.get", "model.open", "store.list", "store.query", "store.open", "note.list", "macro.play", "system.run"]) assert(names.has(id), id);
+    for (const id of WRITES_STATE) assert(!names.has(id), `${id} writes the person's saved state`);
+});
+
+// ---- the session state, kept in browser storage ----
+
+const STATE_KEY = "pflow-native-session";
+
+// A page "reload": the engine goes, a new one restores from `storage`.
+async function reload(storage: any) {
+    await dropEngine();
+    await loadEngine({ bytes: wasm, storage });
+}
+
+// Each state test starts from an engine with `storage` and leaves the file's
+// engine as it found it (no storage), so the tests above and below see a
+// session-less engine.
+async function withStorage(storage: any, fn: () => Promise<void>) {
+    await reload(storage);
+    try { await fn(); } finally { await reload(null); }
+}
+
+// Fill every part of the session through the registry, as the page does.
+async function populate(r: any) {
+    await r.execute("model.save", { name: "mine" });
+    await r.execute("model.import", { name: "shop", example: "coffee-shop" });
+    await r.execute("system.set_port", { model: "mine", id: "I", direction: "out", kind: "People" });
+    await r.execute("system.set_port", { model: "shop", id: "CustomerArrives", direction: "in", kind: "People" });
+    const bound = await r.execute("system.bind", { from_model: "mine", from_port: "I", to_model: "shop", to_port: "CustomerArrives" });
+    await r.execute("macro.define", { name: "two", steps: [{ command: "net.add_place", args: { x: 10, y: 10, id: "P1" } }, { command: "net.add_place", args: { x: 90, y: 10, id: "P2" } }] });
+    await r.execute("note.add", { text: "look", node: "S" });
+    const put = await r.execute("store.put", { title: "SIR" });
+    await r.execute("store.map_put", { data: { k: "v" } });
+    await r.execute("store.collection_create", { name: "kept" });
+    await r.execute("store.collection_add", { collection: "kept", cid: put.cid });
+    return { cid: put.cid, binding: bound.id };
+}
+
+// What a reload must keep, as the commands report it (the results they file
+// in the registry are left out: their ids move on).
+async function observe(r: any, cid: string) {
+    const drop = (o: any) => { const { artifact: _a, ...rest } = o; return rest; };
+    return {
+        models: await r.execute("model.list"),
+        mine: await r.execute("model.get", { name: "mine" }),
+        bindings: await r.execute("system.bindings"),
+        macros: await r.execute("macro.list"),
+        two: await r.execute("macro.get", { name: "two" }),
+        notes: await r.execute("note.list"),
+        stored: drop(await r.execute("store.list")),
+        model: await r.execute("store.get", { cid }),
+        collections: drop(await r.execute("store.collection_list")),
+        maps: drop(await r.execute("store.map_list")),
+    };
+}
+
+Deno.test("state: the library, systems, macros, notes and store survive a reload, through the page bridge", async () => {
+    const storage = memoryStorage();
+    await withStorage(storage, async () => {
+        assertEquals(engineState.restored, null); // nothing saved yet
+        const r = reg2();
+        assertEquals(await r.execute("model.list"), []);
+        const { cid } = await populate(r);
+        const before = await observe(r, cid);
+        assertEquals(before.models.map((m: any) => m.name), ["mine", "shop"]);
+        assertEquals(before.bindings.length, 1);
+        assertEquals(before.stored.rows.length, 1);
+        assert(typeof storage.data.get(STATE_KEY) === "string", "saved after the commands that changed it");
+
+        await reload(storage);
+        assertEquals(engineState.refused, null);
+        assertEquals(engineState.restored, { store: 5, models: 2, systems: { bindings: 1, systems: 0 }, macros: 1, recording: null, notes: 1 });
+        // a new registry over a new document: the session is the engine's, not the page's
+        const r2 = reg2();
+        assertEquals(await observe(r2, cid), before);
+        // and it works: the macro plays on the open net as one undo step,
+        // a stored model opens, a library model opens
+        await r2.execute("macro.play", { name: "two" });
+        assertEquals(Object.keys(r2.host.getModel().places), ["S", "I", "R", "P1", "P2"]);
+        r2.host.undo();
+        assertEquals(Object.keys(r2.host.getModel().places), ["S", "I", "R"]);
+        await r2.execute("model.open", { name: "shop" });
+        assert("CoffeeBeans" in r2.host.getModel().places);
+        await r2.execute("store.open", { cid });
+        assertEquals(Object.keys(r2.host.getModel().places), ["S", "I", "R"]);
+    });
+});
+
+Deno.test("state: the bridge's load and the page's own new net do not wipe the library or the store", async () => {
+    const storage = memoryStorage();
+    await withStorage(storage, async () => {
+        const r = reg2();
+        await r.execute("model.save", { name: "kept" });
+        const { cid } = await r.execute("store.put", { title: "kept" });
+        const saved = storage.data.get(STATE_KEY);
+        // every native call loads the caller's document and clears the engine's
+        // results: another document, an analysis, a replacing open
+        const other = reg2(mut());
+        await other.execute("analysis.invariants");
+        await other.execute("file.open_example", { name: "tic-tac-toe" });
+        await r.execute("file.new");
+        assertEquals(Object.keys(r.host.getModel().places), []);
+        assertEquals((await r.execute("model.list")).map((m: any) => m.name), ["kept"]);
+        assertEquals((await r.execute("store.list")).rows.map((x: any) => x.cid), [cid]);
+        assertEquals(storage.data.get(STATE_KEY), saved, "nothing the session holds changed, so nothing was written");
+    });
+});
+
+Deno.test("state: only a change is written; a failed write is reported, not thrown", async () => {
+    const writes: string[] = [];
+    const storage = { ...memoryStorage(), kind: "memory", save: async (t: string) => { writes.push(t); } };
+    await withStorage(storage, async () => {
+        const r = reg2();
+        await r.execute("analysis.invariants");
+        await r.execute("model.list");
+        assertEquals(writes.length, 0);
+        await r.execute("model.save", { name: "a" });
+        assertEquals(writes.length, 1);
+        await r.execute("model.get", { name: "a" });
+        assertEquals(writes.length, 1);
+        await r.execute("note.add", { text: "n" });
+        assertEquals(writes.length, 2);
+    });
+    const failing = { ...memoryStorage(), save: async () => { throw new Error("QuotaExceededError"); } };
+    await withStorage(failing, async () => {
+        const r = reg2();
+        const out = await r.execute("model.save", { name: "a" }); // resolves although the write failed
+        assertEquals(out.name, "a");
+        assertEquals((await r.execute("model.list")).length, 1);
+    });
+});
+
+Deno.test("state: a refused saved state is set aside, not overwritten, and the engine starts empty", async () => {
+    const storage = memoryStorage();
+    const newer = JSON.stringify({ format: "pflow-native-session-state", version: 99, models: {} });
+    storage.data.set(STATE_KEY, newer);
+    await withStorage(storage, async () => {
+        assert(engineState.refused, "refused");
+        assertEquals(engineState.restored, null);
+        assertEquals(storage.data.has(STATE_KEY), false, "the main key is cleared");
+        const aside = [...storage.data.entries()].filter(([k]) => k.startsWith(`${STATE_KEY}.refused`));
+        assertEquals(aside.length, 1);
+        assertEquals((aside[0][1] as any).text, newer, "kept as it was");
+        const r = reg2();
+        assertEquals(await r.execute("model.list"), []);
+        await r.execute("model.save", { name: "fresh" });
+        assert(JSON.parse(storage.data.get(STATE_KEY) as string).models.fresh, "new saves go to the main key");
+        assertEquals((aside[0][1] as any).text, newer, "the refused copy is untouched");
+    });
+    // garbage is refused the same way
+    const junk = memoryStorage();
+    junk.data.set(STATE_KEY, "{not json");
+    await withStorage(junk, async () => {
+        assert(engineState.refused?.includes("not JSON"), engineState.refused ?? "");
+        assertEquals(await reg2().execute("model.list"), []);
+    });
+});
+
+Deno.test("state: storage that cannot be read starts empty and saves nothing; refusing to set aside saves nothing", async () => {
+    let writes = 0;
+    const unreadable = { kind: "memory", load: async () => { throw new Error("SecurityError"); }, save: async () => { writes++; }, setAside: async () => {} };
+    await withStorage(unreadable, async () => {
+        assertEquals(engineState.saving, false);
+        const r = reg2();
+        assertEquals(await r.execute("model.list"), []);
+        await r.execute("model.save", { name: "a" });
+        assertEquals(writes, 0, "a broken read never ends in an empty state written over a good one");
+    });
+    const stuck = { kind: "memory", load: async () => "{not json", save: async () => { writes++; }, setAside: async () => { throw new Error("no"); } };
+    await withStorage(stuck, async () => {
+        assertEquals(engineState.saving, false);
+        await reg2().execute("model.save", { name: "a" });
+        assertEquals(writes, 0, "the refused copy it could not set aside is not overwritten");
+    });
+    // no storage at all (a test runner, a page without IndexedDB or localStorage): a session in memory
+    await withStorage(null, async () => {
+        assertEquals(engineState.storage, "none");
+        const r = reg2();
+        await r.execute("model.save", { name: "a" });
+        assertEquals((await r.execute("model.list")).length, 1);
+    });
+});
+
+Deno.test("state: system.set_port edits the open net only when its model is the open net", async () => {
+    await withStorage(memoryStorage(), async () => {
+        const r = reg2();
+        await r.execute("model.save", { name: "lib" });
+        await r.execute("system.set_port", { model: "lib", id: "I", direction: "out" });
+        assertEquals(r.host.getModel().ports, undefined, "a library model's port leaves the open net alone");
+        await r.execute("system.set_port", { id: "I", direction: "out", kind: "People" });
+        assertEquals(r.host.getModel().ports, [{ id: "I", direction: "output", kind: "People" }]);
+        // the port travels with the document into the next call
+        assertEquals((await r.execute("system.ports", { model: "current" })).ports.map((p: any) => p.id), ["I"]);
+        r.host.undo();
+        assertEquals(r.host.getModel().ports, undefined);
+    });
+});
+
+Deno.test("state: localStorageStorage keeps the state under one key and sets a refused one aside", async () => {
+    const m = new Map<string, string>();
+    const ls = { getItem: (k: string) => m.get(k) ?? null, setItem: (k: string, v: string) => { m.set(k, v); }, removeItem: (k: string) => { m.delete(k); } };
+    const st = localStorageStorage(ls);
+    assertEquals(st.kind, "localstorage");
+    assertEquals(await st.load(), null);
+    await st.save("{}");
+    assertEquals(await st.load(), "{}");
+    await st.setAside("{}", "why");
+    assertEquals(await st.load(), null);
+    const [k, v] = [...m.entries()][0];
+    assert(k.startsWith(`${STATE_KEY}.refused.`));
+    assertEquals(JSON.parse(v).text, "{}");
 });

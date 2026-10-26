@@ -1308,6 +1308,17 @@ PetriView = class PetriView extends HTMLElement {
         }
     }
 
+    // /api/files/status decides whether "Save to my account" is offered. A
+    // server without the route (a vendored copy of this component) answers
+    // 404, which reads as disabled.
+    _filesStatus() {
+        if (this._filesStatusPromise) return this._filesStatusPromise;
+        this._filesStatusPromise = fetch('/api/files/status')
+            .then(r => (r.ok ? r.json() : { enabled: false }))
+            .catch(() => ({ enabled: false }));
+        return this._filesStatusPromise;
+    }
+
     // ---------------- guided modelling (LLM drafting) ----------------
     // /api/llm/status decides whether drafting is offered. A server without
     // the route (a vendored copy of this component) answers 404, which reads
@@ -1396,6 +1407,8 @@ PetriView = class PetriView extends HTMLElement {
             },
             highlight: (nodes, weights, label) => this._highlightNodes(nodes, weights, label),
             clearHighlight: () => this._highlightNodes([]),
+            // The account-file commands (file.save, file.open, …) sign in with the page's GitHub token.
+            authToken: () => this._authToken,
         };
         return this._cmdHost;
     }
@@ -7142,6 +7155,217 @@ PetriView = class PetriView extends HTMLElement {
         });
     }
 
+    // ---------------- Account files (file.save / file.open …) ----------------
+    // pflow-native saves to disk; the page saves to the signed-in user's own
+    // files on the server (/api/files, docs/account-files.md), through the
+    // registry's account-file commands. No browser file-system access.
+
+    // A modal in the edit-details dialog's style; returns {overlay, dialog, close}.
+    _accountDialog(titleText, cls = 'pv-edit-diagram') {
+        const overlay = document.createElement('div');
+        overlay.className = `${cls}-overlay`;
+        const dialog = document.createElement('div');
+        dialog.className = `${cls}-dialog`;
+        const title = document.createElement('h2');
+        title.className = cls === 'pv-diagrams' ? 'pv-diagrams-title' : 'pv-edit-diagram-title';
+        title.textContent = titleText;
+        dialog.appendChild(title);
+        overlay.appendChild(dialog);
+        document.body.appendChild(overlay);
+        const close = () => overlay.remove();
+        overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+        overlay.addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.stopPropagation(); close(); } });
+        overlay.tabIndex = -1;
+        overlay.focus();
+        return { overlay, dialog, close };
+    }
+
+    // Signed out: say so, and offer the sign-in. Returns true when signed out.
+    _accountNeedsSignIn(titleText) {
+        if (this._authToken) return false;
+        const { dialog, close } = this._accountDialog(titleText);
+        const msg = document.createElement('p');
+        msg.textContent = 'Sign in to save: your files are kept in your own pflow.xyz account, private to you.';
+        dialog.appendChild(msg);
+        const buttons = document.createElement('div');
+        buttons.className = 'pv-edit-diagram-buttons';
+        const cancel = document.createElement('button');
+        cancel.type = 'button';
+        cancel.className = 'pv-edit-diagram-btn-cancel';
+        cancel.textContent = 'Cancel';
+        cancel.addEventListener('click', close);
+        const login = document.createElement('button');
+        login.type = 'button';
+        login.className = 'pv-edit-diagram-btn-save';
+        login.textContent = 'Sign in with GitHub';
+        login.addEventListener('click', () => this._loginWithGitHub());
+        buttons.append(cancel, login);
+        dialog.appendChild(buttons);
+        login.focus();
+        return true;
+    }
+
+    _showAccountSaveDialog() {
+        if (this._accountNeedsSignIn('Save to my account')) return;
+        const { dialog, close } = this._accountDialog('Save to my account');
+        const label = document.createElement('label');
+        label.className = 'pv-edit-diagram-label';
+        label.textContent = 'File name (.json or .jsonld)';
+        dialog.appendChild(label);
+        const input = document.createElement('input');
+        input.className = 'pv-edit-diagram-input';
+        input.type = 'text';
+        const fromName = String(this._model?.name || '').toLowerCase().replace(/[^a-z0-9._-]+/g, '-').replace(/\.{2,}/g, '.').slice(0, 90).replace(/^[^a-z0-9]+|[-.]+$/g, '');
+        input.value = this._accountFileName || (/\.json(ld)?$/.test(fromName) ? fromName : `${fromName || 'net'}.json`);
+        input.maxLength = 100;
+        dialog.appendChild(input);
+        const status = document.createElement('p');
+        status.className = 'pv-diagram-desc';
+        status.textContent = 'Saved to your own files on this server: only you can list, open or delete them.';
+        dialog.appendChild(status);
+        const buttons = document.createElement('div');
+        buttons.className = 'pv-edit-diagram-buttons';
+        const cancel = document.createElement('button');
+        cancel.type = 'button';
+        cancel.className = 'pv-edit-diagram-btn-cancel';
+        cancel.textContent = 'Cancel';
+        cancel.addEventListener('click', close);
+        const save = document.createElement('button');
+        save.type = 'button';
+        save.className = 'pv-edit-diagram-btn-save';
+        save.textContent = 'Save';
+        buttons.append(cancel, save);
+        dialog.appendChild(buttons);
+
+        const run = async (overwrite = false) => {
+            const name = input.value.trim();
+            save.disabled = true;
+            save.textContent = 'Saving…';
+            try {
+                const reg = await this.commands();
+                const out = await reg.execute('file.save', overwrite ? { name, overwrite: true } : { name });
+                this._accountFileName = out.name;
+                close();
+                this._toast(`Saved ${out.name} to your account`, 'success');
+            } catch (e) {
+                if (e.code === 'conflict' && !overwrite && confirm(`You already have a file named ${name}. Replace it?`)) {
+                    return await run(true); // await: the finally below must wait for it
+                }
+                status.textContent = e.message;
+                if (e.code === 'unauthenticated') this._logout();
+            } finally {
+                save.disabled = false;
+                save.textContent = 'Save';
+            }
+        };
+        save.addEventListener('click', () => run());
+        input.addEventListener('keydown', (e) => { if (e.key === 'Enter') run(); });
+        input.focus();
+        input.select();
+    }
+
+    async _showAccountFilesDialog() {
+        if (this._accountNeedsSignIn('My files')) return;
+        const { dialog, close } = this._accountDialog('My files', 'pv-diagrams');
+        const loading = document.createElement('div');
+        loading.className = 'pv-diagrams-loading';
+        loading.textContent = 'Loading your files…';
+        dialog.appendChild(loading);
+        const closeBtn = document.createElement('button');
+        closeBtn.className = 'pv-diagrams-close-btn';
+        closeBtn.textContent = 'Close';
+        closeBtn.type = 'button';
+        closeBtn.addEventListener('click', close);
+
+        let reg, listing;
+        try {
+            reg = await this.commands();
+            listing = await reg.execute('file.list');
+        } catch (e) {
+            loading.textContent = e.message;
+            dialog.appendChild(closeBtn);
+            return;
+        }
+        loading.remove();
+        const kb = (n) => `${(n / 1024).toFixed(n < 10240 ? 1 : 0)} KB`;
+        const usage = document.createElement('div');
+        usage.className = 'pv-diagram-date';
+        const showUsage = (u) => {
+            const l = listing.limits || {};
+            usage.textContent = `${u.files} file${u.files === 1 ? '' : 's'}, ${kb(u.bytes || 0)}` +
+                (l.max_total_bytes ? ` of ${kb(l.max_total_bytes)}` : '');
+        };
+        showUsage(listing.usage || { files: listing.files.length, bytes: 0 });
+        dialog.appendChild(usage);
+        if (!listing.files.length) {
+            const empty = document.createElement('div');
+            empty.className = 'pv-diagrams-empty';
+            empty.textContent = 'No files yet. Use ☁️ Save to my account… to keep a net here.';
+            dialog.appendChild(empty);
+        }
+        const grid = document.createElement('div');
+        grid.className = 'pv-diagrams-grid';
+        const action = (text, cls, fn) => {
+            const b = document.createElement('button');
+            b.type = 'button';
+            b.className = `pv-diagram-action-btn ${cls}`;
+            b.textContent = text;
+            b.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                try { await fn(); } catch (err) { this._toast(err.message, 'error'); }
+            });
+            return b;
+        };
+        for (const f of listing.files) {
+            const card = document.createElement('div');
+            card.className = 'pv-diagram-card';
+            const info = document.createElement('div');
+            info.className = 'pv-diagram-info';
+            const name = document.createElement('div');
+            name.className = 'pv-diagram-name';
+            name.textContent = f.name;
+            const meta = document.createElement('div');
+            meta.className = 'pv-diagram-date';
+            meta.textContent = `${f.kind} · ${kb(f.size)} · ${new Date(f.modified).toLocaleString()}`;
+            info.append(name, meta);
+            card.appendChild(info);
+            const actions = document.createElement('div');
+            actions.className = 'pv-diagram-actions';
+            if (f.kind === 'net') {
+                actions.appendChild(action('Open', 'pv-diagram-action-btn-open', async () => {
+                    try {
+                        await reg.execute('file.open', { name: f.name });
+                    } catch (e) {
+                        if (e.code !== 'invalid_net' || !confirm(`${e.message}\n\nOpen it anyway, repaired?`)) throw e;
+                        await reg.execute('file.open', { name: f.name, repair: true });
+                    }
+                    this._accountFileName = f.name;
+                    this.fitToView();
+                    close();
+                    this._toast(`Opened ${f.name}`, 'success');
+                }));
+            } else {
+                actions.appendChild(action('Download', 'pv-diagram-action-btn-open', async () => {
+                    const got = await reg.execute('file.get', { name: f.name });
+                    const body = got.content_base64 !== undefined
+                        ? Uint8Array.from(atob(got.content_base64), (ch) => ch.charCodeAt(0))
+                        : got.content;
+                    this._downloadFile(f.name, body, got.mime);
+                }));
+            }
+            actions.appendChild(action('Delete', 'pv-diagram-action-btn-delete', async () => {
+                if (!confirm(`Delete ${f.name} from your account?`)) return;
+                const out = await reg.execute('file.delete', { name: f.name });
+                card.remove();
+                if (out.usage) showUsage(out.usage);
+            }));
+            card.appendChild(actions);
+            grid.appendChild(card);
+        }
+        dialog.appendChild(grid);
+        dialog.appendChild(closeBtn);
+    }
+
     // ---------------- Edit Remote Diagram Details Dialog ----------------
     async _showEditDiagramDetailsDialog(diagram, nameEl, descEl) {
         // Create modal overlay
@@ -7504,6 +7728,22 @@ PetriView = class PetriView extends HTMLElement {
                 await this._deleteData();
             });
             menuContainer._menuContent.appendChild(deleteItem);
+
+            // Your own files on the server (file.save / file.open …); signed
+            // out, both say "Sign in to save" and offer the sign-in. Shown
+            // only when /api/files/status says this server keeps them.
+            const accountSaveItem = makeMenuItem('☁️ Save to my account…', () => {
+                this._showAccountSaveDialog();
+            });
+            const accountOpenItem = makeMenuItem('🗂️ Open from my account…', () => {
+                this._showAccountFilesDialog();
+            });
+            accountSaveItem.style.display = accountOpenItem.style.display = 'none';
+            menuContainer._menuContent.appendChild(accountSaveItem);
+            menuContainer._menuContent.appendChild(accountOpenItem);
+            this._filesStatus().then(s => {
+                if (s.enabled) accountSaveItem.style.display = accountOpenItem.style.display = '';
+            });
 
             // Add Share button (only for logged-in users)
             if (this._authInitialized && this._user) {

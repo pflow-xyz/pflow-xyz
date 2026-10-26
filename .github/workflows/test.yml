@@ -21,7 +21,7 @@ jobs:
           deno-version: v2.x
 
       - name: Run JavaScript tests
-        run: deno test --allow-read=parity/editor-shape,parity/native,parity/fixtures,parity/clipboard,parity/ssa,public,pflow-native-wasm.lock public/petri-sim_test.ts public/petri-ssa_test.ts public/petri-shape_test.ts public/petri-clipboard_test.ts public/petri-wasm_test.ts parity/native/native_parity_test.ts parity/native/js_vs_wasm_test.ts
+        run: deno test --allow-read=parity/editor-shape,parity/native,parity/fixtures,parity/clipboard,parity/ssa,public,pflow-native-wasm.lock public/petri-sim_test.ts public/petri-ssa_test.ts public/petri-shape_test.ts public/petri-clipboard_test.ts public/petri-files_test.ts public/petri-wasm_test.ts parity/native/native_parity_test.ts parity/native/js_vs_wasm_test.ts
 
       - name: Verify npm package
         run: ./scripts/npm-pack-test.sh

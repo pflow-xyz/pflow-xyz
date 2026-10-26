@@ -5,6 +5,7 @@ go_library(
     srcs = [
         "content_negotiation.go",
         "deploy.go",
+        "files.go",
         "llm.go",
         "llm_goals.go",
         "llm_turn.go",
@@ -32,6 +33,7 @@ go_library(
         "//internal/static",
         "//internal/store",
         "//internal/svg",
+        "//internal/userfiles",
         "@com_github_fogleman_gg//:gg",
         "@com_github_pflow_xyz_go_pflow//metamodel",
         "@com_github_pflow_xyz_go_pflow//parser",
@@ -60,6 +62,7 @@ go_test(
     srcs = [
         "author_identity_test.go",
         "content_negotiation_test.go",
+        "files_test.go",
         "llm_eval_test.go",
         "llm_goals_test.go",
         "llm_test.go",
@@ -85,5 +88,6 @@ go_test(
         "//internal/auth",
         "//internal/llm",
         "//internal/static",
+        "//internal/userfiles",
     ],
 )

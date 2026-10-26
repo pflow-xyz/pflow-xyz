@@ -13,7 +13,9 @@
 //     builds use different libm paths, so transcendental results may differ in
 //     the last bits;
 //   - keys named in a step's `ignore` are skipped, at any depth, for that step
-//     only (the signing key of a receipt is generated per session).
+//     only (the signing key of a receipt is generated per session; what the
+//     clock writes into the store, which the wasm build has none of), and so
+//     are the cells of a table artifact's column of that name.
 //
 // Every command the page exposes (NATIVE_COMMANDS) must have at least one
 // golden case that succeeds, so adding one to scripts/sync-native-wasm.mjs
@@ -43,6 +45,11 @@ Deno.test("diff: integers exact, fractions by tolerance, ignored keys skipped", 
     assertEquals(diff({ a: 1, k: "x" }, { a: 1, k: "y" }, "$", 1e-9, new Set(["k"])), []);
     assertEquals(diff({ a: 1 }, { a: 1, b: 2 }, "$", 1e-9, none).length, 1);
     assertEquals(diff([1, 2], [1], "$", 1e-9, none).length, 1);
+    const table = (at: string, id = "e1") => ({ kind: "table", columns: ["id", "at"], rows: [[id, at]] });
+    assertEquals(diff(table("2026"), table("0001"), "$", 1e-9, new Set(["at"])), []);
+    assertEquals(diff(table("2026"), table("0001"), "$", 1e-9, none).length, 1);
+    assertEquals(diff(table("2026", "e1"), table("0001", "e2"), "$", 1e-9, new Set(["at"])).length, 1, "only the named column is skipped");
+    assertEquals(diff({ kind: "table", columns: ["at"], rows: [] }, { kind: "table", columns: ["time"], rows: [] }, "$", 1e-9, new Set(["at"])).length, 1, "the columns are still compared");
 });
 
 Deno.test("goldens: written from these cases, at the commit the wasm was built from", () => {
