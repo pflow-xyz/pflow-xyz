@@ -7,8 +7,10 @@ package main
 // pflow-native is the reference. Its stochastic engines are pflow-solver's
 // ports of go-pflow's, held byte-exact to go-pflow's portable path, so with
 // the same model, rates and seed the SDE and the scenario SSA here give the
-// same doubles native does; its ODE is pflow-solver's Tsit5, the same
-// algorithm as go-pflow's, agreeing to rounding. What this file adds is
+// same doubles native does. Its ODE is pflow-solver's Tsit5, the same
+// algorithm as go-pflow's; the optimizer here integrates with go-pflow's
+// tableaux in pflow-solver's summation order (odeRunner), so it gives the same
+// doubles too unless a math library's last bit differs. What this file adds is
 // everything around the engines, ported line by line from
 // pflow-native-core (crates/core/src/commands/stochastic.rs, stochastic.rs,
 // commands/opt.rs, sweep.rs, sim.rs at the commit pflow-native-wasm.lock
@@ -67,6 +69,242 @@ func rustList(xs []string) string {
 	return "[" + strings.Join(q, ", ") + "]"
 }
 
+// rustI64 is Rust's `f as i64`: toward zero, saturating at the type's
+// bounds, NaN as 0. Go's int64(f) is undefined out of range (1e300 printed
+// as -9223372036854775808).
+func rustI64(f float64) int64 {
+	switch {
+	case f != f:
+		return 0
+	case f >= 1<<63:
+		return math.MaxInt64
+	case f <= -(1 << 63):
+		return math.MinInt64
+	}
+	return int64(f)
+}
+
+// rustU64 is Rust's `f as u64`: toward zero, saturating, NaN as 0.
+func rustU64(f float64) uint64 {
+	switch {
+	case f != f || f <= 0:
+		return 0
+	case f >= 1<<64:
+		return math.MaxUint64
+	}
+	return uint64(f)
+}
+
+// ---- the answer: JSON-safe, and small enough for the /mcp result guard ----
+
+// jsonSafe is v with every NaN and ±Inf as null, as pflow-native writes them
+// (serde_json's json! maps a non-finite f64 to null). encoding/json refuses
+// them outright, which would fail the whole call ("result is not JSON").
+func jsonSafe(v any) any {
+	switch x := v.(type) {
+	case float64:
+		if math.IsNaN(x) || math.IsInf(x, 0) {
+			return nil
+		}
+		return x
+	case []float64:
+		for _, f := range x {
+			if math.IsNaN(f) || math.IsInf(f, 0) {
+				out := make([]any, len(x))
+				for i, g := range x {
+					out[i] = jsonSafe(g)
+				}
+				return out
+			}
+		}
+		return x
+	case []any:
+		out := make([]any, len(x))
+		for i, e := range x {
+			out[i] = jsonSafe(e)
+		}
+		return out
+	case map[string]any:
+		out := make(map[string]any, len(x))
+		for k, e := range x {
+			out[k] = jsonSafe(e)
+		}
+		return out
+	}
+	return v
+}
+
+// wbNumBytes bounds one number in an answer, with its separator:
+// encoding/json writes a float64 in at most 25 characters
+// (-0.0000012345678901234567). The upper bounds on an answer's size count
+// every number at that length; the lower bounds at two ("0,").
+const wbNumBytes = 26
+
+// jsonLen is the bytes s takes as a JSON string (encoding/json escapes <, >
+// and & as < and friends).
+func jsonLen(s string) int {
+	b, _ := json.Marshal(s)
+	return len(b)
+}
+
+// answerBytes is the size of the text a tools/call result carries.
+func answerBytes(v any) int {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return math.MaxInt
+	}
+	return len(b)
+}
+
+// sizing is how a tool fits its answer's count of points (or samples) to the
+// /mcp result guard, which would otherwise cut the answer's arrays.
+type sizing struct {
+	tool, what string // "pflow_sde", "points"
+	def, min   int
+	explicit   bool // the caller chose the count
+	budget     int  // bytes
+	// upper and lower bound the answer's bytes with count n: every number at
+	// its longest (wbNumBytes) or its shortest ("0,"), the names as written.
+	upper, lower func(n int) int
+	// grid is how many points the answer's arrays hold with count n.
+	grid func(n int) int
+	hint string // what else makes the answer smaller
+}
+
+// fitAnswer builds the answer with count n, or a smaller one, so that it
+// fits whole. When the upper bound says it fits it is built once. A count the
+// caller chose that the lower bound says cannot fit is refused before
+// anything runs, naming a count that fits for certain; in between, the answer
+// is built and measured, and if it does not fit refused, naming the count its
+// measured size says would. The default count is lowered instead, as far as
+// the bounds and then the measured size say, and the answer says so in
+// `note`. It is never cut.
+func fitAnswer(s sizing, req int, build func(n int) (map[string]any, error)) (map[string]any, error) {
+	// A lowered default says so; the note counts toward the answer's size.
+	withNote := func(out map[string]any, k int) map[string]any {
+		if k != req {
+			out["note"] = fmt.Sprintf("%s is %d, not the default %d, so that the answer fits this server's %d-byte limit (%s)",
+				s.what, k, s.def, s.budget, s.hint)
+		}
+		return out
+	}
+	finish := func(out map[string]any, k int) (map[string]any, error) {
+		out = withNote(out, k)
+		// The last guard: a caveat the engine wrote could be longer than
+		// the bounds allow for. An answer that does not fit is an error.
+		if b := answerBytes(out); b > s.budget {
+			return nil, fmt.Errorf("%s: the answer came to %d bytes, over this server's %d-byte limit; %s", s.tool, b, s.budget, s.hint)
+		}
+		return out, nil
+	}
+	tooBig := func(k int) error {
+		return fmt.Errorf("the answer would pass this server's %d-byte limit even at %d %s; %s", s.budget, k, s.what, s.hint)
+	}
+	sure := req // the most the upper bound says fit
+	for sure >= s.min && s.upper(sure) > s.budget {
+		sure--
+	}
+	if sure == req {
+		out, err := build(req)
+		if err != nil {
+			return nil, err
+		}
+		return finish(out, req)
+	}
+	k := req
+	if s.lower(k) > s.budget {
+		if s.explicit {
+			if sure >= s.min {
+				return nil, fmt.Errorf("%s %d would make an answer of at least %d bytes, over this server's %d-byte limit; %d fit for certain, or %s",
+					s.what, req, s.lower(req), s.budget, sure, s.hint)
+			}
+			return nil, fmt.Errorf("%s %d would make an answer of at least %d bytes, over this server's %d-byte limit; %s",
+				s.what, req, s.lower(req), s.budget, s.hint)
+		}
+		for k > s.min && s.lower(k) > s.budget {
+			k--
+		}
+		if s.lower(k) > s.budget {
+			return nil, tooBig(k)
+		}
+	}
+	for tries := 0; tries < 3 && k > sure; tries++ {
+		out, err := build(k)
+		if err != nil {
+			return nil, err
+		}
+		size := answerBytes(withNote(out, k))
+		if size <= s.budget {
+			return finish(out, k)
+		}
+		// What the arrays that grow with the count take, per point, says
+		// how many points would fit next to the rest.
+		fixed := answerBytes(withoutPoints(out))
+		fit := k - 1
+		if points := s.grid(k); points > 0 && size > fixed {
+			most := int(float64(s.budget-fixed) / (float64(size-fixed) / float64(points)) * 0.98)
+			for fit >= s.min && s.grid(fit) > most {
+				fit--
+			}
+		}
+		if s.explicit {
+			if fit >= s.min {
+				return nil, fmt.Errorf("%s %d makes an answer of %d bytes, over this server's %d-byte limit; about %d fit, or %s",
+					s.what, req, size, s.budget, fit, s.hint)
+			}
+			return nil, fmt.Errorf("%s %d makes an answer of %d bytes, over this server's %d-byte limit; %s",
+				s.what, req, size, s.budget, s.hint)
+		}
+		if fit < s.min {
+			return nil, tooBig(s.min)
+		}
+		k = fit
+	}
+	if sure < s.min {
+		return nil, tooBig(s.min)
+	}
+	out, err := build(sure)
+	if err != nil {
+		return nil, err
+	}
+	return finish(out, sure)
+}
+
+// withoutPoints is an answer with its time series' arrays emptied: what the
+// answer takes whatever its count of points.
+func withoutPoints(out map[string]any) map[string]any {
+	c := make(map[string]any, len(out))
+	for k, v := range out {
+		c[k] = v
+	}
+	ts, ok := out["timeseries"].(map[string]any)
+	if !ok {
+		return c
+	}
+	t2 := make(map[string]any, len(ts))
+	for k, v := range ts {
+		t2[k] = v
+	}
+	t2["x"] = []any{}
+	series := []any{}
+	list, _ := ts["series"].([]any)
+	for _, e := range list {
+		m, _ := e.(map[string]any)
+		m2 := make(map[string]any, len(m))
+		for k, v := range m {
+			m2[k] = v
+		}
+		m2["values"] = []any{}
+		if _, ok := m2["band"]; ok {
+			m2["band"] = []any{}
+		}
+		series = append(series, m2)
+	}
+	t2["series"] = series
+	c["timeseries"] = t2
+	return c
+}
+
 // ---- arguments, read with pflow-native's rules ----
 
 // wbArgs is a tool call's arguments. JSON numbers decode to float64; an
@@ -109,7 +347,7 @@ func (a wbArgs) seed(k string, def uint64) (uint64, error) {
 		return 0, fmt.Errorf("%s must be an integer, got %s", k, jsonText(v))
 	}
 	if x < 0 {
-		return 0, fmt.Errorf("%s must be ≥ 0, got %d", k, int64(x))
+		return 0, fmt.Errorf("%s must be ≥ 0, got %d", k, rustI64(x))
 	}
 	if x > 1<<53 {
 		return 0, fmt.Errorf("%s must be at most %d", k, int64(1<<53))
@@ -400,18 +638,34 @@ func checkTokens(start map[string]int, perPlace bool) error {
 	return nil
 }
 
-// selectSeries picks the series a `places` filter names (a display name, or a
-// document place for all its colors), keeping their order.
-func (n *wbNet) selectSeries(series []any, filter []string) ([]any, error) {
-	if filter == nil {
-		return series, nil
+// checkNetSize is this server's cap on the net the workbench tools take,
+// whatever the arguments.
+func (n *wbNet) checkNetSize() error {
+	if len(n.places) > wbMaxPlaces {
+		return fmt.Errorf("the net has %d token places (colours unfolded), over this server's cap of %d", len(n.places), wbMaxPlaces)
 	}
-	keep := map[string]bool{}
+	if t := len(n.model.Transitions); t > wbMaxTransitions {
+		return fmt.Errorf("the net has %d transitions, over this server's cap of %d", t, wbMaxTransitions)
+	}
+	return nil
+}
+
+// seriesFilter is which places a `places` filter keeps (a display name, or a
+// document place for all its colors), aligned with n.places; all of them
+// without a filter.
+func (n *wbNet) seriesFilter(filter []string) ([]bool, error) {
+	keep := make([]bool, len(n.places))
+	if filter == nil {
+		for i := range keep {
+			keep[i] = true
+		}
+		return keep, nil
+	}
 	for _, f := range filter {
 		found := false
 		for i, p := range n.places {
 			if b, _ := n.base(p); n.display[i] == f || b == f {
-				keep[n.display[i]] = true
+				keep[i] = true
 				found = true
 			}
 		}
@@ -419,13 +673,24 @@ func (n *wbNet) selectSeries(series []any, filter []string) ([]any, error) {
 			return nil, fmt.Errorf("places: no place %q; places are %s", f, rustList(n.display))
 		}
 	}
+	return keep, nil
+}
+
+// selectSeries keeps the series of the places keep names, in their order.
+func (n *wbNet) selectSeries(series []any, keep []bool) []any {
+	kept := map[string]bool{}
+	for i, k := range keep {
+		if k {
+			kept[n.display[i]] = true
+		}
+	}
 	out := []any{}
 	for _, s := range series {
-		if keep[s.(map[string]any)["name"].(string)] {
+		if kept[s.(map[string]any)["name"].(string)] {
 			out = append(out, s)
 		}
 	}
-	return out, nil
+	return out
 }
 
 // downsample is native's sim::downsample: indices thinning n samples to at
@@ -446,6 +711,20 @@ func downsample(n, max int) []int {
 		idx = append(idx, n-1)
 	}
 	return idx
+}
+
+// downsampleLen is len(downsample(n, max)), without the slice.
+func downsampleLen(n, most int) int {
+	if n <= 0 {
+		return 0
+	}
+	most = max(most, 2)
+	stride := max((n+most-1)/most, 1)
+	k := (n + stride - 1) / stride
+	if (k-1)*stride != n-1 {
+		k++
+	}
+	return k
 }
 
 func pick(v []float64, idx []int) []float64 {
@@ -555,7 +834,32 @@ func (n *wbNet) sdeModel() (*metamodel.Model, map[string]float64) {
 // sdeOpts are pflow_sde's caps beyond native's.
 type sdeOpts struct {
 	maxPoints int
-	maxWork   int // realizations × sample intervals × transitions
+	maxWork   int // realizations × sample intervals × (transitions × (places + wbSDETransitionCost) + 2 × places)
+	maxCells  int // samples × places
+	maxBytes  int // the answer
+}
+
+// sdeSize bounds pflow_sde's answer in bytes as a function of the points it
+// returns, with every number taking num bytes and slack bytes for the keys
+// and a note.
+func (n *wbNet) sdeSize(keep []bool, band bool, num, slack int) func(points int) int {
+	b := 1
+	if band {
+		b = 2
+	}
+	fixed := slack + 4*num // engine, runs, seed, t_end, dt
+	perPoint := num        // x
+	for i, d := range n.display {
+		fixed += (jsonLen(d) + 1 + num) * b // final, final_sd
+		if keep[i] {
+			fixed += jsonLen(d) // a series' name
+			if slack > 0 {
+				fixed += 32 // {"name":…,"values":[],"band":[]},
+			}
+			perPoint += num * b
+		}
+	}
+	return func(k int) int { return fixed + perPoint*k }
 }
 
 // runSDE is native's sim.sde, its artifact inlined as `timeseries`.
@@ -586,8 +890,9 @@ func runSDE(ctx context.Context, n *wbNet, a wbArgs, o sdeOpts) (map[string]any,
 		return nil, err
 	}
 	// The SDE takes 20 Euler-Maruyama steps per sample interval, so a step
-	// of dt means a grid of t_end / (20 dt) intervals.
-	samples := points
+	// of dt means a grid of t_end / (20 dt) intervals, thinned to points.
+	// Without dt the grid is the points.
+	dtSamples := 0
 	if dt, ok := a.num("dt"); ok {
 		if !(dt > 0 && !math.IsInf(dt, 0)) {
 			return nil, errors.New("dt must be a positive number")
@@ -595,9 +900,15 @@ func runSDE(ctx context.Context, n *wbNet, a wbArgs, o sdeOpts) (map[string]any,
 		k := math.Ceil(tEnd / (20 * dt))
 		if k+1 > wbMaxSDESteps {
 			return nil, fmt.Errorf("dt %s needs %d sample intervals over t_end %s, over the %d cap; use a larger dt",
-				rustFloat(dt), uint64(k), rustFloat(tEnd), wbMaxSDESteps)
+				rustFloat(dt), rustU64(k), rustFloat(tEnd), wbMaxSDESteps)
 		}
-		samples = max(int(k), 1) + 1
+		dtSamples = max(int(k), 1) + 1
+	}
+	samplesFor := func(p int) int {
+		if dtSamples > 0 {
+			return dtSamples
+		}
+		return p
 	}
 	if err := checkTokens(n.start(), false); err != nil {
 		return nil, err
@@ -608,9 +919,9 @@ func runSDE(ctx context.Context, n *wbNet, a wbArgs, o sdeOpts) (map[string]any,
 			"so the SDE would silently model an unconstrained system. Use the discrete engine (Simulate). Specifically: " +
 			strings.Join(g, "; "))
 	}
-	if work := runs * (samples - 1) * max(len(m.Transitions), 1); work > o.maxWork {
-		return nil, fmt.Errorf("runs × sample intervals × transitions is %d, over this server's budget of %d; use fewer runs, fewer points or a larger dt",
-			work, o.maxWork)
+	keep, err := n.seriesFilter(stringsArg(a["places"]))
+	if err != nil {
+		return nil, err
 	}
 	// Ungated, so no capacity can bind; go-pflow's own gating check counts
 	// any capacity an output arc touches, native's only one a firing can
@@ -618,47 +929,78 @@ func runSDE(ctx context.Context, n *wbNet, a wbArgs, o sdeOpts) (map[string]any,
 	for i := range m.Places {
 		m.Places[i].Capacity = 0
 	}
-	res, err := stochastic.SimulateSDE(m, n.start(), stochastic.Options{
-		Horizon: tEnd, Samples: samples, Rates: rates, Seed: int64(seed), Realizations: runs,
-		Portable: true, Context: ctx,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("sde: %v", err)
-	}
-	if res.Diverged {
-		return nil, fmt.Errorf("sde refused: %s", res.Reason)
-	}
-	byPlace := map[string]stochastic.Series{}
-	for _, s := range res.Series {
-		byPlace[s.Place] = s
-	}
-	idx := downsample(len(res.Times), points)
-	final := map[string]any{}
-	var finalSD any
-	sds := map[string]any{}
-	series := []any{}
-	for i, id := range n.places {
-		s := byPlace[id]
-		final[n.display[i]] = last(s.Values)
-		e := map[string]any{"name": n.display[i], "values": pick(s.Values, idx)}
-		if runs > 1 {
-			sds[n.display[i]] = last(s.StdDev)
-			e["band"] = pick(s.StdDev, idx)
+	places := len(n.places)
+	done := map[int]*stochastic.Result{}
+	build := func(points int) (map[string]any, error) {
+		samples := samplesFor(points)
+		// SimulateSDE keeps about five doubles per sample and place, and each
+		// of its 20 substeps per interval walks every transition's dense
+		// delta.
+		if cells := samples * places; cells > o.maxCells {
+			return nil, fmt.Errorf("samples × places is %d, over this server's budget of %d; use a larger dt or fewer points",
+				cells, o.maxCells)
 		}
-		series = append(series, e)
+		perInterval := len(m.Transitions)*(places+wbSDETransitionCost) + 2*places
+		if work := runs * (samples - 1) * perInterval; work > o.maxWork {
+			return nil, fmt.Errorf("runs × sample intervals × (transitions × (places + %d) + 2 × places) is %d, over this server's budget of %d; use fewer runs, fewer points or a larger dt",
+				wbSDETransitionCost, work, o.maxWork)
+		}
+		res, ok := done[samples]
+		if !ok {
+			res, err = stochastic.SimulateSDE(m, n.start(), stochastic.Options{
+				Horizon: tEnd, Samples: samples, Rates: rates, Seed: int64(seed), Realizations: runs,
+				Portable: true, Context: ctx,
+			})
+			if err != nil {
+				return nil, fmt.Errorf("sde: %v", err)
+			}
+			done[samples] = res // with dt, fewer points thin the same run
+		}
+		// go-pflow marks a run whose values overflowed as diverged (its
+		// checkDivergence) but still returns the series; native returns
+		// them too, the overflowed values as null. A diverged result
+		// without series is a refusal (a declared schedule).
+		if res.Diverged && len(res.Series) == 0 {
+			return nil, fmt.Errorf("sde refused: %s", res.Reason)
+		}
+		byPlace := map[string]stochastic.Series{}
+		for _, s := range res.Series {
+			byPlace[s.Place] = s
+		}
+		idx := downsample(len(res.Times), points)
+		final := map[string]any{}
+		var finalSD any
+		sds := map[string]any{}
+		series := []any{}
+		for i, id := range n.places {
+			s := byPlace[id]
+			final[n.display[i]] = last(s.Values)
+			e := map[string]any{"name": n.display[i], "values": pick(s.Values, idx)}
+			if runs > 1 {
+				sds[n.display[i]] = last(s.StdDev)
+				e["band"] = pick(s.StdDev, idx)
+			}
+			series = append(series, e)
+		}
+		if runs > 1 {
+			finalSD = sds
+		}
+		return jsonSafe(map[string]any{
+			"engine": "sde", "runs": runs, "seed": seed, "t_end": tEnd,
+			"dt":    tEnd / float64(samples-1) / wbSDEInternalSteps,
+			"final": final, "final_sd": finalSD,
+			"timeseries": map[string]any{"kind": "timeseries", "x_label": "t", "x": pick(res.Times, idx), "series": n.selectSeries(series, keep)},
+		}).(map[string]any), nil
 	}
-	if runs > 1 {
-		finalSD = sds
-	}
-	if series, err = n.selectSeries(series, stringsArg(a["places"])); err != nil {
-		return nil, err
-	}
-	return map[string]any{
-		"engine": "sde", "runs": runs, "seed": seed, "t_end": tEnd,
-		"dt":    tEnd / float64(samples-1) / wbSDEInternalSteps,
-		"final": final, "final_sd": finalSD,
-		"timeseries": map[string]any{"kind": "timeseries", "x_label": "t", "x": pick(res.Times, idx), "series": series},
-	}, nil
+	// The answer must fit the result guard: the points the caller asked
+	// for, or as many of the default 101 as fit.
+	grid := func(p int) int { return downsampleLen(samplesFor(p), p) }
+	upper, lower := n.sdeSize(keep, runs > 1, wbNumBytes, 900), n.sdeSize(keep, runs > 1, 2, 0)
+	return fitAnswer(sizing{
+		tool: "pflow_sde", what: "points", def: 101, min: 2, explicit: a.has("points"), budget: o.maxBytes,
+		upper: func(p int) int { return upper(grid(p)) }, lower: func(p int) int { return lower(grid(p)) },
+		grid: grid, hint: "pass places to return fewer series",
+	}, points, build)
 }
 
 func stringsArg(v any) []string {
@@ -681,6 +1023,72 @@ func stringsArg(v any) []string {
 type whatIfOpts struct {
 	maxSamples int
 	maxSteps   int64 // SSA steps per arm (go-pflow's MaxSteps)
+	stepWork   int64 // and at most stepWork / (places + 6) of them
+	maxCells   int   // realizations × samples × places, per arm
+	maxBytes   int   // the answer
+}
+
+// whatIfSize bounds pflow_what_if's answer in bytes as a function of the
+// samples, with every number taking num bytes. With lists, the upper bound,
+// it also allows for the most the engine can report per place or transition
+// (depletion, contention, utilization, in-flight firings, caveats) and for the
+// keys and a note; without, the lower bound, it counts only what every answer
+// carries.
+func (n *wbNet) whatIfSize(keep []bool, band bool, arms []string, place string, num int, lists bool) func(samples int) int {
+	b := 1
+	if band {
+		b = 2
+	}
+	places := len(n.places)
+	names, keyed := 0, 0 // Σ name, Σ "name":number,
+	for _, d := range n.display {
+		names += jsonLen(d)
+		keyed += jsonLen(d) + 1 + num
+	}
+	transKeyed, blocking, text := 0, 0, 1500
+	for i := range n.model.Transitions {
+		t := &n.model.Transitions[i]
+		id := jsonLen(t.ID)
+		transKeyed += id + 1 + num
+		// A contention's blocking list names transitions that draw on the
+		// place: at most one entry per input or test arc.
+		blocking += (len(n.model.Inputs(t.ID)) + len(n.model.Tests(t.ID))) * (id + 1)
+		// Caveats and the service assumption name delayed, staged and
+		// guarded transitions.
+		if t.Delay > 0 || t.Stages > 1 || t.Guard != "" {
+			text += 600 + 2*id
+		}
+	}
+	fixed := jsonLen(place) + 3*num + names // seed, place, from, to; the table's columns
+	perPoint := num                         // x
+	for _, arm := range arms {
+		a := jsonLen(arm)
+		fixed += a + 4*num              // a summary's name, hours, samples, realizations, seed
+		fixed += keyed * b              // final, finalStdDev
+		fixed += 2*keyed + transKeyed   // metrics: mean, p95, throughput
+		fixed += names + places*(7*num) // the finals table
+		fixed += a + places*num         // the scenario × place table's row
+		if lists {
+			fixed += 320 + 140 + 8                      // the keys of a summary, a finals table, a row
+			fixed += keyed + transKeyed                 // metrics: utilization (pool names are shorter), inFlight
+			fixed += names + places*(40+num)            // depleted
+			fixed += names + places*(70+num) + blocking // contended, waitingForWork
+			fixed += text + places*4                    // caveats, assumptions; a finals row's brackets
+		}
+		for i, d := range n.display {
+			if keep[i] {
+				fixed += jsonLen(d) + a // a series' name and group
+				if lists {
+					fixed += 42 // {"name":…,"values":[],"group":…,"band":[]},
+				}
+				perPoint += num * b
+			}
+		}
+	}
+	if lists {
+		fixed += 900 + places // keys, a note; the table's column separators
+	}
+	return func(k int) int { return fixed + perPoint*k }
 }
 
 // wbFinal is one place's final value across realizations (native's Final).
@@ -980,56 +1388,80 @@ func runWhatIf(ctx context.Context, n *wbNet, a wbArgs, o whatIfOpts) (map[strin
 		return nil, fmt.Errorf("scenario 2: marking for %q must be an integer, got %s", place, rustFloat(to))
 	}
 	if to > wbMaxPlaceTokens {
-		return nil, fmt.Errorf("scenario 2: marking for %q is %d, over the %d cap", place, int64(to), wbMaxPlaceTokens)
+		return nil, fmt.Errorf("scenario 2: marking for %q is %d, over the %d cap", place, rustI64(to), wbMaxPlaceTokens)
 	}
 	arms[1].marking = map[string]int{id: int(to)}
 
-	runsOut := make([]*scenarioRun, len(arms))
-	for i, sc := range arms {
-		r, err := n.runScenario(ctx, sc, o.maxSteps)
-		if err != nil {
-			return nil, fmt.Errorf("%s: %v", sc.name, err)
-		}
-		runsOut[i] = r
-	}
-	var overlay []any
-	var x []float64
-	summaries := []any{}
-	finals := []any{}
-	rows := []any{}
-	for i, sc := range arms {
-		r := runsOut[i]
-		x = r.t
-		for j := range n.places {
-			s := map[string]any{"name": n.display[j], "values": r.mean[j], "group": sc.name}
-			if r.sd != nil {
-				s["band"] = r.sd[j]
-			}
-			overlay = append(overlay, s)
-		}
-		row := []any{sc.name}
-		for _, f := range r.finals {
-			row = append(row, f.mean)
-		}
-		rows = append(rows, row)
-		summaries = append(summaries, n.summary(r, sc))
-		finals = append(finals, n.finalsTable(r))
-	}
-	if overlay, err = n.selectSeries(overlay, stringsArg(a["places"])); err != nil {
+	keep, err := n.seriesFilter(stringsArg(a["places"]))
+	if err != nil {
 		return nil, err
 	}
-	columns := []any{"scenario"}
-	for _, d := range n.display {
-		columns = append(columns, d)
+	steps := o.maxSteps
+	if o.stepWork > 0 {
+		steps = min(steps, o.stepWork/int64(len(n.places)+6))
 	}
-	return map[string]any{
-		"seed":       seed,
-		"scenarios":  summaries,
-		"timeseries": map[string]any{"kind": "timeseries", "x_label": "t", "x": x, "series": overlay},
-		"table":      map[string]any{"kind": "table", "columns": columns, "rows": rows},
-		"finals":     finals,
-		"place":      place, "from": now, "to": to,
-	}, nil
+	build := func(samples int) (map[string]any, error) {
+		for i := range arms {
+			arms[i].samples = samples
+		}
+		// go-pflow's SSA records every realization's samples of every place.
+		if cells := runs * samples * len(n.places); cells > o.maxCells {
+			return nil, fmt.Errorf("runs × samples × places is %d, over this server's budget of %d; use fewer runs or fewer samples",
+				cells, o.maxCells)
+		}
+		runsOut := make([]*scenarioRun, len(arms))
+		for i, sc := range arms {
+			r, err := n.runScenario(ctx, sc, steps)
+			if err != nil {
+				return nil, fmt.Errorf("%s: %v", sc.name, err)
+			}
+			runsOut[i] = r
+		}
+		var overlay []any
+		var x []float64
+		summaries := []any{}
+		finals := []any{}
+		rows := []any{}
+		for i, sc := range arms {
+			r := runsOut[i]
+			x = r.t
+			for j := range n.places {
+				s := map[string]any{"name": n.display[j], "values": r.mean[j], "group": sc.name}
+				if r.sd != nil {
+					s["band"] = r.sd[j]
+				}
+				overlay = append(overlay, s)
+			}
+			row := []any{sc.name}
+			for _, f := range r.finals {
+				row = append(row, f.mean)
+			}
+			rows = append(rows, row)
+			summaries = append(summaries, n.summary(r, sc))
+			finals = append(finals, n.finalsTable(r))
+		}
+		columns := []any{"scenario"}
+		for _, d := range n.display {
+			columns = append(columns, d)
+		}
+		return jsonSafe(map[string]any{
+			"seed":       seed,
+			"scenarios":  summaries,
+			"timeseries": map[string]any{"kind": "timeseries", "x_label": "t", "x": x, "series": n.selectSeries(overlay, keep)},
+			"table":      map[string]any{"kind": "table", "columns": columns, "rows": rows},
+			"finals":     finals,
+			"place":      place, "from": now, "to": to,
+		}).(map[string]any), nil
+	}
+	// The answer must fit the result guard: the samples the caller asked
+	// for, or as many of the default 60 as fit.
+	names := []string{arms[0].name, arms[1].name}
+	return fitAnswer(sizing{
+		tool: "pflow_what_if", what: "samples", def: wbScenarioSamples, min: 2, explicit: a.has("samples"), budget: o.maxBytes,
+		upper: n.whatIfSize(keep, runs > 1, names, place, wbNumBytes, true),
+		lower: n.whatIfSize(keep, runs > 1, names, place, 2, false),
+		grid:  func(k int) int { return k }, hint: "pass places to return fewer series",
+	}, samples, build)
 }
 
 // ---- pflow_optimize: native opt.optimize ----
@@ -1038,6 +1470,8 @@ func runWhatIf(ctx context.Context, n *wbNet, a wbArgs, o whatIfOpts) (map[strin
 type optOpts struct {
 	maxSamples int
 	maxTEnd    float64
+	maxWork    int // solver iterations × the cost of one, over every sample
+	maxBytes   int // the answer
 }
 
 type optParam struct {
@@ -1092,7 +1526,8 @@ func parseParams(v any) ([]optParam, error) {
 	if len(out) == 0 {
 		return nil, bad
 	}
-	for i, p := range out {
+	seen := make(map[string]bool, len(out))
+	for _, p := range out {
 		if err := checkRate(p.transition+" min", p.min); err != nil {
 			return nil, err
 		}
@@ -1105,11 +1540,10 @@ func parseParams(v any) ([]optParam, error) {
 		if p.log && p.min <= 0 {
 			return nil, fmt.Errorf("%s: log sampling needs min > 0", p.transition)
 		}
-		for _, q := range out[:i] {
-			if q.transition == p.transition {
-				return nil, fmt.Errorf("%s appears twice in parameters", p.transition)
-			}
+		if seen[p.transition] {
+			return nil, fmt.Errorf("%s appears twice in parameters", p.transition)
 		}
+		seen[p.transition] = true
 	}
 	return out, nil
 }
@@ -1180,7 +1614,6 @@ func odeMethod(name string) (*solver.Solver, error) {
 // and dtmax set to t_end / 20, since only the final state is read.
 func gridSolverOptions(a wbArgs, tEnd float64) (*solver.Options, error) {
 	o := solver.DefaultOptions()
-	o.Dtmax = math.Max(math.Min(o.Dtmax, tEnd/50), o.Dtmin)
 	set := func(name string, def *float64, dst *float64) error {
 		v, ok := a.num(name)
 		if !ok {
@@ -1210,16 +1643,61 @@ func gridSolverOptions(a wbArgs, tEnd float64) (*solver.Options, error) {
 	return o, nil
 }
 
+// fixedStep says whether a method takes fixed steps: one without an error
+// estimate (b̂ all zero) never adapts, whatever Options.Adaptive says.
+func fixedStep(s *solver.Solver) bool {
+	for _, b := range s.Bhat {
+		if b != 0 {
+			return false
+		}
+	}
+	return true
+}
+
+// odeArc is one arc of the mass-action derivative: a state index and the
+// arc's weight (go-pflow's arcEntry).
+type odeArc struct {
+	idx int
+	w   float64
+}
+
+// odeTrans is one transition of the derivative (go-pflow's transitionEntry,
+// without the rate, which varies per sample).
+type odeTrans struct {
+	id      string
+	in, out []odeArc
+}
+
 // odeRunner is native's sweep::Runner: the net unfolded once, solved again
 // for each set of rate overrides from the net's marking and rates.
+//
+// It integrates with go-pflow's method tableaux and the arithmetic of
+// go-pflow's solver.Solve, step for step, but not through Solve, for two
+// reasons. Solve builds its derivative by iterating a Go map of transitions,
+// so each place's flux terms are summed in a different order on every call:
+// the same rates gave answers a rounding apart, and an exact tie between
+// samples (an objective the sampled rates cannot move) broke one way or the
+// other at random, flipping Pareto flags. And Solve keeps the whole
+// trajectory, a slice and a map per accepted step, where the optimizer reads
+// only the final state: with a fine fixed step that was megabytes a sample.
+// Here transitions are walked in id order, as pflow-solver walks them
+// (sorted_labels in pflow-solver's ode.rs), so every call gives the same
+// doubles, and only the current state is kept.
+// TestWorkbenchODEIsGoPflowSolve holds the integration to go-pflow's Solve,
+// bit for bit, on the same derivative.
 type odeRunner struct {
-	net    *petri.PetriNet
-	state  map[string]float64
-	rates  map[string]float64
-	method *solver.Solver
-	opts   *solver.Options
-	tEnd   float64
-	order  [][2]string // (state label, display name), as native's ContinuousNet::order
+	net      *petri.PetriNet // the unfolded net
+	labels   []string        // state variables in sorted order
+	index    map[string]int  // label -> position in labels
+	u0       []float64
+	trans    []odeTrans     // in id order
+	tIndex   map[string]int // transition id -> position in trans
+	rates    []float64      // the net's rates, aligned with trans
+	method   *solver.Solver
+	opts     *solver.Options
+	tEnd     float64
+	order    [][2]string // (state label, display name), as native's ContinuousNet::order
+	iterCost int         // the work of one solver iteration, for the budget
 }
 
 // newODERunner is native's sim::continuous plus Runner::new. The order lists
@@ -1230,16 +1708,17 @@ func newODERunner(n *wbNet, method *solver.Solver, opts *solver.Options, tEnd fl
 	if err != nil {
 		return nil, fmt.Errorf("go-pflow cannot read the net: %v", err)
 	}
-	r := &odeRunner{net: net, method: method, opts: opts, tEnd: tEnd, state: map[string]float64{}}
-	_, cm := net.ExpandColors()
+	r := &odeRunner{method: method, opts: opts, tEnd: tEnd}
+	expanded, cm := net.ExpandColors()
 	short := parser.ShortColorNames(net.Token)
+	state := map[string]float64{}
 	for _, id := range sortedKeys(net.Places) {
 		p := net.Places[id]
 		if cm == nil {
 			r.order = append(r.order, [2]string{id, id})
-			r.state[id] = 0
+			state[id] = 0
 			if len(p.Initial) > 0 {
-				r.state[id] = math.Round(p.Initial[0]) // native's marking: one count per color, rounded
+				state[id] = math.Round(p.Initial[0]) // native's marking: one count per color, rounded
 			}
 			continue
 		}
@@ -1259,7 +1738,7 @@ func newODERunner(n *wbNet, method *solver.Solver, opts *solver.Options, tEnd fl
 			if c < len(p.Initial) {
 				v = math.Round(p.Initial[c])
 			}
-			r.state[label] = v
+			state[label] = v
 			if !used(c) {
 				continue
 			}
@@ -1270,8 +1749,190 @@ func newODERunner(n *wbNet, method *solver.Solver, opts *solver.Options, tEnd fl
 			r.order = append(r.order, [2]string{label, id + "." + color})
 		}
 	}
-	r.rates = net.SetRates(n.rates)
+	r.net = expanded
+	r.labels = sortedKeys(state)
+	r.index = make(map[string]int, len(r.labels))
+	for i, l := range r.labels {
+		r.index[l] = i
+		r.u0 = append(r.u0, state[l])
+	}
+	rates := net.SetRates(n.rates)
+	r.tIndex = map[string]int{}
+	for _, id := range sortedKeys(expanded.Transitions) {
+		r.tIndex[id] = len(r.trans)
+		r.trans = append(r.trans, odeTrans{id: id})
+		r.rates = append(r.rates, rates[id])
+	}
+	// go-pflow's buildVecODEFunction: arcs in the net's order, an input arc
+	// when the target is a transition, an output arc when the source is.
+	for _, a := range expanded.Arcs {
+		w := a.GetWeightSum()
+		if ti, ok := r.tIndex[a.Target]; ok {
+			if pi, ok := r.index[a.Source]; ok {
+				r.trans[ti].in = append(r.trans[ti].in, odeArc{pi, w})
+			}
+		}
+		if ti, ok := r.tIndex[a.Source]; ok {
+			if pi, ok := r.index[a.Target]; ok {
+				r.trans[ti].out = append(r.trans[ti].out, odeArc{pi, w})
+			}
+		}
+	}
+	stages := len(method.C)
+	r.iterCost = stages * (stages*len(r.labels) + len(expanded.Arcs) + len(r.trans) + 20)
 	return r, nil
+}
+
+// deriv is go-pflow's mass-action derivative (solver.buildVecODEFunction's
+// closure) with the transitions in id order: flux = rate × Π input tokens,
+// off when an input is empty, taken from the inputs and given to the outputs
+// by arc weight.
+func (r *odeRunner) deriv(rates, u, du []float64) {
+	for i := range du {
+		du[i] = 0
+	}
+	for i := range r.trans {
+		tr := &r.trans[i]
+		flux := rates[i]
+		for _, in := range tr.in {
+			v := u[in.idx]
+			if v <= 0 {
+				flux = 0
+				break
+			}
+			flux *= v
+		}
+		if flux > 0 {
+			for _, in := range tr.in {
+				du[in.idx] -= flux * in.w
+			}
+			for _, out := range tr.out {
+				du[out.idx] += flux * out.w
+			}
+		}
+	}
+}
+
+// odeEnd is where a solve stopped.
+type odeEnd struct {
+	u         []float64 // the state there, aligned with labels
+	t         float64
+	steps     int // accepted
+	iters     int // accepted and rejected
+	truncated bool
+}
+
+// solveFinal integrates from the marking to t_end as go-pflow's solver.Solve
+// does (the same loop, the same expressions in the same order, so the same
+// doubles), keeping only the current state. check runs before every 1024th
+// iteration with the count so far, and its error stops the solve.
+func (r *odeRunner) solveFinal(rates []float64, check func(iters int) error) (odeEnd, error) {
+	s, o := r.method, r.opts
+	n := len(r.u0)
+	tf := r.tEnd
+	dtmin, dtmax, abstol, reltol := o.Dtmin, o.Dtmax, o.Abstol, o.Reltol
+	stages := len(s.C)
+	k := make([][]float64, stages)
+	for i := range k {
+		k[i] = make([]float64, n)
+	}
+	ucur := append([]float64(nil), r.u0...)
+	ustage := make([]float64, n)
+	unext := make([]float64, n)
+	tcur, dtcur := 0.0, o.Dt
+	nsteps, iters := 0, 0
+	for tcur < tf && nsteps < o.Maxiters {
+		if iters&1023 == 0 && check != nil {
+			if err := check(iters); err != nil {
+				return odeEnd{}, err
+			}
+		}
+		iters++
+		if tcur+dtcur > tf {
+			dtcur = tf - tcur
+		}
+		r.deriv(rates, ucur, k[0])
+		for stage := 1; stage < stages; stage++ {
+			copy(ustage, ucur)
+			for j := 0; j < stage; j++ {
+				aj := 0.0
+				if len(s.A) > stage && len(s.A[stage]) > j {
+					aj = s.A[stage][j]
+				}
+				if aj != 0 {
+					scale := dtcur * aj
+					for i := 0; i < n; i++ {
+						ustage[i] += scale * k[j][i]
+					}
+				}
+			}
+			r.deriv(rates, ustage, k[stage])
+		}
+		copy(unext, ucur)
+		for j := 0; j < len(s.B); j++ {
+			if s.B[j] != 0 {
+				scale := dtcur * s.B[j]
+				for i := 0; i < n; i++ {
+					unext[i] += scale * k[j][i]
+				}
+			}
+		}
+		err := 0.0
+		if o.Adaptive {
+			for i := 0; i < n; i++ {
+				errest := 0.0
+				for j := 0; j < len(s.Bhat); j++ {
+					errest += dtcur * s.Bhat[j] * k[j][i]
+				}
+				uc := ucur[i]
+				un := unext[i]
+				scale := abstol + reltol*math.Max(math.Abs(uc), math.Abs(un))
+				if scale == 0 {
+					scale = abstol
+				}
+				val := math.Abs(errest) / scale
+				if val > err {
+					err = val
+				}
+			}
+		}
+		if !o.Adaptive || err <= 1.0 || dtcur <= dtmin {
+			tcur += dtcur
+			ucur, unext = unext, ucur
+			nsteps++
+			if o.Adaptive && err > 0 {
+				factor := 0.9 * math.Pow(1.0/err, 1.0/float64(s.Order+1))
+				factor = math.Min(factor, 5.0)
+				dtcur = math.Min(dtmax, math.Max(dtmin, dtcur*factor))
+			}
+		} else {
+			factor := 0.9 * math.Pow(1.0/err, 1.0/float64(s.Order+1))
+			factor = math.Max(factor, 0.1)
+			dtcur = math.Max(dtmin, dtcur*factor)
+		}
+	}
+	return odeEnd{u: ucur, t: tcur, steps: nsteps, iters: iters, truncated: nsteps >= o.Maxiters && tcur < tf}, nil
+}
+
+// sampleRates is the net's rates with the overrides, aligned with trans.
+func (r *odeRunner) sampleRates(overrides map[string]float64) []float64 {
+	rates := append([]float64(nil), r.rates...)
+	for id, v := range overrides {
+		if i, ok := r.tIndex[id]; ok {
+			rates[i] = v
+		}
+	}
+	return rates
+}
+
+// final is a solve's end state read as native's Runner::final_state reads
+// it: one value per order entry.
+func (r *odeRunner) final(u []float64) []float64 {
+	out := make([]float64, len(r.order))
+	for i, o := range r.order {
+		out[i] = u[r.index[o[0]]]
+	}
+	return out
 }
 
 // selectPlace is native's Runner::select: an exact display name, or a
@@ -1298,28 +1959,6 @@ func (r *odeRunner) selectPlace(name string) ([]int, error) {
 		return nil, fmt.Errorf("no place %q; places are %s", name, rustList(known))
 	}
 	return idx, nil
-}
-
-// finalState is native's Runner::final_state: the state at t_end, one value
-// per order entry.
-func (r *odeRunner) finalState(overrides map[string]float64) []float64 {
-	rates := make(map[string]float64, len(r.rates))
-	for k, v := range r.rates {
-		rates[k] = v
-	}
-	for k, v := range overrides {
-		rates[k] = v
-	}
-	sol := solver.Solve(solver.NewProblem(r.net, r.state, [2]float64{0, r.tEnd}, rates), r.method, r.opts)
-	out := make([]float64, len(r.order))
-	if len(sol.U) == 0 {
-		return out
-	}
-	fin := sol.U[len(sol.U)-1]
-	for i, o := range r.order {
-		out[i] = fin[o[0]]
-	}
-	return out
 }
 
 // splitmix64 is native's sweep::Rng: the optimizer's sampler.
@@ -1370,6 +2009,35 @@ func pareto(values [][]float64, maximize []bool) []bool {
 	return out
 }
 
+// optLabel is how native names an objective: "R (max)".
+func optLabel(ob optObjective) string {
+	if ob.maximize {
+		return ob.place + " (max)"
+	}
+	return ob.place + " (min)"
+}
+
+// optLower is a lower bound on pflow_optimize's answer in bytes as a
+// function of the samples: every number at its shortest ("0,"), the labels
+// and columns as written, and one sample on the Pareto front (there is
+// always one). How large the front is shows only after the run, when
+// runOptimize measures the answer itself.
+func optLower(params []optParam, objectives []optObjective) func(samples int) int {
+	fixed := jsonLen("rate(" + params[0].transition + ")") // a label
+	entry := 2 + 2                                         // a front entry's index, and its highlight
+	for _, p := range params {
+		fixed += jsonLen("rate("+p.transition+")") + 1
+		entry += jsonLen(p.transition) + 1 + 2
+	}
+	for _, ob := range objectives {
+		fixed += 2 * (jsonLen(optLabel(ob)) + 1)
+		entry += jsonLen(ob.place) + 1 + 2
+	}
+	// A table row ([index, rates…, values…, false]) and a scatter point.
+	perSample := 2 + (len(params)+len(objectives))*2 + 6 + 2*2
+	return func(k int) int { return fixed + entry + perSample*k }
+}
+
 // runOptimize is native's opt.optimize, its scatter and table inlined.
 func runOptimize(ctx context.Context, n *wbNet, a wbArgs, o optOpts) (map[string]any, error) {
 	params, err := parseParams(a["parameters"])
@@ -1379,6 +2047,12 @@ func runOptimize(ctx context.Context, n *wbNet, a wbArgs, o optOpts) (map[string
 	objectives, err := parseObjectives(a["objectives"])
 	if err != nil {
 		return nil, err
+	}
+	if len(params) > wbMaxOptParams {
+		return nil, fmt.Errorf("%d parameters is over this server's cap of %d", len(params), wbMaxOptParams)
+	}
+	if len(objectives) > wbMaxOptObjectives {
+		return nil, fmt.Errorf("%d objectives is over this server's cap of %d", len(objectives), wbMaxOptObjectives)
 	}
 	samplesF := 100.0
 	if v, ok := a.num("samples"); ok {
@@ -1422,7 +2096,7 @@ func runOptimize(ctx context.Context, n *wbNet, a wbArgs, o optOpts) (map[string
 		return nil, err
 	}
 	for _, p := range params {
-		if _, ok := r.rates[p.transition]; !ok {
+		if _, ok := r.tIndex[p.transition]; !ok {
 			return nil, fmt.Errorf("no transition %q", p.transition)
 		}
 	}
@@ -1433,9 +2107,55 @@ func runOptimize(ctx context.Context, n *wbNet, a wbArgs, o optOpts) (map[string
 		}
 	}
 
+	// This server's limits, past native's checks.
+	for _, t := range []struct {
+		name string
+		v    float64
+	}{{"abstol", opts.Abstol}, {"reltol", opts.Reltol}} {
+		if t.v < wbMinTolerance {
+			return nil, fmt.Errorf("%s %s is below this server's floor of %s: the step would shrink to its minimum and the solve stop short of t_end",
+				t.name, rustFloat(t.v), rustFloat(wbMinTolerance))
+		}
+	}
+	// A fixed-step method takes t_end / dt steps; the solver stops at
+	// Maxiters, short of t_end, where native would answer with that state.
+	minSteps := int(math.Ceil(tEnd / opts.Dtmax)) // an adaptive solve takes at least these
+	if fixedStep(method) {
+		steps := math.Ceil(tEnd/opts.Dt) + 1
+		if steps > float64(opts.Maxiters) {
+			return nil, fmt.Errorf("method %s steps a fixed dt of %s: %d steps over t_end %s, past the solver's %d-step limit, so it would stop short of t_end; use a larger dt or an adaptive method (tsit5, rk45, bs32)",
+				name, rustFloat(opts.Dt), rustU64(steps), rustFloat(tEnd), opts.Maxiters)
+		}
+		minSteps = int(steps)
+	}
+	// The answer must fit the result guard. What cannot is refused (the
+	// caller's count) or lowered (the default) before anything runs; the
+	// answer is measured after.
+	explicit := a.has("samples")
+	requested := samples
+	if lower := optLower(params, objectives); lower(samples) > o.maxBytes {
+		most := samples
+		for most > 1 && lower(most) > o.maxBytes {
+			most--
+		}
+		if lower(most) > o.maxBytes {
+			return nil, fmt.Errorf("optimize: the answer would pass this server's %d-byte limit even with one sample; use fewer parameters or objectives", o.maxBytes)
+		}
+		if explicit {
+			return nil, fmt.Errorf("samples %d would make an answer of at least %d bytes, over this server's %d-byte limit; no more than %d could fit, or use fewer parameters or objectives",
+				samples, lower(samples), o.maxBytes, most)
+		}
+		samples = most
+	}
+	if work := samples * minSteps * r.iterCost; work > o.maxWork {
+		return nil, fmt.Errorf("samples × solver steps × the cost of a step is at least %d, over this server's budget of %d; use fewer samples, a larger dt or a smaller net",
+			work, o.maxWork)
+	}
+
 	rng := &splitmix64{uint64(seed)}
 	rates := make([][]float64, 0, samples)
 	values := make([][]float64, 0, samples)
+	used := 0
 	for s := 0; s < samples; s++ {
 		if err := ctx.Err(); err != nil {
 			return nil, fmt.Errorf("optimize: gave up after %d of %d samples: %v", s, samples, err)
@@ -1451,7 +2171,27 @@ func runOptimize(ctx context.Context, n *wbNet, a wbArgs, o optOpts) (map[string
 			}
 			over[p.transition] = row[i]
 		}
-		fin := r.finalState(over)
+		end, err := r.solveFinal(r.sampleRates(over), func(iters int) error {
+			if err := ctx.Err(); err != nil {
+				return fmt.Errorf("optimize: gave up after %d of %d samples: %v", s, samples, err)
+			}
+			if used+iters*r.iterCost > o.maxWork {
+				return fmt.Errorf("optimize: the solves outgrew this server's budget of %d after %d of %d samples (a stiff net, or a tight tolerance); use fewer samples, a looser abstol or reltol, or a shorter t_end",
+					o.maxWork, s, samples)
+			}
+			return nil
+		})
+		if err != nil {
+			return nil, err
+		}
+		used += end.iters * r.iterCost
+		if end.truncated {
+			// Native answers with the state where the solver stopped, as if
+			// it were the state at t_end; say so instead.
+			return nil, fmt.Errorf("optimize: sample %d's solve stopped at t = %s, short of t_end %s, at the solver's %d-step limit; use a looser abstol or reltol, a larger dt, a shorter t_end or another method",
+				s, rustFloat(end.t), rustFloat(tEnd), opts.Maxiters)
+		}
+		fin := r.final(end.u)
 		v := make([]float64, len(cols))
 		for i, c := range cols {
 			for _, j := range c {
@@ -1465,66 +2205,97 @@ func runOptimize(ctx context.Context, n *wbNet, a wbArgs, o optOpts) (map[string
 	for i, ob := range objectives {
 		maximize[i] = ob.maximize
 	}
-	front := pareto(values, maximize)
-	highlight := []int{}
-	for i, on := range front {
-		if on {
-			highlight = append(highlight, i)
+	// The answer for the first k samples is native's answer for samples k:
+	// the sampler draws them in order and each solve is independent.
+	answer := func(k int) map[string]any {
+		front := pareto(values[:k], maximize)
+		highlight := []int{}
+		for i, on := range front {
+			if on {
+				highlight = append(highlight, i)
+			}
 		}
+		var xLabel, yLabel string
+		points := make([]any, k)
+		if len(objectives) >= 2 {
+			xLabel, yLabel = optLabel(objectives[0]), optLabel(objectives[1])
+			for i, v := range values[:k] {
+				points[i] = []float64{v[0], v[1]}
+			}
+		} else {
+			xLabel, yLabel = "rate("+params[0].transition+")", optLabel(objectives[0])
+			for i := range points {
+				points[i] = []float64{rates[i][0], values[i][0]}
+			}
+		}
+		columns := []any{"sample"}
+		for _, p := range params {
+			columns = append(columns, "rate("+p.transition+")")
+		}
+		for _, ob := range objectives {
+			columns = append(columns, optLabel(ob))
+		}
+		columns = append(columns, "pareto")
+		rows := make([]any, k)
+		for i := range rows {
+			row := []any{i}
+			for _, v := range rates[i] {
+				row = append(row, v)
+			}
+			for _, v := range values[i] {
+				row = append(row, v)
+			}
+			rows[i] = append(row, front[i])
+		}
+		front2 := []any{}
+		for _, i := range highlight {
+			rs, vs := map[string]any{}, map[string]any{}
+			for j, p := range params {
+				rs[p.transition] = rates[i][j]
+			}
+			for j, ob := range objectives {
+				vs[ob.place] = values[i][j]
+			}
+			front2 = append(front2, map[string]any{"index": i, "rates": rs, "values": vs})
+		}
+		return jsonSafe(map[string]any{
+			"samples": k, "seed": seed, "t_end": tEnd,
+			"pareto_count": len(highlight), "pareto": front2,
+			"scatter": map[string]any{"kind": "scatter", "x_label": xLabel, "y_label": yLabel, "points": points, "highlight": highlight},
+			"table":   map[string]any{"kind": "table", "columns": columns, "rows": rows},
+		}).(map[string]any)
 	}
-	label := func(ob optObjective) string {
-		if ob.maximize {
-			return ob.place + " (max)"
+	// A lowered default says so; the note counts toward the answer's size.
+	// (A count named in a refusal is the caller's to ask for, without one.)
+	withNote := func(k int) map[string]any {
+		out := answer(k)
+		if k != requested && !explicit {
+			out["note"] = fmt.Sprintf("samples is %d, not the default 100, so that the answer fits this server's %d-byte limit (use fewer parameters or objectives)",
+				k, o.maxBytes)
 		}
-		return ob.place + " (min)"
+		return out
 	}
-	var xLabel, yLabel string
-	points := make([]any, samples)
-	if len(objectives) >= 2 {
-		xLabel, yLabel = label(objectives[0]), label(objectives[1])
-		for i, v := range values {
-			points[i] = []float64{v[0], v[1]}
+	out := withNote(samples)
+	if size := answerBytes(out); size > o.maxBytes {
+		// Keep the longest prefix of the samples whose answer fits: it is
+		// native's answer for that many samples.
+		fits := func(k int) bool { return answerBytes(withNote(k)) <= o.maxBytes }
+		lo, hi := 0, samples
+		for hi-lo > 1 {
+			if mid := (lo + hi) / 2; fits(mid) {
+				lo = mid
+			} else {
+				hi = mid
+			}
 		}
-	} else {
-		xLabel, yLabel = "rate("+params[0].transition+")", label(objectives[0])
-		for i := range values {
-			points[i] = []float64{rates[i][0], values[i][0]}
+		if lo < 1 || !fits(lo) {
+			return nil, fmt.Errorf("optimize: the answer would pass this server's %d-byte limit even with one sample; use fewer parameters or objectives", o.maxBytes)
 		}
+		if explicit {
+			return nil, fmt.Errorf("samples %d makes an answer of %d bytes (%d of them on the Pareto front), over this server's %d-byte limit; at most %d fit, or use fewer parameters or objectives",
+				samples, size, out["pareto_count"], o.maxBytes, lo)
+		}
+		out = withNote(lo)
 	}
-	columns := []any{"sample"}
-	for _, p := range params {
-		columns = append(columns, "rate("+p.transition+")")
-	}
-	for _, ob := range objectives {
-		columns = append(columns, label(ob))
-	}
-	columns = append(columns, "pareto")
-	rows := make([]any, samples)
-	for i := range rows {
-		row := []any{i}
-		for _, v := range rates[i] {
-			row = append(row, v)
-		}
-		for _, v := range values[i] {
-			row = append(row, v)
-		}
-		rows[i] = append(row, front[i])
-	}
-	front2 := []any{}
-	for _, i := range highlight {
-		rs, vs := map[string]any{}, map[string]any{}
-		for j, p := range params {
-			rs[p.transition] = rates[i][j]
-		}
-		for j, ob := range objectives {
-			vs[ob.place] = values[i][j]
-		}
-		front2 = append(front2, map[string]any{"index": i, "rates": rs, "values": vs})
-	}
-	return map[string]any{
-		"samples": samples, "seed": seed, "t_end": tEnd,
-		"pareto_count": len(highlight), "pareto": front2,
-		"scatter": map[string]any{"kind": "scatter", "x_label": xLabel, "y_label": yLabel, "points": points, "highlight": highlight},
-		"table":   map[string]any{"kind": "table", "columns": columns, "rows": rows},
-	}, nil
+	return out, nil
 }

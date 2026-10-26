@@ -6,21 +6,29 @@ package main
 // through the tool's own handler and compares, the way native_parity_test.ts
 // holds the wasm to native.
 //
-// Exact unless a case sets a `tolerance`: strings, structure, integers and
-// every double. The SDE and the scenario SSA are seeded portable engines
-// (SplitMix64 → xoshiro256**, a ported logarithm, a fixed arithmetic order)
-// that go-pflow and pflow-solver share byte for byte, so their answers are the
-// same doubles. The optimizer's cases carry a relative 1e-9 on fractions, the
-// suite's ODE tolerance, because the two Tsit5 implementations round
-// differently (go-pflow's derivative sums in map order) and log sampling takes
-// 10^x and log10 from each language's math library; its sampler, the Pareto
-// flags and every integer stay exact.
+// Exact unless a case sets a `tolerance`: strings, booleans, null, structure,
+// integers and every double, each of the same JSON type on both sides. The
+// SDE and the scenario SSA are seeded portable engines (SplitMix64 →
+// xoshiro256**, a ported logarithm, a fixed arithmetic order) that go-pflow
+// and pflow-solver share byte for byte, so their answers are the same
+// doubles. The optimizer integrates with go-pflow's tableaux in pflow-solver's
+// summation order (transitions by id), which makes most of its cases exact
+// too; a case that samples a rate on a log scale, or whose steps depend on
+// the step controller's x^(1/6), carries a relative 1e-12, because 10^x,
+// log10 and pow come from each language's math library and can differ in the
+// last bit. Even then a linearly sampled rate (its table column, its entry in
+// the front's rates, the scatter's x when it is one) is compared exactly:
+// both sides compute min + u × (max − min) from the same sampler draw. Pareto
+// flags, the front and every integer are always exact.
 //
 // Two normalisations, both for place order (native lists places in document
 // order; a JSON object's member order does not survive decoding the call, so
-// the server lists them in id order): series are matched by (group, name),
-// table columns by header and finals rows by place, and the place list in an
-// SDE refusal's capacity clause is compared as a set.
+// the server lists them in id order): within each group of a time series
+// (an SDE has one, a what-if one per arm) series are sorted by name, the
+// groups staying in their order; the place columns of the what-if's
+// scenario × place table are matched by header and the rows of a finals
+// table by place. The place list in an SDE refusal's capacity clause is
+// compared as a set.
 
 import (
 	"encoding/json"
@@ -60,7 +68,24 @@ var workbenchHandlers = map[string]func(*Server, *http.Request, map[string]any) 
 	"pflow_sde": mcpSDE, "pflow_what_if": mcpWhatIf, "pflow_optimize": mcpOptimize,
 }
 
-func TestMCPWorkbenchMatchesNative(t *testing.T) {
+// runGoldenCase replays one golden case through the tool's handler.
+func runGoldenCase(t *testing.T, c mcpGoldenCase) (any, error) {
+	t.Helper()
+	run, ok := workbenchHandlers[c.Tool]
+	if !ok {
+		t.Fatalf("no handler for %s", c.Tool)
+	}
+	var net map[string]any
+	loadJSON(t, "../../parity/"+c.Fixture, &net)
+	args := map[string]any{"net": net}
+	for k, v := range c.Args {
+		args[k] = v
+	}
+	return run(&Server{}, httptest.NewRequest("POST", "/mcp", nil), args)
+}
+
+func loadMCPGoldens(t *testing.T) []mcpGoldenCase {
+	t.Helper()
 	var golden struct {
 		PflowNative string          `json:"pflow_native"`
 		Cases       []mcpGoldenCase `json:"cases"`
@@ -73,20 +98,14 @@ func TestMCPWorkbenchMatchesNative(t *testing.T) {
 	if golden.PflowNative != lock.Commit {
 		t.Fatalf("mcp_goldens.json was generated against pflow-native %s, but the vendored wasm is %s; re-run `make native-goldens`", golden.PflowNative, lock.Commit)
 	}
+	return golden.Cases
+}
+
+func TestMCPWorkbenchMatchesNative(t *testing.T) {
 	seen := map[string]bool{}
-	for _, c := range golden.Cases {
+	for _, c := range loadMCPGoldens(t) {
 		t.Run(c.Name, func(t *testing.T) {
-			run, ok := workbenchHandlers[c.Tool]
-			if !ok {
-				t.Fatalf("no handler for %s", c.Tool)
-			}
-			var net map[string]any
-			loadJSON(t, "../../parity/"+c.Fixture, &net)
-			args := map[string]any{"net": net}
-			for k, v := range c.Args {
-				args[k] = v
-			}
-			out, err := run(&Server{}, httptest.NewRequest("POST", "/mcp", nil), args)
+			out, err := runGoldenCase(t, c)
 			if c.Error != nil {
 				if err == nil {
 					t.Fatalf("native refused (%s); the tool answered", *c.Error)
@@ -99,12 +118,20 @@ func TestMCPWorkbenchMatchesNative(t *testing.T) {
 			if err != nil {
 				t.Fatalf("tool error: %v", err)
 			}
-			b, _ := json.Marshal(out)
+			b, err := json.Marshal(out)
+			if err != nil {
+				t.Fatalf("the answer is not JSON: %v", err)
+			}
 			var act any
-			json.Unmarshal(b, &act)
+			if err := json.Unmarshal(b, &act); err != nil {
+				t.Fatal(err)
+			}
+			if c.Tool == "pflow_what_if" {
+				act = alignPlaceColumns(c.Expect, act)
+			}
 			exp := normalizeOrder(c.Expect)
-			act = normalizeOrder(alignColumns(c.Expect, act))
-			if d := jsonDiff(exp, act, "", c.Tolerance, nil); len(d) > 0 {
+			act = normalizeOrder(act)
+			if d := jsonDiff(exp, act, "", caseTolerance(c), nil); len(d) > 0 {
 				if len(d) > 20 {
 					d = append(d[:20], fmt.Sprintf("… %d more", len(d)-20))
 				}
@@ -122,25 +149,60 @@ func TestMCPWorkbenchMatchesNative(t *testing.T) {
 	}
 }
 
+// caseTolerance is the relative tolerance at a path of a case's answer: the
+// case's own, except 0 for the numbers an optimize case takes straight from
+// a linearly sampled rate.
+func caseTolerance(c mcpGoldenCase) func(path string) float64 {
+	if c.Tool != "pflow_optimize" || c.Tolerance == 0 {
+		return constTolerance(c.Tolerance)
+	}
+	params, _ := parseParams(c.Args["parameters"])
+	objectives, _ := c.Args["objectives"].([]any)
+	var exact []*regexp.Regexp
+	for i, p := range params {
+		if p.log {
+			continue
+		}
+		exact = append(exact,
+			regexp.MustCompile(fmt.Sprintf(`^\.table\.rows\[\d+\]\[%d\]$`, i+1)), // after the sample index
+			regexp.MustCompile(`^\.pareto\[\d+\]\.rates\.`+regexp.QuoteMeta(p.transition)+`$`))
+		if i == 0 && len(objectives) == 1 {
+			exact = append(exact, regexp.MustCompile(`^\.scatter\.points\[\d+\]\[0\]$`))
+		}
+	}
+	return func(path string) float64 {
+		for _, re := range exact {
+			if re.MatchString(path) {
+				return 0
+			}
+		}
+		return c.Tolerance
+	}
+}
+
+func constTolerance(tol float64) func(string) float64 { return func(string) float64 { return tol } }
+
 // jsonDiff mirrors parity/native/diff.ts: integers exact, a number with a
-// fraction within tol relative (exact when tol is 0), strings and structure
-// exact.
-func jsonDiff(exp, act any, path string, tol float64, out []string) []string {
+// fraction within tol(path) relative (exact when 0); strings, booleans, null
+// and structure exact, and each value of the same JSON type on both sides
+// ("3" is not 3).
+func jsonDiff(exp, act any, path string, tol func(string) float64, out []string) []string {
 	switch e := exp.(type) {
 	case float64:
 		a, ok := act.(float64)
 		if !ok {
-			return append(out, fmt.Sprintf("%s: %v != %v", path, exp, act))
+			return append(out, fmt.Sprintf("%s: %v != %#v", path, exp, act))
 		}
 		if e == a {
 			return out
 		}
-		if e == math.Trunc(e) && a == math.Trunc(a) || tol == 0 {
+		t := tol(path)
+		if e == math.Trunc(e) && a == math.Trunc(a) || t == 0 {
 			return append(out, fmt.Sprintf("%s: %v != %v", path, e, a))
 		}
 		scale := math.Max(math.Abs(e), math.Abs(a))
-		if math.Abs(e-a) > tol*math.Max(scale, 1e-12) {
-			return append(out, fmt.Sprintf("%s: %v != %v (rel %.2e > %g)", path, e, a, math.Abs(e-a)/scale, tol))
+		if math.Abs(e-a) > t*math.Max(scale, 1e-12) {
+			return append(out, fmt.Sprintf("%s: %v != %v (rel %.2e > %g)", path, e, a, math.Abs(e-a)/scale, t))
 		}
 		return out
 	case []any:
@@ -170,11 +232,23 @@ func jsonDiff(exp, act any, path string, tol float64, out []string) []string {
 			}
 		}
 		return out
+	case string:
+		if a, ok := act.(string); !ok || a != e {
+			return append(out, fmt.Sprintf("%s: %q != %#v", path, e, act))
+		}
+		return out
+	case bool:
+		if a, ok := act.(bool); !ok || a != e {
+			return append(out, fmt.Sprintf("%s: %v != %#v", path, e, act))
+		}
+		return out
+	case nil:
+		if act != nil {
+			return append(out, fmt.Sprintf("%s: null != %#v", path, act))
+		}
+		return out
 	}
-	if fmt.Sprint(exp) != fmt.Sprint(act) || (exp == nil) != (act == nil) {
-		out = append(out, fmt.Sprintf("%s: %v != %v", path, exp, act))
-	}
-	return out
+	return append(out, fmt.Sprintf("%s: unexpected %T in the golden", path, exp))
 }
 
 var capacityClause = regexp.MustCompile(`capacity is declared on \[([^\]]*)\]`)
@@ -188,41 +262,23 @@ func normalizeRefusal(s string) string {
 	})
 }
 
-// alignColumns reorders the tool's tables to native's column order, matching
-// columns by header (what_if's scenario × place table lists places).
-func alignColumns(exp, act any) any {
-	switch e := exp.(type) {
-	case map[string]any:
-		a, ok := act.(map[string]any)
-		if !ok {
-			return act
-		}
-		if e["kind"] == "table" && a["kind"] == "table" {
-			return permuteTable(e, a)
-		}
-		out := make(map[string]any, len(a))
-		for k, v := range a {
-			out[k] = alignColumns(e[k], v)
-		}
-		return out
-	case []any:
-		a, ok := act.([]any)
-		if !ok || len(a) != len(e) {
-			return act
-		}
-		out := make([]any, len(a))
-		for i := range a {
-			out[i] = alignColumns(e[i], a[i])
-		}
-		return out
+// alignPlaceColumns reorders the place columns of the what-if's scenario ×
+// place table (`table`, first column "scenario") to native's order, matching
+// them by header. Nothing else is permuted.
+func alignPlaceColumns(exp, act any) any {
+	e, _ := exp.(map[string]any)
+	a, ok := act.(map[string]any)
+	if !ok || e == nil {
+		return act
 	}
-	return act
-}
-
-func permuteTable(exp, act map[string]any) map[string]any {
-	ec, _ := exp["columns"].([]any)
-	ac, _ := act["columns"].([]any)
-	if len(ec) != len(ac) {
+	et, _ := e["table"].(map[string]any)
+	at, _ := a["table"].(map[string]any)
+	if et == nil || at == nil {
+		return act
+	}
+	ec, _ := et["columns"].([]any)
+	ac, _ := at["columns"].([]any)
+	if len(ec) != len(ac) || len(ec) == 0 || ec[0] != "scenario" || ac[0] != "scenario" {
 		return act
 	}
 	pos := map[any]int{}
@@ -237,7 +293,7 @@ func permuteTable(exp, act map[string]any) map[string]any {
 		}
 		perm[i] = j
 	}
-	rows, _ := act["rows"].([]any)
+	rows, _ := at["rows"].([]any)
 	newRows := make([]any, len(rows))
 	for r, row := range rows {
 		cells, _ := row.([]any)
@@ -250,18 +306,22 @@ func permuteTable(exp, act map[string]any) map[string]any {
 		}
 		newRows[r] = nr
 	}
+	table := map[string]any{}
+	for k, v := range at {
+		table[k] = v
+	}
+	table["columns"], table["rows"] = ec, newRows
 	out := map[string]any{}
-	for k, v := range act {
+	for k, v := range a {
 		out[k] = v
 	}
-	out["columns"] = ec
-	out["rows"] = newRows
+	out["table"] = table
 	return out
 }
 
-// normalizeOrder sorts what is listed per place: time-series series by
-// (group, name) and the rows of a finals table (first column "place") by
-// place.
+// normalizeOrder sorts what is listed per place: within each group of a
+// time series (the groups in the order they first appear) the series by
+// name, and the rows of a finals table (first column "place") by place.
 func normalizeOrder(v any) any {
 	switch x := v.(type) {
 	case map[string]any:
@@ -271,20 +331,16 @@ func normalizeOrder(v any) any {
 		}
 		if out["kind"] == "timeseries" {
 			if s, ok := out["series"].([]any); ok {
-				s = append([]any(nil), s...)
-				key := func(e any) string {
-					m, _ := e.(map[string]any)
-					return fmt.Sprint(m["group"]) + "\x00" + fmt.Sprint(m["name"])
-				}
-				sort.SliceStable(s, func(i, j int) bool { return key(s[i]) < key(s[j]) })
-				out["series"] = s
+				out["series"] = sortWithinGroups(s)
 			}
 		}
 		if cols, ok := out["columns"].([]any); ok && len(cols) > 0 && cols[0] == "place" {
 			if rows, ok := out["rows"].([]any); ok {
 				rows = append([]any(nil), rows...)
 				sort.SliceStable(rows, func(i, j int) bool {
-					return fmt.Sprint(rows[i].([]any)[0]) < fmt.Sprint(rows[j].([]any)[0])
+					a, _ := rows[i].([]any)[0].(string)
+					b, _ := rows[j].([]any)[0].(string)
+					return a < b
 				})
 				out["rows"] = rows
 			}
@@ -298,4 +354,36 @@ func normalizeOrder(v any) any {
 		return out
 	}
 	return v
+}
+
+// sortWithinGroups sorts time series by name within each group, keeping the
+// groups in the order they first appear (so a what-if's arms stay in order).
+func sortWithinGroups(s []any) []any {
+	group := map[string]int{}
+	type keyed struct {
+		g    int
+		name string
+		v    any
+	}
+	ks := make([]keyed, len(s))
+	for i, e := range s {
+		m, _ := e.(map[string]any)
+		g, _ := m["group"].(string)
+		if _, seen := group[g]; !seen {
+			group[g] = len(group)
+		}
+		name, _ := m["name"].(string)
+		ks[i] = keyed{group[g], name, e}
+	}
+	sort.SliceStable(ks, func(i, j int) bool {
+		if ks[i].g != ks[j].g {
+			return ks[i].g < ks[j].g
+		}
+		return ks[i].name < ks[j].name
+	})
+	out := make([]any, len(ks))
+	for i, k := range ks {
+		out[i] = k.v
+	}
+	return out
 }

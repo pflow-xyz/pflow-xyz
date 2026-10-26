@@ -2551,6 +2551,148 @@
       "error": "t_end 0 is outside (0, 10000]"
     },
     {
+      "name": "pflow_sde/dt-coarser-than-points",
+      "fixture": "native/fixtures/sir.jsonld",
+      "tool": "pflow_sde",
+      "args": {
+        "dt": 1000,
+        "runs": 2
+      },
+      "native": [
+        {
+          "command": "sim.sde",
+          "args": {
+            "dt": 1000,
+            "runs": 2
+          }
+        }
+      ],
+      "expect": {
+        "engine": "sde",
+        "runs": 2,
+        "seed": 1,
+        "t_end": 10.0,
+        "dt": 0.5,
+        "final": {
+          "I": 1.7932318304469477,
+          "R": 5.74773884198229,
+          "S": 2.8280447938611104
+        },
+        "final_sd": {
+          "I": 1.2018002342160887,
+          "R": 1.259833647146043,
+          "S": 0.11629244198145454
+        },
+        "timeseries": {
+          "kind": "timeseries",
+          "x_label": "t",
+          "x": [
+            0.0,
+            10.0
+          ],
+          "series": [
+            {
+              "name": "S",
+              "values": [
+                9.0,
+                2.8280447938611104
+              ],
+              "band": [
+                0.0,
+                0.11629244198145454
+              ]
+            },
+            {
+              "name": "I",
+              "values": [
+                1.0,
+                1.7932318304469477
+              ],
+              "band": [
+                0.0,
+                1.2018002342160887
+              ]
+            },
+            {
+              "name": "R",
+              "values": [
+                0.0,
+                5.74773884198229
+              ],
+              "band": [
+                0.0,
+                1.259833647146043
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "pflow_sde/overflow-is-null",
+      "fixture": "native/fixtures/explode.jsonld",
+      "tool": "pflow_sde",
+      "args": {
+        "t_end": 10000,
+        "points": 11
+      },
+      "native": [
+        {
+          "command": "sim.sde",
+          "args": {
+            "t_end": 10000,
+            "points": 11
+          }
+        }
+      ],
+      "expect": {
+        "engine": "sde",
+        "runs": 1,
+        "seed": 1,
+        "t_end": 10000.0,
+        "dt": 50.0,
+        "final": {
+          "A": null
+        },
+        "final_sd": null,
+        "timeseries": {
+          "kind": "timeseries",
+          "x_label": "t",
+          "x": [
+            0.0,
+            1000.0,
+            2000.0,
+            3000.0,
+            4000.0,
+            5000.0,
+            6000.0,
+            7000.0,
+            8000.0,
+            9000.0,
+            10000.0
+          ],
+          "series": [
+            {
+              "name": "A",
+              "values": [
+                5.0,
+                2.030368524198396e+44,
+                7.711055305766392e+87,
+                2.9285508133092926e+131,
+                1.112222585113739e+175,
+                4.2240656136651525e+218,
+                1.6042409628576027e+262,
+                6.0926825061252435e+305,
+                null,
+                null,
+                null
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
       "name": "pflow_what_if/sir-defaults",
       "fixture": "native/fixtures/sir.jsonld",
       "tool": "pflow_what_if",
@@ -13931,6 +14073,530 @@
       }
     },
     {
+      "name": "pflow_what_if/over-capacity",
+      "fixture": "native/fixtures/gated.jsonld",
+      "tool": "pflow_what_if",
+      "args": {
+        "place": "Queue",
+        "delta": 9,
+        "runs": 3,
+        "seed": 2,
+        "samples": 11
+      },
+      "native": [
+        {
+          "command": "sim.compare",
+          "args": {
+            "seed": 2,
+            "scenarios": [
+              {
+                "name": "as is",
+                "hours": 10,
+                "realizations": 3,
+                "seed": 2,
+                "samples": 11
+              },
+              {
+                "name": "+9 Queue",
+                "hours": 10,
+                "realizations": 3,
+                "seed": 2,
+                "samples": 11,
+                "marking": {
+                  "Queue": 9.0
+                }
+              }
+            ]
+          }
+        },
+        {
+          "command": "sim.scenario",
+          "args": {
+            "scenario": {
+              "name": "as is",
+              "hours": 10,
+              "realizations": 3,
+              "seed": 2,
+              "samples": 11,
+              "summary": true
+            }
+          }
+        },
+        {
+          "command": "sim.scenario",
+          "args": {
+            "scenario": {
+              "name": "+9 Queue",
+              "hours": 10,
+              "realizations": 3,
+              "seed": 2,
+              "samples": 11,
+              "marking": {
+                "Queue": 9.0
+              },
+              "summary": true
+            }
+          }
+        }
+      ],
+      "expect": {
+        "scenarios": [
+          {
+            "name": "as is",
+            "engine": "ssa",
+            "hours": 10.0,
+            "samples": 11,
+            "realizations": 3,
+            "seed": 2,
+            "final": {
+              "Queue": 2.0,
+              "Done": 1.3333333333333333,
+              "Lock": 1.3333333333333333
+            },
+            "finalStdDev": {
+              "Queue": 1.4142135623730951,
+              "Done": 1.2472191289246473,
+              "Lock": 0.4714045207910318
+            },
+            "metrics": {
+              "throughput": {
+                "arrive": 13.0,
+                "halt": 9.666666666666666,
+                "serve": 11.0,
+                "unlock": 8.333333333333334
+              },
+              "mean": {
+                "Done": 1.3182684933642286,
+                "Lock": 0.9255865759424532,
+                "Queue": 2.0213961530542037
+              },
+              "p95": {
+                "Done": 3.0,
+                "Lock": 3.0,
+                "Queue": 3.0
+              },
+              "utilization": {},
+              "inFlight": {}
+            },
+            "depleted": [],
+            "contended": [
+              {
+                "place": "Done",
+                "fraction": 0.2735185574052826,
+                "kind": "bounded",
+                "blocking": [
+                  "halt"
+                ]
+              },
+              {
+                "place": "Queue",
+                "fraction": 0.10232003727318399,
+                "kind": "bounded",
+                "blocking": [
+                  "serve"
+                ]
+              }
+            ],
+            "waitingForWork": [
+              {
+                "place": "Lock",
+                "fraction": 0.3654257882416427,
+                "kind": "queue",
+                "blocking": [
+                  "unlock"
+                ]
+              }
+            ],
+            "caveats": [],
+            "assumptions": [
+              "this engine assumes every step takes a random, exponentially distributed amount of time, which is the most erratic a shop can be for a given average. Work with a predictable duration — a shot pulls in about the same time every time — queues roughly half as much, so treat the waiting and the walkouts here as the bad case, not the typical one."
+            ]
+          },
+          {
+            "name": "+9 Queue",
+            "engine": "ssa",
+            "hours": 10.0,
+            "samples": 11,
+            "realizations": 3,
+            "seed": 2,
+            "final": {
+              "Queue": 2.3333333333333335,
+              "Done": 2.3333333333333335,
+              "Lock": 0.6666666666666666
+            },
+            "finalStdDev": {
+              "Queue": 0.47140452079103085,
+              "Done": 0.47140452079103085,
+              "Lock": 0.4714045207910317
+            },
+            "metrics": {
+              "throughput": {
+                "arrive": 5.333333333333333,
+                "halt": 9.666666666666666,
+                "serve": 12.0,
+                "unlock": 9.0
+              },
+              "mean": {
+                "Done": 2.1879991276346282,
+                "Lock": 0.8973819803740793,
+                "Queue": 3.3864820696933258
+              },
+              "p95": {
+                "Done": 4.0,
+                "Lock": 2.0,
+                "Queue": 5.0
+              },
+              "utilization": {},
+              "inFlight": {}
+            },
+            "depleted": [],
+            "contended": [
+              {
+                "place": "Done",
+                "fraction": 0.08259252226204142,
+                "kind": "bounded",
+                "blocking": [
+                  "halt"
+                ]
+              }
+            ],
+            "waitingForWork": [
+              {
+                "place": "Lock",
+                "fraction": 0.33585061313559766,
+                "kind": "queue",
+                "blocking": [
+                  "unlock"
+                ]
+              }
+            ],
+            "caveats": [],
+            "assumptions": [
+              "this engine assumes every step takes a random, exponentially distributed amount of time, which is the most erratic a shop can be for a given average. Work with a predictable duration — a shot pulls in about the same time every time — queues roughly half as much, so treat the waiting and the walkouts here as the bad case, not the typical one."
+            ]
+          }
+        ],
+        "seed": 2,
+        "timeseries": {
+          "kind": "timeseries",
+          "x_label": "t",
+          "x": [
+            0.0,
+            1.0,
+            2.0,
+            3.0,
+            4.0,
+            5.0,
+            6.0,
+            7.0,
+            8.0,
+            9.0,
+            10.0
+          ],
+          "series": [
+            {
+              "name": "Queue",
+              "values": [
+                0.0,
+                0.3333333333333333,
+                1.6666666666666667,
+                2.0,
+                2.0,
+                3.0,
+                2.0,
+                2.6666666666666665,
+                2.6666666666666665,
+                3.0,
+                2.0
+              ],
+              "band": [
+                0.0,
+                0.4714045207910317,
+                0.9428090415820631,
+                0.0,
+                0.8164965809277263,
+                0.0,
+                0.8164965809277263,
+                0.4714045207910318,
+                0.4714045207910318,
+                0.0,
+                1.4142135623730951
+              ],
+              "group": "as is"
+            },
+            {
+              "name": "Done",
+              "values": [
+                0.0,
+                2.0,
+                1.3333333333333333,
+                1.3333333333333333,
+                0.6666666666666666,
+                0.6666666666666666,
+                1.3333333333333333,
+                2.0,
+                2.0,
+                1.0,
+                1.3333333333333333
+              ],
+              "band": [
+                0.0,
+                0.0,
+                0.4714045207910318,
+                0.9428090415820634,
+                0.9428090415820634,
+                0.9428090415820634,
+                0.9428090415820634,
+                0.8164965809277263,
+                1.632993161855452,
+                0.816496580927726,
+                1.2472191289246473
+              ],
+              "group": "as is"
+            },
+            {
+              "name": "Lock",
+              "values": [
+                0.0,
+                0.3333333333333333,
+                0.3333333333333333,
+                1.3333333333333333,
+                2.0,
+                1.0,
+                0.6666666666666666,
+                1.0,
+                1.0,
+                1.3333333333333333,
+                1.3333333333333333
+              ],
+              "band": [
+                0.0,
+                0.4714045207910317,
+                0.4714045207910317,
+                0.4714045207910318,
+                0.8164965809277263,
+                0.816496580927726,
+                0.4714045207910317,
+                0.0,
+                0.816496580927726,
+                1.2472191289246473,
+                0.4714045207910318
+              ],
+              "group": "as is"
+            },
+            {
+              "name": "Queue",
+              "values": [
+                9.0,
+                4.666666666666667,
+                4.666666666666667,
+                4.0,
+                3.3333333333333335,
+                3.6666666666666665,
+                3.3333333333333335,
+                2.6666666666666665,
+                2.0,
+                1.6666666666666667,
+                2.3333333333333335
+              ],
+              "band": [
+                0.0,
+                0.47140452079102707,
+                0.47140452079102707,
+                0.8164965809277268,
+                1.6996731711975945,
+                1.2472191289246477,
+                0.47140452079103085,
+                0.4714045207910318,
+                1.4142135623730951,
+                0.4714045207910313,
+                0.47140452079103085
+              ],
+              "group": "+9 Queue"
+            },
+            {
+              "name": "Done",
+              "values": [
+                0.0,
+                3.3333333333333335,
+                2.0,
+                2.3333333333333335,
+                2.3333333333333335,
+                1.6666666666666667,
+                1.6666666666666667,
+                1.6666666666666667,
+                1.6666666666666667,
+                2.3333333333333335,
+                2.3333333333333335
+              ],
+              "band": [
+                0.0,
+                0.47140452079103085,
+                0.8164965809277263,
+                1.2472191289246466,
+                0.47140452079103085,
+                0.9428090415820631,
+                0.9428090415820631,
+                1.699673171197595,
+                1.2472191289246468,
+                1.2472191289246466,
+                0.47140452079103085
+              ],
+              "group": "+9 Queue"
+            },
+            {
+              "name": "Lock",
+              "values": [
+                0.0,
+                0.6666666666666666,
+                1.0,
+                0.6666666666666666,
+                0.6666666666666666,
+                1.3333333333333333,
+                1.3333333333333333,
+                1.3333333333333333,
+                0.3333333333333333,
+                1.3333333333333333,
+                0.6666666666666666
+              ],
+              "band": [
+                0.0,
+                0.4714045207910317,
+                0.0,
+                0.4714045207910317,
+                0.4714045207910317,
+                0.4714045207910318,
+                0.4714045207910318,
+                1.2472191289246473,
+                0.4714045207910317,
+                0.9428090415820634,
+                0.4714045207910317
+              ],
+              "group": "+9 Queue"
+            }
+          ]
+        },
+        "table": {
+          "kind": "table",
+          "columns": [
+            "scenario",
+            "Queue",
+            "Done",
+            "Lock"
+          ],
+          "rows": [
+            [
+              "as is",
+              2.0,
+              1.3333333333333333,
+              1.3333333333333333
+            ],
+            [
+              "+9 Queue",
+              2.3333333333333335,
+              2.3333333333333335,
+              0.6666666666666666
+            ]
+          ]
+        },
+        "finals": [
+          {
+            "kind": "table",
+            "columns": [
+              "place",
+              "final_mean",
+              "final_sd",
+              "final_min",
+              "final_max",
+              "time_mean",
+              "p95",
+              "depleted_at"
+            ],
+            "rows": [
+              [
+                "Queue",
+                2.0,
+                1.4142135623730951,
+                0.0,
+                3.0,
+                2.0213961530542037,
+                3.0,
+                null
+              ],
+              [
+                "Done",
+                1.3333333333333333,
+                1.2472191289246473,
+                0.0,
+                3.0,
+                1.3182684933642286,
+                3.0,
+                null
+              ],
+              [
+                "Lock",
+                1.3333333333333333,
+                0.4714045207910318,
+                1.0,
+                2.0,
+                0.9255865759424532,
+                3.0,
+                null
+              ]
+            ]
+          },
+          {
+            "kind": "table",
+            "columns": [
+              "place",
+              "final_mean",
+              "final_sd",
+              "final_min",
+              "final_max",
+              "time_mean",
+              "p95",
+              "depleted_at"
+            ],
+            "rows": [
+              [
+                "Queue",
+                2.3333333333333335,
+                0.47140452079103085,
+                2.0,
+                3.0,
+                3.3864820696933258,
+                5.0,
+                null
+              ],
+              [
+                "Done",
+                2.3333333333333335,
+                0.47140452079103085,
+                2.0,
+                3.0,
+                2.1879991276346282,
+                4.0,
+                null
+              ],
+              [
+                "Lock",
+                0.6666666666666666,
+                0.4714045207910317,
+                0.0,
+                1.0,
+                0.8973819803740793,
+                2.0,
+                null
+              ]
+            ]
+          }
+        ],
+        "place": "Queue",
+        "from": 0.0,
+        "to": 9.0
+      }
+    },
+    {
       "name": "pflow_what_if/remove-too-many",
       "fixture": "native/fixtures/sir.jsonld",
       "tool": "pflow_what_if",
@@ -14241,9 +14907,7 @@
             ]
           ]
         }
-      },
-      "tolerance": 1e-9,
-      "why": "the ODE: pflow-solver's Tsit5 (Rust) and go-pflow's (Go) are the same algorithm but not bit-identical (the Go solver's state and transition order comes from map iteration, so its sums can round differently)"
+      }
     },
     {
       "name": "pflow_optimize/sir-defaults",
@@ -15321,9 +15985,7 @@
             ]
           ]
         }
-      },
-      "tolerance": 1e-9,
-      "why": "the ODE (as sir-one-linear)"
+      }
     },
     {
       "name": "pflow_optimize/sir-two-objectives-log",
@@ -15792,8 +16454,8 @@
           ]
         }
       },
-      "tolerance": 1e-9,
-      "why": "the ODE (as sir-one-linear), and log sampling: 10^x and log10 come from each language's math library, which may differ in the last bit"
+      "tolerance": 1e-12,
+      "why": "log sampling: 10^x and log10 come from each language's math library and can differ in the last bit (measured: rates within 6e-16), and the ODE carries that to the objectives (measured: within 3e-13). Linearly sampled rates are still compared exactly"
     },
     {
       "name": "pflow_optimize/sir-sim-form",
@@ -16289,9 +16951,7 @@
             ]
           ]
         }
-      },
-      "tolerance": 1e-9,
-      "why": "the ODE (as sir-one-linear)"
+      }
     },
     {
       "name": "pflow_optimize/sir-rk45-options",
@@ -16503,9 +17163,717 @@
             ]
           ]
         }
+      }
+    },
+    {
+      "name": "pflow_optimize/sir-euler",
+      "fixture": "native/fixtures/sir.jsonld",
+      "tool": "pflow_optimize",
+      "args": {
+        "parameters": [
+          {
+            "transition": "recover",
+            "min": 0.05,
+            "max": 0.5
+          }
+        ],
+        "objectives": [
+          {
+            "place": "R"
+          }
+        ],
+        "samples": 6,
+        "seed": 3,
+        "method": "euler"
       },
-      "tolerance": 1e-9,
-      "why": "the ODE (as sir-one-linear)"
+      "native": [
+        {
+          "command": "opt.optimize",
+          "args": {
+            "parameters": [
+              {
+                "transition": "recover",
+                "min": 0.05,
+                "max": 0.5
+              }
+            ],
+            "objectives": [
+              {
+                "place": "R"
+              }
+            ],
+            "samples": 6,
+            "seed": 3,
+            "method": "euler"
+          }
+        }
+      ],
+      "expect": {
+        "pareto": [
+          {
+            "index": 2,
+            "rates": {
+              "recover": 0.32583860714598095
+            },
+            "values": {
+              "R": 4.1111918264159195
+            }
+          }
+        ],
+        "scatter": {
+          "kind": "scatter",
+          "x_label": "rate(recover)",
+          "y_label": "R (max)",
+          "points": [
+            [
+              0.10105265392571955,
+              3.4751846843798617
+            ],
+            [
+              0.36513208111680606,
+              3.9018472883456075
+            ],
+            [
+              0.32583860714598095,
+              4.1111918264159195
+            ],
+            [
+              0.08279003154730341,
+              3.096424412523299
+            ],
+            [
+              0.1473975989516682,
+              4.102874454154664
+            ],
+            [
+              0.33630004207744146,
+              4.0579574056683505
+            ]
+          ],
+          "highlight": [
+            2
+          ]
+        },
+        "samples": 6,
+        "seed": 3,
+        "t_end": 10.0,
+        "pareto_count": 1,
+        "table": {
+          "kind": "table",
+          "columns": [
+            "sample",
+            "rate(recover)",
+            "R (max)",
+            "pareto"
+          ],
+          "rows": [
+            [
+              0,
+              0.10105265392571955,
+              3.4751846843798617,
+              false
+            ],
+            [
+              1,
+              0.36513208111680606,
+              3.9018472883456075,
+              false
+            ],
+            [
+              2,
+              0.32583860714598095,
+              4.1111918264159195,
+              true
+            ],
+            [
+              3,
+              0.08279003154730341,
+              3.096424412523299,
+              false
+            ],
+            [
+              4,
+              0.1473975989516682,
+              4.102874454154664,
+              false
+            ],
+            [
+              5,
+              0.33630004207744146,
+              4.0579574056683505,
+              false
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "name": "pflow_optimize/sir-rk4",
+      "fixture": "native/fixtures/sir.jsonld",
+      "tool": "pflow_optimize",
+      "args": {
+        "parameters": [
+          {
+            "transition": "recover",
+            "min": 0.05,
+            "max": 0.5
+          }
+        ],
+        "objectives": [
+          {
+            "place": "R"
+          }
+        ],
+        "samples": 6,
+        "seed": 3,
+        "method": "rk4"
+      },
+      "native": [
+        {
+          "command": "opt.optimize",
+          "args": {
+            "parameters": [
+              {
+                "transition": "recover",
+                "min": 0.05,
+                "max": 0.5
+              }
+            ],
+            "objectives": [
+              {
+                "place": "R"
+              }
+            ],
+            "samples": 6,
+            "seed": 3,
+            "method": "rk4"
+          }
+        }
+      ],
+      "expect": {
+        "pareto": [
+          {
+            "index": 2,
+            "rates": {
+              "recover": 0.32583860714598095
+            },
+            "values": {
+              "R": 4.109735169044531
+            }
+          }
+        ],
+        "scatter": {
+          "kind": "scatter",
+          "x_label": "rate(recover)",
+          "y_label": "R (max)",
+          "points": [
+            [
+              0.10105265392571955,
+              3.4770820460239458
+            ],
+            [
+              0.36513208111680606,
+              3.9001578481878947
+            ],
+            [
+              0.32583860714598095,
+              4.109735169044531
+            ],
+            [
+              0.08279003154730341,
+              3.098466576212228
+            ],
+            [
+              0.1473975989516682,
+              4.104070009375852
+            ],
+            [
+              0.33630004207744146,
+              4.05642545822118
+            ]
+          ],
+          "highlight": [
+            2
+          ]
+        },
+        "samples": 6,
+        "seed": 3,
+        "t_end": 10.0,
+        "pareto_count": 1,
+        "table": {
+          "kind": "table",
+          "columns": [
+            "sample",
+            "rate(recover)",
+            "R (max)",
+            "pareto"
+          ],
+          "rows": [
+            [
+              0,
+              0.10105265392571955,
+              3.4770820460239458,
+              false
+            ],
+            [
+              1,
+              0.36513208111680606,
+              3.9001578481878947,
+              false
+            ],
+            [
+              2,
+              0.32583860714598095,
+              4.109735169044531,
+              true
+            ],
+            [
+              3,
+              0.08279003154730341,
+              3.098466576212228,
+              false
+            ],
+            [
+              4,
+              0.1473975989516682,
+              4.104070009375852,
+              false
+            ],
+            [
+              5,
+              0.33630004207744146,
+              4.05642545822118,
+              false
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "name": "pflow_optimize/sir-heun",
+      "fixture": "native/fixtures/sir.jsonld",
+      "tool": "pflow_optimize",
+      "args": {
+        "parameters": [
+          {
+            "transition": "recover",
+            "min": 0.05,
+            "max": 0.5
+          }
+        ],
+        "objectives": [
+          {
+            "place": "R"
+          }
+        ],
+        "samples": 6,
+        "seed": 3,
+        "method": "heun"
+      },
+      "native": [
+        {
+          "command": "opt.optimize",
+          "args": {
+            "parameters": [
+              {
+                "transition": "recover",
+                "min": 0.05,
+                "max": 0.5
+              }
+            ],
+            "objectives": [
+              {
+                "place": "R"
+              }
+            ],
+            "samples": 6,
+            "seed": 3,
+            "method": "heun"
+          }
+        }
+      ],
+      "expect": {
+        "pareto": [
+          {
+            "index": 2,
+            "rates": {
+              "recover": 0.32583860714598095
+            },
+            "values": {
+              "R": 4.109735843189712
+            }
+          }
+        ],
+        "scatter": {
+          "kind": "scatter",
+          "x_label": "rate(recover)",
+          "y_label": "R (max)",
+          "points": [
+            [
+              0.10105265392571955,
+              3.4770807667405768
+            ],
+            [
+              0.36513208111680606,
+              3.9001583524056618
+            ],
+            [
+              0.32583860714598095,
+              4.109735843189712
+            ],
+            [
+              0.08279003154730341,
+              3.0984650492099264
+            ],
+            [
+              0.1473975989516682,
+              4.104069524163648
+            ],
+            [
+              0.33630004207744146,
+              4.056426094794941
+            ]
+          ],
+          "highlight": [
+            2
+          ]
+        },
+        "samples": 6,
+        "seed": 3,
+        "t_end": 10.0,
+        "pareto_count": 1,
+        "table": {
+          "kind": "table",
+          "columns": [
+            "sample",
+            "rate(recover)",
+            "R (max)",
+            "pareto"
+          ],
+          "rows": [
+            [
+              0,
+              0.10105265392571955,
+              3.4770807667405768,
+              false
+            ],
+            [
+              1,
+              0.36513208111680606,
+              3.9001583524056618,
+              false
+            ],
+            [
+              2,
+              0.32583860714598095,
+              4.109735843189712,
+              true
+            ],
+            [
+              3,
+              0.08279003154730341,
+              3.0984650492099264,
+              false
+            ],
+            [
+              4,
+              0.1473975989516682,
+              4.104069524163648,
+              false
+            ],
+            [
+              5,
+              0.33630004207744146,
+              4.056426094794941,
+              false
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "name": "pflow_optimize/sir-midpoint",
+      "fixture": "native/fixtures/sir.jsonld",
+      "tool": "pflow_optimize",
+      "args": {
+        "parameters": [
+          {
+            "transition": "recover",
+            "min": 0.05,
+            "max": 0.5
+          }
+        ],
+        "objectives": [
+          {
+            "place": "R"
+          }
+        ],
+        "samples": 6,
+        "seed": 3,
+        "method": "midpoint"
+      },
+      "native": [
+        {
+          "command": "opt.optimize",
+          "args": {
+            "parameters": [
+              {
+                "transition": "recover",
+                "min": 0.05,
+                "max": 0.5
+              }
+            ],
+            "objectives": [
+              {
+                "place": "R"
+              }
+            ],
+            "samples": 6,
+            "seed": 3,
+            "method": "midpoint"
+          }
+        }
+      ],
+      "expect": {
+        "pareto": [
+          {
+            "index": 2,
+            "rates": {
+              "recover": 0.32583860714598095
+            },
+            "values": {
+              "R": 4.1097361835495265
+            }
+          }
+        ],
+        "scatter": {
+          "kind": "scatter",
+          "x_label": "rate(recover)",
+          "y_label": "R (max)",
+          "points": [
+            [
+              0.10105265392571955,
+              3.4770826936001993
+            ],
+            [
+              0.36513208111680606,
+              3.9001584449056064
+            ],
+            [
+              0.32583860714598095,
+              4.1097361835495265
+            ],
+            [
+              0.08279003154730341,
+              3.098466903002315
+            ],
+            [
+              0.1473975989516682,
+              4.104071347486143
+            ],
+            [
+              0.33630004207744146,
+              4.056426363542834
+            ]
+          ],
+          "highlight": [
+            2
+          ]
+        },
+        "samples": 6,
+        "seed": 3,
+        "t_end": 10.0,
+        "pareto_count": 1,
+        "table": {
+          "kind": "table",
+          "columns": [
+            "sample",
+            "rate(recover)",
+            "R (max)",
+            "pareto"
+          ],
+          "rows": [
+            [
+              0,
+              0.10105265392571955,
+              3.4770826936001993,
+              false
+            ],
+            [
+              1,
+              0.36513208111680606,
+              3.9001584449056064,
+              false
+            ],
+            [
+              2,
+              0.32583860714598095,
+              4.1097361835495265,
+              true
+            ],
+            [
+              3,
+              0.08279003154730341,
+              3.098466903002315,
+              false
+            ],
+            [
+              4,
+              0.1473975989516682,
+              4.104071347486143,
+              false
+            ],
+            [
+              5,
+              0.33630004207744146,
+              4.056426363542834,
+              false
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "name": "pflow_optimize/sir-bs32",
+      "fixture": "native/fixtures/sir.jsonld",
+      "tool": "pflow_optimize",
+      "args": {
+        "parameters": [
+          {
+            "transition": "recover",
+            "min": 0.05,
+            "max": 0.5
+          }
+        ],
+        "objectives": [
+          {
+            "place": "R"
+          }
+        ],
+        "samples": 6,
+        "seed": 3,
+        "method": "bs32"
+      },
+      "native": [
+        {
+          "command": "opt.optimize",
+          "args": {
+            "parameters": [
+              {
+                "transition": "recover",
+                "min": 0.05,
+                "max": 0.5
+              }
+            ],
+            "objectives": [
+              {
+                "place": "R"
+              }
+            ],
+            "samples": 6,
+            "seed": 3,
+            "method": "bs32"
+          }
+        }
+      ],
+      "expect": {
+        "pareto": [
+          {
+            "index": 2,
+            "rates": {
+              "recover": 0.32583860714598095
+            },
+            "values": {
+              "R": 4.109694216479722
+            }
+          }
+        ],
+        "scatter": {
+          "kind": "scatter",
+          "x_label": "rate(recover)",
+          "y_label": "R (max)",
+          "points": [
+            [
+              0.10105265392571955,
+              3.4769913117607776
+            ],
+            [
+              0.36513208111680606,
+              3.900116200989492
+            ],
+            [
+              0.32583860714598095,
+              4.109694216479722
+            ],
+            [
+              0.08279003154730341,
+              3.0983649329352705
+            ],
+            [
+              0.1473975989516682,
+              4.104010555549944
+            ],
+            [
+              0.33630004207744146,
+              4.056383906985303
+            ]
+          ],
+          "highlight": [
+            2
+          ]
+        },
+        "samples": 6,
+        "seed": 3,
+        "t_end": 10.0,
+        "pareto_count": 1,
+        "table": {
+          "kind": "table",
+          "columns": [
+            "sample",
+            "rate(recover)",
+            "R (max)",
+            "pareto"
+          ],
+          "rows": [
+            [
+              0,
+              0.10105265392571955,
+              3.4769913117607776,
+              false
+            ],
+            [
+              1,
+              0.36513208111680606,
+              3.900116200989492,
+              false
+            ],
+            [
+              2,
+              0.32583860714598095,
+              4.109694216479722,
+              true
+            ],
+            [
+              3,
+              0.08279003154730341,
+              3.0983649329352705,
+              false
+            ],
+            [
+              4,
+              0.1473975989516682,
+              4.104010555549944,
+              false
+            ],
+            [
+              5,
+              0.33630004207744146,
+              4.056383906985303,
+              false
+            ]
+          ]
+        }
+      }
     },
     {
       "name": "pflow_optimize/gated-capacity-ignored",
@@ -16794,8 +18162,8 @@
           ]
         }
       },
-      "tolerance": 1e-9,
-      "why": "the ODE (as sir-one-linear) and log sampling (as sir-two-objectives-log)"
+      "tolerance": 1e-12,
+      "why": "log sampling: 10^x and log10 come from each language's math library and can differ in the last bit (measured: rates within 6e-16), and the ODE carries that to the objectives (measured: within 3e-13). Linearly sampled rates are still compared exactly"
     },
     {
       "name": "pflow_optimize/coffee-colored",
@@ -17094,8 +18462,8 @@
           ]
         }
       },
-      "tolerance": 1e-9,
-      "why": "the ODE (as sir-one-linear). RestockBeans is sampled in a non-stiff range: at the fixture's 720 the finals are limited by the solver tolerance and the two solvers' step sequences part (see parity/native/README.md)"
+      "tolerance": 1e-12,
+      "why": "the step controller's x^(1/6) comes from each language's math library (Go's math.Pow, glibc's pow under Rust), which can differ in the last bit and move a step (measured: objectives within 9e-16; the sampled rates are exact). RestockBeans is sampled in a non-stiff range: at the fixture's 720 the finals are limited by the solver tolerance and the two solvers' step sequences part (see parity/native/README.md)"
     },
     {
       "name": "pflow_optimize/colored-base-and-color",
@@ -17456,8 +18824,8 @@
           ]
         }
       },
-      "tolerance": 1e-9,
-      "why": "the ODE (as sir-one-linear) and log sampling (as sir-two-objectives-log)"
+      "tolerance": 1e-12,
+      "why": "log sampling: 10^x and log10 come from each language's math library and can differ in the last bit (measured: rates within 6e-16), and the ODE carries that to the objectives (measured: within 3e-13). Linearly sampled rates are still compared exactly"
     },
     {
       "name": "pflow_optimize/inert-arc",
@@ -17619,9 +18987,887 @@
             ]
           ]
         }
+      }
+    },
+    {
+      "name": "pflow_optimize/tie",
+      "fixture": "native/fixtures/tie.jsonld",
+      "tool": "pflow_optimize",
+      "args": {
+        "parameters": [
+          {
+            "transition": "tA",
+            "min": 0.05,
+            "max": 0.5
+          }
+        ],
+        "objectives": [
+          {
+            "place": "R"
+          },
+          {
+            "place": "B"
+          }
+        ],
+        "samples": 60,
+        "seed": 5
       },
-      "tolerance": 1e-9,
-      "why": "the ODE (as sir-one-linear)"
+      "native": [
+        {
+          "command": "opt.optimize",
+          "args": {
+            "parameters": [
+              {
+                "transition": "tA",
+                "min": 0.05,
+                "max": 0.5
+              }
+            ],
+            "objectives": [
+              {
+                "place": "R"
+              },
+              {
+                "place": "B"
+              }
+            ],
+            "samples": 60,
+            "seed": 5
+          }
+        }
+      ],
+      "expect": {
+        "pareto": [
+          {
+            "index": 21,
+            "rates": {
+              "tA": 0.4943592707330818
+            },
+            "values": {
+              "R": 36.53571069446568,
+              "B": 9.928710562893048
+            }
+          }
+        ],
+        "scatter": {
+          "kind": "scatter",
+          "x_label": "R (max)",
+          "y_label": "B (max)",
+          "points": [
+            [
+              36.53571069446568,
+              8.935900513595179
+            ],
+            [
+              36.53571069446568,
+              9.794600081402846
+            ],
+            [
+              36.53571069446568,
+              7.871550356698005
+            ],
+            [
+              36.53571069446568,
+              6.121076207721014
+            ],
+            [
+              36.53571069446568,
+              7.396739896735676
+            ],
+            [
+              36.53571069446568,
+              8.905995386328195
+            ],
+            [
+              36.53571069446568,
+              9.928097932942933
+            ],
+            [
+              36.53571069446568,
+              9.391873034909937
+            ],
+            [
+              36.53571069446568,
+              9.109921776282448
+            ],
+            [
+              36.53571069446568,
+              9.598640351365729
+            ],
+            [
+              36.53571069446568,
+              9.201126614716417
+            ],
+            [
+              36.53571069446568,
+              6.7213734430696634
+            ],
+            [
+              36.53571069446568,
+              9.881345854025678
+            ],
+            [
+              36.53571069446568,
+              9.209110825747304
+            ],
+            [
+              36.53571069446568,
+              9.917377153133556
+            ],
+            [
+              36.53571069446568,
+              9.911327274628526
+            ],
+            [
+              36.53571069446568,
+              9.85591819643783
+            ],
+            [
+              36.53571069446568,
+              9.23825555126623
+            ],
+            [
+              36.53571069446568,
+              7.011809651592515
+            ],
+            [
+              36.53571069446568,
+              9.21804538707449
+            ],
+            [
+              36.53571069446568,
+              6.38282030286615
+            ],
+            [
+              36.53571069446568,
+              9.928710562893048
+            ],
+            [
+              36.53571069446568,
+              7.30277804111477
+            ],
+            [
+              36.53571069446568,
+              9.882091978163903
+            ],
+            [
+              36.53571069446568,
+              6.994546720138534
+            ],
+            [
+              36.53571069446568,
+              9.754440944254203
+            ],
+            [
+              36.53571069446568,
+              9.910280607200205
+            ],
+            [
+              36.53571069446568,
+              6.49787766563002
+            ],
+            [
+              36.53571069446568,
+              9.22968131108863
+            ],
+            [
+              36.53571069446568,
+              9.86420496012688
+            ],
+            [
+              36.53571069446568,
+              8.215974691275537
+            ],
+            [
+              36.53571069446568,
+              7.471879411808907
+            ],
+            [
+              36.53571069446568,
+              9.925420400951424
+            ],
+            [
+              36.53571069446568,
+              8.956672540559667
+            ],
+            [
+              36.53571069446568,
+              9.923142260432954
+            ],
+            [
+              36.53571069446568,
+              9.750097235926685
+            ],
+            [
+              36.53571069446568,
+              8.866532949291452
+            ],
+            [
+              36.53571069446568,
+              9.191772605697299
+            ],
+            [
+              36.53571069446568,
+              6.509574619656033
+            ],
+            [
+              36.53571069446568,
+              3.980392540785817
+            ],
+            [
+              36.53571069446568,
+              9.439018977315243
+            ],
+            [
+              36.53571069446568,
+              9.642096710728064
+            ],
+            [
+              36.53571069446568,
+              9.254831848336805
+            ],
+            [
+              36.53571069446568,
+              8.308011130472718
+            ],
+            [
+              36.53571069446568,
+              9.676711937020398
+            ],
+            [
+              36.53571069446568,
+              9.803379015900646
+            ],
+            [
+              36.53571069446568,
+              7.70167618653045
+            ],
+            [
+              36.53571069446568,
+              9.926018153823353
+            ],
+            [
+              36.53571069446568,
+              6.822572054206555
+            ],
+            [
+              36.53571069446568,
+              9.057323594113111
+            ],
+            [
+              36.53571069446568,
+              9.273790211692793
+            ],
+            [
+              36.53571069446568,
+              5.407088062725289
+            ],
+            [
+              36.53571069446568,
+              8.911164842051537
+            ],
+            [
+              36.53571069446568,
+              9.809908100626156
+            ],
+            [
+              36.53571069446568,
+              9.900320473477754
+            ],
+            [
+              36.53571069446568,
+              9.09144702667778
+            ],
+            [
+              36.53571069446568,
+              9.007336408908502
+            ],
+            [
+              36.53571069446568,
+              9.716434339015482
+            ],
+            [
+              36.53571069446568,
+              9.882072468924212
+            ],
+            [
+              36.53571069446568,
+              8.258699332687685
+            ]
+          ],
+          "highlight": [
+            21
+          ]
+        },
+        "samples": 60,
+        "seed": 5,
+        "t_end": 10.0,
+        "pareto_count": 1,
+        "table": {
+          "kind": "table",
+          "columns": [
+            "sample",
+            "rate(tA)",
+            "R (max)",
+            "B (max)",
+            "pareto"
+          ],
+          "rows": [
+            [
+              0,
+              0.2240456206927703,
+              36.53571069446568,
+              8.935900513595179,
+              false
+            ],
+            [
+              1,
+              0.38853815712720075,
+              36.53571069446568,
+              9.794600081402846,
+              false
+            ],
+            [
+              2,
+              0.1547191245548578,
+              36.53571069446568,
+              7.871550356698005,
+              false
+            ],
+            [
+              3,
+              0.09470273509697114,
+              36.53571069446568,
+              6.121076207721014,
+              false
+            ],
+            [
+              4,
+              0.13458205476608998,
+              36.53571069446568,
+              7.396739896735676,
+              false
+            ],
+            [
+              5,
+              0.2212740174283797,
+              36.53571069446568,
+              8.905995386328195,
+              false
+            ],
+            [
+              6,
+              0.4935035857369337,
+              36.53571069446568,
+              9.928097932942933,
+              false
+            ],
+            [
+              7,
+              0.27999566992782143,
+              36.53571069446568,
+              9.391873034909937,
+              false
+            ],
+            [
+              8,
+              0.24190310257937303,
+              36.53571069446568,
+              9.109921776282448,
+              false
+            ],
+            [
+              9,
+              0.32154824960041,
+              36.53571069446568,
+              9.598640351365729,
+              false
+            ],
+            [
+              10,
+              0.25271379112170445,
+              36.53571069446568,
+              9.201126614716417,
+              false
+            ],
+            [
+              11,
+              0.11151604909669904,
+              36.53571069446568,
+              6.7213734430696634,
+              false
+            ],
+            [
+              12,
+              0.4434127689531614,
+              36.53571069446568,
+              9.881345854025678,
+              false
+            ],
+            [
+              13,
+              0.25371825285552546,
+              36.53571069446568,
+              9.209110825747304,
+              false
+            ],
+            [
+              14,
+              0.47960545445758607,
+              36.53571069446568,
+              9.917377153133556,
+              false
+            ],
+            [
+              15,
+              0.47253883951220704,
+              36.53571069446568,
+              9.911327274628526,
+              false
+            ],
+            [
+              16,
+              0.42399593332535457,
+              36.53571069446568,
+              9.85591819643783,
+              false
+            ],
+            [
+              17,
+              0.25747292483937123,
+              36.53571069446568,
+              9.23825555126623,
+              false
+            ],
+            [
+              18,
+              0.1207917123520332,
+              36.53571069446568,
+              7.011809651592515,
+              false
+            ],
+            [
+              19,
+              0.2548543679159535,
+              36.53571069446568,
+              9.21804538707449,
+              false
+            ],
+            [
+              20,
+              0.10168904600120565,
+              36.53571069446568,
+              6.38282030286615,
+              false
+            ],
+            [
+              21,
+              0.4943592707330818,
+              36.53571069446568,
+              9.928710562893048,
+              true
+            ],
+            [
+              22,
+              0.1310362753875826,
+              36.53571069446568,
+              7.30277804111477,
+              false
+            ],
+            [
+              23,
+              0.4440435772470296,
+              36.53571069446568,
+              9.882091978163903,
+              false
+            ],
+            [
+              24,
+              0.12021566945508848,
+              36.53571069446568,
+              6.994546720138534,
+              false
+            ],
+            [
+              25,
+              0.37068029742566105,
+              36.53571069446568,
+              9.754440944254203,
+              false
+            ],
+            [
+              26,
+              0.47136537960744995,
+              36.53571069446568,
+              9.910280607200205,
+              false
+            ],
+            [
+              27,
+              0.10492159270473518,
+              36.53571069446568,
+              6.49787766563002,
+              false
+            ],
+            [
+              28,
+              0.25635360676025,
+              36.53571069446568,
+              9.22968131108863,
+              false
+            ],
+            [
+              29,
+              0.4299193880090639,
+              36.53571069446568,
+              9.86420496012688,
+              false
+            ],
+            [
+              30,
+              0.17237128729438267,
+              36.53571069446568,
+              8.215974691275537,
+              false
+            ],
+            [
+              31,
+              0.13751089169444664,
+              36.53571069446568,
+              7.471879411808907,
+              false
+            ],
+            [
+              32,
+              0.4898473847702901,
+              36.53571069446568,
+              9.925420400951424,
+              false
+            ],
+            [
+              33,
+              0.22601700099568212,
+              36.53571069446568,
+              8.956672540559667,
+              false
+            ],
+            [
+              34,
+              0.4868384652034171,
+              36.53571069446568,
+              9.923142260432954,
+              false
+            ],
+            [
+              35,
+              0.3689268544727286,
+              36.53571069446568,
+              9.750097235926685,
+              false
+            ],
+            [
+              36,
+              0.21773039733616584,
+              36.53571069446568,
+              8.866532949291452,
+              false
+            ],
+            [
+              37,
+              0.25154969302515334,
+              36.53571069446568,
+              9.191772605697299,
+              false
+            ],
+            [
+              38,
+              0.10525614787446336,
+              36.53571069446568,
+              6.509574619656033,
+              false
+            ],
+            [
+              39,
+              0.05075630419101793,
+              36.53571069446568,
+              3.980392540785817,
+              false
+            ],
+            [
+              40,
+              0.2880653308679509,
+              36.53571069446568,
+              9.439018977315243,
+              false
+            ],
+            [
+              41,
+              0.3330077599986404,
+              36.53571069446568,
+              9.642096710728064,
+              false
+            ],
+            [
+              42,
+              0.2596730479256458,
+              36.53571069446568,
+              9.254831848336805,
+              false
+            ],
+            [
+              43,
+              0.17766804107457057,
+              36.53571069446568,
+              8.308011130472718,
+              false
+            ],
+            [
+              44,
+              0.34317966545144424,
+              36.53571069446568,
+              9.676711937020398,
+              false
+            ],
+            [
+              45,
+              0.39290625431985954,
+              36.53571069446568,
+              9.803379015900646,
+              false
+            ],
+            [
+              46,
+              0.14704050126849194,
+              36.53571069446568,
+              7.70167618653045,
+              false
+            ],
+            [
+              47,
+              0.49065211104287476,
+              36.53571069446568,
+              9.926018153823353,
+              false
+            ],
+            [
+              48,
+              0.11465130455915853,
+              36.53571069446568,
+              6.822572054206555,
+              false
+            ],
+            [
+              49,
+              0.23616173059699108,
+              36.53571069446568,
+              9.057323594113111,
+              false
+            ],
+            [
+              50,
+              0.26225014418772197,
+              36.53571069446568,
+              9.273790211692793,
+              false
+            ],
+            [
+              51,
+              0.07780708610850909,
+              36.53571069446568,
+              5.407088062725289,
+              false
+            ],
+            [
+              52,
+              0.22174766331784562,
+              36.53571069446568,
+              8.911164842051537,
+              false
+            ],
+            [
+              53,
+              0.3962832850410697,
+              36.53571069446568,
+              9.809908100626156,
+              false
+            ],
+            [
+              54,
+              0.460838038133353,
+              36.53571069446568,
+              9.900320473477754,
+              false
+            ],
+            [
+              55,
+              0.23984871815423536,
+              36.53571069446568,
+              9.09144702667778,
+              false
+            ],
+            [
+              56,
+              0.23099485490403437,
+              36.53571069446568,
+              9.007336408908502,
+              false
+            ],
+            [
+              57,
+              0.35628967237836895,
+              36.53571069446568,
+              9.716434339015482,
+              false
+            ],
+            [
+              58,
+              0.44402703245832864,
+              36.53571069446568,
+              9.882072468924212,
+              false
+            ],
+            [
+              59,
+              0.17479527496237007,
+              36.53571069446568,
+              8.258699332687685,
+              false
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "name": "pflow_optimize/overflow-is-null",
+      "fixture": "native/fixtures/explode.jsonld",
+      "tool": "pflow_optimize",
+      "args": {
+        "parameters": [
+          {
+            "transition": "grow",
+            "min": 1,
+            "max": 5
+          }
+        ],
+        "objectives": [
+          {
+            "place": "A"
+          }
+        ],
+        "samples": 3,
+        "seed": 3,
+        "t_end": 500
+      },
+      "native": [
+        {
+          "command": "opt.optimize",
+          "args": {
+            "parameters": [
+              {
+                "transition": "grow",
+                "min": 1,
+                "max": 5
+              }
+            ],
+            "objectives": [
+              {
+                "place": "A"
+              }
+            ],
+            "samples": 3,
+            "seed": 3,
+            "t_end": 500
+          }
+        }
+      ],
+      "expect": {
+        "pareto": [
+          {
+            "index": 0,
+            "rates": {
+              "grow": 1.4538013682286182
+            },
+            "values": {
+              "A": null
+            }
+          },
+          {
+            "index": 1,
+            "rates": {
+              "grow": 3.8011740543716095
+            },
+            "values": {
+              "A": null
+            }
+          },
+          {
+            "index": 2,
+            "rates": {
+              "grow": 3.4518987301864974
+            },
+            "values": {
+              "A": null
+            }
+          }
+        ],
+        "scatter": {
+          "kind": "scatter",
+          "x_label": "rate(grow)",
+          "y_label": "A (max)",
+          "points": [
+            [
+              1.4538013682286182,
+              null
+            ],
+            [
+              3.8011740543716095,
+              null
+            ],
+            [
+              3.4518987301864974,
+              null
+            ]
+          ],
+          "highlight": [
+            0,
+            1,
+            2
+          ]
+        },
+        "samples": 3,
+        "seed": 3,
+        "t_end": 500.0,
+        "pareto_count": 3,
+        "table": {
+          "kind": "table",
+          "columns": [
+            "sample",
+            "rate(grow)",
+            "A (max)",
+            "pareto"
+          ],
+          "rows": [
+            [
+              0,
+              1.4538013682286182,
+              null,
+              true
+            ],
+            [
+              1,
+              3.8011740543716095,
+              null,
+              true
+            ],
+            [
+              2,
+              3.4518987301864974,
+              null,
+              true
+            ]
+          ]
+        }
+      }
     },
     {
       "name": "pflow_optimize/min-above-max",
