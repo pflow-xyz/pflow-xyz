@@ -169,6 +169,10 @@ func (s *Server) handleSchema(w http.ResponseWriter, r *http.Request) {
 	// The body depends on Accept, so a shared cache must key on it or it
 	// serves the browser page to a JSON-LD client (and the reverse).
 	w.Header().Add("Vary", "Accept")
+	// The same terms, with their relations and the rest of the ecosystem, are
+	// defined formally in the public ontology (each term there is declared
+	// equivalent to its pflow.xyz/schema# IRI).
+	w.Header().Add("Link", `<https://ontology.pflow.xyz/ns.ttl>; rel="describedby"; type="text/turtle"`)
 	if wantsHTML(r) {
 		if err := renderSchemaHTML(w, terms); err != nil {
 			http.Error(w, "render error", http.StatusInternalServerError)
@@ -193,6 +197,7 @@ const schemaHTMLTpl = `<!DOCTYPE html>
 <meta property="og:description" content="JSON-LD context for pflow Petri net documents: the vocabulary behind @context https://pflow.xyz/schema."/>
 <meta property="og:type" content="website"/>
 <link rel="canonical" href="https://pflow.xyz/schema"/>
+<link rel="describedby" type="text/turtle" href="https://ontology.pflow.xyz/ns.ttl"/>
 <meta property="og:url" content="https://pflow.xyz/schema"/>
 <meta property="og:image" content="https://pflow.xyz/banner.png"/>
 <meta property="og:image:width" content="1280"/>
@@ -238,6 +243,7 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 <div class="nav"><a href="/">&larr; pflow.xyz</a></div>
 <h1>Petri Net Schema</h1>
 <p>JSON-LD context for pflow Petri net documents. This page describes the vocabulary used by <code>@context: "https://pflow.xyz/schema"</code>. Machine clients receive JSON-LD; browsers see this human-readable reference.</p>
+<p>The same terms are defined formally, with their relations to the rest of the pflow ecosystem, in the <a href="https://ontology.pflow.xyz">pflow ontology</a> (download, SPARQL, MCP).</p>
 <p>Fetch as JSON-LD:</p>
 <pre><code>curl -H 'Accept: application/ld+json' https://pflow.xyz/schema</code></pre>
 <table>

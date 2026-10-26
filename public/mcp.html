@@ -32,6 +32,11 @@ td:first-child{white-space:nowrap}nav a{margin-right:1rem}.lede{font-size:1.1rem
 <pre>claude mcp add --transport http pflow https://pflow.xyz/mcp</pre>
 <p><b>Other clients:</b> it is a stateless Streamable HTTP server. POST JSON-RPC to the URL; there is no event stream.</p>
 
+<h2>The ontology server</h2>
+<p>A separate, read-only MCP server answers questions about the pflow vocabulary and its software components (terms, definitions, class hierarchy, dependencies). No sign-in, nothing is saved.</p>
+<pre>claude mcp add --transport http pflow-ontology https://ontology.pflow.xyz/mcp</pre>
+<p>Details, SPARQL endpoint and downloads: <a href="https://ontology.pflow.xyz">ontology.pflow.xyz</a>.</p>
+
 <h2>Signing in</h2>
 <p>Every tool works without an account except <code>pflow_save</code>. The first time you save, your client opens a pflow.xyz page where you sign in with GitHub or Google. The saved net is then recorded as yours. Saved nets are public, so don't save anything private. pflow.xyz keeps only your account id (and your GitHub username), never a password; see the <a href="/privacy.html">privacy policy</a>.</p>
 

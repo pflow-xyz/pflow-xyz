@@ -259,3 +259,17 @@ func TestHandleTokenType_InvalidColor(t *testing.T) {
 		}
 	}
 }
+
+func TestHandleSchema_LinksToOntology(t *testing.T) {
+	for _, accept := range []string{"application/ld+json", "text/html"} {
+		s := newTestServer(t)
+		req := httptest.NewRequest("GET", "/schema", nil)
+		req.Header.Set("Accept", accept)
+		w := httptest.NewRecorder()
+		s.handleSchema(w, req)
+		link := w.Header().Get("Link")
+		if !strings.Contains(link, "https://ontology.pflow.xyz/ns.ttl") || !strings.Contains(link, `rel="describedby"`) {
+			t.Errorf("Accept %s: Link = %q", accept, link)
+		}
+	}
+}
