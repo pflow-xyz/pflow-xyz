@@ -7,3 +7,14 @@ filegroup(
     srcs = ["golden.json"] + glob(["fixtures/*"]),
     visibility = ["//visibility:public"],
 )
+
+# The /mcp workbench tools' parity suite (cmd/webserver/mcp_workbench_parity_test.go
+# and mcp_workbench_test.go): pflow-native's goldens and the fixtures the cases name.
+filegroup(
+    name = "native_mcp",
+    srcs = ["native/mcp_goldens.json"] + glob([
+        "native/fixtures/*",
+        "fixtures/*",
+    ]),
+    visibility = ["//visibility:public"],
+)

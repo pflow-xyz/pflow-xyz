@@ -10,3 +10,7 @@ nogo(
     visibility = ["//visibility:public"],
     deps = TOOLS_NOGO,
 )
+
+# cmd/webserver's parity test checks that its native goldens were generated
+# from the pflow-native commit the vendored wasm names.
+exports_files(["pflow-native-wasm.lock"])

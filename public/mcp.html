@@ -55,7 +55,7 @@ td:first-child{white-space:nowrap}nav a{margin-right:1rem}.lede{font-size:1.1rem
 <tr><td><code>pflow_incidence</code></td><td>The incidence matrix.</td></tr>
 <tr><td><code>pflow_simulate</code></td><td>Mass-action ODE simulation with a sampled trajectory.</td></tr>
 <tr><td><code>pflow_ssa</code></td><td>Seeded stochastic (Gillespie) simulation.</td></tr>
-<tr><td><code>pflow_sde</code></td><td>Seeded chemical Langevin (SDE) simulation: continuous, with the net's own noise. Refuses nets with inhibitor or read arcs or capacities.</td></tr>
+<tr><td><code>pflow_sde</code></td><td>Seeded chemical Langevin (SDE) simulation: continuous, with the net's own noise. Refuses nets with inhibitor or read arcs, or with a capacity on a place that some firing adds tokens to (other capacities cannot bind, and are ignored).</td></tr>
 <tr><td><code>pflow_what_if</code></td><td>The same seeded stochastic runs with and without a few more tokens in one place, side by side.</td></tr>
 <tr><td><code>pflow_optimize</code></td><td>Seeded Monte Carlo over transition rates, with the Pareto front of the objectives you name.</td></tr>
 <tr><td><code>pflow_rate_scan</code></td><td>Sweep one rate and see how the outcome moves.</td></tr>

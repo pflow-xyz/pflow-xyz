@@ -634,13 +634,22 @@ they had parity tests. They are on it now, as `pflow_sde`, `pflow_what_if` and
   (`cmd/webserver/mcp_workbench_engine.go`).
 - **Parity:** `parity/native/mcp_goldens.json` is generated from native
   (`make native-goldens`), and `cmd/webserver/mcp_workbench_parity_test.go`
-  replays it. The SDE and the what-if match to the bit. The optimizer matches to
-  a relative 1e-9 because go-pflow's Tsit5 sums in map order. The suite's README
-  section lists the known gaps: place order, stiff nets for the optimizer, and
-  the server's tighter caps.
-- **REVIEW:** `cmd/webserver/BUILD.bazel` is not updated. It was already stale
-  on main (it does not list `mcp_simulate_gated.go`), and CI does not run
-  Bazel. `make bazel-gazelle` regenerates it.
+  replays it. The SDE and the what-if match to the bit. So does the optimizer
+  on most cases: it integrates with go-pflow's tableaux and `Solve` loop but
+  sums the derivative in id order, as pflow-solver does (go-pflow's `Solve`
+  sums in map order, which differed between identical calls and broke exact
+  ties at random). Cases that go through a math library's 10^x, log10 or pow
+  carry 1e-12. The suite's README section lists the known gaps and deliberate
+  differences: place order, stiff nets for the optimizer, seeds above 2^53, a
+  solve that runs out of steps (an error here), and the server's limits.
+- **Every answer fits the 60 KB result guard whole.** Its size is bounded
+  before the run; a count the caller chose that does not fit is refused, naming
+  one that does, and a default is lowered with a `note`. Work and memory budgets
+  count places as well as transitions.
+- **Bazel:** `cmd/webserver/BUILD.bazel` lists the new sources, tests and
+  their data (`//parity:native_mcp`, `//:pflow-native-wasm.lock`). An earlier version
+  of this note said main's BUILD was already stale; it was not (#111 brought it
+  up to date before this branch).
 
 ---
 
