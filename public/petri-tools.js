@@ -24,7 +24,14 @@ export const MANIFEST_VERSION = 'tools-v1';
 
 // Commands the chat does not get: a whole-document load (the chat edits
 // through commands instead), and export (text for a file, not for a model).
-export const EXCLUDED = new Set(['file.load_json', 'export.artifact', 'export.svg']);
+// Nor the account files (file.save … file.delete): a write to the person's
+// account is theirs to make, not the model's, and a read would send their
+// saved files to the model's provider. (The chat's sandbox host carries no
+// sign-in either, so they would only refuse.)
+export const EXCLUDED = new Set([
+    'file.load_json', 'export.artifact', 'export.svg',
+    'file.save', 'file.open', 'file.list', 'file.get', 'file.write', 'file.delete',
+]);
 
 export const toolName = (id) => id.replace('.', '_');
 export const commandId = (name) => name.replace('_', '.');
