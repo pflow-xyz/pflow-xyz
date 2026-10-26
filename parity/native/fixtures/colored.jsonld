@@ -1,0 +1,133 @@
+{
+  "@context": "https://pflow.xyz/schema",
+  "@type": "PetriNet",
+  "@version": "1.1",
+  "name": "Two-colour work pool",
+  "token": [
+    "https://pflow.xyz/tokens/red",
+    "https://pflow.xyz/tokens/blue"
+  ],
+  "places": {
+    "Pool": {
+      "@type": "Place",
+      "initial": [
+        20,
+        10
+      ],
+      "capacity": [
+        0,
+        0
+      ],
+      "x": 60,
+      "y": 100
+    },
+    "Done": {
+      "@type": "Place",
+      "initial": [
+        0,
+        0
+      ],
+      "capacity": [
+        0,
+        0
+      ],
+      "x": 200,
+      "y": 100
+    },
+    "Mix": {
+      "@type": "Place",
+      "initial": [
+        0,
+        0
+      ],
+      "capacity": [
+        0,
+        0
+      ],
+      "x": 340,
+      "y": 100
+    }
+  },
+  "transitions": {
+    "work": {
+      "@type": "Transition",
+      "x": 130,
+      "y": 100,
+      "rate": 0.4
+    },
+    "convert": {
+      "@type": "Transition",
+      "x": 60,
+      "y": 220,
+      "rate": 0.15
+    },
+    "combine": {
+      "@type": "Transition",
+      "x": 270,
+      "y": 100,
+      "rate": 0.05
+    }
+  },
+  "arcs": [
+    {
+      "@type": "Arrow",
+      "source": "Pool",
+      "target": "work",
+      "weight": [
+        1,
+        0
+      ],
+      "inhibitTransition": false
+    },
+    {
+      "@type": "Arrow",
+      "source": "work",
+      "target": "Done",
+      "weight": [
+        1,
+        0
+      ],
+      "inhibitTransition": false
+    },
+    {
+      "@type": "Arrow",
+      "source": "Pool",
+      "target": "convert",
+      "weight": [
+        0,
+        1
+      ],
+      "inhibitTransition": false
+    },
+    {
+      "@type": "Arrow",
+      "source": "convert",
+      "target": "Pool",
+      "weight": [
+        1,
+        0
+      ],
+      "inhibitTransition": false
+    },
+    {
+      "@type": "Arrow",
+      "source": "Done",
+      "target": "combine",
+      "weight": [
+        2,
+        0
+      ],
+      "inhibitTransition": false
+    },
+    {
+      "@type": "Arrow",
+      "source": "combine",
+      "target": "Mix",
+      "weight": [
+        0,
+        1
+      ],
+      "inhibitTransition": false
+    }
+  ]
+}

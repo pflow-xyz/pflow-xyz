@@ -22,7 +22,7 @@ func TestMCPEveryToolIsAnnotated(t *testing.T) {
 	// with a bearer token, so pflow_save is listed too
 	_, out := mcpCall(t, s, `{"jsonrpc":"2.0","id":2,"method":"tools/list"}`, "Authorization", "Bearer x")
 	tools := out["result"].(map[string]any)["tools"].([]any)
-	if len(tools) < 17 {
+	if len(tools) < 20 {
 		t.Fatalf("%d tools listed", len(tools))
 	}
 	seen := map[string]bool{}

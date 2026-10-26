@@ -39,15 +39,17 @@ learn-goldens:
 	@go run ./parity/learn/gen
 	@echo "regenerated parity/learn/goldens.json — run 'make test-js' to verify"
 
-# Regenerate the native-vs-wasm parity goldens (parity/native/goldens.json): the
-# cases in parity/native/cases.json run through pflow-native's registry natively
-# (Rust, pinned in parity/native/gen/Cargo.toml to the commit the vendored wasm was
-# built from). Deliberate, never a side effect. Needs cargo and network access to
-# github.com (git uses the CLI so your credentials apply). The receipt case embeds a
-# freshly signed receipt, so that case's golden changes on every run.
+# Regenerate the native parity goldens: parity/native/goldens.json (the cases in
+# parity/native/cases.json, for the wasm) and parity/native/mcp_goldens.json (the
+# /mcp workbench tool calls in parity/native/mcp_cases.json), both run through
+# pflow-native's registry natively (Rust, pinned in parity/native/gen/Cargo.toml to
+# the commit the vendored wasm was built from). Deliberate, never a side effect.
+# Needs cargo and network access to github.com (git uses the CLI so your
+# credentials apply). The receipt case embeds a freshly signed receipt, so that
+# case's golden changes on every run.
 native-goldens:
 	@CARGO_NET_GIT_FETCH_WITH_CLI=true cargo run --release --manifest-path parity/native/gen/Cargo.toml
-	@echo "regenerated parity/native/goldens.json — run 'make test-js' to verify"
+	@echo "regenerated parity/native/goldens.json and mcp_goldens.json — run 'make test-js' and 'go test ./cmd/webserver/' to verify"
 
 # Re-vendor the wasm shim from a pflow-native build (see scripts/sync-native-wasm.mjs):
 #   make sync-native-wasm FROM=../pflow-native/target/wasm-shim COMMIT=<sha>

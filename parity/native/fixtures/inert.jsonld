@@ -1,0 +1,114 @@
+{
+  "@context": "https://pflow.xyz/schema",
+  "@type": "PetriNet",
+  "@version": "1.1",
+  "name": "SIR with an inert arc",
+  "token": [
+    "https://pflow.xyz/tokens/black"
+  ],
+  "places": {
+    "S": {
+      "@type": "Place",
+      "initial": [
+        9
+      ],
+      "capacity": [
+        0
+      ],
+      "x": 60,
+      "y": 100
+    },
+    "I": {
+      "@type": "Place",
+      "initial": [
+        1
+      ],
+      "capacity": [
+        0
+      ],
+      "x": 200,
+      "y": 100
+    },
+    "R": {
+      "@type": "Place",
+      "initial": [
+        0
+      ],
+      "capacity": [
+        0
+      ],
+      "x": 340,
+      "y": 100
+    }
+  },
+  "transitions": {
+    "infect": {
+      "@type": "Transition",
+      "x": 130,
+      "y": 100,
+      "rate": 0.05
+    },
+    "recover": {
+      "@type": "Transition",
+      "x": 270,
+      "y": 100,
+      "rate": 0.2
+    }
+  },
+  "arcs": [
+    {
+      "@type": "Arrow",
+      "source": "S",
+      "target": "infect",
+      "weight": [
+        1
+      ],
+      "inhibitTransition": false
+    },
+    {
+      "@type": "Arrow",
+      "source": "I",
+      "target": "infect",
+      "weight": [
+        1
+      ],
+      "inhibitTransition": false
+    },
+    {
+      "@type": "Arrow",
+      "source": "infect",
+      "target": "I",
+      "weight": [
+        2
+      ],
+      "inhibitTransition": false
+    },
+    {
+      "@type": "Arrow",
+      "source": "I",
+      "target": "recover",
+      "weight": [
+        1
+      ],
+      "inhibitTransition": false
+    },
+    {
+      "@type": "Arrow",
+      "source": "recover",
+      "target": "R",
+      "weight": [
+        1
+      ],
+      "inhibitTransition": false
+    },
+    {
+      "@type": "Arrow",
+      "source": "R",
+      "target": "infect",
+      "weight": [
+        0
+      ],
+      "inhibitTransition": false
+    }
+  ]
+}

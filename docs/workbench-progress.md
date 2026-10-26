@@ -620,6 +620,28 @@ needing and checking a token, no overclaiming on an incomplete search),
 5. **The protocol version echoes what the client asks for.** The tools do
    not depend on it.
 
+### Follow-up: SDE, what-if and optimize on `/mcp`
+
+PR #107 left `sim_sde`, `sim_what_if` and `opt_optimize` off `/mcp` until
+they had parity tests. They are on it now, as `pflow_sde`, `pflow_what_if` and
+`pflow_optimize`, and `/mcp` lists 20 tools.
+
+- **The engines are go-pflow's.** `pflow_sde` runs `SimulateSDE` on the
+  portable path. `pflow_what_if` runs the scenario SSA, `stochastic.Simulate`
+  on the portable path, for both arms on one seed. `pflow_optimize` runs Tsit5,
+  configured as native's `OdeOptions::grid`. Defaults, caps, messages, seeding
+  and aggregation are ported from pflow-native
+  (`cmd/webserver/mcp_workbench_engine.go`).
+- **Parity:** `parity/native/mcp_goldens.json` is generated from native
+  (`make native-goldens`), and `cmd/webserver/mcp_workbench_parity_test.go`
+  replays it. The SDE and the what-if match to the bit. The optimizer matches to
+  a relative 1e-9 because go-pflow's Tsit5 sums in map order. The suite's README
+  section lists the known gaps: place order, stiff nets for the optimizer, and
+  the server's tighter caps.
+- **REVIEW:** `cmd/webserver/BUILD.bazel` is not updated. It was already stale
+  on main (it does not list `mcp_simulate_gated.go`), and CI does not run
+  Bazel. `make bazel-gazelle` regenerates it.
+
 ---
 
 ## How to review all of this
