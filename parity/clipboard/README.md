@@ -16,4 +16,4 @@ checks that `clipToText` writes the fixture's own clip back byte for byte.
 | file | sha256 |
 |---|---|
 | clip-v1.json | ba8ff2db4b2dca16baa83bbe9c35145ea99e0887d4512a68e8b1a0ef5d146276 |
-| ../../docs/clipboard-format.md | a15f499b74dbb8b9d583829f2c18a14466d320e7a304d65c0b41de55595735a6 |
+| ../../docs/clipboard-format.md | b4382a729163de25f5d7359284d86d3d62af8d59e70992a4e10695e80735f148 |
