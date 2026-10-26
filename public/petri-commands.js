@@ -1137,14 +1137,20 @@ export const COMMANDS = [
 export function nativeCommands(specs = NATIVE_COMMANDS) {
     return specs.map((s) => ({
         id: s.id, label: s.label, help: s.help, journal: s.journal, native: true,
+        // Writes the session state the page keeps in browser storage (the
+        // model library, systems, notes, macros, the store): petri-wasm.js.
+        ...(s.writesState ? { writesState: true } : {}),
         args: { ...s.args, type: 'object', properties: s.args.properties || {}, required: s.args.required || [] },
         run: async (c, a) => {
             const { runNative } = await import('./petri-wasm.js');
             // JSON round trip: unbounded capacities (Infinity) become null, as saved.
             const before = JSON.parse(JSON.stringify(c.model()));
             // compose.*, file.open_example, net.layout… always edit; fit,
-            // distill and calibrate edit (the rates) when called with apply.
-            const editing = !!s.edits || !!(s.editsOnApply && a.apply);
+            // distill and calibrate edit (the rates) when called with apply;
+            // system.set_port edits the open net only when its `model` names
+            // it (absent or "current"), the library otherwise.
+            const onCurrent = s.editsOnCurrent && (a[s.editsOnCurrent] === undefined || a[s.editsOnCurrent] === 'current');
+            const editing = !!s.edits || !!(s.editsOnApply && a.apply) || !!onCurrent;
             const out = await runNative(before, s.id, a, c.store, {
                 edits: editing, full: true, artifactArgs: s.artifactArgs,
                 lookup: (id) => c.registry.artifact(id),
@@ -1236,13 +1242,14 @@ export class Registry {
         this.journal = [];
     }
 
-    /** The command specs as plain data: id, label, help, args (JSON Schema), journal, available. */
+    /** The command specs as plain data: id, label, help, args (JSON Schema), journal, available, native, writesState. */
     list() {
         const caps = this.host.capabilities || new Set();
         return [...this._specs.values()].map((s) => ({
             id: s.id, label: s.label, help: s.help, args: s.args, journal: s.journal,
             available: (s.requires || []).every((r) => caps.has(r)),
             native: !!s.native,
+            ...(s.writesState ? { writesState: true } : {}),
         }));
     }
 

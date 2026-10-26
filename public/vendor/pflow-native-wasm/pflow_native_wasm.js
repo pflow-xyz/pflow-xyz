@@ -1,7 +1,8 @@
 /* @ts-self-types="./pflow_native_wasm.d.ts" */
 
 /**
- * One editing session: a document, its marking, results and undo history.
+ * One editing session: a document, its marking, results and undo history,
+ * with the library, systems, macros, notes and store around it.
  */
 export class Engine {
     __destroy_into_raw() {
@@ -37,6 +38,31 @@ export class Engine {
             return getStringFromWasm0(ptr2, len2);
         } finally {
             wasm.__wbindgen_free(deferred3_0, deferred3_1, 1);
+        }
+    }
+    /**
+     * Everything that outlives one document, as JSON
+     * (`session.dump_state`): the library, systems, macros, a recording in
+     * progress, notes, results and the store. The page saves it in browser
+     * storage after each command that changes any of these.
+     * @returns {string}
+     */
+    dumpState() {
+        let deferred2_0;
+        let deferred2_1;
+        try {
+            const ret = wasm.engine_dumpState(this.__wbg_ptr);
+            var ptr1 = ret[0];
+            var len1 = ret[1];
+            if (ret[3]) {
+                ptr1 = 0; len1 = 0;
+                throw takeFromExternrefTable0(ret[2]);
+            }
+            deferred2_0 = ptr1;
+            deferred2_1 = len1;
+            return getStringFromWasm0(ptr1, len1);
+        } finally {
+            wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
         }
     }
     /**
@@ -96,7 +122,8 @@ export class Engine {
     }
     /**
      * Replaces the document with a pflow.xyz JSON-LD document
-     * (`file.load_json`).
+     * (`file.load_json`, not journaled). The library, store, macros, notes
+     * and systems stay.
      * @param {string} jsonld
      * @returns {string}
      */
@@ -121,13 +148,45 @@ export class Engine {
         }
     }
     /**
-     * An empty document.
+     * An empty document, library and store.
      */
     constructor() {
         const ret = wasm.engine_new();
         this.__wbg_ptr = ret;
         EngineFinalization.register(this, this.__wbg_ptr, this);
         return this;
+    }
+    /**
+     * Restores what [`Engine::dump_state`] saved (`session.restore_state`)
+     * and returns how much of each part came back. The page calls it once
+     * at startup, before anything else. All or nothing: a refused state (a
+     * newer version, a damaged part) changes nothing, and the page should
+     * set that saved copy aside rather than save this empty engine's
+     * `dumpState()` over it. A result this build cannot read back (a
+     * non-finite number, saved as null) is dropped instead of refusing the
+     * rest; the summary names it (`artifacts_dropped`, `warnings`).
+     * @param {string} state_json
+     * @returns {string}
+     */
+    restoreState(state_json) {
+        let deferred3_0;
+        let deferred3_1;
+        try {
+            const ptr0 = passStringToWasm0(state_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+            const len0 = WASM_VECTOR_LEN;
+            const ret = wasm.engine_restoreState(this.__wbg_ptr, ptr0, len0);
+            var ptr2 = ret[0];
+            var len2 = ret[1];
+            if (ret[3]) {
+                ptr2 = 0; len2 = 0;
+                throw takeFromExternrefTable0(ret[2]);
+            }
+            deferred3_0 = ptr2;
+            deferred3_1 = len2;
+            return getStringFromWasm0(ptr2, len2);
+        } finally {
+            wasm.__wbindgen_free(deferred3_0, deferred3_1, 1);
+        }
     }
     /**
      * The crate's version, for the vendored bundle's lock.
