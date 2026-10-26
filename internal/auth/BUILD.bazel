@@ -3,6 +3,7 @@ load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
 go_library(
     name = "auth",
     srcs = [
+        "app_verifier.go",
         "auth.go",
         "verifier.go",
     ],
@@ -13,6 +14,7 @@ go_library(
 go_test(
     name = "auth_test",
     srcs = [
+        "app_verifier_test.go",
         "auth_test.go",
         "verifier_test.go",
     ],

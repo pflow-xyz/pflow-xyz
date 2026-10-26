@@ -35,6 +35,12 @@ export const EXCLUDED = new Set(['file.load_json', 'export.artifact', 'export.sv
 export const toolName = (id) => id.replace('.', '_');
 export const commandId = (name) => name.replace('_', '.');
 
+// Nor the account files (file.save … file.delete): a write to the person's
+// account is theirs to make, not the model's, and a read would send their
+// saved files to the model's provider. (The chat's sandbox host carries no
+// sign-in either, so they would only refuse.)
+for (const id of ['file.save', 'file.open', 'file.list', 'file.get', 'file.write', 'file.delete']) EXCLUDED.add(id);
+
 function cleanSchema(s, path, jsonArgs) {
     const out = {};
     if (s.description) out.description = s.description;
