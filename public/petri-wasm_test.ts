@@ -1,6 +1,6 @@
-import { assert, assertEquals, assertRejects } from "https://deno.land/std@0.224.0/assert/mod.ts";
+import { assert, assertEquals, assertRejects, assertThrows } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { loadEngine } from "./petri-wasm.js";
-import { CommandError, Registry, createHeadlessHost } from "./petri-commands.js";
+import { COMMANDS, CommandError, Registry, createHeadlessHost, nativeCommands } from "./petri-commands.js";
 import { NATIVE_COMMANDS, NATIVE_VERSION } from "./vendor/pflow-native-wasm/commands.js";
 
 // The vendored shim is stored gzip-only; decompress it the way a browser's
@@ -22,14 +22,34 @@ Deno.test("vendor: the bundle matches pflow-native-wasm.lock", async () => {
     assertEquals(NATIVE_COMMANDS.map((c: any) => c.id), lock.exposed);
 });
 
+// Arguments the snapshot drops on purpose (they read or write the host's files):
+// scripts/sync-native-wasm.mjs STRIP_ARGS.
+const STRIPPED: Record<string, string[]> = { "export.svg": ["path"], "data.load_log": ["path"] };
+
 Deno.test("vendor: the snapshot specs match the engine's own", async () => {
     const { engine } = await loadEngine();
     const live = JSON.parse(engine.listCommands(""));
     for (const s of NATIVE_COMMANDS as any[]) {
         const l = live.find((c: any) => c.id === s.id);
-        assertEquals(s.args, l.args, s.id);
+        const dropped = STRIPPED[s.id] || [];
+        const keep = (o: any) => Object.fromEntries(Object.entries(o.properties || {}).filter(([k]) => !dropped.includes(k)));
+        assertEquals(s.args.properties, keep(l.args), s.id);
+        assertEquals(s.args.required, (l.args.required || []).filter((k: string) => !dropped.includes(k)), s.id);
         assertEquals(s.help, l.help, s.id);
     }
+});
+
+Deno.test("vendor: no exposed native id is a JS command's id, and the registry refuses a duplicate", () => {
+    const js = new Set(COMMANDS.map((c: any) => c.id));
+    assertEquals(NATIVE_COMMANDS.map((c: any) => c.id).filter((id: string) => js.has(id)), []);
+    const dup = nativeCommands([{ ...(NATIVE_COMMANDS as any[])[0], id: "net.info" }]);
+    assertThrows(() => new Registry(createHeadlessHost(), [...COMMANDS, ...dup]), Error, "registered twice: net.info");
+});
+
+Deno.test("vendor: the path arguments are not accepted (no file access from the page)", async () => {
+    const r: any = new Registry(createHeadlessHost(sir()));
+    await assertRejects(() => r.execute("export.svg", { path: "/tmp/x.svg" }), CommandError, 'unknown argument "path"');
+    await assertRejects(() => r.execute("data.load_log", { path: "/tmp/x.csv" }), CommandError, 'unknown argument "path"');
 });
 
 const sir = () => ({
@@ -176,4 +196,157 @@ Deno.test("phase 3: compare (what if one more), crosscheck and equilibrium run",
     await r.execute("sim.crosscheck", { t_end: 5, runs: 4, seed: 1 });
     const eq = await r.execute("sim.equilibrium", { t_max: 500 });
     assert(eq !== null);
+});
+
+// ---- the browser-safe rest of the registry ----
+
+// Registry with JS artifact ids from a1000 up, so any engine id (a1, a2, …)
+// that leaks into a result is recognisable.
+const reg2 = (net: any = sir()): any => new Registry(createHeadlessHost(net), undefined, { store: { items: [], next: 1000 } });
+function leaks(o: unknown, path = ""): string[] {
+    if (typeof o === "string") return /^a\d{1,3}$/.test(o) ? [`${path}=${o}`] : [];
+    if (o && typeof o === "object") return Object.entries(o).flatMap(([k, v]) => leaks(v, `${path}.${k}`));
+    return [];
+}
+const mut = (): any => { const n = sir(); for (const t of Object.values(n.transitions) as any[]) t.rate = 0.1; return n; };
+
+Deno.test("native: sim.run loads the marking it ended on, like sim.fire", async () => {
+    const r = reg2(mut());
+    const out = await r.execute("sim.run", { steps: 5, seed: 3 });
+    assertEquals(out.fired, ["recover"]);
+    assertEquals((await r.execute("sim.marking")).marking, { S: [9], I: [0], R: [1] });
+    await r.execute("sim.reset");
+    assertEquals((await r.execute("sim.marking")).marking, { S: [9], I: [1], R: [0] });
+});
+
+Deno.test("native: export.svg returns {svg}", async () => {
+    const out = await reg2().execute("export.svg");
+    assert(out.svg.startsWith("<svg"));
+});
+
+Deno.test("native: data.* chain through registry artifacts, and no engine id leaks", async () => {
+    const r = reg2(mut());
+    const gen = await r.execute("data.generate", { cases: 6, seed: 2, max_steps: 20 });
+    assertEquals(gen.artifact, "a1000");
+    assertEquals(gen.export.args.id, "a1000"); // the engine's own pointer is rewritten too
+    const info = await r.execute("data.log_info", { log: gen.artifact });
+    assertEquals(info.cases, 6);
+    const conf = await r.execute("data.conformance", { log: gen.artifact });
+    assert(conf.fitness > 0);
+    const rep = await r.execute("data.replay", { log: gen.artifact });
+    assert(rep.events === 24 || rep.events > 0);
+    const cal = await r.execute("data.calibrate", { log: gen.artifact });
+    assertEquals(Object.keys(cal.learned_rates).sort(), ["infect", "recover"]);
+    for (const out of [gen, info, conf, rep, cal]) assertEquals(leaks(out), []);
+    // a log typed in
+    const csv = "case_id,activity,timestamp\nc1,infect,2026-01-01T00:00:00Z\nc1,recover,2026-01-01T01:00:00Z\n";
+    const lg = await r.execute("data.load_log", { text: csv });
+    assertEquals((await r.execute("data.log_info", { log: lg.artifact })).events, 2);
+    // an artifact that is not there is a CommandError naming the ones that are
+    await assertRejects(() => r.execute("data.log_info", { log: "a7" }), CommandError, "no artifact");
+});
+
+Deno.test("native: data.calibrate with apply sets the learned rates as one undo step; data.discover replaces the net", async () => {
+    const r = reg2(mut());
+    const gen = await r.execute("data.generate", { cases: 8, seed: 3, max_steps: 30 });
+    const before = r.host.getModel().transitions.infect.rate;
+    await r.execute("data.calibrate", { log: gen.artifact });
+    assertEquals(r.host.getModel().transitions.infect.rate, before); // not applied
+    await r.execute("data.calibrate", { log: gen.artifact, apply: true });
+    assert(r.host.getModel().transitions.infect.rate !== before);
+    r.host.undo();
+    assertEquals(r.host.getModel().transitions.infect.rate, before);
+    const found = await r.execute("data.discover", { log: gen.artifact });
+    assertEquals(leaks(found), []);
+    assert(Object.keys(r.host.getModel().places).length === found.places);
+    assert(!("S" in r.host.getModel().places));
+    r.host.undo();
+    assert("S" in r.host.getModel().places);
+});
+
+Deno.test("native: opt.fit reads a registry timeseries and recovers a rate; apply commits it", async () => {
+    const net: any = sir();
+    net.transitions.infect.rate = 0.08; net.transitions.recover.rate = 0.2;
+    const r = reg2(net);
+    const ode = await r.execute("sim.ode", { t_end: 20, points: 21 });
+    r.host.commit({ ...r.host.getModel(), transitions: { ...r.host.getModel().transitions, infect: { ...r.host.getModel().transitions.infect, rate: 0.03 } } });
+    const fit = await r.execute("opt.fit", { data: ode.artifact, parameters: ["infect"], max_iters: 200 });
+    assertEquals(leaks(fit), []);
+    assert(Math.abs(fit.fitted_rates.infect - 0.08) < 5e-3, JSON.stringify(fit.fitted_rates));
+    assertEquals(r.host.getModel().transitions.infect.rate, 0.03); // not applied
+    await r.execute("opt.fit", { data: ode.artifact, parameters: ["infect"], max_iters: 200, apply: true });
+    assert(Math.abs(r.host.getModel().transitions.infect.rate - 0.08) < 5e-3);
+});
+
+Deno.test("native: provenance.check_witness checks a trace artifact from analysis.reach, and a bad trace", async () => {
+    const r = reg2();
+    const reach = await r.execute("analysis.reach", { to: { R: 10 } });
+    const ok = await r.execute("provenance.check_witness", { artifact: reach.trace });
+    assertEquals(ok.verdict, "valid");
+    assertEquals(leaks(ok), []);
+    const bad = await r.execute("provenance.check_witness", { trace: ["recover", "recover"] });
+    assertEquals(bad.verdict, "invalid");
+});
+
+Deno.test("native: file.open_example replaces the document, file.seal sets @id, net.layout and net.set_colors edit", async () => {
+    const r = reg2();
+    assert((await r.execute("file.examples")).includes("tic-tac-toe"));
+    const made = await r.execute("file.open_example", { name: "tic-tac-toe" });
+    assertEquals(made.places, 31);
+    const m = r.host.getModel();
+    assertEquals(Object.keys(m.places).length, 31);
+    assert(!("S" in m.places)); // replaced, not merged
+    const sealed = await r.execute("file.seal");
+    assertEquals(r.host.getModel()["@id"], sealed.cid);
+    const before = JSON.stringify(Object.values(r.host.getModel().places).map((p: any) => [p.x, p.y]));
+    await r.execute("net.layout", { algorithm: "circular" });
+    assert(JSON.stringify(Object.values(r.host.getModel().places).map((p: any) => [p.x, p.y])) !== before);
+    r.host.undo(); // one undo step
+    assertEquals(JSON.stringify(Object.values(r.host.getModel().places).map((p: any) => [p.x, p.y])), before);
+    await r.execute("net.set_colors", { token: ["red", "blue"] });
+    assertEquals(r.host.getModel().token, ["https://pflow.xyz/tokens/red", "https://pflow.xyz/tokens/blue"]);
+    await r.execute("net.set_colors", { token: [] });
+    assertEquals(r.host.getModel().token, ["https://pflow.xyz/tokens/black"]);
+    await assertRejects(() => r.execute("file.open_example", { name: "nope" }), CommandError, "no example");
+});
+
+Deno.test("native: an edit keeps the editor's name, description and goals (net.layout), a replace does not", async () => {
+    const net: any = sir();
+    net.name = "My SIR"; net.description = "kept";
+    const r = reg2(net);
+    await r.execute("net.layout", { algorithm: "grid" });
+    assertEquals(r.host.getModel().name, "My SIR");
+    assertEquals(r.host.getModel().description, "kept");
+    await r.execute("file.open_example", { name: "sir" });
+    assert(r.host.getModel().name !== "My SIR");
+});
+
+Deno.test("native: sim.evaluate and opt.distill need a game and say so; on tic-tac-toe they rank moves", async () => {
+    const r = reg2();
+    await assertRejects(() => r.execute("sim.evaluate"), CommandError, "objective");
+    await assertRejects(() => r.execute("opt.distill"), CommandError, "turn-based game");
+    await r.execute("file.open_example", { name: "tic-tac-toe" });
+    const ev = await r.execute("sim.evaluate", { player: "x", depth: 6, rollouts: 5 });
+    assertEquals(ev.moves.length, 9);
+    assertEquals(leaks(ev), []);
+    const di = await r.execute("opt.distill", { games: 3, positions: 4, iters: 3, realizations: 3 });
+    assert(di.multipliers.moves > 0);
+});
+
+Deno.test("native: provenance.verify_receipt verifies a receipt, and refuses a non-receipt", async () => {
+    const { engine } = await loadEngine();
+    const r = reg2();
+    engine.load(JSON.stringify(JSON.parse(JSON.stringify(r.host.getModel()))));
+    const made = JSON.parse(engine.execute("sim.receipt", JSON.stringify({ scenario: { hours: 4, realizations: 4, seed: 3 } })));
+    const out = await r.execute("provenance.verify_receipt", { receipt: made });
+    assertEquals(out.verdict, "valid");
+    assertEquals(out.signatureValid, true);
+    await assertRejects(() => r.execute("provenance.verify_receipt", { receipt: {} }), CommandError, "not a receipt");
+});
+
+Deno.test("native: the chat's tool manifest has the new commands, and not export.svg", async () => {
+    const manifest = JSON.parse(await Deno.readTextFile(new URL("./llm-tools.json", import.meta.url)));
+    const names = new Set(manifest.tools.map((t: any) => t.command));
+    for (const id of ["sim.run", "opt.fit", "data.generate", "net.layout", "file.open_example"]) assert(names.has(id), id);
+    assert(!names.has("export.svg"));
 });

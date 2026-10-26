@@ -1459,6 +1459,514 @@
       "json_args": [
         "ops"
       ]
+    },
+    {
+      "name": "sim_run",
+      "command": "sim.run",
+      "description": "Run Random Steps. Fire up to `steps` randomly chosen enabled transitions (seeded, reproducible).",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "steps": {
+            "description": "how many firings (default 10)",
+            "type": "integer"
+          },
+          "seed": {
+            "description": "RNG seed (default 1)",
+            "type": "integer"
+          }
+        }
+      }
+    },
+    {
+      "name": "sim_evaluate",
+      "command": "sim.evaluate",
+      "description": "Evaluate Moves. sim_evaluate (play method): fire each enabled move of a player and score the position it leaves by seeded rollouts — SSA over `horizon` (sim's engine), or random token-game playouts of at most `depth` firings. Stores a ranked table.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "player": {
+            "description": "transition role, or transition-id prefix (e.g. \"x\"); default: every enabled transition",
+            "type": "string"
+          },
+          "objective": {
+            "type": "string",
+            "description": "linear objective to maximize, e.g. \"win_x - win_o\" or {\"win_x\": 1, \"win_o\": -1}; default win_<player> minus the other win_* places (pass a JSON value as a string)"
+          },
+          "rollouts": {
+            "description": "rollouts per candidate (default 40, ≤ 200)",
+            "type": "integer"
+          },
+          "seed": {
+            "description": "seed shared by every candidate (default 11)",
+            "type": "integer"
+          },
+          "horizon": {
+            "description": "SSA rollout horizon in model time (default 3, ≤ 10000)",
+            "type": "number"
+          },
+          "depth": {
+            "description": "use token-game playouts of at most this many firings instead of SSA (≤ 10000)",
+            "type": "integer"
+          }
+        }
+      },
+      "json_args": [
+        "objective"
+      ]
+    },
+    {
+      "name": "opt_fit",
+      "command": "opt.fit",
+      "description": "Fit Rates to Data…. Fit transition rates so the mass-action ODE (from the current marking, over the data's time span) matches the observed series of a timeseries artifact (pflow-learn; pflow.xyz fitRates). Series are matched to places by display name (S, CoffeeBeans.brown), base place id or place label, or through `places`. Stores a report and an overlay (group \"data\" vs \"fit\"). `apply` sets the session rates (one undo step).",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "description": "timeseries artifact id holding the observations",
+            "type": "string"
+          },
+          "parameters": {
+            "description": "transitions whose rates are fitted (default: every transition with a positive rate)",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "method": {
+            "description": "nelder-mead (default, as pflow.xyz), coordinate-descent, adam, gradient-descent",
+            "type": "string"
+          },
+          "loss": {
+            "description": "mse (default), rmse, relative",
+            "type": "string"
+          },
+          "space": {
+            "description": "log (default: fit ln(rate), steps are relative, rates stay positive) or linear (pflow.xyz)",
+            "type": "string"
+          },
+          "max_iters": {
+            "description": "optimizer iterations, 1..5000 (default 1000, as pflow.xyz)",
+            "type": "integer"
+          },
+          "tolerance": {
+            "description": "convergence tolerance (default 1e-4, as pflow.xyz)",
+            "type": "number"
+          },
+          "places": {
+            "type": "string",
+            "description": "{series name: place} when series names are not place names (pass a JSON value as a string)"
+          },
+          "group": {
+            "description": "fit only series of this overlay group (default: ungrouped or \"data\")",
+            "type": "string"
+          },
+          "apply": {
+            "description": "set the fitted rates as session rates (default false; one undo step)",
+            "type": "boolean"
+          },
+          "solver": {
+            "description": "ODE method: tsit5 (default), rk45, rk4, euler, heun, midpoint, bs32",
+            "type": "string"
+          },
+          "dt": {
+            "description": "initial step (default 0.01)",
+            "type": "number"
+          },
+          "abstol": {
+            "description": "absolute tolerance (default 1e-6)",
+            "type": "number"
+          },
+          "reltol": {
+            "description": "relative tolerance (default 1e-3)",
+            "type": "number"
+          },
+          "dtmax": {
+            "description": "largest step (default min(0.1, span/50))",
+            "type": "number"
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "json_args": [
+        "places"
+      ]
+    },
+    {
+      "name": "opt_distill",
+      "command": "opt.distill",
+      "description": "Distill Search into Play…. sim_distill: fit rate multipliers for transition groups so sim.evaluate's play scorer (seeded SSA rollouts) ranks moves as exact minimax does, on positions from seeded random self-play. The game is read from places named <player>_turn (moves consume the turn token and pass the turn), or from `players`. Reports agreement before/after; stores a report and a per-position table. `apply` sets the multiplied rates (one undo step).",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "player": {
+            "description": "the player who maximizes the objective (default: the one to move now)",
+            "type": "string"
+          },
+          "players": {
+            "type": "string",
+            "description": "{name: {turn, transitions?, maximizes?}} instead of the <name>_turn inference (pass a JSON value as a string)"
+          },
+          "objective": {
+            "type": "string",
+            "description": "linear objective, e.g. \"win_x - win_o\" (default win_<player> minus the other win_* places) (pass a JSON value as a string)"
+          },
+          "groups": {
+            "type": "string",
+            "description": "{group: [transition ids]} sharing one multiplier (≤ 16; default: moves and house) (pass a JSON value as a string)"
+          },
+          "games": {
+            "description": "self-play games to sample from, 1..100 (default 20)",
+            "type": "integer"
+          },
+          "positions": {
+            "description": "labeled positions, 1..100 (default 40)",
+            "type": "integer"
+          },
+          "iters": {
+            "description": "Nelder-Mead iterations, 1..100 (default 40)",
+            "type": "integer"
+          },
+          "horizon": {
+            "description": "SSA rollout horizon (default 3)",
+            "type": "number"
+          },
+          "realizations": {
+            "description": "rollouts per candidate move, 1..200 (default 40)",
+            "type": "integer"
+          },
+          "seed": {
+            "description": "self-play and rollout seed (default 11)",
+            "type": "integer"
+          },
+          "engine": {
+            "description": "ssa (the only engine here)",
+            "type": "string"
+          },
+          "apply": {
+            "description": "multiply the groups' session rates by the fit (default false; one undo step)",
+            "type": "boolean"
+          }
+        }
+      },
+      "json_args": [
+        "players",
+        "objective",
+        "groups"
+      ]
+    },
+    {
+      "name": "file_examples",
+      "command": "file.examples",
+      "description": "List Examples. Names of the bundled example nets."
+    },
+    {
+      "name": "file_open_example",
+      "command": "file.open_example",
+      "description": "Open Example. Load a bundled example net.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "description": "example name (see file.examples)",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ]
+      }
+    },
+    {
+      "name": "file_seal",
+      "command": "file.seal",
+      "description": "Seal (Set @id to CID). Compute the CID and store it as the document's top-level @id, as pflow.xyz does. Idempotent; undoable."
+    },
+    {
+      "name": "net_layout",
+      "command": "net.layout",
+      "description": "Auto Layout. Rearrange every place and transition with one of pflow.xyz's layout algorithms, as one undo step, then fit the view.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "algorithm": {
+            "description": "sugiyama (layered, top to bottom), grid, bipartite (places left, transitions right), circular or string (pflow.xyz's string-diagram layout)",
+            "type": "string"
+          }
+        },
+        "required": [
+          "algorithm"
+        ]
+      }
+    },
+    {
+      "name": "net_set_colors",
+      "command": "net.set_colors",
+      "description": "Set Token Colors. Replace the token color list (`token[]`): names like \"red\", pflow.xyz token URLs or #rrggbb. Per-color vectors are kept by position, padded with 0 (weights with 1 for the first color) or truncated.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "description": "color names in order; [] = single uncolored token",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "token"
+        ]
+      }
+    },
+    {
+      "name": "provenance_verify_receipt",
+      "command": "provenance.verify_receipt",
+      "description": "Verify Receipt. Check a run receipt two ways, as sim's /api/receipts/verify: the Ed25519 signature against the key it embeds (trustedKey says whether that is this machine's key), and a replay of its certified scenario on the model it names (the open net, or a library model with that CID), which must reproduce resultHash.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "receipt": {
+            "type": "string",
+            "description": "the receipt object (or the {result, receipt} sim.receipt returned, or a string holding either) (pass a JSON value as a string)"
+          },
+          "replay": {
+            "description": "re-run the scenario and compare result hashes (default true)",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "receipt"
+        ]
+      },
+      "json_args": [
+        "receipt"
+      ]
+    },
+    {
+      "name": "provenance_check_witness",
+      "command": "provenance.check_witness",
+      "description": "Check Witness. Re-check a witness without searching (the local half of sim_check_witness): a trace artifact (analysis.reach / analysis.verify) or `trace` is replayed through the metamodel firing rule and every claimed marking compared; a reach answer (`reach`, or a reach report artifact) is checked as sim's reachcheck does (a yes trace replays from from and ends on to; a no certificate is a P-invariant, y·C = 0, that separates from and to); a `morphism` {definition or predicate, subject, object, map: {places, transitions}} is checked as an isomorphism (coloured-net-v1) or an induced embedding (induced-incidence-v1). Stores a report {verdict: valid | invalid | uncheckable, reason, failures}.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "artifact": {
+            "description": "a trace artifact, or a report artifact holding a reach answer",
+            "type": "string"
+          },
+          "trace": {
+            "type": "string",
+            "description": "a trace: [{transition, marking}] (step 0 the start, transition \"\"), {steps: [...]}, or a list of transition ids from the initial marking (pass a JSON value as a string)"
+          },
+          "reach": {
+            "type": "string",
+            "description": "a reach answer, exactly as analysis.reach returned it (pass a JSON value as a string)"
+          },
+          "morphism": {
+            "type": "string",
+            "description": "{definition: coloured-net-v1 | induced-incidence-v1 (or predicate: isomorphicTo | subnetOf), subject, object (library model names, \"current\", or documents), map: {places, transitions}} (pass a JSON value as a string)"
+          }
+        }
+      },
+      "json_args": [
+        "trace",
+        "reach",
+        "morphism"
+      ]
+    },
+    {
+      "name": "data_load_log",
+      "command": "data.load_log",
+      "description": "Import Event Log…. Load a CSV or JSONL event log (from `path`, or inline `text`) as an event-log table artifact. Column/field names default to case_id, activity, timestamp, resource, lifecycle.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "description": "the log itself, instead of a path",
+            "type": "string"
+          },
+          "format": {
+            "description": "csv or jsonl (default: from the extension, else csv)",
+            "type": "string"
+          },
+          "case": {
+            "description": "case id column (default case_id)",
+            "type": "string"
+          },
+          "activity": {
+            "description": "activity column (default activity)",
+            "type": "string"
+          },
+          "time": {
+            "description": "timestamp column (default timestamp)",
+            "type": "string"
+          },
+          "resource": {
+            "description": "resource column (default resource)",
+            "type": "string"
+          },
+          "delimiter": {
+            "description": "CSV delimiter (default ,)",
+            "type": "string"
+          },
+          "title": {
+            "description": "artifact title",
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "name": "data_log_info",
+      "command": "data.log_info",
+      "description": "Event Log Summary. Cases, events, activities, variants and timing of an event-log artifact.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "log": {
+            "description": "event-log artifact id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "log"
+        ]
+      }
+    },
+    {
+      "name": "data_calibrate",
+      "command": "data.calibrate",
+      "description": "Calibrate Rates from Log…. sim_calibrate: learn per-transition rates from an event-log artifact. Every event is a firing; sources (no input place) get the case inter-arrival rate, others the rate of the gaps before their events (racing transitions split by completion share); session rate ≥ 100 = instant pickup, kept. Activities map to transitions by id, else by id or label ignoring case. Stores a rate-evidence table and a report (rates, unmapped activities, token-replay conformance). `apply` sets the session rates (one undo step; the result also lists the previous rates and the sim.set_rate steps that restore them).",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "log": {
+            "description": "event-log artifact id (data.load_log, or a table with case/activity/time columns)",
+            "type": "string"
+          },
+          "unit": {
+            "description": "model time unit the rates are per: hour (default, as sim), min, s, ms, day",
+            "type": "string"
+          },
+          "apply": {
+            "description": "set the learned rates as session rates (default false; one undo step)",
+            "type": "boolean"
+          },
+          "conformance": {
+            "description": "replay the log for fitness/precision (default true)",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "log"
+        ]
+      }
+    },
+    {
+      "name": "data_conformance",
+      "command": "data.conformance",
+      "description": "Check Conformance…. Token-replay conformance of an event-log artifact against the current net (sim_conformance): fitness, precision (ETC), generalization, simplicity, a residual block, and per-variant diagnostics. Each case replays from the initial marking; activities match transitions by id, then label, then either ignoring case. Stores a report, a per-variant table and a sets artifact of the places and transitions where tokens were missing or left over (show one on the net with artifact.show_set).",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "log": {
+            "description": "event-log artifact id (data.load_log / data.generate)",
+            "type": "string"
+          },
+          "max_traces": {
+            "description": "replay only the first N cases, in case-id order (≤ 100000)",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "log"
+        ]
+      }
+    },
+    {
+      "name": "data_replay",
+      "command": "data.replay",
+      "description": "Replay Event Stream…. Online conformance (sim_conformance_stream): replay an ordered event stream — a log artifact in row order, or inline `events` [{case, activity, timestamp?}] — case by case from the initial marking, force-firing divergent events so cases resynchronise. Reports the first divergence (blocking places, marking, the shortest repair of unobserved transitions) and stores a running-fitness time series (x = event index) and the replay of one case as a trace (step 0 = initial marking; sim.goto replays it): `case`, else the first divergent case, else the first case.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "log": {
+            "description": "event-log artifact id; rows are taken in table order",
+            "type": "string"
+          },
+          "events": {
+            "type": "string",
+            "description": "[{\"case\": .., \"activity\": .., \"timestamp\": ..}] in stream order (or a string holding it) (pass a JSON value as a string)"
+          },
+          "case": {
+            "description": "replay only this case (and trace it)",
+            "type": "string"
+          },
+          "repair_depth": {
+            "description": "most unobserved transitions a repair may use (default 4, ≤ 64; ≤ 0 turns repair off)",
+            "type": "integer"
+          }
+        }
+      },
+      "json_args": [
+        "events"
+      ]
+    },
+    {
+      "name": "data_generate",
+      "command": "data.generate",
+      "description": "Generate Event Log…. A synthetic event log from the current net (sim_dataset): `cases` seeded SSA playouts from the initial marking, each until deadlock or `max_steps` firings; one event per firing (activity = transition id). Time starts at 2026-01-05T08:00:00Z (sim's epoch), one model time unit = one hour, each case starting where the previous ended. Deterministic for a seed. Stores an event-log table (export.artifact as CSV; feeds data.conformance and data.discover).",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "cases": {
+            "description": "playouts (default 200, ≤ 2000)",
+            "type": "integer"
+          },
+          "seed": {
+            "description": "RNG seed (default 1); case k uses seed + k - 1",
+            "type": "integer"
+          },
+          "max_steps": {
+            "description": "firings per case (default 200, ≤ 10000; cases × max_steps ≤ 1000000)",
+            "type": "integer"
+          },
+          "rates": {
+            "type": "string",
+            "description": "{transition: rate} over the session rates (0 disables) (pass a JSON value as a string)"
+          }
+        }
+      },
+      "json_args": [
+        "rates"
+      ]
+    },
+    {
+      "name": "data_discover",
+      "command": "data.discover",
+      "description": "Discover Net from Log…. Process discovery with pflow-mining: REPLACES the current net with the mined one (one undo step restores it), laid out with Sugiyama. method: alpha (≤ 12 activities), heuristic (threshold = dependency threshold, default 0.5), sequential or common-path. Returns the net's size and the log's conformance against it; the log artifact is kept (under a new id, returned as `log`).",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "log": {
+            "description": "event-log artifact id",
+            "type": "string"
+          },
+          "method": {
+            "description": "alpha | heuristic | sequential | common-path (default alpha)",
+            "type": "string"
+          },
+          "threshold": {
+            "description": "heuristic dependency threshold in [0, 1]",
+            "type": "number"
+          }
+        },
+        "required": [
+          "log"
+        ]
+      }
     }
   ]
 }

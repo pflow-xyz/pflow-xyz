@@ -1,4 +1,4 @@
-.PHONY: all llm-eval build run clean test test-js test-parity ode-expected learn-goldens test-publish test-npm-pack test-theme test-version publish
+.PHONY: all llm-eval build run clean test test-js test-parity ode-expected learn-goldens native-goldens sync-native-wasm test-publish test-npm-pack test-theme test-version publish
 
 # Build the webserver
 build:
@@ -30,7 +30,7 @@ test: test-js test-parity test-parity-behavior test-publish test-npm-pack test-t
 
 # Run JavaScript tests
 test-js:
-	@deno test --allow-read=parity/ode,parity/editor-shape,parity/fixtures,parity/ssa,parity/roles,examples,testdata,public,pflow-native-wasm.lock public/petri-sim_test.ts public/petri-colors_test.ts public/petri-shape_test.ts public/petri-solver_test.ts public/petri-learn_test.ts public/petri-ssa_test.ts public/petri-sde_test.ts public/petri-validate_test.ts public/petri-commands_test.ts public/petri-draft_test.ts public/petri-wasm_test.ts public/petri-chat_test.ts public/petri-goals_test.ts public/petri-refine_test.ts public/petri-roles_test.ts parity/ode/ode_expected_test.ts
+	@deno test --allow-read=parity/ode,parity/editor-shape,parity/fixtures,parity/ssa,parity/roles,parity/native,examples,testdata,public,pflow-native-wasm.lock public/petri-sim_test.ts public/petri-colors_test.ts public/petri-shape_test.ts public/petri-solver_test.ts public/petri-learn_test.ts public/petri-ssa_test.ts public/petri-sde_test.ts public/petri-validate_test.ts public/petri-commands_test.ts public/petri-draft_test.ts public/petri-wasm_test.ts public/petri-chat_test.ts public/petri-goals_test.ts public/petri-refine_test.ts public/petri-roles_test.ts parity/ode/ode_expected_test.ts parity/native/native_parity_test.ts parity/native/js_vs_wasm_test.ts
 
 # Regenerate the differentiable-fitting parity goldens (parity/learn/goldens.json)
 # from go-pflow's learn package. Deliberate, never a side effect of another
@@ -38,6 +38,24 @@ test-js:
 learn-goldens:
 	@go run ./parity/learn/gen
 	@echo "regenerated parity/learn/goldens.json — run 'make test-js' to verify"
+
+# Regenerate the native-vs-wasm parity goldens (parity/native/goldens.json): the
+# cases in parity/native/cases.json run through pflow-native's registry natively
+# (Rust, pinned in parity/native/gen/Cargo.toml to the commit the vendored wasm was
+# built from). Deliberate, never a side effect. Needs cargo and network access to
+# github.com (git uses the CLI so your credentials apply). The receipt case embeds a
+# freshly signed receipt, so that case's golden changes on every run.
+native-goldens:
+	@CARGO_NET_GIT_FETCH_WITH_CLI=true cargo run --release --manifest-path parity/native/gen/Cargo.toml
+	@echo "regenerated parity/native/goldens.json — run 'make test-js' to verify"
+
+# Re-vendor the wasm shim from a pflow-native build (see scripts/sync-native-wasm.mjs):
+#   make sync-native-wasm FROM=../pflow-native/target/wasm-shim COMMIT=<sha>
+# then bump the rev in parity/native/gen/Cargo.toml to COMMIT, `make native-goldens`,
+# `node scripts/gen-llm-tools.mjs` and `make test-js`.
+sync-native-wasm:
+	@test -n "$(FROM)" -a -n "$(COMMIT)" || { echo "usage: make sync-native-wasm FROM=<wasm-shim dir> COMMIT=<pflow-native sha>"; exit 2; }
+	@node scripts/sync-native-wasm.mjs --from "$(FROM)" --commit "$(COMMIT)"
 
 # Regenerate the ODE parity trajectories (parity/ode/expected.json) from
 # go-pflow's Tsit5 over parity/ode/fixtures.json. Same rule: deliberate only.

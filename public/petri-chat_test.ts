@@ -122,6 +122,23 @@ Deno.test("chat: discard drops the sandbox; explain mode refuses edits", async (
     assert(!ex.pending);
 });
 
+Deno.test("chat: native commands that edit the net or the marking count as edits (explain mode refuses them)", async () => {
+    const reg = live();
+    const edits = [["sim_run", {}], ["file_open_example", { name: "sir" }], ["net_layout", { algorithm: "grid" }], ["file_seal", {}],
+        ["data_calibrate", { log: "a1", apply: true }], ["opt_fit", { data: "a1", apply: true }]];
+    for (const [name, args] of edits) {
+        const s = scripted([{ tool_calls: [{ name, args }] }, { reply: "ok" }]);
+        const ex = new ChatSession({ live: reg, manifest, post: s.post, mode: "explain" });
+        await ex.send("go");
+        assert(!ex.calls[0].ok && /explain mode does not edit/.test(ex.calls[0].error), String(name));
+    }
+    // without apply, opt.fit only reads (it fails here for want of data, not for editing)
+    const s = scripted([{ tool_calls: [{ name: "opt_fit", args: { data: "a1" } }] }, { reply: "ok" }]);
+    const ex = new ChatSession({ live: reg, manifest, post: s.post, mode: "explain" });
+    await ex.send("go");
+    assert(!/explain mode does not edit/.test(String(ex.calls[0].error)));
+});
+
 Deno.test("chat: tool errors and server refusals go back to the model as errors", async () => {
     const reg = live();
     const { post, sent } = scripted([

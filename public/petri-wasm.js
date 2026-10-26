@@ -24,7 +24,7 @@ const VENDOR = new URL('./vendor/pflow-native-wasm/', import.meta.url);
 let enginePromise = null;
 
 // Keys of a native result that hold artifact ids (one id or a list of them).
-const ARTIFACT_KEYS = new Set(['artifact', 'artifacts', 'sets', 'report', 'trace', 'traces', 'graph', 'matrices', 'p_basis', 't_basis', 'table', 'bars', 'heatmap', 'scatter', 'series']);
+const ARTIFACT_KEYS = new Set(['artifact', 'artifacts', 'sets', 'report', 'trace', 'traces', 'graph', 'matrices', 'p_basis', 't_basis', 'table', 'bars', 'heatmap', 'scatter', 'series', 'log', 'data', 'timeseries', 'overlay']);
 const ARTIFACT_ID = /^a\d+$/;
 
 /**
@@ -57,7 +57,8 @@ function collectIds(result, ids = new Set()) {
         result.forEach((x) => collectIds(x, ids));
     } else if (result && typeof result === 'object') {
         for (const [k, v] of Object.entries(result)) {
-            if (ARTIFACT_KEYS.has(k) && typeof v === 'string' && ARTIFACT_ID.test(v)) ids.add(v);
+            if (k === 'artifacts' && v && typeof v === 'object' && !Array.isArray(v)) Object.values(v).forEach((x) => { if (typeof x === 'string' && ARTIFACT_ID.test(x)) ids.add(x); });
+            else if (ARTIFACT_KEYS.has(k) && typeof v === 'string' && ARTIFACT_ID.test(v)) ids.add(v);
             else if (ARTIFACT_KEYS.has(k) && Array.isArray(v)) v.forEach((x) => { if (typeof x === 'string' && ARTIFACT_ID.test(x)) ids.add(x); });
             if (v && typeof v === 'object') collectIds(v, ids);
         }
@@ -70,7 +71,9 @@ function rewriteIds(result, map) {
     if (!result || typeof result !== 'object') return result;
     const out = {};
     for (const [k, v] of Object.entries(result)) {
-        if (ARTIFACT_KEYS.has(k) && typeof v === 'string' && map.has(v)) out[k] = map.get(v);
+        if (k === 'export' && v && typeof v === 'object' && map.has(v.args?.id)) out[k] = { ...v, args: { ...v.args, id: map.get(v.args.id) } };
+        else if (k === 'artifacts' && v && typeof v === 'object' && !Array.isArray(v)) out[k] = Object.fromEntries(Object.entries(v).map(([n, x]) => [n, typeof x === 'string' && map.has(x) ? map.get(x) : x]));
+        else if (ARTIFACT_KEYS.has(k) && typeof v === 'string' && map.has(v)) out[k] = map.get(v);
         else if (ARTIFACT_KEYS.has(k) && Array.isArray(v) && v.every((x) => typeof x === 'string')) out[k] = v.map((x) => map.get(x) ?? x);
         else out[k] = rewriteIds(v, map);
     }
@@ -83,16 +86,28 @@ function rewriteIds(result, map) {
  * returns it; native artifact ids in the result are rewritten to the JS ids.
  * opts.full returns {result, doc}, where doc is the engine's document after
  * the command when opts.edits (for commands that edit the net).
+ * opts.artifactArgs names arguments that hold a registry artifact id; opts.lookup(id)
+ * returns that artifact ({title, data}), which is filed into the engine
+ * (artifact.put) before the command runs, and the argument becomes the engine's id.
  * @returns {Promise<Object>} the command's result
  */
 export async function runNative(model, id, args, store, opts = {}) {
     const { engine } = await loadEngine();
     engineState.loaded = true;
     try {
+        const map = new Map();
         engine.load(JSON.stringify(model));
+        args = { ...(args || {}) };
+        for (const k of opts.artifactArgs || []) {
+            if (typeof args[k] !== 'string') continue;
+            const art = opts.lookup(args[k]); // throws a CommandError naming the known results
+            const put = parseJSON(engine.execute('artifact.put', JSON.stringify({ title: art.title, data: art.data })));
+            args[k] = put.artifact;
+            map.set(put.artifact, art.id); // the engine echoes its id for it; the caller knows the registry's
+        }
         let raw;
         try {
-            raw = engine.execute(id, JSON.stringify(args || {}));
+            raw = engine.execute(id, JSON.stringify(args));
         } catch (e) {
             // wasm-bindgen throws a JsError carrying the registry's message.
             const err = new Error(String(e?.message || e));
@@ -100,8 +115,8 @@ export async function runNative(model, id, args, store, opts = {}) {
             throw err;
         }
         const result = parseJSON(raw);
-        const map = new Map();
         for (const nid of collectIds(result)) {
+            if (map.has(nid)) continue; // an input, already a registry artifact
             let art;
             try {
                 art = parseJSON(parseJSON(engine.execute('export.artifact', JSON.stringify({ id: nid, format: 'json' }))));

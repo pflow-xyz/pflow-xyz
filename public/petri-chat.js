@@ -16,11 +16,18 @@
 // scripted model.
 import { Registry, createHeadlessHost } from './petri-commands.js';
 import { decodeCall, summarizeResult } from './petri-tools.js';
+import { NATIVE_COMMANDS } from './vendor/pflow-native-wasm/commands.js';
 
 // Commands that change the document (or the token game's marking, which
 // lives in it): they make the sandbox differ from the live net.
 const EDITS = new Set(['file.new', 'edit.undo', 'edit.redo', 'edit.delete', 'sim.fire', 'sim.reset', 'sim.set_rate', 'sim.goto']);
-const isEdit = (id) => EDITS.has(id) || (id.startsWith('net.') && id !== 'net.info');
+// pflow-native's commands that edit the net or move its marking (compose.fuse,
+// file.open_example, sim.run, data.discover …), and the ones that edit it only
+// when called with apply (opt.fit, opt.distill, data.calibrate).
+const NATIVE_EDITS = new Set(NATIVE_COMMANDS.filter((s) => s.edits || s.setsMarking).map((s) => s.id));
+const NATIVE_EDITS_ON_APPLY = new Set(NATIVE_COMMANDS.filter((s) => s.editsOnApply).map((s) => s.id));
+const isEdit = (id, args) => EDITS.has(id) || (id.startsWith('net.') && id !== 'net.info') || NATIVE_EDITS.has(id)
+    || (NATIVE_EDITS_ON_APPLY.has(id) && !!args?.apply);
 // Commands that act on the canvas: always the live registry.
 const VIEW = new Set(['view.highlight', 'view.clear_highlight', 'view.fit', 'artifact.show_set']);
 
@@ -99,14 +106,14 @@ export class ChatSession {
             const [id, args] = decodeCall(this.manifest, call);
             entry.command = id;
             entry.args = args;
-            if (this.mode === 'explain' && isEdit(id)) throw new Error('explain mode does not edit; switch to build to change the net');
+            if (this.mode === 'explain' && isEdit(id, args)) throw new Error('explain mode does not edit; switch to build to change the net');
             if (!this.pending && !VIEW.has(id)) this._reseed();
             const reg = VIEW.has(id) ? this.live : this.sandbox;
             const before = new Set(reg.artifacts().map((a) => a.id));
             entry.result = await reg.execute(id, args);
             entry.ok = true;
             entry.artifacts = reg.artifacts().filter((a) => !before.has(a.id)).map((a) => a.id);
-            if (isEdit(id)) this.pending = true;
+            if (isEdit(id, args)) this.pending = true;
         } catch (e) {
             entry.error = e.message || String(e);
         }
@@ -119,7 +126,7 @@ export class ChatSession {
         if (!entry.ok) return { name: entry.name, response: { error: entry.error } };
         const arts = entry.artifacts.map((id) => this.live._store.items.find((a) => a.id === id)).filter(Boolean);
         const payload = summarizeResult(entry.result, arts);
-        if (this.pending && isEdit(entry.command)) payload.note = 'previewed in the sandbox; the person applies or discards it';
+        if (this.pending && isEdit(entry.command, entry.args)) payload.note = 'previewed in the sandbox; the person applies or discards it';
         return { name: entry.name, response: payload };
     }
 
@@ -162,7 +169,7 @@ export class ChatSession {
             // Build mode: after a round that edited the net, the engine's
             // behaviour checks go back with the tool results (sim's builder
             // feeds its checks back the same way).
-            if (this.mode === 'build' && this.calls.some((e) => e.round === round && e.ok && isEdit(e.command))) {
+            if (this.mode === 'build' && this.calls.some((e) => e.round === round && e.ok && isEdit(e.command, e.args))) {
                 try {
                     const report = await this.sandbox.execute('analysis.behaviour');
                     this.lastChecks = report;

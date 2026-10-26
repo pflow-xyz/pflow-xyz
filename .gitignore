@@ -46,3 +46,6 @@ PLAN.md
 # Python bytecode (publish/)
 __pycache__/
 *.pyc
+
+# Rust generator for parity/native/goldens.json
+parity/native/gen/target/
