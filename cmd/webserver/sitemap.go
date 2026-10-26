@@ -31,6 +31,7 @@ func (s *Server) handleSitemap(w http.ResponseWriter, r *http.Request) {
 	}
 	entry(base+"/", "1.0")
 	entry(base+"/schema", "0.8")
+	entry(base+"/mcp.html", "0.6")
 	for _, cid := range cids {
 		if !cidPattern.MatchString(cid) {
 			continue

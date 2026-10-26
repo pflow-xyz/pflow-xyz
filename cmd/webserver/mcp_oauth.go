@@ -36,7 +36,7 @@ package main
 //     kept in <data>/mcp-oauth/secret.
 //   - MCP_PUBLIC_URL: the public origin (default: the request's).
 //   - MCP_TERMS_URL / MCP_PRIVACY_URL: shown on the consent page (default
-//     <origin>/terms and <origin>/privacy).
+//     <origin>/terms.html and <origin>/privacy.html, which public/ serves).
 //
 // With neither provider configured, OAuth is off and /mcp behaves as before:
 // pflow_save is listed only to a connection that sends a GitHub token.
@@ -693,10 +693,10 @@ func (s *Server) handleAuthorize(w http.ResponseWriter, r *http.Request) {
 	}
 	terms, privacy := o.termsURL, o.privacyURL
 	if terms == "" {
-		terms = o.origin(r) + "/terms"
+		terms = o.origin(r) + "/terms.html"
 	}
 	if privacy == "" {
-		privacy = o.origin(r) + "/privacy"
+		privacy = o.origin(r) + "/privacy.html"
 	}
 	consentPage(w, http.StatusOK, fmt.Sprintf(`<h1>Sign in to pflow.xyz</h1>
 <p><b>%s</b> is asking to save Petri nets to pflow.xyz in your name. Saved nets are public and show who saved them.</p>

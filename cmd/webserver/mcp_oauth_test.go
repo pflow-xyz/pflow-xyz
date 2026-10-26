@@ -115,7 +115,7 @@ func signIn(t *testing.T, s *Server, provider, providerCode string) map[string]a
 	if rec.Code != 200 || !strings.Contains(rec.Body.String(), "Continue with GitHub") || !strings.Contains(rec.Body.String(), "Continue with Google") {
 		t.Fatalf("consent page: %d %s", rec.Code, rec.Body)
 	}
-	if !strings.Contains(rec.Body.String(), "claude.ai") || !strings.Contains(rec.Body.String(), testOrigin+"/terms") {
+	if !strings.Contains(rec.Body.String(), "claude.ai") || !strings.Contains(rec.Body.String(), testOrigin+"/terms.html") {
 		t.Fatal("the consent page names the asking host and links the terms")
 	}
 	cookie := rec.Result().Cookies()[0]

@@ -65,6 +65,7 @@ go_test(
         "llm_test.go",
         "llm_turn_test.go",
         "mcp_oauth_test.go",
+        "mcp_pages_test.go",
         "mcp_registry_test.go",
         "mcp_simulate_gated_test.go",
         "mcp_test.go",

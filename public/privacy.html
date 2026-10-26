@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Privacy policy · pflow.xyz</title>
+<meta name="description" content="What pflow.xyz collects, why, how long it keeps it and who it shares it with.">
+<link rel="icon" href="/favicon.ico">
+<meta name="author" content="Matt York">
+<link rel="me" href="https://github.com/stackdump">
+<link rel="me" href="https://blog.stackdump.com/">
+<style>
+body{font:16px/1.6 system-ui,sans-serif;max-width:42rem;margin:2.5rem auto;padding:0 1rem;color:#1a1a1a;background:#fff}
+@media (prefers-color-scheme:dark){body{color:#e8e8e8;background:#16161a}a{color:#8ab4f8}}
+h1{font-size:1.8rem;margin-bottom:.25rem}h2{font-size:1.2rem;margin-top:2rem}
+.meta{opacity:.7;font-size:.9rem}nav a{margin-right:1rem}
+</style>
+</head>
+<body>
+<nav><a href="/">pflow.xyz</a><a href="/mcp.html">MCP connector</a><a href="/terms.html">Terms</a></nav>
+<h1>Privacy policy</h1>
+<p class="meta">Last updated 26 October 2026</p>
+
+<p>pflow.xyz is a free editor and toolset for Petri nets, run by Matt York (<a href="https://github.com/stackdump">stackdump</a>). This page covers the website, its API and its MCP connector at <code>https://pflow.xyz/mcp</code>.</p>
+
+<h2>What we collect</h2>
+<ul>
+<li><b>Nets you save.</b> When you save a net, from the editor, the API or the <code>pflow_save</code> tool, it is stored under its content id (CID). Saved nets are public: anyone with the CID can read them, and they can appear in the sitemap.</li>
+<li><b>Who saved a net.</b> A save records the account that made it. With GitHub that is your GitHub user id and username. With Google it is only Google's account id for you; we don't ask Google for your name or email address.</li>
+<li><b>Editor sign-in.</b> Signing in to the editor with GitHub asks GitHub for your profile, email address and permission to create gists. The access token goes to your browser; the server uses it to check who you are when you save and keeps only your user id and username.</li>
+<li><b>Sign-in records.</b> When an app such as Claude signs you in to the MCP connector, we keep a record of that sign-in (your account id, the app and an expiry date) so the app can stay signed in. It lasts at most 30 days after the app last refreshed it. We never see or store your GitHub or Google password.</li>
+<li><b>Request logs.</b> Our servers log each request's method, path, time and IP address, for running and debugging the service.</li>
+<li><b>Analytics.</b> The editor's home page uses Google Analytics to count visits. The MCP connector does not.</li>
+</ul>
+
+<h2>What we don't collect</h2>
+<p>Nets you send to the MCP tools for checking, simulating or analysing are processed in memory and are not stored. Only <code>pflow_save</code> stores anything. We don't sell data, show ads or build profiles.</p>
+
+<h2>Who else sees it</h2>
+<ul>
+<li><b>GitHub or Google</b>, when you choose to sign in with them, under their own privacy policies.</li>
+<li><b>Google Gemini</b>, if you use the editor's drafting or assistant features: the text you type and the net you are working on are sent to Google's Gemini API to produce a reply.</li>
+<li><b>Everyone</b>, for nets you save, because saved nets are public.</li>
+</ul>
+
+<h2>How long we keep it</h2>
+<p>Saved nets are kept so that their links keep working. Sign-in records expire as described above. Logs are kept only as long as needed to run and debug the service.</p>
+
+<h2>Your choices</h2>
+<p>You can use every tool except saving without signing in. To ask about your data, or to ask for a saved net or a sign-in record to be removed, open an issue at <a href="https://github.com/pflow-xyz/pflow-xyz/issues">github.com/pflow-xyz/pflow-xyz/issues</a>. You can also revoke pflow.xyz's access at any time in your GitHub or Google account settings.</p>
+
+<h2>Changes</h2>
+<p>If this policy changes, the new version will be posted here with a new date.</p>
+</body>
+</html>
