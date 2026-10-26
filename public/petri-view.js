@@ -1,6 +1,13 @@
 import * as Sim from './petri-sim.js';
 import {computeCid} from './seal-cid.mjs';
-import {copySelection, pasteInto, DEFAULT_PASTE_OFFSET} from './petri-clipboard.js';
+import {
+    copySelection, pasteInto, DEFAULT_PASTE_OFFSET, clipToText, choosePaste, clipboardShortcut,
+    writeClipboardText, clipboardEventText, readClipboardText, editableTarget, CLIPBOARD_EVENT_WAIT_MS,
+} from './petri-clipboard.js';
+
+// The <petri-view> the clipboard keys and events belong to when a page has
+// several: the one last pressed or focused in (see _ownsClipboard).
+let clipboardOwner = null;
 
 // Mode capabilities - defines what actions each tool mode allows
 const MODE_CAPS = {
@@ -100,7 +107,8 @@ PetriView = class PetriView extends HTMLElement {
         this._mouse = {x: 0, y: 0};
         this._labelEditMode = false;
         this._selectedNodes = new Set(); // for group-select mode
-        this._clipboard = null; // in-memory copy/paste buffer (petri-clipboard.js); never the OS clipboard
+        this._clipboard = null; // in-memory copy/paste buffer (petri-clipboard.js); copy also writes the OS clipboard
+        this._clipArms = {}; // copy|cut|paste -> {text, timer} while a clipboard shortcut waits for its ClipboardEvent
         this._boxSelect = null; // for bounding box selection: {startX, startY, endX, endY}
 
         // pan/zoom
@@ -3270,32 +3278,76 @@ PetriView = class PetriView extends HTMLElement {
     }
 
     // ---------------- clipboard: copy / cut / paste / duplicate ----------------
-    // Same contract as pflow-native's edit.copy/cut/paste/duplicate. The buffer
-    // is held here, in memory (no navigator.clipboard). Copy changes no model and
-    // makes no undo entry; cut, paste and duplicate are each ONE undo step.
+    // Same contract as pflow-native's edit.copy/cut/paste/duplicate. Copy and
+    // cut fill the in-memory buffer AND put the clip on the system clipboard as
+    // text (docs/clipboard-format.md), so nodes copied here paste in
+    // pflow-native and the other way round; paste prefers a clip on the system
+    // clipboard and falls back to the buffer. Copy changes no model and makes no
+    // undo entry; cut, paste and duplicate are each ONE undo step.
+    //
+    // A shortcut does not touch the system clipboard itself: keydown arms this
+    // editor and lets the browser go on to fire its copy/cut/paste
+    // ClipboardEvent, whose clipboardData is read and written synchronously
+    // with no permission prompt (_onClipboardEvent). Only an event this editor
+    // armed is claimed, and not one aimed at an input, so copy and paste meant
+    // for other page elements pass through untouched. When no event comes
+    // within CLIPBOARD_EVENT_WAIT_MS (a browser may fire none without a text
+    // selection or an editable focus), navigator.clipboard is used instead.
+    // Menus and other callers without a keystroke use navigator.clipboard.
 
     /** Copy the selected places/transitions (and arcs between them). Returns true if anything was copied. */
-    _copySelection() {
-        const clip = copySelection(this._model, this._selectedNodes);
-        if (!clip) return false;
-        this._clipboard = clip;
-        return true;
+    _copySelection({shortcut = false} = {}) {
+        return this._takeClip('copy', shortcut);
     }
 
     /** Copy, then delete the selection as one undo step. The buffer stays filled after undo. */
-    _cutSelection() {
+    _cutSelection({shortcut = false} = {}) {
         if (!this._modeCan('canGroupDrag')) return false;
-        if (!this._copySelection()) return false;
+        if (!this._takeClip('cut', shortcut)) return false;
         this._deleteNodes(Array.from(this._selectedNodes));
         this._clearSelection();
         return true;
     }
 
-    /** Paste the buffer at its copied coordinates + (dx, dy); selects the pasted nodes. One undo step. */
-    _pasteClipboard(dx = DEFAULT_PASTE_OFFSET, dy = DEFAULT_PASTE_OFFSET) {
-        if (!this._clipboard || !this._model) return false;
+    /** Fill the buffer from the selection and send the clip text to the system clipboard (armed for a shortcut). */
+    _takeClip(kind, shortcut) {
+        const clip = copySelection(this._model, this._selectedNodes);
+        if (!clip) return false;
+        this._clipboard = clip;
+        const text = clipToText(clip, {token: this._model.token});
+        if (shortcut) this._armClipboard(kind, text);
+        else writeClipboardText(text);
+        return true;
+    }
+
+    /**
+     * Paste what the system clipboard holds when it is a clip or a pflow net,
+     * else the buffer (choosePaste). A shortcut arms for the paste event;
+     * otherwise the text is read through navigator.clipboard, which may ask
+     * the user's permission. Returns false when this mode cannot paste.
+     */
+    _pasteFromSystem({shortcut = false} = {}) {
+        if (!this._model || !this._modeCan('canGroupDrag')) return false;
+        if (shortcut) this._armClipboard('paste');
+        else readClipboardText().then((text) => this._pasteText(text));
+        return true;
+    }
+
+    /** Paste from clipboard text (null when unreadable); a newer clip version is refused with a toast. */
+    _pasteText(text) {
+        const pick = choosePaste(text, this._clipboard);
+        if (pick.refusal) {
+            this._toast(pick.refusal, 'error');
+            return false;
+        }
+        return this._pasteClip(pick.clip);
+    }
+
+    /** Paste a clip at its copied coordinates + (dx, dy); selects the pasted nodes. One undo step. */
+    _pasteClip(clip, dx = DEFAULT_PASTE_OFFSET, dy = DEFAULT_PASTE_OFFSET) {
+        if (!clip || !this._model) return false;
         if (!this._modeCan('canGroupDrag')) return false;
-        const newIds = pasteInto(this._model, this._clipboard, {dx, dy});
+        const newIds = pasteInto(this._model, clip, {dx, dy});
         if (newIds.length === 0) return false;
         this._selectedNodes = new Set(newIds);
         this._normalizeModel();
@@ -3305,16 +3357,50 @@ PetriView = class PetriView extends HTMLElement {
         return true;
     }
 
-    /** Copy + paste at +40,+40 without touching the buffer; selection moves to the copies. */
+    /** Copy + paste at +40,+40 without touching either clipboard; selection moves to the copies. */
     _duplicateSelection() {
         if (!this._modeCan('canGroupDrag')) return false;
-        const saved = this._clipboard;
-        try {
-            if (!this._copySelection()) return false;
-            return this._pasteClipboard();
-        } finally {
-            this._clipboard = saved;
+        const clip = copySelection(this._model, this._selectedNodes);
+        return clip ? this._pasteClip(clip) : false;
+    }
+
+    /** Expect the browser's copy/cut/paste event for a shortcut; if none comes in time, use navigator.clipboard. */
+    _armClipboard(kind, text = null) {
+        const prev = this._clipArms[kind];
+        if (prev) clearTimeout(prev.timer);
+        const arm = {text, timer: 0};
+        arm.timer = setTimeout(() => {
+            if (this._clipArms[kind] !== arm) return;
+            delete this._clipArms[kind];
+            if (kind === 'paste') this._pasteFromSystem();
+            else writeClipboardText(text);
+        }, CLIPBOARD_EVENT_WAIT_MS);
+        this._clipArms[kind] = arm;
+    }
+
+    /** document copy/cut/paste listener: claims only the event a shortcut armed, and never one aimed at an input. */
+    _onClipboardEvent(e) {
+        const arm = this._clipArms[e.type];
+        if (!arm) return;
+        clearTimeout(arm.timer);
+        delete this._clipArms[e.type];
+        if (editableTarget(e)) return; // the keystroke was for a field after all
+        if (e.type === 'paste') {
+            if (this._pasteText(clipboardEventText(e))) e.preventDefault();
+        } else {
+            writeClipboardText(arm.text, {event: e});
         }
+    }
+
+    /**
+     * Whether the clipboard keys are this editor's: the one last pressed or
+     * focused in, else the first connected one whose keydown runs, so a page
+     * with several editors copies and pastes into one of them, not all.
+     */
+    _ownsClipboard() {
+        if (!this.isConnected) return false;
+        if (!clipboardOwner || !clipboardOwner.isConnected) clipboardOwner = this;
+        return clipboardOwner === this;
     }
 
     // ---------------- editing menu & modes ----------------
@@ -8004,18 +8090,21 @@ PetriView = class PetriView extends HTMLElement {
             }
 
             // Clipboard shortcuts. Handled before the plain-letter keys below so
-            // Ctrl/Cmd+X is a cut, not the simulation toggle. preventDefault only
-            // when we act, so an empty selection leaves the browser's own copy/
-            // cut/paste/bookmark behavior alone.
-            if ((e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey && !isTyping && e.key) {
-                const k = e.key.toLowerCase();
-                let acted = false;
-                if (k === 'c') acted = this._copySelection();
-                else if (k === 'x') acted = this._cutSelection();
-                else if (k === 'v') acted = this._pasteClipboard();
-                else if (k === 'd') acted = this._duplicateSelection();
-                if (acted) e.preventDefault();
-                if (k === 'c' || k === 'x' || k === 'v' || k === 'd') return;
+            // Ctrl/Cmd+X is a cut, not the simulation toggle. Copy, cut and
+            // paste never preventDefault: the browser goes on to fire the
+            // copy/cut/paste event that carries the system clipboard, which
+            // _onClipboardEvent claims when this editor armed it. Duplicate
+            // cancels the key (Ctrl+D is bookmark) only when it acts. Inputs,
+            // textareas and contenteditables keep their own copy/paste.
+            const clipCmd = clipboardShortcut(e, {typing: isTyping});
+            if (clipCmd) {
+                if (this._ownsClipboard()) {
+                    if (clipCmd === 'copy') this._copySelection({shortcut: true});
+                    else if (clipCmd === 'cut') this._cutSelection({shortcut: true});
+                    else if (clipCmd === 'paste') this._pasteFromSystem({shortcut: true});
+                    else if (this._duplicateSelection()) e.preventDefault();
+                }
+                return;
             }
 
             if (e.key && e.key.toLowerCase() === 'x' && !e.metaKey && !e.ctrlKey) {
@@ -8105,6 +8194,15 @@ PetriView = class PetriView extends HTMLElement {
         window.addEventListener('keyup', (e) => {
             if (e.key === ' ') this._spaceDown = false;
         });
+
+        // System clipboard: the events a clipboard shortcut armed (see
+        // _armClipboard), and which editor on the page the keys belong to.
+        for (const type of ['copy', 'cut', 'paste']) {
+            document.addEventListener(type, (e) => this._onClipboardEvent(e));
+        }
+        const own = () => { clipboardOwner = this; };
+        this.addEventListener('pointerdown', own, true);
+        this.addEventListener('focusin', own);
 
         // panning pointer down/move/up
         this._canvasContainer.addEventListener('pointerdown', (e) => {

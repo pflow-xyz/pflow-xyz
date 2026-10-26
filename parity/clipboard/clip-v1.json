@@ -1,0 +1,68 @@
+{
+  "@context": "https://pflow.xyz/schema",
+  "@type": "PetriNet",
+  "@version": "1.1",
+  "pflowClip": {
+    "version": 1,
+    "origin": "pflow.xyz"
+  },
+  "token": [
+    "https://pflow.xyz/tokens/black"
+  ],
+  "places": {
+    "Queue": {
+      "@type": "Place",
+      "offset": 0,
+      "initial": [
+        2
+      ],
+      "capacity": [
+        0
+      ],
+      "x": 100,
+      "y": 120,
+      "label": "Queue"
+    },
+    "Done": {
+      "@type": "Place",
+      "offset": 0,
+      "initial": [
+        0
+      ],
+      "capacity": [
+        0
+      ],
+      "x": 300,
+      "y": 120
+    }
+  },
+  "transitions": {
+    "Serve": {
+      "@type": "Transition",
+      "x": 200,
+      "y": 120,
+      "label": "Serve",
+      "rate": 2.5
+    }
+  },
+  "arcs": [
+    {
+      "@type": "Arrow",
+      "source": "Queue",
+      "target": "Serve",
+      "weight": [
+        1
+      ],
+      "inhibitTransition": false
+    },
+    {
+      "@type": "Arrow",
+      "source": "Serve",
+      "target": "Done",
+      "weight": [
+        1
+      ],
+      "inhibitTransition": false
+    }
+  ]
+}
