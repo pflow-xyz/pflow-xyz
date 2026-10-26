@@ -163,14 +163,14 @@ func bearerToken(r *http.Request) string {
 	return strings.TrimSpace(h[7:])
 }
 
-// listedMCPTools is tools/list's answer. pflow_save is offered only to a
-// connection that sends a bearer token: a connector added without one (the
-// directory's authless listing, a claude.ai custom connector) can never save,
-// and a tool that always fails should not be offered. tools/call still knows
-// it, so a stray call gets save's own error rather than "unknown tool".
-func listedMCPTools(r *http.Request) []mcpTool {
+// listedMCPTools is tools/list's answer. With OAuth on (mcp_oauth.go) every
+// tool is listed: calling pflow_save unsigned answers 401 and the client signs
+// the person in. With it off, pflow_save is offered only to a connection that
+// sends a bearer token, since one without can never save and a tool that
+// always fails should not be offered. tools/call still knows it either way.
+func listedMCPTools(s *Server, r *http.Request) []mcpTool {
 	all := allMCPTools()
-	if bearerToken(r) != "" {
+	if s.mcpOAuth != nil || bearerToken(r) != "" {
 		return all
 	}
 	out := make([]mcpTool, 0, len(all))
