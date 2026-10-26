@@ -178,6 +178,7 @@ type Server struct {
 	schemaCache       schemaCache
 	llm               *llmService   // nil when no GEMINI_API_KEY: the LLM routes report disabled
 	mcpVerifier       auth.Verifier // /mcp's pflow_save sign-in check (mcp.go); built on first use
+	mcpOAuth          *mcpOAuth     // /mcp's OAuth authorization server (mcp_oauth.go); nil when off
 }
 
 // handleCORS handles CORS preflight requests
@@ -966,6 +967,36 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		s.handleGitHubCallback(w, r)
 		return
 	}
+	// /mcp's OAuth (mcp_oauth.go). Discovery is at the RFC 9728/8414 paths;
+	// the rest sits under /auth/, which nginx already proxies.
+	if r.URL.Path == protectedMetaPath || r.URL.Path == protectedMetaPath+"/mcp" {
+		s.handleProtectedResourceMetadata(w, r)
+		return
+	}
+	if r.URL.Path == authServerMetaPath {
+		s.handleAuthServerMetadata(w, r)
+		return
+	}
+	switch r.URL.Path {
+	case mcpAuthorizePath:
+		s.handleAuthorize(w, r)
+		return
+	case mcpLoginPath:
+		s.handleLogin(w, r)
+		return
+	case mcpTokenPath:
+		s.handleToken(w, r)
+		return
+	case mcpRegisterPath:
+		s.handleRegister(w, r)
+		return
+	case githubCallbackPath:
+		s.handleGitHubMCPCallback(w, r)
+		return
+	case googleCallbackPath:
+		s.handleGoogleCallback(w, r)
+		return
+	}
 	if r.URL.Path == "/auth/user" {
 		s.handleGetUser(w, r)
 		return
@@ -1113,6 +1144,7 @@ func main() {
 	}
 
 	server.configureLLM(*dataDir)
+	server.configureMCPOAuth(*dataDir)
 
 	// Configure Google Analytics if set
 	if gaID := os.Getenv("GOOGLE_ANALYTICS_ID"); gaID != "" {

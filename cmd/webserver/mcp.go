@@ -30,7 +30,6 @@ import (
 	"github.com/pflow-xyz/go-pflow/parser"
 	"github.com/pflow-xyz/go-pflow/reachability"
 	"github.com/pflow-xyz/go-pflow/solver"
-	"github.com/pflow-xyz/pflow-xyz/internal/auth"
 	"github.com/pflow-xyz/pflow-xyz/internal/seal"
 )
 
@@ -126,7 +125,7 @@ func mcpTools() []mcpTool {
 		},
 		{
 			Name:        "pflow_save",
-			Description: "Store a net and return its CID, recorded as yours. Needs the MCP connection's Authorization: Bearer <GitHub token> (the same sign-in as the editor).",
+			Description: "Store a net on pflow.xyz and return its CID, recorded as yours. Stored nets are public. Needs you signed in to pflow.xyz (with GitHub or Google); the first call asks you to sign in.",
 			InputSchema: obj(map[string]any{"net": netArg}, "net"),
 			run:         mcpSave,
 		},
@@ -340,19 +339,21 @@ func mcpLinks(s *Server, r *http.Request, args map[string]any) (any, error) {
 
 func mcpSave(s *Server, r *http.Request, args map[string]any) (any, error) {
 	// REVIEW: /api/save stores anonymously when no token is sent; over MCP a
-	// token is required, because an agent can loop where a person clicks.
-	token := bearerToken(r)
-	if token == "" {
-		return nil, errors.New("saving needs the connection's Authorization: Bearer <GitHub token>")
-	}
-	verifier := s.mcpVerifier
-	if verifier == nil {
-		verifier = auth.NewCachingVerifier(auth.NewGitHubVerifier())
-		s.mcpVerifier = verifier
-	}
-	u, err := verifier.Verify(r.Context(), token)
-	if err != nil {
-		return nil, errors.New("GitHub did not accept that token")
+	// sign-in is required, because an agent can loop where a person clicks.
+	// With OAuth on, mcpAuthGate has already resolved the identity (or answered
+	// 401); otherwise the bearer token is taken as a GitHub token.
+	id := mcpIdentityOf(r)
+	if id == nil {
+		var err error
+		id, err = s.mcpIdentityFor(r)
+		switch {
+		case errors.Is(err, errNoToken):
+			return nil, errors.New("saving needs you signed in to pflow.xyz: connect with OAuth, or send Authorization: Bearer <GitHub token>")
+		case errors.Is(err, errAuthUnavailable):
+			return nil, err
+		case err != nil:
+			return nil, errors.New("that sign-in was not accepted (GitHub rejected the token, or it expired)")
+		}
 	}
 	raw, doc, err := netBytes(args)
 	if err != nil {
@@ -365,10 +366,22 @@ func mcpSave(s *Server, r *http.Request, args map[string]any) (any, error) {
 	if err != nil {
 		return nil, fmt.Errorf("does not seal: %v", err)
 	}
-	if err := s.storage.SaveObjectWithAuthor(cid, raw, canonical, u.UserName, u.GitHubID); err != nil {
+	if id.Provider == "github" {
+		err = s.storage.SaveObjectWithAuthor(cid, raw, canonical, id.Name, id.ID)
+	} else {
+		var stamped []byte
+		if stamped, err = mcpOAuthAuthorDoc(doc, id); err == nil {
+			err = s.storage.SaveObject(cid, stamped, canonical)
+		}
+	}
+	if err != nil {
 		return nil, errors.New("could not store it")
 	}
-	return map[string]any{"cid": cid, "author": u.UserName}, nil
+	out := map[string]any{"cid": cid, "signed_in_with": id.Provider}
+	if id.Name != "" {
+		out["author"] = id.Name
+	}
+	return out, nil
 }
 
 // ---- JSON-RPC ----
@@ -382,6 +395,10 @@ func (s *Server) handleMCP(w http.ResponseWriter, r *http.Request) {
 	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, maxMCPBody))
 	if err != nil {
 		writeJSON(w, http.StatusRequestEntityTooLarge, rpcResponse{JSONRPC: "2.0", ID: json.RawMessage("null"), Error: &rpcError{-32600, "request too large"}})
+		return
+	}
+	r, ok := s.mcpAuthGate(w, r, body)
+	if !ok {
 		return
 	}
 	trimmed := strings.TrimSpace(string(body))
@@ -435,13 +452,13 @@ func (s *Server) mcpDispatch(r *http.Request, req rpcRequest) (rpcResponse, bool
 			"serverInfo":      map[string]any{"name": "pflow.xyz", "version": "workbench-1"},
 			"instructions": "pflow.xyz: Petri nets in the pflow.xyz JSON-LD format. Check, seal, simulate (ODE) and explore " +
 				"(reachability) a net on the server's go-pflow engines; pflow_links opens one in the editor, where the " +
-				"structural analyses, stochastic runs and the Assistant live. pflow_save is listed only for a connection " +
-				"that sends a GitHub bearer token.",
+				"structural analyses, stochastic runs and the Assistant live. pflow_save needs the person signed in to " +
+				"pflow.xyz.",
 		}
 	case "ping":
 		resp.Result = map[string]any{}
 	case "tools/list":
-		tools := listedMCPTools(r)
+		tools := listedMCPTools(s, r)
 		list := make([]map[string]any, 0, len(tools))
 		for _, t := range tools {
 			list = append(list, toolDescriptor(t))
