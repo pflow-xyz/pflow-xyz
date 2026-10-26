@@ -4,7 +4,8 @@
 // and keeps the copied coordinates plus an offset, and arcs travel only when
 // both of their ends were copied.
 //
-// A clip is plain data: {places: [{id, node}], transitions: [{id, node}], arcs: []}.
+// A clip is plain data: {places: [{id, node}], transitions: [{id, node}], arcs: [],
+// token?: [...]}, token being the source net's token list when it has one.
 // Nodes and arcs are deep clones, so editing the net after a copy never
 // changes what a later paste puts down. Places and transitions are arrays (not
 // objects) so their order survives integer-like ids, which JS would reorder.
@@ -12,9 +13,10 @@
 // The editor keeps the clip in memory AND puts it on the system clipboard as
 // text, in the format pflow-native reads and writes too
 // (docs/clipboard-format.md): clipToText / clipFromText convert, choosePaste
-// decides what a Paste puts down, and clipboardShortcut, editableTarget,
-// writeClipboardText, clipboardEventText and readClipboardText are the small
-// browser-facing pieces, kept here so they can be tested without a DOM.
+// decides what a Paste puts down, and clipboardShortcut, usesCommandKey,
+// hasTextSelection, editableTarget, writeClipboardText, clipboardEventText and
+// readClipboardText are the small browser-facing pieces, kept here so they can
+// be tested without a DOM.
 
 export const DEFAULT_PASTE_OFFSET = 40;
 
@@ -31,19 +33,48 @@ function used(model, id) {
     return Object.hasOwn(model.places || {}, id) || Object.hasOwn(model.transitions || {}, id);
 }
 
-/**
- * The first free `${prefix}${n}` (n = 0, 1, 2, ...), where free means unused by
- * any place OR transition (pflow-native doc.rs fresh_id).
- * @param {{places?: Object, transitions?: Object}} model
- * @param {string} prefix
- * @returns {string}
- */
-export function freshId(model, prefix) {
-    for (let n = 0; ; n++) {
-        const id = `${prefix}${n}`;
-        if (!used(model, id)) return id;
+/** The first n >= from for which `${prefix}${n}` is free. */
+function freeIndex(model, prefix, from) {
+    for (let n = from; ; n++) {
+        if (!used(model, `${prefix}${n}`)) return n;
     }
 }
+
+/**
+ * The first free `${prefix}${n}` (n = from, from + 1, ...; from defaults to 0),
+ * where free means unused by any place OR transition (pflow-native doc.rs
+ * fresh_id).
+ * @param {{places?: Object, transitions?: Object}} model
+ * @param {string} prefix
+ * @param {number} [from]
+ * @returns {string}
+ */
+export function freshId(model, prefix, from = 0) {
+    return `${prefix}${freeIndex(model, prefix, from)}`;
+}
+
+/**
+ * How many token colors `model` declares: its token list's length, at least 1
+ * (no list, or an empty one, is one plain color), as petri-validate.js and
+ * pflow-native's Document::colors count them.
+ */
+export function declaredColors(model) {
+    return Array.isArray(model?.token) ? Math.max(1, model.token.length) : 1;
+}
+
+// A per-color vector cut or padded with 0 to n components, as pflow-native's
+// paste resizes initial, capacity and weight (Vec::resize(ncol, 0.0)): 0 is no
+// tokens, an unbounded capacity, and "this color is not involved" in a weight.
+// A bare value is one component first, as normalizeModel reads it.
+function fitColors(v, n) {
+    const out = (Array.isArray(v) ? v : [v]).slice(0, n);
+    while (out.length < n) out.push(0);
+    return out;
+}
+
+// normalizeModel reads a missing or null weight as [1] and a bare one as
+// [Number(w) || 1]; pad that, not the raw value (a padded null would read as 0).
+const weightVector = (w) => (Array.isArray(w) ? w : [w == null ? 1 : (Number(w) || 1)]);
 
 /**
  * Deep-clone the selected places and transitions, and the arcs whose source AND
@@ -69,7 +100,9 @@ export function copySelection(model, selectedIds) {
     const arcs = (model.arcs || [])
         .filter(a => have.has(a.source) && have.has(a.target))
         .map(a => structuredClone(a));
-    return {places, transitions, arcs};
+    const clip = {places, transitions, arcs};
+    if (Array.isArray(model.token)) clip.token = [...model.token];
+    return clip;
 }
 
 const shift = (v, d) => (Number.isFinite(Number(v)) ? Number(v) : 0) + d;
@@ -79,6 +112,10 @@ const shift = (v, d) => (Number.isFinite(Number(v)) ? Number(v) : 0) + d;
  * first (in clip order) and then transitions; arcs are remapped through the
  * old->new ids. Positions are the ORIGINAL copied coordinates plus (dx, dy), so
  * pasting twice puts the second copy on top of the first, as native does.
+ * A place's initial and capacity and an arc's weight are cut or padded with 0
+ * to `model`'s token colors (declaredColors), so a clip from a net with other
+ * colors pastes as a well-formed net, its colors mapped by position (see
+ * colorMappingNote); a field the clip node does not have stays absent.
  * Does not normalize or record history; that is the caller's job.
  * @returns {string[]} the new ids, places then transitions
  */
@@ -87,19 +124,31 @@ export function pasteInto(model, clip, {dx = DEFAULT_PASTE_OFFSET, dy = DEFAULT_
     model.places ||= {};
     model.transitions ||= {};
     model.arcs ||= [];
+    const ncol = declaredColors(model);
+    // Ids are only taken during a paste, so each prefix's next free index is
+    // never below the last one found: the same ids as scanning from 0 every
+    // time, without the quadratic rescan on a big paste.
+    const next = {p: 0, t: 0};
+    const take = (prefix) => {
+        const n = freeIndex(model, prefix, next[prefix]);
+        next[prefix] = n + 1;
+        return `${prefix}${n}`;
+    };
     const map = new Map();
     const newIds = [];
     for (const {id, node} of clip.places) {
-        const nid = freshId(model, 'p');
+        const nid = take('p');
         const p = structuredClone(node);
         p.x = shift(p.x, dx);
         p.y = shift(p.y, dy);
+        if (p.initial !== undefined) p.initial = fitColors(p.initial, ncol);
+        if (p.capacity !== undefined) p.capacity = fitColors(p.capacity, ncol);
         model.places[nid] = p;
         map.set(id, nid);
         newIds.push(nid);
     }
     for (const {id, node} of clip.transitions) {
-        const nid = freshId(model, 't');
+        const nid = take('t');
         const t = structuredClone(node);
         t.x = shift(t.x, dx);
         t.y = shift(t.y, dy);
@@ -112,9 +161,28 @@ export function pasteInto(model, clip, {dx = DEFAULT_PASTE_OFFSET, dy = DEFAULT_
         const a = structuredClone(arc);
         a.source = map.get(arc.source);
         a.target = map.get(arc.target);
+        if (a.weight !== undefined) a.weight = fitColors(weightVector(a.weight), ncol);
         model.arcs.push(a);
     }
     return newIds;
+}
+
+const sameTokens = (a, b) => a.length === b.length && a.every((t, i) => t === b[i]);
+const tokenNames = (list) => list.map((t) => String(t).replace(/\/+$/, '').split('/').pop()).join(', ');
+
+/**
+ * A status line for pasting `clip` into `model` when the clip names other
+ * token colors than the net (pasteInto has then mapped them by position), else
+ * null. A missing or empty token list reads as the one black token, on either
+ * side.
+ * @returns {string|null}
+ */
+export function colorMappingNote(clip, model) {
+    const list = (t) => (Array.isArray(t) && t.length ? t : DEFAULT_TOKEN);
+    const from = list(clip?.token);
+    const to = list(model?.token);
+    if (sameTokens(from, to)) return null;
+    return `Pasted with token colors mapped by position: the copied nodes have ${tokenNames(from)}, this net has ${tokenNames(to)}.`;
 }
 
 /**
@@ -135,6 +203,16 @@ const isObject = (v) => v !== null && typeof v === 'object' && !Array.isArray(v)
 // JSON.stringify(v, null, 2), every line after the first indented by `pad`.
 const indented = (v, pad) => JSON.stringify(v, null, 2).replace(/\n/g, '\n' + pad);
 
+// A place as a clip writes it: an unbounded capacity component (Infinity in
+// the editor, null in its JSON export) as 0, as the fixture and pflow-native
+// write it. Assigning an existing key keeps its place, so key order is kept.
+const unbounded = (c) => c === null || (typeof c === 'number' && !Number.isFinite(c));
+function clipPlace(node) {
+    if (node.capacity === undefined) return node;
+    const cap = node.capacity;
+    return {...node, capacity: Array.isArray(cap) ? cap.map((c) => (unbounded(c) ? 0 : c)) : (unbounded(cap) ? 0 : cap)};
+}
+
 // An object written from [key, value] pairs, in that order. A JS object would
 // not do: JSON.stringify enumerates integer-like keys ("2", "10") first, in
 // numeric order, so places named 10 and 2 would come out as 2, 10.
@@ -151,16 +229,16 @@ function orderedObject(pairs, pad) {
  * is not sealed). Nodes are written as they are, so ids, labels, coordinates,
  * initial, capacity, offset, a transition's `rate` (the web keeps rates on the
  * transition), arc weight and inhibitTransition all travel; an unbounded
- * capacity (Infinity in the editor) is written as null, as the editor's own
- * JSON export does, which pflow-native reads as unbounded. Places and
- * transitions are written in clip order (see orderedObject), pretty-printed
- * like parity/clipboard/clip-v1.json.
- * @param {{places: Array, transitions: Array, arcs: Array}} clip
+ * capacity (Infinity in the editor) is written as 0, as the fixture and
+ * pflow-native write it (both read 0 as unbounded). Places and transitions are
+ * written in clip order (see orderedObject), pretty-printed like
+ * parity/clipboard/clip-v1.json.
+ * @param {{places: Array, transitions: Array, arcs: Array, token?: string[]}} clip
  * @param {{token?: string[], origin?: string}} [opts] token: the source net's
- *   token list (default black)
+ *   token list (default the clip's own, else black)
  * @returns {string}
  */
-export function clipToText(clip, {token, origin = CLIP_ORIGIN} = {}) {
+export function clipToText(clip, {token = clip.token, origin = CLIP_ORIGIN} = {}) {
     const pad = '  ';
     const field = (k, text) => `${pad}${JSON.stringify(k)}: ${text}`;
     const rows = [
@@ -169,7 +247,7 @@ export function clipToText(clip, {token, origin = CLIP_ORIGIN} = {}) {
         field('@version', JSON.stringify('1.1')),
         field('pflowClip', indented({version: CLIP_VERSION, origin}, pad)),
         field('token', indented(Array.isArray(token) && token.length ? token : DEFAULT_TOKEN, pad)),
-        field('places', orderedObject(clip.places.map(({id, node}) => [id, node]), pad)),
+        field('places', orderedObject(clip.places.map(({id, node}) => [id, clipPlace(node)]), pad)),
         field('transitions', orderedObject(clip.transitions.map(({id, node}) => [id, node]), pad)),
         field('arcs', indented(clip.arcs, pad)),
     ];
@@ -238,11 +316,12 @@ const NOT_A_CLIP = Object.freeze({kind: 'none'});
  *  - `pflowClip.version` above 1: {kind: 'refused', version, message}, a
  *    status for the caller to show; it must not paste anything
  *  - anything else, including a document whose places, transitions or arcs
- *    have the wrong shape: {kind: 'none'}, so the caller falls back to its
- *    in-memory clip.
+ *    have the wrong shape, or one with no places and no transitions (nothing
+ *    to paste): {kind: 'none'}, so the caller falls back to its in-memory clip.
  * Places and transitions keep the order the text wrote them in, integer-like
  * ids included (see memberOrder). Arcs that are not objects, or whose source
- * or target is not in the clip, are dropped. Any `@id` is ignored.
+ * or target is not in the clip, are dropped. Any `@id` is ignored. The
+ * document's token list, when it has one, is kept as clip.token.
  * @param {*} text
  * @returns {{kind: 'clip', clip: Object, origin: string|null}|{kind: 'refused', version: number, message: string}|{kind: 'none'}}
  */
@@ -275,10 +354,12 @@ export function clipFromText(text) {
     const order = memberOrder(text);
     const p = entriesInOrder(places, order.places);
     const t = entriesInOrder(transitions, order.transitions);
-    if (!p || !t) return NOT_A_CLIP;
+    if (!p || !t || p.length + t.length === 0) return NOT_A_CLIP;
     const have = new Set([...p, ...t].map(n => n.id));
     const kept = arcs.filter(a => isObject(a) && have.has(a.source) && have.has(a.target));
-    return {kind: 'clip', clip: {places: p, transitions: t, arcs: kept}, origin};
+    const clip = {places: p, transitions: t, arcs: kept};
+    if (Array.isArray(doc.token) && doc.token.every((x) => typeof x === 'string')) clip.token = doc.token;
+    return {kind: 'clip', clip, origin};
 }
 
 /**
@@ -286,10 +367,16 @@ export function clipFromText(text) {
  * could not be read); `memoryClip` the editor's in-memory clip. A clip (or a
  * pflow net) on the system clipboard wins; a newer clip version is refused,
  * with a message, and nothing is pasted; any other text falls back to the
- * in-memory clip.
+ * in-memory clip. With preferMemory (the editor's last write to the system
+ * clipboard failed, so whatever clip is there is older than its own), the
+ * in-memory clip wins whenever there is one.
+ * @param {*} text
+ * @param {Object|null} memoryClip
+ * @param {{preferMemory?: boolean}} [opts]
  * @returns {{clip: Object|null, from: 'system'|'memory'|null, refusal?: string}}
  */
-export function choosePaste(text, memoryClip) {
+export function choosePaste(text, memoryClip, {preferMemory = false} = {}) {
+    if (preferMemory && memoryClip) return {clip: memoryClip, from: 'memory'};
     const read = clipFromText(text);
     if (read.kind === 'clip') return {clip: read.clip, from: 'system'};
     if (read.kind === 'refused') return {clip: null, from: null, refusal: read.message};
@@ -297,17 +384,53 @@ export function choosePaste(text, memoryClip) {
 }
 
 /**
+ * Whether the platform's clipboard modifier is Cmd (macOS, iPhone, iPad; an
+ * iPad reports MacIntel) rather than Ctrl, from navigator.userAgentData or
+ * navigator.platform.
+ * @param {*} [nav]
+ * @returns {boolean}
+ */
+export function usesCommandKey(nav = globalThis.navigator) {
+    const platform = nav?.userAgentData?.platform || nav?.platform || '';
+    return /mac|iphone|ipad|ipod/i.test(platform);
+}
+
+/**
+ * Whether a Selection (window.getSelection()) holds selected text: the user
+ * selected something on the page, in a dialog or the host page, and Ctrl+C
+ * is for that.
+ * @returns {boolean}
+ */
+export function hasTextSelection(selection) {
+    try {
+        return !!selection && selection.rangeCount > 0 && !selection.isCollapsed;
+    } catch {
+        return false;
+    }
+}
+
+/**
  * Which clipboard command a keydown asks for: 'copy', 'cut', 'paste',
- * 'duplicate', or null to leave the key alone. Ctrl or Cmd with C, X, V or D,
- * no Alt or Shift, and never while the user is typing in an input, textarea
- * or contenteditable, which keep the browser's own copy and paste.
- * @param {{key?: string, ctrlKey?: boolean, metaKey?: boolean, altKey?: boolean, shiftKey?: boolean}} e
- * @param {{typing?: boolean}} [opts]
+ * 'duplicate', or null to leave the key alone. The platform's modifier (Cmd
+ * on Apple platforms, where Ctrl+C fires no copy event; Ctrl elsewhere) with
+ * C, X, V or D, no other modifier. Never while the user is typing in an
+ * input, textarea or contenteditable, which keep the browser's own copy and
+ * paste: `typing` (document.activeElement, which stops at a shadow host) or
+ * the key's own target looked up through shadow roots (editableTarget). Copy
+ * and cut are also left to the browser while the page has selected text.
+ * @param {{key?: string, ctrlKey?: boolean, metaKey?: boolean, altKey?: boolean, shiftKey?: boolean, composedPath?: Function, target?: any}} e
+ * @param {{typing?: boolean, mac?: boolean, textSelected?: boolean}} [opts] mac:
+ *   Cmd is the modifier (default usesCommandKey())
  * @returns {'copy'|'cut'|'paste'|'duplicate'|null}
  */
-export function clipboardShortcut(e, {typing = false} = {}) {
-    if (!e || typing || !(e.metaKey || e.ctrlKey) || e.altKey || e.shiftKey || !e.key) return null;
-    return {c: 'copy', x: 'cut', v: 'paste', d: 'duplicate'}[e.key.toLowerCase()] || null;
+export function clipboardShortcut(e, {typing = false, mac = usesCommandKey(), textSelected = false} = {}) {
+    if (!e || typing || e.altKey || e.shiftKey || !e.key) return null;
+    const modifier = mac ? e.metaKey && !e.ctrlKey : e.ctrlKey && !e.metaKey;
+    if (!modifier) return null;
+    if (editableTarget(e)) return null;
+    const cmd = {c: 'copy', x: 'cut', v: 'paste', d: 'duplicate'}[e.key.toLowerCase()] || null;
+    if (textSelected && (cmd === 'copy' || cmd === 'cut')) return null;
+    return cmd;
 }
 
 /**
@@ -321,10 +444,10 @@ export function clipboardShortcut(e, {typing = false} = {}) {
 export const CLIPBOARD_EVENT_WAIT_MS = 250;
 
 /**
- * Whether a ClipboardEvent is aimed at an input, textarea or contenteditable,
- * looking through shadow roots (composedPath()[0]): there the page's own copy
- * and paste must win, even if a keydown check on document.activeElement (which
- * stops at a shadow host) missed it.
+ * Whether a ClipboardEvent (or a keydown) is aimed at an input, textarea or
+ * contenteditable, looking through shadow roots (composedPath()[0]): there the
+ * page's own copy and paste must win, even if a check on
+ * document.activeElement (which stops at a shadow host) missed it.
  */
 export function editableTarget(e) {
     let t = null;
@@ -342,25 +465,29 @@ export function editableTarget(e) {
  * event is cancelled so the browser does not write the page selection over it.
  * Otherwise navigator.clipboard.writeText, whose rejection (denied, no focus,
  * insecure origin) is swallowed: the in-memory clip still works. Never throws.
+ * `done` hears whether the text got there: at once for the event route and
+ * for no route, when writeText settles for the API route.
  * @param {string} text
- * @param {{event?: {clipboardData?: any, preventDefault?: Function}|null, clipboard?: any}} [opts]
+ * @param {{event?: {clipboardData?: any, preventDefault?: Function}|null, clipboard?: any, done?: (ok: boolean) => void}} [opts]
  * @returns {'event'|'api'|'none'} the route taken
  */
-export function writeClipboardText(text, {event = null, clipboard = globalThis.navigator?.clipboard} = {}) {
+export function writeClipboardText(text, {event = null, clipboard = globalThis.navigator?.clipboard, done = () => {}} = {}) {
+    let route = 'none';
     try {
         if (event?.clipboardData) {
             event.clipboardData.setData('text/plain', text);
             event.preventDefault();
-            return 'event';
-        }
-        if (clipboard && typeof clipboard.writeText === 'function') {
-            Promise.resolve(clipboard.writeText(text)).catch(() => {});
+            route = 'event';
+        } else if (clipboard && typeof clipboard.writeText === 'function') {
+            Promise.resolve(clipboard.writeText(text)).then(() => done(true), () => done(false)).catch(() => {});
             return 'api';
         }
     } catch {
         /* a clipboard that throws is a clipboard we do not have */
+        route = 'none';
     }
-    return 'none';
+    done(route === 'event');
+    return route;
 }
 
 /**
