@@ -1,5 +1,6 @@
 import * as Sim from './petri-sim.js';
 import {computeCid} from './seal-cid.mjs';
+import {copySelection, pasteInto, DEFAULT_PASTE_OFFSET} from './petri-clipboard.js';
 
 // Mode capabilities - defines what actions each tool mode allows
 const MODE_CAPS = {
@@ -99,6 +100,7 @@ PetriView = class PetriView extends HTMLElement {
         this._mouse = {x: 0, y: 0};
         this._labelEditMode = false;
         this._selectedNodes = new Set(); // for group-select mode
+        this._clipboard = null; // in-memory copy/paste buffer (petri-clipboard.js); never the OS clipboard
         this._boxSelect = null; // for bounding box selection: {startX, startY, endX, endY}
 
         // pan/zoom
@@ -2302,6 +2304,7 @@ PetriView = class PetriView extends HTMLElement {
         const prev = this._history[this._history.length - 1];
         this._model = JSON.parse(prev);
         this._renderUI();
+        this._pruneSelection();
         this._syncLD();
     }
 
@@ -2311,7 +2314,17 @@ PetriView = class PetriView extends HTMLElement {
         this._history.push(nxt);
         this._model = JSON.parse(nxt);
         this._renderUI();
+        this._pruneSelection();
         this._syncLD();
+    }
+
+    /** Drop selected ids that are no longer a place or transition (after undo/redo swaps the model). */
+    _pruneSelection() {
+        const {places = {}, transitions = {}} = this._model || {};
+        for (const id of Array.from(this._selectedNodes)) {
+            if (!places[id] && !transitions[id]) this._selectedNodes.delete(id);
+        }
+        this._updateSelectionHighlights();
     }
 
     // ---------------- marking & firing ----------------
@@ -3253,6 +3266,54 @@ PetriView = class PetriView extends HTMLElement {
         // Dispatch events for each deleted node
         for (const id of ids) {
             this.dispatchEvent(new CustomEvent('node-deleted', {detail: {id}}));
+        }
+    }
+
+    // ---------------- clipboard: copy / cut / paste / duplicate ----------------
+    // Same contract as pflow-native's edit.copy/cut/paste/duplicate. The buffer
+    // is held here, in memory (no navigator.clipboard). Copy changes no model and
+    // makes no undo entry; cut, paste and duplicate are each ONE undo step.
+
+    /** Copy the selected places/transitions (and arcs between them). Returns true if anything was copied. */
+    _copySelection() {
+        const clip = copySelection(this._model, this._selectedNodes);
+        if (!clip) return false;
+        this._clipboard = clip;
+        return true;
+    }
+
+    /** Copy, then delete the selection as one undo step. The buffer stays filled after undo. */
+    _cutSelection() {
+        if (!this._modeCan('canGroupDrag')) return false;
+        if (!this._copySelection()) return false;
+        this._deleteNodes(Array.from(this._selectedNodes));
+        this._clearSelection();
+        return true;
+    }
+
+    /** Paste the buffer at its copied coordinates + (dx, dy); selects the pasted nodes. One undo step. */
+    _pasteClipboard(dx = DEFAULT_PASTE_OFFSET, dy = DEFAULT_PASTE_OFFSET) {
+        if (!this._clipboard || !this._model) return false;
+        if (!this._modeCan('canGroupDrag')) return false;
+        const newIds = pasteInto(this._model, this._clipboard, {dx, dy});
+        if (newIds.length === 0) return false;
+        this._selectedNodes = new Set(newIds);
+        this._normalizeModel();
+        this._pushHistory();
+        this._scheduleSync();
+        this._scheduleRender();
+        return true;
+    }
+
+    /** Copy + paste at +40,+40 without touching the buffer; selection moves to the copies. */
+    _duplicateSelection() {
+        if (!this._modeCan('canGroupDrag')) return false;
+        const saved = this._clipboard;
+        try {
+            if (!this._copySelection()) return false;
+            return this._pasteClipboard();
+        } finally {
+            this._clipboard = saved;
         }
     }
 
@@ -5201,6 +5262,10 @@ PetriView = class PetriView extends HTMLElement {
                 <li><strong>Ctrl/Cmd + Z:</strong> Undo last action</li>
                 <li><strong>Ctrl/Cmd + Shift + Z:</strong> Redo previously undone action</li>
                 <li><strong>Delete or Backspace:</strong> Delete all selected nodes</li>
+                <li><strong>Ctrl/Cmd + C:</strong> Copy the selected places and transitions (and the arcs between them)</li>
+                <li><strong>Ctrl/Cmd + X:</strong> Cut the selection</li>
+                <li><strong>Ctrl/Cmd + V:</strong> Paste the copy 40px down and right; the pasted nodes become the selection</li>
+                <li><strong>Ctrl/Cmd + D:</strong> Duplicate the selection (press again to step further down-right)</li>
                 <li><strong>Escape:</strong> Cancel current operation (arc draft, bounding box selection)</li>
                 <li><strong>Space (hold):</strong> Enable pan mode temporarily</li>
                 <li><strong>X:</strong> Start/stop automatic simulation</li>
@@ -7938,7 +8003,22 @@ PetriView = class PetriView extends HTMLElement {
                 }
             }
 
-            if (e.key && e.key.toLowerCase() === 'x') {
+            // Clipboard shortcuts. Handled before the plain-letter keys below so
+            // Ctrl/Cmd+X is a cut, not the simulation toggle. preventDefault only
+            // when we act, so an empty selection leaves the browser's own copy/
+            // cut/paste/bookmark behavior alone.
+            if ((e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey && !isTyping && e.key) {
+                const k = e.key.toLowerCase();
+                let acted = false;
+                if (k === 'c') acted = this._copySelection();
+                else if (k === 'x') acted = this._cutSelection();
+                else if (k === 'v') acted = this._pasteClipboard();
+                else if (k === 'd') acted = this._duplicateSelection();
+                if (acted) e.preventDefault();
+                if (k === 'c' || k === 'x' || k === 'v' || k === 'd') return;
+            }
+
+            if (e.key && e.key.toLowerCase() === 'x' && !e.metaKey && !e.ctrlKey) {
                 if (!isTyping) {
                     e.preventDefault();
                     this._setSimulation(!this._simRunning);
