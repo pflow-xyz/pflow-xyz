@@ -16,6 +16,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"regexp"
 	"strings"
 )
@@ -24,18 +25,30 @@ import (
 // a copy with a cid-specific <head> block injected. Always returns
 // the original on miss / parse failure — the SPA is still valid HTML
 // without the decoration.
-func (s *Server) decorateIndexForShare(r *http.Request, indexHTML []byte) []byte {
+//
+// The second result is the HTTP status the page should be served with:
+// 404 when a cid was given but is malformed or definitively not in
+// storage (the body is still the landing page, so people get a usable
+// page while crawlers stop indexing it as a soft 404), 200 otherwise —
+// including no cid at all and transient storage or parse errors.
+func (s *Server) decorateIndexForShare(r *http.Request, indexHTML []byte) ([]byte, int) {
 	cid := r.URL.Query().Get("cid")
-	if cid == "" || !cidPattern.MatchString(cid) {
-		return indexHTML
+	if cid == "" {
+		return indexHTML, http.StatusOK
+	}
+	if !cidPattern.MatchString(cid) {
+		return indexHTML, http.StatusNotFound
 	}
 	raw, err := s.storage.GetObject(cid)
 	if err != nil {
-		return indexHTML
+		if os.IsNotExist(err) {
+			return indexHTML, http.StatusNotFound
+		}
+		return indexHTML, http.StatusOK
 	}
 	var p cardPayload
 	if err := json.Unmarshal(raw, &p); err != nil {
-		return indexHTML
+		return indexHTML, http.StatusOK
 	}
 	origin := schemeHost(r)
 	titleOverride := r.URL.Query().Get("title")
@@ -93,7 +106,7 @@ func (s *Server) decorateIndexForShare(r *http.Request, indexHTML []byte) []byte
 	out := stripExistingShareMeta(indexHTML)
 	out = injectIntoHead(out, []byte(block))
 	out = replaceTitleTag(out, title)
-	return out
+	return out, http.StatusOK
 }
 
 // stripExistingShareMeta removes <meta property="og:…">, <meta
@@ -101,11 +114,11 @@ func (s *Server) decorateIndexForShare(r *http.Request, indexHTML []byte) []byte
 // rel="canonical"> tags from doc. Used by decorateIndexForShare so
 // the per-CID block is the only social metadata in the response.
 var (
-	staticOGRe         = regexp.MustCompile(`(?i)\s*<meta\s+property="og:[^"]*"[^>]*/?>\s*\n?`)
-	staticTwitterRe    = regexp.MustCompile(`(?i)\s*<meta\s+name="twitter:[^"]*"[^>]*/?>\s*\n?`)
-	staticDescRe       = regexp.MustCompile(`(?i)\s*<meta\s+name="description"[^>]*/?>\s*\n?`)
-	staticCanonicalRe  = regexp.MustCompile(`(?i)\s*<link\s+rel="canonical"[^>]*/?>\s*\n?`)
-	staticAlternateRe  = regexp.MustCompile(`(?i)\s*<link\s+rel="alternate"\s+type="application/ld\+json"[^>]*/?>\s*\n?`)
+	staticOGRe        = regexp.MustCompile(`(?i)\s*<meta\s+property="og:[^"]*"[^>]*/?>\s*\n?`)
+	staticTwitterRe   = regexp.MustCompile(`(?i)\s*<meta\s+name="twitter:[^"]*"[^>]*/?>\s*\n?`)
+	staticDescRe      = regexp.MustCompile(`(?i)\s*<meta\s+name="description"[^>]*/?>\s*\n?`)
+	staticCanonicalRe = regexp.MustCompile(`(?i)\s*<link\s+rel="canonical"[^>]*/?>\s*\n?`)
+	staticAlternateRe = regexp.MustCompile(`(?i)\s*<link\s+rel="alternate"\s+type="application/ld\+json"[^>]*/?>\s*\n?`)
 )
 
 func stripExistingShareMeta(doc []byte) []byte {
