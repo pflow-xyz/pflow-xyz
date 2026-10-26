@@ -68,6 +68,19 @@ go build -o webserver ./cmd/webserver
 - `POST /api/save` - Save a JSON-LD object and get its CID
 - `GET /api/ownership/{cid}` - Check if current user owns an object
 
+### Account files
+
+Each signed-in user's own files, kept apart per account under `<data>/files/`.
+This is where the editor saves what pflow-native would write to disk. See
+[docs/account-files.md](docs/account-files.md).
+
+- `GET /api/files` - List your files (name, size, modified, kind), your usage and the limits
+- `GET /api/files/{name}` - Read one of your files
+- `PUT /api/files/{name}` - Save the body as `name`. If you already have that name, you get 409 unless you pass `?overwrite=true`
+- `DELETE /api/files/{name}` - Delete one of your files
+
+Every route needs `Authorization: Bearer <GitHub token>` and answers only same-origin requests.
+
 ### SVG Generation
 
 - `GET /img/{cid}.svg` - Generate SVG representation of a Petri net
