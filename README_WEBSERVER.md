@@ -74,12 +74,19 @@ Each signed-in user's own files, kept apart per account under `<data>/files/`.
 This is where the editor saves what pflow-native would write to disk. See
 [docs/account-files.md](docs/account-files.md).
 
+- `GET /api/files/status` - Whether this server keeps account files (no sign-in needed)
 - `GET /api/files` - List your files (name, size, modified, kind), your usage and the limits
 - `GET /api/files/{name}` - Read one of your files
 - `PUT /api/files/{name}` - Save the body as `name`. If you already have that name, you get 409 unless you pass `?overwrite=true`
 - `DELETE /api/files/{name}` - Delete one of your files
 
-Every route needs `Authorization: Bearer <GitHub token>` and answers only same-origin requests.
+Every file route needs `Authorization: Bearer <GitHub token>`, where the token must be one this
+server's GitHub OAuth app issued (the editor's sign-in; checked with GitHub's app-bound token API, so
+personal access tokens and other sites' tokens are refused), and answers only same-origin requests.
+Account files are off without `GITHUB_CLIENT_ID`/`GITHUB_CLIENT_SECRET`. Limits:
+`PFLOW_FILES_MAX_FILE_BYTES` (1 MiB), `PFLOW_FILES_MAX_FILES` (200), `PFLOW_FILES_MAX_TOTAL_BYTES`
+(20 MiB per account), `PFLOW_FILES_MAX_ROOT_BYTES` (1 GiB across accounts); `PFLOW_FILES_ALLOW`
+(comma-separated GitHub logins) narrows who may keep files.
 
 ### SVG Generation
 

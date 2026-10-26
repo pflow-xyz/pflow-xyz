@@ -251,3 +251,76 @@ func TestLimitsFromEnv(t *testing.T) {
 		t.Fatalf("limits = %+v", l)
 	}
 }
+
+func TestStoreWideLimit(t *testing.T) {
+	root := t.TempDir()
+	lim := Limits{MaxFileBytes: 100, MaxFiles: 10, MaxTotalBytes: 100, MaxRootBytes: 50}
+	s := New(root, lim)
+	if _, _, _, err := s.Write(alice, "a.txt", []byte(strings.Repeat("x", 30)), false); err != nil {
+		t.Fatal(err)
+	}
+	// bob is well inside his own limits, but every account together is not.
+	var le *LimitError
+	if _, _, _, err := s.Write(bob, "b.txt", []byte(strings.Repeat("x", 21)), false); !errors.As(err, &le) || le.What != "server" || le.Used != 30 {
+		t.Fatalf("51 of 50 bytes across accounts: %v", err)
+	}
+	if _, _, _, err := s.Write(bob, "b.txt", []byte(strings.Repeat("x", 20)), false); err != nil {
+		t.Fatalf("exactly at the store-wide limit: %v", err)
+	}
+	// Deleting and shrinking give bytes back.
+	if _, err := s.Delete(alice, "a.txt"); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, _, err := s.Write(alice, "a.txt", []byte(strings.Repeat("x", 30)), false); err != nil {
+		t.Fatalf("after a delete: %v", err)
+	}
+	if _, _, _, err := s.Write(bob, "b.txt", []byte("x"), true); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, _, err := s.Write(alice, "c.txt", []byte(strings.Repeat("x", 19)), false); err != nil {
+		t.Fatalf("after shrinking b.txt: %v", err)
+	}
+
+	// A new Store over the same directory counts what is already there.
+	s2 := New(root, lim)
+	if _, _, _, err := s2.Write(bob, "d.txt", []byte("x"), false); !errors.As(err, &le) || le.What != "server" || le.Used != 50 {
+		t.Fatalf("a restarted store must count the files on disk: %v", err)
+	}
+}
+
+func TestStoreWideLimitUnderConcurrency(t *testing.T) {
+	root := t.TempDir()
+	s := New(root, Limits{MaxFileBytes: 100, MaxFiles: 10, MaxTotalBytes: 100, MaxRootBytes: 50})
+	var wg sync.WaitGroup
+	for i := 0; i < 40; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			o := Owner{Provider: "github", Subject: fmt.Sprint(2000 + i)}
+			s.Write(o, "f.txt", []byte("0123456789"), false)
+		}(i)
+	}
+	wg.Wait()
+	used, err := s.diskUsage()
+	if err != nil || used != 50 {
+		t.Fatalf("on disk %d bytes (%v); want exactly the 50-byte limit", used, err)
+	}
+	if s.rootUsed != used {
+		t.Fatalf("running total %d, disk %d", s.rootUsed, used)
+	}
+}
+
+func TestStoreWideLimitFromEnv(t *testing.T) {
+	if DefaultLimits.MaxRootBytes <= 0 {
+		t.Fatal("the default must cap the store")
+	}
+	l := LimitsFromEnv(func(k string) string {
+		return map[string]string{"PFLOW_FILES_MAX_ROOT_BYTES": "4096"}[k]
+	})
+	if l.MaxRootBytes != 4096 {
+		t.Fatalf("limits = %+v", l)
+	}
+	if l := LimitsFromEnv(func(k string) string { return map[string]string{"PFLOW_FILES_MAX_ROOT_BYTES": "0"}[k] }); l.MaxRootBytes != DefaultLimits.MaxRootBytes {
+		t.Fatalf("0 from the environment must not lift the cap: %+v", l)
+	}
+}

@@ -1294,6 +1294,17 @@ PetriView = class PetriView extends HTMLElement {
         }
     }
 
+    // /api/files/status decides whether "Save to my account" is offered. A
+    // server without the route (a vendored copy of this component) answers
+    // 404, which reads as disabled.
+    _filesStatus() {
+        if (this._filesStatusPromise) return this._filesStatusPromise;
+        this._filesStatusPromise = fetch('/api/files/status')
+            .then(r => (r.ok ? r.json() : { enabled: false }))
+            .catch(() => ({ enabled: false }));
+        return this._filesStatusPromise;
+    }
+
     // ---------------- guided modelling (LLM drafting) ----------------
     // /api/llm/status decides whether drafting is offered. A server without
     // the route (a vendored copy of this component) answers 404, which reads
@@ -7588,13 +7599,20 @@ PetriView = class PetriView extends HTMLElement {
             menuContainer._menuContent.appendChild(deleteItem);
 
             // Your own files on the server (file.save / file.open …); signed
-            // out, both say "Sign in to save" and offer the sign-in.
-            menuContainer._menuContent.appendChild(makeMenuItem('☁️ Save to my account…', () => {
+            // out, both say "Sign in to save" and offer the sign-in. Shown
+            // only when /api/files/status says this server keeps them.
+            const accountSaveItem = makeMenuItem('☁️ Save to my account…', () => {
                 this._showAccountSaveDialog();
-            }));
-            menuContainer._menuContent.appendChild(makeMenuItem('🗂️ Open from my account…', () => {
+            });
+            const accountOpenItem = makeMenuItem('🗂️ Open from my account…', () => {
                 this._showAccountFilesDialog();
-            }));
+            });
+            accountSaveItem.style.display = accountOpenItem.style.display = 'none';
+            menuContainer._menuContent.appendChild(accountSaveItem);
+            menuContainer._menuContent.appendChild(accountOpenItem);
+            this._filesStatus().then(s => {
+                if (s.enabled) accountSaveItem.style.display = accountOpenItem.style.display = '';
+            });
 
             // Add Share button (only for logged-in users)
             if (this._authInitialized && this._user) {

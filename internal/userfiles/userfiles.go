@@ -170,19 +170,23 @@ func CheckContent(k Kind, data []byte) error {
 	return nil
 }
 
-// Limits are per owner.
+// Limits are per owner, except MaxRootBytes, which caps every owner's files
+// together: per-account limits alone let many throwaway accounts fill the
+// disk the server shares with everything else on the host.
 type Limits struct {
 	MaxFileBytes  int64 // one file
 	MaxFiles      int   // files in the space
 	MaxTotalBytes int64 // all files together
+	MaxRootBytes  int64 // all owners' files together; 0 is no store-wide limit
 }
 
 // DefaultLimits: 1 MiB a file (what /api/save and nginx's default body limit
-// allow), 200 files, 20 MiB in all.
-var DefaultLimits = Limits{MaxFileBytes: 1 << 20, MaxFiles: 200, MaxTotalBytes: 20 << 20}
+// allow), 200 files, 20 MiB in all, 1 GiB across every account.
+var DefaultLimits = Limits{MaxFileBytes: 1 << 20, MaxFiles: 200, MaxTotalBytes: 20 << 20, MaxRootBytes: 1 << 30}
 
-// LimitsFromEnv reads PFLOW_FILES_MAX_FILE_BYTES, PFLOW_FILES_MAX_FILES and
-// PFLOW_FILES_MAX_TOTAL_BYTES. A malformed value logs and keeps the default.
+// LimitsFromEnv reads PFLOW_FILES_MAX_FILE_BYTES, PFLOW_FILES_MAX_FILES,
+// PFLOW_FILES_MAX_TOTAL_BYTES and PFLOW_FILES_MAX_ROOT_BYTES. A malformed
+// value logs and keeps the default.
 func LimitsFromEnv(getenv func(string) string) Limits {
 	l := DefaultLimits
 	read := func(name string, dst *int64) {
@@ -201,6 +205,7 @@ func LimitsFromEnv(getenv func(string) string) Limits {
 	read("PFLOW_FILES_MAX_FILE_BYTES", &l.MaxFileBytes)
 	read("PFLOW_FILES_MAX_FILES", &files)
 	read("PFLOW_FILES_MAX_TOTAL_BYTES", &l.MaxTotalBytes)
+	read("PFLOW_FILES_MAX_ROOT_BYTES", &l.MaxRootBytes)
 	l.MaxFiles = int(files)
 	return l
 }
@@ -218,16 +223,20 @@ type ContentError struct{ Msg string }
 
 func (e *ContentError) Error() string { return e.Msg }
 
-// LimitError is a write refused by the file-count or total-bytes limit.
+// LimitError is a write refused by the file-count, total-bytes or store-wide
+// limit.
 type LimitError struct {
-	What  string // "files" or "bytes"
+	What  string // "files", "bytes" (this account) or "server" (every account)
 	Limit int64
 	Used  int64 // before this write
 }
 
 func (e *LimitError) Error() string {
-	if e.What == "files" {
+	switch e.What {
+	case "files":
 		return fmt.Sprintf("your account holds %d files, the most it can (delete one to save another)", e.Used)
+	case "server":
+		return "the server's file storage is full; nothing was saved"
 	}
 	return fmt.Sprintf("this would take your account past %d bytes (%d used)", e.Limit, e.Used)
 }
@@ -253,6 +262,12 @@ type Store struct {
 
 	mu    sync.Mutex
 	locks map[string]*ownerLock
+
+	// rootMu guards rootUsed, the bytes every owner's files hold, counted
+	// from disk on first use (rootKnown) and kept by each write and delete.
+	rootMu    sync.Mutex
+	rootUsed  int64
+	rootKnown bool
 }
 
 type ownerLock struct {
@@ -320,6 +335,75 @@ func (s *Store) open(o Owner, create bool) (*os.Root, error) {
 		return nil, nil
 	}
 	return r, err
+}
+
+// reserveRoot claims delta more bytes of the store-wide limit (a negative
+// delta gives bytes back), counting what is on disk the first time. It
+// returns the store's usage before the claim.
+func (s *Store) reserveRoot(delta int64) (int64, error) {
+	s.rootMu.Lock()
+	defer s.rootMu.Unlock()
+	if !s.rootKnown {
+		used, err := s.diskUsage()
+		if err != nil {
+			return 0, err
+		}
+		s.rootUsed, s.rootKnown = used, true
+	}
+	before := s.rootUsed
+	if delta > 0 && s.limits.MaxRootBytes > 0 && before+delta > s.limits.MaxRootBytes {
+		return before, &LimitError{What: "server", Limit: s.limits.MaxRootBytes, Used: before}
+	}
+	s.rootUsed += delta
+	return before, nil
+}
+
+// releaseRoot gives back bytes once counted (a failed write, a delete).
+func (s *Store) releaseRoot(n int64) {
+	s.rootMu.Lock()
+	if s.rootKnown {
+		s.rootUsed -= n
+	}
+	s.rootMu.Unlock()
+}
+
+// diskUsage adds up every owner's files as scan counts them (a missing root
+// holds nothing).
+func (s *Store) diskUsage() (int64, error) {
+	top, err := os.OpenRoot(s.root)
+	if errors.Is(err, fs.ErrNotExist) {
+		return 0, nil
+	}
+	if err != nil {
+		return 0, err
+	}
+	defer top.Close()
+	dir, err := top.Open(".")
+	if err != nil {
+		return 0, err
+	}
+	entries, err := dir.ReadDir(-1)
+	dir.Close()
+	if err != nil {
+		return 0, err
+	}
+	var total int64
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue
+		}
+		r, err := top.OpenRoot(e.Name())
+		if err != nil {
+			return 0, err
+		}
+		_, u, err := scan(r, false)
+		r.Close()
+		if err != nil {
+			return 0, err
+		}
+		total += u.Bytes
+	}
+	return total, nil
 }
 
 // staleTemp is how old a leftover temporary file (a write cut off by a crash)
@@ -465,6 +549,18 @@ func (s *Store) Write(o Owner, name string, data []byte, overwrite bool) (info I
 	if total > s.limits.MaxTotalBytes {
 		return Info{}, false, u, &LimitError{What: "bytes", Limit: s.limits.MaxTotalBytes, Used: u.Bytes}
 	}
+	// The store-wide limit is claimed before writing, so two owners saving
+	// at once cannot both pass it; a failed write gives the claim back.
+	delta := total - u.Bytes
+	if _, err := s.reserveRoot(delta); err != nil {
+		return Info{}, false, u, err
+	}
+	committed := false
+	defer func() {
+		if !committed {
+			s.releaseRoot(delta)
+		}
+	}()
 
 	var rnd [8]byte
 	if _, err := rand.Read(rnd[:]); err != nil {
@@ -489,6 +585,7 @@ func (s *Store) Write(o Owner, name string, data []byte, overwrite bool) (info I
 		r.Remove(tmp)
 		return Info{}, false, u, werr
 	}
+	committed = true
 	fi, err := r.Lstat(name)
 	if err != nil {
 		return Info{}, false, u, err
@@ -528,6 +625,7 @@ func (s *Store) Delete(o Owner, name string) (Usage, error) {
 	if err := r.Remove(name); err != nil {
 		return Usage{}, err
 	}
+	s.releaseRoot(fi.Size())
 	_, u, err := scan(r, false)
 	return u, err
 }

@@ -42,7 +42,7 @@ func (v filesVerifier) Verify(_ context.Context, token string) (*auth.GitHubUser
 func filesServer(t *testing.T, limits userfiles.Limits, v auth.Verifier) (*Server, string) {
 	t.Helper()
 	data := t.TempDir()
-	return &Server{files: &fileService{store: userfiles.New(filepath.Join(data, "files"), limits), accounts: githubFileAccounts(v)}}, data
+	return &Server{files: &fileService{store: userfiles.New(filepath.Join(data, "files"), limits), accounts: githubFileAccounts(v, nil)}}, data
 }
 
 // onDisk lists every regular file under dir, relative and sorted.
@@ -328,6 +328,8 @@ func TestFilesRefuseCrossOrigin(t *testing.T) {
 		{"Sec-Fetch-Site", "cross-site"},
 		{"Sec-Fetch-Site", "same-site", "Origin", "https://sub.pflow.xyz"},
 		{"Sec-Fetch-Site", "cross-site", "Origin", "https://pflow.xyz"},
+		// X-Forwarded-Host is the client's to set; it must not vouch for an Origin.
+		{"Origin", "https://evil.example", "X-Forwarded-Host", "evil.example"},
 	} {
 		for _, m := range []string{"PUT", "DELETE", "GET"} {
 			req := httptest.NewRequest(m, "https://pflow.xyz/api/files/x.json", strings.NewReader(filesNet))
@@ -372,7 +374,8 @@ func TestFilesRefuseCrossOrigin(t *testing.T) {
 func TestConfigureFilesUsesTheDataDir(t *testing.T) {
 	data := t.TempDir()
 	s := &Server{}
-	s.configureFiles(data)
+	env := map[string]string{"GITHUB_CLIENT_ID": "cid", "GITHUB_CLIENT_SECRET": "secret"}
+	s.configureFilesFrom(data, func(k string) string { return env[k] })
 	if s.files == nil || s.files.accounts == nil {
 		t.Fatal("not configured")
 	}
@@ -474,5 +477,117 @@ console.log(JSON.stringify(out));`
 	want := []string{filepath.Join("files", alice.Dir(), "run.csv"), filepath.Join("files", alice.Dir(), "sir.json")}
 	if got := onDisk(t, data); strings.Join(got, ",") != strings.Join(want, ",") {
 		t.Errorf("on disk %v, want %v", got, want)
+	}
+}
+
+// Without the editor's GitHub OAuth app no token can be checked as the app's
+// own, so account files stay off rather than trusting any GitHub token.
+func TestConfigureFilesNeedsTheOAuthApp(t *testing.T) {
+	for _, env := range []map[string]string{{}, {"GITHUB_CLIENT_ID": "cid"}, {"GITHUB_CLIENT_SECRET": "secret"}} {
+		s := &Server{files: &fileService{}}
+		s.configureFilesFrom(t.TempDir(), func(k string) string { return env[k] })
+		if s.files != nil {
+			t.Fatalf("configured with %v", env)
+		}
+		if rec := do(t, s, "PUT", "/api/files/a.json", "alice", filesNet); rec.Code != 503 {
+			t.Fatalf("PUT with files off: %d, want 503", rec.Code)
+		}
+	}
+}
+
+// countingVerifier records every token it is asked about.
+type countingVerifier struct {
+	inner auth.Verifier
+	seen  *[]string
+}
+
+func (v countingVerifier) Verify(ctx context.Context, token string) (*auth.GitHubUserInfo, error) {
+	*v.seen = append(*v.seen, token)
+	return v.inner.Verify(ctx, token)
+}
+
+func TestFilesRefuseThisServersOwnTokens(t *testing.T) {
+	var seen []string
+	s, _ := filesServer(t, userfiles.DefaultLimits, countingVerifier{filesVerifier{}, &seen})
+	for _, tok := range []string{"pfa.eyJzdWIiOiIxMDAxIn0.sig", "pfr.x.y", "eyJhbGciOiJIUzI1NiJ9.e30.sig"} {
+		if rec := do(t, s, "GET", "/api/files", tok, ""); rec.Code != 401 {
+			t.Errorf("%q: %d, want 401", tok, rec.Code)
+		}
+	}
+	if len(seen) != 0 {
+		t.Fatalf("dotted tokens were sent to the verifier (GitHub): %v", seen)
+	}
+}
+
+// fixedVerifier answers every token as one GitHub user.
+type fixedVerifier struct{ u auth.GitHubUserInfo }
+
+func (v fixedVerifier) Verify(context.Context, string) (*auth.GitHubUserInfo, error) {
+	u := v.u
+	return &u, nil
+}
+
+func TestFilesNeedACanonicalGitHubID(t *testing.T) {
+	for _, id := range []string{"", "0", "012", "12a", "-12", "1 2", "123456789012345678901"} {
+		s, data := filesServer(t, userfiles.DefaultLimits, fixedVerifier{auth.GitHubUserInfo{GitHubID: id, UserName: "x"}})
+		if rec := do(t, s, "PUT", "/api/files/a.json", "tok", filesNet); rec.Code != 401 {
+			t.Errorf("id %q: %d, want 401", id, rec.Code)
+		}
+		if got := onDisk(t, data); len(got) != 0 {
+			t.Errorf("id %q wrote %v", id, got)
+		}
+	}
+	s, _ := filesServer(t, userfiles.DefaultLimits, fixedVerifier{auth.GitHubUserInfo{GitHubID: "12", UserName: "x"}})
+	if rec := do(t, s, "PUT", "/api/files/a.json", "tok", filesNet); rec.Code != http.StatusCreated {
+		t.Fatalf("id 12: %d %s", rec.Code, rec.Body)
+	}
+}
+
+func TestFilesAllowList(t *testing.T) {
+	data := t.TempDir()
+	allow := parseFilesAllow(" Alice , ,carol")
+	s := &Server{files: &fileService{store: userfiles.New(filepath.Join(data, "files"), userfiles.DefaultLimits), accounts: githubFileAccounts(filesVerifier{}, allow)}}
+	if rec := do(t, s, "PUT", "/api/files/a.json", "alice", filesNet); rec.Code != http.StatusCreated {
+		t.Fatalf("alice is allowed: %d %s", rec.Code, rec.Body)
+	}
+	rec := do(t, s, "PUT", "/api/files/a.json", "bob", filesNet)
+	if rec.Code != http.StatusForbidden || !strings.Contains(filesBody(t, rec)["error"].(string), "not open to this account") {
+		t.Fatalf("bob is not on the list: %d %s", rec.Code, rec.Body)
+	}
+	if rec := do(t, s, "PUT", "/api/files/a.json", "", filesNet); rec.Code != 401 {
+		t.Fatalf("signed out stays 401, not 403: %d", rec.Code)
+	}
+}
+
+func TestFilesStatus(t *testing.T) {
+	s, _ := filesServer(t, userfiles.DefaultLimits, filesVerifier{})
+	rec := do(t, s, "GET", "/api/files/status", "", "")
+	if body := filesBody(t, rec); rec.Code != 200 || body["enabled"] != true || body["limits"] == nil {
+		t.Fatalf("status: %d %s", rec.Code, rec.Body)
+	}
+	if rec := do(t, &Server{}, "GET", "/api/files/status", "", ""); rec.Code != 200 || filesBody(t, rec)["enabled"] != false {
+		t.Fatalf("status with files off: %d %s", rec.Code, rec.Body)
+	}
+	req := httptest.NewRequest("GET", "https://pflow.xyz/api/files/status", nil)
+	req.Header.Set("Origin", "https://evil.example")
+	rec = httptest.NewRecorder()
+	s.ServeHTTP(rec, req)
+	if rec.Code != 403 {
+		t.Fatalf("cross-origin status: %d, want 403", rec.Code)
+	}
+	// Only GET is the status; anything else at that path is a (bad) file name.
+	if rec := do(t, s, "PUT", "/api/files/status", "alice", filesNet); rec.Code != 400 {
+		t.Fatalf("PUT /api/files/status: %d, want 400", rec.Code)
+	}
+}
+
+func TestFilesStoreWideLimit(t *testing.T) {
+	s, _ := filesServer(t, userfiles.Limits{MaxFileBytes: 1 << 10, MaxFiles: 10, MaxTotalBytes: 1 << 10, MaxRootBytes: int64(len(filesNet)) + 10}, filesVerifier{})
+	if rec := do(t, s, "PUT", "/api/files/a.json", "alice", filesNet); rec.Code != http.StatusCreated {
+		t.Fatalf("first save: %d %s", rec.Code, rec.Body)
+	}
+	rec := do(t, s, "PUT", "/api/files/b.json", "bob", filesNet)
+	if body := filesBody(t, rec); rec.Code != http.StatusInsufficientStorage || body["what"] != "server" {
+		t.Fatalf("store full: %d %s", rec.Code, rec.Body)
 	}
 }
