@@ -162,6 +162,12 @@ pv.importJSON(jsonData);
 | **npm** | [@pflow-xyz/pflow-xyz](https://www.npmjs.com/package/@pflow-xyz/pflow-xyz) |
 | **Schema** | [pflow.xyz/schema](https://pflow.xyz/schema) |
 
+## Contributing
+
+We don't merge outside code, so pull requests won't be merged as-is.
+Feature requests and bug reports are welcome: please open an
+[issue](https://github.com/pflow-xyz/pflow-xyz/issues).
+
 ## License
 
 See [LICENSE](LICENSE) file for details.
