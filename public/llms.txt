@@ -20,6 +20,20 @@ weight component means "this color is not involved".
 - [JSON-LD schema](https://pflow.xyz/schema): the @context served as JSON-LD
 - [Book](https://book.pflow.xyz): Petri nets as a universal abstraction
 
+## Ontology
+
+The terms in `@context: https://pflow.xyz/schema` are defined formally, with
+their relations to the rest of the pflow ecosystem, in a public ontology. Every
+term here is declared there as `owl:equivalentClass` / `owl:equivalentProperty`
+to its `https://pflow.xyz/schema#` IRI (`Arrow` is `Arc` there).
+
+- [Ontology](https://ontology.pflow.xyz): download as Turtle, JSON-LD,
+  N-Triples or RDF/XML; checksums and a verifier script are published with it
+- [SPARQL endpoint](https://ontology.pflow.xyz/sparql): read-only, SELECT / ASK /
+  CONSTRUCT / DESCRIBE
+- [MCP server](https://ontology.pflow.xyz/mcp): `claude mcp add --transport http pflow-ontology https://ontology.pflow.xyz/mcp`
+- [Ontology llms.txt](https://ontology.pflow.xyz/llms.txt): the details for agents
+
 ## Modules
 
 - [petri-solver.js](https://pflow.xyz/petri-solver.js): mass-action ODE
