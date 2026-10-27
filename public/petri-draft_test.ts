@@ -150,8 +150,7 @@ Deno.test("gateDraft: a converted net that strict validateNet rejects stops at t
 
 // Recorded replies (make llm-eval writes testdata/llm/*.json from the live
 // model). Replayed offline: a prompt change that breaks drafts that used to
-// load shows up here. REVIEW: none are captured yet — capturing needs the
-// Gemini key, which this run did not have.
+// load shows up here.
 const recorded = new URL("../testdata/llm/", import.meta.url);
 let recordedFiles: string[] = [];
 try {
@@ -162,7 +161,14 @@ for (const name of recordedFiles.sort()) {
         const rec = JSON.parse(await Deno.readTextFile(new URL(name, recorded)));
         if (rec.error || !rec.raw) return;
         let draft;
-        try { draft = JSON.parse(rec.raw); } catch { return; } // truncated or non-JSON reply: nothing to gate; make llm-eval reports it
+        try { draft = JSON.parse(rec.raw); } catch {
+            // A recorded model failure (cut off, or not JSON): the load gate
+            // must refuse the raw text with a clear reason, as llm-eval reports it.
+            const bad = await gateDraft(rec.raw);
+            assert(!bad.ok && bad.stage === "draft", "a non-JSON reply must be refused at the draft stage");
+            assert(bad.errors.some((e: any) => /not a JSON object/.test(e.message)), JSON.stringify(bad.errors));
+            return;
+        }
         const r = await gateDraft(draft);
         if (rec.expect === "refused") assert(!r.ok);
         else if (rec.expect !== undefined) assert(r.ok, JSON.stringify(r.errors));

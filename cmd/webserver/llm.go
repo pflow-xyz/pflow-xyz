@@ -37,6 +37,16 @@ const (
 // draftSchema is the Gemini responseSchema for a draft (the slice-1 "Draft
 // schema (v1)"). Every field is required, so the decoder cannot drop one; the
 // browser's validateDraft checks the values.
+// draftThinkingBudget caps the model's hidden reasoning for a draft.
+// REVIEW: measured on gemini-3.8-flash with case 01 of the eval: uncapped, it
+// spent 3930 thought tokens and hit the old 4096 cap with 159 visible tokens
+// (34 s); with a budget of 1024 it finished in 9 s at about 1.4k tokens. A
+// draft is structured output against a schema and the prompt already says how
+// to model, so little reasoning is needed; 1024 leaves room for the harder
+// descriptions without letting thinking dominate latency and cost. Revisit if
+// the eval's pass rate drops, not per case.
+var draftThinkingBudget = 1024
+
 var draftSchema = map[string]any{
 	"type": "OBJECT",
 	"properties": map[string]any{
@@ -274,10 +284,15 @@ func (s *Server) handleLLMDraft(w http.ResponseWriter, r *http.Request) {
 		ResponseSchema:  draftSchema,
 		Temperature:     0.2,
 		MaxOutputTokens: 16384,
+		ThinkingBudget:  &draftThinkingBudget,
 	})
 	if err != nil {
 		status, msg := upstreamStatus(err)
-		done(llm.Usage{Status: status})
+		usage := llm.Usage{Status: status}
+		if resp != nil { // a truncated reply still cost tokens
+			usage.In, usage.Out = resp.InputTokens, resp.OutputTokens+resp.ThoughtTokens
+		}
+		done(usage)
 		log.Printf("[llm] draft for %s: %v", u.UserName, err)
 		llmError(w, status, msg, nil)
 		return

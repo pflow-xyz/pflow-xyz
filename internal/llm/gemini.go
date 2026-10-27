@@ -51,10 +51,15 @@ type geminiTools struct {
 }
 
 type geminiGenConfig struct {
-	Temperature      float64        `json:"temperature"`
-	MaxOutputTokens  int            `json:"maxOutputTokens,omitempty"`
-	ResponseMimeType string         `json:"responseMimeType,omitempty"`
-	ResponseSchema   map[string]any `json:"responseSchema,omitempty"`
+	Temperature      float64         `json:"temperature"`
+	MaxOutputTokens  int             `json:"maxOutputTokens,omitempty"`
+	ResponseMimeType string          `json:"responseMimeType,omitempty"`
+	ResponseSchema   map[string]any  `json:"responseSchema,omitempty"`
+	ThinkingConfig   *thinkingConfig `json:"thinkingConfig,omitempty"`
+}
+
+type thinkingConfig struct {
+	ThinkingBudget int `json:"thinkingBudget"` // pointer-free: 0 is meaningful (thinking off)
 }
 
 type geminiResponse struct {
@@ -65,6 +70,7 @@ type geminiResponse struct {
 	UsageMetadata struct {
 		PromptTokenCount     int `json:"promptTokenCount"`
 		CandidatesTokenCount int `json:"candidatesTokenCount"`
+		ThoughtsTokenCount   int `json:"thoughtsTokenCount"`
 	} `json:"usageMetadata"`
 	ModelVersion string `json:"modelVersion"`
 }
@@ -84,6 +90,9 @@ func (g *Gemini) buildRequest(req Request) geminiRequest {
 	if req.ResponseSchema != nil {
 		body.GenerationConfig.ResponseMimeType = "application/json"
 		body.GenerationConfig.ResponseSchema = req.ResponseSchema
+	}
+	if req.ThinkingBudget != nil {
+		body.GenerationConfig.ThinkingConfig = &thinkingConfig{ThinkingBudget: *req.ThinkingBudget}
 	}
 	if len(req.Tools) > 0 {
 		body.Tools = []geminiTools{{FunctionDeclarations: req.Tools}}
@@ -150,9 +159,19 @@ func (g *Gemini) Complete(ctx context.Context, req Request) (*Response, error) {
 		return nil, fmt.Errorf("%w: no candidates", ErrBadReply)
 	}
 	out := &Response{
-		Model:        model,
-		InputTokens:  gr.UsageMetadata.PromptTokenCount,
-		OutputTokens: gr.UsageMetadata.CandidatesTokenCount,
+		Model:         model,
+		InputTokens:   gr.UsageMetadata.PromptTokenCount,
+		OutputTokens:  gr.UsageMetadata.CandidatesTokenCount,
+		ThoughtTokens: gr.UsageMetadata.ThoughtsTokenCount,
+	}
+	// REVIEW: Gemini 3.x counts thinking tokens against maxOutputTokens, so a
+	// reply can be cut off after a few visible tokens (the first live eval saw
+	// 153 visible tokens beside ~3.9k thought tokens). A cut-off reply is
+	// unparseable JSON or a half-formed tool call, so refuse it by name rather
+	// than hand it on.
+	if gr.Candidates[0].FinishReason == "MAX_TOKENS" {
+		return out, fmt.Errorf("%w (%d visible + %d thinking tokens, cap %d)", ErrTruncated,
+			out.OutputTokens, out.ThoughtTokens, req.MaxOutputTokens)
 	}
 	if gr.ModelVersion != "" {
 		out.Model = gr.ModelVersion

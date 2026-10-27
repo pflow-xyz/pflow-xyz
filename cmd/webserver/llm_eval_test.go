@@ -63,14 +63,18 @@ func TestLLMEvalLive(t *testing.T) {
 			ResponseSchema:  draftSchema,
 			Temperature:     0.2,
 			MaxOutputTokens: 16384,
+			ThinkingBudget:  &draftThinkingBudget,
 		})
 		cancel()
 		rec := map[string]any{"description": desc, "prompt": draftPromptVersion, "model": client.Model()}
 		if err != nil {
 			rec["error"] = err.Error()
+			if resp != nil {
+				rec["usage"] = map[string]int{"in": resp.InputTokens, "out": resp.OutputTokens, "thoughts": resp.ThoughtTokens}
+			}
 		} else {
 			rec["raw"] = resp.Text
-			rec["usage"] = map[string]int{"in": resp.InputTokens, "out": resp.OutputTokens}
+			rec["usage"] = map[string]int{"in": resp.InputTokens, "out": resp.OutputTokens, "thoughts": resp.ThoughtTokens}
 		}
 		out, _ := json.MarshalIndent(rec, "", "  ")
 		name := filepath.Join(dir, fmt.Sprintf("%s-%02d.json", draftPromptVersion, i))
