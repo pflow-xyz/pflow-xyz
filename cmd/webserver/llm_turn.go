@@ -204,6 +204,11 @@ func (s *Server) handleLLMTurn(w http.ResponseWriter, r *http.Request) {
 	if req.Mode == "auto" {
 		c := svc.classify(r.Context(), lastUserText(req.Messages), req.PrevMode)
 		label = &c
+		if svc.autoStats != nil {
+			if err := svc.autoStats.Record(c.Mode, c.Sentiment, c.Confidence, c.Fallback); err != nil {
+				log.Printf("[llm] auto stats: %v", err)
+			}
+		}
 		req.Mode = c.Mode
 		if req.Mode != "build" {
 			req.Step = ""

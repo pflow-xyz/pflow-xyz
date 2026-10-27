@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -102,5 +104,40 @@ func TestLLMAutoDropsStepOutsideBuild(t *testing.T) {
 	autoResult(t, c, strings.Replace(autoTurn, `"net"`, `"step":"rates","net"`, 1))
 	if strings.Contains(c.lastTurn.Messages[0].Parts[0].Text, "Interview step") {
 		t.Fatal("interview step leaked into a non-build turn")
+	}
+}
+
+func TestLLMAutoRecordsOnlyAnonymousCounts(t *testing.T) {
+	c := &autoClient{label: `{"intent":"build","sentiment":"frustrated","confidence":0.93}`}
+	s := turnServer(t, &turnClient{})
+	s.llm.client = c
+	dir := t.TempDir()
+	stats, err := llm.NewAutoStats(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.llm.autoStats = stats
+	for i := 0; i < 2; i++ {
+		if rec := do(t, s, "POST", "/api/llm/turn", "good", autoTurn); rec.Code != 200 {
+			t.Fatalf("%d %s", rec.Code, rec.Body.String())
+		}
+		// the per-user burst bucket would refuse a third call; two are fine
+	}
+	counts := stats.Counts()
+	total := 0
+	for k, n := range counts {
+		total += n
+		if !strings.Contains(k, "|build|frustrated|high|ok") {
+			t.Errorf("unexpected key %q", k)
+		}
+	}
+	if total != 2 {
+		t.Fatalf("counts %v", counts)
+	}
+	raw, _ := os.ReadFile(filepath.Join(dir, "auto-stats.json"))
+	for _, secret := range []string{"42", "Octo", "queue place", "0.93"} {
+		if strings.Contains(string(raw), secret) {
+			t.Errorf("stats file holds %q: %s", secret, raw)
+		}
 	}
 }
