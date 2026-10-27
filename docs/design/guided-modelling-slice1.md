@@ -156,7 +156,7 @@ All routes are under `/api/llm/`. JSON in, JSON out.
 No auth needed. The UI calls it to decide whether to show the entry point.
 
 ```json
-{ "enabled": true, "signed_in": true, "model": "gemini-2.5-flash",
+{ "enabled": true, "signed_in": true, "model": "gemini-3.8-flash",
   "remaining_today": 27, "daily_limit": 30, "reset": "2026-10-16T00:00:00Z" }
 ```
 
@@ -179,7 +179,7 @@ The success response (200):
 ```json
 {
   "draft": { ...see Draft schema... },
-  "model": "gemini-2.5-flash",
+  "model": "gemini-3.8-flash",
   "usage": { "input_tokens": 812, "output_tokens": 1406 },
   "remaining_today": 26, "reset": "2026-10-16T00:00:00Z"
 }
@@ -273,7 +273,7 @@ casual abuse, not a determined user. **The global cap is the cost ceiling.**
 | Env | Required | Default | Notes |
 |---|---|---|---|
 | `GEMINI_API_KEY` | yes, or the feature is off | (none) | Gemini API (AI Studio) key |
-| `PFLOW_LLM_MODEL` | no | `gemini-2.5-flash` | same default as sim |
+| `PFLOW_LLM_MODEL` | no | `gemini-3.8-flash` | same default as sim |
 | `PFLOW_LLM_DAILY_LIMIT` and the other limits above | no | see the table | a malformed value logs once at startup and uses the default, as in sim's `dailyLimit()` |
 | `PFLOW_LLM_ALLOW` | no | unset (all users) | soft-launch allowlist |
 
@@ -281,7 +281,7 @@ casual abuse, not a determined user. **The global cap is the cost ceiling.**
   pflow.dev, next to `GITHUB_CLIENT_SECRET`, and is documented in the "This
   service" section of `CLAUDE.md`. It is never committed, never sent to the
   browser and never logged. At startup the server logs only
-  `LLM drafting: enabled (model gemini-2.5-flash)` or `disabled (no
+  `LLM drafting: enabled (model gemini-3.8-flash)` or `disabled (no
   GEMINI_API_KEY)`.
 - **The endpoint** is
   `https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent`.
@@ -376,7 +376,7 @@ the version is recorded in the usage log line. It is adapted from sim's
 
 The user's description is sent **only** as the single user-role message,
 following sim's injection discipline. Generation runs at temperature 0.2,
-with `maxOutputTokens` 4096 and a 45 s timeout. Each request is single-turn.
+with `maxOutputTokens` 16384, a drafts `thinkingBudget` of 1024 (thinking tokens count against the cap in Gemini 3.x; a `MAX_TOKENS` reply is refused as unusable) and a 45 s timeout. Each request is single-turn.
 
 The few-shot examples come from this repo's showcase nets, not from sim's
 staffing catalogue, so the drafts look like the editor's own examples.

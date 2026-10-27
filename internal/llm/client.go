@@ -13,6 +13,7 @@ package llm
 import (
 	"context"
 	"errors"
+	"fmt"
 )
 
 // Message is one turn of a conversation. Role is "user" or "model".
@@ -60,18 +61,22 @@ type Request struct {
 	Tools           []FunctionDecl
 	Temperature     float64
 	MaxOutputTokens int
-	Model           string // overrides the client's model for this call when set
+	// ThinkingBudget caps the model's hidden reasoning tokens; nil leaves the
+	// model's own default (dynamic, effectively unbounded up to the output cap).
+	ThinkingBudget *int
+	Model          string // overrides the client's model for this call when set
 }
 
 // Response is what came back. Text is the concatenated text parts; Calls the
 // function calls, in order.
 type Response struct {
-	Text         string
-	Calls        []FunctionCall
-	Parts        []Part // the candidate's parts, verbatim, to send back next turn
-	Model        string
-	InputTokens  int
-	OutputTokens int
+	Text          string
+	Calls         []FunctionCall
+	Parts         []Part // the candidate's parts, verbatim, to send back next turn
+	Model         string
+	InputTokens   int
+	OutputTokens  int
+	ThoughtTokens int // hidden reasoning, billed and counted against MaxOutputTokens
 }
 
 // Client is the provider seam.
@@ -84,6 +89,9 @@ var (
 	// ErrBadReply: the provider answered, but with nothing usable (no
 	// candidates, not the requested JSON, over the size cap). Maps to 502.
 	ErrBadReply = errors.New("the model returned an unusable reply")
+	// ErrTruncated: the reply hit MaxOutputTokens (finishReason MAX_TOKENS), so
+	// its text is cut off mid-structure. Also an ErrBadReply, so it maps to 502.
+	ErrTruncated = fmt.Errorf("%w: the reply was cut off at the output cap", ErrBadReply)
 	// ErrTimeout: the provider took too long. Maps to 504.
 	ErrTimeout = errors.New("the model took too long to answer")
 	// ErrUpstream: the provider refused or failed (4xx/5xx, network). Maps to

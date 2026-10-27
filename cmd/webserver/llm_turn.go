@@ -72,6 +72,14 @@ type toolManifest struct {
 	} `json:"tools"`
 }
 
+// turnThinkingBudget caps hidden reasoning for an Assistant turn, which shares
+// the draft's failure: thinking counts against MaxOutputTokens, so an uncapped
+// turn can be cut off mid tool call. REVIEW: larger than the draft's because
+// choosing which tool to call, and with what, is where reasoning pays; not
+// measured against a live eval (there is none for turns yet), so it is a
+// starting point, not a tuned value.
+var turnThinkingBudget = 2048
+
 func loadToolManifest(public fs.FS) (*toolManifest, []llm.FunctionDecl, map[string]bool, error) {
 	if public == nil {
 		return nil, nil, nil, errors.New("no public filesystem")
@@ -220,10 +228,15 @@ func (s *Server) handleLLMTurn(w http.ResponseWriter, r *http.Request) {
 		Tools:           svc.toolDecls,
 		Temperature:     0.2,
 		MaxOutputTokens: 16384,
+		ThinkingBudget:  &turnThinkingBudget,
 	})
 	if err != nil {
 		status, msg := upstreamStatus(err)
-		done(llm.Usage{Status: status})
+		usage := llm.Usage{Status: status}
+		if resp != nil { // a truncated reply still cost tokens
+			usage.In, usage.Out = resp.InputTokens, resp.OutputTokens+resp.ThoughtTokens
+		}
+		done(usage)
 		log.Printf("[llm] turn for %s: %v", u.UserName, err)
 		llmError(w, status, msg, nil)
 		return

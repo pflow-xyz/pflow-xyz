@@ -479,10 +479,12 @@ wants an owner's decision.
 3. **Limits.** The defaults are 30 per user per day, burst 3, 500 a day
    globally (`PFLOW_LLM_*`). The Assistant spends one unit per model call,
    up to 6 per message, so is 30 a day enough for chat?
-4. ✅ **First live run.** *Done 2026-10-26* on `gemini-3.8-flash`: 17/20 (85%)
-   pass the gate first time; `testdata/llm/` committed as the regression net.
-   The 3 failures (01, 04, 08) are "reply is not JSON" — raw replies cut off
-   mid-object, probably thinking tokens eating the 4096 `MaxOutputTokens`.
+4. ✅ **First live run.** *Done 2026-10-26* on `gemini-3.8-flash`: first run
+   17/20 (85%); after capping thinking (`thinkingBudget` 1024 for drafts) and
+   rejecting `MAX_TOKENS` replies, rerun **20/20 (100%)** pass the gate first
+   time, ~6.4 s per call (was ~17 s). `testdata/llm/` is the regression net.
+   The 3 first-run failures (01, 04, 08) were thinking tokens eating the
+   4096 `maxOutputTokens` (measured: 3930 thought + 159 visible, `MAX_TOKENS`).
 
 **Behaviour that shipped with a default**
 

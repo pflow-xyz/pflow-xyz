@@ -83,6 +83,52 @@ func TestGeminiRequestShape(t *testing.T) {
 	}
 }
 
+func TestGeminiThinkingBudget(t *testing.T) {
+	budget := func(n int) *int { return &n }
+	for _, c := range []struct {
+		name string
+		b    *int
+		want any // nil = thinkingConfig absent
+	}{{"unset", nil, nil}, {"zero turns thinking off", budget(0), 0.0}, {"1024", budget(1024), 1024.0}} {
+		var got captured
+		srv := geminiStub(t, okReply, 200, 0, &got)
+		g := NewGemini("k", "")
+		g.BaseURL = srv.URL
+		_, err := g.Complete(context.Background(), Request{Messages: []Message{{Role: "user", Parts: []Part{{Text: "x"}}}}, ThinkingBudget: c.b})
+		srv.Close()
+		if err != nil {
+			t.Fatalf("%s: %v", c.name, err)
+		}
+		tc, ok := got.body["generationConfig"].(map[string]any)["thinkingConfig"].(map[string]any)
+		if c.want == nil {
+			if ok {
+				t.Errorf("%s: thinkingConfig sent: %v", c.name, tc)
+			}
+		} else if !ok || tc["thinkingBudget"] != c.want {
+			t.Errorf("%s: thinkingConfig %v, want budget %v", c.name, tc, c.want)
+		}
+	}
+}
+
+func TestGeminiMaxTokensIsTruncated(t *testing.T) {
+	reply := `{"candidates":[{"content":{"role":"model","parts":[{"text":"{\"name\":\"x\",\"places\":[{"}]},"finishReason":"MAX_TOKENS"}],
+"usageMetadata":{"promptTokenCount":10,"candidatesTokenCount":153,"thoughtsTokenCount":3930}}`
+	srv := geminiStub(t, reply, 200, 0, nil)
+	defer srv.Close()
+	g := NewGemini("k", "")
+	g.BaseURL = srv.URL
+	resp, err := g.Complete(context.Background(), Request{Messages: []Message{{Role: "user", Parts: []Part{{Text: "x"}}}}, MaxOutputTokens: 4096})
+	if !errors.Is(err, ErrTruncated) || !errors.Is(err, ErrBadReply) {
+		t.Fatalf("err %v, want ErrTruncated (and ErrBadReply)", err)
+	}
+	if !strings.Contains(err.Error(), "3930 thinking") {
+		t.Errorf("error should say where the tokens went: %v", err)
+	}
+	if resp == nil || resp.ThoughtTokens != 3930 || resp.OutputTokens != 153 {
+		t.Errorf("usage must still be reported on truncation: %+v", resp)
+	}
+}
+
 func TestGeminiFunctionCalls(t *testing.T) {
 	reply := `{"candidates":[{"content":{"role":"model","parts":[{"functionCall":{"name":"sim_ode","args":{"t_end":5}}}]}}]}`
 	var got captured

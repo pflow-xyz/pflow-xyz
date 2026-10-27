@@ -2,9 +2,10 @@
   "description": "what is the capital of France",
   "model": "gemini-3.8-flash",
   "prompt": "draft-net-v1",
-  "raw": "{\"name\": \"Not a process\", \"summary\": \"A placeholder net generated because the prompt was not a process description.\", \"places\": [{\"id\": \"state\", \"label\": \"Initial state\", \"description\": \"Default placeholder place.\", \"initial\": 1, \"capacity\": 0}], \"transitions\": [{\"id\": \"step\", \"label\": \"Default step\", \"description\": \"Default placeholder transition.\", \"rate\": 1.0}], \"arcs\": [{\"from\": \"state\", \"to\": \"step\", \"weight\": 1, \"inhibitor\": false}], \"assumptions\": [\"The description did not describe a process.\", \"Rates are per hour.\"]}",
+  "raw": "{\"name\": \"Non-process query\", \"summary\": \"Minimal placeholder net because the prompt asked a factual question rather than describing a process.\", \"places\": [{\"id\": \"placeholder_input\", \"label\": \"Input\", \"description\": \"Placeholder state.\", \"initial\": 1, \"capacity\": 0}], \"transitions\": [{\"id\": \"placeholder_step\", \"label\": \"Step\", \"description\": \"Placeholder action.\", \"rate\": 1}], \"arcs\": [{\"from\": \"placeholder_input\", \"to\": \"placeholder_step\", \"weight\": 1, \"inhibitor\": false}], \"assumptions\": [\"The description did not describe a process.\", \"The prompt was a factual question: the capital of France is Paris.\"]}",
   "usage": {
     "in": 1254,
-    "out": 140
+    "out": 155,
+    "thoughts": 0
   }
 }
