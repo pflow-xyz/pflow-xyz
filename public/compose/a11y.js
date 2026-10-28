@@ -61,6 +61,19 @@ export function initA11y() {
   document.addEventListener('keydown', (e) => { keyboardMode = true; onKey(e); });
   document.addEventListener('keydown', () => { keyboardMode = true; }, true);
   document.addEventListener('pointerdown', () => { keyboardMode = false; hideRing(); }, true);
+  // The skip links move focus; they must not change the address. The page keeps its view, example and
+  // view parameters (level=...) in the hash, and a bare #stage would rewrite it and add a history entry.
+  // The href stays for a browser without script.
+  for (const a of document.querySelectorAll('a.skip[href^="#"]')) {
+    a.addEventListener('click', (e) => {
+      const to = document.getElementById(a.getAttribute('href').slice(1));
+      if (!to) return;
+      e.preventDefault();
+      if (!to.hasAttribute('tabindex')) to.setAttribute('tabindex', '-1');
+      to.focus();
+      if (to.scrollIntoView) to.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    });
+  }
   document.addEventListener('focusin', onFocusIn);
   document.addEventListener('focusout', () => hideRing());
   document.addEventListener('scroll', () => place(), true);
