@@ -11,7 +11,9 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"runtime/debug"
 	"strings"
 	"sync"
@@ -185,6 +187,137 @@ func TestIsWebFlowKey(t *testing.T) {
 	}
 }
 
+// ---- Auth ------------------------------------------------------------------
+
+func TestCheckDeployAuth(t *testing.T) {
+	req := func(header, query string) *http.Request {
+		r := httptest.NewRequest("POST", "/admin/deploy", nil)
+		if header != "" {
+			r.Header.Set("X-Deploy-Token", header)
+		}
+		if query != "" {
+			r.URL.RawQuery = "token=" + query
+		}
+		return r
+	}
+	t.Setenv("DEPLOY_SECRET", "s3cret-value")
+	for name, c := range map[string]struct {
+		r    *http.Request
+		want bool
+	}{
+		"header":                       {req("s3cret-value", ""), true},
+		"query (kept for old callers)": {req("", "s3cret-value"), true},
+		"no token":                     {req("", ""), false},
+		"wrong header":                 {req("s3cret-valuX", ""), false},
+		"wrong query":                  {req("", "nope"), false},
+		"prefix of the secret":         {req("s3cret", ""), false},
+		"secret plus a suffix":         {req("s3cret-value!", ""), false},
+		"right query, wrong header":    {req("nope", "s3cret-value"), true}, // either one is enough
+	} {
+		if got := checkDeployAuth(c.r); got != c.want {
+			t.Errorf("%s: checkDeployAuth = %v, want %v", name, got, c.want)
+		}
+	}
+	// No secret configured: nothing authenticates, not even an empty token.
+	t.Setenv("DEPLOY_SECRET", "")
+	for _, r := range []*http.Request{req("", ""), req("anything", ""), req("", "anything")} {
+		if checkDeployAuth(r) {
+			t.Error("with no DEPLOY_SECRET the admin endpoints must stay locked")
+		}
+	}
+}
+
+func TestTokenMatches(t *testing.T) {
+	for _, c := range []struct {
+		got, secret string
+		want        bool
+	}{
+		{"a", "a", true}, {"", "", true}, {"a", "b", false}, {"", "a", false}, {"a", "", false},
+		{"aaaa", "aaa", false}, {"aaa", "aaaa", false},
+	} {
+		if tokenMatches(c.got, c.secret) != c.want {
+			t.Errorf("tokenMatches(%q, %q) != %v", c.got, c.secret, c.want)
+		}
+	}
+}
+
+// ---- Running commands ------------------------------------------------------
+
+func TestChildEnvDropsTheDeploySecretsAndNothingElse(t *testing.T) {
+	in := []string{"PATH=/usr/bin", "DEPLOY_SECRET=s", "DEPLOY_GITHUB_TOKEN=t", "DEPLOY_REPO=o/r", "DEPLOY_SECRETARY=x", "HOME=/h", "NOEQUALS"}
+	got := strings.Join(childEnv(in), " ")
+	if want := "PATH=/usr/bin DEPLOY_REPO=o/r DEPLOY_SECRETARY=x HOME=/h NOEQUALS"; got != want {
+		t.Errorf("childEnv = %q, want %q", got, want)
+	}
+}
+
+func TestExecRunnerChildrenDoNotInheritTheSecrets(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("needs sh")
+	}
+	t.Setenv("DEPLOY_SECRET", "hunter2")
+	t.Setenv("DEPLOY_GITHUB_TOKEN", "ghp_example")
+	t.Setenv("KEEP_ME", "yes")
+	out, err := execRunner(context.Background(), t.TempDir(), "sh", "-c", `echo "[${DEPLOY_SECRET-unset}][${DEPLOY_GITHUB_TOKEN-unset}][${KEEP_ME-unset}]"`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.TrimSpace(string(out)); got != "[unset][unset][yes]" {
+		t.Errorf("the child saw %s", got)
+	}
+}
+
+// A per-command timeout has to bound the command. exec's default kills only the
+// process it started; git's ssh and git-remote-* helpers (here: a background
+// subshell) kept running, kept the output pipe open, and held Wait for as long
+// as they liked, which with one deploy at a time wedged every later deploy.
+func TestExecRunnerTimeoutKillsTheWholeProcessTree(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("needs sh and process groups")
+	}
+	dir := t.TempDir()
+	marker := filepath.Join(dir, "survivor")
+	script := fmt.Sprintf(`(sleep 1.5; echo alive > %q) & echo started; wait`, marker)
+	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Millisecond)
+	defer cancel()
+	t0 := time.Now()
+	out, err := execRunner(ctx, dir, "sh", "-c", script)
+	took := time.Since(t0)
+	if err == nil {
+		t.Error("a command killed by its timeout must report an error")
+	}
+	if took > 1200*time.Millisecond {
+		t.Errorf("returned after %s; the 300ms timeout did not bound the command", took)
+	}
+	if !strings.Contains(string(out), "started") {
+		t.Errorf("the output before the kill should be kept, got %q", out)
+	}
+	time.Sleep(2 * time.Second) // longer than the child's own sleep
+	if _, err := os.Stat(marker); err == nil {
+		t.Error("a descendant outlived the timeout: the process group was not killed")
+	}
+}
+
+// A descendant that left the process group (setsid) cannot be killed with the
+// group but still holds the output pipe; WaitDelay is what lets Wait return.
+func TestExecRunnerStopsWaitingForADescendantHoldingThePipe(t *testing.T) {
+	if _, err := exec.LookPath("perl"); err != nil || runtime.GOOS == "windows" {
+		t.Skip("needs perl and sh to make a process that leaves the group")
+	}
+	defer func(d time.Duration) { childWaitDelay = d }(childWaitDelay)
+	childWaitDelay = 300 * time.Millisecond
+	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+	defer cancel()
+	t0 := time.Now()
+	_, err := execRunner(ctx, t.TempDir(), "sh", "-c", `perl -MPOSIX -e 'POSIX::setsid(); sleep 4' & wait`)
+	if took := time.Since(t0); took > 2*time.Second {
+		t.Errorf("returned after %s although the timeout was 200ms and WaitDelay 300ms", took)
+	}
+	if err == nil {
+		t.Error("want an error from the killed command")
+	}
+}
+
 // ---- Pipeline harness ------------------------------------------------------
 
 type cmdResult struct {
@@ -220,6 +353,10 @@ type deployHarness struct {
 }
 
 const harnessSHA = "8d30d96a1b2c3d4e5f60718293a4b5c6d7e8f901"
+
+// fetchCmd is the fetch the deploy runs: the full ref name, never a bare
+// `main`, which git would resolve to a tag of that name first.
+const fetchCmd = "git fetch origin refs/heads/main"
 
 func newHarness(t *testing.T) *deployHarness {
 	t.Helper()
@@ -284,7 +421,7 @@ func (h *deployHarness) runner(ctx context.Context, dir string, args ...string) 
 	if dir != "/srv/pflow-xyz" {
 		h.t.Errorf("command ran in %q, want the project dir: %s", dir, line)
 	}
-	if h.blockFetch != nil && line == "git fetch origin main" {
+	if h.blockFetch != nil && line == fetchCmd {
 		h.blockOnce.Do(func() {
 			close(h.fetchSeen)
 			<-h.blockFetch
@@ -336,7 +473,7 @@ func (h *deployHarness) status() deployStatus { return h.d.snapshot() }
 // shows as one "GET check-runs"; see collapse).
 func fullRun(sha string) []string {
 	return []string{
-		"git fetch origin main",
+		fetchCmd,
 		"git rev-parse --verify FETCH_HEAD^{commit}",
 		"git verify-commit " + sha,
 		"git remote get-url origin", // only after the signature has passed
@@ -504,7 +641,7 @@ func TestSignatureCheckIsNotAffectedByTheGateSettings(t *testing.T) {
 			job := h.deploy(skip)
 			asRefusal(t, job.err)
 			got := h.log()
-			if want := []string{"git fetch origin main", "git rev-parse --verify FETCH_HEAD^{commit}", "git verify-commit " + webFlowSHA}; strings.Join(got, "|") != strings.Join(want, "|") {
+			if want := []string{fetchCmd, "git rev-parse --verify FETCH_HEAD^{commit}", "git verify-commit " + webFlowSHA}; strings.Join(got, "|") != strings.Join(want, "|") {
 				t.Errorf("sequence = %q", got)
 			}
 			if h.status().State != deployRefused {
@@ -525,7 +662,7 @@ func TestSkipCISkipsOnlyTheGate(t *testing.T) {
 		t.Fatalf("skip_ci deploy failed: %v", job.err)
 	}
 	want := []string{
-		"git fetch origin main",
+		fetchCmd,
 		"git rev-parse --verify FETCH_HEAD^{commit}",
 		"git verify-commit " + harnessSHA, // still verified
 		"git merge --ff-only " + harnessSHA,

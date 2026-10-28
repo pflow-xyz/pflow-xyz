@@ -6,7 +6,7 @@ package main
 //
 //	webhook / POST /admin/deploy
 //	  -> one deploy at a time (a delivery during a run queues ONE follow-up)
-//	  -> git fetch origin main; pin the fetched sha
+//	  -> git fetch origin refs/heads/main; pin the fetched sha
 //	  -> git verify-commit <sha>          (signature; unchanged strictness)
 //	  -> CI gate on <sha>                 (deploy_gate.go; fails closed)
 //	  -> git merge --ff-only <sha>        (only now does the checkout change)
@@ -21,6 +21,7 @@ import (
 	"context"
 	"crypto/hmac"
 	"crypto/sha256"
+	"crypto/subtle"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -33,6 +34,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime/debug"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -82,19 +84,25 @@ func verifyHMAC(secret string, body []byte, signature string) bool {
 	return hmac.Equal(sig, expected)
 }
 
-// checkDeployAuth validates the deploy token from header or query param.
+// checkDeployAuth validates the deploy token from the X-Deploy-Token header or,
+// kept for old callers, the token query parameter. Prefer the header: a query
+// string is written to access logs (nginx) and shell history.
 func checkDeployAuth(r *http.Request) bool {
 	secret := deploySecret()
 	if secret == "" {
 		return false
 	}
-	if token := r.Header.Get("X-Deploy-Token"); token == secret {
+	if tokenMatches(r.Header.Get("X-Deploy-Token"), secret) {
 		return true
 	}
-	if token := r.URL.Query().Get("token"); token == secret {
-		return true
-	}
-	return false
+	return tokenMatches(r.URL.Query().Get("token"), secret)
+}
+
+// tokenMatches compares in constant time. The inputs are hashed first so the
+// comparison does not even reveal the secret's length.
+func tokenMatches(got, secret string) bool {
+	a, b := sha256.Sum256([]byte(got)), sha256.Sum256([]byte(secret))
+	return subtle.ConstantTimeCompare(a[:], b[:]) == 1
 }
 
 // ---- Signature failures ----------------------------------------------------
@@ -360,9 +368,38 @@ func setBuildHeader(w http.ResponseWriter) {
 // cmdRunner runs one command and returns its combined output.
 type cmdRunner func(ctx context.Context, dir string, args ...string) ([]byte, error)
 
+// childWaitDelay is how long a command may linger after its context ends, or
+// after it exits, while a descendant still holds its output pipe open. Without
+// it a timeout does not bound the command: Wait blocks until every holder of
+// the pipe is gone.
+var childWaitDelay = 5 * time.Second
+
+// secretEnv names the settings the deploy's own commands (git, bash, go and
+// whatever they spawn) must not inherit: they do not need them, and a build
+// step or a hook that prints its environment would leak them into the deploy
+// output, which is streamed to the caller and kept in the status file.
+var secretEnv = []string{"DEPLOY_SECRET", "DEPLOY_GITHUB_TOKEN"}
+
+// childEnv returns env without the entries in secretEnv.
+func childEnv(env []string) []string {
+	out := make([]string, 0, len(env))
+	for _, kv := range env {
+		if name, _, _ := strings.Cut(kv, "="); !slices.Contains(secretEnv, name) {
+			out = append(out, kv)
+		}
+	}
+	return out
+}
+
+// execRunner runs a command in its own process group, so the timeout in ctx
+// kills the whole tree (git's ssh and git-remote-* helpers, the compiler's
+// children) and not just the process it started.
 func execRunner(ctx context.Context, dir string, args ...string) ([]byte, error) {
 	cmd := exec.CommandContext(ctx, args[0], args[1:]...)
 	cmd.Dir = dir
+	cmd.Env = childEnv(os.Environ())
+	killGroupOnCancel(cmd)
+	cmd.WaitDelay = childWaitDelay
 	return cmd.CombinedOutput()
 }
 
@@ -647,8 +684,10 @@ func (d *deployer) pipeline(ctx context.Context, job *deployJob, cfg deployConfi
 	}
 
 	// 1. Fetch, then pin the tip. Everything after this names the sha, never
-	// the moving origin/main ref.
-	if _, err := do("fetch", "git fetch", gitStepTimeout, false, "git", "fetch", "origin", "main"); err != nil {
+	// the moving origin/main ref. The full ref name matters: a bare `main` is
+	// resolved by git's own ref rules, which take a TAG named main before the
+	// branch, so anyone able to create a tag could choose what gets deployed.
+	if _, err := do("fetch", "git fetch", gitStepTimeout, false, "git", "fetch", "origin", "refs/heads/main"); err != nil {
 		return err
 	}
 	tip, err := do("fetch", "pin fetched tip", gitStepTimeout, false, "git", "rev-parse", "--verify", "FETCH_HEAD^{commit}")
