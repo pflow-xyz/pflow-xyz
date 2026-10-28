@@ -94,18 +94,61 @@ json.dumps({'python': sys.version.split()[0], 'results': {f: ch.check(ch.load_th
   return { ...JSON.parse(out), loadSeconds, checkSeconds: (performance.now() - t0) / 1000 };
 }
 
-/** export() with Chyp's layout on each theory: {docs: {theory: export}, layoutSeconds}. */
-export async function layout(theories, onStatus) {
-  const { py } = await pyodide(onStatus);
+/** The packages Chyp's layout needs, besides the numpy and scipy they pull in. */
+export const LAYOUT_PACKAGES = ['cvxpy-base', 'clarabel'];
+
+const pep503 = (name) => String(name).toLowerCase().replace(/[-_.]+/g, '-');
+
+/**
+ * Which of `wanted` Pyodide does not list as loaded (`pyodide.loadedPackages`: name -> channel). Needed
+ * because loadPackage does not throw when a wheel is blocked or cannot be fetched: it logs a warning
+ * per package and resolves.
+ */
+export function missingPackages(loadedPackages, wanted = LAYOUT_PACKAGES) {
+  const have = new Set(Object.keys(loadedPackages || {}).map(pep503));
+  return wanted.filter((w) => !have.has(pep503(w)));
+}
+
+/**
+ * Why a live layout cannot be presented as the live result, or null. Two ways it silently becomes
+ * something else: a package did not load (see missingPackages), or Chyp could not import cvxpy and
+ * exported topology only (diagrams.layout.used is 'none', with a reason), which draws a different
+ * structure. The text is what the page says, in plain words.
+ * @param {{loadedPackages?: object, docs?: object}} o  py.loadedPackages, and the exports once there are some
+ * @returns {string | null}
+ */
+export function layoutProblem({ loadedPackages, docs }) {
+  const missing = missingPackages(loadedPackages);
+  if (missing.length) return `${missing.join(' and ')} did not load: ${missing.length > 1 ? 'their files' : 'its file'} could not be fetched from cdn.jsdelivr.net`;
+  if (docs) {
+    const topologyOnly = Object.entries(docs).filter(([, d]) => d?.diagrams?.layout?.used !== 'chyp');
+    if (topologyOnly.length) return `Chyp drew no coordinates: ${topologyOnly.map(([k, d]) => `${k} ${d?.diagrams?.layout?.reason || `(layout used: ${d?.diagrams?.layout?.used ?? 'unknown'})`}`).join('; ')}`;
+  }
+  return null;
+}
+
+/** The layout step on a loaded Pyodide `py`: throws, saying why, unless Chyp's own layout ran. */
+export async function layoutOn(py, theories, onStatus) {
   onStatus?.('loading numpy, scipy, cvxpy-base and clarabel for Chyp\'s layout (about 18 MB)…');
   const t0 = performance.now();
-  await py.loadPackage(['cvxpy-base', 'clarabel']);
+  await py.loadPackage(LAYOUT_PACKAGES);
+  const notLoaded = layoutProblem({ loadedPackages: py.loadedPackages });
+  if (notLoaded) throw new Error(notLoaded);
   onStatus?.('laying the diagrams out with Chyp (convex_layout)…');
   const out = await py.runPythonAsync(`
 import json
 json.dumps({f: json.loads(ch.dumps(ch.export(ch.load_theory(f'chyp/{f}.chyp')))) for f in ${JSON.stringify(theories)}})
 `);
-  return { docs: JSON.parse(out), layoutSeconds: (performance.now() - t0) / 1000 };
+  const docs = JSON.parse(out);
+  const problem = layoutProblem({ loadedPackages: py.loadedPackages, docs });
+  if (problem) throw new Error(problem);
+  return { docs, layoutSeconds: (performance.now() - t0) / 1000 };
+}
+
+/** export() with Chyp's layout on each theory: {docs: {theory: export}, layoutSeconds}. */
+export async function layout(theories, onStatus) {
+  const { py } = await pyodide(onStatus);
+  return layoutOn(py, theories, onStatus);
 }
 
 /**

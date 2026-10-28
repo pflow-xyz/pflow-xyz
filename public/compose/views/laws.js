@@ -202,7 +202,7 @@ function liveText() {
       const lay = lc ? (lc.shapeDiffers ? 'the live layout\'s structure differs from the precomputed one' : lc.maxDiff === 0 ? `the live layout equals the precomputed one (${lc.numbers} numbers)` : `the live layout differs from the precomputed one by at most ${lc.maxDiff.toPrecision(3)} units over ${lc.numbers} numbers`) : '';
       return [`Shown: the live result (Chyp 3d28483 under ${t}); ${cmp}; the layout drawn is the live one: ${lay}.`, LIVE.cmp.differences.length || (lc && lc.shapeDiffers) ? 'warn' : 'ok'];
     }
-    case 'layout-error': return [`Shown: ${pre}. ${cmp} (${t}). The live layout failed (${LIVE.err}), so the precomputed layout stays.`, 'warn'];
+    case 'layout-error': return [`Shown: ${pre}. ${cmp} (${t}). The live layout could not run (${LIVE.err}); the precomputed layout is the one shown.`, 'warn'];
     case 'error': return [`Shown: ${pre}. The live check did not run (${LIVE.err}): Pyodide loads from cdn.jsdelivr.net and lark from PyPI, so it needs the network.`, 'warn'];
     default: return [`Shown: ${pre}.`, 'lw-muted'];
   }

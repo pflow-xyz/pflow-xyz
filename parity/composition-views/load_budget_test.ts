@@ -273,6 +273,76 @@ Deno.test("laws-live: a failure is one readable line, not a traceback", async ()
   assert(explain(new Error("x".repeat(1000))).length <= 240);
 });
 
+// --- the Laws view's live layout: a package that does not load is not a layout ---------------------------
+//
+// Pyodide's loadPackage does not throw when a wheel is blocked: it logs a warning per package and resolves.
+// Without a check, Chyp falls back to topology only and the page announced "the live layout is drawn".
+
+Deno.test("laws-live: which of the layout's packages Pyodide did not load", async () => {
+  const { missingPackages, LAYOUT_PACKAGES } = await import("../../public/compose/laws-live.js");
+  assertEquals(LAYOUT_PACKAGES, ["cvxpy-base", "clarabel"]);
+  assertEquals(missingPackages({ numpy: "default", scipy: "default", clarabel: "default", "cvxpy-base": "default" }), []);
+  assertEquals(missingPackages({ numpy: "default", scipy: "default" }), ["cvxpy-base", "clarabel"]);
+  assertEquals(missingPackages({ "cvxpy-base": "default" }), ["clarabel"]);
+  assertEquals(missingPackages({ clarabel: "default" }), ["cvxpy-base"]);
+  assertEquals(missingPackages({ cvxpy_base: "default", Clarabel: "default" }), [], "names are compared as PEP 503 does");
+  assertEquals(missingPackages(undefined), ["cvxpy-base", "clarabel"]);
+  assertEquals(missingPackages({}, ["lark"]), ["lark"]);
+});
+
+Deno.test("laws-live: what the page says when the layout cannot be the live one (a pure function)", async () => {
+  const { layoutProblem } = await import("../../public/compose/laws-live.js");
+  const both = { "cvxpy-base": "default", clarabel: "default" };
+  const chyp = (used: string, reason?: string) => ({ diagrams: { layout: { requested: "chyp", used, ...(reason ? { reason } : {}) } } });
+  assertEquals(layoutProblem({ loadedPackages: both }), null);
+  assertEquals(layoutProblem({ loadedPackages: both, docs: { a: chyp("chyp"), b: chyp("chyp") } }), null);
+  assertEquals(layoutProblem({ loadedPackages: { numpy: "default" } }), "cvxpy-base and clarabel did not load: their files could not be fetched from cdn.jsdelivr.net");
+  assertEquals(layoutProblem({ loadedPackages: { "cvxpy-base": "default" } }), "clarabel did not load: its file could not be fetched from cdn.jsdelivr.net");
+  // the packages loaded but Chyp still exported topology only (could not import cvxpy)
+  assertEquals(layoutProblem({ loadedPackages: both, docs: { a: chyp("chyp"), b: chyp("none", "ImportError: no cvxpy") } }), "Chyp drew no coordinates: b ImportError: no cvxpy");
+  assertEquals(layoutProblem({ loadedPackages: both, docs: { a: chyp("none") } }), "Chyp drew no coordinates: a (layout used: none)");
+  assertEquals(layoutProblem({ loadedPackages: both, docs: { a: {} } }), "Chyp drew no coordinates: a (layout used: unknown)");
+  // a missing package is reported before any layout is looked at
+  assert(layoutProblem({ loadedPackages: {}, docs: { a: chyp("none") } })!.startsWith("cvxpy-base and clarabel did not load"));
+});
+
+Deno.test("laws-live: the layout step fails, and says why, when its packages did not load or Chyp fell back", async () => {
+  const { layoutOn } = await import("../../public/compose/laws-live.js");
+  const docs = { "orderer-monoid": { diagrams: { layout: { used: "chyp" } } } };
+  const fakePy = (loaded: Record<string, string>, exported: unknown) => {
+    const ran: string[] = [];
+    return {
+      ran,
+      loadedPackages: loaded,
+      loadPackage: async (names: string[]) => { ran.push(`loadPackage ${names.join(",")}`); }, // resolves, as Pyodide does for a blocked wheel
+      runPythonAsync: async () => { ran.push("run"); return JSON.stringify(exported); },
+    };
+  };
+  const status: string[] = [];
+
+  // a blocked wheel: loadPackage resolved, the package is not loaded: no layout is run, nothing says "drawn"
+  const blocked = fakePy({ numpy: "default", scipy: "default" }, docs);
+  let err: Error | null = null;
+  try { await layoutOn(blocked, ["orderer-monoid"], (t: string) => status.push(t)); } catch (e) { err = e as Error; }
+  assert(err, "a layout whose packages did not load must fail");
+  assertEquals(err!.message, "cvxpy-base and clarabel did not load: their files could not be fetched from cdn.jsdelivr.net");
+  assertEquals(blocked.ran, ["loadPackage cvxpy-base,clarabel"], "Chyp's layout must not run without its packages");
+  assert(!status.some((t) => /laying the diagrams out/.test(t)));
+
+  // everything loaded but Chyp exported topology only
+  const fellBack = fakePy({ "cvxpy-base": "default", clarabel: "default" }, { "orderer-monoid": { diagrams: { layout: { used: "none", reason: "ImportError: cvxpy" } } } });
+  err = null;
+  try { await layoutOn(fellBack, ["orderer-monoid"]); } catch (e) { err = e as Error; }
+  assertEquals(err?.message, "Chyp drew no coordinates: orderer-monoid ImportError: cvxpy");
+
+  // the good run
+  const good = fakePy({ "cvxpy-base": "default", clarabel: "default" }, docs);
+  const r = await layoutOn(good, ["orderer-monoid"], (t: string) => status.push(t));
+  assertEquals(r.docs, docs);
+  assertEquals(good.ran, ["loadPackage cvxpy-base,clarabel", "run"]);
+  assert(typeof r.layoutSeconds === "number");
+});
+
 // --- the URL hash -----------------------------------------------------------------------------------
 
 const G = globalThis as any;
