@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>MCP connector · pflow.xyz</title>
-<meta name="description" content="Connect Claude or any MCP client to pflow.xyz to build, check, simulate and save Petri nets.">
+<meta name="description" content="Connect Claude or any MCP client to pflow.xyz to build, check, simulate and save Petri nets and compositions of them.">
 <link rel="icon" href="/favicon.ico">
 <meta name="author" content="Matt York">
 <link rel="me" href="https://github.com/stackdump">
@@ -45,6 +45,7 @@ td:first-child{white-space:nowrap}nav a{margin-right:1rem}.lede{font-size:1.1rem
 <li>"Build a Petri net for a two-philosopher dining problem with pflow and tell me whether it can deadlock."</li>
 <li>"Here's my pflow net. Simulate it to t=50 and tell me where the tokens end up."</li>
 <li>"Find the place invariants of this net, then give me a link to open it in the pflow.xyz editor."</li>
+<li>"Compose an order queue, a worker pool and a payment saga with pflow, tell me which links the queue's dequeue could take, flatten the result and run the failed-payment scenario."</li>
 </ul>
 
 <h2>Tools</h2>
@@ -65,6 +66,13 @@ td:first-child{white-space:nowrap}nav a{margin-right:1rem}.lede{font-size:1.1rem
 <tr><td><code>pflow_optimize</code></td><td>Seeded Monte Carlo over transition rates, with the Pareto front of the objectives you name.</td></tr>
 <tr><td><code>pflow_game_value</code></td><td>The exact value of a position of a two-sided game played on a net (tic-tac-toe, Connect-4, Nim, any net whose moves belong to two sides), by alpha-beta search over the firing rule. The net's marking is the position. A search plan picks the move order, filters and drivers, and a root estimate that ranks the first moves by solving the net's mass-action ODE; a net with several token colours is searched on its colour copies.</td></tr>
 <tr><td><code>pflow_game_move</code></td><td>A best move at such a position and its exact value.</td></tr>
+<tr><td><code>pflow_bundle_example</code></td><td>A composition to start from: an order queue, a worker pool and a payment saga as one bundle of subnets, joined by the three idioms or by links you give, with the page's four scenarios. A composition is a PetriNetBundle: independently authored subnets, the ports on their boundaries and the typed links between them (token, data, event, guard).</td></tr>
+<tr><td><code>pflow_bundle_validate</code></td><td>Check a composition: its subnets, then every link (endpoints, net types, port schemas, direction), with errors and warnings that name the link.</td></tr>
+<tr><td><code>pflow_bundle_candidates</code></td><td>The links a port could take: every other port judged as the far end, the first legal kind winning, each with its verdict.</td></tr>
+<tr><td><code>pflow_bundle_add_link</code></td><td>Add a link to a composition if it is legal (go-pflow's rules, and that a link joins two subnets and is not repeated); a refusal lists each reason.</td></tr>
+<tr><td><code>pflow_bundle_flatten</code></td><td>Flatten a composition into one net: fused places and transitions with the members they came from, arcs, constraints, the maps and the warnings.</td></tr>
+<tr><td><code>pflow_bundle_run</code></td><td>Fire a script of subnet/transition members on the flat net, or one of the example's scenarios; it stops where a member cannot fire and says why.</td></tr>
+<tr><td><code>pflow_bundle_incidence</code></td><td>The flat net's incidence matrix, each subnet's block, and whether each declared constraint is a conservation law of the composition.</td></tr>
 <tr><td><code>pflow_rate_scan</code></td><td>Sweep one rate and see how the outcome moves.</td></tr>
 <tr><td><code>pflow_export</code></td><td>The net as normalised JSON-LD or as an SVG drawing.</td></tr>
 <tr><td><code>pflow_cid</code></td><td>The content id a net seals to.</td></tr>

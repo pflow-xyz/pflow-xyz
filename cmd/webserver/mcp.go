@@ -457,8 +457,10 @@ func (s *Server) mcpDispatch(r *http.Request, req rpcRequest) (rpcResponse, bool
 			"serverInfo":      map[string]any{"name": "pflow.xyz", "version": "workbench-1"},
 			"instructions": "pflow.xyz: Petri nets in the pflow.xyz JSON-LD format. Check, seal, simulate (ODE) and explore " +
 				"(reachability) a net on the server's go-pflow engines; pflow_links opens one in the editor, where the " +
-				"structural analyses, stochastic runs and the Assistant live. pflow_save needs the person signed in to " +
-				"pflow.xyz.",
+				"structural analyses, stochastic runs and the Assistant live. Compositions (a PetriNetBundle: subnets, " +
+				"the ports on their boundaries and the typed links between them): pflow_bundle_example gives one; " +
+				"pflow_bundle_validate, _candidates and _add_link check and extend it, _flatten makes one net of it " +
+				"and _run fires a script on that net. pflow_save needs the person signed in to pflow.xyz.",
 		}
 	case "ping":
 		resp.Result = map[string]any{}

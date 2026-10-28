@@ -133,9 +133,10 @@ func toolDescriptor(t mcpTool) map[string]any {
 	}
 }
 
-// allMCPTools is the original seven plus the registry, workbench and game tools.
+// allMCPTools is the original seven plus the registry, workbench, game and
+// composition tools.
 func allMCPTools() []mcpTool {
-	return append(append(append(mcpTools(), registryTools()...), workbenchTools()...), gameTools()...)
+	return append(append(append(append(mcpTools(), registryTools()...), workbenchTools()...), gameTools()...), modelTools()...)
 }
 
 // ---- protocol version and the tools a connection is offered ----
