@@ -445,12 +445,47 @@ ssh pflow.dev "~/services restart"
 ssh pflow.dev "tmux attach -t servers"
 ```
 
+### Push-to-main deploy
+
+pflow.xyz deploys itself: a push to `main` fires `POST /webhook/github`
+(`cmd/webserver/deploy.go`), which fetches, verifies, **waits for CI**, builds and
+restarts. It does not ship every push: the tip must carry a signature the box can
+verify (the owner's SSH key; a GitHub merge-button commit needs GitHub's web-flow
+key imported into the box's keyring, which is an owner decision), and GitHub must
+report a successful `test` check run for that sha (`.github/workflows/test.yml`
+runs `make test`; renaming the job means setting `DEPLOY_CI_CHECK`). A refused
+deploy changes nothing, and the webhook still answers 202, so **a green delivery
+in GitHub does not mean deployed**. Deploys run one at a time (one queued
+follow-up, latest wins).
+
+```bash
+# What happened? (needs DEPLOY_SECRET)
+curl -s -H "X-Deploy-Token: $DEPLOY_SECRET" https://pflow.xyz/admin/deploy-status
+# Deployed commit (response header) vs main
+curl -si https://pflow.xyz/health | grep -i x-build-revision
+gh api repos/pflow-xyz/pflow-xyz/commits/main --jq .sha
+# Emergency deploy that skips only the CI gate (the signature is still verified)
+curl -N -X POST -H "X-Deploy-Token: $DEPLOY_SECRET" "https://pflow.xyz/admin/deploy?skip_ci=1"
+```
+
+Endpoints: `POST /webhook/github`, `POST /admin/deploy` (`?skip_ci=1`),
+`GET /admin/deploy-status`, `GET /admin/logs`, all token-checked with
+`DEPLOY_SECRET` (the webhook by HMAC); the last attempt is also in
+`data/deploy-status.json`. **`docs/deploy.md` is the reference**: the pipeline,
+the CI gate, how to diagnose a stuck deploy, the 2026-10-28 incident (merge-button
+commits refused for six hours), and the web-flow key import the box still needs.
+
 ### Environment Variables
 
 Environment variables are configured in `~/services`. This service uses:
 - `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` - GitHub OAuth
 - `GOOGLE_ANALYTICS_ID` - Analytics (G-E7Q5BVDGYB)
 - `SUPABASE_JWT_SECRET` - Supabase JWT
+- `DEPLOY_SECRET` - webhook HMAC secret and admin token
+- Deploy CI gate (all optional, defaults in `docs/deploy.md`): `DEPLOY_REQUIRE_CI`
+  (`0` turns the gate off for the box), `DEPLOY_CI_CHECK` (default `test`),
+  `DEPLOY_CI_POLL` (15s), `DEPLOY_CI_GRACE` (2m), `DEPLOY_CI_TIMEOUT` (15m),
+  `DEPLOY_REPO`, `DEPLOY_GITHUB_TOKEN`, `DEPLOY_GITHUB_API`
 
 ## Decommissioning
 
