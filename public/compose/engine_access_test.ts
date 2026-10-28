@@ -14,9 +14,9 @@
 //   2. the seams model.js adds for the two views that used to call the engine
 //      themselves (flat.js and process.js ran bundle.run {scenario}) behave
 //      exactly like the call they replace.
-import { assert, assertEquals, assertThrows } from "https://deno.land/std@0.224.0/assert/mod.ts";
+import { assert, assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import * as registry from "./registry.js";
-import { liveCommand, liveScenario, loadFacts, SCENARIOS } from "./model.js";
+import { defaultLinks, liveCommand, liveScenario, loadFacts, SCENARIOS } from "./model.js";
 import { start } from "./state.js";
 
 const COMPOSE = new URL("./", import.meta.url);
@@ -90,6 +90,12 @@ Deno.test("engine access: nothing but registry.js imports the wasm shim", () => 
 });
 
 // --- 2. the seams ---------------------------------------------------------------------------
+//
+// model.js's liveScenario/liveCommand must be registry.js's wrapped call on the live engine, not the
+// raw engine behind it: the wrapper is what turns a refusal into a Refusal (state.js's refused(e)
+// reads e.errors) and clears the artifact a bundle.run/.flatten/.lens/... stores. A seam that went
+// round it would return the same results and pass an equality test, so these tests look at the
+// refusals and at the engine's artifact list as well.
 
 const gz = await Deno.readFile(new URL("../vendor/pflow-native-wasm/pflow_native_wasm_bg.wasm.gz", import.meta.url));
 const bytes = new Uint8Array(await new Response(new Blob([gz as BufferSource]).stream().pipeThrough(new DecompressionStream("gzip"))).arrayBuffer());
@@ -97,11 +103,35 @@ const engines: any = await registry.init({ bytes });
 loadFacts();
 start();
 
+/** What a call throws (null if it returns). */
+function thrown(f: () => unknown): any {
+    try { f(); } catch (e) { return e; }
+    return null;
+}
+
+/** The artifacts the live engine holds right now (read on the raw engine: the wrapper would not clear them). */
+function artifacts(): any[] {
+    const r = engines.live.raw.call("artifact.list", {});
+    return Array.isArray(r) ? r : r.artifacts;
+}
+
+/** The same refusal, from the seam and from the direct (wrapped) call: a Refusal with the registry's errors. */
+function assertSameRefusal(via: any, direct: any, command: string) {
+    assert(direct instanceof registry.Refusal, "the direct call did not refuse");
+    assert(via instanceof registry.Refusal, `the seam threw ${via?.constructor?.name}, not a Refusal: ${via?.message}`);
+    assertEquals(via.command, command);
+    assertEquals(via.message, direct.message);
+    assertEquals(via.errors, direct.errors);
+    assert(via.errors.length > 0);
+}
+
 Deno.test("engine access: liveScenario(id) is bundle.run {scenario: id} on the live engine, result for result", () => {
     assert(SCENARIOS.length >= 3, `${SCENARIOS.length} scenarios`);
+    engines.live.raw.call("artifact.clear", {});
     for (const s of SCENARIOS) {
         // (the engine numbers the artifact a run stores, a1, a2, ...; the page clears it and never reads the id)
         const { artifact: _a, ...via } = liveScenario(s.id);
+        assertEquals(artifacts(), [], `${s.id}: liveScenario left its run in the live engine`);
         const { artifact: _b, ...direct } = engines.live.call("bundle.run", { scenario: s.id });
         assertEquals(via, direct, s.id);
         assertEquals(via.id, s.id);
@@ -109,14 +139,45 @@ Deno.test("engine access: liveScenario(id) is bundle.run {scenario: id} on the l
     }
 });
 
-Deno.test("engine access: liveScenario refuses what the call refuses, with the same message", () => {
-    let direct = "";
-    try { engines.live.call("bundle.run", { scenario: "no-such-scenario" }); } catch (e) { direct = (e as Error).message; }
-    assert(direct, "the registry accepted an unknown scenario");
-    assertThrows(() => liveScenario("no-such-scenario"), Error, direct);
+Deno.test("engine access: liveScenario refuses what the call refuses, as the same Refusal", () => {
+    const direct = thrown(() => engines.live.call("bundle.run", { scenario: "no-such-scenario" }));
+    const via = thrown(() => liveScenario("no-such-scenario"));
+    assertSameRefusal(via, direct, "bundle.run");
+    assertEquals(artifacts(), []);
 });
 
-Deno.test("engine access: liveCommand is the live engine's call", () => {
+Deno.test("engine access: liveCommand is the live engine's call, arguments and all", () => {
     assertEquals(liveCommand("bundle.state"), engines.live.call("bundle.state"));
-    assertThrows(() => liveCommand("bundle.no_such_command"), Error);
+    // arguments reach the engine: bundle.run needs its scenario, bundle.candidates its port
+    // (a seam that dropped them would throw "pass `scenario` or `script`" / "missing required argument")
+    const s = SCENARIOS[0].id;
+    const { artifact: _a, ...run } = liveCommand("bundle.run", { scenario: s });
+    const { artifact: _b, ...directRun } = engines.live.call("bundle.run", { scenario: s });
+    assertEquals(run, directRun);
+    assertEquals(run.id, s);
+    const from = defaultLinks()[0].from;
+    assertEquals(liveCommand("bundle.candidates", { from }), engines.live.call("bundle.candidates", { from }));
+    assert(liveCommand("bundle.candidates", { from }).candidates.length > 0);
+});
+
+Deno.test("engine access: liveCommand clears the artifact a command stores, like the wrapped call", () => {
+    engines.live.raw.call("artifact.clear", {});
+    liveCommand("bundle.run", { scenario: SCENARIOS[0].id });
+    liveCommand("bundle.flatten");
+    assertEquals(artifacts(), [], "liveCommand left an artifact in the live engine");
+});
+
+Deno.test("engine access: liveCommand refuses as a Refusal, with the registry's codes in errors", () => {
+    // state.js reads e.errors (refused(e)); a bare Error from the raw engine has none.
+    const dup = defaultLinks()[0]; // already in the composition: the page rule PAGE_DUPLICATE
+    const args = { kind: dup.kind, from: dup.from, to: dup.to };
+    const before = engines.live.call("bundle.state");
+    const direct = thrown(() => engines.live.call("bundle.add_link", args));
+    const via = thrown(() => liveCommand("bundle.add_link", args));
+    assertSameRefusal(via, direct, "bundle.add_link");
+    assertEquals(via.errors.map((e: any) => e.code), ["PAGE_DUPLICATE"]);
+    assertEquals(engines.live.call("bundle.state"), before, "a refused link changed the composition");
+    // an unknown command, and a known one without its arguments
+    assertSameRefusal(thrown(() => liveCommand("bundle.no_such_command")), thrown(() => engines.live.call("bundle.no_such_command")), "bundle.no_such_command");
+    assertSameRefusal(thrown(() => liveCommand("bundle.run")), thrown(() => engines.live.call("bundle.run")), "bundle.run");
 });
