@@ -4,7 +4,10 @@
 //  - The page's entry (compose.html and the static import graph of its
 //    scripts) reaches no third-party host and no Pyodide: nothing from
 //    cdn.jsdelivr.net or PyPI is requested until the Laws view is drawn
-//    (views/laws.js -> laws-live.js, behind a dynamic import).
+//    (views/laws.js -> laws-live.js, behind a dynamic import). The html itself
+//    names no other host anywhere it could fetch or run something: attributes,
+//    inline scripts and styles, not only <script src> and <link>; its own
+//    origin, https://pflow.xyz, is allowed.
 //  - No view module is in that static graph: app.js imports each on first use.
 //  - views-meta.js (the tab labels) says what each view module says.
 //  - The URL hash keeps the parameters views write into it, and a view id no
@@ -44,6 +47,74 @@ function fetchedByHtml(html: string): { scripts: string[]; links: string[] } {
   return { scripts, links };
 }
 
+// --- what the html may name ----------------------------------------------------------------------
+//
+// The page's own origin is the only host compose.html may name where the browser could fetch or run
+// something: in a src, href, srcset, poster, data, action or content attribute, in the body of an
+// inline <script> or <style>, in a style or on* attribute. Absolute first-party URLs (canonical,
+// og:image, a modulepreload) are allowed. Left alone, because the browser fetches nothing for them:
+// the href of an <a> and of a <link> whose rel is only me, canonical, author, license, alternate...
+// (the page links to the author's profiles), and the text of a data block (<script
+// type="application/ld+json">, which may name schema.org or sameAs profiles); a data block still
+// may not name Pyodide's hosts.
+const FIRST_PARTY = "https://pflow.xyz";
+const NO_FETCH_REL = new Set(["me", "canonical", "author", "license", "alternate", "bookmark", "help", "next", "prev", "search", "tag", "nofollow", "noopener", "noreferrer", "external"]);
+const URL_ATTRS = new Set(["src", "srcset", "imagesrcset", "href", "poster", "data", "action", "formaction", "ping", "content", "background", "manifest", "codebase", "cite", "longdesc", "xlink:href"]);
+const DATA_SCRIPT_TYPES = /^(application\/(ld\+)?json|text\/(plain|template)|application\/x-.*)$/i;
+const ABSOLUTE_URL = /\b[a-z][a-z0-9+.-]*:\/\/[^\s,"'`<>)]+|(?<![:\w/.-])\/\/[a-z0-9-]+(?:\.[a-z0-9-]+)+[^\s,"'`<>)]*/gi;
+
+function isFirstParty(u: string): boolean {
+  let url: URL;
+  try { url = new URL(u.trim(), `${FIRST_PARTY}/`); } catch { return false; }
+  if (["data:", "about:", "mailto:", "tel:"].includes(url.protocol)) return true;
+  return url.origin === FIRST_PARTY;
+}
+
+function attrsOf(src: string): [string, string][] {
+  const out: [string, string][] = [];
+  for (const m of src.matchAll(/([^\s"'>\/=]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+)))?/g)) out.push([m[1].toLowerCase(), m[2] ?? m[3] ?? m[4] ?? ""]);
+  return out;
+}
+
+/** Every place the html names something outside its own origin where the browser could fetch or run it, as text. */
+function externalRefs(html: string): string[] {
+  const bad: string[] = [];
+  const text = html.replace(/<!--[\s\S]*?-->/g, "");
+  const code = (where: string, body: string) => {
+    for (const m of body.matchAll(/\b[a-z][a-z0-9+.-]*:\/\/[^\s,"'`<>)]+|["'`]\/\/[a-z0-9-]+(?:\.[a-z0-9-]+)+[^"'`]*/gi)) {
+      const u = m[0].replace(/^["'`]/, "");
+      if (!isFirstParty(u)) bad.push(`${where} names ${u}`);
+    }
+  };
+  const loaders = (where: string, body: string) => { for (const re of THIRD_PARTY_LOADERS) if (re.test(body)) bad.push(`${where} matches ${re}`); };
+  for (const m of text.matchAll(/<([a-zA-Z][\w:-]*)((?:\s+[^\s"'>\/=]+(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s"'>]+))?)*)\s*\/?>/g)) {
+    const tag = m[1].toLowerCase(), attrs = attrsOf(m[2]);
+    const rel = (attrs.find(([k]) => k === "rel")?.[1] ?? "").toLowerCase().split(/\s+/).filter(Boolean);
+    for (const [k, v] of attrs) {
+      const where = `<${tag} ${k}>`;
+      loaders(where, v);
+      if (k.startsWith("on")) { code(where, v); continue; }
+      if (k === "style") { for (const u of v.matchAll(/url\(\s*["']?([^"')]+)/gi)) if (!isFirstParty(u[1])) bad.push(`${where} loads ${u[1]}`); continue; }
+      if (!URL_ATTRS.has(k) && !/^data-.*(src|href|url)$/.test(k)) continue;
+      if (k === "href" && (tag === "a" || tag === "area")) continue;
+      if (k === "href" && tag === "link" && rel.length && rel.every((r) => NO_FETCH_REL.has(r))) continue;
+      const urls = k === "srcset" || k === "imagesrcset" ? v.split(",").map((c) => c.trim().split(/\s+/)[0]) : k === "content" ? (v.match(ABSOLUTE_URL) ?? []) : [v];
+      for (const u of urls) if (u && !isFirstParty(u)) bad.push(`${where} names ${u}`);
+    }
+  }
+  for (const m of text.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)) {
+    const type = attrsOf(m[1]).find(([k]) => k === "type")?.[1] ?? "";
+    if (m[2].trim() === "") continue;
+    loaders("an inline <script>", m[2]);
+    if (!DATA_SCRIPT_TYPES.test(type)) code("an inline <script>", m[2]);
+  }
+  for (const m of text.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style>/gi)) {
+    loaders("an inline <style>", m[1]);
+    for (const u of m[1].matchAll(/@import\s+(?:url\()?\s*["']?([^"')\s;]+)|url\(\s*["']?([^"')]+)/gi)) { const x = u[1] ?? u[2]; if (!isFirstParty(x)) bad.push(`an inline <style> loads ${x}`); }
+  }
+  return bad;
+}
+
 /** Every file reachable from the page by static imports, as paths under public/. */
 function staticGraph(entry: URL): Map<string, string> {
   const seen = new Map<string, string>();
@@ -62,23 +133,78 @@ function staticGraph(entry: URL): Map<string, string> {
 
 const html = read(new URL("compose.html", PUBLIC));
 const { scripts, links } = fetchedByHtml(html);
+const onDisk = (u: string) => new URL(u.replace(/^https:\/\/pflow\.xyz(?=\/)/, ""), new URL("compose.html", PUBLIC)); // an absolute first-party URL is a file of public/
 
 Deno.test("compose.html fetches only same-origin scripts, styles and preloads", () => {
   assert(scripts.length > 0, "found no <script src> (the parse is wrong)");
-  for (const u of [...scripts, ...links]) assert(!/^(https?:)?\/\//i.test(u), `compose.html loads ${u} from another host`);
   for (const u of [...scripts, ...links]) assert(!/pyodide|jsdelivr|pypi/i.test(u), `compose.html names ${u}`);
+  assertEquals(externalRefs(html), []);
+});
+
+Deno.test("the scan of the html: first-party names pass, anything else is found (mutations of compose.html)", () => {
+  // What a head may carry and still be first-party or fetch nothing.
+  const ok = [
+    '<link rel="canonical" href="https://pflow.xyz/compose.html">',
+    '<meta property="og:image" content="https://pflow.xyz/share-card/x.png">',
+    '<meta property="og:url" content="https://pflow.xyz/compose.html">',
+    '<link rel="me" href="https://github.com/someone"><link rel="me author" href="https://blog.example.org/">',
+    '<link rel="alternate" type="application/rss+xml" href="https://elsewhere.example/feed.xml">',
+    '<link rel="modulepreload" href="https://pflow.xyz/compose/app.js"><link rel="preload" as="fetch" crossorigin href="vendor/pflow-native-wasm/pflow_native_wasm_bg.wasm">',
+    '<script type="application/ld+json">{"@context":"https://schema.org","@type":"WebPage","url":"https://pflow.xyz/compose.html","sameAs":["https://github.com/someone"]}</script>',
+    '<a href="https://github.com/someone/repo">source</a>',
+    '<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\'/%3E">',
+    '<script>const same = "https://pflow.xyz/x"; fetch("/api/y");</script>',
+    '<img src="/a.png" srcset="/a.png 1x, https://pflow.xyz/a2.png 2x" alt="https://x.example is only text">',
+    '<meta name="description" content="One composition drawn in ten conventions (wasm).">',
+    '<!-- <script src="https://cdn.jsdelivr.net/x.js"></script> -->',
+  ];
+  for (const frag of ok) assertEquals(externalRefs(html.replace("</head>", `${frag}\n</head>`)), [], frag);
+
+  // What must be caught: the review's three, and the other ways a third party gets in.
+  const bad = [
+    '<script type="module">import("https://cdn.jsdelivr.net/pyodide/v314.0.7/full/pyodide.mjs").then((m) => m.loadPyodide())</script>',
+    '<script>(function(){var s=document.createElement("script");s.src="https://www.googletagmanager.com/gtag/js?id=G-X";document.head.appendChild(s)})()</script>',
+    '<img src="https://pypi.org/x.png" alt="">',
+    '<script async src="https://www.googletagmanager.com/gtag/js?id=G-X"></script>',
+    '<script src="//cdn.jsdelivr.net/npm/x/y.js"></script>',
+    '<script>fetch("//pypi.org/simple/lark/")</script>',
+    '<script type="module">const p = "loadPyodide"; </script>',
+    '<script type="application/ld+json">{"@type":"WebPage","x":"cdn.jsdelivr.net/pyodide"}</script>',
+    '<script type="importmap">{"imports":{"x":"https://esm.sh/x"}}</script>',
+    '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=X">',
+    '<link rel="preconnect" href="https://fonts.gstatic.com">',
+    '<link rel="icon" href="https://cdn.example.com/f.png">',
+    '<link rel="me stylesheet" href="https://cdn.example.com/s.css">',
+    '<link href="https://cdn.example.com/s.css">',
+    '<img srcset="/a.png 1x, https://cdn.example.com/a2.png 2x" src="/a.png" alt="">',
+    '<iframe src="https://example.org/"></iframe>',
+    '<video poster="https://example.org/p.jpg" src="/v.mp4"></video>',
+    '<object data="https://example.org/o.swf"></object>',
+    '<base href="https://example.org/">',
+    '<meta http-equiv="refresh" content="0; url=https://example.org/">',
+    '<meta property="og:image" content="https://example.org/x.png">',
+    '<div style="background:url(https://example.org/b.png)"></div>',
+    '<style>@import url("https://fonts.googleapis.com/css?family=X"); body { color: red }</style>',
+    '<style>body { background: url(//example.org/b.png) }</style>',
+    '<body onload="import(\'https://example.org/x.js\')">',
+    '<img data-src="https://example.org/lazy.png" alt="">',
+    '<script src="http://pflow.xyz/compose/app.js"></script>',
+    '<script src="https://www.pflow.xyz/compose/app.js"></script>',
+    '<script src="https://pflow.xyz.example.org/app.js"></script>',
+  ];
+  for (const frag of bad) assert(externalRefs(html.replace("</head>", `${frag}\n</head>`)).length > 0, `not found: ${frag}`);
 });
 
 Deno.test("the page's stylesheet imports nothing from another host", () => {
   for (const href of links.filter((l) => l.endsWith(".css"))) {
-    const css = read(new URL(href, new URL("compose.html", PUBLIC)));
+    const css = read(onDisk(href));
     assert(!/@import\s+(url\()?\s*["']?(https?:)?\/\//i.test(css), `${href} @imports another host`);
     assert(!/url\(\s*["']?(https?:)?\/\//i.test(css), `${href} loads a resource from another host`);
   }
 });
 
 Deno.test("the page's static import graph reaches no Pyodide, no jsdelivr, no PyPI", () => {
-  const entries = scripts.filter((s) => s.endsWith(".js") || s.endsWith(".mjs")).map((s) => new URL(s, new URL("compose.html", PUBLIC)));
+  const entries = scripts.filter((s) => s.endsWith(".js") || s.endsWith(".mjs")).map((s) => onDisk(s));
   assert(entries.some((u) => rel(u) === "compose/app.js"), "compose.html no longer loads compose/app.js");
   const graph = new Map<string, string>();
   for (const e of entries) for (const [k, v] of staticGraph(e)) graph.set(k, v);
