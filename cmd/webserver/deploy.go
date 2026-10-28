@@ -532,21 +532,30 @@ func (d *deployer) loop(job *deployJob) {
 	built := false
 	for job != nil {
 		d.execute(job)
-		if job.err == nil {
-			built = true
-		}
+		built = built || job.err == nil
 		d.mu.Lock()
 		next := d.next
-		d.next = nil
-		d.cur = next
-		if next == nil {
+		d.next, d.cur = nil, next
+		// While a restart is pending the flight stays taken: a delivery in that
+		// window queues rather than starting a build the exit would cut off.
+		if next == nil && !built {
 			d.running = false
 		}
 		d.mu.Unlock()
+		if next == nil && built {
+			built = false
+			if d.restart != nil {
+				d.restart() // exits the process; returns only if the restart failed
+			}
+			d.mu.Lock()
+			next = d.next
+			d.next, d.cur = nil, next
+			if next == nil {
+				d.running = false
+			}
+			d.mu.Unlock()
+		}
 		job = next
-	}
-	if built && d.restart != nil {
-		d.restart()
 	}
 }
 

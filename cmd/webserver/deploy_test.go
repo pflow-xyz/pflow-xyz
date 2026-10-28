@@ -721,6 +721,35 @@ func TestADeployAfterIdleStartsImmediately(t *testing.T) {
 	}
 }
 
+func TestADeliveryDuringTheRestartWindowQueuesInsteadOfStartingABuild(t *testing.T) {
+	h := newHarness(t)
+	var duringQueued atomic.Bool
+	var once sync.Once
+	h.d.restart = func() {
+		h.restarts.Add(1)
+		once.Do(func() {
+			// The restart is about to kill the process (in production it never
+			// returns); a build started now would be cut off half way.
+			_, queued := h.d.submit("webhook", "late", false)
+			duringQueued.Store(queued)
+		})
+	}
+	h.deploy(false)
+	if !duringQueued.Load() {
+		t.Error("a delivery during the restart must queue, not start")
+	}
+	// The restart returned (it failed, here), so the queued run goes ahead.
+	if n := countPrefix(h.log(), "git fetch"); n != 2 {
+		t.Errorf("fetches = %d, want 2", n)
+	}
+	if h.restarts.Load() != 2 {
+		t.Errorf("restarts = %d, want 2 (one per built run)", h.restarts.Load())
+	}
+	if st := h.status(); st.AnnouncedSHA != "late" || st.State != deploySucceeded {
+		t.Errorf("status = %+v", st)
+	}
+}
+
 func TestAFailedFollowUpStillRestartsForTheRunThatBuilt(t *testing.T) {
 	h := newHarness(t)
 	h.blockFetch, h.fetchSeen = make(chan struct{}), make(chan struct{})
