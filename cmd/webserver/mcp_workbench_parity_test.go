@@ -98,7 +98,15 @@ func loadMCPGoldens(t *testing.T) []mcpGoldenCase {
 	if golden.PflowNative != lock.Commit {
 		t.Fatalf("mcp_goldens.json was generated against pflow-native %s, but the vendored wasm is %s; re-run `make native-goldens`", golden.PflowNative, lock.Commit)
 	}
-	return golden.Cases
+	// The composition tools' cases are in the same file; mcp_models_parity_test.go
+	// replays them.
+	var cases []mcpGoldenCase
+	for _, c := range golden.Cases {
+		if !strings.HasPrefix(c.Tool, "pflow_bundle_") {
+			cases = append(cases, c)
+		}
+	}
+	return cases
 }
 
 func TestMCPWorkbenchMatchesNative(t *testing.T) {

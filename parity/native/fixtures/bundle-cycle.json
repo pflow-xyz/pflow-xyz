@@ -1,0 +1,205 @@
+{
+  "@context": "https://pflow.xyz/schema",
+  "@type": "PetriNetBundle",
+  "name": "ring",
+  "description": "Three nets whose go transitions are event-linked in a ring: one fused transition, and the same place shared by a token ring.",
+  "subnets": [
+    {
+      "@type": "PetriNet",
+      "id": "a",
+      "model": {
+        "name": "a",
+        "places": [
+          {
+            "id": "p",
+            "initial": 1,
+            "exported": true
+          }
+        ],
+        "transitions": [
+          {
+            "id": "go"
+          }
+        ],
+        "arcs": [
+          {
+            "from": "p",
+            "to": "go"
+          },
+          {
+            "from": "go",
+            "to": "p"
+          }
+        ]
+      },
+      "net_type": "ResourceNet",
+      "ports": [
+        {
+          "id": "p",
+          "kind": "inout",
+          "place": "p"
+        },
+        {
+          "id": "go",
+          "kind": "inout",
+          "target": "transition",
+          "transition": "go"
+        }
+      ]
+    },
+    {
+      "@type": "PetriNet",
+      "id": "b",
+      "model": {
+        "name": "b",
+        "places": [
+          {
+            "id": "p",
+            "initial": 1,
+            "exported": true
+          }
+        ],
+        "transitions": [
+          {
+            "id": "go"
+          }
+        ],
+        "arcs": [
+          {
+            "from": "p",
+            "to": "go"
+          },
+          {
+            "from": "go",
+            "to": "p"
+          }
+        ]
+      },
+      "net_type": "ResourceNet",
+      "ports": [
+        {
+          "id": "p",
+          "kind": "inout",
+          "place": "p"
+        },
+        {
+          "id": "go",
+          "kind": "inout",
+          "target": "transition",
+          "transition": "go"
+        }
+      ]
+    },
+    {
+      "@type": "PetriNet",
+      "id": "c",
+      "model": {
+        "name": "c",
+        "places": [
+          {
+            "id": "p",
+            "initial": 1,
+            "exported": true
+          }
+        ],
+        "transitions": [
+          {
+            "id": "go"
+          }
+        ],
+        "arcs": [
+          {
+            "from": "p",
+            "to": "go"
+          },
+          {
+            "from": "go",
+            "to": "p"
+          }
+        ]
+      },
+      "net_type": "ResourceNet",
+      "ports": [
+        {
+          "id": "p",
+          "kind": "inout",
+          "place": "p"
+        },
+        {
+          "id": "go",
+          "kind": "inout",
+          "target": "transition",
+          "transition": "go"
+        }
+      ]
+    }
+  ],
+  "links": [
+    {
+      "kind": "event",
+      "from": {
+        "subnet": "a",
+        "port": "go"
+      },
+      "to": {
+        "subnet": "b",
+        "port": "go"
+      }
+    },
+    {
+      "kind": "event",
+      "from": {
+        "subnet": "b",
+        "port": "go"
+      },
+      "to": {
+        "subnet": "c",
+        "port": "go"
+      }
+    },
+    {
+      "kind": "event",
+      "from": {
+        "subnet": "c",
+        "port": "go"
+      },
+      "to": {
+        "subnet": "a",
+        "port": "go"
+      }
+    },
+    {
+      "kind": "token",
+      "from": {
+        "subnet": "a",
+        "port": "p"
+      },
+      "to": {
+        "subnet": "b",
+        "port": "p"
+      }
+    },
+    {
+      "kind": "token",
+      "from": {
+        "subnet": "b",
+        "port": "p"
+      },
+      "to": {
+        "subnet": "c",
+        "port": "p"
+      }
+    },
+    {
+      "kind": "token",
+      "from": {
+        "subnet": "c",
+        "port": "p"
+      },
+      "to": {
+        "subnet": "a",
+        "port": "p"
+      }
+    }
+  ]
+}
