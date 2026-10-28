@@ -131,8 +131,10 @@ Recommendation below.
    the X view..." and draws when the module arrives. The other nine are
    fetched together at low priority and imported one at a time when the
    browser is idle after the first view is drawn, so switching is instant and
-   still works if the network goes (verified offline, below). A failed import
-   is kept as a view that says why (as before).
+   still works if the network goes (verified offline, below). A failed import,
+   and a module with no default export, are kept as a view that says why
+   (`compose/loader.js`; a missing default export used to leave `undefined` in
+   the map, and the render waiting on it retried through microtasks for ever).
 2. **The wasm and the shown view's module are fetched together.** A view reads
    the ontology facts (`model.js`, filled by `loadFacts()` from the registry)
    when its module is *evaluated* (`cospan.js` line 55: `linkStyle:
@@ -144,8 +146,17 @@ Recommendation below.
 3. **A shell is drawn at once**: the ten tabs and a `role=status` line in the
    stage ("Loading pflow-native's registry (wasm)..."). A tab, a key or a link
    during the load moves the selection in the order it happened and fetches that
-   view's module; nothing renders before the registry and the view exist. This
-   also fixes two defects of the review: the `hashchange` handler was
+   view's module; nothing renders before the registry and the view exist. The
+   sequencing is `compose/loader.js` (`createStartup`, with the effects passed
+   in), held by `parity/composition-views/loader_test.ts`: hash changes and keys
+   before the registry is ready render nothing and the last one wins, the view
+   is evaluated after the facts are loaded, the shell stops repainting once the
+   registry is ready, and a registry that fails leaves the page still (the tabs
+   and example buttons drawn disabled, the keys ignored, the error shown). Only
+   the first view's module is fetched at the browser's priority; the ones asked
+   for while loading (keys, tabs, links) are `fetchpriority=low`, so pressing
+   1 to 9 during the load does not put nine modules (231 KB) in front of the
+   wasm (measured below). This also fixes two defects of the review: the `hashchange` handler was
    registered before `views` existed (a hash change during load threw a
    TypeError in `renderTabs`), and `readHash` accepted any view id (a
    `#view=nope` hashchange left no tab active and wrote `view=nope` back); it
@@ -156,7 +167,14 @@ Recommendation below.
    per file and kept. The files are not content-hashed, so `max-age` or
    `immutable` would let a visitor run new `app.js` with old views; `no-cache`
    makes the browser ask first and a deploy takes effect on the next load. The
-   wasm moves from `max-age=3600` to the same (`wasm.go`).
+   wasm moves from `max-age=3600` to the same (`wasm.go`). `Accept-Encoding` is
+   read the RFC 9110 way (`chooseEncoding`): tokens in any case, `*`, q-values
+   ranking the codings (a bad q, or 0, 00, `Q=0`, means not accepted), `identity`
+   when the client prefers it. A request with a `Range` header gets the file as
+   it is from `http.FileServer` (206, `Accept-Ranges`, `If-Range` judged against
+   the identity ETag), never the whole gzip body; the wasm, which is stored
+   compressed, ignores `Range` (200 with the whole body in the negotiated
+   coding, and `Accept-Ranges: none`; nothing in the page ranges over it).
 5. **Brotli for the wasm** (`wasm.go`, `scripts/sync-native-wasm.mjs`,
    `pflow_native_wasm_bg.wasm.br`): 1,254,525 bytes against 1,891,277 gzip
    (-33.7 percent). Served to a client that sends `Accept-Encoding: br`
@@ -168,9 +186,22 @@ Recommendation below.
    then about 18 MB more for the live layout"), the stages are announced in a
    persistent `role=status aria-live=polite` region (`compose/announce.js`; the
    stage is rebuilt on every redraw, a region inside it would be replaced), and
-   a failure shows its last line, not a Python traceback.
-7. `performance.mark` calls, `window.__pv.loadView`, and a guard test
-   (`parity/composition-views/load_budget_test.ts`, in `make test-js`).
+   a failure shows its last line, not a Python traceback (the whole error goes
+   to `console.warn`). A failed check or layout leaves a **Retry the live
+   check** button in the status bar (a real button; the run is reset, the retry
+   announced, focus moved to the new bar), which fetches again; Chrome does not
+   keep a failed `import()` of Pyodide, so a retry after the CDN is back works.
+   `py.loadPackage(['cvxpy-base', 'clarabel'])` does not throw when those wheels
+   are blocked (it logs a warning per package and resolves, and Chyp then
+   exports topology only), so the layout step checks `py.loadedPackages` and
+   that every export says `layout.used = 'chyp'`, and fails saying which
+   package did not load; the page then says "The live layout could not run (...);
+   the precomputed layout is the one shown", never "the live layout is drawn".
+7. `performance.mark` calls, `window.__pv.loadView`, and two test files in
+   `make test-js`: the guard test (`parity/composition-views/load_budget_test.ts`:
+   the static import graph, and `compose.html` itself, which may name no other
+   host than `https://pflow.xyz` in any attribute that fetches, nor in an inline
+   script or style) and the start-up test (`loader_test.ts`).
 
 ## After
 
@@ -192,11 +223,36 @@ Same server build, same profiles, back to back with the "before" runs.
 | decoded KB (what the page parses) until the first view | 9,681 | 8,874 |
 | third-party requests at page start, on any view but Laws | 0 | 0 |
 
+Measured again after the review fixes (start-up sequencing moved to
+`compose/loader.js`, the Accept-Encoding and Range changes), on a machine that
+was not loaded, median of 3, same profiles: cold Fast 3G + 4x CPU first view
+drawn 12.0 s (shell 3.7 s, wasm instantiated 11.8 s), cold 4G 3.5 s, warm Fast
+3G 5.4 s, warm 4G 2.4 s; cold wire bytes until the first view 1,312 KB in 22
+requests (1,573 KB in 36 with the idle import of the other nine views); warm 35
+revalidations (304), 0 body bytes. The timings above were taken back to back
+with the "before" runs on a loaded machine (the reviews, on a quiet one, saw
+11.8 s and 3.7 s for the same two cold cells), so the budget's margins stand;
+the bytes did not move.
+
 By group, cold, until the first view is drawn (wire KB): wasm 1,225 (was
 1,847; the 1,254,525-byte `.br`), the shown view 29, core modules and glue 43,
 connect-4.json 9.5, css and html 3, favicon 1. The other nine views and what
 they import, fetched after the first view is drawn: 259 KB gzip (was about 900
 KB uncompressed, before the first view).
+
+Keys pressed while the page loads (cold, Fast 3G + 4x CPU, keys `1` to `9`
+pressed as soon as the shell is drawn, median of 3, local HTTP/1.1 server):
+
+| | wasm download ends | first view drawn | view modules fetched before it |
+|---|---:|---:|---:|
+| no key | 11.6 s | 11.9 s | 1 |
+| keys 1 to 9, before this change (every key fetched its view) | 12.7 s | 13.0 s | 9 |
+| keys 1 to 9, now (the last view, once the selection holds still, low priority) | 11.6 s | 11.8 s | 2 |
+
+A low `fetchpriority` alone is not enough on HTTP/1.1, where a priority does not
+hold back the other requests (it gained 0.35 s, 12.4 s); the 300 ms wait is what
+keeps the nine modules off the wasm. A single key press, or a deep link
+(`#view=lens`, about 30 KB), still fetches its view beside the wasm.
 
 Checked in a real browser (headless Chrome, zero console errors, exceptions
 and failed requests on load):
@@ -222,6 +278,19 @@ and failed requests on load):
   network gone after the page loaded: every view still switches (they were
   imported when idle); Laws then cannot fetch its `assets/chyp/*.json`, as
   before.
+- Laws, with only `*cvxpy*` and `*clarabel*` blocked (what `loadPackage` does
+  not throw on): the bar says "The live layout could not run (cvxpy-base and
+  clarabel did not load: their files could not be fetched from
+  cdn.jsdelivr.net); the precomputed layout is the one shown", the live region
+  says the layout did not run (it used to say "the live layout is drawn"), and a
+  **Retry the live check** button is there; with the requests unblocked,
+  focusing the button and pressing Enter ends on "Shown: the live result" (also
+  after `cdn.jsdelivr.net` was blocked: Chrome does not keep the failed
+  `import()`), no console error. The failure is one `console.warn` line of the
+  whole error.
+- With the wasm blocked: "The registry did not load: ...", the ten tabs and the
+  two example buttons drawn disabled, the keys `7`, `3`, `e` and a hash change
+  do nothing.
 
 ### Not done in this branch: two lines in the page's `<head>` (the disco builder's file)
 
@@ -329,8 +398,13 @@ So, in order of effort:
 
 The Go side: `Accept-Encoding` is passed through by nginx (the production
 wasm answers gzip to a client that asks gzip), so a client that asks br gets
-the `.br`. Browsers send `br` over https only; Chrome also sends it to
-`127.0.0.1`, which is how this was measured.
+the `.br` (unless it ranks gzip higher). Browsers send `br` over https; Chrome
+also sends it to loopback http (`127.0.0.1`: it sent `gzip, deflate, br, zstd`,
+Chrome 156), which is how this was measured, and leaves it out for plain http
+on another host (`--accept-br` of the measure script adds it). Chrome also
+offers `zstd`, which the server does not serve: a `.wasm.zst` is a possible
+follow-up (zstd compresses a little less than brotli q11 but decodes faster);
+no code here.
 
 ## Recommendations that need a decision (not done)
 

@@ -10,7 +10,9 @@
 //   --runs N                repeat each load N times, report the median (default 3)
 //   --views                 after the cold load, open each view and report what it requests
 //   --list                  print every request of the first cold run, not just the groups
-//   --accept-br             send Accept-Encoding: gzip, deflate, br (Chrome sends br over https only)
+//   --accept-br             send Accept-Encoding: gzip, deflate, br, as Chrome does on its own to https and to
+//                           loopback http (127.0.0.1: it sent `gzip, deflate, br, zstd`, Chrome 156); only needed for
+//                           plain http on another host, where Chrome leaves br out
 //   --json FILE             write the raw results as JSON
 //
 // "cold" is a new Chrome profile (empty cache); "warm" is a second tab of the

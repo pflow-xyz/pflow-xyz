@@ -17,10 +17,10 @@ import (
 // compressed (8,544,501 bytes raw, 1,891,277 gzip, pflow-native-wasm.lock;
 // brotli is a third smaller than gzip, docs/compose-load-budget.md), and
 // nginx on pflow.dev compresses only text/html. A client that accepts br gets
-// the .br bytes with Content-Encoding: br (browsers ask for br over https
-// only), one that accepts gzip gets the .gz bytes, and any other gets the .gz
-// decompressed. It reports false when there is no X.wasm.gz, so a plain .wasm
-// still falls through to the file server.
+// the .br bytes with Content-Encoding: br (browsers ask for br over https and
+// on loopback http), one that accepts gzip gets the .gz bytes, and any other
+// gets the .gz decompressed. It reports false when there is no X.wasm.gz, so a
+// plain .wasm still falls through to the file server.
 //
 // The coding is the one the request ranks highest (Accept-Encoding with
 // q-values, "*" and case-insensitive tokens; br wins a tie), the .gz
