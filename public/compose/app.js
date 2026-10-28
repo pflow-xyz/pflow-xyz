@@ -11,7 +11,8 @@
 // fetched only when that view is drawn (laws-live.js). A view reads
 // the ontology facts (model.js, filled by loadFacts from the registry) when its
 // module is evaluated, so a view is evaluated only after loadFacts(); until then
-// its module is only fetched (preloadView). The page marks performance
+// its module is only fetched (preloadView). The sequencing is loader.js's (and
+// tested there); this file supplies the effects. The page marks performance
 // 'compose:shell', 'compose:registry-ready' and 'compose:ready'.
 
 import * as registry from './registry.js';
@@ -26,11 +27,13 @@ import { citeLabel, citeURL, bibLabel, bibURL } from './sources.js';
 import { makeCtx } from './ctx.js';
 import { VIEW_IDS, VIEW_META } from './views-meta.js';
 import { makeManifest } from './manifest.js';
+import { createViewLoader, createStartup } from './loader.js';
 
-const views = new Map();   // id -> the view, once its module is loaded
-const loading = new Map(); // id -> the import in flight
 let connect4 = null;
 let lastManifest = null;
+
+// The one dynamic import of a view module (a test holds it to this line); loader.js keeps what came of it.
+const { views, load: loadView } = createViewLoader({ importModule: (id) => import(`./views/${id}.js`), meta: VIEW_META });
 
 const preloaded = new Set();
 
@@ -45,18 +48,6 @@ function preloadView(id, priority = 'auto') {
   document.head.append(link);
 }
 
-/** The view `id`, importing its module the first time (a failed import is kept as a view that says why). */
-function loadView(id) {
-  if (views.has(id)) return Promise.resolve(views.get(id));
-  if (!loading.has(id)) {
-    loading.set(id, import(`./views/${id}.js`).then(
-      (m) => m.default,
-      (e) => ({ id, ...VIEW_META[id], broken: String(e), convention: { summary: `View ${id} failed to load: ${e}` }, render() {} }),
-    ).then((v) => { views.set(id, v); loading.delete(id); return v; }));
-  }
-  return loading.get(id);
-}
-
 async function loadConnect4() {
   try { connect4 = await (await fetch(new URL('assets/connect-4.json', import.meta.url))).json(); } catch { connect4 = null; }
 }
@@ -66,10 +57,10 @@ async function loadConnect4() {
 const $ = (s) => document.querySelector(s);
 const fill = (node, ...kids) => node.replaceChildren(...kids.flat(Infinity).filter((k) => k !== null && k !== undefined && k !== false));
 
-function renderTabs() {
+function renderTabs(disabled = false) {
   fill($('#tabs'), ...VIEW_IDS.map((id, i) => {
     const m = VIEW_META[id];
-    return el('button', { class: `tab${state.view === id ? ' active' : ''}${views.get(id)?.broken ? ' broken' : ''}`, title: m.title, onclick: () => actions.setView(id) }, `${i + 1}. ${m.short}`);
+    return el('button', { class: `tab${state.view === id ? ' active' : ''}${views.get(id)?.broken ? ' broken' : ''}`, title: m.title, disabled: disabled ? true : null, onclick: () => actions.setView(id) }, `${i + 1}. ${m.short}`);
   }));
   $('#ex-orders').classList.toggle('active', state.example === 'orders');
   $('#ex-connect4').classList.toggle('active', state.example === 'connect4');
@@ -273,48 +264,36 @@ function render() {
   document.body.dataset.ready = '1';
 }
 
+/** The registry did not load: say why, and leave nothing that looks like it works (the tabs and example buttons are drawn, disabled). */
+function renderFailure(e) {
+  console.error(e);
+  renderTabs(true);
+  $('#ex-orders').disabled = $('#ex-connect4').disabled = true;
+  $('#stage').replaceChildren(el('pre', { class: 'warn' }, `The registry did not load: ${e.stack || e}`));
+}
+
 async function main() {
   readHash();
   initSnap();
   initInspector($('#inspector-body'));
   $('#ex-orders').onclick = () => actions.setExample('orders');
   $('#ex-connect4').onclick = () => actions.setExample('connect4');
-  window.addEventListener('keydown', (e) => {
-    if (e.target.closest('input, textarea')) return;
-    const n = e.key === '0' ? 10 : Number(e.key);
-    if (n >= 1 && n <= VIEW_IDS.length) actions.setView(VIEW_IDS[n - 1]);
-    if (e.key === 'e') actions.setExample(state.example === 'orders' ? 'connect4' : 'orders');
+  // The start-up sequence (loader.js): until the registry is ready a tab, a key or a link only moves the
+  // selection; nothing renders before the registry and the view exist.
+  const startup = createStartup({
+    state, subscribe, actions, readHash, viewIds: VIEW_IDS,
+    initRegistry: () => registry.init(), loadFacts, start, loadView, preloadView,
+    // The wasm, the shown view's module (fetched, not yet evaluated) and the Connect-4 data are fetched together, not one after another.
+    fetchAlongside: loadConnect4,
+    renderShell: (what) => renderShell(what),
+    render, failed: renderFailure,
+    mark: (name) => performance.mark(name),
+    // Test hook for screenshots: the same actions the UI calls, and what the last render drew.
+    ready: () => { window.__pv = { state, actions, render, views, loadView, VIEW_IDS, registry, manifest: () => lastManifest?.result() }; },
   });
-  // Until the registry is ready, a click on a tab, a key or a link only moves the selection (in the order it happened):
-  // repaint the tabs and fetch that view's module. Nothing renders before the registry and the view exist.
-  let phase = 'loading'; // loading -> ready, or failed
-  const shell = () => { renderShell('Loading pflow-native\'s registry (wasm)…'); preloadView(state.view); };
-  const offShell = subscribe(shell);
-  window.addEventListener('hashchange', () => { readHash(); if (phase === 'ready') render(); else if (phase === 'loading') shell(); });
-  shell();
-  performance.mark('compose:shell');
-  // The wasm, the shown view's module (fetched, not yet evaluated) and the Connect-4 data are fetched together, not one after another.
-  const connect = loadConnect4();
-  try {
-    await registry.init();
-    loadFacts();
-    start();
-    performance.mark('compose:registry-ready');
-  } catch (e) {
-    console.error(e);
-    phase = 'failed';
-    offShell();
-    $('#stage').replaceChildren(el('pre', { class: 'warn' }, `The registry did not load: ${e.stack || e}`));
-    return;
-  }
-  offShell();
-  await Promise.all([loadView(state.view), connect]); // the facts are in: evaluate the view
-  subscribe(render);
-  phase = 'ready';
-  // Test hook for screenshots: the same actions the UI calls, and what the last render drew.
-  window.__pv = { state, actions, render, views, loadView, VIEW_IDS, registry, manifest: () => lastManifest?.result() };
-  render();
-  loadRest();
+  window.addEventListener('keydown', (e) => startup.onKey(e));
+  window.addEventListener('hashchange', () => startup.onHashChange());
+  if (await startup.run()) loadRest();
 }
 
 /**
