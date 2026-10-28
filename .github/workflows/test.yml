@@ -25,6 +25,9 @@ jobs:
   test:
     name: test
     runs-on: ubuntu-latest
+    # The deploy gate gives up on a run after 15 minutes (DEPLOY_CI_TIMEOUT); a
+    # hung test must not hold a runner for the default 6 hours after that.
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v5
 
