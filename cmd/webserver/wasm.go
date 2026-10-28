@@ -31,6 +31,15 @@ import (
 // Cache-Control: no-cache, and a matching If-None-Match gets a 304. A fixed
 // max-age would let a visitor run new glue against a wasm cached from the
 // previous vendoring.
+//
+// Range is ignored on purpose (RFC 9110 14.2 lets a server do that, and this
+// handler never honoured it): the stored forms are compressed streams, which
+// the offsets of the module do not address, and a range of the decompressed
+// module would mean holding all 8.5 MB per request. A request with a Range (or
+// If-Range) header gets the whole body, 200, and every answer says
+// "Accept-Ranges: none" so a client does not try again. (Static files are
+// different: static_assets.go serves a range from the file as it is.) Nothing
+// in the page ranges over the wasm; instantiateStreaming reads one response.
 func (s *Server) serveGzippedWasm(w http.ResponseWriter, r *http.Request) bool {
 	if !strings.HasSuffix(r.URL.Path, ".wasm") || s.publicFS == nil {
 		return false
@@ -73,6 +82,7 @@ func (s *Server) serveGzippedWasm(w http.ResponseWriter, r *http.Request) bool {
 	h.Set("Content-Type", "application/wasm")
 	h.Set("Vary", "Accept-Encoding")
 	h.Set("Cache-Control", "no-cache")
+	h.Set("Accept-Ranges", "none")
 	h.Set("ETag", etag)
 	// Module workers and import() from other origins fetch with CORS, as the
 	// .js modules do.

@@ -29,6 +29,11 @@ import (
 //     once per file and kept, for a client that accepts it. The composition page
 //     alone is about 1 MB of JavaScript and JSON.
 //
+// A request with a Range header gets the identity form from http.FileServer
+// (206, Content-Range, Accept-Ranges, If-Range against the identity ETag), never
+// the gzip body: byte ranges address the file, not its compressed copy, and the
+// gzip answer is a whole-body 200 that ignores the range.
+//
 // Anything it does not take (a directory, index.html, another method, a path
 // that is not a file) goes to http.FileServer unchanged.
 func (s *Server) serveStatic(w http.ResponseWriter, r *http.Request) {
@@ -55,7 +60,7 @@ func (s *Server) serveStatic(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.Add("Vary", "Accept-Encoding")
-	if a.gz == nil || chooseEncoding(r, "gzip") != "gzip" {
+	if a.gz == nil || r.Header.Get("Range") != "" || chooseEncoding(r, "gzip") != "gzip" {
 		h.Set("ETag", a.etag)
 		next.ServeHTTP(w, r)
 		return

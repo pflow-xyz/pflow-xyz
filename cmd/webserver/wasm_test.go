@@ -194,3 +194,57 @@ func TestServeWasmNegotiation(t *testing.T) {
 		}
 	}
 }
+
+// What a Range request on the wasm gets, stated: the whole body, 200, in the
+// negotiated coding, with "Accept-Ranges: none" (RFC 9110 14.2: a server may
+// ignore Range). It is never a 206 of the compressed stream, whose offsets
+// mean nothing to the client, and never a 206 of a different representation.
+func TestServeWasmIgnoresRange(t *testing.T) {
+	raw := []byte("\x00asm\x01\x00\x00\x00 pretend module")
+	var gz bytes.Buffer
+	zw := gzip.NewWriter(&gz)
+	zw.Write(raw)
+	zw.Close()
+	br := []byte("pretend brotli stream")
+	s := &Server{publicFS: fstest.MapFS{
+		"vendor/x/m_bg.wasm.gz": {Data: gz.Bytes()},
+		"vendor/x/m_bg.wasm.br": {Data: br},
+	}}
+	for _, c := range []struct {
+		ae, enc string
+		body    []byte
+	}{
+		{"br, gzip", "br", br},
+		{"gzip", "gzip", gz.Bytes()},
+		{"", "", raw},
+	} {
+		req := httptest.NewRequest("GET", "/vendor/x/m_bg.wasm", nil)
+		if c.ae != "" {
+			req.Header.Set("Accept-Encoding", c.ae)
+		}
+		req.Header.Set("Range", "bytes=4-9")
+		rec := httptest.NewRecorder()
+		s.ServeHTTP(rec, req)
+		h := rec.Header()
+		if rec.Code != 200 || h.Get("Content-Range") != "" || h.Get("Content-Encoding") != c.enc || !bytes.Equal(rec.Body.Bytes(), c.body) {
+			t.Errorf("Range with Accept-Encoding %q: %d %v", c.ae, rec.Code, h)
+		}
+		if h.Get("Accept-Ranges") != "none" || h.Get("ETag") == "" || h.Get("Cache-Control") != "no-cache" {
+			t.Errorf("Range with Accept-Encoding %q: headers %v", c.ae, h)
+		}
+	}
+	// If-Range changes nothing either
+	req := httptest.NewRequest("GET", "/vendor/x/m_bg.wasm", nil)
+	req.Header.Set("Accept-Encoding", "gzip")
+	rec := httptest.NewRecorder()
+	s.ServeHTTP(rec, req)
+	req = httptest.NewRequest("GET", "/vendor/x/m_bg.wasm", nil)
+	req.Header.Set("Accept-Encoding", "gzip")
+	req.Header.Set("Range", "bytes=0-3")
+	req.Header.Set("If-Range", rec.Header().Get("ETag"))
+	rec2 := httptest.NewRecorder()
+	s.ServeHTTP(rec2, req)
+	if rec2.Code != 200 || !bytes.Equal(rec2.Body.Bytes(), gz.Bytes()) {
+		t.Errorf("Range + If-Range: %d", rec2.Code)
+	}
+}

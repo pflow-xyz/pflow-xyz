@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 	"testing/fstest"
@@ -262,5 +263,66 @@ func TestStaticAcceptEncodingOverHTTP(t *testing.T) {
 		if !c.gzip && !bytes.Equal(rec.Body.Bytes(), js) {
 			t.Errorf("Accept-Encoding %q: the identity form is not the file", c.header)
 		}
+	}
+}
+
+// A range addresses the file, not its gzip copy. With Range present the server
+// answers from the file as it is (206, Content-Range, the identity ETag), and
+// If-Range is judged against that ETag; without Range, gzip as before.
+func TestStaticRangeWithGzip(t *testing.T) {
+	s, js := staticTestServer()
+	plain := get(s, "/compose/app.js", nil)
+	etagID := plain.Header().Get("ETag")
+	gz := get(s, "/compose/app.js", map[string]string{"Accept-Encoding": "gzip"})
+	etagGz := gz.Header().Get("ETag")
+	if gz.Header().Get("Content-Encoding") != "gzip" || etagID == etagGz {
+		t.Fatalf("setup: %v", gz.Header())
+	}
+
+	rec := get(s, "/compose/app.js", map[string]string{"Accept-Encoding": "gzip, br", "Range": "bytes=10-19"})
+	h := rec.Header()
+	if rec.Code != http.StatusPartialContent || h.Get("Content-Encoding") != "" {
+		t.Fatalf("Range + gzip: %d, Content-Encoding %q", rec.Code, h.Get("Content-Encoding"))
+	}
+	if !bytes.Equal(rec.Body.Bytes(), js[10:20]) || h.Get("Content-Range") != "bytes 10-19/"+strconv.Itoa(len(js)) {
+		t.Fatalf("Range + gzip: body %q, Content-Range %q", rec.Body.Bytes(), h.Get("Content-Range"))
+	}
+	if h.Get("Accept-Ranges") != "bytes" || h.Get("ETag") != etagID || h.Get("Cache-Control") != "no-cache" || !strings.Contains(h.Get("Vary"), "Accept-Encoding") {
+		t.Fatalf("validators of a ranged answer: %v", h)
+	}
+	if h.Get("Content-Type") != "text/javascript; charset=utf-8" {
+		t.Fatalf("Content-Type of a ranged answer: %q", h.Get("Content-Type"))
+	}
+
+	// a suffix range, and one that cannot be satisfied
+	rec = get(s, "/compose/app.js", map[string]string{"Accept-Encoding": "gzip", "Range": "bytes=-5"})
+	if rec.Code != http.StatusPartialContent || !bytes.Equal(rec.Body.Bytes(), js[len(js)-5:]) {
+		t.Fatalf("suffix range: %d %q", rec.Code, rec.Body.Bytes())
+	}
+	rec = get(s, "/compose/app.js", map[string]string{"Accept-Encoding": "gzip", "Range": "bytes=999999-"})
+	if rec.Code != http.StatusRequestedRangeNotSatisfiable {
+		t.Fatalf("unsatisfiable range: %d", rec.Code)
+	}
+
+	// If-Range: the identity ETag keeps the range; the gzip form's ETag (what a client got from the 200) is not the same representation: whole file, as it is
+	rec = get(s, "/compose/app.js", map[string]string{"Accept-Encoding": "gzip", "Range": "bytes=0-3", "If-Range": etagID})
+	if rec.Code != http.StatusPartialContent {
+		t.Fatalf("If-Range with the identity ETag: %d", rec.Code)
+	}
+	rec = get(s, "/compose/app.js", map[string]string{"Accept-Encoding": "gzip", "Range": "bytes=0-3", "If-Range": etagGz})
+	if rec.Code != 200 || rec.Header().Get("Content-Encoding") != "" || !bytes.Equal(rec.Body.Bytes(), js) {
+		t.Fatalf("If-Range with the gzip ETag: %d, %v", rec.Code, rec.Header())
+	}
+
+	// the ranged answer's ETag revalidates (304) like any other identity answer
+	rec = get(s, "/compose/app.js", map[string]string{"Accept-Encoding": "gzip", "Range": "bytes=0-3", "If-None-Match": etagID})
+	if rec.Code != http.StatusNotModified {
+		t.Fatalf("If-None-Match on a ranged request: %d", rec.Code)
+	}
+
+	// without Range nothing changed
+	rec = get(s, "/compose/app.js", map[string]string{"Accept-Encoding": "gzip"})
+	if rec.Code != 200 || rec.Header().Get("Content-Encoding") != "gzip" || rec.Header().Get("ETag") != etagGz {
+		t.Fatalf("gzip without Range: %d %v", rec.Code, rec.Header())
 	}
 }
