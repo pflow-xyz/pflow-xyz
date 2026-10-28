@@ -23,6 +23,8 @@ import (
 	"encoding/hex"
 	"io/fs"
 	"net/http"
+	"path"
+	"strings"
 	"time"
 )
 
@@ -33,11 +35,18 @@ const (
 )
 
 // serveComposeStatic handles the compose page's own URLs and reports whether it
-// answered. Anything else (including its assets under /compose/) falls
-// through to the static handler.
+// answered. Anything else (including its assets under /compose/, and the
+// listing http.FileServer gives /compose/) falls through to the static handler.
 func (s *Server) serveComposeStatic(w http.ResponseWriter, r *http.Request) bool {
-	switch r.URL.Path {
-	case "/compose", "/compose/":
+	// A path ending in "/" is the file server's: "/compose/" is a directory
+	// listing, and "/compose.html/" is its own redirect to the file.
+	if strings.HasSuffix(r.URL.Path, "/") {
+		return false
+	}
+	// FileServer cleans the path before it serves, so "//compose.html" and
+	// "/./compose.html" are the page too; match what it would serve.
+	switch path.Clean(r.URL.Path) {
+	case "/compose":
 		// FileServer would send "/compose" on to a listing of the page's source
 		// directory. A person typing the short name wants the page. Not a 301:
 		// where the page lives is still being settled (design D3/D4).
@@ -68,6 +77,10 @@ func (s *Server) serveHTMLWithAnalytics(w http.ResponseWriter, r *http.Request, 
 	data = s.injectAnalytics(data)
 	sum := sha256.Sum256(data)
 	w.Header().Set("ETag", `"`+hex.EncodeToString(sum[:8])+`"`)
+	// The page is not content-hashed and the tag depends on the configured ID:
+	// a cached copy is only safe if the browser asks before it uses it. The
+	// ETag makes that a 304 with no body when nothing changed.
+	w.Header().Set("Cache-Control", "no-cache")
 	// A zero modtime: the embedded tree has none, so no Last-Modified is sent
 	// and If-Modified-Since is ignored; If-None-Match against the ETag does the
 	// work. The name's extension gives "text/html; charset=utf-8".

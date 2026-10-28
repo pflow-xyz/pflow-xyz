@@ -122,10 +122,21 @@ func TestComposePageHeadAndConditional(t *testing.T) {
 	if head.Header().Get("ETag") != etag {
 		t.Errorf("HEAD ETag = %q, GET's = %q", head.Header().Get("ETag"), etag)
 	}
+	// Revalidate before every use: the page is not content-hashed and the tag
+	// follows the configured ID, so a cached copy must be asked about.
+	if cc := get.Header().Get("Cache-Control"); cc != "no-cache" {
+		t.Errorf("GET Cache-Control = %q, want no-cache", cc)
+	}
+	if cc := head.Header().Get("Cache-Control"); cc != "no-cache" {
+		t.Errorf("HEAD Cache-Control = %q, want no-cache", cc)
+	}
 
 	nm := servePage(s, "GET", "/compose.html", map[string]string{"If-None-Match": etag})
 	if nm.Code != http.StatusNotModified || nm.Body.Len() != 0 {
 		t.Errorf("If-None-Match with the current ETag: status %d, %d body bytes; want 304 and none", nm.Code, nm.Body.Len())
+	}
+	if cc := nm.Header().Get("Cache-Control"); cc != "no-cache" {
+		t.Errorf("304 Cache-Control = %q, want no-cache", cc)
 	}
 	stale := servePage(s, "GET", "/compose.html", map[string]string{"If-None-Match": `"stale"`})
 	if stale.Code != http.StatusOK || !bytes.Equal(stale.Body.Bytes(), get.Body.Bytes()) {
@@ -147,23 +158,34 @@ func TestComposePageHeadAndConditional(t *testing.T) {
 	}
 }
 
-// The short names go to the page, not to a listing of its source directory; the
-// directory's files are still served; FileServer's own redirects are unchanged.
+// "/compose" goes to the page, not to a listing of its source directory; the
+// directory's files and its listing are still the file server's, and so are its
+// own redirects.
 func TestComposeRedirects(t *testing.T) {
 	s := composeServer(t, testGAID)
 	for _, c := range []struct{ from, to string }{
 		{"/compose", "/compose.html"},
-		{"/compose/", "/compose.html"},
 		{"/compose?x=1", "/compose.html?x=1"},
+		{"//compose", "/compose.html"},
+		{"/./compose", "/compose.html"},
 	} {
 		rec := servePage(s, "GET", c.from, nil)
 		if rec.Code != http.StatusFound || rec.Header().Get("Location") != c.to {
 			t.Errorf("GET %s = %d -> %q, want 302 -> %s", c.from, rec.Code, rec.Header().Get("Location"), c.to)
 		}
 	}
+	// "/compose/" is a directory: the file server lists it, as it did before
+	// this page was decorated (and as a perf-branch test pins).
+	rec := servePage(s, "GET", "/compose/", nil)
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `href="app.js"`) {
+		t.Errorf("GET /compose/ = %d, want the file server's directory listing", rec.Code)
+	}
+	if strings.Contains(rec.Body.String(), "googletagmanager") {
+		t.Error("the /compose/ listing was tagged with analytics")
+	}
 	// FileServer drops a trailing slash after a file, with a relative Location
 	// ("../compose.html"); resolved against the request it is the page.
-	rec := servePage(s, "GET", "/compose.html/", nil)
+	rec = servePage(s, "GET", "/compose.html/", nil)
 	base, _ := url.Parse("http://pflow.test/compose.html/")
 	loc, err := url.Parse(rec.Header().Get("Location"))
 	if err != nil || rec.Code != http.StatusMovedPermanently || base.ResolveReference(loc).Path != "/compose.html" {
@@ -178,6 +200,34 @@ func TestComposeRedirects(t *testing.T) {
 	}
 	if rec := servePage(s, "GET", "/compose/app.js", nil); strings.Contains(rec.Body.String(), "googletagmanager") {
 		t.Error("a module under /compose/ was tagged with analytics")
+	}
+}
+
+// Every spelling of the page's path that the file server would resolve to it
+// is served the same way: tagged once, with the same ETag and cache header.
+func TestComposePageSpellings(t *testing.T) {
+	s := composeServer(t, testGAID)
+	want := servePage(s, "GET", "/compose.html", nil)
+	if want.Header().Get("ETag") == "" || want.Header().Get("Cache-Control") != "no-cache" {
+		t.Fatalf("the canonical response has ETag %q, Cache-Control %q", want.Header().Get("ETag"), want.Header().Get("Cache-Control"))
+	}
+	for _, p := range []string{"//compose.html", "/./compose.html", "/x/../compose.html", "///compose.html", "/compose/../compose.html", "/compose.html/."} {
+		rec := servePage(s, "GET", p, nil)
+		if rec.Code != http.StatusOK {
+			t.Errorf("GET %s = %d, want 200", p, rec.Code)
+			continue
+		}
+		if n := strings.Count(rec.Body.String(), "googletagmanager.com/gtag/js"); n != 1 {
+			t.Errorf("GET %s: the analytics tag appears %d times, want 1", p, n)
+		}
+		if !bytes.Equal(rec.Body.Bytes(), want.Body.Bytes()) || rec.Header().Get("ETag") != want.Header().Get("ETag") ||
+			rec.Header().Get("Cache-Control") != "no-cache" {
+			t.Errorf("GET %s is served differently from /compose.html", p)
+		}
+	}
+	// A method the page does not answer is left to the file server, as before.
+	if rec := servePage(s, "POST", "/compose.html", nil); rec.Code == http.StatusOK && strings.Contains(rec.Body.String(), "googletagmanager") {
+		t.Error("a POST to the page was answered with the tagged page")
 	}
 }
 
