@@ -837,6 +837,8 @@ func (d *deployer) runCIGate(ctx context.Context, job *deployJob, cfg deployConf
 		token:   cfg.GitHubToken,
 		repo:    repo,
 		check:   cfg.CICheck,
+		appID:   githubActionsAppID,
+		appSlug: githubActionsAppSlug,
 		poll:    cfg.CIPoll,
 		grace:   cfg.CIGrace,
 		timeout: cfg.CITimeout,

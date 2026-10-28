@@ -76,13 +76,20 @@ func (g *gateServer) hitCount() int {
 
 const testSHA = "89e6f34c0ffee0123456789abcdef0123456789a"
 
+// runJSON is a check run made by GitHub Actions, in the check suite of the
+// commit's one workflow run (suite 1000), as the API returns it.
 func runJSON(id int64, name, status, conclusion string) string {
+	return runJSONIn(id, name, status, conclusion, githubActionsAppID, githubActionsAppSlug, 1000)
+}
+
+// runJSONIn is a check run made by the given app in the given check suite.
+func runJSONIn(id int64, name, status, conclusion string, appID int64, appSlug string, suite int64) string {
 	c := "null"
 	if conclusion != "" {
 		c = strconv.Quote(conclusion)
 	}
-	return fmt.Sprintf(`{"id":%d,"name":%q,"status":%q,"conclusion":%s,"html_url":"https://github.com/pflow-xyz/pflow-xyz/actions/runs/%d/job/%d"}`,
-		id, name, status, c, id*10, id)
+	return fmt.Sprintf(`{"id":%d,"name":%q,"status":%q,"conclusion":%s,"html_url":"https://github.com/pflow-xyz/pflow-xyz/actions/runs/%d/job/%d","app":{"id":%d,"slug":%q},"check_suite":{"id":%d}}`,
+		id, name, status, c, id*10, id, appID, appSlug, suite)
 }
 
 func runsBody(runs ...string) string {
@@ -111,6 +118,8 @@ func newTestGate(t *testing.T, gs *gateServer) testGate {
 		apiBase: gs.srv.URL,
 		repo:    "pflow-xyz/pflow-xyz",
 		check:   "test",
+		appID:   githubActionsAppID,
+		appSlug: githubActionsAppSlug,
 		poll:    15 * time.Second,
 		grace:   2 * time.Minute,
 		timeout: 15 * time.Minute,
@@ -147,8 +156,8 @@ func TestGatePassesOnSuccessfulCheckRun(t *testing.T) {
 	if want := "/repos/pflow-xyz/pflow-xyz/commits/" + testSHA + "/check-runs"; r.URL.Path != want {
 		t.Errorf("path = %q, want %q", r.URL.Path, want)
 	}
-	if r.URL.Query().Get("check_name") != "test" {
-		t.Errorf("query = %q", r.URL.RawQuery)
+	if q := r.URL.Query(); q.Get("check_name") != "test" || q.Get("app_id") != "15368" || q.Get("filter") != "all" {
+		t.Errorf("query = %q: want check_name=test, app_id=15368 (GitHub Actions) and filter=all", r.URL.RawQuery)
 	}
 	if r.Header.Get("Authorization") != "" {
 		t.Errorf("no token configured, yet Authorization = %q", r.Header.Get("Authorization"))
@@ -470,6 +479,137 @@ func TestGateChoosesTheNewestRunOfTheRequiredName(t *testing.T) {
 				asRefusal(t, err)
 			}
 		})
+	}
+}
+
+// The check name is only a label. A run called "test" from another app, or from
+// a second workflow, must neither stand in for the real one nor mask it.
+func TestGateCountsOnlyGitHubActionsCheckRuns(t *testing.T) {
+	const otherApp = 99999
+	cases := []struct {
+		name    string
+		runs    []string
+		pass    bool
+		refusal string // what the refusal must say, when it is one
+	}{
+		{"a failing Actions run is not masked by another app's passing run",
+			[]string{runJSON(30, "test", "completed", "failure"), runJSONIn(31, "test", "completed", "success", otherApp, "some-other-app", 1000)}, false, `concluded "failure"`},
+		{"the same, whichever comes first",
+			[]string{runJSONIn(31, "test", "completed", "success", otherApp, "some-other-app", 1000), runJSON(30, "test", "completed", "failure")}, false, `concluded "failure"`},
+		{"another app's passing run alone is not CI",
+			[]string{runJSONIn(31, "test", "completed", "success", otherApp, "some-other-app", 1000)}, false, "from github-actions"},
+		{"right app id, wrong slug",
+			[]string{runJSONIn(31, "test", "completed", "success", githubActionsAppID, "impostor", 1000)}, false, "no check run named"},
+		{"right slug, wrong app id",
+			[]string{runJSONIn(31, "test", "completed", "success", otherApp, githubActionsAppSlug, 1000)}, false, "no check run named"},
+		{"a run with no app at all",
+			[]string{`{"id":5,"name":"test","status":"completed","conclusion":"success","html_url":"u"}`}, false, "no check run named"},
+		{"an Actions pass counts and another app's failure does not matter",
+			[]string{runJSON(30, "test", "completed", "success"), runJSONIn(31, "test", "completed", "failure", otherApp, "some-other-app", 1000)}, true, ""},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			gs := newGateServer(t, func(n int, w http.ResponseWriter, r *http.Request) { writeRuns(w, c.runs...) })
+			g := newTestGate(t, gs)
+			_, err := g.wait(context.Background(), testSHA)
+			if c.pass {
+				if err != nil {
+					t.Fatal(err)
+				}
+				return
+			}
+			ref := asRefusal(t, err)
+			if !strings.Contains(ref.msg, c.refusal) {
+				t.Errorf("refusal = %s, want it to contain %q", ref.msg, c.refusal)
+			}
+		})
+	}
+}
+
+func TestGateSaysWhenItIgnoredOtherAppsRuns(t *testing.T) {
+	gs := newGateServer(t, func(n int, w http.ResponseWriter, r *http.Request) {
+		writeRuns(w, runJSONIn(31, "test", "completed", "success", 99999, "some-other-app", 1000))
+	})
+	g := newTestGate(t, gs)
+	_, err := g.wait(context.Background(), testSHA)
+	ref := asRefusal(t, err)
+	if !strings.Contains(ref.msg, "1 of that name from other apps were ignored") {
+		t.Errorf("refusal = %s", ref.msg)
+	}
+	if !strings.Contains(strings.Join(*g.logs, "\n"), "ignored") {
+		t.Errorf("the log should say a same-named run was ignored: %v", *g.logs)
+	}
+}
+
+// A commit can have several check suites with a job of this name: a push and a
+// pull_request workflow on the same sha, a second workflow. All must pass.
+func TestGateRequiresEveryCheckSuite(t *testing.T) {
+	cases := []struct {
+		name    string
+		runs    []string
+		pass    bool
+		refusal string
+	}{
+		{"both suites green",
+			[]string{runJSONIn(10, "test", "completed", "success", 15368, "github-actions", 1), runJSONIn(20, "test", "completed", "success", 15368, "github-actions", 2)}, true, ""},
+		{"one suite red, the other green and newer",
+			[]string{runJSONIn(10, "test", "completed", "failure", 15368, "github-actions", 1), runJSONIn(20, "test", "completed", "success", 15368, "github-actions", 2)}, false, `concluded "failure"`},
+		{"one suite red, the other still running: red is final",
+			[]string{runJSONIn(10, "test", "completed", "failure", 15368, "github-actions", 1), runJSONIn(20, "test", "in_progress", "", 15368, "github-actions", 2)}, false, `concluded "failure"`},
+		{"a re-run in the same suite replaces the failure it re-ran",
+			[]string{runJSONIn(10, "test", "completed", "failure", 15368, "github-actions", 1), runJSONIn(11, "test", "completed", "success", 15368, "github-actions", 1), runJSONIn(20, "test", "completed", "success", 15368, "github-actions", 2)}, true, ""},
+		{"a re-run that failed replaces the pass it re-ran",
+			[]string{runJSONIn(10, "test", "completed", "success", 15368, "github-actions", 1), runJSONIn(11, "test", "completed", "failure", 15368, "github-actions", 1)}, false, `concluded "failure"`},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			gs := newGateServer(t, func(n int, w http.ResponseWriter, r *http.Request) { writeRuns(w, c.runs...) })
+			g := newTestGate(t, gs)
+			_, err := g.wait(context.Background(), testSHA)
+			if c.pass {
+				if err != nil {
+					t.Fatal(err)
+				}
+				return
+			}
+			if ref := asRefusal(t, err); !strings.Contains(ref.msg, c.refusal) {
+				t.Errorf("refusal = %s", ref.msg)
+			}
+		})
+	}
+
+	t.Run("one suite green, the other still running: wait for it", func(t *testing.T) {
+		gs := newGateServer(t, func(n int, w http.ResponseWriter, r *http.Request) {
+			second := runJSONIn(20, "test", "in_progress", "", 15368, "github-actions", 2)
+			if n >= 3 {
+				second = runJSONIn(20, "test", "completed", "success", 15368, "github-actions", 2)
+			}
+			writeRuns(w, runJSONIn(10, "test", "completed", "success", 15368, "github-actions", 1), second)
+		})
+		g := newTestGate(t, gs)
+		if _, err := g.wait(context.Background(), testSHA); err != nil {
+			t.Fatal(err)
+		}
+		if gs.hitCount() != 3 {
+			t.Errorf("hits = %d, want 3", gs.hitCount())
+		}
+	})
+}
+
+// If GitHub has more matching runs than it sent, the gate cannot know it saw
+// the failing one.
+func TestGateRefusesWhenItCannotSeeAllTheRuns(t *testing.T) {
+	gs := newGateServer(t, func(n int, w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprintf(w, `{"total_count":101,"check_runs":[%s]}`, runJSON(7, "test", "completed", "success"))
+	})
+	g := newTestGate(t, gs)
+	_, err := g.wait(context.Background(), testSHA)
+	if ref := asRefusal(t, err); !strings.Contains(ref.msg, "more check runs") {
+		t.Errorf("refusal = %s", ref.msg)
+	}
+	if gs.hitCount() != 1 {
+		t.Errorf("hits = %d: nothing to wait for", gs.hitCount())
 	}
 }
 

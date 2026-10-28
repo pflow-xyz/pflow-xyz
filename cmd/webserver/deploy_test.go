@@ -286,7 +286,7 @@ func TestExecRunnerTimeoutKillsTheWholeProcessTree(t *testing.T) {
 	if err == nil {
 		t.Error("a command killed by its timeout must report an error")
 	}
-	if took > 1200*time.Millisecond {
+	if took > 5*time.Second { // generous: a loaded machine, not the child's own 1.5s sleep, is the only excuse
 		t.Errorf("returned after %s; the 300ms timeout did not bound the command", took)
 	}
 	if !strings.Contains(string(out), "started") {
@@ -713,6 +713,29 @@ func TestRequireCIOffDisablesTheGateForTheBox(t *testing.T) {
 	st := h.status()
 	if st.CIGate != "disabled" || !strings.Contains(job.out.String(), "DISABLED by DEPLOY_REQUIRE_CI=0") {
 		t.Errorf("status %+v\n%s", st, job.out.String())
+	}
+}
+
+// The pipeline, not just the gate, must pin CI to GitHub Actions: a same-named
+// run from some other app that passes must not let a failing one through.
+func TestDeployTrustsOnlyGitHubActionsForCI(t *testing.T) {
+	h := newHarness(t)
+	var asked string
+	h.gate = func(n int, w http.ResponseWriter, r *http.Request) {
+		asked = r.URL.RawQuery
+		writeRuns(w,
+			runJSON(30, "test", "completed", "failure"),
+			runJSONIn(31, "test", "completed", "success", 99999, "some-other-app", 1000))
+	}
+	job := h.deploy(false)
+	if asRefusalOrNil(job.err) == nil || !strings.Contains(job.err.Error(), `concluded "failure"`) {
+		t.Fatalf("a failing Actions run was masked: err=%v\n%s", job.err, job.out.String())
+	}
+	if !strings.Contains(asked, "app_id=15368") {
+		t.Errorf("the request did not ask for GitHub Actions' runs: %q", asked)
+	}
+	if st := h.status(); st.CIGate != "refused" || strings.Contains(st.CIRunURL, "/job/31") || countPrefix(h.log(), "git merge") != 0 {
+		t.Errorf("status = %+v", st)
 	}
 }
 

@@ -31,6 +31,12 @@ const (
 	defaultCITimeout = 15 * time.Minute
 	defaultGitHubAPI = "https://api.github.com"
 
+	// The check run that counts is the one GitHub Actions made. A check name is
+	// only a label, and a second workflow (or any other app) can use the same
+	// one, so the gate asks for this app's runs and checks the answer.
+	githubActionsAppID   = 15368
+	githubActionsAppSlug = "github-actions"
+
 	// ciHeartbeat is how often a long wait writes a progress line even when
 	// nothing changed. The admin endpoint streams the deploy output, and an
 	// nginx in front of it drops a response that is silent for 60 seconds.
@@ -136,6 +142,13 @@ type checkRun struct {
 	Status     string `json:"status"`
 	Conclusion string `json:"conclusion"`
 	HTMLURL    string `json:"html_url"`
+	App        struct {
+		ID   int64  `json:"id"`
+		Slug string `json:"slug"`
+	} `json:"app"`
+	CheckSuite struct {
+		ID int64 `json:"id"`
+	} `json:"check_suite"`
 }
 
 // ciGate polls one commit's check runs. A gate is single use per deploy; it
@@ -150,20 +163,24 @@ type ciGate struct {
 	token   string
 	repo    string // owner/repo
 	check   string
+	appID   int64  // only check runs of this GitHub App count; 0 = any (tests)
+	appSlug string // and its slug must match; "" = any
 	poll    time.Duration
 	grace   time.Duration
 	timeout time.Duration
 	logf    func(format string, args ...any) // goes to the deploy output
 	onWait  func()                           // called before each sleep: the gate has nothing to decide yet
 
-	etag    string
-	cached  []checkRun
-	cacheOK bool
+	etag      string
+	cached    []checkRun
+	truncated bool
+	cacheOK   bool
 }
 
 // gateQuery is the outcome of one API call.
 type gateQuery struct {
 	runs        []checkRun
+	truncated   bool          // GitHub has more matching runs than it sent
 	err         error         // retryable: network, 5xx, rate limit, bad body
 	fatal       error         // not retryable: bad credentials, unknown repo or sha
 	retryAfter  time.Duration // the server's own advice for err
@@ -171,8 +188,13 @@ type gateQuery struct {
 }
 
 func (g *ciGate) query(ctx context.Context, sha string) gateQuery {
-	u := fmt.Sprintf("%s/repos/%s/commits/%s/check-runs?per_page=100&check_name=%s",
+	// filter=all: every attempt, so the gate sees all of a commit's check suites
+	// itself instead of trusting GitHub to collapse them.
+	u := fmt.Sprintf("%s/repos/%s/commits/%s/check-runs?per_page=100&filter=all&check_name=%s",
 		g.apiBase, g.repo, sha, url.QueryEscape(g.check))
+	if g.appID != 0 {
+		u += "&app_id=" + strconv.FormatInt(g.appID, 10)
+	}
 	rctx, cancel := context.WithTimeout(ctx, ciRequestTimeout)
 	defer cancel()
 	req, err := http.NewRequestWithContext(rctx, http.MethodGet, u, nil)
@@ -201,16 +223,18 @@ func (g *ciGate) query(ctx context.Context, sha string) gateQuery {
 			g.etag = ""
 			return gateQuery{err: fmt.Errorf("GitHub API answered 304 with nothing cached")}
 		}
-		return gateQuery{runs: g.cached, notModified: true}
+		return gateQuery{runs: g.cached, truncated: g.truncated, notModified: true}
 	case resp.StatusCode == http.StatusOK:
 		var doc struct {
-			CheckRuns []checkRun `json:"check_runs"`
+			TotalCount int        `json:"total_count"`
+			CheckRuns  []checkRun `json:"check_runs"`
 		}
 		if err := json.Unmarshal(body, &doc); err != nil {
 			return gateQuery{err: fmt.Errorf("GitHub API sent an unreadable body: %w", err)}
 		}
 		g.cached, g.cacheOK, g.etag = doc.CheckRuns, true, resp.Header.Get("ETag")
-		return gateQuery{runs: doc.CheckRuns}
+		g.truncated = doc.TotalCount > len(doc.CheckRuns)
+		return gateQuery{runs: doc.CheckRuns, truncated: g.truncated}
 	case resp.StatusCode == http.StatusUnauthorized:
 		return gateQuery{fatal: fmt.Errorf("GitHub API answered 401: DEPLOY_GITHUB_TOKEN is not accepted")}
 	case resp.StatusCode == http.StatusNotFound:
@@ -245,21 +269,59 @@ func snippet(b []byte, n int) string {
 	return s
 }
 
-// pickRun chooses the check run the gate acts on. The API is asked for the
-// latest run per name, so one is normal; if several come back, the most
-// recently created (highest id) wins, never the luckiest.
-func pickRun(runs []checkRun, name string) (checkRun, bool) {
-	var best checkRun
-	found := false
+// ciVerdict is what a commit's check runs say about the required check.
+type ciVerdict struct {
+	state   string   // none | pending | failed | passed
+	run     checkRun // the run the verdict rests on (the failing or pending one, else the newest)
+	ignored int      // runs with the right name that were not made by the pinned app
+}
+
+// judge reads a commit's check runs. Only runs of the required name made by the
+// pinned GitHub App count: a same-named run from another app or integration is
+// ignored (and counted, so the refusal can say so), because otherwise anyone
+// able to report a passing check could mask a failing one. A commit can have
+// several check suites (a push and a pull_request workflow on the same sha, a
+// second workflow with a job of that name); within a suite the newest run is
+// the current attempt (a re-run supersedes the failure it re-ran), and EVERY
+// suite must succeed. A finished non-success anywhere is final; otherwise any
+// run still going keeps the gate waiting.
+func (g *ciGate) judge(runs []checkRun) ciVerdict {
+	var v ciVerdict
+	newest := map[int64]checkRun{} // suite id -> newest run of the required name
 	for _, r := range runs {
-		if r.Name != name {
+		if r.Name != g.check {
 			continue
 		}
-		if !found || r.ID > best.ID {
-			best, found = r, true
+		if (g.appID != 0 && r.App.ID != g.appID) || (g.appSlug != "" && r.App.Slug != g.appSlug) {
+			v.ignored++
+			continue
+		}
+		if cur, ok := newest[r.CheckSuite.ID]; !ok || r.ID > cur.ID {
+			newest[r.CheckSuite.ID] = r
 		}
 	}
-	return best, found
+	if len(newest) == 0 {
+		v.state = "none"
+		return v
+	}
+	v.state = "passed"
+	for _, r := range newest {
+		switch {
+		case r.Status == "completed" && r.Conclusion == "success":
+			if v.state == "passed" && r.ID > v.run.ID {
+				v.run = r
+			}
+		case r.Status != "completed":
+			if v.state != "failed" && (v.state != "pending" || r.ID > v.run.ID) {
+				v.state, v.run = "pending", r
+			}
+		default: // finished, and not a success
+			if v.state != "failed" || r.ID > v.run.ID {
+				v.state, v.run = "failed", r
+			}
+		}
+	}
+	return v
 }
 
 // wait blocks until the sha's check run succeeds (returning its URL), or
@@ -310,27 +372,31 @@ func (g *ciGate) wait(ctx context.Context, sha string) (string, error) {
 			if graceStart.IsZero() {
 				graceStart = g.now()
 			}
-			run, ok := pickRun(q.runs, g.check)
-			if !ok {
+			if q.truncated {
+				return "", &deployRefusal{fmt.Sprintf("refusing to deploy %s: GitHub lists more check runs for this commit than the %d the gate reads, so it cannot tell whether CI passed", short, len(q.runs))}
+			}
+			v := g.judge(q.runs)
+			switch v.state {
+			case "none":
 				last = fmt.Sprintf("no check run named %q yet", g.check)
+				if v.ignored > 0 {
+					last += fmt.Sprintf(" from %s (%d of that name from other apps ignored)", g.appDesc(), v.ignored)
+				}
 				if g.now().Sub(graceStart) >= g.grace {
-					return "", &deployRefusal{fmt.Sprintf("refusing to deploy %s: no check run named %q appeared on GitHub within %s, so CI is not known to have run (is the workflow triggered by pushes to main, and is the job still named %q? DEPLOY_CI_CHECK names it; POST /admin/deploy?skip_ci=1 overrides)",
-						short, g.check, g.grace, g.check)}
+					return "", &deployRefusal{fmt.Sprintf("refusing to deploy %s: no check run named %q from %s appeared on GitHub within %s%s, so CI is not known to have run (is the workflow triggered by pushes to main, and is the job still named %q? DEPLOY_CI_CHECK names it; POST /admin/deploy?skip_ci=1 overrides)",
+						short, g.check, g.appDesc(), g.grace, ignoredNote(v.ignored), g.check)}
 				}
 				note(last)
-				break
-			}
-			if run.Status != "completed" {
-				last = fmt.Sprintf("check run %q is %s %s", g.check, run.Status, run.HTMLURL)
+			case "pending":
+				last = fmt.Sprintf("check run %q is %s %s", g.check, v.run.Status, v.run.HTMLURL)
 				note(last)
-				break
+			case "passed":
+				g.logf("ci-gate: check run %q succeeded: %s", g.check, v.run.HTMLURL)
+				return v.run.HTMLURL, nil
+			default:
+				return v.run.HTMLURL, &deployRefusal{fmt.Sprintf("refusing to deploy %s: CI check %q concluded %q (%s); not deployed. Fix and push, or POST /admin/deploy?skip_ci=1 to override",
+					short, g.check, v.run.Conclusion, v.run.HTMLURL)}
 			}
-			if run.Conclusion == "success" {
-				g.logf("ci-gate: check run %q succeeded: %s", g.check, run.HTMLURL)
-				return run.HTMLURL, nil
-			}
-			return run.HTMLURL, &deployRefusal{fmt.Sprintf("refusing to deploy %s: CI check %q concluded %q (%s); not deployed. Fix and push, or POST /admin/deploy?skip_ci=1 to override",
-				short, g.check, run.Conclusion, run.HTMLURL)}
 		}
 
 		now := g.now()
@@ -351,6 +417,24 @@ func (g *ciGate) wait(ctx context.Context, sha string) (string, error) {
 			return "", err
 		}
 	}
+}
+
+// appDesc names the app whose check runs count, for messages.
+func (g *ciGate) appDesc() string {
+	switch {
+	case g.appSlug != "":
+		return g.appSlug
+	case g.appID != 0:
+		return fmt.Sprintf("app %d", g.appID)
+	}
+	return "any app"
+}
+
+func ignoredNote(n int) string {
+	if n == 0 {
+		return ""
+	}
+	return fmt.Sprintf(" (%d of that name from other apps were ignored)", n)
 }
 
 func shortSHA(sha string) string {
