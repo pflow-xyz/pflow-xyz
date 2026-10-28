@@ -46,9 +46,11 @@ export async function setup() {
 
 /**
  * Reach `stateId` by commands on the live engine, render `view` for `example`,
- * and return {manifest, conflicts, root}.
+ * and return {manifest, conflicts, root}. `opts.hover(node, info)` stands in
+ * for the page's hover handler (default: none), so a test can read the
+ * inspector info every drawn element carries (sources_test.ts).
  */
-export async function renderManifest(view, example, stateId) {
+export async function renderManifest(view, example, stateId, opts = {}) {
   await setup();
   start({ steps: STATES[stateId] });
   state.example = example;
@@ -59,7 +61,7 @@ export async function renderManifest(view, example, stateId) {
   const noop = () => {};
   const ctx = makeCtx(root, {
     snap: { port: noop, slot: noop, piece: noop },
-    hover: noop,
+    hover: opts.hover || noop,
     manifest,
     connect4,
     rerender: noop,
