@@ -1,5 +1,8 @@
-// Moving between things with the arrow keys. Pure: items are {x, y} centres (the
-// DOM glue measures them), and each function returns an index.
+// Moving between things with the arrow keys, and the small decisions about how a
+// thing is exposed (its role, whether it keeps its own name, whether a key typed at
+// it belongs to the person typing). Pure: items are {x, y} centres and elements are
+// plain descriptors (the DOM glue, a11y.js, measures and describes them), and each
+// function returns an index or a value.
 
 /**
  * The item to move to from `from` when an arrow key is pressed: the nearest in
@@ -54,4 +57,53 @@ export function tabStop(keys, remembered) {
   if (!keys.length) return -1;
   const i = remembered == null ? -1 : keys.indexOf(remembered);
   return i < 0 ? 0 : i;
+}
+
+// --- how a thing is exposed -----------------------------------------------------------------------
+
+/** Elements whose native role must stay: a button, a link, a form control, a list item. */
+export const hasNativeRole = (tag) => /^(a|button|summary|input|select|textarea|li)$/i.test(tag || '');
+
+/** Native roles whose name is their visible content (a button, a link). */
+const NAMED_BY_CONTENT = /^(a|button|summary)$/i;
+
+/**
+ * The role to give a thing that is made keyboard-reachable, or null to leave what it has.
+ *   tag             its tag name
+ *   hasRole         it already has a role attribute (a view chose one)
+ *   svg             it is drawn in an svg
+ *   holdsControls   it contains other controls or other labelled things
+ *   group           'port' | 'piece' | 'action' | 'item' | 'panel'
+ * A role=button makes its children presentational, so it must not wrap controls (nested-interactive)
+ * or readable HTML (a card with a table and links would be read as one word): those are groups. A
+ * native button, link or list item keeps its own role (a ul whose items are buttons is not a list).
+ */
+export function roleFor({ tag, hasRole = false, svg = false, holdsControls = false, group = 'item' }) {
+  if (hasRole || hasNativeRole(tag)) return null;
+  if (holdsControls) return 'group';
+  if ((group === 'item' || group === 'panel') && !svg) return 'group';
+  return 'button';
+}
+
+/** Does the thing keep the name it has? A button or link with visible words is better named by them. */
+export function keepsOwnName({ tag, text = '' }) {
+  return NAMED_BY_CONTENT.test(tag || '') && String(text).trim() !== '';
+}
+
+/** Does the browser click this itself on Enter and Space (so a synthetic click would be a second one)? */
+export const clicksItself = (tag) => NAMED_BY_CONTENT.test(tag || '');
+
+/**
+ * Is the key typed at someone who is typing? `chain` is the target and its ancestors, nearest first,
+ * each {tag, editable, role}. A form field, a contenteditable region or an ARIA text box owns the keys:
+ * the page's own shortcuts (number keys switch the view, E the example) stand aside.
+ */
+export function isTypingTarget(chain) {
+  for (const n of chain || []) {
+    if (!n) continue;
+    if (/^(input|textarea|select)$/i.test(n.tag || '')) return true;
+    if (n.editable) return true;
+    if (/^(textbox|searchbox|combobox|spinbutton)$/i.test(n.role || '')) return true;
+  }
+  return false;
 }

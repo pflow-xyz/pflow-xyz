@@ -1,6 +1,6 @@
 // Arrow-key movement among drawn things, and the roving Tab stop.
-import { assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
-import { moveSpatial, rovingTarget, tabStop, tabTarget } from "./a11y-nav.js";
+import { assert, assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
+import { clicksItself, hasNativeRole, isTypingTarget, keepsOwnName, moveSpatial, roleFor, rovingTarget, tabStop, tabTarget } from "./a11y-nav.js";
 
 // A 3 x 2 grid, row-major: indices 0 1 2 / 3 4 5.
 const grid = [0, 1, 2, 3, 4, 5].map((i) => ({ x: (i % 3) * 50, y: Math.floor(i / 3) * 40 }));
@@ -50,4 +50,57 @@ Deno.test("tabStop: the remembered key while it exists, else the first", () => {
   assertEquals(tabStop(["a", "b", "c"], "z"), 0);
   assertEquals(tabStop(["a"], null), 0);
   assertEquals(tabStop([], "a"), -1);
+});
+
+// --- how a thing is exposed -------------------------------------------------------------------------
+
+Deno.test("roleFor: a native button, link or list item keeps its role; a role a view chose stays", () => {
+  for (const tag of ["BUTTON", "A", "LI", "SUMMARY", "INPUT", "SELECT", "TEXTAREA", "button", "li"]) {
+    assertEquals(roleFor({ tag, group: "item" }), null, tag);
+  }
+  assertEquals(roleFor({ tag: "div", hasRole: true, group: "item" }), null);
+  assert(hasNativeRole("li") && hasNativeRole("A") && !hasNativeRole("div") && !hasNativeRole("g") && !hasNativeRole(undefined));
+});
+
+Deno.test("roleFor: never a button over other controls (nested-interactive); a group instead", () => {
+  assertEquals(roleFor({ tag: "div", holdsControls: true, group: "item" }), "group"); // the Lenses card with a Go button
+  assertEquals(roleFor({ tag: "g", svg: true, holdsControls: true, group: "item" }), "group"); // an order piece holding move/remove buttons
+  assertEquals(roleFor({ tag: "g", svg: true, holdsControls: true, group: "port" }), "group");
+});
+
+Deno.test("roleFor: drawn leaves and small controls are buttons; readable HTML is a group", () => {
+  assertEquals(roleFor({ tag: "g", svg: true, group: "port" }), "button");
+  assertEquals(roleFor({ tag: "rect", svg: true, group: "item" }), "button");
+  assertEquals(roleFor({ tag: "g", svg: true, group: "action" }), "button");
+  assertEquals(roleFor({ tag: "span", group: "piece" }), "button"); // a palette piece
+  assertEquals(roleFor({ tag: "div", group: "item" }), "group"); // HTML content stays readable
+  assertEquals(roleFor({ tag: "div", group: "panel" }), "group"); // a rule row in the side column
+});
+
+Deno.test("keepsOwnName: a button or link with visible words keeps them; nothing else does", () => {
+  assert(keepsOwnName({ tag: "BUTTON", text: "sync-spiders 12/12 proved" }));
+  assert(keepsOwnName({ tag: "a", text: "docs" }));
+  assert(!keepsOwnName({ tag: "BUTTON", text: "  " }), "an icon-only button needs a name");
+  assert(!keepsOwnName({ tag: "BUTTON" }));
+  assert(!keepsOwnName({ tag: "LI", text: "a long row" }), "a list item is not named by its content");
+  assert(!keepsOwnName({ tag: "g", text: "x" }));
+});
+
+Deno.test("clicksItself: the browser clicks a button or link on Enter, so the page must not click it again", () => {
+  assert(clicksItself("BUTTON") && clicksItself("a") && clicksItself("SUMMARY"));
+  assert(!clicksItself("li") && !clicksItself("g") && !clicksItself("div"));
+});
+
+Deno.test("isTypingTarget: form fields, contenteditable and ARIA text boxes own the keys", () => {
+  const n = (tag: string, o: Record<string, unknown> = {}) => ({ tag, editable: false, role: null, ...o });
+  assert(isTypingTarget([n("INPUT")]));
+  assert(isTypingTarget([n("textarea")]));
+  assert(isTypingTarget([n("SELECT")]), "a select is not for number keys");
+  assert(isTypingTarget([n("DIV", { editable: true })]), "contenteditable");
+  assert(isTypingTarget([n("DIV", { role: "textbox" })]));
+  assert(isTypingTarget([n("DIV", { role: "combobox" })]));
+  assert(isTypingTarget([n("SPAN"), n("DIV", { editable: true })]), "a child of an editable region");
+  assert(!isTypingTarget([n("BODY")]));
+  assert(!isTypingTarget([n("g"), n("svg"), n("DIV", { role: "tabpanel" }), n("BODY")]));
+  assert(!isTypingTarget([]) && !isTypingTarget(undefined) && !isTypingTarget([null]));
 });

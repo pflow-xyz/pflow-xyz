@@ -20,7 +20,7 @@
 
 import { registered, startKeyboard, kbActive } from './snap.js';
 import { infoOf, activate, dismissPinned, isPinned, revealPanel } from './inspect.js';
-import { rovingTarget, tabTarget, tabStop } from './a11y-nav.js';
+import { rovingTarget, tabTarget, tabStop, roleFor, keepsOwnName, clicksItself } from './a11y-nav.js';
 import { portLabel, slotLabel, pieceLabel, viewLabel, eventText, schemaCode, uniqueKeys, distinctDashes } from './a11y-text.js';
 import { state, subnetsById } from './state.js';
 import { SLOTS, pieceByName, LINK_STYLE } from './model.js';
@@ -31,8 +31,13 @@ import { installMotionGuard } from './motion.js';
 
 const SVGNS = 'http://www.w3.org/2000/svg';
 const $ = (s) => document.querySelector(s);
-const GROUPS = ['port', 'piece', 'action', 'item'];
-const HINT = { port: 'a11y-hint-port', piece: 'a11y-hint-piece', action: 'a11y-hint-action', item: 'a11y-hint-item' };
+// The roving groups, one Tab stop each: ports, palette pieces, the small buttons drawn in a view,
+// the other inspectable things of the stage, and the inspectable things of the side column
+// (the link rules, the Links card), which sit elsewhere in the page and so are a stop of their own.
+const GROUPS = ['port', 'piece', 'action', 'item', 'panel'];
+const HINT = { port: 'a11y-hint-port', piece: 'a11y-hint-piece', action: 'a11y-hint-action', item: 'a11y-hint-item', panel: 'a11y-hint-item' };
+// What a role=button must not wrap: it makes its children presentational (nested-interactive).
+const INNER = 'button, a[href], input, select, textarea, summary, [tabindex], [role=button], .inspectable, .snap-port, .snap-slot, .snap-piece';
 // Click-only buttons the views draw inside their SVG (remove a piece, move it up or down): the page turns a key into the click.
 const ACTIONS = '.obtn:not(.off), .lens-x, .sv-x, .sp-chip-x';
 const SHAPES = 'path,line,circle,ellipse,rect,polygon,polyline,image,defs,marker,pattern,clipPath,linearGradient,filter';
@@ -41,7 +46,7 @@ let ring = null;
 let keyboardMode = false;       // was the last thing the person did a key press?
 let lastFocusKey = null;        // focus before the render, to give back after
 let lastView = null, lastExample = null;
-const stops = { port: null, piece: null, action: null, item: null }; // each roving group's remembered Tab stop
+const stops = { port: null, piece: null, action: null, item: null, panel: null }; // each roving group's remembered Tab stop
 
 // --- setup ------------------------------------------------------------------------------------
 
@@ -113,13 +118,19 @@ function onKey(e) {
   if (g) {
     if (/^Arrow|^(Home|End)$/.test(e.key)) { moveWithin(t, g, e.key); e.preventDefault(); return; }
     if (e.key === 'Enter' || e.key === ' ') {
+      if ((g === 'item' || g === 'panel') && clicksItself(t.tagName)) {
+        // A real button or link clicks itself on Enter and Space. A second, synthetic click would
+        // press it twice in the browsers that click on key-up (the pin would be set and released).
+        if (e.key === 'Enter') setTimeout(() => { if (isPinned()) revealPanel(); }, 0);
+        return;
+      }
       e.preventDefault();
       if (g === 'port' || g === 'piece') startKeyboard(t);
       else {
         // The same click a pointer would make: a view's own handler (fire an enabled transition,
         // remove a piece, go to another view) takes it, else it pins the inspector.
         t.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
-        if (g === 'item' && isPinned()) revealPanel();
+        if ((g === 'item' || g === 'panel') && isPinned()) revealPanel();
       }
       return;
     }
@@ -179,8 +190,9 @@ export function beforeRender() {
 export function afterRender({ view, event }) {
   const stage = $('#stage');
   const subnets = subnetsById();
-  semantics(stage, view);
+  // Label first: semantics() hides decorative shapes and must leave alone whatever got a name and a Tab stop.
   labelThings(stage, subnets);
+  semantics(stage, view);
   schemaBadges(stage, subnets);
   tabsAndToggles();
   linkList();
@@ -222,12 +234,13 @@ function semantics(stage, view) {
 
 function labelThings(stage, subnets) {
   const { meta } = registered();
-  const all = [...new Set([...document.querySelectorAll(`#stage .inspectable, #stage .snap-port, #stage .snap-slot, .snap-piece, #stage :is(${ACTIONS})`)])];
+  // Every inspectable thing of the page, not only the stage's: the side column has them too.
+  const all = [...new Set([...document.querySelectorAll(`.inspectable, .snap-port, .snap-slot, .snap-piece, #stage :is(${ACTIONS})`)])];
   const rows = [];
   for (const el of all) {
     const m = meta.get(el);
     const isAction = !m && !infoOf(el) && el.matches(ACTIONS);
-    const group = m && m.type === 'port' ? 'port' : m && m.type === 'piece' ? 'piece' : isAction ? 'action' : 'item';
+    const group = m && m.type === 'port' ? 'port' : m && m.type === 'piece' ? 'piece' : isAction ? 'action' : stage.contains(el) ? 'item' : 'panel';
     let name = null;
     if (m && m.type === 'port') {
       const { subnet, port } = m.ref;
@@ -254,11 +267,14 @@ function labelThings(stage, subnets) {
     const stopIdx = tabStop(mine.map((r) => r.key), stops[g]);
     mine.forEach((r, i) => {
       const { el } = r;
-      const container = !!el.querySelector('.inspectable, .snap-port, .snap-slot, .snap-piece');
       el.dataset.a11yKey = r.key;
       el.dataset.a11yGroup = g;
-      if (!el.getAttribute('role') && el.tagName.toLowerCase() !== 'button') el.setAttribute('role', container ? 'group' : 'button');
-      el.setAttribute('aria-label', r.name);
+      const role = roleFor({ tag: el.tagName, hasRole: el.hasAttribute('role'), svg: el instanceof SVGElement, holdsControls: !!el.querySelector(INNER), group: g });
+      if (role) el.setAttribute('role', role);
+      // A button or link that already says what it is in visible words keeps those words.
+      if (!keepsOwnName({ tag: el.tagName, text: el.textContent })) el.setAttribute('aria-label', r.name);
+      // A thing with a name and a Tab stop is not decoration, whatever hid it before.
+      el.removeAttribute('aria-hidden');
       el.setAttribute('tabindex', i === stopIdx ? '0' : '-1');
       const ids = (el.getAttribute('aria-describedby') || '').split(/\s+/).filter(Boolean);
       if (!ids.includes(HINT[g])) ids.push(HINT[g]);
@@ -327,7 +343,8 @@ function tabsAndToggles() {
     b.setAttribute('aria-keyshortcuts', i === 9 ? '0' : String(i + 1));
     b.setAttribute('tabindex', on ? '0' : '-1');
   });
-  for (const b of document.querySelectorAll('.examples .seg, #toolbar .chip')) b.setAttribute('aria-pressed', String(b.classList.contains('active')));
+  // The Laws view's own buttons mark the one shown by a class only: the tabs (theories) and chips (rules, rewrites).
+  for (const b of document.querySelectorAll('.examples .seg, #toolbar .chip, #stage button.lw-tab, #stage button.lw-chip')) b.setAttribute('aria-pressed', String(b.classList.contains('active')));
   for (const b of document.querySelectorAll('.examples .seg')) b.setAttribute('aria-keyshortcuts', 'e');
   for (const g of document.querySelectorAll('.rule-glyph, .tb-sep')) g.setAttribute('aria-hidden', 'true');
 }
