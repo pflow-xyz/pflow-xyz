@@ -14,10 +14,16 @@ hand a model to each other.
 
 If approved, this **supersedes the newcomer framing** of the next section (its problem and
 goal, and the "newcomer" exit of phase 6). Phases 0-8 stay as built. Phases 1, 5 and 7 are
-frozen, not removed; "start from a question", sensible defaults and plain-language results
-are sim's. First work is in pflow-native (`bundle.load`, `bundle.export`), because the
-registry cannot open a Bundle today; the first pflow.xyz slice is copy and navigation only.
-The decisions only Matt can make are D1-D9 in the design's section 5.3.
+frozen, not removed (their question-shaped surfaces; shared code such as `goals.json` and
+`petri-roles.js` is still maintained); "start from a question", sensible defaults and
+plain-language results are sim's. First work is a decision on the model's format (a bare
+Bundle cannot carry the pattern and port data the views draw) and two commands in
+pflow-native (`bundle.load`, `bundle.export`), because the registry cannot open a Bundle
+today; the first pflow.xyz slice is copy and navigation only. The decisions only Matt can
+make are D1-D14 in the design's section 5.3. The design was revised after an adversarial
+review; it says how its cites are numbered (this section shifts the ROADMAP's line numbers).
+Pending item 17 below ("a push to `main` is a deploy") holds only for a commit signed
+with a key pflow.dev trusts; the design's section 5.1 has the details.
 
 ## Guided modelling and simulation in the browser
 
