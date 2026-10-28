@@ -328,12 +328,6 @@ p { color: var(--pf-text-muted); }
 }
 pre { background: var(--pf-bg-card); padding: 12px; border-radius: 4px; overflow-x: auto; font-size: 13px; }
 code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
-h2 { color: var(--pf-text); font-size: 22px; margin: 48px 0 0; }
-h3 { color: var(--pf-accent); font-size: 16px; margin: 32px 0 0; }
-li { color: var(--pf-text-muted); margin: 6px 0; }
-td { color: var(--pf-text); }
-td.id b { color: var(--pf-accent); font-weight: 500; white-space: nowrap; }
-td.ftype { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--pf-text-muted); font-size: 12px; }
 .nav { margin-bottom: 24px; font-size: 14px; }
 .nav a { text-decoration: none; }
 .meta { font-size: 13px; margin-top: 24px; }
@@ -354,7 +348,6 @@ td.ftype { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: v
 <dt>@id</dt><dd>https://pflow.xyz/tokens/{{.Name}}</dd>
 <dt>colorCount</dt><dd>{{.ColorCount}}</dd>
 </dl>
-<p>Compositions of nets, the <code>PetriNetBundle</code> wire format, are documented <a href="#bundle">below the table</a>, together with <a href="#vocab">which context defines their terms</a>.</p>
 <p>Fetch as JSON-LD:</p>
 <pre><code>curl -H 'Accept: application/ld+json' https://pflow.xyz/tokens/{{.Name}}</code></pre>
 </div>

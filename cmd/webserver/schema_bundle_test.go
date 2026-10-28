@@ -284,3 +284,37 @@ func TestHandleSchema_HTMLDocumentsBundle(t *testing.T) {
 		t.Errorf("%d <h1>", n)
 	}
 }
+
+// The bundle documentation belongs to /schema alone. The /tokens/<color> page
+// shares a look with it but has no table and no #bundle or #vocab section, so
+// it must carry neither a link to them nor the styles written for them.
+func TestTokenPageHasNoBundleSection(t *testing.T) {
+	s := newTestServer(t)
+	for _, name := range []string{"red", "ff0000,00ff00"} {
+		req := httptest.NewRequest("GET", "/tokens/"+name, nil)
+		req.Header.Set("Accept", "text/html")
+		w := httptest.NewRecorder()
+		s.handleTokenType(w, req)
+		if w.Code != 200 {
+			t.Fatalf("/tokens/%s: status %d", name, w.Code)
+		}
+		body := w.Body.String()
+		for _, bad := range []string{`href="#bundle"`, `href="#vocab"`, `id="bundle"`, `id="vocab"`, "PetriNetBundle", "<h2", "<h3", "td.ftype", "td.id b"} {
+			if strings.Contains(body, bad) {
+				t.Errorf("/tokens/%s carries %q", name, bad)
+			}
+		}
+	}
+	// And the schema page does have what the token page lacks: the anchors
+	// its own link points at.
+	req := httptest.NewRequest("GET", "/schema", nil)
+	req.Header.Set("Accept", "text/html")
+	w := httptest.NewRecorder()
+	s.handleSchema(w, req)
+	body := w.Body.String()
+	for _, want := range []string{`href="#bundle"`, `id="bundle"`, `href="#vocab"`, `id="vocab"`} {
+		if !strings.Contains(body, want) {
+			t.Errorf("/schema lacks %q", want)
+		}
+	}
+}
