@@ -674,6 +674,36 @@ a two-sided game, slice 5 of its search-pieces roadmap) are a Go port:
   moves and node counts, identical refusals. `parity/native/README.md` has the
   list of deliberate differences (caps, one colour, names, no artifact).
 
+### Follow-up: the game tools in the browser
+
+pflow-native `cdd3816` adds `game.value` and `game.move`: a net read as a
+two-sided game (`sides` who owns each transition, `reward` what the final
+marking pays, `auto` transitions nobody chooses), searched exactly by
+pflow-metamodel's alpha-beta over its firing rule, run as a `SearchPlan`
+names it.
+
+- **Vendored** (179 commands, 88 exposed). Both are exposed and in no side
+  list: read-only (the move is not fired, the marking is not set), no
+  artifact arguments (`book` is the label cache's text inline), and each
+  result is also filed as a Report. Native caps what a browser tab can
+  afford: a node budget of 1,000,000 by default and at most 100,000,000,
+  a table of 2^20 entries by default and at most 2^23, and no time budget
+  (`budget.ms` is refused: the wasm build has no clock).
+- **The Assistant** gets `game_value` and `game_move`; `sides`, `reward`
+  and `plan` travel as JSON strings (`json_args`).
+- **The `best_play` goal**, "Who wins with best play, and with which move?",
+  runs `game.move`. Its rules are a new input kind, `json`: a text box whose
+  text `runGoal` parses before the plan runs. `petri-goals_test.ts` runs it
+  on a per-goal fixture, pflow-native's tic-tac-toe (a draw, and a best move
+  for X), where every other goal still runs on SIR.
+- **Parity:** six cases on a byte-identical copy of pflow-native's
+  `examples/tic-tac-toe.json` (`parity/native/fixtures/tic-tac-toe.json`):
+  the value and a move with the default plan, a plan given as an object and
+  as a JSON string, a mid-game position, past the budget in exact and play
+  mode, and the refusals (a time budget, too many nodes, too big a table, a
+  move no side owns). None names the `ode` root estimate, whose node count
+  can differ between the native and wasm builds.
+
 ---
 
 ## How to review all of this

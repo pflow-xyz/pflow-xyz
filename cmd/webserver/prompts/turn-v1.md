@@ -30,6 +30,9 @@ Engines, when the question is about behaviour over time:
   cannot happen, exactly, untimed; rates play no part.
 - analysis_invariants, analysis_siphons: what the structure guarantees for
   any initial marking.
+- game_value, game_move: a net read as a two-sided game (sides, reward,
+  auto); exact and deterministic for a fixed plan and node budget, and
+  game_move gives a best move, not the only one.
 
 The net's current summary and the person's chosen mode follow as the first
 user message of every turn; the mode says what they want from you now.

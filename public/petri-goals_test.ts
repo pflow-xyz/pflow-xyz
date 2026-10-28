@@ -18,11 +18,19 @@ const sir = () => ({
     ],
 });
 
+// A goal that needs another kind of net names its own fixture: best_play
+// needs a two-sided game, so it runs on pflow-native's tic-tac-toe (a
+// byte-identical copy in parity/native/fixtures/).
+const ttt = JSON.parse(await Deno.readTextFile(new URL("../parity/native/fixtures/tic-tac-toe.json", import.meta.url)));
+const fixtureFor: Record<string, () => any> = { best_play: () => structuredClone(ttt) };
+
 const inputsFor: Record<string, any> = {
     can_happen: { to: { R: 10 } },
     knob: { observable: "R" },
     one_more: { place: "I" },
     best_setting: { transition: "recover", max_rate: 1 },
+    // JSON text, as the picker passes it
+    best_play: { sides: '{"x_": 1, "o_": -1}', reward: '{"win_x": 1, "win_o": -1}', auto: '["x_win_", "o_win_"]' },
 };
 
 for (const goal of catalog.goals) {
@@ -34,13 +42,36 @@ for (const goal of catalog.goals) {
         continue;
     }
     Deno.test(`goal ${goal.id}: "${goal.question}" runs end to end`, async () => {
-        const r: any = new Registry(createHeadlessHost(sir()));
+        const r: any = new Registry(createHeadlessHost((fixtureFor[goal.id] || sir)()));
         const out = await runGoal(r, goal, inputsFor[goal.id] || {});
         assert(out.ok, JSON.stringify(out.steps.find((s: any) => s.error)));
         assertEquals(out.steps.length, goal.plan.length);
         assert(goal.answer && goal.caveat, "every goal states its answer and caveat");
     });
 }
+
+Deno.test("goal best_play: tic-tac-toe is a draw, a best move is X's, nothing is fired; the caveat qualifies it", async () => {
+    const goal = catalog.goals.find((g: any) => g.id === "best_play");
+    const r: any = new Registry(createHeadlessHost(fixtureFor.best_play()));
+    const before = (await r.execute("sim.marking")).marking;
+    const out = await runGoal(r, goal, inputsFor.best_play);
+    const m = out.steps[0].result;
+    assertEquals([m.value, m.exact], [0, true]);
+    assert(String(m.transition).startsWith("x_play_"), m.transition);
+    assertEquals(out.steps[0].artifacts, [m.artifact], "the result is filed as a Report");
+    assertEquals((await r.execute("sim.marking")).marking, before);
+    // blank optional inputs drop their arguments; a plan as text is parsed, the budget passed on
+    const blank = await runGoal(r, goal, { ...inputsFor.best_play, plan: "  " });
+    assert(blank.ok, JSON.stringify(blank.steps[0]));
+    assertEquals(blank.steps[0].args.plan, undefined);
+    const planned = await runGoal(r, goal, { ...inputsFor.best_play, plan: '{"mode": "play"}', nodes: 50 });
+    assert(planned.ok, JSON.stringify(planned.steps[0]));
+    assertEquals(planned.steps[0].args.plan, { mode: "play" });
+    assertEquals([planned.steps[0].result.exact, planned.steps[0].result.budget], [false, 50]);
+    await assertRejects(() => runGoal(r, goal, { ...inputsFor.best_play, sides: "{x_: 1}" }), Error, "not valid JSON");
+    await assertRejects(() => runGoal(r, goal, { reward: inputsFor.best_play.reward, sides: "  " }), Error, "needs who moves");
+    for (const words of ["deterministic", "node budget", "\"ode\"", "a best move, not the best move"]) assert(goal.caveat.includes(words), words);
+});
 
 Deno.test("goals: every plan names a registry command", () => {
     const r: any = new Registry(createHeadlessHost(sir()));
@@ -69,6 +100,7 @@ const paraphrases: Array<[string, string]> = [
     ["what's the optimal service rate", "best_setting"],
     ["does my event log match", "data_match"],
     ["is this the same as the other model, just renamed", "same_net"],
+    ["if both players play perfectly, who wins?", "best_play"],
 ];
 for (const [text, want] of paraphrases) {
     Deno.test(`routing: "${text}" → ${want}`, () => {
