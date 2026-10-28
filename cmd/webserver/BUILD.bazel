@@ -5,6 +5,7 @@ go_library(
     srcs = [
         "content_negotiation.go",
         "deploy.go",
+        "deploy_gate.go",
         "files.go",
         "llm.go",
         "llm_goals.go",
@@ -66,6 +67,8 @@ go_test(
     srcs = [
         "author_identity_test.go",
         "content_negotiation_test.go",
+        "deploy_gate_test.go",
+        "deploy_test.go",
         "files_test.go",
         "llm_eval_test.go",
         "llm_goals_test.go",

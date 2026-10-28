@@ -1,0 +1,354 @@
+package main
+
+// The CI gate of the push-to-main deploy (see deploy.go and docs/deploy.md).
+//
+// A signed commit on main is not yet a tested one: the webhook fires on push,
+// the GitHub Actions run for the same commit starts at the same moment, and
+// before this gate the deploy never looked at it. The gate asks GitHub's
+// check-runs API about the exact sha that was fetched and verified, and lets
+// the deploy proceed only on a completed, successful check run of the
+// configured name. It fails closed: anything it cannot positively establish
+// (no run, a failed run, an unreachable API, a timeout) refuses the deploy,
+// and a refused deploy has touched nothing in the checkout.
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"net/url"
+	"regexp"
+	"strconv"
+	"strings"
+	"time"
+)
+
+const (
+	defaultCICheck   = "test" // the job name in .github/workflows/test.yml
+	defaultCIPoll    = 15 * time.Second
+	defaultCIGrace   = 2 * time.Minute
+	defaultCITimeout = 15 * time.Minute
+	defaultGitHubAPI = "https://api.github.com"
+
+	// ciHeartbeat is how often a long wait writes a progress line even when
+	// nothing changed. The admin endpoint streams the deploy output, and an
+	// nginx in front of it drops a response that is silent for 60 seconds.
+	ciHeartbeat = 30 * time.Second
+
+	ciRequestTimeout = 20 * time.Second
+	ciMaxBody        = 1 << 20
+)
+
+// deployConfig is the deploy's environment-derived settings, read afresh for
+// every run so a change in ~/services needs a restart and nothing more.
+type deployConfig struct {
+	RequireCI   bool          // DEPLOY_REQUIRE_CI; off only for an explicit 0/false/no/off
+	CICheck     string        // DEPLOY_CI_CHECK
+	CIPoll      time.Duration // DEPLOY_CI_POLL
+	CIGrace     time.Duration // DEPLOY_CI_GRACE: how long a check run may take to register
+	CITimeout   time.Duration // DEPLOY_CI_TIMEOUT: the whole gate, polling included
+	Repo        string        // DEPLOY_REPO (owner/repo); empty = derive from the origin remote
+	GitHubToken string        // DEPLOY_GITHUB_TOKEN, optional bearer token
+	APIBase     string        // DEPLOY_GITHUB_API
+}
+
+// deployConfigFromEnv reads the DEPLOY_* settings. It returns warnings for
+// values it could not use (the default is applied) so they reach the deploy
+// output instead of vanishing.
+func deployConfigFromEnv(getenv func(string) string) (deployConfig, []string) {
+	var warns []string
+	cfg := deployConfig{
+		RequireCI:   true,
+		CICheck:     defaultCICheck,
+		Repo:        strings.TrimSpace(getenv("DEPLOY_REPO")),
+		GitHubToken: strings.TrimSpace(getenv("DEPLOY_GITHUB_TOKEN")),
+		APIBase:     defaultGitHubAPI,
+	}
+	switch strings.ToLower(strings.TrimSpace(getenv("DEPLOY_REQUIRE_CI"))) {
+	case "0", "false", "no", "off":
+		cfg.RequireCI = false
+	}
+	if v := strings.TrimSpace(getenv("DEPLOY_CI_CHECK")); v != "" {
+		cfg.CICheck = v
+	}
+	if v := strings.TrimRight(strings.TrimSpace(getenv("DEPLOY_GITHUB_API")), "/"); v != "" {
+		cfg.APIBase = v
+	}
+	dur := func(name string, def time.Duration) time.Duration {
+		v := strings.TrimSpace(getenv(name))
+		if v == "" {
+			return def
+		}
+		d, err := time.ParseDuration(v)
+		if err != nil {
+			// A bare number is seconds: DEPLOY_CI_POLL=15.
+			if n, nerr := strconv.Atoi(v); nerr == nil {
+				d, err = time.Duration(n)*time.Second, nil
+			}
+		}
+		if err != nil || d <= 0 {
+			warns = append(warns, fmt.Sprintf("%s=%q is not a positive duration; using %s", name, v, def))
+			return def
+		}
+		return d
+	}
+	cfg.CIPoll = dur("DEPLOY_CI_POLL", defaultCIPoll)
+	cfg.CIGrace = dur("DEPLOY_CI_GRACE", defaultCIGrace)
+	cfg.CITimeout = dur("DEPLOY_CI_TIMEOUT", defaultCITimeout)
+	return cfg, warns
+}
+
+var repoNameRE = regexp.MustCompile(`^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$`)
+
+// parseGitHubRepo extracts "owner/repo" from a git remote URL: the scp form
+// (git@github.com:owner/repo.git) and the URL forms (https://, ssh://).
+func parseGitHubRepo(remote string) (string, error) {
+	r := strings.TrimSpace(remote)
+	var path string
+	if i := strings.Index(r, "://"); i >= 0 {
+		u, err := url.Parse(r)
+		if err != nil {
+			return "", fmt.Errorf("cannot parse remote URL %q: %w", remote, err)
+		}
+		path = u.Path
+	} else if i := strings.Index(r, ":"); i >= 0 {
+		path = r[i+1:]
+	} else {
+		path = r
+	}
+	path = strings.TrimSuffix(strings.Trim(path, "/"), ".git")
+	parts := strings.Split(path, "/")
+	if len(parts) < 2 {
+		return "", fmt.Errorf("remote %q does not look like owner/repo", remote)
+	}
+	repo := parts[len(parts)-2] + "/" + parts[len(parts)-1]
+	if !repoNameRE.MatchString(repo) {
+		return "", fmt.Errorf("remote %q does not look like owner/repo", remote)
+	}
+	return repo, nil
+}
+
+// checkRun is the part of a check-run object the gate reads.
+type checkRun struct {
+	ID         int64  `json:"id"`
+	Name       string `json:"name"`
+	Status     string `json:"status"`
+	Conclusion string `json:"conclusion"`
+	HTMLURL    string `json:"html_url"`
+}
+
+// ciGate polls one commit's check runs. A gate is single use per deploy; it
+// keeps the ETag of its last 200 so a repeat poll that nothing answered is a
+// 304, which GitHub does not count against the rate limit (the unauthenticated
+// limit is 60 requests an hour, and a 15 minute wait at 15 seconds is 60).
+type ciGate struct {
+	client  *http.Client
+	now     func() time.Time
+	sleep   func(ctx context.Context, d time.Duration) error
+	apiBase string
+	token   string
+	repo    string // owner/repo
+	check   string
+	poll    time.Duration
+	grace   time.Duration
+	timeout time.Duration
+	logf    func(format string, args ...any) // goes to the deploy output
+
+	etag    string
+	cached  []checkRun
+	cacheOK bool
+}
+
+// gateQuery is the outcome of one API call.
+type gateQuery struct {
+	runs        []checkRun
+	err         error         // retryable: network, 5xx, rate limit, bad body
+	fatal       error         // not retryable: bad credentials, unknown repo or sha
+	retryAfter  time.Duration // the server's own advice for err
+	notModified bool
+}
+
+func (g *ciGate) query(ctx context.Context, sha string) gateQuery {
+	u := fmt.Sprintf("%s/repos/%s/commits/%s/check-runs?per_page=100&check_name=%s",
+		g.apiBase, g.repo, sha, url.QueryEscape(g.check))
+	rctx, cancel := context.WithTimeout(ctx, ciRequestTimeout)
+	defer cancel()
+	req, err := http.NewRequestWithContext(rctx, http.MethodGet, u, nil)
+	if err != nil {
+		return gateQuery{fatal: err}
+	}
+	req.Header.Set("Accept", "application/vnd.github+json")
+	req.Header.Set("X-GitHub-Api-Version", "2022-11-28")
+	req.Header.Set("User-Agent", "pflow-xyz-deploy")
+	if g.token != "" {
+		req.Header.Set("Authorization", "Bearer "+g.token)
+	}
+	if g.etag != "" && g.cacheOK {
+		req.Header.Set("If-None-Match", g.etag)
+	}
+	resp, err := g.client.Do(req)
+	if err != nil {
+		return gateQuery{err: fmt.Errorf("GitHub API unreachable: %w", err)}
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(io.LimitReader(resp.Body, ciMaxBody))
+
+	switch {
+	case resp.StatusCode == http.StatusNotModified:
+		if !g.cacheOK {
+			g.etag = ""
+			return gateQuery{err: fmt.Errorf("GitHub API answered 304 with nothing cached")}
+		}
+		return gateQuery{runs: g.cached, notModified: true}
+	case resp.StatusCode == http.StatusOK:
+		var doc struct {
+			CheckRuns []checkRun `json:"check_runs"`
+		}
+		if err := json.Unmarshal(body, &doc); err != nil {
+			return gateQuery{err: fmt.Errorf("GitHub API sent an unreadable body: %w", err)}
+		}
+		g.cached, g.cacheOK, g.etag = doc.CheckRuns, true, resp.Header.Get("ETag")
+		return gateQuery{runs: doc.CheckRuns}
+	case resp.StatusCode == http.StatusUnauthorized:
+		return gateQuery{fatal: fmt.Errorf("GitHub API answered 401: DEPLOY_GITHUB_TOKEN is not accepted")}
+	case resp.StatusCode == http.StatusNotFound:
+		return gateQuery{fatal: fmt.Errorf("GitHub API answered 404: repository %q not found, or it is private and DEPLOY_GITHUB_TOKEN is not set (DEPLOY_REPO overrides the repository)", g.repo)}
+	case resp.StatusCode == http.StatusUnprocessableEntity:
+		return gateQuery{fatal: fmt.Errorf("GitHub API answered 422: it does not know commit %s (pushed to another remote?)", sha)}
+	}
+	// Everything else is retried until the gate's own timeout: 5xx, and the 403
+	// or 429 of a rate limit, whose headers say how long to wait.
+	q := gateQuery{err: fmt.Errorf("GitHub API answered %d %s", resp.StatusCode, snippet(body, 120))}
+	if resp.StatusCode == http.StatusForbidden || resp.StatusCode == http.StatusTooManyRequests {
+		if s := resp.Header.Get("Retry-After"); s != "" {
+			if n, err := strconv.Atoi(strings.TrimSpace(s)); err == nil && n > 0 {
+				q.retryAfter = time.Duration(n) * time.Second
+			}
+		} else if resp.Header.Get("X-RateLimit-Remaining") == "0" {
+			if n, err := strconv.ParseInt(resp.Header.Get("X-RateLimit-Reset"), 10, 64); err == nil {
+				if d := time.Unix(n, 0).Sub(g.now()) + time.Second; d > 0 {
+					q.retryAfter = d
+				}
+			}
+		}
+	}
+	return q
+}
+
+func snippet(b []byte, n int) string {
+	s := strings.Join(strings.Fields(string(b)), " ")
+	if len(s) > n {
+		s = s[:n] + "..."
+	}
+	return s
+}
+
+// pickRun chooses the check run the gate acts on. The API is asked for the
+// latest run per name, so one is normal; if several come back, the most
+// recently created (highest id) wins, never the luckiest.
+func pickRun(runs []checkRun, name string) (checkRun, bool) {
+	var best checkRun
+	found := false
+	for _, r := range runs {
+		if r.Name != name {
+			continue
+		}
+		if !found || r.ID > best.ID {
+			best, found = r, true
+		}
+	}
+	return best, found
+}
+
+// wait blocks until the sha's check run succeeds (returning its URL), or
+// returns a *deployRefusal. Only a completed run with conclusion "success"
+// passes: failure, cancelled, timed_out, action_required, stale, and also
+// neutral and skipped (a skipped test is not a passing test) all refuse.
+func (g *ciGate) wait(ctx context.Context, sha string) (string, error) {
+	short := shortSHA(sha)
+	start := g.now()
+	deadline := start.Add(g.timeout)
+	var graceStart time.Time
+	var lastMsg string
+	var lastLog time.Time
+	last := "no answer from GitHub yet"
+
+	note := func(msg string) {
+		now := g.now()
+		if msg == lastMsg && now.Sub(lastLog) < ciHeartbeat {
+			return
+		}
+		lastMsg, lastLog = msg, now
+		g.logf("ci-gate: %s (waited %s)", msg, now.Sub(start).Round(time.Second))
+	}
+	timedOut := func() error {
+		return &deployRefusal{fmt.Sprintf("refusing to deploy %s: gave up after %s waiting for CI check %q (last: %s); not deployed. POST /admin/deploy?skip_ci=1 to override",
+			short, g.timeout, g.check, last)}
+	}
+
+	g.logf("ci-gate: waiting for check run %q on %s in %s (poll %s, grace %s, timeout %s)",
+		g.check, short, g.repo, g.poll, g.grace, g.timeout)
+	for {
+		if err := ctx.Err(); err != nil {
+			return "", err
+		}
+		q := g.query(ctx, sha)
+		var advice time.Duration
+		switch {
+		case q.fatal != nil:
+			return "", &deployRefusal{fmt.Sprintf("refusing to deploy %s: CI status cannot be read: %v", short, q.fatal)}
+		case q.err != nil:
+			last = q.err.Error()
+			advice = q.retryAfter
+			note("retrying: " + last)
+		default:
+			if graceStart.IsZero() {
+				graceStart = g.now()
+			}
+			run, ok := pickRun(q.runs, g.check)
+			if !ok {
+				last = fmt.Sprintf("no check run named %q yet", g.check)
+				if g.now().Sub(graceStart) >= g.grace {
+					return "", &deployRefusal{fmt.Sprintf("refusing to deploy %s: no check run named %q appeared on GitHub within %s, so CI is not known to have run (is the workflow triggered by pushes to main, and is the job still named %q? DEPLOY_CI_CHECK names it; POST /admin/deploy?skip_ci=1 overrides)",
+						short, g.check, g.grace, g.check)}
+				}
+				note(last)
+				break
+			}
+			if run.Status != "completed" {
+				last = fmt.Sprintf("check run %q is %s %s", g.check, run.Status, run.HTMLURL)
+				note(last)
+				break
+			}
+			if run.Conclusion == "success" {
+				g.logf("ci-gate: check run %q succeeded: %s", g.check, run.HTMLURL)
+				return run.HTMLURL, nil
+			}
+			return run.HTMLURL, &deployRefusal{fmt.Sprintf("refusing to deploy %s: CI check %q concluded %q (%s); not deployed. Fix and push, or POST /admin/deploy?skip_ci=1 to override",
+				short, g.check, run.Conclusion, run.HTMLURL)}
+		}
+
+		now := g.now()
+		if !now.Before(deadline) {
+			return "", timedOut()
+		}
+		d := g.poll
+		if advice > d {
+			d = advice
+		}
+		if rem := deadline.Sub(now); d > rem {
+			d = rem // one last look exactly at the deadline
+		}
+		if err := g.sleep(ctx, d); err != nil {
+			return "", err
+		}
+	}
+}
+
+func shortSHA(sha string) string {
+	if len(sha) > 12 {
+		return sha[:12]
+	}
+	return sha
+}

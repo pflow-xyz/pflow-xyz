@@ -935,6 +935,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Health check (no auth, used by Datadog synthetic tests).
 	if r.URL.Path == "/health" && r.Method == "GET" {
 		w.Header().Set("Content-Type", "application/json")
+		setBuildHeader(w)
 		w.Write([]byte(`{"ok":true}`))
 		return
 	}
@@ -956,6 +957,10 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	if r.URL.Path == "/admin/logs" && r.Method == "GET" {
 		handleAdminLogs(w, r)
+		return
+	}
+	if r.URL.Path == "/admin/deploy-status" && r.Method == "GET" {
+		handleDeployStatus(w, r)
 		return
 	}
 
@@ -1160,6 +1165,7 @@ func main() {
 	}
 
 	server.configureFiles(*dataDir)
+	configureDeploy(*dataDir)
 
 	// Start server
 	addr := fmt.Sprintf(":%d", *port)
