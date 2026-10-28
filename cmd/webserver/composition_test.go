@@ -82,6 +82,11 @@ func TestCompositionCIDRoutesToComposePage(t *testing.T) {
 	if w := compGet(s, "GET", "/?cid=zUnknownUnknownUnknownUnknown", nil); w.Code != http.StatusNotFound {
 		t.Fatalf("unknown cid: %d", w.Code)
 	}
+	// A plan is not a net either: the page shows it.
+	plan := compPut(t, s, compFixture(t, "plan-coffee-shop.jsonld"))
+	if w := compGet(s, "GET", "/?cid="+plan, nil); w.Code != http.StatusFound || w.Header().Get("Location") != "/compose.html?cid="+plan {
+		t.Fatalf("plan: %d Location=%q", w.Code, w.Header().Get("Location"))
+	}
 }
 
 func TestComposePageCarriesShareCard(t *testing.T) {

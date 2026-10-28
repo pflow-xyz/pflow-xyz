@@ -5,7 +5,7 @@ package main
 // links) or a search plan; internal/model has the rule. Every surface keyed by
 // CID used to assume a net, so each branches here on the object's kind:
 //
-//   - GET /?cid=<composition>   → 302 /compose.html?cid=<composition> (the
+//   - GET /?cid=<composition or plan>   → 302 /compose.html?cid=<cid> (the
 //     editor cannot open a bundle); a net CID still opens the editor.
 //   - GET /compose.html?cid=…   → the composition page, with the share card
 //     head block the editor page gets.
@@ -144,16 +144,17 @@ func drawableNet(storage Storage, raw []byte) (net []byte, kind string, flat boo
 // composeURL is where a composition CID opens for people.
 func composeURL(cid string) string { return "/compose.html?cid=" + cid }
 
-// compositionRedirect answers GET /?cid=<composition> with the page that can
-// show it. Anything else (a net, an unknown or malformed CID, a storage
-// error) returns false and falls through to the editor as before.
+// compositionRedirect answers GET /?cid=<composition or plan> with the page
+// that can show it: the editor reads only nets. Anything else (a net, an
+// unknown or malformed CID, a storage error) returns false and falls through
+// to the editor as before.
 func (s *Server) compositionRedirect(w http.ResponseWriter, r *http.Request) bool {
 	cid := r.URL.Query().Get("cid")
 	if cid == "" || !cidPattern.MatchString(cid) {
 		return false
 	}
 	raw, err := s.storage.GetObject(cid)
-	if err != nil || model.KindOf(raw) != model.KindComposition {
+	if err != nil || model.KindOf(raw) == model.KindNet {
 		return false
 	}
 	http.Redirect(w, r, composeURL(cid), http.StatusFound)
