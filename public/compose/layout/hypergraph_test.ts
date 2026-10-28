@@ -15,6 +15,12 @@
 // at 3d28483 (its docstring has the invocation, with the prototype's paths) and
 // write parity/composition-views/chyp-layout.json. A change in the numbers is a
 // finding about the layout, never a reason to loosen a tolerance here.
+//
+// The Chyp cases override the gaps (rowGap 0, wireGap 1, ...) and the relations
+// below are measured against DEFAULTS, so neither would notice a default that
+// moved. Two tests pin the defaults themselves: DEFAULTS as a literal, and the
+// layouts of the composition and the bounded queue's cycle under default options
+// against a golden (hypergraph-default-layouts.json, beside the receipt).
 import { assert, assertEquals, assertMatch, assertThrows } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { DEFAULTS, feedbackPath, layoutHypergraph as layout, wirePath } from "./hypergraph.js";
 
@@ -44,6 +50,13 @@ const CYCLE = {
     ],
     inputs: ["in"],
     outputs: ["out"],
+};
+
+// One box with more ports than boxMinHeight holds, so its height comes from portPitch.
+const WIDE = {
+    boxes: [{ id: "join", inputs: ["a", "b", "c", "d"], outputs: ["e", "f"] }],
+    inputs: ["a", "b", "c", "d"],
+    outputs: ["e", "f"],
 };
 
 const chypGraphs: Array<[string, any]> = RECEIPT.cases.map((c: any) => [c.name, c.graph]);
@@ -168,6 +181,72 @@ Deno.test("hypergraph: edge cases, empty graph, a bare identity wire, a duplicat
         Error,
         "duplicate box id",
     );
+});
+
+// --- the defaults, pinned -------------------------------------------------------------
+
+Deno.test("hypergraph: DEFAULTS are these numbers (the relations above are measured against them)", () => {
+    // A default that moves changes every caller that does not pass its own: the geometry (box and wire gaps,
+    // port pitch, margins, the feedback lanes) and the solver (tolerance, sweeps, objective). Change one on
+    // purpose, change this and regenerate the golden below in the same commit.
+    assertEquals({ ...DEFAULTS }, {
+        boxWidth: 64,
+        boxMinHeight: 32,
+        portPitch: 16,
+        rowGap: 16,
+        wireGap: 16,
+        gap: 48,
+        margin: 24,
+        feedbackGap: 16,
+        objective: "l1",
+        compact: 0.1,
+        portOffsets: null,
+        layerOrder: null,
+        orderSweeps: 4,
+        maxSweeps: 3000,
+        tol: 1e-6,
+    });
+    assert(Object.isFrozen(DEFAULTS));
+});
+
+// The module's whole result for the three hand-written graphs, with no options, as hypergraph-default-layouts.json
+// holds it. That is the layout a caller gets when it passes nothing: the Laws view passes its own proportions
+// for the box, port, gap and margin keys (laws.js fromSpec) and inherits the rest from DEFAULTS (feedbackGap, tol,
+// compact, objective, the sweeps), so a drift in either shows up in the Laws view's diagrams too.
+//
+// Regenerate (after a deliberate change to hypergraph.js or DEFAULTS; the diff is the review) from the repo root:
+//
+//   node --input-type=module -e "import fs from 'node:fs'; import { layoutHypergraph } from './public/compose/layout/hypergraph.js';
+//     const f = 'parity/composition-views/hypergraph-default-layouts.json'; const g = JSON.parse(fs.readFileSync(f, 'utf8'));
+//     for (const c of g.cases) c.layout = layoutHypergraph(c.graph); fs.writeFileSync(f, JSON.stringify(g, null, 2) + '\n');"
+//
+// (the graphs are stored in the golden and checked here against COMPOSITION, CYCLE and WIDE, so they are not retyped).
+const GOLDEN = JSON.parse(await Deno.readTextFile(new URL("../../../parity/composition-views/hypergraph-default-layouts.json", import.meta.url)));
+
+/** Deep equality, numbers to within one rounding step: the layout rounds every coordinate to 1e-6. */
+function assertNear(actual: any, expected: any, path: string) {
+    if (typeof expected === "number") {
+        assert(typeof actual === "number" && Math.abs(actual - expected) <= 1.5e-6, `${path}: ${actual}, golden ${expected}`);
+    } else if (Array.isArray(expected)) {
+        assert(Array.isArray(actual) && actual.length === expected.length, `${path}: ${JSON.stringify(actual)?.slice(0, 80)} is not the golden's ${expected.length} items`);
+        expected.forEach((e, i) => assertNear(actual[i], e, `${path}[${i}]`));
+    } else if (expected && typeof expected === "object") {
+        assert(actual && typeof actual === "object", `${path}: not an object`);
+        assertEquals(Object.keys(actual).sort(), Object.keys(expected).sort(), `${path}: keys`);
+        for (const k of Object.keys(expected)) assertNear(actual[k], expected[k], `${path}.${k}`);
+    } else {
+        assertEquals(actual, expected, path);
+    }
+}
+
+Deno.test("hypergraph: the composition, the cycle and a wide box laid out with default options are the golden's geometry", () => {
+    assertEquals(GOLDEN.cases.map((c: any) => c.name), ["composition", "cycle", "wide"]);
+    for (const [i, g] of [COMPOSITION, CYCLE, WIDE].entries()) assertEquals(GOLDEN.cases[i].graph, g, "the golden was made from another graph");
+    for (const c of GOLDEN.cases) {
+        const lay = layoutHypergraph(c.graph);
+        // every coordinate: boxes, ports, wire paths, feedback lanes, the extent and the solver's own counts
+        assertNear(lay, c.layout, c.name);
+    }
 });
 
 Deno.test("hypergraph: wirePath, level runs are lines, steps are cubics with horizontal tangents", () => {
