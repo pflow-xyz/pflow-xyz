@@ -39,6 +39,17 @@
 //
 // The JS engines (token game, ODE, SSA, SDE) stay the engines of record for
 // what they do; nothing here replaces them.
+//
+// WHERE THE .wasm COMES FROM. The build is also published to cdn.stackdump.com
+// under its content address (pflow-native `make wasm-publish`), and
+// vendor/pflow-native-wasm/cdn.js pins that URL and the .wasm's sha256
+// (scripts/sync-native-wasm.mjs --cdn, which checks the CDN copy is the
+// vendored build byte for byte). In the browser the engine is fetched from
+// there (the .gz, decompressed here: the CDN's nginx does not compress wasm),
+// hashed, and compiled only if the hash is the pinned one; the CDN is a
+// transport, never trusted for content. Anything else (no pin, a network or
+// CORS failure, a wrong hash) falls back to the vendored copy, which is the
+// same bytes. engineState.source says which was used.
 
 const VENDOR = new URL('./vendor/pflow-native-wasm/', import.meta.url);
 
@@ -73,8 +84,22 @@ export function loadEngine(o = {}) {
     if (o.storage !== undefined) storage = o.storage;
     enginePromise ||= (async () => {
         const glue = await import(new URL('pflow_native_wasm.js', VENDOR).href);
-        if (o.bytes) glue.initSync({ module: o.bytes });
-        else await glue.default({ module_or_path: new URL('pflow_native_wasm_bg.wasm', VENDOR) });
+        if (o.bytes) {
+            glue.initSync({ module: o.bytes });
+            Object.assign(engineState, { source: 'bytes', cdnError: null });
+        } else {
+            let pinned = null, cdnError = null;
+            try {
+                const { CDN } = await import(new URL('cdn.js', VENDOR).href);
+                pinned = await fetchPinned(CDN);
+            } catch (e) {
+                cdnError = String(e?.message ?? e);
+                warn(`engine from the CDN failed, using the vendored copy: ${cdnError}`);
+            }
+            if (pinned) await glue.default({ module_or_path: await WebAssembly.compile(pinned) });
+            else await glue.default({ module_or_path: new URL('pflow_native_wasm_bg.wasm', VENDOR) });
+            Object.assign(engineState, { source: pinned ? 'cdn' : 'vendored', cdnError });
+        }
         if (storage === undefined) storage = browserStorage();
         const engine = new glue.Engine();
         await restoreSaved(engine);
@@ -106,8 +131,29 @@ export async function dropEngine() {
  * null when nothing was saved), `refused` (why a saved state was set aside),
  * `saving` (false when this page saves nothing, see restoreSaved).
  */
-/** @type {{loaded: boolean, storage: string, restored: Object|null, refused: string|null, saving: boolean}} */
-export const engineState = { loaded: false, storage: 'none', restored: null, refused: null, saving: true };
+/** @type {{loaded: boolean, storage: string, restored: Object|null, refused: string|null, saving: boolean, source: string|null, cdnError: string|null}} */
+export const engineState = { loaded: false, storage: 'none', restored: null, refused: null, saving: true, source: null, cdnError: null };
+
+/**
+ * The engine's .wasm bytes from the CDN `pin` names ({url, file, sha256}, as
+ * vendor/pflow-native-wasm/cdn.js exports it): the gzip file fetched,
+ * decompressed, and returned only if its sha256 is the pinned one. Throws on
+ * anything else (no pin, an HTTP error, a wrong hash); the caller falls back
+ * to the vendored copy. `fetchImpl` is for tests.
+ * @param {{url: string, file: string, sha256: string}|null|undefined} pin
+ * @param {typeof fetch} [fetchImpl]
+ * @returns {Promise<ArrayBuffer>}
+ */
+export async function fetchPinned(pin, fetchImpl = fetch) {
+    if (!pin?.url || !pin?.file || !/^[0-9a-f]{64}$/.test(pin?.sha256 || '')) throw new Error('no CDN pin');
+    const res = await fetchImpl(new URL(pin.file, pin.url).href);
+    if (!res.ok || !res.body) throw new Error(`HTTP ${res.status} for ${pin.url}${pin.file}`);
+    const bytes = await new Response(res.body.pipeThrough(new DecompressionStream('gzip'))).arrayBuffer();
+    const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', bytes));
+    const got = [...digest].map((x) => x.toString(16).padStart(2, '0')).join('');
+    if (got !== pin.sha256) throw new Error(`the CDN's engine hashes to ${got}, not the pinned ${pin.sha256}`);
+    return bytes;
+}
 
 function warn(msg, e) {
     if (typeof console === 'undefined') return;

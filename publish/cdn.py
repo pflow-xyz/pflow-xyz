@@ -207,12 +207,13 @@ def _render_index_md(
     body: str,
     draft: bool,
     parents: list[str],
+    source: str = SOURCE,
 ) -> str:
     lines = [
         "---",
         f"title: {_yaml_str(title)}",
         f"cid: {cid}",
-        f"source: {SOURCE}",
+        f"source: {source}",
         f"schema: {schema}",
         f"publishedAt: {datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')}",
     ]
@@ -291,6 +292,7 @@ def publish(
     mirror: bool = True,
     wait_for_mirror: bool = False,
     dry_run: bool = False,
+    source: str = SOURCE,
 ) -> str | None:
     """Stage `src` (a file or directory) under the CDN tree and trigger sync.
 
@@ -337,7 +339,7 @@ def publish(
     index_md = _render_index_md(
         cid, title, schema, sorted(staged_names.values()), primary_name,
         tags=tags or [], meta=meta or {}, body=body, draft=draft,
-        parents=parents or [],
+        parents=parents or [], source=source,
     )
 
     if dry_run:
@@ -408,6 +410,8 @@ def main(argv=None) -> int:
                     help="parent CID for lineage (repeatable, newest first)")
     ap.add_argument("--body", help="markdown file for the landing-page body")
     ap.add_argument("--draft", action="store_true", help="hide from feed/search")
+    ap.add_argument("--source", default=SOURCE,
+                    help=f"producer project in the frontmatter (default {SOURCE}; pflow-native's wasm-publish passes its own)")
     ap.add_argument("--no-mirror", action="store_true", help="skip the rsync to pflow.dev")
     ap.add_argument("--wait", action="store_true", help="wait for mirror-push instead of backgrounding")
     ap.add_argument("--dry-run", action="store_true", help="print the CID and index.md, write nothing")
@@ -429,6 +433,7 @@ def main(argv=None) -> int:
         args.src, title=args.title, schema=args.schema, tags=args.tags, meta=meta,
         body=body, draft=args.draft, parents=args.parents,
         mirror=not args.no_mirror, wait_for_mirror=args.wait, dry_run=args.dry_run,
+        source=args.source,
     )
     return 0 if cid else 1
 

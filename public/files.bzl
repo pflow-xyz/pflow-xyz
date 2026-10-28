@@ -80,6 +80,7 @@ PUBLIC_FILES = [
     "test-solver.html",
     "title.svg",
     "vendor/jsonld.bundle.mjs",
+    "vendor/pflow-native-wasm/cdn.js",
     "vendor/pflow-native-wasm/commands.js",
     "vendor/pflow-native-wasm/pflow_native_wasm.js",
     "vendor/pflow-native-wasm/pflow_native_wasm_bg.wasm.gz",

@@ -122,6 +122,14 @@ class TestFrontmatter(Base):
         self.assertIn("ratio: 0.5", fm)
         self.assertIn("solver: tsit5", fm)
 
+    def test_source_is_the_producer(self):
+        """Another repo publishing through this script names itself."""
+        (self.src / "demo.html").write_bytes(HTML)
+        cid = cdn.main([str(self.src), "--source", "pflow-native"])
+        self.assertEqual(cid, 0)
+        fm, _ = self.frontmatter(cdn.compute_cid(HTML))
+        self.assertIn("source: pflow-native", fm)
+
     def test_draft_flag(self):
         (self.src / "demo.html").write_bytes(HTML)
         cid = cdn.publish(self.src, draft=True)

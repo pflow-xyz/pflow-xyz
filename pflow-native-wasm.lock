@@ -101,5 +101,11 @@
   "bytes": {
     "wasm": 6753686,
     "gzip": 1255855
+  },
+  "cdn": {
+    "url": "https://cdn.stackdump.com/ipfs/bafyrei8bbe3164eeedf995356fefc258aae57f/",
+    "file": "pflow_native_wasm_bg.wasm.gz",
+    "sha256": "8bbe3164eeedf995356fefc258aae57fcef18a1d45ae441404ed8ef9cde3f6e3",
+    "gzip_sha256": "e7e64e5741f02201d1ff2c082c44f836562c2601fe3a5b79e6ef2dd6e966a5ae"
   }
 }
