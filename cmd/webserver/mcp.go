@@ -480,7 +480,7 @@ func (s *Server) mcpDispatch(r *http.Request, req rpcRequest) (rpcResponse, bool
 		}
 		var tool *mcpTool
 		for _, t := range allMCPTools() {
-			if t.Name == p.Name {
+			if t.Name == p.Name || mcpAliases[p.Name] == t.Name {
 				t := t
 				tool = &t
 			}

@@ -651,6 +651,29 @@ they had parity tests. They are on it now, as `pflow_sde`, `pflow_what_if` and
   of this note said main's BUILD was already stale; it was not (#111 brought it
   up to date before this branch).
 
+### Follow-up: game search on `/mcp`
+
+`/mcp` runs Go on go-pflow and cannot reach pflow-native's wasm, so pflow-native's
+`game.value` and `game.move` (pflow-rs' exact alpha-beta search of a net read as
+a two-sided game, slice 5 of its search-pieces roadmap) are a Go port:
+`internal/gamesearch`, the tools `pflow_game_value` and `pflow_game_move`
+(`cmd/webserver/mcp_game.go`). go-pflow is a dependency, unmodified.
+
+- **Ported**: the transposition table (line for line: node counts depend on its
+  layout and replacement), the bit engine's behaviour (a 0/1 marking's key, the
+  spill to counts, its deficit) and the counts engine (Zobrist keys), the order
+  pieces (`tt_best`, `immediate_win`, `history`, `centrality`, `threats`), the
+  filters (`must_win`, `non_losing`), the drivers (`null_window`, `mtd_f`,
+  `budget`), `memo`, `mode` (play), the root's `non_losing`, and the opening
+  book. Refused with the same words as native: a time budget, repeated pieces,
+  unknown names, bad arguments.
+- **Not ported, refused**: the root estimate `ode` and the `aspiration` driver.
+  Native solves the mass-action ODE for them.
+- **Parity**: `parity/native/game_goldens.json`, native's answer to ~1,500 calls
+  (`make game-goldens`), replayed by `mcp_game_parity_test.go`: identical values,
+  moves and node counts, identical refusals. `parity/native/README.md` has the
+  list of deliberate differences (caps, one colour, names, no artifact).
+
 ---
 
 ## How to review all of this

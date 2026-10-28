@@ -1,0 +1,27 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "gamesearch",
+    srcs = [
+        "command.go",
+        "game.go",
+        "model.go",
+        "pieces.go",
+        "plan.go",
+        "solver.go",
+        "table.go",
+        "walk.go",
+    ],
+    importpath = "github.com/pflow-xyz/pflow-xyz/internal/gamesearch",
+    visibility = ["//:__subpackages__"],
+    deps = ["@com_github_pflow_xyz_go_pflow//metamodel"],
+)
+
+go_test(
+    name = "gamesearch_test",
+    srcs = ["search_test.go"],
+    # keep: search_test.go reads the game fixtures under parity/native/fixtures.
+    data = ["//parity:native_game"],
+    embed = [":gamesearch"],
+    deps = ["@com_github_pflow_xyz_go_pflow//parser"],
+)

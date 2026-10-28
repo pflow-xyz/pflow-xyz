@@ -63,6 +63,8 @@ td:first-child{white-space:nowrap}nav a{margin-right:1rem}.lede{font-size:1.1rem
 <tr><td><code>pflow_sde</code></td><td>Seeded chemical Langevin (SDE) simulation: continuous, with the net's own noise. Refuses nets with inhibitor or read arcs, or with a capacity on a place that some firing adds tokens to (other capacities cannot bind, and are ignored).</td></tr>
 <tr><td><code>pflow_what_if</code></td><td>The same seeded stochastic runs with and without a few more tokens in one place, side by side.</td></tr>
 <tr><td><code>pflow_optimize</code></td><td>Seeded Monte Carlo over transition rates, with the Pareto front of the objectives you name.</td></tr>
+<tr><td><code>pflow_game_value</code></td><td>The exact value of a position of a two-sided game played on a net (tic-tac-toe, Connect-4, Nim, any net whose moves belong to two sides), by alpha-beta search over the firing rule. The net's marking is the position.</td></tr>
+<tr><td><code>pflow_game_move</code></td><td>A best move at such a position and its exact value.</td></tr>
 <tr><td><code>pflow_rate_scan</code></td><td>Sweep one rate and see how the outcome moves.</td></tr>
 <tr><td><code>pflow_export</code></td><td>The net as normalised JSON-LD or as an SVG drawing.</td></tr>
 <tr><td><code>pflow_cid</code></td><td>The content id a net seals to.</td></tr>

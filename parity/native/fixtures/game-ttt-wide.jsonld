@@ -1,0 +1,5191 @@
+{
+  "@context": "https://pflow.xyz/schema",
+  "@id": "z4EBG9j1YQFZEQBpCn3ZjdpAuXpPnrKSDF5YXsW3q86znPztEoh",
+  "@type": "PetriNet",
+  "@version": "1.1",
+  "arcs": [
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "p00",
+      "target": "x_play_00",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_turn",
+      "target": "x_play_00",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_play_00",
+      "target": "x00",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_play_00",
+      "target": "o_turn",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "p01",
+      "target": "x_play_01",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_turn",
+      "target": "x_play_01",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_play_01",
+      "target": "x01",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_play_01",
+      "target": "o_turn",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "p02",
+      "target": "x_play_02",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_turn",
+      "target": "x_play_02",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_play_02",
+      "target": "x02",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_play_02",
+      "target": "o_turn",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "p10",
+      "target": "x_play_10",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_turn",
+      "target": "x_play_10",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_play_10",
+      "target": "x10",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_play_10",
+      "target": "o_turn",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "p11",
+      "target": "x_play_11",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_turn",
+      "target": "x_play_11",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_play_11",
+      "target": "x11",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_play_11",
+      "target": "o_turn",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "p12",
+      "target": "x_play_12",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_turn",
+      "target": "x_play_12",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_play_12",
+      "target": "x12",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_play_12",
+      "target": "o_turn",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "p20",
+      "target": "x_play_20",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_turn",
+      "target": "x_play_20",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_play_20",
+      "target": "x20",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_play_20",
+      "target": "o_turn",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "p21",
+      "target": "x_play_21",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_turn",
+      "target": "x_play_21",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_play_21",
+      "target": "x21",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_play_21",
+      "target": "o_turn",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "p22",
+      "target": "x_play_22",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_turn",
+      "target": "x_play_22",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_play_22",
+      "target": "x22",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_play_22",
+      "target": "o_turn",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "p00",
+      "target": "o_play_00",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_turn",
+      "target": "o_play_00",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_play_00",
+      "target": "o00",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_play_00",
+      "target": "x_turn",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "p01",
+      "target": "o_play_01",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_turn",
+      "target": "o_play_01",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_play_01",
+      "target": "o01",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_play_01",
+      "target": "x_turn",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "p02",
+      "target": "o_play_02",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_turn",
+      "target": "o_play_02",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_play_02",
+      "target": "o02",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_play_02",
+      "target": "x_turn",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "p10",
+      "target": "o_play_10",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_turn",
+      "target": "o_play_10",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_play_10",
+      "target": "o10",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_play_10",
+      "target": "x_turn",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "p11",
+      "target": "o_play_11",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_turn",
+      "target": "o_play_11",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_play_11",
+      "target": "o11",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_play_11",
+      "target": "x_turn",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "p12",
+      "target": "o_play_12",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_turn",
+      "target": "o_play_12",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_play_12",
+      "target": "o12",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_play_12",
+      "target": "x_turn",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "p20",
+      "target": "o_play_20",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_turn",
+      "target": "o_play_20",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_play_20",
+      "target": "o20",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_play_20",
+      "target": "x_turn",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "p21",
+      "target": "o_play_21",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_turn",
+      "target": "o_play_21",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_play_21",
+      "target": "o21",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_play_21",
+      "target": "x_turn",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "p22",
+      "target": "o_play_22",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_turn",
+      "target": "o_play_22",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_play_22",
+      "target": "o22",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_play_22",
+      "target": "x_turn",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x00",
+      "target": "x_win_row0",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x01",
+      "target": "x_win_row0",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x02",
+      "target": "x_win_row0",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_turn",
+      "target": "x_win_row0",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_win_row0",
+      "target": "win_x",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_win_row0",
+      "target": "x00",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_win_row0",
+      "target": "x01",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_win_row0",
+      "target": "x02",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x10",
+      "target": "x_win_row1",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x11",
+      "target": "x_win_row1",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x12",
+      "target": "x_win_row1",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_turn",
+      "target": "x_win_row1",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_win_row1",
+      "target": "win_x",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_win_row1",
+      "target": "x10",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_win_row1",
+      "target": "x11",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_win_row1",
+      "target": "x12",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x20",
+      "target": "x_win_row2",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x21",
+      "target": "x_win_row2",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x22",
+      "target": "x_win_row2",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_turn",
+      "target": "x_win_row2",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_win_row2",
+      "target": "win_x",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_win_row2",
+      "target": "x20",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_win_row2",
+      "target": "x21",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_win_row2",
+      "target": "x22",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x00",
+      "target": "x_win_col0",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x10",
+      "target": "x_win_col0",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x20",
+      "target": "x_win_col0",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_turn",
+      "target": "x_win_col0",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_win_col0",
+      "target": "win_x",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_win_col0",
+      "target": "x00",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_win_col0",
+      "target": "x10",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_win_col0",
+      "target": "x20",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x01",
+      "target": "x_win_col1",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x11",
+      "target": "x_win_col1",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x21",
+      "target": "x_win_col1",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_turn",
+      "target": "x_win_col1",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_win_col1",
+      "target": "win_x",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_win_col1",
+      "target": "x01",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_win_col1",
+      "target": "x11",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_win_col1",
+      "target": "x21",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x02",
+      "target": "x_win_col2",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x12",
+      "target": "x_win_col2",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x22",
+      "target": "x_win_col2",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_turn",
+      "target": "x_win_col2",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_win_col2",
+      "target": "win_x",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_win_col2",
+      "target": "x02",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_win_col2",
+      "target": "x12",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_win_col2",
+      "target": "x22",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x00",
+      "target": "x_win_diag",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x11",
+      "target": "x_win_diag",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x22",
+      "target": "x_win_diag",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_turn",
+      "target": "x_win_diag",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_win_diag",
+      "target": "win_x",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_win_diag",
+      "target": "x00",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_win_diag",
+      "target": "x11",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_win_diag",
+      "target": "x22",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x02",
+      "target": "x_win_anti",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x11",
+      "target": "x_win_anti",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x20",
+      "target": "x_win_anti",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_turn",
+      "target": "x_win_anti",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_win_anti",
+      "target": "win_x",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_win_anti",
+      "target": "x02",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_win_anti",
+      "target": "x11",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_win_anti",
+      "target": "x20",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o00",
+      "target": "o_win_row0",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o01",
+      "target": "o_win_row0",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o02",
+      "target": "o_win_row0",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_turn",
+      "target": "o_win_row0",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_win_row0",
+      "target": "win_o",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_win_row0",
+      "target": "o00",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_win_row0",
+      "target": "o01",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_win_row0",
+      "target": "o02",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o10",
+      "target": "o_win_row1",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o11",
+      "target": "o_win_row1",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o12",
+      "target": "o_win_row1",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_turn",
+      "target": "o_win_row1",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_win_row1",
+      "target": "win_o",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_win_row1",
+      "target": "o10",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_win_row1",
+      "target": "o11",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_win_row1",
+      "target": "o12",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o20",
+      "target": "o_win_row2",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o21",
+      "target": "o_win_row2",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o22",
+      "target": "o_win_row2",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_turn",
+      "target": "o_win_row2",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_win_row2",
+      "target": "win_o",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_win_row2",
+      "target": "o20",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_win_row2",
+      "target": "o21",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_win_row2",
+      "target": "o22",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o00",
+      "target": "o_win_col0",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o10",
+      "target": "o_win_col0",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o20",
+      "target": "o_win_col0",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_turn",
+      "target": "o_win_col0",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_win_col0",
+      "target": "win_o",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_win_col0",
+      "target": "o00",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_win_col0",
+      "target": "o10",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_win_col0",
+      "target": "o20",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o01",
+      "target": "o_win_col1",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o11",
+      "target": "o_win_col1",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o21",
+      "target": "o_win_col1",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_turn",
+      "target": "o_win_col1",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_win_col1",
+      "target": "win_o",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_win_col1",
+      "target": "o01",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_win_col1",
+      "target": "o11",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_win_col1",
+      "target": "o21",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o02",
+      "target": "o_win_col2",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o12",
+      "target": "o_win_col2",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o22",
+      "target": "o_win_col2",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_turn",
+      "target": "o_win_col2",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_win_col2",
+      "target": "win_o",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_win_col2",
+      "target": "o02",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_win_col2",
+      "target": "o12",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_win_col2",
+      "target": "o22",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o00",
+      "target": "o_win_diag",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o11",
+      "target": "o_win_diag",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o22",
+      "target": "o_win_diag",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_turn",
+      "target": "o_win_diag",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_win_diag",
+      "target": "win_o",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_win_diag",
+      "target": "o00",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_win_diag",
+      "target": "o11",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_win_diag",
+      "target": "o22",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o02",
+      "target": "o_win_anti",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o11",
+      "target": "o_win_anti",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o20",
+      "target": "o_win_anti",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_turn",
+      "target": "o_win_anti",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_win_anti",
+      "target": "win_o",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_win_anti",
+      "target": "o02",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_win_anti",
+      "target": "o11",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_win_anti",
+      "target": "o20",
+      "weight": [
+        1
+      ]
+    }
+  ],
+  "author": {
+    "@type": "Person",
+    "id": "github:243500",
+    "identifier": "https://github.com/stackdump",
+    "name": "stackdump"
+  },
+  "places": {
+    "o00": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 520,
+      "y": 520
+    },
+    "o01": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 600,
+      "y": 520
+    },
+    "o02": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 680,
+      "y": 520
+    },
+    "o10": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 520,
+      "y": 600
+    },
+    "o11": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 600,
+      "y": 600
+    },
+    "o12": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 680,
+      "y": 600
+    },
+    "o20": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 520,
+      "y": 680
+    },
+    "o21": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 600,
+      "y": 680
+    },
+    "o22": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 680,
+      "y": 680
+    },
+    "o_turn": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 860,
+      "y": 120
+    },
+    "p00": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        1
+      ],
+      "offset": 0,
+      "x": 770,
+      "y": 250
+    },
+    "p01": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        1
+      ],
+      "offset": 0,
+      "x": 850,
+      "y": 250
+    },
+    "p02": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        1
+      ],
+      "offset": 0,
+      "x": 930,
+      "y": 250
+    },
+    "p10": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        1
+      ],
+      "offset": 0,
+      "x": 770,
+      "y": 330
+    },
+    "p11": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        1
+      ],
+      "offset": 0,
+      "x": 850,
+      "y": 330
+    },
+    "p12": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        1
+      ],
+      "offset": 0,
+      "x": 930,
+      "y": 330
+    },
+    "p20": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        1
+      ],
+      "offset": 0,
+      "x": 770,
+      "y": 410
+    },
+    "p21": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        1
+      ],
+      "offset": 0,
+      "x": 850,
+      "y": 410
+    },
+    "p22": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        1
+      ],
+      "offset": 0,
+      "x": 930,
+      "y": 410
+    },
+    "win_o": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 610,
+      "y": 1180
+    },
+    "win_x": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 1110,
+      "y": 1200
+    },
+    "x00": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 1030,
+      "y": 530
+    },
+    "x01": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 1110,
+      "y": 530
+    },
+    "x02": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 1190,
+      "y": 530
+    },
+    "x10": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 1030,
+      "y": 610
+    },
+    "x11": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 1110,
+      "y": 610
+    },
+    "x12": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 1190,
+      "y": 610
+    },
+    "x20": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 1030,
+      "y": 690
+    },
+    "x21": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 1110,
+      "y": 690
+    },
+    "x22": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 1190,
+      "y": 690
+    },
+    "x_turn": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        1
+      ],
+      "offset": 0,
+      "x": 860,
+      "y": 40
+    },
+    "pad000": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 40,
+      "y": 700
+    },
+    "pad001": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 50,
+      "y": 700
+    },
+    "pad002": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 60,
+      "y": 700
+    },
+    "pad003": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 70,
+      "y": 700
+    },
+    "pad004": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 80,
+      "y": 700
+    },
+    "pad005": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 90,
+      "y": 700
+    },
+    "pad006": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 100,
+      "y": 700
+    },
+    "pad007": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 110,
+      "y": 700
+    },
+    "pad008": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 120,
+      "y": 700
+    },
+    "pad009": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 130,
+      "y": 700
+    },
+    "pad010": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 140,
+      "y": 700
+    },
+    "pad011": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 150,
+      "y": 700
+    },
+    "pad012": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 160,
+      "y": 700
+    },
+    "pad013": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 170,
+      "y": 700
+    },
+    "pad014": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 180,
+      "y": 700
+    },
+    "pad015": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 190,
+      "y": 700
+    },
+    "pad016": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 200,
+      "y": 700
+    },
+    "pad017": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 210,
+      "y": 700
+    },
+    "pad018": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 220,
+      "y": 700
+    },
+    "pad019": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 230,
+      "y": 700
+    },
+    "pad020": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 40,
+      "y": 710
+    },
+    "pad021": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 50,
+      "y": 710
+    },
+    "pad022": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 60,
+      "y": 710
+    },
+    "pad023": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 70,
+      "y": 710
+    },
+    "pad024": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 80,
+      "y": 710
+    },
+    "pad025": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 90,
+      "y": 710
+    },
+    "pad026": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 100,
+      "y": 710
+    },
+    "pad027": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 110,
+      "y": 710
+    },
+    "pad028": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 120,
+      "y": 710
+    },
+    "pad029": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 130,
+      "y": 710
+    },
+    "pad030": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 140,
+      "y": 710
+    },
+    "pad031": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 150,
+      "y": 710
+    },
+    "pad032": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 160,
+      "y": 710
+    },
+    "pad033": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 170,
+      "y": 710
+    },
+    "pad034": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 180,
+      "y": 710
+    },
+    "pad035": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 190,
+      "y": 710
+    },
+    "pad036": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 200,
+      "y": 710
+    },
+    "pad037": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 210,
+      "y": 710
+    },
+    "pad038": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 220,
+      "y": 710
+    },
+    "pad039": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 230,
+      "y": 710
+    },
+    "pad040": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 40,
+      "y": 720
+    },
+    "pad041": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 50,
+      "y": 720
+    },
+    "pad042": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 60,
+      "y": 720
+    },
+    "pad043": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 70,
+      "y": 720
+    },
+    "pad044": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 80,
+      "y": 720
+    },
+    "pad045": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 90,
+      "y": 720
+    },
+    "pad046": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 100,
+      "y": 720
+    },
+    "pad047": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 110,
+      "y": 720
+    },
+    "pad048": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 120,
+      "y": 720
+    },
+    "pad049": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 130,
+      "y": 720
+    },
+    "pad050": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 140,
+      "y": 720
+    },
+    "pad051": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 150,
+      "y": 720
+    },
+    "pad052": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 160,
+      "y": 720
+    },
+    "pad053": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 170,
+      "y": 720
+    },
+    "pad054": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 180,
+      "y": 720
+    },
+    "pad055": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 190,
+      "y": 720
+    },
+    "pad056": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 200,
+      "y": 720
+    },
+    "pad057": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 210,
+      "y": 720
+    },
+    "pad058": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 220,
+      "y": 720
+    },
+    "pad059": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 230,
+      "y": 720
+    },
+    "pad060": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 40,
+      "y": 730
+    },
+    "pad061": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 50,
+      "y": 730
+    },
+    "pad062": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 60,
+      "y": 730
+    },
+    "pad063": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 70,
+      "y": 730
+    },
+    "pad064": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 80,
+      "y": 730
+    },
+    "pad065": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 90,
+      "y": 730
+    },
+    "pad066": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 100,
+      "y": 730
+    },
+    "pad067": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 110,
+      "y": 730
+    },
+    "pad068": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 120,
+      "y": 730
+    },
+    "pad069": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 130,
+      "y": 730
+    },
+    "pad070": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 140,
+      "y": 730
+    },
+    "pad071": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 150,
+      "y": 730
+    },
+    "pad072": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 160,
+      "y": 730
+    },
+    "pad073": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 170,
+      "y": 730
+    },
+    "pad074": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 180,
+      "y": 730
+    },
+    "pad075": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 190,
+      "y": 730
+    },
+    "pad076": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 200,
+      "y": 730
+    },
+    "pad077": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 210,
+      "y": 730
+    },
+    "pad078": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 220,
+      "y": 730
+    },
+    "pad079": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 230,
+      "y": 730
+    },
+    "pad080": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 40,
+      "y": 740
+    },
+    "pad081": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 50,
+      "y": 740
+    },
+    "pad082": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 60,
+      "y": 740
+    },
+    "pad083": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 70,
+      "y": 740
+    },
+    "pad084": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 80,
+      "y": 740
+    },
+    "pad085": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 90,
+      "y": 740
+    },
+    "pad086": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 100,
+      "y": 740
+    },
+    "pad087": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 110,
+      "y": 740
+    },
+    "pad088": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 120,
+      "y": 740
+    },
+    "pad089": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 130,
+      "y": 740
+    },
+    "pad090": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 140,
+      "y": 740
+    },
+    "pad091": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 150,
+      "y": 740
+    },
+    "pad092": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 160,
+      "y": 740
+    },
+    "pad093": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 170,
+      "y": 740
+    },
+    "pad094": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 180,
+      "y": 740
+    },
+    "pad095": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 190,
+      "y": 740
+    },
+    "pad096": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 200,
+      "y": 740
+    },
+    "pad097": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 210,
+      "y": 740
+    },
+    "pad098": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 220,
+      "y": 740
+    },
+    "pad099": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 230,
+      "y": 740
+    },
+    "pad100": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 40,
+      "y": 750
+    },
+    "pad101": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 50,
+      "y": 750
+    },
+    "pad102": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 60,
+      "y": 750
+    },
+    "pad103": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 70,
+      "y": 750
+    },
+    "pad104": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 80,
+      "y": 750
+    },
+    "pad105": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 90,
+      "y": 750
+    },
+    "pad106": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 100,
+      "y": 750
+    },
+    "pad107": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 110,
+      "y": 750
+    },
+    "pad108": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 120,
+      "y": 750
+    },
+    "pad109": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 130,
+      "y": 750
+    },
+    "pad110": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 140,
+      "y": 750
+    },
+    "pad111": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 150,
+      "y": 750
+    },
+    "pad112": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 160,
+      "y": 750
+    },
+    "pad113": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 170,
+      "y": 750
+    },
+    "pad114": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 180,
+      "y": 750
+    },
+    "pad115": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 190,
+      "y": 750
+    },
+    "pad116": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 200,
+      "y": 750
+    },
+    "pad117": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 210,
+      "y": 750
+    },
+    "pad118": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 220,
+      "y": 750
+    },
+    "pad119": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 230,
+      "y": 750
+    },
+    "pad120": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 40,
+      "y": 760
+    },
+    "pad121": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 50,
+      "y": 760
+    },
+    "pad122": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 60,
+      "y": 760
+    },
+    "pad123": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 70,
+      "y": 760
+    },
+    "pad124": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 80,
+      "y": 760
+    },
+    "pad125": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 90,
+      "y": 760
+    },
+    "pad126": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 100,
+      "y": 760
+    },
+    "pad127": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 110,
+      "y": 760
+    },
+    "pad128": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 120,
+      "y": 760
+    },
+    "pad129": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 130,
+      "y": 760
+    },
+    "pad130": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 140,
+      "y": 760
+    },
+    "pad131": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 150,
+      "y": 760
+    },
+    "pad132": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 160,
+      "y": 760
+    },
+    "pad133": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 170,
+      "y": 760
+    },
+    "pad134": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 180,
+      "y": 760
+    },
+    "pad135": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 190,
+      "y": 760
+    },
+    "pad136": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 200,
+      "y": 760
+    },
+    "pad137": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 210,
+      "y": 760
+    },
+    "pad138": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 220,
+      "y": 760
+    },
+    "pad139": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 230,
+      "y": 760
+    },
+    "pad140": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 40,
+      "y": 770
+    },
+    "pad141": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 50,
+      "y": 770
+    },
+    "pad142": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 60,
+      "y": 770
+    },
+    "pad143": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 70,
+      "y": 770
+    },
+    "pad144": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 80,
+      "y": 770
+    },
+    "pad145": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 90,
+      "y": 770
+    },
+    "pad146": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 100,
+      "y": 770
+    },
+    "pad147": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 110,
+      "y": 770
+    },
+    "pad148": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 120,
+      "y": 770
+    },
+    "pad149": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 130,
+      "y": 770
+    },
+    "pad150": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 140,
+      "y": 770
+    },
+    "pad151": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 150,
+      "y": 770
+    },
+    "pad152": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 160,
+      "y": 770
+    },
+    "pad153": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 170,
+      "y": 770
+    },
+    "pad154": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 180,
+      "y": 770
+    },
+    "pad155": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 190,
+      "y": 770
+    },
+    "pad156": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 200,
+      "y": 770
+    },
+    "pad157": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 210,
+      "y": 770
+    },
+    "pad158": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 220,
+      "y": 770
+    },
+    "pad159": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 230,
+      "y": 770
+    },
+    "pad160": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 40,
+      "y": 780
+    },
+    "pad161": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 50,
+      "y": 780
+    },
+    "pad162": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 60,
+      "y": 780
+    },
+    "pad163": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 70,
+      "y": 780
+    },
+    "pad164": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 80,
+      "y": 780
+    },
+    "pad165": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 90,
+      "y": 780
+    },
+    "pad166": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 100,
+      "y": 780
+    },
+    "pad167": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 110,
+      "y": 780
+    },
+    "pad168": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 120,
+      "y": 780
+    },
+    "pad169": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 130,
+      "y": 780
+    },
+    "pad170": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 140,
+      "y": 780
+    },
+    "pad171": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 150,
+      "y": 780
+    },
+    "pad172": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 160,
+      "y": 780
+    },
+    "pad173": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 170,
+      "y": 780
+    },
+    "pad174": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 180,
+      "y": 780
+    },
+    "pad175": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 190,
+      "y": 780
+    },
+    "pad176": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 200,
+      "y": 780
+    },
+    "pad177": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 210,
+      "y": 780
+    },
+    "pad178": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 220,
+      "y": 780
+    },
+    "pad179": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 230,
+      "y": 780
+    },
+    "pad180": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 40,
+      "y": 790
+    },
+    "pad181": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 50,
+      "y": 790
+    },
+    "pad182": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 60,
+      "y": 790
+    },
+    "pad183": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 70,
+      "y": 790
+    },
+    "pad184": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 80,
+      "y": 790
+    },
+    "pad185": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 90,
+      "y": 790
+    },
+    "pad186": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 100,
+      "y": 790
+    },
+    "pad187": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 110,
+      "y": 790
+    },
+    "pad188": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 120,
+      "y": 790
+    },
+    "pad189": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 130,
+      "y": 790
+    },
+    "pad190": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 140,
+      "y": 790
+    },
+    "pad191": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 150,
+      "y": 790
+    },
+    "pad192": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 160,
+      "y": 790
+    },
+    "pad193": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 170,
+      "y": 790
+    },
+    "pad194": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 180,
+      "y": 790
+    },
+    "pad195": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 190,
+      "y": 790
+    },
+    "pad196": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 200,
+      "y": 790
+    },
+    "pad197": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 210,
+      "y": 790
+    },
+    "pad198": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 220,
+      "y": 790
+    },
+    "pad199": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 230,
+      "y": 790
+    },
+    "pad200": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 40,
+      "y": 800
+    },
+    "pad201": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 50,
+      "y": 800
+    },
+    "pad202": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 60,
+      "y": 800
+    },
+    "pad203": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 70,
+      "y": 800
+    },
+    "pad204": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 80,
+      "y": 800
+    },
+    "pad205": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 90,
+      "y": 800
+    },
+    "pad206": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 100,
+      "y": 800
+    },
+    "pad207": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 110,
+      "y": 800
+    },
+    "pad208": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 120,
+      "y": 800
+    },
+    "pad209": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 130,
+      "y": 800
+    },
+    "pad210": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 140,
+      "y": 800
+    },
+    "pad211": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 150,
+      "y": 800
+    },
+    "pad212": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 160,
+      "y": 800
+    },
+    "pad213": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 170,
+      "y": 800
+    },
+    "pad214": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 180,
+      "y": 800
+    },
+    "pad215": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 190,
+      "y": 800
+    },
+    "pad216": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 200,
+      "y": 800
+    },
+    "pad217": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 210,
+      "y": 800
+    },
+    "pad218": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 220,
+      "y": 800
+    },
+    "pad219": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 230,
+      "y": 800
+    },
+    "pad220": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 40,
+      "y": 810
+    },
+    "pad221": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 50,
+      "y": 810
+    },
+    "pad222": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 60,
+      "y": 810
+    },
+    "pad223": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 70,
+      "y": 810
+    },
+    "pad224": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 80,
+      "y": 810
+    },
+    "pad225": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 90,
+      "y": 810
+    },
+    "pad226": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 100,
+      "y": 810
+    },
+    "pad227": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 110,
+      "y": 810
+    },
+    "pad228": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 120,
+      "y": 810
+    },
+    "pad229": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 130,
+      "y": 810
+    }
+  },
+  "token": [
+    "https://pflow.xyz/tokens/black"
+  ],
+  "transitions": {
+    "o_play_00": {
+      "@type": "Transition",
+      "offset": 0,
+      "role": "default",
+      "x": 510,
+      "y": 250
+    },
+    "o_play_01": {
+      "@type": "Transition",
+      "offset": 0,
+      "role": "default",
+      "x": 590,
+      "y": 250
+    },
+    "o_play_02": {
+      "@type": "Transition",
+      "offset": 0,
+      "role": "default",
+      "x": 670,
+      "y": 250
+    },
+    "o_play_10": {
+      "@type": "Transition",
+      "offset": 0,
+      "role": "default",
+      "x": 510,
+      "y": 330
+    },
+    "o_play_11": {
+      "@type": "Transition",
+      "offset": 0,
+      "role": "default",
+      "x": 590,
+      "y": 330
+    },
+    "o_play_12": {
+      "@type": "Transition",
+      "offset": 0,
+      "role": "default",
+      "x": 670,
+      "y": 330
+    },
+    "o_play_20": {
+      "@type": "Transition",
+      "offset": 0,
+      "role": "default",
+      "x": 510,
+      "y": 410
+    },
+    "o_play_21": {
+      "@type": "Transition",
+      "offset": 0,
+      "role": "default",
+      "x": 590,
+      "y": 410
+    },
+    "o_play_22": {
+      "@type": "Transition",
+      "offset": 0,
+      "role": "default",
+      "x": 670,
+      "y": 410
+    },
+    "o_win_anti": {
+      "@type": "Transition",
+      "offset": 0,
+      "role": "default",
+      "x": 520,
+      "y": 1050
+    },
+    "o_win_col0": {
+      "@type": "Transition",
+      "offset": 0,
+      "role": "default",
+      "x": 600,
+      "y": 890
+    },
+    "o_win_col1": {
+      "@type": "Transition",
+      "offset": 0,
+      "role": "default",
+      "x": 600,
+      "y": 970
+    },
+    "o_win_col2": {
+      "@type": "Transition",
+      "offset": 0,
+      "role": "default",
+      "x": 600,
+      "y": 1050
+    },
+    "o_win_diag": {
+      "@type": "Transition",
+      "offset": 0,
+      "role": "default",
+      "x": 520,
+      "y": 890
+    },
+    "o_win_row0": {
+      "@type": "Transition",
+      "offset": 0,
+      "role": "default",
+      "x": 680,
+      "y": 890
+    },
+    "o_win_row1": {
+      "@type": "Transition",
+      "offset": 0,
+      "role": "default",
+      "x": 680,
+      "y": 970
+    },
+    "o_win_row2": {
+      "@type": "Transition",
+      "offset": 0,
+      "role": "default",
+      "x": 680,
+      "y": 1050
+    },
+    "x_play_00": {
+      "@type": "Transition",
+      "offset": 0,
+      "role": "default",
+      "x": 1030,
+      "y": 250
+    },
+    "x_play_01": {
+      "@type": "Transition",
+      "offset": 0,
+      "role": "default",
+      "x": 1110,
+      "y": 250
+    },
+    "x_play_02": {
+      "@type": "Transition",
+      "offset": 0,
+      "role": "default",
+      "x": 1190,
+      "y": 250
+    },
+    "x_play_10": {
+      "@type": "Transition",
+      "offset": 0,
+      "role": "default",
+      "x": 1030,
+      "y": 330
+    },
+    "x_play_11": {
+      "@type": "Transition",
+      "offset": 0,
+      "role": "default",
+      "x": 1110,
+      "y": 330
+    },
+    "x_play_12": {
+      "@type": "Transition",
+      "offset": 0,
+      "role": "default",
+      "x": 1190,
+      "y": 330
+    },
+    "x_play_20": {
+      "@type": "Transition",
+      "offset": 0,
+      "role": "default",
+      "x": 1030,
+      "y": 410
+    },
+    "x_play_21": {
+      "@type": "Transition",
+      "offset": 0,
+      "role": "default",
+      "x": 1110,
+      "y": 410
+    },
+    "x_play_22": {
+      "@type": "Transition",
+      "offset": 0,
+      "role": "default",
+      "x": 1190,
+      "y": 410
+    },
+    "x_win_anti": {
+      "@type": "Transition",
+      "offset": 0,
+      "role": "default",
+      "x": 1190,
+      "y": 1070
+    },
+    "x_win_col0": {
+      "@type": "Transition",
+      "offset": 0,
+      "role": "default",
+      "x": 1110,
+      "y": 910
+    },
+    "x_win_col1": {
+      "@type": "Transition",
+      "offset": 0,
+      "role": "default",
+      "x": 1110,
+      "y": 990
+    },
+    "x_win_col2": {
+      "@type": "Transition",
+      "offset": 0,
+      "role": "default",
+      "x": 1110,
+      "y": 1070
+    },
+    "x_win_diag": {
+      "@type": "Transition",
+      "offset": 0,
+      "role": "default",
+      "x": 1190,
+      "y": 910
+    },
+    "x_win_row0": {
+      "@type": "Transition",
+      "offset": 0,
+      "role": "default",
+      "x": 1030,
+      "y": 910
+    },
+    "x_win_row1": {
+      "@type": "Transition",
+      "offset": 0,
+      "role": "default",
+      "x": 1030,
+      "y": 990
+    },
+    "x_win_row2": {
+      "@type": "Transition",
+      "offset": 0,
+      "role": "default",
+      "x": 1030,
+      "y": 1070
+    }
+  }
+}
