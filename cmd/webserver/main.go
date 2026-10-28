@@ -1112,7 +1112,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 		// /compose.html: a static page with its own share head, counted like "/"
 		// (static_pages.go).
-		if s.serveComposePage(w, r) {
+		if s.serveComposeStatic(w, r) {
 			return
 		}
 

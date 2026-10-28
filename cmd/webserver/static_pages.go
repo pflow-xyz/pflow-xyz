@@ -32,10 +32,10 @@ const (
 	composeFile = "compose.html"
 )
 
-// serveComposePage handles the compose page's own URLs and reports whether it
+// serveComposeStatic handles the compose page's own URLs and reports whether it
 // answered. Anything else (including its assets under /compose/) falls
 // through to the static handler.
-func (s *Server) serveComposePage(w http.ResponseWriter, r *http.Request) bool {
+func (s *Server) serveComposeStatic(w http.ResponseWriter, r *http.Request) bool {
 	switch r.URL.Path {
 	case "/compose", "/compose/":
 		// FileServer would send "/compose" on to a listing of the page's source
