@@ -298,10 +298,27 @@ func anySlice(v any) any {
 	return v
 }
 
+// The cases the goldens hold, by tool. A case deleted from mcp_cases.json (and
+// the goldens regenerated) would otherwise leave nothing to say that a check had
+// gone; add the cases you add here.
+var wantBundleCases = map[string]int{
+	"pflow_bundle_example": 8, "pflow_bundle_validate": 15, "pflow_bundle_add_link": 30, "pflow_bundle_candidates": 39,
+	"pflow_bundle_flatten": 15, "pflow_bundle_run": 35, "pflow_bundle_incidence": 12,
+}
+
 // A golden whose bundle came out empty (a generator fault) fails loudly, and
 // the goldens cover every tool.
 func TestMCPBundleGoldensAreWhole(t *testing.T) {
 	goldens := loadBundleGoldens(t)
+	have := map[string]int{}
+	for _, c := range goldens.Cases {
+		have[c.Tool]++
+	}
+	for tool, want := range wantBundleCases {
+		if have[tool] != want {
+			t.Errorf("%s: %d cases in the goldens; %d are expected (wantBundleCases): a case was removed, or added without being counted", tool, have[tool], want)
+		}
+	}
 	for name, c := range goldens.Compositions {
 		if len(c.Bundle) == 0 {
 			t.Errorf("composition %s: no bundle in the golden", name)

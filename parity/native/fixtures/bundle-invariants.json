@@ -1,0 +1,179 @@
+{
+  "@context": "https://pflow.xyz/schema",
+  "@type": "PetriNetBundle",
+  "name": "invariants",
+  "description": "Constraints right or wrong in one place only, and arcs that move no tokens: an invariant holds only when y.C = 0 and y.M0 = n; a read or inhibitor arc is no column of the incidence matrix.",
+  "subnets": [
+    {
+      "@type": "PetriNet",
+      "id": "a",
+      "net_type": "ResourceNet",
+      "model": {
+        "name": "a",
+        "places": [
+          {
+            "id": "p",
+            "initial": 1,
+            "exported": true
+          },
+          {
+            "id": "q",
+            "initial": 0,
+            "exported": true
+          },
+          {
+            "id": "h",
+            "initial": 0,
+            "exported": true
+          },
+          {
+            "id": "g",
+            "initial": 3,
+            "exported": true
+          }
+        ],
+        "transitions": [
+          {
+            "id": "t"
+          },
+          {
+            "id": "back"
+          }
+        ],
+        "arcs": [
+          {
+            "from": "p",
+            "to": "t",
+            "weight": 1
+          },
+          {
+            "from": "t",
+            "to": "q",
+            "weight": 1
+          },
+          {
+            "from": "q",
+            "to": "back",
+            "weight": 1
+          },
+          {
+            "from": "back",
+            "to": "p",
+            "weight": 1
+          },
+          {
+            "from": "h",
+            "to": "t",
+            "weight": 2,
+            "type": "inhibitor"
+          },
+          {
+            "from": "g",
+            "to": "t",
+            "weight": 1,
+            "type": "read"
+          },
+          {
+            "from": "g",
+            "to": "back",
+            "weight": 2,
+            "type": "read"
+          }
+        ],
+        "constraints": [
+          {
+            "id": "right",
+            "expr": "tokens(\"p\") + tokens(\"q\") == 1"
+          },
+          {
+            "id": "wrong-n",
+            "expr": "tokens(\"p\") + tokens(\"q\") == 2"
+          },
+          {
+            "id": "wrong-n-zero",
+            "expr": "tokens(\"p\") + tokens(\"q\") == 0"
+          },
+          {
+            "id": "wrong-c",
+            "expr": "tokens(\"p\") + tokens(\"h\") == 1"
+          },
+          {
+            "id": "read-only",
+            "expr": "tokens(\"g\") == 3"
+          },
+          {
+            "id": "not-a-sum",
+            "expr": "tokens(\"p\") >= 0"
+          },
+          {
+            "id": "inhibitor-only",
+            "expr": "tokens(\"h\") == 0"
+          }
+        ]
+      },
+      "ports": [
+        {
+          "id": "p",
+          "kind": "inout",
+          "place": "p"
+        },
+        {
+          "id": "q",
+          "kind": "inout",
+          "place": "q"
+        }
+      ]
+    },
+    {
+      "@type": "PetriNet",
+      "id": "b",
+      "net_type": "ResourceNet",
+      "model": {
+        "name": "b",
+        "places": [
+          {
+            "id": "r",
+            "initial": 2,
+            "exported": true
+          }
+        ],
+        "transitions": [
+          {
+            "id": "u"
+          }
+        ],
+        "arcs": [
+          {
+            "from": "r",
+            "to": "u",
+            "weight": 1
+          },
+          {
+            "from": "u",
+            "to": "r",
+            "weight": 1
+          }
+        ],
+        "constraints": [
+          {
+            "id": "b-wrong-n",
+            "expr": "tokens(\"r\") == 3"
+          }
+        ]
+      },
+      "ports": [
+        {
+          "id": "r",
+          "kind": "inout",
+          "place": "r"
+        }
+      ]
+    }
+  ],
+  "constraints": [
+    {
+      "id": "global-wrong-n",
+      "expr": "tokens(\"a/p\") + tokens(\"a/q\") == 5"
+    }
+  ]
+}

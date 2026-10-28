@@ -78278,6 +78278,406 @@
       }
     },
     {
+      "name": "pflow_bundle_validate/invariants",
+      "tool": "pflow_bundle_validate",
+      "args": {},
+      "bundle_file": "native/fixtures/bundle-invariants.json",
+      "native": [
+        {
+          "call": "Bundle::validate"
+        }
+      ],
+      "expect": {
+        "valid": true,
+        "errors": [],
+        "warnings": []
+      }
+    },
+    {
+      "name": "pflow_bundle_flatten/invariants",
+      "tool": "pflow_bundle_flatten",
+      "args": {},
+      "bundle_file": "native/fixtures/bundle-invariants.json",
+      "native": [
+        {
+          "call": "composition::flatten_json"
+        }
+      ],
+      "expect": {
+        "ok": true,
+        "error": "",
+        "places": [
+          {
+            "id": "a/p",
+            "kind": "token",
+            "initial": 1,
+            "capacity": 0,
+            "exported": true,
+            "resource": false,
+            "description": "",
+            "members": [
+              "a/p"
+            ]
+          },
+          {
+            "id": "a/q",
+            "kind": "token",
+            "initial": 0,
+            "capacity": 0,
+            "exported": true,
+            "resource": false,
+            "description": "",
+            "members": [
+              "a/q"
+            ]
+          },
+          {
+            "id": "a/h",
+            "kind": "token",
+            "initial": 0,
+            "capacity": 0,
+            "exported": true,
+            "resource": false,
+            "description": "",
+            "members": [
+              "a/h"
+            ]
+          },
+          {
+            "id": "a/g",
+            "kind": "token",
+            "initial": 3,
+            "capacity": 0,
+            "exported": true,
+            "resource": false,
+            "description": "",
+            "members": [
+              "a/g"
+            ]
+          },
+          {
+            "id": "b/r",
+            "kind": "token",
+            "initial": 2,
+            "capacity": 0,
+            "exported": true,
+            "resource": false,
+            "description": "",
+            "members": [
+              "b/r"
+            ]
+          }
+        ],
+        "transitions": [
+          {
+            "id": "a/t",
+            "description": "",
+            "members": [
+              "a/t"
+            ],
+            "fused": false
+          },
+          {
+            "id": "a/back",
+            "description": "",
+            "members": [
+              "a/back"
+            ],
+            "fused": false
+          },
+          {
+            "id": "b/u",
+            "description": "",
+            "members": [
+              "b/u"
+            ],
+            "fused": false
+          }
+        ],
+        "arcs": [
+          {
+            "from": "a/p",
+            "to": "a/t",
+            "weight": 1,
+            "type": ""
+          },
+          {
+            "from": "a/t",
+            "to": "a/q",
+            "weight": 1,
+            "type": ""
+          },
+          {
+            "from": "a/q",
+            "to": "a/back",
+            "weight": 1,
+            "type": ""
+          },
+          {
+            "from": "a/back",
+            "to": "a/p",
+            "weight": 1,
+            "type": ""
+          },
+          {
+            "from": "a/h",
+            "to": "a/t",
+            "weight": 2,
+            "type": "inhibitor"
+          },
+          {
+            "from": "a/g",
+            "to": "a/t",
+            "weight": 1,
+            "type": "read"
+          },
+          {
+            "from": "a/g",
+            "to": "a/back",
+            "weight": 2,
+            "type": "read"
+          },
+          {
+            "from": "b/r",
+            "to": "b/u",
+            "weight": 1,
+            "type": ""
+          },
+          {
+            "from": "b/u",
+            "to": "b/r",
+            "weight": 1,
+            "type": ""
+          }
+        ],
+        "constraints": [
+          {
+            "id": "a/right",
+            "expr": "tokens(\"a/p\") + tokens(\"a/q\") == 1"
+          },
+          {
+            "id": "a/wrong-n",
+            "expr": "tokens(\"a/p\") + tokens(\"a/q\") == 2"
+          },
+          {
+            "id": "a/wrong-n-zero",
+            "expr": "tokens(\"a/p\") + tokens(\"a/q\") == 0"
+          },
+          {
+            "id": "a/wrong-c",
+            "expr": "tokens(\"a/p\") + tokens(\"a/h\") == 1"
+          },
+          {
+            "id": "a/read-only",
+            "expr": "tokens(\"a/g\") == 3"
+          },
+          {
+            "id": "a/not-a-sum",
+            "expr": "tokens(\"a/p\") >= 0"
+          },
+          {
+            "id": "a/inhibitor-only",
+            "expr": "tokens(\"a/h\") == 0"
+          },
+          {
+            "id": "b/b-wrong-n",
+            "expr": "tokens(\"b/r\") == 3"
+          },
+          {
+            "id": "global-wrong-n",
+            "expr": "tokens(\"a/p\") + tokens(\"a/q\") == 5"
+          }
+        ],
+        "wires": {},
+        "fused_groups": {},
+        "place_map": {
+          "a": {
+            "g": "a/g",
+            "h": "a/h",
+            "p": "a/p",
+            "q": "a/q"
+          },
+          "b": {
+            "r": "b/r"
+          }
+        },
+        "transition_map": {
+          "a": {
+            "back": "a/back",
+            "t": "a/t"
+          },
+          "b": {
+            "u": "b/u"
+          }
+        },
+        "warnings": [],
+        "initial_enablement": [
+          {
+            "transition": "a/t",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "transition": "a/back",
+            "enabled": false,
+            "why": "a/back needs 1 token(s) on a/q, have 0"
+          },
+          {
+            "transition": "b/u",
+            "enabled": true,
+            "why": ""
+          }
+        ]
+      }
+    },
+    {
+      "name": "pflow_bundle_incidence/invariants",
+      "tool": "pflow_bundle_incidence",
+      "args": {},
+      "bundle_file": "native/fixtures/bundle-invariants.json",
+      "native": [
+        {
+          "call": "composition::incidence_json"
+        }
+      ],
+      "expect": {
+        "ok": true,
+        "rows": [
+          "a/p",
+          "a/q",
+          "a/h",
+          "a/g",
+          "b/r"
+        ],
+        "cols": [
+          "a/t",
+          "a/back",
+          "b/u"
+        ],
+        "matrix": [
+          [
+            -1,
+            1,
+            0
+          ],
+          [
+            1,
+            -1,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "blocks": [
+          {
+            "subnet": "a",
+            "rows": [
+              "p",
+              "q",
+              "h",
+              "g"
+            ],
+            "cols": [
+              "t",
+              "back"
+            ],
+            "matrix": [
+              [
+                -1,
+                1
+              ],
+              [
+                1,
+                -1
+              ],
+              [
+                0,
+                0
+              ],
+              [
+                0,
+                0
+              ]
+            ]
+          },
+          {
+            "subnet": "b",
+            "rows": [
+              "r"
+            ],
+            "cols": [
+              "u"
+            ],
+            "matrix": [
+              [
+                0
+              ]
+            ]
+          }
+        ],
+        "invariants": [
+          {
+            "id": "a/right",
+            "expr": "tokens(\"a/p\") + tokens(\"a/q\") == 1",
+            "holds": true
+          },
+          {
+            "id": "a/wrong-n",
+            "expr": "tokens(\"a/p\") + tokens(\"a/q\") == 2",
+            "holds": false
+          },
+          {
+            "id": "a/wrong-n-zero",
+            "expr": "tokens(\"a/p\") + tokens(\"a/q\") == 0",
+            "holds": false
+          },
+          {
+            "id": "a/wrong-c",
+            "expr": "tokens(\"a/p\") + tokens(\"a/h\") == 1",
+            "holds": false
+          },
+          {
+            "id": "a/read-only",
+            "expr": "tokens(\"a/g\") == 3",
+            "holds": true
+          },
+          {
+            "id": "a/not-a-sum",
+            "expr": "tokens(\"a/p\") >= 0",
+            "holds": null
+          },
+          {
+            "id": "a/inhibitor-only",
+            "expr": "tokens(\"a/h\") == 0",
+            "holds": true
+          },
+          {
+            "id": "b/b-wrong-n",
+            "expr": "tokens(\"b/r\") == 3",
+            "holds": false
+          },
+          {
+            "id": "global-wrong-n",
+            "expr": "tokens(\"a/p\") + tokens(\"a/q\") == 5",
+            "holds": false
+          }
+        ]
+      }
+    },
+    {
       "name": "pflow_bundle_run/weights-neg-output",
       "tool": "pflow_bundle_run",
       "args": {
