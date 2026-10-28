@@ -7,8 +7,10 @@
 // two must be equal. pflow-native generates goldens.json from its egui
 // renderers, run headless; it is vendored here with goldens.lock (the
 // pflow-native commit and sha256 it was copied at), like parity/native/'s
-// goldens. Each state is reached by registry commands only, from a fresh
-// session (render.js STATES), on the vendored wasm.
+// goldens (refresh with `make sync-composition-goldens FROM=<pflow-native
+// checkout> COMMIT=<sha>`, the commit the wasm was built from). Each state is
+// reached by registry commands only, from a fresh session (render.js STATES), on
+// the vendored wasm.
 //
 // A failing comparison is a finding about one renderer. It is never fixed by
 // regenerating the goldens.

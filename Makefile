@@ -1,4 +1,4 @@
-.PHONY: all llm-eval build run clean test test-js test-parity ode-expected learn-goldens native-goldens game-goldens sync-native-wasm test-publish test-npm-pack test-theme test-version publish
+.PHONY: all llm-eval build run clean test test-js test-parity ode-expected learn-goldens native-goldens game-goldens sync-native-wasm sync-composition-goldens test-publish test-npm-pack test-theme test-version publish
 
 # Build the webserver
 build:
@@ -30,7 +30,7 @@ test: test-js test-parity test-parity-behavior test-publish test-npm-pack test-t
 
 # Run JavaScript tests
 test-js:
-	@deno test --allow-read=parity/ode,parity/editor-shape,parity/fixtures,parity/clipboard,parity/ssa,parity/roles,parity/native,parity/composition-views,examples,testdata,public,pflow-native-wasm.lock public/petri-sim_test.ts public/petri-colors_test.ts public/petri-shape_test.ts public/petri-solver_test.ts public/petri-learn_test.ts public/petri-ssa_test.ts public/petri-sde_test.ts public/petri-validate_test.ts public/petri-commands_test.ts public/petri-files_test.ts public/petri-draft_test.ts public/petri-wasm_test.ts public/petri-chat_test.ts public/petri-goals_test.ts public/petri-refine_test.ts public/petri-roles_test.ts public/petri-clipboard_test.ts parity/ode/ode_expected_test.ts parity/native/native_parity_test.ts parity/native/js_vs_wasm_test.ts parity/composition-views/parity_test.ts
+	@deno test --allow-read=parity/ode,parity/editor-shape,parity/fixtures,parity/clipboard,parity/ssa,parity/roles,parity/native,parity/composition-views,examples,testdata,public,pflow-native-wasm.lock public/petri-sim_test.ts public/petri-colors_test.ts public/petri-shape_test.ts public/petri-solver_test.ts public/petri-learn_test.ts public/petri-ssa_test.ts public/petri-sde_test.ts public/petri-validate_test.ts public/petri-commands_test.ts public/petri-files_test.ts public/petri-draft_test.ts public/petri-wasm_test.ts public/petri-chat_test.ts public/petri-goals_test.ts public/petri-refine_test.ts public/petri-roles_test.ts public/petri-clipboard_test.ts parity/ode/ode_expected_test.ts parity/native/native_parity_test.ts parity/native/js_vs_wasm_test.ts parity/composition-views/parity_test.ts public/compose/layout/hypergraph_test.ts public/compose/chyp/files_test.ts public/compose/laws-live_test.ts public/compose/engine_access_test.ts parity/composition-views/sources_test.ts
 
 # Regenerate the differentiable-fitting parity goldens (parity/learn/goldens.json)
 # from go-pflow's learn package. Deliberate, never a side effect of another
@@ -79,11 +79,30 @@ game-goldens:
 
 # Re-vendor the wasm shim from a pflow-native build (see scripts/sync-native-wasm.mjs):
 #   make sync-native-wasm FROM=../pflow-native/target/wasm-shim COMMIT=<sha>
-# then bump the rev in parity/native/gen/Cargo.toml to COMMIT, `make native-goldens`,
-# `node scripts/gen-llm-tools.mjs` and `make test-js`.
+# then bump the rev in parity/native/gen/Cargo.toml to COMMIT, `make native-goldens`
+# (it has no bundle.* or plan.* cases), `make sync-composition-goldens` (below, with the
+# same COMMIT: parity/composition-views/parity_test.ts needs the goldens and the wasm from
+# one pflow-native commit), `node scripts/gen-llm-tools.mjs` and `make test-js`.
 sync-native-wasm:
 	@test -n "$(FROM)" -a -n "$(COMMIT)" || { echo "usage: make sync-native-wasm FROM=<wasm-shim dir> COMMIT=<pflow-native sha>"; exit 2; }
 	@node scripts/sync-native-wasm.mjs --from "$(FROM)" --commit "$(COMMIT)"
+
+# Re-vendor the composition views' goldens (parity/composition-views/goldens.json + goldens.lock)
+# from a pflow-native checkout, as committed at COMMIT (see scripts/sync-composition-goldens.mjs):
+#   make sync-composition-goldens FROM=../pflow-native COMMIT=<sha>
+# FROM is a git checkout (only read, with `git show`), not the wasm-shim dir. COMMIT is the one
+# the vendored wasm was built from (pflow-native-wasm.lock); then `make test-js`. If the wasm lock
+# names another commit the script exits 1 and writes nothing (parity_test.ts would fail on the
+# pair); ALLOW_MISMATCH=1 (--allow-mismatch) vendors the goldens anyway, with a warning, for when
+# the wasm is about to be re-vendored at COMMIT.
+# FROM, COMMIT and ALLOW_MISMATCH reach the shell as exported variables ("$$FROM" below), never as
+# text pasted into the command line, so a value with quotes, `;` or backticks is only a value.
+sync-composition-goldens: export FROM := $(FROM)
+sync-composition-goldens: export COMMIT := $(COMMIT)
+sync-composition-goldens: export ALLOW_MISMATCH := $(ALLOW_MISMATCH)
+sync-composition-goldens:
+	@test -n "$$FROM" -a -n "$$COMMIT" || { echo "usage: make sync-composition-goldens FROM=<pflow-native checkout> COMMIT=<pflow-native sha> [ALLOW_MISMATCH=1]"; exit 2; }
+	@node scripts/sync-composition-goldens.mjs --from "$$FROM" --commit "$$COMMIT" $${ALLOW_MISMATCH:+--allow-mismatch}
 
 # Regenerate the ODE parity trajectories (parity/ode/expected.json) from
 # go-pflow's Tsit5 over parity/ode/fixtures.json. Same rule: deliberate only.

@@ -19,11 +19,10 @@
 //           and rewards that pflow-rs tests/common/mod.rs declares for it.
 
 import { cite } from '../sources.js';
-import { FLATTEN_CITES, initialMarking, whyNotEnabled, fire, flatOf, flatPlaceOf, runOf, c4Model } from '../model.js';
+import { FLATTEN_CITES, initialMarking, whyNotEnabled, fire, flatOf, flatPlaceOf, runOf, liveScenario, c4Model } from '../model.js';
 import { NS } from '../model.js';
 import { defaultLinks } from '../model.js';
 import { CONNECT4_EXACT, toJSON } from '../model.js';
-import { engines } from '../registry.js';
 
 // --- sources ---------------------------------------------------------------------------
 
@@ -1001,7 +1000,7 @@ const holds = (op, a, n) => ({ '==': a === n, '!=': a !== n, '>=': a >= n, '<=':
  * the live composition's, so the live engine runs it.
  */
 function scenarioRun(model, map, sc) {
-  const r = runOf(engines.live.call('bundle.run', { scenario: sc.id }));
+  const r = runOf(liveScenario(sc.id));
   return { ...r, error: null };
 }
 
