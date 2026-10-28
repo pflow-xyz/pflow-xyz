@@ -1,0 +1,229 @@
+// The keyboard link machine (a11y-link.js) and the verdict text it shares with the
+// pointer path (verdicts.js). Part one drives the machine with small canned
+// targets; part two feeds it what the registry says: the vendored wasm, opened
+// the way the parity harness opens it, asked bundle.candidates / plan.slot_candidates,
+// and the machine walks THOSE verdicts. Nothing in the machine decides a rule, so
+// what it announces must be what the registry said, and a commit must be a link
+// the registry accepts.
+import { assert, assertEquals, assertStringIncludes } from "https://deno.land/std@0.224.0/assert/mod.ts";
+import { begin, beginText, press, targetText } from "./a11y-link.js";
+import { errText, portLegalReason, portRefusal, portTargets, slotLegalReason, slotRefusal, slotTargets } from "./verdicts.js";
+import { setup } from "../../parity/composition-views/render.js";
+import { actions, linkCandidates, slotCandidates, start } from "./state.js";
+
+const T = (key: string, ok: boolean, reason = ok ? "passed" : "refused", kind: string | null = ok ? "token" : null) => ({ key, label: `label ${key}`, ok, kind, reason });
+const k = (key: string, shiftKey = false) => ({ key, shiftKey });
+
+// --- canned -----------------------------------------------------------------------------------
+
+Deno.test("begin: counts lit and refused targets, and names the keys", () => {
+  const { state, announce, effects } = begin({ noun: "port", originKey: "port:a:x", originLabel: "a:x", targets: [T("b:1", true), T("b:2", false), T("c:1", true)] });
+  assertEquals(effects, []);
+  assertEquals(state.legal, ["b:1", "c:1"]);
+  assertEquals(state.refused, ["b:2"]);
+  assertStringIncludes(announce, "Linking from a:x");
+  assertStringIncludes(announce, "2 legal ports lit, 1 refused");
+  assertStringIncludes(announce, "Enter links");
+  assertStringIncludes(announce, "R says why a refused port is refused");
+  assertStringIncludes(announce, "Escape cancels");
+});
+
+Deno.test("begin: nothing legal says so and points at R", () => {
+  const { state, announce } = begin({ noun: "slot", originKey: "piece:beam", originLabel: "beam", targets: [T("order", false), T("memo", false)] });
+  assertEquals(state.legal, []);
+  assertStringIncludes(announce, "No legal slot");
+  assertStringIncludes(announce, "Press R");
+  assert(!announce.includes("Enter links"));
+});
+
+Deno.test("Tab and the arrows walk the lit targets only, wrapping", () => {
+  let s = begin({ originKey: "o", originLabel: "o", targets: [T("a", true), T("x", false), T("b", true), T("c", true)] }).state;
+  const seen: string[] = [];
+  for (const key of ["Tab", "ArrowRight", "ArrowDown", "Tab"]) {
+    const r = press(s, k(key));
+    assert(r.handled);
+    assertEquals(r.effects.length, 1);
+    seen.push((r.effects[0] as any).key);
+    s = r.state;
+  }
+  assertEquals(seen, ["a", "b", "c", "a"]); // x is refused and never visited; the walk wraps
+  for (const key of ["ArrowLeft", "ArrowUp"]) {
+    const r = press(s, k(key));
+    seen.push((r.effects[0] as any).key);
+    s = r.state;
+  }
+  assertEquals(seen.slice(4), ["c", "b"]);
+  const back = press(s, k("Tab", true));
+  assertEquals((back.effects[0] as any).key, "a"); // Shift+Tab goes back
+  assertEquals((press(s, k("Home")).effects[0] as any).key, "a");
+  assertEquals((press(s, k("End")).effects[0] as any).key, "c");
+});
+
+Deno.test("a focused lit target announces its verdict and its place in the walk", () => {
+  const s = begin({ originKey: "o", originLabel: "o", targets: [T("a", true, "schemas agree"), T("b", true)] }).state;
+  const r = press(s, k("Tab"));
+  assertStringIncludes(r.announce, "label a: legal, token link. schemas agree. Target 1 of 2. Press Enter to link.");
+});
+
+Deno.test("R walks the refused targets and says why each is refused", () => {
+  let s = begin({ originKey: "o", originLabel: "o", targets: [T("a", true), T("x", false, "E_X one"), T("y", false, "E_Y two")] }).state;
+  let r = press(s, k("r"));
+  assertEquals(r.effects, [{ type: "focus", key: "x" }]);
+  assertStringIncludes(r.announce, "label x: refused. E_X one. Refused port 1 of 2.");
+  s = r.state;
+  r = press(s, k("r"));
+  assertStringIncludes(r.announce, "E_Y two");
+  s = r.state;
+  r = press(s, k("r")); // wraps
+  assertEquals(r.effects, [{ type: "focus", key: "x" }]);
+  r = press(r.state, k("R")); // Shift+R goes back
+  assertEquals(r.effects, [{ type: "focus", key: "y" }]);
+});
+
+Deno.test("Enter on a refused target explains and does not link; on a lit one it commits", () => {
+  let s = begin({ originKey: "port:o", originLabel: "o", targets: [T("a", true), T("x", false, "E_X one")] }).state;
+  s = press(s, k("r")).state;
+  let r = press(s, k("Enter"));
+  assertEquals(r.effects, []);
+  assertStringIncludes(r.announce, "Cannot link to label x: E_X one.");
+  assertEquals(r.state.phase, "linking");
+  s = press(r.state, k("Tab")).state;
+  r = press(s, k(" "));
+  assertEquals(r.effects, [{ type: "commit", key: "a" }, { type: "end", focus: "port:o" }]);
+  assertEquals(r.state.phase, "ended");
+});
+
+Deno.test("Enter before any target is chosen asks for one", () => {
+  const s = begin({ originKey: "o", originLabel: "o", targets: [T("a", true)] }).state;
+  const r = press(s, k("Enter"));
+  assertEquals(r.effects, []);
+  assertStringIncludes(r.announce, "Choose a target first");
+});
+
+Deno.test("Escape cancels and returns focus to the origin", () => {
+  let s = begin({ originKey: "port:o", originLabel: "o", targets: [T("a", true)] }).state;
+  s = press(s, k("Tab")).state;
+  const r = press(s, k("Escape"));
+  assertEquals(r.effects, [{ type: "end", focus: "port:o" }]);
+  assertEquals(r.announce, "Linking cancelled.");
+  assertEquals(r.state.phase, "ended");
+  assertEquals(press(r.state, k("Tab")).handled, false); // after the end the machine takes nothing
+});
+
+Deno.test("with no lit target, the walk says so; keys the machine does not own pass through", () => {
+  const s = begin({ originKey: "o", originLabel: "o", targets: [T("x", false)] }).state;
+  const r = press(s, k("Tab"));
+  assertStringIncludes(r.announce, "No legal port");
+  assertEquals(r.effects, []);
+  assert(!press(s, k("3")).handled);
+  assert(!press(s, { key: "Tab", ctrlKey: true }).handled);
+  assert(!press(s, { key: "r", metaKey: true }).handled);
+  assertStringIncludes(press(s, k("?")).announce, "Linking from o");
+});
+
+Deno.test("beginText and targetText are pure functions of the state", () => {
+  const { state } = begin({ originKey: "o", originLabel: "o", targets: [T("a", true)] });
+  assertEquals(beginText(state), beginText(state));
+  assertEquals(targetText(state, "nope"), "");
+});
+
+// --- the verdict text the pointer path and the machine share ---------------------------------------
+
+Deno.test("verdicts: the phrases are the registry's, with the link index trimmed", () => {
+  assertEquals(errText({ code: "E_X", message: "links[0]: both ends are on subnet" }), "E_X both ends are on subnet");
+  assertEquals(errText({ message: "link: nope" }), "nope");
+  assertEquals(slotRefusal({ why: "no", rule: "pflow-rs" }), "no (pflow-rs)");
+  assertEquals(slotRefusal(undefined), "not a slot");
+  assertEquals(portRefusal(undefined), "not a target");
+  assertEquals(slotLegalReason({ slot: "order" }), "fits the order slot (pflow-rs accepts the plan: plan.slot_candidates)");
+});
+
+// --- the registry's own verdicts -------------------------------------------------------------------
+
+await setup();
+const REGISTRY_CODES = ["PAGE_SAME_SUBNET", "E_SCHEMA_MISMATCH", "E_PORT_DIRECTION", "E_DATALINK_CONSUMES"];
+
+Deno.test("registry: the machine walks bundle.candidates from orders:out and says what the registry said", () => {
+  start();
+  const cands = linkCandidates({ subnet: "orders", port: "out" }) as any[];
+  const legalCands = cands.filter((c) => c.ok), refusedCands = cands.filter((c) => !c.ok);
+  assert(legalCands.length > 0, "the default composition leaves orders:out some legal targets");
+  assert(refusedCands.length > 0);
+  const targets = portTargets(cands, { label: (key: string) => key });
+  const { state, announce } = begin({ noun: "port", originKey: "port:orders:out", originLabel: "orders:out", targets });
+  assertEquals(state.legal, legalCands.map((c) => c.key));
+  assertEquals(state.refused, refusedCands.map((c) => c.key));
+  assertStringIncludes(announce, `${legalCands.length} legal ports lit, ${refusedCands.length} refused`);
+
+  // The first lit target: its announcement carries the rules the registry says it passed.
+  let r = press(state, k("Tab"));
+  const first = legalCands[0];
+  assertEquals(r.effects, [{ type: "focus", key: first.key }]);
+  assertStringIncludes(r.announce, first.verdict.passed[0].text);
+  assertStringIncludes(r.announce, `${first.link.kind} link`);
+  assertEquals(portLegalReason(first), first.verdict.passed.map((p: any) => p.text).join("; "));
+
+  // Walk every refused target with R: each announcement is the registry's refusal, and at least
+  // two distinct registry error codes are heard.
+  const heard = new Set<string>();
+  let s = state;
+  for (const c of refusedCands) {
+    r = press(s, k("r"));
+    s = r.state;
+    assertEquals(r.effects, [{ type: "focus", key: c.key }]);
+    assertStringIncludes(r.announce, portRefusal(c));
+    for (const code of REGISTRY_CODES) if (r.announce.includes(code)) heard.add(code);
+  }
+  assert(heard.size >= 2, `heard ${[...heard]}`);
+  for (const code of ["PAGE_SAME_SUBNET", "E_SCHEMA_MISMATCH"]) assert(heard.has(code), `${code} is among the refusals from orders:out`);
+
+  // Enter on a refused target links nothing.
+  r = press(s, k("Enter"));
+  assertEquals(r.effects, []);
+  assertStringIncludes(r.announce, "Cannot link to");
+});
+
+Deno.test("registry: a commit from the machine is a link the registry accepts", () => {
+  start();
+  const cands = linkCandidates({ subnet: "orders", port: "out" }) as any[];
+  const targets = portTargets(cands);
+  let s = begin({ originKey: "port:orders:out", originLabel: "orders:out", targets }).state;
+  s = press(s, k("Tab")).state;
+  const r = press(s, k("Enter"));
+  const commit = r.effects.find((e: any) => e.type === "commit") as any;
+  assert(commit, "Enter on a lit target commits");
+  const v = cands.find((c) => c.key === commit.key);
+  assert(v && v.ok);
+  const res = actions.addLink(v.link);
+  assert(res.ok, "the registry accepts what the machine committed");
+});
+
+Deno.test("registry: the machine walks plan.slot_candidates for a piece", () => {
+  start();
+  const pieces = ["threats", "beam", "tt_best", "null_window"];
+  let sawLegal = false, sawRefused = false;
+  for (const name of pieces) {
+    const cands = slotCandidates(name) as any[];
+    const targets = slotTargets(cands, { label: (id: string) => `${id} slot` });
+    const { state } = begin({ noun: "slot", originKey: `piece:${name}`, originLabel: name, targets });
+    assertEquals(state.legal, cands.filter((c) => c.ok).map((c) => c.slot));
+    for (const c of cands.filter((c) => c.ok)) {
+      sawLegal = true;
+      assertStringIncludes(targetText({ ...state, at: c.slot }, c.slot), slotLegalReason(c));
+    }
+    for (const c of cands.filter((c) => !c.ok)) {
+      sawRefused = true;
+      assertStringIncludes(targetText({ ...state, at: c.slot }, c.slot), c.why); // pflow-rs's own message
+      assertStringIncludes(targetText(state, c.slot), slotRefusal(c));
+    }
+  }
+  assert(sawLegal && sawRefused);
+});
+
+Deno.test("registry: targets the view does not draw are left out, as the pointer count leaves them out", () => {
+  start();
+  const cands = linkCandidates({ subnet: "orders", port: "out" }) as any[];
+  const drawn = new Set(["workers:available", "payment:commit"]);
+  const targets = portTargets(cands, { has: (key: string) => drawn.has(key) });
+  assertEquals(targets.map((t: any) => t.key).sort(), [...drawn].sort());
+});
