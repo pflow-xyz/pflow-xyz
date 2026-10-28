@@ -26,10 +26,12 @@ go_library(
         "mcp_workbench.go",
         "mcp_workbench_engine.go",
         "metrics.go",
+        "schema_bundle.go",
         "share_card.go",
         "share_page.go",
         "sitemap.go",
         "static_assets.go",
+        "static_pages.go",
         "wasm.go",
     ] + select({
         "@io_bazel_rules_go//go/platform:aix": [
@@ -142,9 +144,11 @@ go_test(
         "mcp_workbench_parity_test.go",
         "mcp_workbench_test.go",
         "sample_card_test.go",
+        "schema_bundle_test.go",
         "share_card_test.go",
         "sitemap_test.go",
         "static_assets_test.go",
+        "static_pages_test.go",
         "wasm_test.go",
     ],
     # keep: share_card_test.go renders a stored example model from //examples.
@@ -167,9 +171,11 @@ go_test(
     deps = [
         "//internal/auth",
         "//internal/llm",
+        "//internal/seal",
         "//internal/static",
         "//internal/userfiles",
         "@com_github_pflow_xyz_go_pflow//metamodel",
         "@com_github_pflow_xyz_go_pflow//solver",
+        "@com_github_piprate_json_gold//ld",
     ],
 )
