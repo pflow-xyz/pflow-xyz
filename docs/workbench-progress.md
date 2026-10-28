@@ -6,9 +6,11 @@ section, kept while the phases were built in one unattended run starting
 marked `REVIEW:` in the code and listed under **Decisions to review** below
 and in that phase's PR.
 
-**How it merges.** A push to `main` deploys pflow.xyz: the push webhook in
-`cmd/webserver/deploy.go` pulls, verifies the signature, builds and
-restarts. So each phase PR merges into the **`workbench`** integration
+**How it merges.** A push to `main` deploys pflow.xyz once the box can verify
+the tip's signature and the `test` check is green: the push webhook in
+`cmd/webserver/deploy.go` pulls, verifies the signature, waits for CI, builds
+and restarts (the conditions that hold a deploy back are in `docs/deploy.md`).
+So each phase PR merges into the **`workbench`** integration
 branch, with signed merges made on valoper, and **`workbench → main` is left
 open for review.** Merging that PR is the deploy. Everything that needs a
 secret (the Gemini key) ships dark: with no key, the LLM features hide
@@ -812,7 +814,8 @@ held to pflow-native by the same goldens (now 5,048 calls).
    key. To exercise those, set `GEMINI_API_KEY` (and optionally
    `PFLOW_LLM_ALLOW=stackdump`).
 4. **The `workbench → main` PR is the deploy.** Merging it pushes `main`,
-   and the webhook rebuilds pflow.xyz. Merge it locally with a signed merge,
+   and the webhook rebuilds pflow.xyz once the commit verifies and its `test`
+   check is green (`docs/deploy.md`). Merge it locally with a signed merge,
    as `deploy.go` runs `git verify-commit`. The LLM features stay dark until
    the key is in `~/services` on pflow.dev.
 5. **Follow-ups outside this repo:**

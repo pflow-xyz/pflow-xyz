@@ -533,4 +533,6 @@ wants an owner's decision.
     decision 3); regenerate `parity/roles/` when sim's derivation changes.
 17. **Workspace CLAUDE.md:** it says there is no auto-deploy on pflow.dev,
     but pflow-xyz has a push webhook (`cmd/webserver/deploy.go`). A push to
-    `main` is a deploy.
+    `main` deploys only when the tip's signature verifies on the box (a
+    merge-button commit needs GitHub's web-flow key imported there) and its
+    `test` check run is green; see `docs/deploy.md`.

@@ -5,6 +5,7 @@ go_library(
     srcs = [
         "content_negotiation.go",
         "deploy.go",
+        "deploy_gate.go",
         "files.go",
         "llm.go",
         "llm_goals.go",
@@ -30,7 +31,51 @@ go_library(
         "sitemap.go",
         "static_assets.go",
         "wasm.go",
-    ],
+    ] + select({
+        "@io_bazel_rules_go//go/platform:aix": [
+            "deploy_proc_unix.go",
+        ],
+        "@io_bazel_rules_go//go/platform:android": [
+            "deploy_proc_unix.go",
+        ],
+        "@io_bazel_rules_go//go/platform:darwin": [
+            "deploy_proc_unix.go",
+        ],
+        "@io_bazel_rules_go//go/platform:dragonfly": [
+            "deploy_proc_unix.go",
+        ],
+        "@io_bazel_rules_go//go/platform:freebsd": [
+            "deploy_proc_unix.go",
+        ],
+        "@io_bazel_rules_go//go/platform:illumos": [
+            "deploy_proc_unix.go",
+        ],
+        "@io_bazel_rules_go//go/platform:ios": [
+            "deploy_proc_unix.go",
+        ],
+        "@io_bazel_rules_go//go/platform:js": [
+            "deploy_proc_other.go",
+        ],
+        "@io_bazel_rules_go//go/platform:linux": [
+            "deploy_proc_unix.go",
+        ],
+        "@io_bazel_rules_go//go/platform:netbsd": [
+            "deploy_proc_unix.go",
+        ],
+        "@io_bazel_rules_go//go/platform:openbsd": [
+            "deploy_proc_unix.go",
+        ],
+        "@io_bazel_rules_go//go/platform:plan9": [
+            "deploy_proc_other.go",
+        ],
+        "@io_bazel_rules_go//go/platform:solaris": [
+            "deploy_proc_unix.go",
+        ],
+        "@io_bazel_rules_go//go/platform:windows": [
+            "deploy_proc_other.go",
+        ],
+        "//conditions:default": [],
+    }),
     embedsrcs = [
         "prompts/draft-net-v1.md",
         "prompts/turn-v1.md",
@@ -75,6 +120,9 @@ go_test(
     srcs = [
         "author_identity_test.go",
         "content_negotiation_test.go",
+        "deploy_gate_test.go",
+        "deploy_git_test.go",
+        "deploy_test.go",
         "files_test.go",
         "llm_eval_test.go",
         "llm_goals_test.go",

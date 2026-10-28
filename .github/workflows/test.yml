@@ -1,14 +1,33 @@
 name: Test
 
+# The job below is named `test` on purpose. The deploy webhook on pflow.dev
+# (cmd/webserver/deploy.go, docs/deploy.md) will not ship a commit on main until
+# GitHub reports a successful check run with exactly that name for it. Renaming
+# the job means setting DEPLOY_CI_CHECK on the box in the same change.
+
 on:
   push:
     branches: [main]
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
+# A superseded pull-request run is cancelled. A run on main never is: the deploy
+# gate needs a completed result for every sha it may be asked about, so each
+# push to main gets a group of its own.
+concurrency:
+  group: test-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   test:
+    name: test
     runs-on: ubuntu-latest
+    # The deploy gate gives up on a run after 15 minutes (DEPLOY_CI_TIMEOUT); a
+    # hung test must not hold a runner for the default 6 hours after that.
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v5
 
@@ -20,17 +39,19 @@ jobs:
         with:
           deno-version: v2.x
 
-      - name: Run JavaScript tests
-        run: deno test --allow-read=parity/editor-shape,parity/native,parity/composition-views,parity/fixtures,parity/clipboard,parity/ssa,public,pflow-native-wasm.lock public/petri-sim_test.ts public/petri-ssa_test.ts public/petri-shape_test.ts public/petri-clipboard_test.ts public/petri-files_test.ts public/petri-wasm_test.ts parity/native/native_parity_test.ts parity/native/js_vs_wasm_test.ts parity/composition-views/parity_test.ts
+      # test-parity and test-npm-pack shell out to node/npm.
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
 
-      - name: Verify npm package
-        run: ./scripts/npm-pack-test.sh
-
-      - name: Copy public assets for Go embed
-        run: cp -r public internal/static/
-
-      - name: Run Go tests
-        run: go test ./...
-
+      # Stages public/ into internal/static (the Go embed, which `go test ./...`
+      # needs) and builds bin/webserver, as the deploy does.
       - name: Build
         run: make build
+
+      # Everything the Makefile calls a test: test-js, test-parity,
+      # test-parity-behavior, test-publish, test-npm-pack, test-theme,
+      # test-version and `go test ./...`. New test files are added to the
+      # Makefile's lists, not to this file.
+      - name: Test
+        run: make test
