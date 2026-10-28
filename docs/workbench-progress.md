@@ -667,12 +667,15 @@ a two-sided game, slice 5 of its search-pieces roadmap) are a Go port:
   `budget`), `memo`, `mode` (play), the root's `non_losing`, and the opening
   book. Refused with the same words as native: a time budget, repeated pieces,
   unknown names, bad arguments.
-- **Not ported, refused**: the root estimate `ode` and the `aspiration` driver.
-  Native solves the mass-action ODE for them.
-- **Parity**: `parity/native/game_goldens.json`, native's answer to ~1,500 calls
-  (`make game-goldens`), replayed by `mcp_game_parity_test.go`: identical values,
-  moves and node counts, identical refusals. `parity/native/README.md` has the
-  list of deliberate differences (caps, one colour, names, no artifact).
+- **Also ported, later** (see "The game tools on `/mcp`: the root estimate,
+  aspiration and coloured nets" below): the root estimate `ode`, the
+  `aspiration` driver and nets with several token colours, which were refused
+  at first.
+- **Parity**: `parity/native/game_goldens.json`, native's answer to every call
+  in `game_cases.json` (`make game-goldens`), replayed by
+  `mcp_game_parity_test.go`: identical values, moves and node counts, identical
+  refusals. `parity/native/README.md` has the list of deliberate differences
+  (caps, names, no artifact).
 
 ### Follow-up: the game tools in the browser
 
@@ -708,7 +711,92 @@ names it.
   as a JSON string, a mid-game position, past the budget in exact and play
   mode, and the refusals (a time budget, too many nodes, too big a table, a
   move no side owns). None names the `ode` root estimate, whose node count
-  can differ between the native and wasm builds.
+  can differ between the native and wasm builds (the wasm build's `powf` is
+  not the platform libm's; `/mcp`'s Go port matches the native build, see
+  below).
+
+### The game tools on `/mcp`: the root estimate, aspiration and coloured nets
+
+The three things the Go port first refused are ported, one commit each, and
+held to pflow-native by the same goldens (now 5,048 calls).
+
+- **The `ode` root estimate** (`internal/gamesearch/ode.go`). A port of
+  `pflow_solver::game::OdeEstimate` and of the adaptive Tsitouras 5(4) loop it
+  runs (`integrate_vec`): from each position the root's moves reach, every
+  transition fires continuously at rate 1 (the game's, not the session's
+  rates) for 3 time units; the flux of a transition is the product of the
+  tokens on its input and read places, inhibitors and capacities are left out;
+  the guess is the reward read off the final state. It orders the root's moves
+  (ties in the order chain), nothing else. go-pflow's solver is **not** used:
+  it builds a map-keyed net per solve and sums each place's fluxes in map
+  order, which rounds differently from run to run, and it cannot hold an arc
+  list that names a place twice. The integrator is written out here, walking
+  transitions in index order as pflow-solver does; every product feeding a sum
+  is wrapped in `float64(...)` so that no machine fuses it into an FMA (Go
+  allows that, Rust never does), and `f64::min/max/sum` semantics (NaN, the
+  `-0.0` an empty sum starts from) are kept. A solve stops on the call's
+  context, like the search.
+- **The `aspiration` driver** starts the run of yes/no searches at the gap
+  nearest the best guess (`null_window`), at the reward `mtd_f` is nearest to,
+  or, with fewer than three distinct rewards or too many to step through, with
+  one search over a window an eighth of the range either side of the guess,
+  then the whole range if the value falls outside it. Without an estimate it
+  stays refused with native's words.
+- **Coloured nets.** The server unfolds a net with several colours to a place
+  per colour copy (the parser drops the copies no arc touches); the rules name
+  a document place (every copy, in `reward`) or one copy, `place.colour`, as
+  native does. The one refusal that stays is native's: a model with a colour
+  copy nothing marks or touches (the parser never leaves one, so it is only
+  reachable by building the model by hand; unit-tested). The net-size cap
+  counts the unfolded places.
+- **What "parity" means for the estimate.** *Values* never depend on the
+  estimate: it only orders the root's moves and aims the run of searches
+  (tests hold every plan, with `ode` and `aspiration`, to brute-force
+  minimax). *Moves* and *node counts* do depend on it, and on its last bits:
+  the moves of a symmetric position (tic-tac-toe after X in the centre) have
+  mathematically equal guesses that differ by rounding noise, and the order
+  that noise gives decides which of the equally good moves is tried first,
+  chosen, and how many nodes the search spends. So the Go estimate has to
+  reproduce Rust's arithmetic bit for bit, and the one operation that is not
+  a plain IEEE operation is the step controller's `powf`. Rust's is the
+  platform libm's `pow`; Go's `math.Pow` is its own and is off by an ulp
+  often enough to reorder a tie (first try on one position: 355 nodes and
+  `o_play_22`; native: 420 nodes and `o_play_20`). `pow.go` computes `x^y` in
+  double-double and rounds once, which is the correctly rounded result;
+  `pow_test.go` checks it against a 192-bit `math/big` evaluation.
+  Measured with Python's `math.pow` (the platform libm) against 80-digit
+  decimals on 40,000 controller-sized inputs, the libm is not correctly
+  rounded in 0.135% of calls on macOS 15 / arm64 and 0.063% on Linux / glibc,
+  so a correctly rounded `pow` is not literally either libm.
+  **The goldens nonetheless agree**: pflow-native generated them on macOS /
+  arm64, regenerated on Linux / x86_64 (valoper) they are byte-identical, and
+  the Go tool, on Linux / amd64, matches every one of the 5,048 calls, node
+  counts included: 2,734 answered calls name `ode` (1,272 of them
+  `aspiration`), 1,236 are on coloured nets (660 of them run a search; the rest
+  are positions with no move). So: **values
+  and moves are required to be identical and are on every golden; node counts
+  are exact on every golden, with no tolerance**, and the documented risk is
+  that on a position where the guesses tie to within a few ulps, a libm whose
+  `pow` rounds differently from correct rounding in some step (about 1 call
+  in 1,000, a few dozen per solve) can reorder them: a different node count,
+  or a different one of several equally good moves, never a different value.
+  The wasm build differs more (its `powf` is not a libm's), which is the
+  `ode` note in the browser section above; `/mcp` follows the native build.
+- **Caps** are unchanged: 10,000,000 nodes, 2^21 table entries, 2,000 places
+  and transitions (colour copies counted). The estimate's solves are not
+  counted in nodes (native's neither); their cost is bounded by the context
+  (60 s) and by the integrator's 100,000-step limit per solve, and a solve of
+  tic-tac-toe takes about 0.25 ms.
+- **Still refused**, and tested (`TestWhatIsStillRefused`,
+  `TestTheCapsStay`, `TestAnUnusedColourCopyIsRefused`,
+  `TestMCPGameCapsAColouredNetByItsCopies`): a time budget (`budget.ms`),
+  `aspiration` without `ode`, an unknown or repeated root piece, `static_eval`
+  and `beam`, the caps, the unused colour copy.
+- **Regenerating** `game_goldens.json` no longer needs a patched pflow-rs:
+  pflow-native `cc2c63b` pins pflow-rs `35be807`, which has `mtd_f` and
+  `OdeEstimate`. pflow-rs main (`e7fe9a3`) differs from it only in
+  `docs/search-pieces-roadmap.md`; `make game-goldens PFLOW_RS=<checkout>`
+  accepts a checkout whose `crates/` are `35be807`'s.
 
 ---
 
