@@ -46,7 +46,7 @@ const DVC = {
   box: dv(503, 526, 'boxes: rx 6, white, #333 1.5; port dots r 4 #666; inhibitor ports hollow #c44'),
   boundaryOut: dv(528, 543, 'boundary outputs exit at the bottom'),
 };
-const FIXTURE = cite('pflowRs', 'crates/pflow-metamodel/tests/fixtures/connect-4.json', null, null, 'the Connect-4 net (data/connect-4.json is byte-identical)');
+const FIXTURE = cite('pflowRs', 'crates/pflow-metamodel/tests/fixtures/connect-4.json', null, null, 'the Connect-4 net (assets/connect-4.json is byte-identical)');
 const ROAD = {
   survey: road(396, 396, 'string diagrams in an SMC: boxes are morphisms, wires are objects, ⊗ side by side, ∘ stacking'),
   reading: road(405, 413, 'what the categorical reading is: ⊗ exact for unlinked subnets; token = pushout; event = fusion; guard outside the free SMC'),
@@ -1426,7 +1426,7 @@ function c4TransitionInfo(ctx, cc, id) {
 function c4Transition(ctx) {
   const { svg } = ctx;
   const net = ctx.connect4.net;
-  if (!net) { ctx.note('data/connect-4.json did not load, so there is no net to draw.', 'warn'); return; }
+  if (!net) { ctx.note('assets/connect-4.json did not load, so there is no net to draw.', 'warn'); return; }
   const cc = c4Compute(net);
   const d = cc.diagram;
   const dW = Math.max(d.width, 200), dH = Math.max(d.height, 100);

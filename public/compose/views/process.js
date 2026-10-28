@@ -62,7 +62,7 @@ const CITES = {
   byName: rs('crates/pflow-metamodel/tests/common/mod.rs', 5, 8, 'the fixtures name their parts by convention; the tests declare them'),
   game: rs('crates/pflow-metamodel/tests/common/mod.rs', 17, 35, 'game(): auto = name contains "win", x_ moves are +1, reward win_x - win_o, settled start'),
   inhibit: rs('crates/pflow-parser/src/lib.rs', 84, 88, 'inhibitTransition: input side is an inhibitor arc, output side a read arc'),
-  fixture: rs('crates/pflow-metamodel/tests/fixtures/connect-4.json', null, null, 'data/connect-4.json is a byte-identical copy'),
+  fixture: rs('crates/pflow-metamodel/tests/fixtures/connect-4.json', null, null, 'assets/connect-4.json is a byte-identical copy'),
 };
 
 const BIB = ['meseguer-montanari', 'baez-gms', 'selinger', 'joyal-street'];
@@ -1272,7 +1272,7 @@ function c4Run(net) {
 function renderConnect4(ctx) {
   const S = ctx.svg;
   const net = ctx.connect4.net;
-  if (!net) { ctx.note('The Connect-4 fixture (data/connect-4.json) did not load, so there is no net to fire.', 'warn'); return; }
+  if (!net) { ctx.note('The Connect-4 fixture (assets/connect-4.json) did not load, so there is no net to fire.', 'warn'); return; }
   const { model, proc, enabledAt, autoCount } = c4Run(net);
   ctx.emit('run', 'opening', { fired: proc.boxes.length });
   const notes = [];

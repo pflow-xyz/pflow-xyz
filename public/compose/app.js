@@ -32,7 +32,7 @@ async function loadViews() {
 }
 
 async function loadConnect4() {
-  try { connect4 = await (await fetch(new URL('data/connect-4.json', import.meta.url))).json(); } catch { connect4 = null; }
+  try { connect4 = await (await fetch(new URL('assets/connect-4.json', import.meta.url))).json(); } catch { connect4 = null; }
 }
 
 // --- rendering --------------------------------------------------------------------------

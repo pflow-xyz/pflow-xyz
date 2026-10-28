@@ -60,7 +60,7 @@ const C = {
   cq13: onto('cq/13-linkable-ports.rq', 7, 7, 'expect event candidates and no token candidates: the three patterns\' place ports carry different schemas'),
   depthPort: onto('ns/patterns.ttl', 220, 221, 'queue-port-depth: place items, for a data or guard link (observe the backlog)'),
   arcs: onto('ns/core.ttl', 27, 37, 'ns:InputArc (place → transition) and ns:OutputArc (transition → place)'),
-  fixture: cite('pflowRs', 'crates/pflow-metamodel/tests/fixtures/connect-4.json', 0, 0, 'the Connect-4 net (data/connect-4.json is a byte-identical copy of this fixture at c396d46)'),
+  fixture: cite('pflowRs', 'crates/pflow-metamodel/tests/fixtures/connect-4.json', 0, 0, 'the Connect-4 net (assets/connect-4.json is a byte-identical copy of this fixture at c396d46)'),
   solver: rs('plan.rs', 240, 252, 'SearchPlan::solver(&self, g: &Game): the plan builds a solver over a game; it is not glued to the net'),
   game: rs('game.rs', 42, 45, 'Game: a two-sided game on a net'),
 };
@@ -1125,7 +1125,7 @@ function renderConnect4(ctx) {
   const net = ctx.connect4.net, sum = ctx.connect4.summary;
   ctx.note('Does not apply as drawn: a SearchPlan is not an open net. It composes searches by chaining order pieces, wrapping drivers around the search and filling slots, and there is no place on its boundary to glue. The nearest honest picture is the operad view (tab 3). The plan runs over this closed net (SearchPlan::solver takes the game), it does not compose with it: below, the net is drawn as ∅ → N ← ∅ with the plan beside it.', 'na');
   ctx.emit('note', 'closed', {});
-  if (!net) { ctx.note('data/connect-4.json did not load.', 'warn'); return; }
+  if (!net) { ctx.note('assets/connect-4.json did not load.', 'warn'); return; }
   const W = W0, H = 800;
   const svg = ctx.svgRoot(W, H, { class: 'view-svg cospan-svg', role: 'img', 'aria-label': 'The Connect-4 net as a closed net, empty feet on both sides' });
   svg.append(S('rect', { x: 0, y: 0, width: W, height: H, fill: PAPER }));

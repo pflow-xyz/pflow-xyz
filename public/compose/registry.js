@@ -15,7 +15,7 @@
 //           another link set (a view comparing the previous links, the lens
 //           test's repairs, a member on its own), and plans the page did not
 //           open (a plan's canonical JSON, the default lists).
-//   c4      the Connect-4 net (data/connect-4.json) loaded as a document, for
+//   c4      the Connect-4 net (assets/connect-4.json) loaded as a document, for
 //           the token game, the incidence matrix and runs on it (sim.*,
 //           analysis.incidence).
 //

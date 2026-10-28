@@ -51,7 +51,7 @@ const C = {
   exit41: road(240, 242, '4.1 exit: "a failed conservation check on the rollback path"'),
   worked: road(276, 280, 'worked expectation: the rollback scenario fails, the worker never returns'),
   d44: road(289, 291, '4.4: the rollback scenario fails with the pool-leak evidence'),
-  c4fixture: rsTest('fixtures/connect-4.json', 20457, 20457, 'the fixture\'s description (byte-identical to data/connect-4.json)'),
+  c4fixture: rsTest('fixtures/connect-4.json', 20457, 20457, 'the fixture\'s description (byte-identical to assets/connect-4.json)'),
   c4names: rsTest('common/mod.rs', 5, 8, 'the fixtures name their parts by convention; this file declares sides, auto and rewards'),
   c4decl: rsTest('common/mod.rs', 23, 30, 'auto = name contains "win"; sign +1 for x_, -1 otherwise; reward win_x +1, win_o -1'),
   gameDoc: rsSrc('game.rs', 4, 11, 'auto transitions fire as soon as enabled; every other transition is a move'),
@@ -1189,7 +1189,7 @@ function renderConnect4(ctx) {
   const gen = S.gen;
   const net = ctx.connect4.net;
   injectStyle(ctx);
-  if (!net) { ctx.note('data/connect-4.json did not load, so there is no net to draw.', 'warn'); return; }
+  if (!net) { ctx.note('assets/connect-4.json did not load, so there is no net to draw.', 'warn'); return; }
   if (!S.c4model || S.c4model.net !== net) S.c4model = { net, model: c4Model(netModel(net), net) };
   ctx.emit('net', 'connect-4', { places: Object.keys(net.places).length, transitions: Object.keys(net.transitions).length, arcs: net.arcs.length });
   const model = S.c4model.model;
@@ -1360,7 +1360,7 @@ function renderConnect4(ctx) {
   }
 
   paint();
-  ctx.note(`The net it searches is the pflow-rs fixture data/connect-4.json: "${net.description}" pflow-rs reads it as a game only through tests/common/mod.rs, which declares the *win* transitions automatic, x_ moves for the side with sign +1, and rewards win_x +1, win_o −1. Nothing else (no goal, no strategy) is claimed here.`, 'honesty');
+  ctx.note(`The net it searches is the pflow-rs fixture assets/connect-4.json: "${net.description}" pflow-rs reads it as a game only through tests/common/mod.rs, which declares the *win* transitions automatic, x_ moves for the side with sign +1, and rewards win_x +1, win_o −1. Nothing else (no goal, no strategy) is claimed here.`, 'honesty');
   const planNow = JSON.stringify(ctx.plan.json), planExact = JSON.stringify(toJSON(CONNECT4_EXACT));
   const whichPlan = ctx.plan.error
     ? `The plan as it stands is refused (${ctx.plan.error}), so it searches nothing; drawn anyway is the net an accepted plan would search`

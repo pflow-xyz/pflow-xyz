@@ -37,7 +37,7 @@ export async function setup() {
   installDom();
   await registry.init({ bytes });
   loadFacts();
-  connect4 = JSON.parse(await Deno.readTextFile(new URL('../../public/compose/data/connect-4.json', import.meta.url)));
+  connect4 = JSON.parse(await Deno.readTextFile(new URL('../../public/compose/assets/connect-4.json', import.meta.url)));
   views = {};
   for (const id of VIEW_IDS) {
     try { views[id] = (await import(`../../public/compose/views/${id}.js`)).default; } catch (e) { views[id] = { broken: e, render() { throw e; } }; }

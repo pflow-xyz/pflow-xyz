@@ -4,8 +4,8 @@
 // driver-wrap, sync-spiders) state composition laws as Chyp rules (ASSUMED:
 // readings of the source lines each file cites) and then rewrites built from
 // those rules (PROVED: Chyp's own checker checked every step, headless). The
-// view reads what chyp_headless exported (data/chyp/index.json and
-// data/chyp/<theory>.json) and the .chyp files themselves (chyp/<theory>.chyp,
+// view reads what chyp_headless exported (assets/chyp/index.json and
+// assets/chyp/<theory>.json) and the .chyp files themselves (chyp/<theory>.chyp,
 // fetched for their comments; nothing in a comment box here is written by this
 // view). When the view is opened in a browser it also runs Chyp's checker live
 // under Pyodide (../laws-live.js) and compares the verdicts with the exported
@@ -109,12 +109,12 @@ function load(ctx) {
   DATA.state = 'loading';
   DATA.promise = (async () => {
     try {
-      const r = await fetch(new URL('data/chyp/index.json', COMPOSE));
-      if (!r.ok) throw new Error(`data/chyp/index.json: HTTP ${r.status}`);
+      const r = await fetch(new URL('assets/chyp/index.json', COMPOSE));
+      if (!r.ok) throw new Error(`assets/chyp/index.json: HTTP ${r.status}`);
       DATA.index = await r.json();
       await Promise.all(DATA.index.theories.map(async (t) => {
         const [j, buf] = await Promise.all([
-          fetch(new URL(`data/chyp/${t.file}`, COMPOSE)).then((x) => { if (!x.ok) throw new Error(`data/chyp/${t.file}: HTTP ${x.status}`); return x.json(); }),
+          fetch(new URL(`assets/chyp/${t.file}`, COMPOSE)).then((x) => { if (!x.ok) throw new Error(`assets/chyp/${t.file}: HTTP ${x.status}`); return x.json(); }),
           // chyp/<theory>.chyp, vendored in public/compose/chyp/ (sha256 checked in provenance())
           fetch(new URL(t.source, COMPOSE)).then((x) => (x.ok ? x.arrayBuffer() : null)).catch(() => null),
         ]);
@@ -211,7 +211,7 @@ function paintLive() {
 function liveBar(ctx) {
   const [text, cls] = liveText();
   liveBox = ctx.el('div', { class: `lw-livebar ${cls}` }, text);
-  ctx.hover(liveBox, { title: 'which Chyp result is shown', definition: 'The page first shows the result chyp_headless exported under CPython (data/chyp/). In a browser it then runs Chyp 3d28483 itself under Pyodide, compares every rewrite\'s and every step\'s verdict with the exported ones, and lays the diagrams out with Chyp\'s convex_layout (cvxpy, CLARABEL); once that finishes the live layout replaces the exported one.', facts: [['Pyodide', `${live.PYODIDE_VERSION} (${live.PYODIDE_URL})`], ['lark', `${live.LARK} (PyPI)`], ['Chyp', '3d28483, vendored unmodified in chyp/py/chyp (Apache-2.0)']], bib: ['chyp'] });
+  ctx.hover(liveBox, { title: 'which Chyp result is shown', definition: 'The page first shows the result chyp_headless exported under CPython (assets/chyp/). In a browser it then runs Chyp 3d28483 itself under Pyodide, compares every rewrite\'s and every step\'s verdict with the exported ones, and lays the diagrams out with Chyp\'s convex_layout (cvxpy, CLARABEL); once that finishes the live layout replaces the exported one.', facts: [['Pyodide', `${live.PYODIDE_VERSION} (${live.PYODIDE_URL})`], ['lark', `${live.LARK} (PyPI)`], ['Chyp', '3d28483, vendored unmodified in chyp/py/chyp (Apache-2.0)']], bib: ['chyp'] });
   return liveBox;
 }
 
@@ -413,7 +413,7 @@ function fitBox(label, nIn, nOut, baseW, S, tw) {
   return { gl, gr, size, overflow };
 }
 
-/** A Chyp graph (data/chyp JSON) at S px per Chyp unit, in its own coordinates. */
+/** A Chyp graph (assets/chyp JSON) at S px per Chyp unit, in its own coordinates. */
 function fromChyp(g, S, styles, tw) {
   if (!g.vertices.every((v) => Number.isFinite(v.x)) || !g.edges.every((e) => Number.isFinite(e.x))) {
     return fromSpec({
@@ -1469,7 +1469,7 @@ export default {
     const E = ctx.el;
     ctx.root.append(E('style', {}, STYLE));
     load(ctx);
-    if (DATA.state === 'loading' || DATA.state === 'idle') { ctx.root.append(E('p', { class: 'lw-loading' }, 'Loading the Chyp check results (data/chyp/) and theory files (chyp/*.chyp)…')); return; }
+    if (DATA.state === 'loading' || DATA.state === 'idle') { ctx.root.append(E('p', { class: 'lw-loading' }, 'Loading the Chyp check results (assets/chyp/) and theory files (chyp/*.chyp)…')); return; }
     ctx.lawsDrawn = true;
     startLive(ctx);
     if (DATA.state === 'error') { ctx.note(`Could not load the Chyp export: ${DATA.err}. Regenerate it with chyp_headless export (chyp_headless/README.md).`, 'warn'); return; }

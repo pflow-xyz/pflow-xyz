@@ -20,7 +20,7 @@
 //             returns CheckReport.to_dict() per theory.
 //   layout()  export() with Chyp's convex_layout (cvxpy, CLARABEL): several
 //             seconds more; returns the full export per theory, the same
-//             document data/chyp/<theory>.json holds.
+//             document assets/chyp/<theory>.json holds.
 
 export const PYODIDE_VERSION = '314.0.7';
 export const PYODIDE_URL = `https://cdn.jsdelivr.net/pyodide/v${PYODIDE_VERSION}/full/pyodide.mjs`;

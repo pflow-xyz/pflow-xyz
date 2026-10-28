@@ -50,7 +50,7 @@ const C = {
   roadMonoidal: road(407, 407, 'unlinked subnets: the monoidal product (disjoint union)'),
   roadCospan: road(408, 409, 'lk:token / lk:data: a pushout along a shared place (a cospan composite)'),
   roadGuard: road(412, 413, 'lk:guard: a cross-subnet read arc, outside the free-SMC fragment'),
-  fixture: cite('pflowRs', 'crates/pflow-metamodel/tests/fixtures/connect-4.json', 0, 0, 'the Connect-4 net (byte-identical to data/connect-4.json): no ports'),
+  fixture: cite('pflowRs', 'crates/pflow-metamodel/tests/fixtures/connect-4.json', 0, 0, 'the Connect-4 net (byte-identical to assets/connect-4.json): no ports'),
 };
 
 // Paper locations, as read in arXiv 1307.0204v2 (LMCS version) on 2026-10-27.
@@ -746,7 +746,7 @@ function renderConnect4(ctx) {
   svg.append(S('style', {}, CSS));
   svg.append(S('rect', { x: 0, y: 0, width: W, height: H, fill: T.PAPER, rx: 4 }));
   if (!sm) {
-    svg.append(S('text', { x: W / 2, y: 120, 'text-anchor': 'middle', 'font-size': 13, fill: T.MUTED }, 'data/connect-4.json did not load.'));
+    svg.append(S('text', { x: W / 2, y: 120, 'text-anchor': 'middle', 'font-size': 13, fill: T.MUTED }, 'assets/connect-4.json did not load.'));
     ctx.root.append(svg);
     return;
   }
@@ -780,7 +780,7 @@ function renderConnect4(ctx) {
       S('text', { x: bx + 80, y: by + 62 + i * 26, 'font-size': 11.5, fill: T.MUTED }, t));
   });
   // the fixture's source, under the box (it is wider than the box)
-  svg.append(S('text', { x: bx + bw / 2, y: by + bh + 22, 'text-anchor': 'middle', 'font-size': 9.5, fill: T.MUTED, class: 'mono' }, 'pflow-rs crates/pflow-metamodel/tests/fixtures/connect-4.json (MIT; vendored as compose/data/connect-4.json)'));
+  svg.append(S('text', { x: bx + bw / 2, y: by + bh + 22, 'text-anchor': 'middle', 'font-size': 9.5, fill: T.MUTED, class: 'mono' }, 'pflow-rs crates/pflow-metamodel/tests/fixtures/connect-4.json (MIT; vendored as compose/assets/connect-4.json)'));
   ctx.hover(box, {
     title: `${sm.name}: a closed net`,
     definition: sm.description,

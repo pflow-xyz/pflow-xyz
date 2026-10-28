@@ -12,7 +12,7 @@
 //
 // connect4: a SearchPlan is not a net and has no incidence matrix. The view says
 // so and draws the Connect-4 net's matrix instead: the registry's
-// analysis.incidence on data/connect-4.json (the c4 engine's document).
+// analysis.incidence on assets/connect-4.json (the c4 engine's document).
 //
 // Scene manifest (parity contract): orders `block` per instance (rows, cols),
 // `matrix` "flat" (rows, cols), `invariant` per declared constraint (holds:
@@ -45,7 +45,7 @@ const CITE = {
   inhibRs: rs('crates/pflow-reachability/src/invariants.rs', 497, 516, 'test: inhibitor arcs do not enter the incidence matrix'),
   rawArc: rs('crates/pflow-core/src/json.rs', 119, 131, 'RawArc: weight per token color, inhibitTransition'),
   rawWeight: rs('crates/pflow-core/src/json.rs', 186, 191, 'an absent weight is [1]'),
-  fixture: rs('crates/pflow-metamodel/tests/fixtures/connect-4.json', 0, 0, 'the Connect-4 net; byte-identical to data/connect-4.json'),
+  fixture: rs('crates/pflow-metamodel/tests/fixtures/connect-4.json', 0, 0, 'the Connect-4 net; byte-identical to assets/connect-4.json'),
   road42: road(243, 245, 'Phase 4.2 (a planned deliverable): compare with pflow-jl glue on token links only; exit is the same incidence matrix up to place renaming'),
   road6: road(405, 413, 'Phase 6: ⊗ is disjoint union; token/data glue places; event fuses transitions; guard is outside the free SMC'),
 };
@@ -144,7 +144,7 @@ export default {
     summary: 'A P/T net as its incidence matrix C = post − pre: one row per place, one column per transition, and C[p, t] is what one firing of t does to p (−w consumed, +w produced, blank for 0). Firing a sequence with count vector σ takes M to M + C·σ, so a row vector y with y·C = 0 is a P-invariant: y·M never changes. Composition acts on C directly. The monoidal product ⊗ (disjoint union) is the block-diagonal direct sum. An event link fuses transitions, and go-pflow Flatten adds the fused columns (MergeSum: weights add). A token or data link fuses places, and Flatten adds the fused rows. A guard link lowers to a read arc, which moves nothing, so C does not change.',
     examples: {
       orders: 'Left: C of the active instances, block-diagonal, one block per instance tinted by its pattern. Columns an event link fuses are joined under the matrix and colored by event class (⊗A, ⊗B…); rows a token or data link fuses are joined at its right by wire (◆1 token, ▷1 data). Right: C of the flat net (ctx.orders.flat). Under it, y·C per transition for every declared constraint that is a plain sum of tokens, and y·M₀ against the declared constant, computed in this page from the flat net. Event links keep every instance\'s invariants (MergeSum). A token link can break one, because the fused row also carries the other instance\'s arcs: try + workers2 and a token link between the two available ports.',
-      connect4: 'A SearchPlan has no incidence matrix: it is a composite of search pieces, not a net. Drawn instead: the 131 × 222 incidence matrix of the Connect-4 net the plan searches (data/connect-4.json), with places grouped by prefix (open_, x_, o_ cells; other) and transitions by prefix (x_play_ / o_play_ drops, x_win_ / o_win_ detectors). The win detectors take a cell and put it back (pre = post = 1), which C records as 0; grey dots mark those pairs.',
+      connect4: 'A SearchPlan has no incidence matrix: it is a composite of search pieces, not a net. Drawn instead: the 131 × 222 incidence matrix of the Connect-4 net the plan searches (assets/connect-4.json), with places grouped by prefix (open_, x_, o_ cells; other) and transitions by prefix (x_play_ / o_play_ drops, x_win_ / o_win_ detectors). The win detectors take a cell and put it back (pre = post = 1), which C records as 0; grey dots mark those pairs.',
     },
     honesty: [
       'Orders: C is computed in this page from the arcs of the instances and of the flat net (bundle.flatten), with go-pflow\'s and pflow-rs\'s definition (output − input over the arcs that move tokens). Connect-4: C is the registry\'s (analysis.incidence). Rows and columns are drawn in declaration (or prefix-grouped) order; go-pflow IncidenceMatrix sorts them by ID. That is a permutation, so nothing changes.',
@@ -802,8 +802,8 @@ function renderConnect4(ctx) {
   const { svg } = ctx;
   const T = ctx.theme;
   const net = ctx.connect4.net;
-  ctx.note('A SearchPlan has no incidence matrix: it is a composite of search pieces (plan.rs), not a P/T net, and its pieces have no places or transitions to put in one. Drawn instead, as the nearest honest thing: the incidence matrix of the Connect-4 net the plan searches (data/connect-4.json, the pflow-rs fixture). Nothing here is a plan slot; pieces are placed in the plan views.', 'na');
-  if (!net) { ctx.note('data/connect-4.json did not load, so there is no net to draw.', 'warn'); return; }
+  ctx.note('A SearchPlan has no incidence matrix: it is a composite of search pieces (plan.rs), not a P/T net, and its pieces have no places or transitions to put in one. Drawn instead, as the nearest honest thing: the incidence matrix of the Connect-4 net the plan searches (assets/connect-4.json, the pflow-rs fixture). Nothing here is a plan slot; pieces are placed in the plan views.', 'na');
+  if (!net) { ctx.note('assets/connect-4.json did not load, so there is no net to draw.', 'warn'); return; }
 
   // C, pre and post are the registry's: analysis.incidence on the net loaded
   // into the c4 engine (rows: places in document order, cols: transitions).
@@ -873,7 +873,7 @@ function renderConnect4(ctx) {
   ctx.emit('matrix', 'connect-4', { rows: P.length, cols: Tr.length });
   root.append(
     text(M, 18, `C of the Connect-4 net: ${P.length} places × ${Tr.length} transitions`, { class: 'ttl' }),
-    text(M, 34, `${net.name} · data/connect-4.json (pflow-rs fixture) · C from the registry (analysis.incidence) · grouped by ID prefix on this page`, { class: 'sub' }),
+    text(M, 34, `${net.name} · assets/connect-4.json (pflow-rs fixture) · C from the registry (analysis.incidence) · grouped by ID prefix on this page`, { class: 'sub' }),
   );
   const readout = text(xEnd, 34, 'hover a cell', { class: 'id', 'text-anchor': 'end', fill: MUTEDC });
   root.append(readout);
@@ -908,7 +908,7 @@ function renderConnect4(ctx) {
         ['pre = post pairs (C = 0)', s.cat],
         ...extra,
       ],
-      note: 'Grouped by ID prefix on this page; the fixture has no groups. Counts computed here from data/connect-4.json.',
+      note: 'Grouped by ID prefix on this page; the fixture has no groups. Counts computed here from assets/connect-4.json.',
       definition: net.description,
       cites: [CITE.fixture, CITE.incGo],
     };
@@ -971,7 +971,7 @@ function renderConnect4(ctx) {
       !e.c && e.pre && e.post ? ['pre = post', 'the transition takes the token and puts it back (a catalytic read): in the net, not in C'] : null,
       e.inhib ? ['inhibitTransition arc', `weight ${e.inhib}: excluded from C`] : null,
     ].filter(Boolean),
-    note: 'pre, post and C are the registry\'s (analysis.incidence on data/connect-4.json): output − input over the arcs that move tokens, read and inhibitor arcs left out, as go-pflow IncidenceMatrix and pflow-rs incidence_matrix define it. The inhibitTransition mark is read from the document\'s arcs.',
+    note: 'pre, post and C are the registry\'s (analysis.incidence on assets/connect-4.json): output − input over the arcs that move tokens, read and inhibitor arcs left out, as go-pflow IncidenceMatrix and pflow-rs incidence_matrix define it. The inhibitTransition mark is read from the document\'s arcs.',
     cites: [CITE.incGo, CITE.weightGo, CITE.incRs, CITE.inhibRs, CITE.rawArc, CITE.rawWeight, CITE.weightRs, CITE.fixture],
   });
   const clearHL = () => { rowBand.setAttribute('visibility', 'hidden'); colBand.setAttribute('visibility', 'hidden'); readout.textContent = 'hover a cell'; readout.setAttribute('fill', MUTEDC); };
