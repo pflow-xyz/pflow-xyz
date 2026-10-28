@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"net/http/httptest"
 	"reflect"
+	"regexp"
 	"sort"
 	"strings"
 	"testing"
@@ -316,5 +317,195 @@ func TestTokenPageHasNoBundleSection(t *testing.T) {
 		if !strings.Contains(body, want) {
 			t.Errorf("/schema lacks %q", want)
 		}
+	}
+}
+
+// sealerContextFromJS reads PFLOW_CONTEXT out of the served public/seal-cid.mjs
+// (the browser sealer's copy of the context, kept equal to the Go sealer's by
+// shared golden CIDs). The literal is plain data; it is turned into JSON by
+// dropping its whole-line comments and quoting the bare keys.
+func sealerContextFromJS(t *testing.T, publicFS fs.FS) (vocab string, defs map[string]map[string]string) {
+	t.Helper()
+	raw, err := fs.ReadFile(publicFS, "seal-cid.mjs")
+	if err != nil {
+		t.Fatal(err)
+	}
+	src := string(raw)
+	i := strings.Index(src, "export const PFLOW_CONTEXT = ")
+	if i < 0 {
+		t.Fatal("seal-cid.mjs has no PFLOW_CONTEXT")
+	}
+	src = src[i+len("export const PFLOW_CONTEXT = "):]
+	src = src[:strings.Index(src, "};")+1]
+	src = regexp.MustCompile(`(?m)^\s*//.*$`).ReplaceAllString(src, "") // whole-line comments; the URLs have "//" too
+	src = strings.ReplaceAll(src, "'", `"`)
+	src = regexp.MustCompile(`(?m)^(\s*)([A-Za-z_][A-Za-z0-9_]*):`).ReplaceAllString(src, `$1"$2":`)
+	src = regexp.MustCompile(`,(\s*[}\]])`).ReplaceAllString(src, "$1")
+	var doc struct {
+		Context map[string]json.RawMessage `json:"@context"`
+	}
+	if err := json.Unmarshal([]byte(src), &doc); err != nil {
+		t.Fatalf("seal-cid.mjs PFLOW_CONTEXT is not the plain literal this test reads: %v\n%s", err, src)
+	}
+	defs = map[string]map[string]string{}
+	for k, v := range doc.Context {
+		if k == "@vocab" {
+			if err := json.Unmarshal(v, &vocab); err != nil {
+				t.Fatal(err)
+			}
+			continue
+		}
+		var id string
+		if json.Unmarshal(v, &id) == nil {
+			defs[k] = map[string]string{"@id": id}
+			continue
+		}
+		m := map[string]string{}
+		if err := json.Unmarshal(v, &m); err != nil {
+			t.Fatalf("term %s: %v", k, err)
+		}
+		defs[k] = m
+	}
+	return vocab, defs
+}
+
+// sealerTerms is the transcription the page's comparison runs on. Prove it is
+// the sealers' context: the browser sealer's literal entry by entry, and the Go
+// sealer by what it hashes (the IRI each term expands to, and whether a term
+// makes its value an ordered @list).
+func TestSealerTermsAreTheSealersContext(t *testing.T) {
+	s := newTestServer(t)
+
+	vocab, defs := sealerContextFromJS(t, s.publicFS)
+	if vocab != sealVocab {
+		t.Errorf("seal-cid.mjs @vocab = %q, sealVocab = %q", vocab, sealVocab)
+	}
+	if len(defs) != len(sealerTerms) {
+		t.Errorf("seal-cid.mjs defines %d terms, sealerTerms has %d", len(defs), len(sealerTerms))
+	}
+	for _, st := range sealerTerms {
+		d, ok := defs[st.Name]
+		if !ok {
+			t.Errorf("sealerTerms lists %s, seal-cid.mjs does not", st.Name)
+			continue
+		}
+		if d["@id"] != st.ID || d["@container"] != st.Container || d["@type"] != st.Type {
+			t.Errorf("%s: sealerTerms %+v, seal-cid.mjs %v", st.Name, st, d)
+		}
+	}
+
+	// The Go sealer: seal {term: [1, 2]} and read the N-Quads it hashed.
+	const rdfFirst = "<http://www.w3.org/1999/02/22-rdf-syntax-ns#first>"
+	for _, st := range sealerTerms {
+		doc := `{"@context":"https://pflow.xyz/schema","@type":"PetriNet","` + st.Name + `":[1,2]}`
+		_, nq, err := seal.SealJSONLD([]byte(doc))
+		if err != nil {
+			t.Fatalf("%s: %v", st.Name, err)
+		}
+		out := string(nq)
+		if !strings.Contains(out, "<"+st.ID+">") {
+			t.Errorf("%s: the Go sealer does not expand it to <%s>:\n%s", st.Name, st.ID, out)
+		}
+		if isList := strings.Contains(out, rdfFirst); isList != (st.Container == "@list") {
+			t.Errorf("%s: the Go sealer's @list is %v, sealerTerms says container %q", st.Name, isList, st.Container)
+		}
+	}
+	// A key the sealer does not list is not a list and falls to its @vocab.
+	_, nq, err := seal.SealJSONLD([]byte(`{"@context":"https://pflow.xyz/schema","@type":"PetriNet","notListed":[1,2]}`))
+	if err != nil || !strings.Contains(string(nq), "<"+sealVocab+"notListed>") || strings.Contains(string(nq), rdfFirst) {
+		t.Errorf("an unlisted key: %v\n%s", err, nq)
+	}
+}
+
+// The terms the page says differ are the ones that do, derived by comparing
+// the live published context with the sealer's: nothing on the page is a
+// hand-kept list. Eight are defined in both and differently (the published one
+// types or contains them in another way), four only in the sealer's.
+func TestSchemaPageDerivesWhatDiffers(t *testing.T) {
+	s := newTestServer(t)
+	_, terms, err := s.schemaCache.load(s.publicFS)
+	if err != nil {
+		t.Fatal(err)
+	}
+	doc := buildBundleDoc(s.schemaCache.vocab, terms)
+	wantDiffer := []string{"places", "token", "inhibitTransition", "capacity", "initial", "offset", "x", "y"}
+	wantOnly := []string{"arcs", "transitions", "source", "target"}
+	if !reflect.DeepEqual(doc.Differ, wantDiffer) {
+		t.Errorf("differ = %v, want %v", doc.Differ, wantDiffer)
+	}
+	if !reflect.DeepEqual(doc.OnlySealer, wantOnly) {
+		t.Errorf("only in the sealer's = %v, want %v", doc.OnlySealer, wantOnly)
+	}
+
+	// The same sets again, worked out from the raw files with no schemaTerm:
+	// the served context and the browser sealer's literal, key by key.
+	raw, err := fs.ReadFile(s.publicFS, "schema")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var published struct {
+		Context map[string]interface{} `json:"@context"`
+	}
+	if err := json.Unmarshal(raw, &published); err != nil {
+		t.Fatal(err)
+	}
+	_, sealer := sealerContextFromJS(t, s.publicFS)
+	var gotDiffer, gotOnly []string
+	for _, st := range sealerTerms { // sealer order, as the page lists them
+		pub, ok := published.Context[st.Name]
+		if !ok {
+			gotOnly = append(gotOnly, st.Name)
+			continue
+		}
+		norm := map[string]string{}
+		switch v := pub.(type) {
+		case string:
+			norm["@id"] = v
+		case map[string]interface{}:
+			for k, x := range v {
+				norm[k], _ = x.(string)
+			}
+		}
+		if !reflect.DeepEqual(norm, sealer[st.Name]) {
+			gotDiffer = append(gotDiffer, st.Name)
+		}
+	}
+	if !reflect.DeepEqual(gotDiffer, doc.Differ) || !reflect.DeepEqual(gotOnly, doc.OnlySealer) {
+		t.Errorf("computed from the raw files: differ %v, only-sealer %v; the page derives %v and %v", gotDiffer, gotOnly, doc.Differ, doc.OnlySealer)
+	}
+
+	// The rendered page names exactly those, in the sentences about them.
+	req := httptest.NewRequest("GET", "/schema", nil)
+	req.Header.Set("Accept", "text/html")
+	w := httptest.NewRecorder()
+	s.handleSchema(w, req)
+	page := html.UnescapeString(w.Body.String())
+	list := func(names []string) string {
+		var parts []string
+		for _, n := range names {
+			parts = append(parts, "<code>"+n+"</code>")
+		}
+		return strings.Join(parts, ", ")
+	}
+	for _, want := range []string{
+		"differ in IRI, type or container",
+		list(doc.Differ) + " differ in IRI",
+		"and for " + list(doc.OnlySealer) + ", which this context does not define",
+		"(" + list(doc.SealerTerms) + ")",
+	} {
+		if !strings.Contains(page, want) {
+			t.Errorf("the schema page lacks %q", want)
+		}
+	}
+
+	// If the published context is aligned with the sealer's, the sentences go.
+	same := buildBundleDoc(sealVocab, sealerTerms)
+	if len(same.Differ) != 0 || len(same.OnlySealer) != 0 {
+		t.Errorf("a published context equal to the sealer's: differ %v, only-sealer %v", same.Differ, same.OnlySealer)
+	}
+	moved := append([]schemaTerm(nil), sealerTerms...)
+	moved[9].Type = "http://www.w3.org/2001/XMLSchema#integer" // initial
+	if d := buildBundleDoc(sealVocab, moved).Differ; !reflect.DeepEqual(d, []string{"initial"}) {
+		t.Errorf("one changed term: differ = %v", d)
 	}
 }

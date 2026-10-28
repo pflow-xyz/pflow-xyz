@@ -27,6 +27,50 @@ import (
 // test seals a document to keep this honest.
 const sealVocab = "https://pflow.xyz/schema#"
 
+// sealerTerms are the explicit entries of that sealer context, in the order
+// internal/seal/seal.go lists them: a term with a full IRI under sealVocab and
+// a container where it has one. The sealers do not export it (and hold it
+// private by design), so it is transcribed here, and schema_bundle_test.go
+// proves the table against both of them: public/seal-cid.mjs's PFLOW_CONTEXT
+// entry by entry, and the Go sealer by sealing a probe document per term.
+var sealerTerms = []schemaTerm{
+	{Name: "arcs", ID: sealVocab + "arcs", Container: "@list"},
+	{Name: "places", ID: sealVocab + "places"},
+	{Name: "transitions", ID: sealVocab + "transitions"},
+	{Name: "token", ID: sealVocab + "token", Container: "@list"},
+	{Name: "source", ID: sealVocab + "source"},
+	{Name: "target", ID: sealVocab + "target"},
+	{Name: "weight", ID: sealVocab + "weight", Container: "@list"},
+	{Name: "inhibitTransition", ID: sealVocab + "inhibitTransition"},
+	{Name: "capacity", ID: sealVocab + "capacity", Container: "@list"},
+	{Name: "initial", ID: sealVocab + "initial", Container: "@list"},
+	{Name: "parents", ID: sealVocab + "parents", Container: "@list"},
+	{Name: "offset", ID: sealVocab + "offset"},
+	{Name: "x", ID: sealVocab + "x"},
+	{Name: "y", ID: sealVocab + "y"},
+}
+
+// compareToSealer sets the published context's term definitions against the
+// sealer's. differ lists the terms both define whose definitions are not the
+// same (IRI, @type or @container); onlySealer those the sealer defines and the
+// published context does not, which the latter expands through its @vocab.
+func compareToSealer(published []schemaTerm) (differ, onlySealer []string) {
+	byName := make(map[string]schemaTerm, len(published))
+	for _, t := range published {
+		byName[t.Name] = t
+	}
+	for _, st := range sealerTerms {
+		pt, ok := byName[st.Name]
+		switch {
+		case !ok:
+			onlySealer = append(onlySealer, st.Name)
+		case pt.ID != st.ID || pt.Type != st.Type || pt.Container != st.Container:
+			differ = append(differ, st.Name)
+		}
+	}
+	return differ, onlySealer
+}
+
 // fieldDoc documents one JSON field.
 type fieldDoc struct {
 	Name    string // the JSON name, as in the Go struct tag
@@ -53,7 +97,10 @@ type bundleTerm struct {
 
 // bundleDoc is everything the bundle section renders.
 type bundleDoc struct {
-	Vocab, SealVocab string // @vocab of the published context, of the sealer's
+	Vocab, SealVocab string   // @vocab of the published context, of the sealer's
+	SealerTerms      []string // the sealer's explicit entries
+	Differ           []string // defined in both contexts, defined differently
+	OnlySealer       []string // defined in the sealer's only
 	Bundle           []fieldDoc
 	Subnet           []fieldDoc
 	Port             []fieldDoc
@@ -245,21 +292,29 @@ func buildBundleDoc(vocab string, terms []schemaTerm) bundleDoc {
 		row.Same = row.Published == row.Sealing
 		rows = append(rows, row)
 	}
+	differ, onlySealer := compareToSealer(terms)
+	sealerNames := make([]string, 0, len(sealerTerms))
+	for _, t := range sealerTerms {
+		sealerNames = append(sealerNames, t.Name)
+	}
 	return bundleDoc{
-		Vocab:     vocab,
-		SealVocab: sealVocab,
-		Bundle:    bundleFields.Bundle,
-		Subnet:    bundleFields.Subnet,
-		Port:      bundleFields.Port,
-		Link:      bundleFields.Link,
-		Endpoint:  bundleFields.Endpoint,
-		NetTypes:  bundleNetTypes,
-		PortKinds: bundlePortKinds,
-		LinkKinds: bundleLinkKinds,
-		Lowerings: bundleLowerings,
-		ArcMerges: bundleArcMerges,
-		Terms:     rows,
-		Example:   bundleExample,
+		Vocab:       vocab,
+		SealVocab:   sealVocab,
+		SealerTerms: sealerNames,
+		Differ:      differ,
+		OnlySealer:  onlySealer,
+		Bundle:      bundleFields.Bundle,
+		Subnet:      bundleFields.Subnet,
+		Port:        bundleFields.Port,
+		Link:        bundleFields.Link,
+		Endpoint:    bundleFields.Endpoint,
+		NetTypes:    bundleNetTypes,
+		PortKinds:   bundlePortKinds,
+		LinkKinds:   bundleLinkKinds,
+		Lowerings:   bundleLowerings,
+		ArcMerges:   bundleArcMerges,
+		Terms:       rows,
+		Example:     bundleExample,
 	}
 }
 
@@ -328,12 +383,12 @@ const schemaBundleHTML = `{{define "fields"}}` + schemaFieldTable + `{{end}}{{de
 <p>Two JSON-LD contexts answer to <code>https://pflow.xyz/schema</code>, and they are not the same document.</p>
 <ul>
 <li><b>This one</b>, the document served at this URL and tabulated above, has <code>@vocab</code> <code>{{.Vocab}}</code>: a key it does not define expands to <code>{{.Vocab}}&lt;key&gt;</code>.</li>
-<li><b>The sealer's.</b> A model's CID is not computed from this document. The sealers (<code>internal/seal</code> on the server, <code>seal-cid.mjs</code> in the browser, held equal by shared golden CIDs) preload their own context under this URL and never fetch it. Its <code>@vocab</code> is <code>{{.SealVocab}}</code>, with explicit entries for the editor's net terms (<code>arcs</code>, <code>places</code>, <code>transitions</code>, <code>source</code>, <code>target</code>, <code>weight</code>, <code>token</code>, <code>capacity</code>, <code>initial</code>, <code>inhibitTransition</code>, <code>parents</code>, <code>offset</code>, <code>x</code>, <code>y</code>).</li>
+<li><b>The sealer's.</b> A model's CID is not computed from this document. The sealers (<code>internal/seal</code> on the server, <code>seal-cid.mjs</code> in the browser, held equal by shared golden CIDs) preload their own context under this URL and never fetch it. Its <code>@vocab</code> is <code>{{.SealVocab}}</code>, with explicit entries for the editor's net terms ({{range $i, $n := .SealerTerms}}{{if $i}}, {{end}}<code>{{$n}}</code>{{end}}).</li>
 </ul>
 <p>What follows from that:</p>
 <ul>
 <li>Under the sealer's context every key it does not list expands to <code>{{.SealVocab}}&lt;key&gt;</code>. That covers all the bundle terms, every field inside a subnet's <code>model</code>, and, in an editor-format net, every place and transition id used as a key.</li>
-<li>Expanding a document against <em>this</em> context gives different IRIs for those keys, and for <code>arcs</code>, <code>transitions</code>, <code>source</code> and <code>target</code>, which this context does not define. A few terms both contexts list differ in type or container (<code>places</code>, <code>token</code>, <code>capacity</code>, <code>offset</code>, <code>x</code>, <code>y</code>, <code>inhibitTransition</code>). So a generic JSON-LD processor pointed at the live <code>/schema</code> does not reproduce the RDF that was hashed, and cannot be used to check a CID. Use the sealer.</li>
+<li>Expanding a document against <em>this</em> context gives different IRIs for those keys{{if .OnlySealer}}, and for {{range $i, $n := .OnlySealer}}{{if $i}}, {{end}}<code>{{$n}}</code>{{end}}, which this context does not define{{end}}.{{if .Differ}} Terms that both contexts list are not all defined the same way: {{range $i, $n := .Differ}}{{if $i}}, {{end}}<code>{{$n}}</code>{{end}} differ in IRI, type or container.{{end}} So a generic JSON-LD processor pointed at the live <code>/schema</code> does not reproduce the RDF that was hashed, and cannot be used to check a CID. Use the sealer.</li>
 <li>The two contexts are not yet aligned. Until they are, treat the sealer's as the one that defines identity and this one as a description of the vocabulary.</li>
 </ul>
 <p>The wire format's terms, and where each stands today. <b>Defined here</b> means this context has an explicit entry for it; otherwise it falls to <code>@vocab</code>.</p>
