@@ -30,7 +30,9 @@ already does).
 
 `cases.json` — one **session** per case: load a fixture (paths relative to
 `parity/`: the shared `parity/fixtures/` nets and `native/fixtures/`: `sir` with
-rates, `gated` with capacities, an inhibitor arc and rates), then run the steps in
+rates, `gated` with capacities, an inhibitor arc and rates, `tic-tac-toe.json`
+a byte-identical copy of pflow-native's `examples/tic-tac-toe.json` for the
+`game.*` cases), then run the steps in
 order, so a command that needs an artifact follows the one that makes it
 (`data.generate` → `data.conformance {log: "a1"}`). A step with `generate_only` is
 run by both sides (so artifact ids line up) but compared on neither; a later

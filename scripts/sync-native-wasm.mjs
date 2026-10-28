@@ -20,7 +20,7 @@
 // want @types/node to type-check the test).
 
 // The native commands the editor's registry exposes: the browser-safe subset
-// of pflow-native's registry (177 commands at 0.8.0, commit 44db841). A
+// of pflow-native's registry (179 commands at 0.8.0, commit cdd3816). A
 // command is exposed when it runs from inline arguments (each call reloads the
 // editor's document into the engine), needs no OS access, and its result is
 // something the page can show: a JSON result or an artifact in the Results
@@ -55,6 +55,11 @@ export const EXPOSED = [
   'store.query', 'store.collection_create', 'store.collection_add', 'store.collection_list', 'store.license',
   'store.supersede', 'store.migration_offers', 'store.accept_migration', 'store.map_put', 'store.map_get',
   'store.map_list', 'store.graph', 'store.info',
+  // a net as a two-sided game: the exact value of the position and a best
+  // move, by pflow-metamodel's alpha-beta search run as a SearchPlan names it
+  // (read-only: the move is not fired, the marking is not set; `book` is the
+  // label cache's text inline, not an artifact)
+  'game.value', 'game.move',
 ];
 
 // Exposed commands that edit the net: the bridge commits the engine's

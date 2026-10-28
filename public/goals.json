@@ -125,6 +125,23 @@
       "plan": [{ "command": "analysis.canonical", "args": {} }],
       "answer": "An id that is equal for two nets exactly when they differ only by renaming, plus the net's symmetries.",
       "caveat": "Compare the id with the other net's (run this on both); a structural diff of two nets is not in the browser yet."
+    },
+    {
+      "id": "best_play",
+      "question": "Who wins with best play, and with which move?",
+      "phrases": ["who wins", "best play", "best move", "perfect play", "play perfectly", "winning move", "solve the game", "forced win"],
+      "inputs": [
+        { "name": "sides", "kind": "json", "label": "who moves: {transition-id prefix: +1 or -1}, +1 the side the value is for", "example": "{\"x_\": 1, \"o_\": -1}" },
+        { "name": "reward", "kind": "json", "label": "what the final marking pays the +1 side: {place: weight}", "example": "{\"win_x\": 1, \"win_o\": -1}" },
+        { "name": "auto", "kind": "json", "label": "transition-id prefixes that fire on their own as soon as enabled, e.g. win claims: [prefix, ...]", "example": "[\"x_win_\", \"o_win_\"]", "optional": true },
+        { "name": "plan", "kind": "json", "label": "the search plan (pflow-metamodel SearchPlan; blank = the default)", "example": "{\"order\": [\"tt_best\", \"immediate_win\", \"history\"]}", "optional": true },
+        { "name": "nodes", "kind": "number", "label": "node budget (blank = 1,000,000; the search runs on this page's thread, so past about 10,000,000 it holds the tab for tens of seconds or more)", "optional": true }
+      ],
+      "plan": [
+        { "command": "game.move", "args": { "sides": "$input.sides", "reward": "$input.reward", "auto": "$input.auto", "plan": "$input.plan", "nodes": "$input.nodes" } }
+      ],
+      "answer": "The exact value of the current position from the +1 side's view (with rewards of +1 and -1: 1 a forced win, -1 a forced loss, 0 a draw) and a best move for the side to move, as a transition you can fire; or no answer (value and move null) when the search runs past its node budget, unless the plan's mode is \"play\", where the move is then an unproven guess (exact false).",
+      "caveat": "Exact and deterministic for a given plan and node budget: the same value, move and node count on every machine, except that a plan naming the \"ode\" root estimate can count nodes differently on another platform (and so, near the budget, finish on one and not the other). The search runs on the page's own thread (about a second or two per million nodes on connect-4): a large budget freezes the tab until it ends. It is a best move, not the best move: another plan may pick another, equally good one. The game is what sides, reward and auto say it is; the net's rates play no part, and the move is not fired."
     }
   ]
 }

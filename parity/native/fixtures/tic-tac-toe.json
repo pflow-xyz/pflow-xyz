@@ -1,0 +1,2431 @@
+{
+  "@context": "https://pflow.xyz/schema",
+  "@id": "z4EBG9j1YQFZEQBpCn3ZjdpAuXpPnrKSDF5YXsW3q86znPztEoh",
+  "@type": "PetriNet",
+  "@version": "1.1",
+  "arcs": [
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "p00",
+      "target": "x_play_00",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_turn",
+      "target": "x_play_00",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_play_00",
+      "target": "x00",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_play_00",
+      "target": "o_turn",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "p01",
+      "target": "x_play_01",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_turn",
+      "target": "x_play_01",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_play_01",
+      "target": "x01",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_play_01",
+      "target": "o_turn",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "p02",
+      "target": "x_play_02",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_turn",
+      "target": "x_play_02",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_play_02",
+      "target": "x02",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_play_02",
+      "target": "o_turn",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "p10",
+      "target": "x_play_10",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_turn",
+      "target": "x_play_10",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_play_10",
+      "target": "x10",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_play_10",
+      "target": "o_turn",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "p11",
+      "target": "x_play_11",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_turn",
+      "target": "x_play_11",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_play_11",
+      "target": "x11",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_play_11",
+      "target": "o_turn",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "p12",
+      "target": "x_play_12",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_turn",
+      "target": "x_play_12",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_play_12",
+      "target": "x12",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_play_12",
+      "target": "o_turn",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "p20",
+      "target": "x_play_20",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_turn",
+      "target": "x_play_20",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_play_20",
+      "target": "x20",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_play_20",
+      "target": "o_turn",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "p21",
+      "target": "x_play_21",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_turn",
+      "target": "x_play_21",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_play_21",
+      "target": "x21",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_play_21",
+      "target": "o_turn",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "p22",
+      "target": "x_play_22",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_turn",
+      "target": "x_play_22",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_play_22",
+      "target": "x22",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_play_22",
+      "target": "o_turn",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "p00",
+      "target": "o_play_00",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_turn",
+      "target": "o_play_00",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_play_00",
+      "target": "o00",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_play_00",
+      "target": "x_turn",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "p01",
+      "target": "o_play_01",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_turn",
+      "target": "o_play_01",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_play_01",
+      "target": "o01",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_play_01",
+      "target": "x_turn",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "p02",
+      "target": "o_play_02",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_turn",
+      "target": "o_play_02",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_play_02",
+      "target": "o02",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_play_02",
+      "target": "x_turn",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "p10",
+      "target": "o_play_10",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_turn",
+      "target": "o_play_10",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_play_10",
+      "target": "o10",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_play_10",
+      "target": "x_turn",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "p11",
+      "target": "o_play_11",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_turn",
+      "target": "o_play_11",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_play_11",
+      "target": "o11",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_play_11",
+      "target": "x_turn",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "p12",
+      "target": "o_play_12",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_turn",
+      "target": "o_play_12",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_play_12",
+      "target": "o12",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_play_12",
+      "target": "x_turn",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "p20",
+      "target": "o_play_20",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_turn",
+      "target": "o_play_20",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_play_20",
+      "target": "o20",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_play_20",
+      "target": "x_turn",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "p21",
+      "target": "o_play_21",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_turn",
+      "target": "o_play_21",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_play_21",
+      "target": "o21",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_play_21",
+      "target": "x_turn",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "p22",
+      "target": "o_play_22",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_turn",
+      "target": "o_play_22",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_play_22",
+      "target": "o22",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_play_22",
+      "target": "x_turn",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x00",
+      "target": "x_win_row0",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x01",
+      "target": "x_win_row0",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x02",
+      "target": "x_win_row0",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_turn",
+      "target": "x_win_row0",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_win_row0",
+      "target": "win_x",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_win_row0",
+      "target": "x00",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_win_row0",
+      "target": "x01",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_win_row0",
+      "target": "x02",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x10",
+      "target": "x_win_row1",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x11",
+      "target": "x_win_row1",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x12",
+      "target": "x_win_row1",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_turn",
+      "target": "x_win_row1",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_win_row1",
+      "target": "win_x",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_win_row1",
+      "target": "x10",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_win_row1",
+      "target": "x11",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_win_row1",
+      "target": "x12",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x20",
+      "target": "x_win_row2",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x21",
+      "target": "x_win_row2",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x22",
+      "target": "x_win_row2",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_turn",
+      "target": "x_win_row2",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_win_row2",
+      "target": "win_x",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_win_row2",
+      "target": "x20",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_win_row2",
+      "target": "x21",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_win_row2",
+      "target": "x22",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x00",
+      "target": "x_win_col0",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x10",
+      "target": "x_win_col0",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x20",
+      "target": "x_win_col0",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_turn",
+      "target": "x_win_col0",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_win_col0",
+      "target": "win_x",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_win_col0",
+      "target": "x00",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_win_col0",
+      "target": "x10",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_win_col0",
+      "target": "x20",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x01",
+      "target": "x_win_col1",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x11",
+      "target": "x_win_col1",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x21",
+      "target": "x_win_col1",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_turn",
+      "target": "x_win_col1",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_win_col1",
+      "target": "win_x",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_win_col1",
+      "target": "x01",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_win_col1",
+      "target": "x11",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_win_col1",
+      "target": "x21",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x02",
+      "target": "x_win_col2",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x12",
+      "target": "x_win_col2",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x22",
+      "target": "x_win_col2",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_turn",
+      "target": "x_win_col2",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_win_col2",
+      "target": "win_x",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_win_col2",
+      "target": "x02",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_win_col2",
+      "target": "x12",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_win_col2",
+      "target": "x22",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x00",
+      "target": "x_win_diag",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x11",
+      "target": "x_win_diag",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x22",
+      "target": "x_win_diag",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_turn",
+      "target": "x_win_diag",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_win_diag",
+      "target": "win_x",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_win_diag",
+      "target": "x00",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_win_diag",
+      "target": "x11",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_win_diag",
+      "target": "x22",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x02",
+      "target": "x_win_anti",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x11",
+      "target": "x_win_anti",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x20",
+      "target": "x_win_anti",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_turn",
+      "target": "x_win_anti",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_win_anti",
+      "target": "win_x",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_win_anti",
+      "target": "x02",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_win_anti",
+      "target": "x11",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_win_anti",
+      "target": "x20",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o00",
+      "target": "o_win_row0",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o01",
+      "target": "o_win_row0",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o02",
+      "target": "o_win_row0",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_turn",
+      "target": "o_win_row0",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_win_row0",
+      "target": "win_o",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_win_row0",
+      "target": "o00",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_win_row0",
+      "target": "o01",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_win_row0",
+      "target": "o02",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o10",
+      "target": "o_win_row1",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o11",
+      "target": "o_win_row1",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o12",
+      "target": "o_win_row1",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_turn",
+      "target": "o_win_row1",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_win_row1",
+      "target": "win_o",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_win_row1",
+      "target": "o10",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_win_row1",
+      "target": "o11",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_win_row1",
+      "target": "o12",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o20",
+      "target": "o_win_row2",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o21",
+      "target": "o_win_row2",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o22",
+      "target": "o_win_row2",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_turn",
+      "target": "o_win_row2",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_win_row2",
+      "target": "win_o",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_win_row2",
+      "target": "o20",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_win_row2",
+      "target": "o21",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_win_row2",
+      "target": "o22",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o00",
+      "target": "o_win_col0",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o10",
+      "target": "o_win_col0",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o20",
+      "target": "o_win_col0",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_turn",
+      "target": "o_win_col0",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_win_col0",
+      "target": "win_o",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_win_col0",
+      "target": "o00",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_win_col0",
+      "target": "o10",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_win_col0",
+      "target": "o20",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o01",
+      "target": "o_win_col1",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o11",
+      "target": "o_win_col1",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o21",
+      "target": "o_win_col1",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_turn",
+      "target": "o_win_col1",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_win_col1",
+      "target": "win_o",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_win_col1",
+      "target": "o01",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_win_col1",
+      "target": "o11",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_win_col1",
+      "target": "o21",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o02",
+      "target": "o_win_col2",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o12",
+      "target": "o_win_col2",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o22",
+      "target": "o_win_col2",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_turn",
+      "target": "o_win_col2",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_win_col2",
+      "target": "win_o",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_win_col2",
+      "target": "o02",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_win_col2",
+      "target": "o12",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_win_col2",
+      "target": "o22",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o00",
+      "target": "o_win_diag",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o11",
+      "target": "o_win_diag",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o22",
+      "target": "o_win_diag",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_turn",
+      "target": "o_win_diag",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_win_diag",
+      "target": "win_o",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_win_diag",
+      "target": "o00",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_win_diag",
+      "target": "o11",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_win_diag",
+      "target": "o22",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o02",
+      "target": "o_win_anti",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o11",
+      "target": "o_win_anti",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o20",
+      "target": "o_win_anti",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "x_turn",
+      "target": "o_win_anti",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_win_anti",
+      "target": "win_o",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_win_anti",
+      "target": "o02",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_win_anti",
+      "target": "o11",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "o_win_anti",
+      "target": "o20",
+      "weight": [
+        1
+      ]
+    }
+  ],
+  "author": {
+    "@type": "Person",
+    "id": "github:243500",
+    "identifier": "https://github.com/stackdump",
+    "name": "stackdump"
+  },
+  "places": {
+    "o00": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 520,
+      "y": 520
+    },
+    "o01": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 600,
+      "y": 520
+    },
+    "o02": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 680,
+      "y": 520
+    },
+    "o10": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 520,
+      "y": 600
+    },
+    "o11": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 600,
+      "y": 600
+    },
+    "o12": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 680,
+      "y": 600
+    },
+    "o20": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 520,
+      "y": 680
+    },
+    "o21": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 600,
+      "y": 680
+    },
+    "o22": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 680,
+      "y": 680
+    },
+    "o_turn": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 860,
+      "y": 120
+    },
+    "p00": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        1
+      ],
+      "offset": 0,
+      "x": 770,
+      "y": 250
+    },
+    "p01": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        1
+      ],
+      "offset": 0,
+      "x": 850,
+      "y": 250
+    },
+    "p02": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        1
+      ],
+      "offset": 0,
+      "x": 930,
+      "y": 250
+    },
+    "p10": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        1
+      ],
+      "offset": 0,
+      "x": 770,
+      "y": 330
+    },
+    "p11": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        1
+      ],
+      "offset": 0,
+      "x": 850,
+      "y": 330
+    },
+    "p12": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        1
+      ],
+      "offset": 0,
+      "x": 930,
+      "y": 330
+    },
+    "p20": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        1
+      ],
+      "offset": 0,
+      "x": 770,
+      "y": 410
+    },
+    "p21": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        1
+      ],
+      "offset": 0,
+      "x": 850,
+      "y": 410
+    },
+    "p22": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        1
+      ],
+      "offset": 0,
+      "x": 930,
+      "y": 410
+    },
+    "win_o": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 610,
+      "y": 1180
+    },
+    "win_x": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 1110,
+      "y": 1200
+    },
+    "x00": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 1030,
+      "y": 530
+    },
+    "x01": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 1110,
+      "y": 530
+    },
+    "x02": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 1190,
+      "y": 530
+    },
+    "x10": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 1030,
+      "y": 610
+    },
+    "x11": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 1110,
+      "y": 610
+    },
+    "x12": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 1190,
+      "y": 610
+    },
+    "x20": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 1030,
+      "y": 690
+    },
+    "x21": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 1110,
+      "y": 690
+    },
+    "x22": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 1190,
+      "y": 690
+    },
+    "x_turn": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        1
+      ],
+      "offset": 0,
+      "x": 860,
+      "y": 40
+    }
+  },
+  "token": [
+    "https://pflow.xyz/tokens/black"
+  ],
+  "transitions": {
+    "o_play_00": {
+      "@type": "Transition",
+      "offset": 0,
+      "role": "default",
+      "x": 510,
+      "y": 250
+    },
+    "o_play_01": {
+      "@type": "Transition",
+      "offset": 0,
+      "role": "default",
+      "x": 590,
+      "y": 250
+    },
+    "o_play_02": {
+      "@type": "Transition",
+      "offset": 0,
+      "role": "default",
+      "x": 670,
+      "y": 250
+    },
+    "o_play_10": {
+      "@type": "Transition",
+      "offset": 0,
+      "role": "default",
+      "x": 510,
+      "y": 330
+    },
+    "o_play_11": {
+      "@type": "Transition",
+      "offset": 0,
+      "role": "default",
+      "x": 590,
+      "y": 330
+    },
+    "o_play_12": {
+      "@type": "Transition",
+      "offset": 0,
+      "role": "default",
+      "x": 670,
+      "y": 330
+    },
+    "o_play_20": {
+      "@type": "Transition",
+      "offset": 0,
+      "role": "default",
+      "x": 510,
+      "y": 410
+    },
+    "o_play_21": {
+      "@type": "Transition",
+      "offset": 0,
+      "role": "default",
+      "x": 590,
+      "y": 410
+    },
+    "o_play_22": {
+      "@type": "Transition",
+      "offset": 0,
+      "role": "default",
+      "x": 670,
+      "y": 410
+    },
+    "o_win_anti": {
+      "@type": "Transition",
+      "offset": 0,
+      "role": "default",
+      "x": 520,
+      "y": 1050
+    },
+    "o_win_col0": {
+      "@type": "Transition",
+      "offset": 0,
+      "role": "default",
+      "x": 600,
+      "y": 890
+    },
+    "o_win_col1": {
+      "@type": "Transition",
+      "offset": 0,
+      "role": "default",
+      "x": 600,
+      "y": 970
+    },
+    "o_win_col2": {
+      "@type": "Transition",
+      "offset": 0,
+      "role": "default",
+      "x": 600,
+      "y": 1050
+    },
+    "o_win_diag": {
+      "@type": "Transition",
+      "offset": 0,
+      "role": "default",
+      "x": 520,
+      "y": 890
+    },
+    "o_win_row0": {
+      "@type": "Transition",
+      "offset": 0,
+      "role": "default",
+      "x": 680,
+      "y": 890
+    },
+    "o_win_row1": {
+      "@type": "Transition",
+      "offset": 0,
+      "role": "default",
+      "x": 680,
+      "y": 970
+    },
+    "o_win_row2": {
+      "@type": "Transition",
+      "offset": 0,
+      "role": "default",
+      "x": 680,
+      "y": 1050
+    },
+    "x_play_00": {
+      "@type": "Transition",
+      "offset": 0,
+      "role": "default",
+      "x": 1030,
+      "y": 250
+    },
+    "x_play_01": {
+      "@type": "Transition",
+      "offset": 0,
+      "role": "default",
+      "x": 1110,
+      "y": 250
+    },
+    "x_play_02": {
+      "@type": "Transition",
+      "offset": 0,
+      "role": "default",
+      "x": 1190,
+      "y": 250
+    },
+    "x_play_10": {
+      "@type": "Transition",
+      "offset": 0,
+      "role": "default",
+      "x": 1030,
+      "y": 330
+    },
+    "x_play_11": {
+      "@type": "Transition",
+      "offset": 0,
+      "role": "default",
+      "x": 1110,
+      "y": 330
+    },
+    "x_play_12": {
+      "@type": "Transition",
+      "offset": 0,
+      "role": "default",
+      "x": 1190,
+      "y": 330
+    },
+    "x_play_20": {
+      "@type": "Transition",
+      "offset": 0,
+      "role": "default",
+      "x": 1030,
+      "y": 410
+    },
+    "x_play_21": {
+      "@type": "Transition",
+      "offset": 0,
+      "role": "default",
+      "x": 1110,
+      "y": 410
+    },
+    "x_play_22": {
+      "@type": "Transition",
+      "offset": 0,
+      "role": "default",
+      "x": 1190,
+      "y": 410
+    },
+    "x_win_anti": {
+      "@type": "Transition",
+      "offset": 0,
+      "role": "default",
+      "x": 1190,
+      "y": 1070
+    },
+    "x_win_col0": {
+      "@type": "Transition",
+      "offset": 0,
+      "role": "default",
+      "x": 1110,
+      "y": 910
+    },
+    "x_win_col1": {
+      "@type": "Transition",
+      "offset": 0,
+      "role": "default",
+      "x": 1110,
+      "y": 990
+    },
+    "x_win_col2": {
+      "@type": "Transition",
+      "offset": 0,
+      "role": "default",
+      "x": 1110,
+      "y": 1070
+    },
+    "x_win_diag": {
+      "@type": "Transition",
+      "offset": 0,
+      "role": "default",
+      "x": 1190,
+      "y": 910
+    },
+    "x_win_row0": {
+      "@type": "Transition",
+      "offset": 0,
+      "role": "default",
+      "x": 1030,
+      "y": 910
+    },
+    "x_win_row1": {
+      "@type": "Transition",
+      "offset": 0,
+      "role": "default",
+      "x": 1030,
+      "y": 990
+    },
+    "x_win_row2": {
+      "@type": "Transition",
+      "offset": 0,
+      "role": "default",
+      "x": 1030,
+      "y": 1070
+    }
+  }
+}

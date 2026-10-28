@@ -60,7 +60,7 @@ Deno.test("vendor: every engine command is exposed, a JS id or not exposed, exac
         assertEquals(!!c.writesState, WRITES_STATE.includes(c.id), `${c.id} writesState`);
     }
     // the session commands are in, the engine's own state API is not
-    for (const id of ["model.save", "store.put", "note.add", "macro.play", "system.bind"]) assert(EXPOSED.includes(id), id);
+    for (const id of ["model.save", "store.put", "note.add", "macro.play", "system.bind", "game.value", "game.move"]) assert(EXPOSED.includes(id), id);
     for (const id of ["session.dump_state", "session.restore_state", "artifact.put", "macro.record", "job.start", "command.batch", "file.open", "file.save"]) assert(!EXPOSED.includes(id), id);
 });
 
@@ -353,6 +353,32 @@ Deno.test("native: sim.evaluate and opt.distill need a game and say so; on tic-t
     assert(di.multipliers.moves > 0);
 });
 
+Deno.test("native: game.value and game.move solve tic-tac-toe exactly, read-only, and refuse a time budget", async () => {
+    // neither edits the net, sets the marking, writes the saved state or takes an artifact
+    for (const id of ["game.value", "game.move"]) {
+        const spec = (NATIVE_COMMANDS as any[]).find((c) => c.id === id);
+        assert(spec, id);
+        assertEquals([!!spec.edits, !!spec.setsMarking, !!spec.writesState, !!spec.artifactArgs], [false, false, false, false], id);
+    }
+    const r = reg2();
+    await r.execute("file.open_example", { name: "tic-tac-toe" });
+    const rules = { sides: { x_: 1, o_: -1 }, reward: { win_x: 1, win_o: -1 }, auto: ["x_win_", "o_win_"] };
+    const before = (await r.execute("sim.marking")).marking;
+    const v = await r.execute("game.value", rules);
+    assertEquals([v.value, v.exact, v.mover, v.moves], [0, true, 1, 9]); // a draw with best play
+    assertEquals(r.artifact(v.artifact).source.command, "game.value"); // the Report, filed in the JS registry
+    const m = await r.execute("game.move", { ...rules, plan: JSON.stringify({ order: ["immediate_win", "history"], filters: [] }) });
+    assertEquals([m.value, m.exact], [0, true]);
+    assert(String(m.transition).startsWith("x_play_"), m.transition);
+    assertEquals((await r.execute("sim.marking")).marking, before, "the move is not fired");
+    // past the budget: no move in exact mode, a guess in play mode
+    assertEquals((await r.execute("game.move", { ...rules, nodes: 50 })).transition, null);
+    const guess = await r.execute("game.move", { ...rules, nodes: 50, plan: { mode: "play" } });
+    assertEquals([typeof guess.transition, guess.exact], ["string", false]);
+    await assertRejects(() => r.execute("game.value", { ...rules, plan: { drivers: [{ budget: { ms: 10 } }] } }), CommandError, "budget.ms");
+    await assertRejects(() => r.execute("game.value", { ...rules, nodes: 1e9 }), CommandError, "nodes must be in");
+});
+
 Deno.test("native: provenance.verify_receipt verifies a receipt, and refuses a non-receipt", async () => {
     const { engine } = await loadEngine();
     const r = reg2();
@@ -372,6 +398,14 @@ Deno.test("native: the chat's tool manifest has the new commands, and not export
     // the session state: the chat reads it and opens from it, but writes none of it
     for (const id of ["model.list", "model.get", "model.open", "store.list", "store.query", "store.open", "note.list", "macro.play", "system.run"]) assert(names.has(id), id);
     for (const id of WRITES_STATE) assert(!names.has(id), `${id} writes the person's saved state`);
+    // the game tools: the rules and the plan travel as JSON strings (Gemini's schema subset)
+    for (const id of ["game.value", "game.move"]) {
+        const t = manifest.tools.find((x: any) => x.command === id);
+        assert(t, id);
+        assertEquals(t.name, id.replace(".", "_"));
+        assertEquals(t.json_args, ["sides", "reward", "plan"], id);
+        assertEquals(t.parameters.required, ["sides", "reward"], id);
+    }
 });
 
 // ---- the session state, kept in browser storage ----

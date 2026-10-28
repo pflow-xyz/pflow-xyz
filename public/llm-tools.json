@@ -2377,6 +2377,98 @@
       "name": "store_info",
       "command": "store.info",
       "description": "Store Info. Where the store lives, what it holds, and the predicate registry."
+    },
+    {
+      "name": "game_value",
+      "command": "game.value",
+      "description": "Game Value…. The exact value of the current position, from the +1 side's view, with both sides playing perfectly: pflow-metamodel's alpha-beta search over the firing rule, run as `plan` names it. The game is the net read through `sides` (who owns each transition), `reward` (read off the final marking) and `auto` (transitions nobody chooses, fired first). The value is null when the search runs past its node budget (`nodes` then reports the budget). A plan and budget give the same result on every machine, except with the \"ode\" root estimate: it solves the mass-action ODE with every transition at rate 1, not the session's rates, and its step control uses the platform's floating-point `powf`, so the native and browser builds can search different numbers of nodes, and near the budget one can finish where the other does not. Changes neither the net nor the marking; the result is stored as a Report.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "sides": {
+            "type": "string",
+            "description": "{transition-id prefix: sign}: who moves, e.g. {\"x_\": 1, \"o_\": -1} (+1 maximizes the reward) (pass a JSON value as a string)"
+          },
+          "reward": {
+            "type": "string",
+            "description": "{place: weight} read from the final marking, from the +1 side's view, e.g. {\"win_x\": 1, \"win_o\": -1} (pass a JSON value as a string)"
+          },
+          "auto": {
+            "description": "transition-id prefixes that fire as soon as they are enabled, before anyone chooses (e.g. [\"x_win_\", \"o_win_\"]: win claims)",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "plan": {
+            "type": "string",
+            "description": "a SearchPlan (pflow-metamodel), or a JSON string of one: {mode, order, filters, root, drivers, memo}; default {}. A time budget (budget.ms) is refused. Root estimate \"ode\" solves the mass-action ODE with every transition at rate 1, not the session's rates (pass a JSON value as a string)"
+          },
+          "nodes": {
+            "description": "the node budget when the plan's drivers set none (default 1,000,000; at most 100,000,000)",
+            "type": "integer"
+          },
+          "book": {
+            "description": "an opening book: the text of a label cache as the experimental rnn commands write it to `labels` (JSONL, a header line naming the net and rules, then one position per line); its positions are pinned in the table, exact",
+            "type": "string"
+          }
+        },
+        "required": [
+          "sides",
+          "reward"
+        ]
+      },
+      "json_args": [
+        "sides",
+        "reward",
+        "plan"
+      ]
+    },
+    {
+      "name": "game_move",
+      "command": "game.move",
+      "description": "Best Move…. A best move at the current position and its exact value (pflow-metamodel's Solver::choose, run as `plan` names it; the game as for game.value). It is a best move: another plan may pick another, equally good one. Past the node budget there is no move (transition null, reason \"past the budget\"), unless the plan's mode is \"play\", where the move is a guess (exact false): the table's best move at the position if it has one, else the first the plan's root pieces rank, which is the net's first enabled move when the root names none, so give a root order (e.g. [\"ode\"]) for a guess worth playing. Deterministic as game.value is: the \"ode\" estimate runs every transition at rate 1, not the session's rates, and can search a different number of nodes in the browser build than natively. The move is not fired: sim.fire it. The result is stored as a Report.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "sides": {
+            "type": "string",
+            "description": "{transition-id prefix: sign}: who moves, e.g. {\"x_\": 1, \"o_\": -1} (+1 maximizes the reward) (pass a JSON value as a string)"
+          },
+          "reward": {
+            "type": "string",
+            "description": "{place: weight} read from the final marking, from the +1 side's view, e.g. {\"win_x\": 1, \"win_o\": -1} (pass a JSON value as a string)"
+          },
+          "auto": {
+            "description": "transition-id prefixes that fire as soon as they are enabled, before anyone chooses (e.g. [\"x_win_\", \"o_win_\"]: win claims)",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "plan": {
+            "type": "string",
+            "description": "a SearchPlan (pflow-metamodel), or a JSON string of one: {mode, order, filters, root, drivers, memo}; default {}. A time budget (budget.ms) is refused. Root estimate \"ode\" solves the mass-action ODE with every transition at rate 1, not the session's rates (pass a JSON value as a string)"
+          },
+          "nodes": {
+            "description": "the node budget when the plan's drivers set none (default 1,000,000; at most 100,000,000)",
+            "type": "integer"
+          },
+          "book": {
+            "description": "an opening book: the text of a label cache as the experimental rnn commands write it to `labels` (JSONL, a header line naming the net and rules, then one position per line); its positions are pinned in the table, exact",
+            "type": "string"
+          }
+        },
+        "required": [
+          "sides",
+          "reward"
+        ]
+      },
+      "json_args": [
+        "sides",
+        "reward",
+        "plan"
+      ]
     }
   ]
 }
