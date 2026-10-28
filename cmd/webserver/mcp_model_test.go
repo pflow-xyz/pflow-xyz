@@ -435,7 +435,15 @@ func TestMCPBundleLargeBundlesAreAnsweredInTime(t *testing.T) {
 		if d := time.Since(start); d > 5*time.Second {
 			t.Errorf("%s took %s", c.tool, d)
 		}
-		if err != nil && c.tool != "pflow_bundle_add_link" {
+		switch {
+		case c.tool == "pflow_bundle_add_link":
+			// a refusal is an answer
+		case c.tool == "pflow_bundle_incidence":
+			// 871 x 871 flat cells: more than a 60 KB answer can hold, refused up front
+			if err == nil || !strings.Contains(err.Error(), "the matrices would have 785641 cells") {
+				t.Errorf("%s: %v", c.tool, err)
+			}
+		case err != nil:
 			t.Errorf("%s: %v", c.tool, err)
 		}
 		// whatever the answer, it goes out whole or marked as cut, under the limit

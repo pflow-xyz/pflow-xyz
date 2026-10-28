@@ -28,6 +28,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"net/http"
 	"strings"
 
@@ -44,6 +45,7 @@ const (
 	mbMaxConstraints = 200
 	mbMaxScript      = 1000
 	mbMaxExpect      = 100
+	mbMaxMatrixCells = 50000 // incidence: flat places x flat transitions, plus each subnet's own
 )
 
 func init() {
@@ -154,70 +156,6 @@ func modelTools() []mcpTool {
 	}
 }
 
-// ---- reading a bundle
-
-// modelBundle checks the arguments and reads the bundle, refusing one past the
-// counts above before any engine sees it.
-func modelBundle(tool string, args map[string]any, kinds map[string]argKind) (*metamodel.Bundle, error) {
-	if err := checkArgs(tool, args, kinds); err != nil {
-		return nil, err
-	}
-	raw, ok := args["bundle"].(map[string]any)
-	if !ok {
-		return nil, fmt.Errorf("%s: bundle: a PetriNetBundle (a JSON object with subnets and links) is required; pflow_bundle_example returns one", tool)
-	}
-	if t, ok := raw["@type"].(string); ok && t != "" && t != metamodel.BundleType {
-		return nil, fmt.Errorf("%s: bundle: @type is %q, not %q", tool, t, metamodel.BundleType)
-	}
-	subnets, ok := raw["subnets"].([]any)
-	if !ok || len(subnets) == 0 {
-		return nil, fmt.Errorf("%s: bundle: needs a non-empty \"subnets\" array", tool)
-	}
-	if len(subnets) > mbMaxSubnets {
-		return nil, fmt.Errorf("%s: bundle: %d subnets; at most %d", tool, len(subnets), mbMaxSubnets)
-	}
-	if links, ok := raw["links"].([]any); ok && len(links) > mbMaxLinks {
-		return nil, fmt.Errorf("%s: bundle: %d links; at most %d", tool, len(links), mbMaxLinks)
-	}
-	text, err := json.Marshal(raw)
-	if err != nil {
-		return nil, fmt.Errorf("%s: bundle: not JSON: %v", tool, err)
-	}
-	b := &metamodel.Bundle{}
-	if err := json.Unmarshal(text, b); err != nil {
-		return nil, fmt.Errorf("%s: bundle: %v", tool, err)
-	}
-	return b, mbCheckSize(tool, b)
-}
-
-// mbCheckSize refuses a bundle past the counts above.
-func mbCheckSize(tool string, b *metamodel.Bundle) error {
-	var places, transitions, arcs, ports, constraints int
-	for i := range b.Subnets {
-		s := &b.Subnets[i]
-		ports += len(s.Ports)
-		if s.Model != nil {
-			places += len(s.Model.Places)
-			transitions += len(s.Model.Transitions)
-			arcs += len(s.Model.Arcs)
-			constraints += len(s.Model.Constraints)
-		}
-	}
-	constraints += len(b.Constraints)
-	for _, c := range []struct {
-		what     string
-		n, limit int
-	}{
-		{"places", places, mbMaxPlaces}, {"transitions", transitions, mbMaxTransitions}, {"arcs", arcs, mbMaxArcs},
-		{"ports", ports, mbMaxPorts}, {"constraints", constraints, mbMaxConstraints},
-	} {
-		if c.n > c.limit {
-			return fmt.Errorf("%s: bundle: %d %s; at most %d", tool, c.n, c.what, c.limit)
-		}
-	}
-	return nil
-}
-
 func mbIssues(is []metamodel.ValidationError) []any {
 	out := make([]any, len(is))
 	for i, e := range is {
@@ -251,13 +189,17 @@ func mcpBundleValidate(_ *Server, _ *http.Request, args map[string]any) (any, er
 }
 
 func mcpBundleFlatten(_ *Server, _ *http.Request, args map[string]any) (any, error) {
-	b, err := modelBundle("pflow_bundle_flatten", args, bundleOnlyKinds)
+	const tool = "pflow_bundle_flatten"
+	b, err := modelBundle(tool, args, bundleOnlyKinds)
 	if err != nil {
 		return nil, err
 	}
 	f, err := mbFlatten(b)
 	if err != nil {
 		return map[string]any{"ok": false, "error": err.Error()}, nil
+	}
+	if err := f.checkAnswer(tool); err != nil {
+		return nil, err
 	}
 	return mbFlatView(f), nil
 }
@@ -267,7 +209,7 @@ func mcpBundleIncidence(_ *Server, _ *http.Request, args map[string]any) (any, e
 	if err != nil {
 		return nil, err
 	}
-	return mbIncidenceView(b), nil
+	return mbIncidenceView(b)
 }
 
 func mcpBundleAddLink(_ *Server, _ *http.Request, args map[string]any) (any, error) {
@@ -333,7 +275,8 @@ func mcpBundleCandidates(_ *Server, r *http.Request, args map[string]any) (any, 
 }
 
 func mcpBundleRun(_ *Server, _ *http.Request, args map[string]any) (any, error) {
-	b, err := modelBundle("pflow_bundle_run", args, bundleRunKinds)
+	const tool = "pflow_bundle_run"
+	b, err := modelBundle(tool, args, bundleRunKinds)
 	if err != nil {
 		return nil, err
 	}
@@ -369,6 +312,9 @@ func mcpBundleRun(_ *Server, _ *http.Request, args map[string]any) (any, error) 
 	if err != nil {
 		return nil, err
 	}
+	if err := f.checkAnswer(tool); err != nil {
+		return nil, err
+	}
 	if !hasScenario {
 		// A scenario's predicates are native's, and a place that is not there
 		// reads as 0 (flat: null says so). Ours are the caller's: a typo with
@@ -379,7 +325,7 @@ func mcpBundleRun(_ *Server, _ *http.Request, args map[string]any) (any, error) 
 			}
 		}
 	}
-	return mbRun(f, id, title, script, expect), nil
+	return mbRun(f, id, title, script, expect)
 }
 
 // mbExpectArg reads [{place, n, says?}].
@@ -396,8 +342,8 @@ func mbExpectArg(v any) ([]mbExpect, error) {
 		m, _ := raw.(map[string]any)
 		place, _ := m["place"].(string)
 		n, isNum := m["n"].(float64)
-		if place == "" || !isNum || n != float64(int(n)) {
-			return nil, fmt.Errorf("pflow_bundle_run: expect[%d] should be {place: \"<subnet>/<place>\", n: an integer, says?}, got %s", i, jsonText(raw))
+		if place == "" || !isNum || n != float64(int(n)) || math.Abs(n) >= mbExactInt {
+			return nil, fmt.Errorf("pflow_bundle_run: expect[%d] should be {place: \"<subnet>/<place>\", n: an integer below 2^53, says?}, got %s", i, jsonText(raw))
 		}
 		for k := range m {
 			if k != "place" && k != "n" && k != "says" {

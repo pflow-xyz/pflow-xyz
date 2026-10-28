@@ -471,16 +471,86 @@ func mbFlatView(f *mbFlat) map[string]any {
 	}
 }
 
+// ---- how big the answer is
+
+// mbMaxAnswerBytes bounds what a flat net may weigh in the answer. The result
+// guard cuts an answer to 60 KB, but only after the whole of it has been built
+// and printed, and a fused transition's name is repeated in every map, arc and
+// list that mentions it: a bundle of a few hundred KB can make an answer of
+// tens of MB. The estimate below is made from the flat net before any of that
+// is built, and a net that would weigh more is refused.
+const mbMaxAnswerBytes = 2 << 20
+
+// answerBytes estimates the size of pflow_bundle_flatten's answer (the
+// incidence matrix's names and pflow_bundle_run's final marking are parts of it).
+func (f *mbFlat) answerBytes() int {
+	n := 0
+	for _, p := range f.model.Places {
+		n += 160 + len(p.ID) + len(p.Description)
+	}
+	for _, t := range f.model.Transitions {
+		// the transition, its entry in the initial enablement (the reason names
+		// it and a place), and the lists of its members below
+		n += 320 + 3*len(t.ID) + len(t.Description)
+	}
+	for _, a := range f.model.Arcs {
+		n += 64 + len(a.From) + len(a.To)
+	}
+	for _, c := range f.model.Constraints {
+		n += 32 + len(c.ID) + len(c.Expr)
+	}
+	for name, members := range f.fm.Wires {
+		n += 16 + len(name)
+		for _, m := range members {
+			n += 6 + len(m)
+		}
+	}
+	for name, members := range f.fm.FusedGroups {
+		n += 16 + len(name)
+		for _, m := range members {
+			n += 6 + len(m)
+		}
+	}
+	for subnet, locals := range f.fm.Place {
+		for local, flat := range locals {
+			n += 2*(len(subnet)+len(local)) + len(flat) + 24 // the map and the place's members
+		}
+	}
+	for subnet, locals := range f.fm.Transition {
+		for local, flat := range locals {
+			n += 2*(len(subnet)+len(local)) + len(flat) + 24
+		}
+	}
+	for _, w := range f.fm.Warnings {
+		n += 64 + len(w.Code) + len(w.Element) + len(w.Message)
+	}
+	return n
+}
+
+// checkAnswer refuses a flat net whose answer would pass mbMaxAnswerBytes.
+func (f *mbFlat) checkAnswer(tool string) error {
+	if n := f.answerBytes(); n > mbMaxAnswerBytes {
+		return fmt.Errorf("%s: the flat net's answer would be about %d bytes (at most %d): long fused transition names are repeated in every list and map that mentions them; use shorter ids or fewer event links", tool, n, mbMaxAnswerBytes)
+	}
+	return nil
+}
+
 // ---- running a script
 
 // mbRun fires `script` (members "<subnet>/<transition>") on the flat net from
 // its initial marking, through Model.EnabledWhyNot and Fire, stopping at the
 // first member that is not in the net or cannot fire; then it evaluates
 // `expect` on the marking reached.
-func mbRun(f *mbFlat, id, title string, script []string, expect []mbExpect) map[string]any {
+func mbRun(f *mbFlat, id, title string, script []string, expect []mbExpect) (map[string]any, error) {
 	mk := f.model.InitialMarking()
 	steps := []any{}
 	stoppedAt := -1
+	// what the answer weighs: a step names its member, the flat transition it
+	// fired and why not, and the final marking names every flat place
+	size := 0
+	for _, p := range f.model.Places {
+		size += 24 + len(p.ID)
+	}
 	for i, member := range script {
 		flat, found := f.transitionOf(member)
 		var why string
@@ -494,6 +564,9 @@ func mbRun(f *mbFlat, id, title string, script []string, expect []mbExpect) map[
 			flatName = flat
 		}
 		steps = append(steps, map[string]any{"member": member, "flat": flatName, "enabled": why == "", "why": why})
+		if size += 80 + len(member) + len(flat) + len(why); size > mbMaxAnswerBytes {
+			return nil, fmt.Errorf("pflow_bundle_run: the answer would be over %d bytes (the steps name long fused transitions); use a shorter script or shorter ids", mbMaxAnswerBytes)
+		}
 		if why != "" {
 			stoppedAt = i
 			break
@@ -525,7 +598,7 @@ func mbRun(f *mbFlat, id, title string, script []string, expect []mbExpect) map[
 	return map[string]any{
 		"id": id, "title": title, "steps": steps, "completed": stoppedAt < 0, "stopped_at": stoppedAt,
 		"stopped_step": stoppedStep, "final_marking": final, "expect": results,
-	}
+	}, nil
 }
 
 // ---- incidence
@@ -636,10 +709,24 @@ func mbInvariantHolds(m *metamodel.Model, c [][]int, expr string) (holds, ok boo
 
 // mbIncidenceView is the flat net's matrix, each subnet's own block and each
 // declared constraint checked as y·C = 0.
-func mbIncidenceView(b *metamodel.Bundle) map[string]any {
+func mbIncidenceView(b *metamodel.Bundle) (map[string]any, error) {
 	f, err := mbFlatten(b)
 	if err != nil {
-		return map[string]any{"ok": false, "error": err.Error()}
+		return map[string]any{"ok": false, "error": err.Error()}, nil
+	}
+	if err := f.checkAnswer("pflow_bundle_incidence"); err != nil {
+		return nil, err
+	}
+	// the matrices are rows x columns of numbers, of the flat net and of each subnet
+	cells := len(f.model.Places) * len(f.model.Transitions)
+	for i := range b.Subnets {
+		if m := b.Subnets[i].Model; m != nil {
+			cells += len(m.Places) * len(m.Transitions)
+		}
+	}
+	if cells > mbMaxMatrixCells {
+		return nil, fmt.Errorf("pflow_bundle_incidence: the matrices would have %d cells (%d flat places x %d flat transitions, and each subnet's own); at most %d, and the answer limit is %d KB. pflow_bundle_flatten lists the arcs, which are the matrix's non-zero cells",
+			cells, len(f.model.Places), len(f.model.Transitions), mbMaxMatrixCells, mcpMaxResultBytes>>10)
 	}
 	c := mbIncidence(f.model)
 	rows := make([]any, len(f.model.Places))
@@ -671,5 +758,5 @@ func mbIncidenceView(b *metamodel.Bundle) map[string]any {
 		}
 		invariants[i] = map[string]any{"id": k.ID, "expr": k.Expr, "holds": holds}
 	}
-	return map[string]any{"ok": true, "rows": rows, "cols": cols, "matrix": mbMatrixView(c), "blocks": blocks, "invariants": invariants}
+	return map[string]any{"ok": true, "rows": rows, "cols": cols, "matrix": mbMatrixView(c), "blocks": blocks, "invariants": invariants}, nil
 }
