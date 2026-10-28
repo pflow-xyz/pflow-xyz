@@ -9,11 +9,14 @@
 // would be a rule the model does not know about. Two parts:
 //
 //   1. a lint of the source: which modules under public/compose/ import
-//      registry.js (and the wasm shim behind it), and that no view calls a
-//      registry command by name;
+//      registry.js (and the wasm shim behind it) by any spelling a module can
+//      write (relative, absolute, with a query, import() of a template), that
+//      no view calls a registry command by name, and that liveCommand, the
+//      pass-through to any command, is used by model.js and the store only;
 //   2. the seams model.js adds for the two views that used to call the engine
 //      themselves (flat.js and process.js ran bundle.run {scenario}) behave
-//      exactly like the call they replace.
+//      exactly like the call they replace, refusals and artifact clearing
+//      included.
 import { assert, assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import * as registry from "./registry.js";
 import { defaultLinks, liveCommand, liveScenario, loadFacts, SCENARIOS } from "./model.js";
@@ -22,6 +25,8 @@ import { start } from "./state.js";
 const COMPOSE = new URL("./", import.meta.url);
 
 // --- 1. the lint ---------------------------------------------------------------------------
+
+const PUBLIC = new URL("../", COMPOSE); // the site root: an absolute specifier ("/compose/registry.js") resolves here
 
 async function walk(dir: URL, rel = ""): Promise<string[]> {
     const out: string[] = [];
@@ -32,18 +37,56 @@ async function walk(dir: URL, rel = ""): Promise<string[]> {
     return out.sort();
 }
 
-/** Every module specifier a source imports: static, side-effect, re-export and dynamic. */
+/** Every module specifier a source imports: static, side-effect, re-export and dynamic with a literal (or a template with no ${}). */
 function specifiers(src: string): string[] {
     const out: string[] = [];
     for (const m of src.matchAll(/\b(?:import|export)\b[^'"`;]*?\bfrom\s*['"]([^'"]+)['"]/g)) out.push(m[1]);
     for (const m of src.matchAll(/\bimport\s*['"]([^'"]+)['"]/g)) out.push(m[1]);
-    for (const m of src.matchAll(/\bimport\s*\(\s*['"]([^'"]+)['"]\s*\)/g)) out.push(m[1]);
+    for (const m of dynamicImports(src)) if (m !== null) out.push(m);
     return out;
 }
 
-/** What a specifier written in `file` resolves to, without the extension (so './registry' counts too). */
+/** The argument of every import(...): its text if it is a plain literal (quotes or a template without ${}), else null (opaque). */
+function dynamicImports(src: string): Array<string | null> {
+    const out: Array<string | null> = [];
+    for (const m of src.matchAll(/\bimport\s*\(\s*(?:\/\*[\s\S]*?\*\/\s*)*([^)]*)\)/g)) {
+        const lit = /^(['"`])([^'"`\\]*)\1$/.exec(m[1].trim());
+        out.push(lit && !lit[2].includes("${") ? lit[2] : null);
+    }
+    return out;
+}
+
+/**
+ * What a specifier written in `file` resolves to, without the extension (so './registry' counts too)
+ * and without a query or hash ('./registry.js?v=2' is the same module file). An absolute path
+ * ("/compose/registry.js") or a URL with an origin names the file under the site root, public/.
+ */
 function target(file: string, spec: string): string | null {
-    try { return new URL(spec, new URL(file, COMPOSE)).href.replace(/\.js$/, ""); } catch { return null; }
+    try {
+        let u: URL;
+        if (/^(?:[a-z][a-z0-9+.-]*:)?\/\//i.test(spec)) u = new URL(new URL(spec, "https://site.invalid/").pathname.slice(1), PUBLIC);
+        else if (spec.startsWith("/")) u = new URL(spec.slice(1), PUBLIC);
+        else u = new URL(spec, new URL(file, COMPOSE));
+        u.search = "";
+        u.hash = "";
+        return u.href.replace(/\.js$/, "");
+    } catch { return null; }
+}
+
+const REGISTRY = target("registry.js", "./registry.js");
+
+/** Does this source (a module at `file`) import registry.js, by any spelling the scan can resolve? */
+function importsRegistry(file: string, src: string): boolean {
+    return specifiers(src).some((s) => target(file, s) === REGISTRY);
+}
+
+/**
+ * Does this source mention liveCommand (an import, a namespace member, a re-export, an alias)? It reads
+ * text, not syntax, so a comment that names it counts too: a miss would be the worse mistake, and a
+ * comment can say "the store's door" instead.
+ */
+function usesLiveCommand(src: string): boolean {
+    return /\bliveCommand\b/.test(src);
 }
 
 const files = await walk(COMPOSE);
@@ -52,7 +95,7 @@ for (const f of files) sources[f] = await Deno.readTextFile(new URL(f, COMPOSE))
 
 /** The files that import `module` (a path under public/, without extension), as written or extensionless. */
 function importersOf(module: string): string[] {
-    const want = new URL(module, new URL("../", COMPOSE)).href;
+    const want = new URL(module, PUBLIC).href;
     return files.filter((f) => specifiers(sources[f]).some((s) => target(f, s) === want));
 }
 
@@ -67,8 +110,26 @@ Deno.test("engine access: the scan sees the composition's modules and finds the 
     assertEquals(target("views/x.js", "../registry.js"), target("state.js", "./registry"));
 });
 
+Deno.test("engine access: the registry matcher takes absolute paths, URLs, queries and template-literal imports", () => {
+    const hit = (src: string) => importsRegistry("views/x.js", src);
+    // what the first version of the lint let through
+    assert(hit(`import { engines } from "/compose/registry.js";`), "absolute path");
+    assert(hit("const r = await import(`../registry.js`);"), "template literal, no substitution");
+    assert(hit(`import { engines } from '/compose/registry';`), "absolute path, no extension");
+    assert(hit(`import { engines } from '../registry.js?v=2';`), "query string");
+    assert(hit(`import { engines } from 'https://pflow.xyz/compose/registry.js#x';`), "URL with an origin");
+    assert(hit(`import { engines } from '//pflow.xyz/compose/registry.js';`), "protocol-relative URL");
+    assert(hit(`import { engines } from '../../compose/registry.js';`), "a longer way round");
+    // and what it must leave alone
+    assert(!hit(`import { liveScenario } from '../model.js';`));
+    assert(!hit(`import { cite } from '/compose/sources.js';`));
+    assert(!hit(`const name = '../registry.js'; // a string is not an import`));
+    // an import whose specifier is computed cannot be resolved: it is reported, not skipped
+    assertEquals(dynamicImports("await import(`./views/${id}.js`); await import(/* x */ URL); await import('./a.js'); import(`./b.js`)"), [null, null, "./a.js", "./b.js"]);
+});
+
 Deno.test("engine access: no view imports registry.js", () => {
-    const offenders = files.filter((f) => f.startsWith("views/") && specifiers(sources[f]).some((s) => target(f, s) === target("registry.js", "./registry.js")));
+    const offenders = files.filter((f) => f.startsWith("views/") && importsRegistry(f, sources[f]));
     assertEquals(offenders, [], "a view reaches the engine itself; add a question to model.js and call that");
 });
 
@@ -83,6 +144,26 @@ Deno.test("engine access: only model.js and the page's loader import registry.js
     // model.js asks. app.js loads the wasm (registry.init) and prints the engine's version: it asks nothing.
     // state.js, the store, used to import it for its edit commands and now goes through liveCommand/flattenLive.
     assertEquals(importersOf("compose/registry"), ["app.js", "model.js"]);
+});
+
+Deno.test("engine access: no module imports a module it cannot name, except the view loader and the Pyodide loader", () => {
+    // import(`./views/${id}.js`) in app.js (the view ids are the page's own list) and import(PYODIDE_URL) in
+    // laws-live.js (a CDN) are the two. Any other computed import could load registry.js past the checks above.
+    const opaque = files.filter((f) => dynamicImports(sources[f]).includes(null));
+    assertEquals(opaque, ["app.js", "laws-live.js"]);
+});
+
+Deno.test("engine access: only model.js and state.js use liveCommand", () => {
+    // liveCommand is a pass-through to any registry command, so it is the one door a view must not be handed:
+    // a view that imported it could call bundle.run itself and the checks above would see nothing. The store
+    // (state.js) edits the open composition and plan with it; everything else asks a model.js function.
+    assert(usesLiveCommand("import { liveCommand } from '../model.js';"));
+    assert(usesLiveCommand("import * as M from '../model.js'; M.liveCommand('bundle.run', {});"));
+    assert(usesLiveCommand("import { liveCommand as lc } from '../model.js';"));
+    assert(usesLiveCommand("export { liveCommand } from './model.js';"));
+    assert(usesLiveCommand("const m = await import('../model.js'); m['liveCommand']('x');"));
+    assert(!usesLiveCommand("import { liveScenario, flattenLive } from '../model.js';"));
+    assertEquals(files.filter((f) => usesLiveCommand(sources[f])), ["model.js", "state.js"]);
 });
 
 Deno.test("engine access: nothing but registry.js imports the wasm shim", () => {
