@@ -31,6 +31,7 @@ func (s *Server) handleSitemap(w http.ResponseWriter, r *http.Request) {
 	}
 	entry(base+"/", "1.0")
 	entry(base+"/schema", "0.8")
+	entry(base+"/compose.html", "0.6") // /m/<cid> pages will need this head, an entry and analytics server-side too (waits on D3/D4); at slice 2 the design redirects /compose.html to /m/orders#v=cospan, and this entry and the canonical then move to /m/<name>
 	entry(base+"/mcp.html", "0.6")
 	for _, cid := range cids {
 		if !cidPattern.MatchString(cid) {

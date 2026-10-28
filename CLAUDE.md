@@ -449,7 +449,7 @@ ssh pflow.dev "tmux attach -t servers"
 
 Environment variables are configured in `~/services`. This service uses:
 - `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` - GitHub OAuth
-- `GOOGLE_ANALYTICS_ID` - Analytics (G-E7Q5BVDGYB)
+- `GOOGLE_ANALYTICS_ID` - Analytics (G-E7Q5BVDGYB); the tag is injected into `/` and `/compose.html` only (`cmd/webserver/static_pages.go`), no other page; a value that is not a tag ID (letters, digits, `-`, `_`) turns analytics off with one log line
 - `SUPABASE_JWT_SECRET` - Supabase JWT
 
 ## Decommissioning

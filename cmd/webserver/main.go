@@ -905,7 +905,9 @@ func (s *Server) handleGetUser(w http.ResponseWriter, r *http.Request) {
 
 // getAnalyticsScript returns the Google Analytics script tag if configured
 func (s *Server) getAnalyticsScript() string {
-	if s.googleAnalyticsID == "" {
+	// The ID is written into a URL and a JS string: only a tag-ID-shaped one is
+	// (static_pages.go).
+	if !validAnalyticsID(s.googleAnalyticsID) {
 		return ""
 	}
 	return fmt.Sprintf(`<!-- Google Analytics -->
@@ -1109,6 +1111,12 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		// /compose.html: a static page with its own share head, counted like "/"
+		// (static_pages.go).
+		if s.serveComposeStatic(w, r) {
+			return
+		}
+
 		// The vendored wasm shim is stored gzip-compressed only (wasm.go).
 		if s.serveGzippedWasm(w, r) {
 			return
@@ -1154,7 +1162,7 @@ func main() {
 	server.configureMCPOAuth(*dataDir)
 
 	// Configure Google Analytics if set
-	if gaID := os.Getenv("GOOGLE_ANALYTICS_ID"); gaID != "" {
+	if gaID := analyticsIDFromEnv(os.Getenv("GOOGLE_ANALYTICS_ID")); gaID != "" {
 		server.googleAnalyticsID = gaID
 		log.Printf("Google Analytics: %s", gaID)
 	}

@@ -94,11 +94,25 @@ func loadSchemaTerms(data []byte) ([]schemaTerm, error) {
 	return terms, nil
 }
 
+// schemaVocab returns the context's @vocab ("" when it has none).
+func schemaVocab(data []byte) string {
+	var doc struct {
+		Context struct {
+			Vocab string `json:"@vocab"`
+		} `json:"@context"`
+	}
+	if json.Unmarshal(data, &doc) != nil {
+		return ""
+	}
+	return doc.Context.Vocab
+}
+
 // schemaCache lazily loads and caches the parsed schema.
 type schemaCache struct {
 	once  sync.Once
 	raw   []byte
 	terms []schemaTerm
+	vocab string // the context's @vocab
 	err   error
 }
 
@@ -109,6 +123,7 @@ func (c *schemaCache) load(publicFS fs.FS) ([]byte, []schemaTerm, error) {
 			return
 		}
 		c.terms, c.err = loadSchemaTerms(c.raw)
+		c.vocab = schemaVocab(c.raw)
 	})
 	return c.raw, c.terms, c.err
 }
@@ -150,9 +165,9 @@ func renderTokenHTML(w http.ResponseWriter, name, description string, colors []s
 }
 
 // renderSchemaHTML writes the human-readable schema reference page.
-func renderSchemaHTML(w http.ResponseWriter, terms []schemaTerm) error {
+func renderSchemaHTML(w http.ResponseWriter, vocab string, terms []schemaTerm) error {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	return schemaTpl.Execute(w, struct{ Terms []schemaTerm }{terms})
+	return schemaTpl.Execute(w, schemaPage{Terms: terms, Bundle: buildBundleDoc(vocab, terms)})
 }
 
 // handleSchema serves /schema with content negotiation: HTML for browsers,
@@ -174,7 +189,7 @@ func (s *Server) handleSchema(w http.ResponseWriter, r *http.Request) {
 	// equivalent to its pflow.xyz/schema# IRI).
 	w.Header().Add("Link", `<https://ontology.pflow.xyz/ns.ttl>; rel="describedby"; type="text/turtle"`)
 	if wantsHTML(r) {
-		if err := renderSchemaHTML(w, terms); err != nil {
+		if err := renderSchemaHTML(w, s.schemaCache.vocab, terms); err != nil {
 			http.Error(w, "render error", http.StatusInternalServerError)
 		}
 		return
@@ -234,6 +249,12 @@ td.term { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: va
 td.id, td.type { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--pf-text-muted); font-size: 12px; word-break: break-all; }
 pre { background: var(--pf-bg-card); padding: 12px; border-radius: 4px; overflow-x: auto; font-size: 13px; }
 code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+h2 { color: var(--pf-text); font-size: 22px; margin: 48px 0 0; }
+h3 { color: var(--pf-accent); font-size: 16px; margin: 32px 0 0; }
+li { color: var(--pf-text-muted); margin: 6px 0; }
+td { color: var(--pf-text); }
+td.id b { color: var(--pf-accent); font-weight: 500; white-space: nowrap; }
+td.ftype { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--pf-text-muted); font-size: 12px; }
 .nav { margin-bottom: 24px; font-size: 14px; }
 .nav a { text-decoration: none; }
 </style>
@@ -244,6 +265,7 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 <h1>Petri Net Schema</h1>
 <p>JSON-LD context for pflow Petri net documents. This page describes the vocabulary used by <code>@context: "https://pflow.xyz/schema"</code>. Machine clients receive JSON-LD; browsers see this human-readable reference.</p>
 <p>The same terms are defined formally, with their relations to the rest of the pflow ecosystem, in the <a href="https://ontology.pflow.xyz">pflow ontology</a> (download, SPARQL, MCP).</p>
+<p>Compositions of nets, the <code>PetriNetBundle</code> wire format, are documented <a href="#bundle">below the table</a>, together with <a href="#vocab">which context defines their terms</a>.</p>
 <p>Fetch as JSON-LD:</p>
 <pre><code>curl -H 'Accept: application/ld+json' https://pflow.xyz/schema</code></pre>
 <table>
@@ -257,6 +279,7 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 </tr>
 {{end}}</tbody>
 </table>
+{{template "bundle" .}}
 </div>
 </body>
 </html>`
