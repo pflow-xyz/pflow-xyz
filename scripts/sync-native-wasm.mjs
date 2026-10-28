@@ -148,6 +148,8 @@ export const NOT_EXPOSED = [
     prefixes: ['command.'] },
   { why: 'the browser has no data directory, so the receipt key is ephemeral and receipts would not verify later (provenance.verify_receipt is exposed, for receipts made elsewhere)',
     ids: ['sim.receipt', 'provenance.key'] },
+  { why: 'the composition views\' commands: they act on an open composition or search plan, not on the editor\'s document, and the composition views page (public/compose.html) drives them on an engine of its own (petri-wasm.js newEngine)',
+    prefixes: ['bundle.', 'plan.'] },
 ];
 
 // The guard, as a function the sync below and public/petri-wasm_test.ts both
