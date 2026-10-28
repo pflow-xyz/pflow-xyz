@@ -613,6 +613,52 @@ func TestGateUsesETagsSoPollingIsCheap(t *testing.T) {
 	}
 }
 
+// A long wait is mostly 304s (with a token). They mean "the same as before":
+// still running. Treating one as an error would log "retrying" and, worse,
+// treating one as an empty list would refuse a deploy as "no check run" the
+// moment CI had run longer than the grace period.
+func TestGateWaitsThroughManyNotModifiedAnswers(t *testing.T) {
+	const notModified = 12 // far longer than the 2 minute grace at 15s a poll
+	var ifNoneMatch []string
+	gs := newGateServer(t, func(n int, w http.ResponseWriter, r *http.Request) {
+		ifNoneMatch = append(ifNoneMatch, r.Header.Get("If-None-Match"))
+		switch {
+		case n == 1:
+			w.Header().Set("ETag", `W/"running"`)
+			writeRuns(w, runJSON(7, "test", "in_progress", ""))
+		case n <= 1+notModified:
+			w.WriteHeader(http.StatusNotModified)
+		default:
+			w.Header().Set("ETag", `W/"done"`)
+			writeRuns(w, runJSON(7, "test", "completed", "success"))
+		}
+	})
+	g := newTestGate(t, gs)
+	g.token = "ghp_example" // an authenticated gate is the one that gets 304s
+	url, err := g.wait(context.Background(), testSHA)
+	if err != nil {
+		t.Fatalf("refused after %d not-modified answers: %v", notModified, err)
+	}
+	if !strings.Contains(url, "/actions/runs/70/job/7") {
+		t.Errorf("run url = %q", url)
+	}
+	if gs.hitCount() != notModified+2 {
+		t.Errorf("hits = %d, want %d", gs.hitCount(), notModified+2)
+	}
+	if g.clk.elapsed(newFakeClock().Now()) < 3*time.Minute {
+		t.Errorf("the test must wait longer than the grace period to mean anything, waited %s", g.clk.elapsed(newFakeClock().Now()))
+	}
+	log := strings.Join(*g.logs, "\n")
+	if strings.Contains(log, "retrying") || strings.Contains(log, "no check run") {
+		t.Errorf("a 304 is not an error and not an empty list; the gate log says so:\n%s", log)
+	}
+	for i, v := range ifNoneMatch[1 : len(ifNoneMatch)-1] {
+		if v != `W/"running"` {
+			t.Errorf("poll %d sent If-None-Match %q", i+2, v)
+		}
+	}
+}
+
 func TestGateTreatsA304ItCannotExplainAsAnError(t *testing.T) {
 	gs := newGateServer(t, func(n int, w http.ResponseWriter, r *http.Request) {
 		if n == 1 {
