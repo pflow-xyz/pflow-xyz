@@ -1,7 +1,7 @@
 // sync-composition-goldens.mjs — vendor pflow-native's composition-views goldens
 // into parity/composition-views/.
 //
-//   node scripts/sync-composition-goldens.mjs --from ../pflow-native --commit <sha> [--to parity/composition-views]
+//   node scripts/sync-composition-goldens.mjs --from ../pflow-native --commit <sha> [--to parity/composition-views] [--allow-mismatch]
 //
 // (or `make sync-composition-goldens FROM=../pflow-native COMMIT=<sha>`). FROM is a
 // pflow-native git checkout, not the wasm-shim directory sync-native-wasm takes;
@@ -18,7 +18,10 @@
 //
 // So COMMIT is the commit passed to `make sync-native-wasm` (the goldens must come
 // from the same pflow-native as the wasm that is compared with them); refresh the
-// wasm first, then run this. native-goldens (parity/native/) has no bundle.* or
+// wasm first, then run this. If pflow-native-wasm.lock names another commit the
+// script stops before it writes anything and exits 1, since parity_test.ts would
+// fail on the pair; --allow-mismatch (make: ALLOW_MISMATCH=1) vendors anyway, with a
+// warning, for the case where the wasm is about to be re-vendored. native-goldens (parity/native/) has no bundle.* or
 // plan.* cases, so it does not cover these. A failing parity_test.ts after a sync is
 // a finding about one renderer, never a reason to edit goldens.json by hand.
 import { execFileSync } from 'node:child_process';
@@ -37,8 +40,14 @@ function main() {
   const from = arg('from');
   const commit = arg('commit');
   const dir = arg('to', fileURLToPath(new URL('../parity/composition-views', import.meta.url)));
+  const allowMismatch = process.argv.includes('--allow-mismatch');
   if (!from || !commit) {
-    console.error('usage: node scripts/sync-composition-goldens.mjs --from <pflow-native checkout> --commit <sha> [--to <dir>]');
+    console.error('usage: node scripts/sync-composition-goldens.mjs --from <pflow-native checkout> --commit <sha> [--to <dir>] [--allow-mismatch]');
+    process.exit(2);
+  }
+  // git would take a leading dash for an option; a commit is a hash or a ref name, which cannot start with one.
+  if (commit.startsWith('-') || from.startsWith('-')) {
+    console.error('--from and --commit must not start with "-"');
     process.exit(2);
   }
   const git = (...args) => execFileSync('git', ['-C', from, ...args], { maxBuffer: 256 * 1024 * 1024, stdio: ['ignore', 'pipe', 'pipe'] });
@@ -65,6 +74,19 @@ function main() {
   }
   const sha256 = createHash('sha256').update(bytes).digest('hex');
 
+  // The wasm these goldens are compared with must come from the same commit (parity_test.ts checks it).
+  // Stop before writing anything unless told the mismatch is intended.
+  let wasm = null;
+  try { wasm = JSON.parse(readFileSync(fileURLToPath(new URL('../pflow-native-wasm.lock', import.meta.url)), 'utf8')); } catch { /* no wasm lock to compare with */ }
+  if (wasm && wasm.commit !== full) {
+    const what = `pflow-native-wasm.lock is at ${String(wasm.commit).slice(0, 7)}, not ${full.slice(0, 7)}; parity_test.ts needs the goldens and the wasm from one commit`;
+    if (!allowMismatch) {
+      console.error(`error: ${what}. Re-vendor the wasm first (make sync-native-wasm COMMIT=${full}), or pass --allow-mismatch (make: ALLOW_MISMATCH=1) to vendor these goldens anyway. Nothing was written.`);
+      process.exit(1);
+    }
+    console.warn(`warning: ${what} (--allow-mismatch given; parity_test.ts will fail until the wasm is re-vendored at ${full.slice(0, 7)})`);
+  }
+
   const lockPath = `${dir}/goldens.lock`;
   let old = {};
   try { old = JSON.parse(readFileSync(lockPath, 'utf8')); } catch { /* first sync: the defaults below */ }
@@ -78,12 +100,6 @@ function main() {
   writeFileSync(lockPath, `${JSON.stringify(lock, null, 2)}\n`);
 
   console.log(`vendored ${GOLDENS} @ ${full.slice(0, 7)} into ${dir}: ${manifests.length} manifests, ${bytes.length} bytes, sha256 ${sha256.slice(0, 12)}...`);
-  try {
-    const wasm = JSON.parse(readFileSync(fileURLToPath(new URL('../pflow-native-wasm.lock', import.meta.url)), 'utf8'));
-    if (wasm.commit !== full) {
-      console.warn(`warning: pflow-native-wasm.lock is at ${String(wasm.commit).slice(0, 7)}, not ${full.slice(0, 7)}; parity_test.ts needs both from one commit (make sync-native-wasm COMMIT=${full})`);
-    }
-  } catch { /* no wasm lock to compare with */ }
   console.log('run `make test-js` to verify');
 }
 

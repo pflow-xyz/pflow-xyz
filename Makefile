@@ -91,10 +91,18 @@ sync-native-wasm:
 # from a pflow-native checkout, as committed at COMMIT (see scripts/sync-composition-goldens.mjs):
 #   make sync-composition-goldens FROM=../pflow-native COMMIT=<sha>
 # FROM is a git checkout (only read, with `git show`), not the wasm-shim dir. COMMIT is the one
-# the vendored wasm was built from (pflow-native-wasm.lock); then `make test-js`.
+# the vendored wasm was built from (pflow-native-wasm.lock); then `make test-js`. If the wasm lock
+# names another commit the script exits 1 and writes nothing (parity_test.ts would fail on the
+# pair); ALLOW_MISMATCH=1 (--allow-mismatch) vendors the goldens anyway, with a warning, for when
+# the wasm is about to be re-vendored at COMMIT.
+# FROM, COMMIT and ALLOW_MISMATCH reach the shell as exported variables ("$$FROM" below), never as
+# text pasted into the command line, so a value with quotes, `;` or backticks is only a value.
+sync-composition-goldens: export FROM := $(FROM)
+sync-composition-goldens: export COMMIT := $(COMMIT)
+sync-composition-goldens: export ALLOW_MISMATCH := $(ALLOW_MISMATCH)
 sync-composition-goldens:
-	@test -n "$(FROM)" -a -n "$(COMMIT)" || { echo "usage: make sync-composition-goldens FROM=<pflow-native checkout> COMMIT=<pflow-native sha>"; exit 2; }
-	@node scripts/sync-composition-goldens.mjs --from "$(FROM)" --commit "$(COMMIT)"
+	@test -n "$$FROM" -a -n "$$COMMIT" || { echo "usage: make sync-composition-goldens FROM=<pflow-native checkout> COMMIT=<pflow-native sha> [ALLOW_MISMATCH=1]"; exit 2; }
+	@node scripts/sync-composition-goldens.mjs --from "$$FROM" --commit "$$COMMIT" $${ALLOW_MISMATCH:+--allow-mismatch}
 
 # Regenerate the ODE parity trajectories (parity/ode/expected.json) from
 # go-pflow's Tsit5 over parity/ode/fixtures.json. Same rule: deliberate only.
