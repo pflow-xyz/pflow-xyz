@@ -21,6 +21,7 @@ go_library(
         "share_card.go",
         "share_page.go",
         "sitemap.go",
+        "static_assets.go",
         "wasm.go",
     ],
     embedsrcs = [
@@ -83,6 +84,7 @@ go_test(
         "sample_card_test.go",
         "share_card_test.go",
         "sitemap_test.go",
+        "static_assets_test.go",
         "wasm_test.go",
     ],
     # keep: share_card_test.go renders a stored example model from //examples.
