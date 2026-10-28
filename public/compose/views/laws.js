@@ -178,6 +178,7 @@ function startLive(ctx) {
       announce('Laws: the live layout is drawn.');
       ctx.rerender();
     } catch (e) {
+      console.warn(e); // the page says one line (explain); the whole error, with a Python traceback, is for the console
       LIVE.err = live.explain(e);
       LIVE.state = LIVE.cmp ? 'layout-error' : 'error';
       announce(`Laws: the live ${LIVE.cmp ? 'layout' : 'check'} did not run (${LIVE.err}); the precomputed result stays.`);
