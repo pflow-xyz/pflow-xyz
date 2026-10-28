@@ -22,6 +22,7 @@
 import { cite, BIB } from '../sources.js';
 import { chainOf, driversOf, fieldOrDefault, PLAN_LAWS_CITE, CONNECT4_EXACT_CITE, PLAN_RS_REV } from '../model.js';
 import { renderOrders } from './lens-orders.js';
+import { reducedMotion } from '../motion.js';
 
 const rs = (path, from, to = from, note = '') => cite('pflowRs', `crates/pflow-metamodel/src/${path}`, from, to, note);
 const road = (from, to, note) => cite('ontologyRoadmap', 'ROADMAP.md', from, to, note);
@@ -749,7 +750,9 @@ function renderPlan(ctx) {
   svgEl.append(layers.frames, layers.core, layers.wires, layers.pieces, layers.over, trip, ...Object.values(paths).filter(Boolean), pulse, pulse2, dot);
 
   // --- toolbar (play) + notes ---------------------------------------------------------
-  const btn = ctx.el('button', { class: 'lens-play' }, '▶ play');
+  // The play dot is a frame-by-frame animation; with prefers-reduced-motion it stays off (the drawing says the same).
+  const calm = reducedMotion();
+  const btn = ctx.el('button', { class: 'lens-play', disabled: calm ? true : null, title: calm ? 'off: prefers-reduced-motion is set' : null }, calm ? '▶ play (off: reduced motion)' : '▶ play');
   const bar = ctx.el('div', { class: 'lens-bar' }, btn,
     ctx.el('span', { class: 'lens-ill' }, 'Illustrative only: a dot runs forward along the top lanes and back along the bottom lanes. No search runs in this page, and alpha-beta really interleaves the passes child by child.'));
   ctx.root.appendChild(bar);
@@ -765,7 +768,7 @@ function renderPlan(ctx) {
 // --- the play dot ---------------------------------------------------------------------------
 
 function runAlong(path, el, dur) {
-  if (!path) return;
+  if (!path || reducedMotion()) return;
   const len = path.getTotalLength();
   let t0 = null;
   const step = (ts) => {
@@ -780,6 +783,7 @@ function runAlong(path, el, dur) {
 }
 
 function play(svgEl, btn, o) {
+  if (reducedMotion()) return;
   // A run token: a stop then a quick play must not leave the old loop driving the dot too.
   const run = (btn.dataset.run = String(Number(btn.dataset.run || 0) + 1));
   if (btn.classList.contains('on')) { btn.classList.remove('on'); btn.textContent = '▶ play'; o.dot.setAttribute('cx', -20); return; }

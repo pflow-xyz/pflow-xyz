@@ -7,7 +7,7 @@
 import * as registry from './registry.js';
 import { loadFacts, LINK_KINDS, LINK_STYLE, EXTRA_SPECS, PARAMS_NOTE, PIECES, PLAN_RS_REV, FACTS } from './model.js';
 import { state, subscribe, actions, subnetsById, orderLinks, flatOrders, planInfo, readHash, writeHash, start } from './state.js';
-import { initSnap, resetSnap, snap } from './snap.js';
+import { initSnap, resetSnap, snap, kbActive } from './snap.js';
 import { initInspector, hover, renderInfo } from './inspect.js';
 import { el } from './dom.js';
 import * as theme from './theme.js';
@@ -15,6 +15,8 @@ import * as info from './info.js';
 import { citeLabel, citeURL, bibLabel, bibURL } from './sources.js';
 import { makeCtx, VIEW_IDS } from './ctx.js';
 import { makeManifest } from './manifest.js';
+import * as a11y from './a11y.js';
+import { renderLegend } from './legend.js';
 
 const views = new Map();
 let connect4 = null;
@@ -205,6 +207,7 @@ function flash(event) {
 }
 
 function render() {
+  a11y.beforeRender();
   writeHash();
   renderTabs();
   const v = views.get(state.view) || views.get(VIEW_IDS[0]);
@@ -227,6 +230,7 @@ function render() {
   }
   lastManifest = manifest;
   [stage.scrollLeft, stage.scrollTop] = scroll;
+  a11y.afterRender({ view: v, event: state.event });
   flash(state.event);
   state.event = null;
   document.body.dataset.example = state.example;
@@ -238,10 +242,11 @@ async function main() {
   readHash();
   initSnap();
   initInspector($('#inspector-body'));
+  a11y.initA11y();
   $('#ex-orders').onclick = () => actions.setExample('orders');
   $('#ex-connect4').onclick = () => actions.setExample('connect4');
   window.addEventListener('keydown', (e) => {
-    if (e.target.closest('input, textarea')) return;
+    if (e.target.closest('input, textarea') || kbActive() || e.ctrlKey || e.metaKey || e.altKey) return;
     const n = e.key === '0' ? 10 : Number(e.key);
     if (n >= 1 && n <= VIEW_IDS.length) actions.setView(VIEW_IDS[n - 1]);
     if (e.key === 'e') actions.setExample(state.example === 'orders' ? 'connect4' : 'orders');
@@ -252,6 +257,8 @@ async function main() {
   try {
     await registry.init();
     loadFacts();
+    a11y.applyStyles();
+    renderLegend($('#legend'));
     start();
   } catch (e) {
     console.error(e);
