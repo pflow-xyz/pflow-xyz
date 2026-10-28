@@ -72,9 +72,7 @@ const ARTIFACT_ID = /^a\d+$/;
 export function loadEngine(o = {}) {
     if (o.storage !== undefined) storage = o.storage;
     enginePromise ||= (async () => {
-        const glue = await import(new URL('pflow_native_wasm.js', VENDOR).href);
-        if (o.bytes) glue.initSync({ module: o.bytes });
-        else await glue.default({ module_or_path: new URL('pflow_native_wasm_bg.wasm', VENDOR) });
+        const glue = await loadGlue(o);
         if (storage === undefined) storage = browserStorage();
         const engine = new glue.Engine();
         await restoreSaved(engine);
@@ -82,6 +80,53 @@ export function loadEngine(o = {}) {
     })();
     enginePromise.catch(() => { enginePromise = null; });
     return enginePromise;
+}
+
+// The wasm-bindgen glue, initialised once per page (every Engine made from it
+// shares the module).
+let gluePromise = null;
+function loadGlue(o = {}) {
+    gluePromise ||= (async () => {
+        const glue = await import(new URL('pflow_native_wasm.js', VENDOR).href);
+        if (o.bytes) glue.initSync({ module: o.bytes });
+        else await glue.default({ module_or_path: new URL('pflow_native_wasm_bg.wasm', VENDOR) });
+        return glue;
+    })();
+    gluePromise.catch(() => { gluePromise = null; });
+    return gluePromise;
+}
+
+/**
+ * A NEW engine of its own, apart from the editor's: no document, no saved
+ * session restored into it, and nothing it does is saved. The composition
+ * views (public/compose/) drive the registry's bundle.* and plan.* commands
+ * with it; the open composition and plan are not part of session.dump_state,
+ * so the page re-opens them by command. `call(id, args)` runs one command and
+ * returns its parsed result, or throws an Error with the registry's message.
+ * Tests pass `bytes`, as for loadEngine().
+ * @param {{bytes?: BufferSource}} [o]
+ */
+export async function newEngine(o = {}) {
+    const glue = await loadGlue(o);
+    const engine = new glue.Engine();
+    return {
+        engine,
+        version: glue.Engine.version(),
+        call(id, args = {}) {
+            let raw;
+            try {
+                raw = engine.execute(id, JSON.stringify(args));
+            } catch (e) {
+                const err = new Error(String(e?.message || e));
+                err.native = true;
+                throw err;
+            }
+            return parseJSON(raw);
+        },
+        load(doc) { engine.load(typeof doc === 'string' ? doc : JSON.stringify(doc)); },
+        commands() { return parseJSON(engine.listCommands('')); },
+        free() { try { engine.free(); } catch { /* already freed */ } },
+    };
 }
 
 /**

@@ -1,0 +1,112 @@
+{
+ "_comment": "Written into Pyodide's file system by ../laws-live.js: py/<path> to /chyp/<path> (Chyp) or /w/<path> (chyp_headless); theories to /w/chyp/.",
+ "chyp_commit": "3d2848361e261b07a86daaacf70b2b4b018affcf",
+ "python": [
+  {
+   "path": "chyp/__init__.py",
+   "sha256": "35b0619b392fb9ffae2f0ebc4f9c8665b63c76f96850810058d1c71c06f6f1f8"
+  },
+  {
+   "path": "chyp/checker.py",
+   "sha256": "d14b9e8d5d8a83d741da8501e4e6a653f6066f30ddf1a07f123a1759c4701f40"
+  },
+  {
+   "path": "chyp/graph.py",
+   "sha256": "3a8360b80b02d5fee0e6bdb9094ba04abe9d3ddc5a131a65d9db9627d40c7c51"
+  },
+  {
+   "path": "chyp/layout.py",
+   "sha256": "4d6e4ae4ac8e6dfc23ea25abae6e6689015df63793cf1061ba0a07e7e94ccc62"
+  },
+  {
+   "path": "chyp/matcher.py",
+   "sha256": "53b5b5cbd9d500fc3c4367c46d1785ac43b4c7354d311c5b369663083d431216"
+  },
+  {
+   "path": "chyp/parser.py",
+   "sha256": "5fe2a400daf410b315aa55ce8c451400da5b7a70d7ece0be063e56e4e50285e1"
+  },
+  {
+   "path": "chyp/parts.py",
+   "sha256": "b0bd8f6b3ed7810355f8082a786f537d6a5359b6eb443c6c845f93c13b79df44"
+  },
+  {
+   "path": "chyp/proofstate.py",
+   "sha256": "f17ce64b153ed9505589173abd5fe4f10c08c7630ad36673bec309496a0c9e44"
+  },
+  {
+   "path": "chyp/py.typed",
+   "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+   "path": "chyp/rewrite.py",
+   "sha256": "fb2a162e5f6a0faea4245ef9c22541af807b960fbc26dc5eb0dead0657298c4f"
+  },
+  {
+   "path": "chyp/rule.py",
+   "sha256": "c34619248017bc14411ec3a0d6528cb6b90841fe4c59723a53975302d74abc72"
+  },
+  {
+   "path": "chyp/scraps.py",
+   "sha256": "b4ef18207c074acb8636d070224467d2d86c36cee2b91a0c0a549848ebbeb550"
+  },
+  {
+   "path": "chyp/state.py",
+   "sha256": "d4313d2eb53e65bdfeadd145a37e69dead78d1e13c0705485956e478cd8b5383"
+  },
+  {
+   "path": "chyp/tactic/__init__.py",
+   "sha256": "af8497ca2df0d164a1a915f5e00d48efc28ea814217da8894fbc64bcea4bca92"
+  },
+  {
+   "path": "chyp/tactic/ruletac.py",
+   "sha256": "541d8054fb4b81eba05808bc1f9a171149a914a4691dd9447ffa5e82ff2cbae1"
+  },
+  {
+   "path": "chyp/tactic/simptac.py",
+   "sha256": "15a234653a50e2b9bf3f19d0aae95881df69f9c3ef950819c91b6d7a8174a555"
+  },
+  {
+   "path": "chyp/term.py",
+   "sha256": "054827697dea80a9548de87ba42962909b401628813f2e7339b2e5fec944b6ba"
+  },
+  {
+   "path": "chyp_headless/__init__.py",
+   "sha256": "8c02bba349f90f3fd1910f3103ebfc430319d5d3178956a76f4b105882db302d"
+  },
+  {
+   "path": "chyp_headless/__main__.py",
+   "sha256": "fc3deaf9e61cc3c7b2edfafb838898d88763955ca4d82cac24990963d2fc0374"
+  },
+  {
+   "path": "chyp_headless/_chyp.py",
+   "sha256": "fe8286e70f1fe1fffe7e1b443a92156f02605443c9bfec04ba1967d6c4c9dad2"
+  },
+  {
+   "path": "chyp_headless/checking.py",
+   "sha256": "e25fb9167855037ac74a4da46c391b16f3e55033fcb49b91a885c6e90edd9cc9"
+  },
+  {
+   "path": "chyp_headless/cli.py",
+   "sha256": "e971e45f1a8515a7f2c44774c62a40122b615fafd3d798c27a1f95fe6b70d764"
+  },
+  {
+   "path": "chyp_headless/diagrams.py",
+   "sha256": "a9cd726dd572044fd8392d555342b98dac8606ae3201fad074ee91a98c9b69b0"
+  },
+  {
+   "path": "chyp_headless/exporting.py",
+   "sha256": "15a734b7fe0b55f8135c44b37369984f852f13814ae7f3a648048a5324b19dfc"
+  },
+  {
+   "path": "chyp_headless/theory.py",
+   "sha256": "b6c12cf24fca77d71cf8e46eaedb2d65456b20dfcd1f1db2fe1b22be299f2e1e"
+  }
+ ],
+ "theories": [
+  "driver-wrap.chyp",
+  "filter-meet.chyp",
+  "orderer-monoid.chyp",
+  "sync-spiders.chyp"
+ ]
+}
