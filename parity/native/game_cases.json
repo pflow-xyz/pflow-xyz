@@ -43,6 +43,20 @@
     "b_add": -1
    }
   },
+  "cnim": {
+   "auto": [
+    "a_lose",
+    "b_lose"
+   ],
+   "reward": {
+    "win_a": 1,
+    "win_b": -1
+   },
+   "sides": {
+    "a_": 1,
+    "b_": -1
+   }
+  },
   "nim-a": {
    "auto": [
     "a_lose",
@@ -10948,6 +10962,2479 @@
      "tool": "game.move",
      "args": {
       "plan": "{\"root\": {\"order\": [\"ode\"]}, \"drivers\": [\"aspiration\"]}"
+     }
+    }
+   ]
+  },
+  {
+   "name": "colored-nim",
+   "fixture": "native/fixtures/game-colored-nim.jsonld",
+   "rules": "cnim",
+   "positions": [
+    {
+     "initial": true
+    },
+    {
+     "fire": [
+      "a_take_r2"
+     ]
+    },
+    {
+     "fire": [
+      "a_take_rb",
+      "b_take_r1",
+      "a_take_b1"
+     ]
+    },
+    {
+     "random": {
+      "seed": 101,
+      "plies": 8,
+      "count": 5
+     }
+    }
+   ],
+   "calls": [
+    {
+     "name": "value-default",
+     "tool": "game.value",
+     "args": {}
+    },
+    {
+     "name": "move-default",
+     "tool": "game.move",
+     "args": {}
+    },
+    {
+     "name": "value-filters-both",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "filters": [
+        "must_win",
+        "non_losing"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-filters-both",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "filters": [
+        "must_win",
+        "non_losing"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-root-nl",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "non_losing"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "move-root-nl",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "non_losing"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "value-mtdf",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "drivers": [
+        "mtd_f"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-mtdf",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "drivers": [
+        "mtd_f"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-cent",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "order": [
+        "tt_best",
+        "immediate_win",
+        "centrality",
+        "threats",
+        "history"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-cent",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "order": [
+        "tt_best",
+        "immediate_win",
+        "centrality",
+        "threats",
+        "history"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-memo-8",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "memo": {
+        "entries": 8
+       }
+      }
+     }
+    },
+    {
+     "name": "move-memo-8",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "memo": {
+        "entries": 8
+       }
+      }
+     }
+    },
+    {
+     "name": "value-nodes-20",
+     "tool": "game.value",
+     "args": {
+      "nodes": 20
+     }
+    },
+    {
+     "name": "move-nodes-20",
+     "tool": "game.move",
+     "args": {
+      "nodes": 20
+     }
+    },
+    {
+     "name": "value-nodes-20-play",
+     "tool": "game.value",
+     "args": {
+      "nodes": 20,
+      "plan": {
+       "mode": "play"
+      }
+     }
+    },
+    {
+     "name": "move-nodes-20-play",
+     "tool": "game.move",
+     "args": {
+      "nodes": 20,
+      "plan": {
+       "mode": "play"
+      }
+     }
+    },
+    {
+     "name": "value-reward-red",
+     "tool": "game.value",
+     "args": {
+      "reward": {
+       "win_a.red": 1,
+       "win_b.red": -1
+      }
+     }
+    },
+    {
+     "name": "move-reward-red",
+     "tool": "game.move",
+     "args": {
+      "reward": {
+       "win_a.red": 1,
+       "win_b.red": -1
+      }
+     }
+    },
+    {
+     "name": "value-reward-mixed",
+     "tool": "game.value",
+     "args": {
+      "reward": {
+       "win_a.blue": 1,
+       "win_b.red": -1
+      }
+     }
+    },
+    {
+     "name": "move-reward-mixed",
+     "tool": "game.move",
+     "args": {
+      "reward": {
+       "win_a.blue": 1,
+       "win_b.red": -1
+      }
+     }
+    },
+    {
+     "name": "value-reward-weights",
+     "tool": "game.value",
+     "args": {
+      "reward": {
+       "win_a": 1.5,
+       "win_b.blue": -2
+      }
+     }
+    },
+    {
+     "name": "move-reward-weights",
+     "tool": "game.move",
+     "args": {
+      "reward": {
+       "win_a": 1.5,
+       "win_b.blue": -2
+      }
+     }
+    },
+    {
+     "name": "value-reward-mixed-mtdf",
+     "tool": "game.value",
+     "args": {
+      "reward": {
+       "win_a.blue": 1,
+       "win_b.red": -1
+      },
+      "plan": {
+       "drivers": [
+        "mtd_f"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-reward-mixed-mtdf",
+     "tool": "game.move",
+     "args": {
+      "reward": {
+       "win_a.blue": 1,
+       "win_b.red": -1
+      },
+      "plan": {
+       "drivers": [
+        "mtd_f"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-reward-no-copy",
+     "tool": "game.value",
+     "args": {
+      "reward": {
+       "win_a.green": 1
+      }
+     }
+    },
+    {
+     "name": "move-reward-no-copy",
+     "tool": "game.move",
+     "args": {
+      "reward": {
+       "win_a.green": 1
+      }
+     }
+    },
+    {
+     "name": "value-reward-no-place",
+     "tool": "game.value",
+     "args": {
+      "reward": {
+       "nope": 1
+      }
+     }
+    },
+    {
+     "name": "move-reward-no-place",
+     "tool": "game.move",
+     "args": {
+      "reward": {
+       "nope": 1
+      }
+     }
+    },
+    {
+     "name": "value-sides-prefix",
+     "tool": "game.value",
+     "args": {
+      "sides": {
+       "a_take_r": 1,
+       "b_take_r": -1,
+       "a_take_b": 1,
+       "b_take_b": -1,
+       "a_take_rb": 1,
+       "b_take_rb": -1
+      }
+     }
+    },
+    {
+     "name": "move-sides-prefix",
+     "tool": "game.move",
+     "args": {
+      "sides": {
+       "a_take_r": 1,
+       "b_take_r": -1,
+       "a_take_b": 1,
+       "b_take_b": -1,
+       "a_take_rb": 1,
+       "b_take_rb": -1
+      }
+     }
+    },
+    {
+     "name": "value-book-refused",
+     "tool": "game.value",
+     "args": {
+      "book": "x"
+     }
+    },
+    {
+     "name": "move-book-refused",
+     "tool": "game.move",
+     "args": {
+      "book": "x"
+     }
+    },
+    {
+     "name": "value-root-ode",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "move-root-ode",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "value-root-ode-nl",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode",
+         "non_losing"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "move-root-ode-nl",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode",
+         "non_losing"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "value-aspiration-ode",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "null_window"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-aspiration-ode",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "null_window"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-mtdf-aspiration-ode",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "mtd_f",
+        "aspiration"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-mtdf-aspiration-ode",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "mtd_f",
+        "aspiration"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-aspiration-only-ode",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-aspiration-only-ode",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-ode-cent",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "order": [
+        "tt_best",
+        "immediate_win",
+        "centrality",
+        "threats",
+        "history"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-ode-cent",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "order": [
+        "tt_best",
+        "immediate_win",
+        "centrality",
+        "threats",
+        "history"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-aspiration-ode-nl-root",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "non_losing",
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "mtd_f"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-aspiration-ode-nl-root",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "non_losing",
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "mtd_f"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-nodes-40-ode",
+     "tool": "game.value",
+     "args": {
+      "nodes": 40,
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "move-nodes-40-ode",
+     "tool": "game.move",
+     "args": {
+      "nodes": 40,
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "value-nodes-40-play-ode",
+     "tool": "game.value",
+     "args": {
+      "nodes": 40,
+      "plan": {
+       "mode": "play",
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "move-nodes-40-play-ode",
+     "tool": "game.move",
+     "args": {
+      "nodes": 40,
+      "plan": {
+       "mode": "play",
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "name": "colored-spare",
+   "fixture": "native/fixtures/game-colored-spare.jsonld",
+   "rules": "cnim",
+   "positions": [
+    {
+     "initial": true
+    },
+    {
+     "fire": [
+      "a_take_r2"
+     ]
+    },
+    {
+     "fire": [
+      "a_take_rb",
+      "b_take_r1",
+      "a_take_b1"
+     ]
+    },
+    {
+     "random": {
+      "seed": 101,
+      "plies": 8,
+      "count": 5
+     }
+    }
+   ],
+   "calls": [
+    {
+     "name": "value-default",
+     "tool": "game.value",
+     "args": {}
+    },
+    {
+     "name": "move-default",
+     "tool": "game.move",
+     "args": {}
+    },
+    {
+     "name": "value-filters-both",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "filters": [
+        "must_win",
+        "non_losing"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-filters-both",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "filters": [
+        "must_win",
+        "non_losing"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-root-nl",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "non_losing"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "move-root-nl",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "non_losing"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "value-mtdf",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "drivers": [
+        "mtd_f"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-mtdf",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "drivers": [
+        "mtd_f"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-cent",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "order": [
+        "tt_best",
+        "immediate_win",
+        "centrality",
+        "threats",
+        "history"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-cent",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "order": [
+        "tt_best",
+        "immediate_win",
+        "centrality",
+        "threats",
+        "history"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-memo-8",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "memo": {
+        "entries": 8
+       }
+      }
+     }
+    },
+    {
+     "name": "move-memo-8",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "memo": {
+        "entries": 8
+       }
+      }
+     }
+    },
+    {
+     "name": "value-nodes-20",
+     "tool": "game.value",
+     "args": {
+      "nodes": 20
+     }
+    },
+    {
+     "name": "move-nodes-20",
+     "tool": "game.move",
+     "args": {
+      "nodes": 20
+     }
+    },
+    {
+     "name": "value-nodes-20-play",
+     "tool": "game.value",
+     "args": {
+      "nodes": 20,
+      "plan": {
+       "mode": "play"
+      }
+     }
+    },
+    {
+     "name": "move-nodes-20-play",
+     "tool": "game.move",
+     "args": {
+      "nodes": 20,
+      "plan": {
+       "mode": "play"
+      }
+     }
+    },
+    {
+     "name": "value-reward-red",
+     "tool": "game.value",
+     "args": {
+      "reward": {
+       "win_a.red": 1,
+       "win_b.red": -1
+      }
+     }
+    },
+    {
+     "name": "move-reward-red",
+     "tool": "game.move",
+     "args": {
+      "reward": {
+       "win_a.red": 1,
+       "win_b.red": -1
+      }
+     }
+    },
+    {
+     "name": "value-reward-mixed",
+     "tool": "game.value",
+     "args": {
+      "reward": {
+       "win_a.blue": 1,
+       "win_b.red": -1
+      }
+     }
+    },
+    {
+     "name": "move-reward-mixed",
+     "tool": "game.move",
+     "args": {
+      "reward": {
+       "win_a.blue": 1,
+       "win_b.red": -1
+      }
+     }
+    },
+    {
+     "name": "value-reward-weights",
+     "tool": "game.value",
+     "args": {
+      "reward": {
+       "win_a": 1.5,
+       "win_b.blue": -2
+      }
+     }
+    },
+    {
+     "name": "move-reward-weights",
+     "tool": "game.move",
+     "args": {
+      "reward": {
+       "win_a": 1.5,
+       "win_b.blue": -2
+      }
+     }
+    },
+    {
+     "name": "value-reward-mixed-mtdf",
+     "tool": "game.value",
+     "args": {
+      "reward": {
+       "win_a.blue": 1,
+       "win_b.red": -1
+      },
+      "plan": {
+       "drivers": [
+        "mtd_f"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-reward-mixed-mtdf",
+     "tool": "game.move",
+     "args": {
+      "reward": {
+       "win_a.blue": 1,
+       "win_b.red": -1
+      },
+      "plan": {
+       "drivers": [
+        "mtd_f"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-reward-no-copy",
+     "tool": "game.value",
+     "args": {
+      "reward": {
+       "win_a.green": 1
+      }
+     }
+    },
+    {
+     "name": "move-reward-no-copy",
+     "tool": "game.move",
+     "args": {
+      "reward": {
+       "win_a.green": 1
+      }
+     }
+    },
+    {
+     "name": "value-reward-no-place",
+     "tool": "game.value",
+     "args": {
+      "reward": {
+       "nope": 1
+      }
+     }
+    },
+    {
+     "name": "move-reward-no-place",
+     "tool": "game.move",
+     "args": {
+      "reward": {
+       "nope": 1
+      }
+     }
+    },
+    {
+     "name": "value-sides-prefix",
+     "tool": "game.value",
+     "args": {
+      "sides": {
+       "a_take_r": 1,
+       "b_take_r": -1,
+       "a_take_b": 1,
+       "b_take_b": -1,
+       "a_take_rb": 1,
+       "b_take_rb": -1
+      }
+     }
+    },
+    {
+     "name": "move-sides-prefix",
+     "tool": "game.move",
+     "args": {
+      "sides": {
+       "a_take_r": 1,
+       "b_take_r": -1,
+       "a_take_b": 1,
+       "b_take_b": -1,
+       "a_take_rb": 1,
+       "b_take_rb": -1
+      }
+     }
+    },
+    {
+     "name": "value-book-refused",
+     "tool": "game.value",
+     "args": {
+      "book": "x"
+     }
+    },
+    {
+     "name": "move-book-refused",
+     "tool": "game.move",
+     "args": {
+      "book": "x"
+     }
+    },
+    {
+     "name": "value-root-ode",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "move-root-ode",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "value-root-ode-nl",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode",
+         "non_losing"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "move-root-ode-nl",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode",
+         "non_losing"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "value-aspiration-ode",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "null_window"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-aspiration-ode",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "null_window"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-mtdf-aspiration-ode",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "mtd_f",
+        "aspiration"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-mtdf-aspiration-ode",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "mtd_f",
+        "aspiration"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-aspiration-only-ode",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-aspiration-only-ode",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-ode-cent",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "order": [
+        "tt_best",
+        "immediate_win",
+        "centrality",
+        "threats",
+        "history"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-ode-cent",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "order": [
+        "tt_best",
+        "immediate_win",
+        "centrality",
+        "threats",
+        "history"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-aspiration-ode-nl-root",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "non_losing",
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "mtd_f"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-aspiration-ode-nl-root",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "non_losing",
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "mtd_f"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-nodes-40-ode",
+     "tool": "game.value",
+     "args": {
+      "nodes": 40,
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "move-nodes-40-ode",
+     "tool": "game.move",
+     "args": {
+      "nodes": 40,
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "value-nodes-40-play-ode",
+     "tool": "game.value",
+     "args": {
+      "nodes": 40,
+      "plan": {
+       "mode": "play",
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "move-nodes-40-play-ode",
+     "tool": "game.move",
+     "args": {
+      "nodes": 40,
+      "plan": {
+       "mode": "play",
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "name": "colored-nim-ode",
+   "fixture": "native/fixtures/game-colored-nim.jsonld",
+   "rules": "cnim",
+   "positions": [
+    {
+     "initial": true
+    },
+    {
+     "random": {
+      "seed": 102,
+      "plies": 6,
+      "count": 6
+     }
+    }
+   ],
+   "calls": [
+    {
+     "name": "value-root-ode",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "move-root-ode",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "value-root-ode-nl",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode",
+         "non_losing"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "move-root-ode-nl",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode",
+         "non_losing"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "value-root-nl-ode",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "non_losing",
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "move-root-nl-ode",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "non_losing",
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "value-aspiration-ode",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "null_window"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-aspiration-ode",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "null_window"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-mtdf-aspiration-ode",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "mtd_f",
+        "aspiration"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-mtdf-aspiration-ode",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "mtd_f",
+        "aspiration"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-aspiration-only-ode",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-aspiration-only-ode",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-no-driver-ode",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": []
+      }
+     }
+    },
+    {
+     "name": "move-no-driver-ode",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": []
+      }
+     }
+    },
+    {
+     "name": "value-mtdf-ode",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "mtd_f"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-mtdf-ode",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "mtd_f"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-ode-cent",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "order": [
+        "tt_best",
+        "immediate_win",
+        "centrality",
+        "threats",
+        "history"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-ode-cent",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "order": [
+        "tt_best",
+        "immediate_win",
+        "centrality",
+        "threats",
+        "history"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-ode-filters-none",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "filters": []
+      }
+     }
+    },
+    {
+     "name": "move-ode-filters-none",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "filters": []
+      }
+     }
+    },
+    {
+     "name": "value-ode-nl-filters",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "filters": [
+        "must_win",
+        "non_losing"
+       ],
+       "drivers": [
+        "aspiration",
+        "null_window"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-ode-nl-filters",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "filters": [
+        "must_win",
+        "non_losing"
+       ],
+       "drivers": [
+        "aspiration",
+        "null_window"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-aspiration-ode-memo-16",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "null_window"
+       ],
+       "memo": {
+        "entries": 16
+       }
+      }
+     }
+    },
+    {
+     "name": "move-aspiration-ode-memo-16",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "null_window"
+       ],
+       "memo": {
+        "entries": 16
+       }
+      }
+     }
+    },
+    {
+     "name": "value-mtdf-aspiration-ode-memo-16",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "mtd_f"
+       ],
+       "memo": {
+        "entries": 16
+       },
+       "filters": []
+      }
+     }
+    },
+    {
+     "name": "move-mtdf-aspiration-ode-memo-16",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "mtd_f"
+       ],
+       "memo": {
+        "entries": 16
+       },
+       "filters": []
+      }
+     }
+    },
+    {
+     "name": "value-aspiration-ode-nl-root",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "non_losing",
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "mtd_f"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-aspiration-ode-nl-root",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "non_losing",
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "mtd_f"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-nodes-40-ode",
+     "tool": "game.value",
+     "args": {
+      "nodes": 40,
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "move-nodes-40-ode",
+     "tool": "game.move",
+     "args": {
+      "nodes": 40,
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "value-nodes-300-aspiration-ode",
+     "tool": "game.value",
+     "args": {
+      "nodes": 300,
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-nodes-300-aspiration-ode",
+     "tool": "game.move",
+     "args": {
+      "nodes": 300,
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-nodes-40-play-ode",
+     "tool": "game.value",
+     "args": {
+      "nodes": 40,
+      "plan": {
+       "mode": "play",
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "move-nodes-40-play-ode",
+     "tool": "game.move",
+     "args": {
+      "nodes": 40,
+      "plan": {
+       "mode": "play",
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "value-nodes-5-play-ode",
+     "tool": "game.value",
+     "args": {
+      "nodes": 5,
+      "plan": {
+       "mode": "play",
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "move-nodes-5-play-ode",
+     "tool": "game.move",
+     "args": {
+      "nodes": 5,
+      "plan": {
+       "mode": "play",
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "value-nodes-60-play-aspiration-ode",
+     "tool": "game.value",
+     "args": {
+      "nodes": 60,
+      "plan": {
+       "mode": "play",
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "mtd_f"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-nodes-60-play-aspiration-ode",
+     "tool": "game.move",
+     "args": {
+      "nodes": 60,
+      "plan": {
+       "mode": "play",
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "mtd_f"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-plan-string-ode",
+     "tool": "game.value",
+     "args": {
+      "plan": "{\"root\": {\"order\": [\"ode\"]}, \"drivers\": [\"aspiration\"]}"
+     }
+    },
+    {
+     "name": "move-plan-string-ode",
+     "tool": "game.move",
+     "args": {
+      "plan": "{\"root\": {\"order\": [\"ode\"]}, \"drivers\": [\"aspiration\"]}"
+     }
+    }
+   ]
+  },
+  {
+   "name": "colored-nim3",
+   "fixture": "native/fixtures/game-colored-nim3.jsonld",
+   "rules": "cnim",
+   "positions": [
+    {
+     "initial": true
+    },
+    {
+     "fire": [
+      "a_take_rg"
+     ]
+    },
+    {
+     "random": {
+      "seed": 103,
+      "plies": 8,
+      "count": 5
+     }
+    }
+   ],
+   "calls": [
+    {
+     "name": "value-default",
+     "tool": "game.value",
+     "args": {}
+    },
+    {
+     "name": "move-default",
+     "tool": "game.move",
+     "args": {}
+    },
+    {
+     "name": "value-filters-both",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "filters": [
+        "must_win",
+        "non_losing"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-filters-both",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "filters": [
+        "must_win",
+        "non_losing"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-root-nl",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "non_losing"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "move-root-nl",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "non_losing"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "value-mtdf",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "drivers": [
+        "mtd_f"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-mtdf",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "drivers": [
+        "mtd_f"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-cent",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "order": [
+        "tt_best",
+        "immediate_win",
+        "centrality",
+        "threats",
+        "history"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-cent",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "order": [
+        "tt_best",
+        "immediate_win",
+        "centrality",
+        "threats",
+        "history"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-memo-8",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "memo": {
+        "entries": 8
+       }
+      }
+     }
+    },
+    {
+     "name": "move-memo-8",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "memo": {
+        "entries": 8
+       }
+      }
+     }
+    },
+    {
+     "name": "value-nodes-20",
+     "tool": "game.value",
+     "args": {
+      "nodes": 20
+     }
+    },
+    {
+     "name": "move-nodes-20",
+     "tool": "game.move",
+     "args": {
+      "nodes": 20
+     }
+    },
+    {
+     "name": "value-nodes-20-play",
+     "tool": "game.value",
+     "args": {
+      "nodes": 20,
+      "plan": {
+       "mode": "play"
+      }
+     }
+    },
+    {
+     "name": "move-nodes-20-play",
+     "tool": "game.move",
+     "args": {
+      "nodes": 20,
+      "plan": {
+       "mode": "play"
+      }
+     }
+    },
+    {
+     "name": "value-reward-green",
+     "tool": "game.value",
+     "args": {
+      "reward": {
+       "win_a.green": 1,
+       "win_b.blue": -1
+      }
+     }
+    },
+    {
+     "name": "move-reward-green",
+     "tool": "game.move",
+     "args": {
+      "reward": {
+       "win_a.green": 1,
+       "win_b.blue": -1
+      }
+     }
+    },
+    {
+     "name": "value-root-ode",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "move-root-ode",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "value-root-ode-nl",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode",
+         "non_losing"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "move-root-ode-nl",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode",
+         "non_losing"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "value-aspiration-ode",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "null_window"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-aspiration-ode",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "null_window"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-mtdf-aspiration-ode",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "mtd_f",
+        "aspiration"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-mtdf-aspiration-ode",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "mtd_f",
+        "aspiration"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-aspiration-only-ode",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-aspiration-only-ode",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-ode-cent",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "order": [
+        "tt_best",
+        "immediate_win",
+        "centrality",
+        "threats",
+        "history"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-ode-cent",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "order": [
+        "tt_best",
+        "immediate_win",
+        "centrality",
+        "threats",
+        "history"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-aspiration-ode-nl-root",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "non_losing",
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "mtd_f"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-aspiration-ode-nl-root",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "non_losing",
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "mtd_f"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-nodes-40-ode",
+     "tool": "game.value",
+     "args": {
+      "nodes": 40,
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "move-nodes-40-ode",
+     "tool": "game.move",
+     "args": {
+      "nodes": 40,
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "value-nodes-40-play-ode",
+     "tool": "game.value",
+     "args": {
+      "nodes": 40,
+      "plan": {
+       "mode": "play",
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "move-nodes-40-play-ode",
+     "tool": "game.move",
+     "args": {
+      "nodes": 40,
+      "plan": {
+       "mode": "play",
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
      }
     }
    ]

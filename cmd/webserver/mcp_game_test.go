@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http/httptest"
 	"os"
 	"strings"
@@ -139,14 +140,49 @@ func TestMCPGameNeedsANetItCanRun(t *testing.T) {
 	if msg := toolError(t, out); !strings.Contains(msg, "net") {
 		t.Errorf("%s", msg)
 	}
-	// Two token colours: refused, not run with some copies left out.
+	// Two token colours: run, the rules naming a place or one of its copies.
 	var doc map[string]any
-	if err := json.Unmarshal([]byte(gameFixture(t, "colored.jsonld")), &doc); err != nil {
+	if err := json.Unmarshal([]byte(gameFixture(t, "game-colored-nim.jsonld")), &doc); err != nil {
 		t.Fatal(err)
 	}
 	net, _ := json.Marshal(doc)
-	_, out = mcpCall(t, &Server{}, toolCall("pflow_game_value", `{"net":`+string(net)+`,"sides":{"a":1},"reward":{"Done":1}}`))
-	if msg := toolError(t, out); !strings.Contains(msg, "several token colours") {
+	rules := `"sides":{"a_":1,"b_":-1},"auto":["a_lose","b_lose"]`
+	for _, c := range []struct {
+		reward string
+		value  float64
+	}{
+		{`{"win_a":1,"win_b":-1}`, 2}, {`{"win_a.red":1,"win_b.red":-1}`, 1}, {`{"win_a.blue":1,"win_b.red":-1}`, 1},
+	} {
+		_, out = mcpCall(t, &Server{}, toolCall("pflow_game_value", `{"net":`+string(net)+`,`+rules+`,"reward":`+c.reward+`}`))
+		if v := structured(t, out); v["value"] != c.value || v["exact"] != true {
+			t.Errorf("%s: %v", c.reward, v)
+		}
+	}
+	_, out = mcpCall(t, &Server{}, toolCall("pflow_game_value", `{"net":`+string(net)+`,`+rules+`,"reward":{"win_a.green":1}}`))
+	if msg := toolError(t, out); !strings.Contains(msg, "reward names win_a.green, which is not a place of this net") {
+		t.Errorf("%s", msg)
+	}
+}
+
+// The net-size cap counts the places a coloured net unfolds to.
+func TestMCPGameCapsAColouredNetByItsCopies(t *testing.T) {
+	places := map[string]any{}
+	arcs := []any{}
+	for i := 0; i < wbGameMaxNet/2+1; i++ {
+		id := fmt.Sprintf("p%04d", i)
+		places[id] = map[string]any{"@type": "Place", "initial": []any{0, 0}, "capacity": []any{0, 0}}
+		arcs = append(arcs, map[string]any{"@type": "Arrow", "source": "t", "target": id, "weight": []any{1, 1}, "inhibitTransition": false})
+	}
+	doc := map[string]any{
+		"@context": "https://pflow.xyz/schema", "@type": "PetriNet", "@version": "1.1",
+		"token":       []any{"https://pflow.xyz/tokens/red", "https://pflow.xyz/tokens/blue"},
+		"places":      places,
+		"transitions": map[string]any{"t": map[string]any{"@type": "Transition"}},
+		"arcs":        arcs,
+	}
+	net, _ := json.Marshal(doc)
+	_, out := mcpCall(t, &Server{}, toolCall("pflow_game_value", `{"net":`+string(net)+`,"sides":{"t":1},"reward":{"p0000":1}}`))
+	if msg := toolError(t, out); !strings.Contains(msg, "at most 2000 of each") {
 		t.Errorf("%s", msg)
 	}
 }

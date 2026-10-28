@@ -17,11 +17,11 @@ package main
 // to every call in parity/native/game_cases.json (parity/native/gen-game),
 // and mcp_game_parity_test.go holds these tools to it: identical values and
 // moves, identical node counts, identical refusals' words. That covers the
-// root estimate "ode" (the mass-action ODE solved at the root, ode.go) and the
-// aspiration driver that starts from it. What differs:
+// root estimate "ode" (the mass-action ODE solved at the root, ode.go), the
+// aspiration driver that starts from it, and nets with several token colours
+// (unfolded to a place per colour copy, which a reward names as "place" or
+// "place.colour"). What differs:
 //
-//   - A net with several token colours is refused (native supports one whose
-//     colour copies are all used).
 //   - The caps are tighter than native's (wbGameMaxNodes, wbGameMaxMemo): a
 //     call that asks for more is refused with native's words and the cap.
 //     The call's context stops a search that runs on; the result is an error,
@@ -35,7 +35,6 @@ package main
 // tools/call also takes native's own ids, game.value and game.move.
 
 import (
-	"errors"
 	"fmt"
 	"net/http"
 
@@ -88,7 +87,7 @@ var (
 )
 
 func gameInput() map[string]any {
-	props := map[string]any{"net": map[string]any{"type": "object", "description": "a pflow.xyz net (JSON-LD, the editor's format) with one token colour. Its marking is the position searched: the initial tokens of its places. Places and transitions are taken in id order"}}
+	props := map[string]any{"net": map[string]any{"type": "object", "description": "a pflow.xyz net (JSON-LD, the editor's format). Its marking is the position searched: the initial tokens of its places. Places and transitions are taken in id order. A net with several token colours is searched with a place per colour copy; name a copy in `reward` as \"place.colour\""}}
 	for k, v := range gameRulesArgs {
 		props[k] = v
 	}
@@ -139,9 +138,6 @@ func runGame(id string, run func(*gamesearch.Net, map[string]any, gamesearch.Con
 	if err != nil {
 		return nil, err
 	}
-	if n.colors != nil {
-		return nil, errors.New(id + ": a net with several token colours is not supported: the search reads one token count per place")
-	}
 	if len(n.model.Places) > wbGameMaxNet || len(n.model.Transitions) > wbGameMaxNet {
 		return nil, fmt.Errorf("%s: the net has %d places and %d transitions; at most %d of each", id, len(n.model.Places), len(n.model.Transitions), wbGameMaxNet)
 	}
@@ -155,7 +151,18 @@ func runGame(id string, run func(*gamesearch.Net, map[string]any, gamesearch.Con
 		MaxMemo:  wbGameMaxMemo,
 		Cancel:   func() error { return ctx.Err() },
 	}
-	out, err := run(&gamesearch.Net{Model: n.model, Marking: marking}, rest, cfg)
+	gn := &gamesearch.Net{Model: n.model, Marking: marking}
+	if n.colors != nil {
+		// Several token colours: the model has a place per colour copy, which
+		// the rules name as native does ("place.colour", or the place alone).
+		gn.Colours = &gamesearch.Colours{Base: map[string]string{}, Display: map[string]string{}}
+		for _, p := range n.places {
+			b, _ := n.base(p)
+			gn.Colours.Base[p] = b
+			gn.Colours.Display[p] = n.displayOf(p)
+		}
+	}
+	out, err := run(gn, rest, cfg)
 	if err != nil {
 		if ctx.Err() != nil {
 			return nil, fmt.Errorf("%s: gave up after %s; give a node budget or a smaller net", id, mcpCallTimeout)

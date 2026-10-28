@@ -80,13 +80,18 @@ fn settle(sess: &mut Session, auto: &[String]) {
     }
 }
 
-/// The marking as {place: count} over the places holding tokens.
+/// The marking as {place: count} over the places holding tokens: a count per
+/// colour, as a list, where the net has several colours.
 fn marking(sess: &Session) -> Value {
     let mut m = Map::new();
     for (p, v) in &sess.marking {
-        let n: i64 = v.iter().sum();
-        if n != 0 {
-            m.insert(p.clone(), json!(n));
+        if v.iter().all(|&n| n == 0) {
+            continue;
+        }
+        if v.len() > 1 {
+            m.insert(p.clone(), json!(v));
+        } else {
+            m.insert(p.clone(), json!(v[0]));
         }
     }
     Value::Object(m)
@@ -147,7 +152,15 @@ fn at(fixture: &str, mk: &Value) -> Session {
         }
     }
     for (p, n) in mk.as_object().unwrap() {
-        s.marking.get_mut(p).expect("place")[0] = n.as_i64().unwrap();
+        let slot = s.marking.get_mut(p).expect("place");
+        match n.as_array() {
+            Some(counts) => {
+                for (c, n) in counts.iter().enumerate() {
+                    slot[c] = n.as_i64().unwrap();
+                }
+            }
+            None => slot[0] = n.as_i64().unwrap(),
+        }
     }
     s
 }

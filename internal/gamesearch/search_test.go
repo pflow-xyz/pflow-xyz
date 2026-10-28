@@ -34,6 +34,43 @@ func load(t *testing.T, name string) (*Net, map[string]any) {
 	return &Net{Model: m, Marking: mk}, nil
 }
 
+// loadColoured is a net with several token colours, unfolded as the server
+// unfolds it, with the names the rules read.
+func loadColoured(t *testing.T, name string) *Net {
+	t.Helper()
+	raw, err := os.ReadFile(fixtures + name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	m, colors, err := parser.ModelFromJSON(raw)
+	if err != nil || colors == nil {
+		t.Fatalf("%s: %v %v", name, err, colors)
+	}
+	net := &Net{Model: m, Marking: map[string]int64{}, Colours: &Colours{Base: map[string]string{}, Display: map[string]string{}}}
+	for _, p := range m.Places {
+		net.Marking[p.ID] = int64(p.Initial)
+		ref := colors.Base[p.ID]
+		net.Colours.Base[p.ID] = ref.Place
+		net.Colours.Display[p.ID] = ref.Place + "." + colors.Colors[ref.Color]
+	}
+	return net
+}
+
+const colouredRules = `"sides": {"a_": 1, "b_": -1}, "auto": ["a_lose", "b_lose"]`
+
+func colouredArgs(t *testing.T, reward, plan string) map[string]any {
+	t.Helper()
+	body := `{` + colouredRules + `, "reward": ` + reward
+	if plan != "" {
+		body += `, "plan": ` + plan
+	}
+	var a map[string]any
+	if err := json.Unmarshal([]byte(body+`}`), &a); err != nil {
+		t.Fatal(err)
+	}
+	return a
+}
+
 type fixture struct {
 	file string
 	args string
@@ -120,7 +157,7 @@ func TestValueIsTheMinimaxValue(t *testing.T) {
 		net, _ := load(t, gm.file)
 		ix := NewIndexed(net.Model)
 		a := args(t, gm, "", nil)
-		r, err := readRules(ix, a)
+		r, err := readRules(ix, placesOf(ix, net), a)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -311,6 +348,57 @@ func TestPowIsCorrectlyRounded(t *testing.T) {
 		if got, want := pow(c[0], c[1]), math.Pow(c[0], c[1]); got != want && !(math.IsNaN(got) && math.IsNaN(want)) {
 			t.Errorf("pow(%v, %v) = %v, want %v", c[0], c[1], got, want)
 		}
+	}
+}
+
+// A net with several token colours is searched on its colour copies. These
+// are native's answers (parity/native/game_goldens.json holds the rest).
+func TestColouredNetsAreSearched(t *testing.T) {
+	net := loadColoured(t, "game-colored-nim.jsonld")
+	for _, c := range []struct {
+		reward string
+		value  float64
+		nodes  int
+	}{
+		{`{"win_a": 1, "win_b": -1}`, 2, 43},
+		{`{"win_a.red": 1, "win_b.red": -1}`, 1, 41},
+		{`{"win_a.blue": 1, "win_b.red": -1}`, 1, 41},
+	} {
+		out, err := Value(net, colouredArgs(t, c.reward, ""), Config{})
+		if err != nil || out["value"] != c.value || out["nodes"] != c.nodes || out["moves"] != 5 {
+			t.Errorf("%s: %v %v", c.reward, out, err)
+		}
+	}
+	out, err := Move(net, colouredArgs(t, `{"win_a": 1, "win_b": -1}`, `{"root": {"order": ["ode"]}}`), Config{})
+	if err != nil || out["transition"] != "a_take_b1" || out["value"] != 2.0 || out["nodes"] != 55 {
+		t.Errorf("%v %v", out, err)
+	}
+	if _, err := Value(net, colouredArgs(t, `{"win_a.green": 1}`, ""), Config{}); err == nil || err.Error() != "reward names win_a.green, which is not a place of this net" {
+		t.Errorf("%v", err)
+	}
+}
+
+// What stays refused of a coloured net: a colour copy that nothing marks or
+// touches. The parser drops such copies, so this takes a model that keeps
+// one, and the refusal is native's, in its words.
+func TestAnUnusedColourCopyIsRefused(t *testing.T) {
+	net := loadColoured(t, "game-colored-nim.jsonld")
+	net.Model.Places = append(net.Model.Places, metamodel.Place{ID: "ghost#1"})
+	net.Colours.Base["ghost#1"], net.Colours.Display["ghost#1"] = "ghost", "ghost.blue"
+	want := "the exact search needs every token place and transition of the net (a coloured net with unused colour copies is not supported)"
+	for _, run := range []func(*Net, map[string]any, Config) (map[string]any, error){Value, Move} {
+		if out, err := run(net, colouredArgs(t, `{"win_a": 1, "win_b": -1}`, ""), Config{}); err == nil || err.Error() != want {
+			t.Errorf("%v %v", out, err)
+		}
+	}
+	// The rules are read first, and see only the copies something can hold.
+	if _, err := Value(net, colouredArgs(t, `{"ghost.blue": 1}`, ""), Config{}); err == nil || err.Error() != "reward names ghost.blue, which is not a place of this net" {
+		t.Errorf("%v", err)
+	}
+	// A copy that is marked is used.
+	net.Marking["ghost#1"] = 1
+	if _, err := Value(net, colouredArgs(t, `{"win_a": 1, "win_b": -1}`, ""), Config{}); err != nil {
+		t.Errorf("%v", err)
 	}
 }
 

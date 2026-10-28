@@ -1,0 +1,656 @@
+{
+  "@context": "https://pflow.xyz/schema",
+  "@type": "PetriNet",
+  "@version": "1.1",
+  "arcs": [
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "pile",
+      "target": "a_take_r1",
+      "weight": [
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "a_turn",
+      "target": "a_take_r1",
+      "weight": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "a_take_r1",
+      "target": "b_turn",
+      "weight": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "pile",
+      "target": "b_take_r1",
+      "weight": [
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "b_turn",
+      "target": "b_take_r1",
+      "weight": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "b_take_r1",
+      "target": "a_turn",
+      "weight": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "pile",
+      "target": "a_take_g1",
+      "weight": [
+        0,
+        1,
+        0
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "a_turn",
+      "target": "a_take_g1",
+      "weight": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "a_take_g1",
+      "target": "b_turn",
+      "weight": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "pile",
+      "target": "b_take_g1",
+      "weight": [
+        0,
+        1,
+        0
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "b_turn",
+      "target": "b_take_g1",
+      "weight": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "b_take_g1",
+      "target": "a_turn",
+      "weight": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "pile",
+      "target": "a_take_b1",
+      "weight": [
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "a_turn",
+      "target": "a_take_b1",
+      "weight": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "a_take_b1",
+      "target": "b_turn",
+      "weight": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "pile",
+      "target": "b_take_b1",
+      "weight": [
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "b_turn",
+      "target": "b_take_b1",
+      "weight": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "b_take_b1",
+      "target": "a_turn",
+      "weight": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "pile",
+      "target": "a_take_rg",
+      "weight": [
+        1,
+        1,
+        0
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "a_turn",
+      "target": "a_take_rg",
+      "weight": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "a_take_rg",
+      "target": "b_turn",
+      "weight": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "pile",
+      "target": "b_take_rg",
+      "weight": [
+        1,
+        1,
+        0
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "b_turn",
+      "target": "b_take_rg",
+      "weight": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "b_take_rg",
+      "target": "a_turn",
+      "weight": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "pile",
+      "target": "a_take_gb",
+      "weight": [
+        0,
+        1,
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "a_turn",
+      "target": "a_take_gb",
+      "weight": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "a_take_gb",
+      "target": "b_turn",
+      "weight": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "pile",
+      "target": "b_take_gb",
+      "weight": [
+        0,
+        1,
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "b_turn",
+      "target": "b_take_gb",
+      "weight": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "b_take_gb",
+      "target": "a_turn",
+      "weight": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "pile",
+      "target": "a_take_rgb",
+      "weight": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "a_turn",
+      "target": "a_take_rgb",
+      "weight": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "a_take_rgb",
+      "target": "b_turn",
+      "weight": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "pile",
+      "target": "b_take_rgb",
+      "weight": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "b_turn",
+      "target": "b_take_rgb",
+      "weight": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "b_take_rgb",
+      "target": "a_turn",
+      "weight": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "a_turn",
+      "target": "a_lose",
+      "weight": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": true,
+      "source": "pile",
+      "target": "a_lose",
+      "weight": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "a_lose",
+      "target": "win_b",
+      "weight": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "b_turn",
+      "target": "b_lose",
+      "weight": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": true,
+      "source": "pile",
+      "target": "b_lose",
+      "weight": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "b_lose",
+      "target": "win_a",
+      "weight": [
+        1,
+        1,
+        1
+      ]
+    }
+  ],
+  "places": {
+    "pile": {
+      "@type": "Place",
+      "capacity": [
+        null,
+        null,
+        null
+      ],
+      "initial": [
+        3,
+        2,
+        2
+      ],
+      "offset": 0,
+      "x": 100,
+      "y": 100
+    },
+    "a_turn": {
+      "@type": "Place",
+      "capacity": [
+        null,
+        null,
+        null
+      ],
+      "initial": [
+        1,
+        1,
+        1
+      ],
+      "offset": 0,
+      "x": 100,
+      "y": 200
+    },
+    "b_turn": {
+      "@type": "Place",
+      "capacity": [
+        null,
+        null,
+        null
+      ],
+      "initial": [
+        0,
+        0,
+        0
+      ],
+      "offset": 0,
+      "x": 300,
+      "y": 200
+    },
+    "win_a": {
+      "@type": "Place",
+      "capacity": [
+        null,
+        null,
+        null
+      ],
+      "initial": [
+        0,
+        0,
+        0
+      ],
+      "offset": 0,
+      "x": 100,
+      "y": 400
+    },
+    "win_b": {
+      "@type": "Place",
+      "capacity": [
+        null,
+        null,
+        null
+      ],
+      "initial": [
+        0,
+        0,
+        0
+      ],
+      "offset": 0,
+      "x": 300,
+      "y": 400
+    }
+  },
+  "token": [
+    "https://pflow.xyz/tokens/red",
+    "https://pflow.xyz/tokens/green",
+    "https://pflow.xyz/tokens/blue"
+  ],
+  "transitions": {
+    "a_take_r1": {
+      "@type": "Transition",
+      "offset": 0,
+      "role": "default",
+      "x": 100,
+      "y": 150
+    },
+    "b_take_r1": {
+      "@type": "Transition",
+      "offset": 0,
+      "role": "default",
+      "x": 300,
+      "y": 150
+    },
+    "a_take_g1": {
+      "@type": "Transition",
+      "offset": 0,
+      "role": "default",
+      "x": 100,
+      "y": 170
+    },
+    "b_take_g1": {
+      "@type": "Transition",
+      "offset": 0,
+      "role": "default",
+      "x": 300,
+      "y": 170
+    },
+    "a_take_b1": {
+      "@type": "Transition",
+      "offset": 0,
+      "role": "default",
+      "x": 100,
+      "y": 190
+    },
+    "b_take_b1": {
+      "@type": "Transition",
+      "offset": 0,
+      "role": "default",
+      "x": 300,
+      "y": 190
+    },
+    "a_take_rg": {
+      "@type": "Transition",
+      "offset": 0,
+      "role": "default",
+      "x": 100,
+      "y": 210
+    },
+    "b_take_rg": {
+      "@type": "Transition",
+      "offset": 0,
+      "role": "default",
+      "x": 300,
+      "y": 210
+    },
+    "a_take_gb": {
+      "@type": "Transition",
+      "offset": 0,
+      "role": "default",
+      "x": 100,
+      "y": 230
+    },
+    "b_take_gb": {
+      "@type": "Transition",
+      "offset": 0,
+      "role": "default",
+      "x": 300,
+      "y": 230
+    },
+    "a_take_rgb": {
+      "@type": "Transition",
+      "offset": 0,
+      "role": "default",
+      "x": 100,
+      "y": 250
+    },
+    "b_take_rgb": {
+      "@type": "Transition",
+      "offset": 0,
+      "role": "default",
+      "x": 300,
+      "y": 250
+    },
+    "a_lose": {
+      "@type": "Transition",
+      "offset": 0,
+      "role": "default",
+      "x": 100,
+      "y": 300
+    },
+    "b_lose": {
+      "@type": "Transition",
+      "offset": 0,
+      "role": "default",
+      "x": 300,
+      "y": 300
+    }
+  }
+}

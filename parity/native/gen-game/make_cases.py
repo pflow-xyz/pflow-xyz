@@ -13,6 +13,7 @@ RULES = {
     "ttt": {"auto": ["o_win_", "x_win_"], "reward": {"win_o": -1, "win_x": 1}, "sides": {"o_": -1, "x_": 1}},
     "nim": {"auto": ["a_lose", "b_lose"], "reward": {"win_a": 1, "win_b": -1}, "sides": {"a_take": 1, "b_take": -1}},
     "bucket": {"auto": ["a_stuck", "b_stuck"], "reward": {"win_a": 1, "win_b": -1}, "sides": {"a_add": 1, "b_add": -1}},
+    "cnim": {"auto": ["a_lose", "b_lose"], "reward": {"win_a": 1, "win_b": -1}, "sides": {"a_": 1, "b_": -1}},
     # A reward of one place: two distinct rewards, so a value is one search
     # over the range and aspiration starts from a window around the guess.
     "nim-a": {"auto": ["a_lose", "b_lose"], "reward": {"win_a": 1}, "sides": {"a_take": 1, "b_take": -1}},
@@ -310,6 +311,30 @@ for k in ("prizes-123", "prizes-1111"):
                                  plan("nw-memo-6", memo={"entries": 6}), plan("filters-both", filters=["must_win", "non_losing"]),
                                  plan("root-nl", root={"order": ["non_losing"]}), plan("mtdf-root-nl", drivers=["mtd_f"], root={"order": ["non_losing"]}),
                                  plan("order-cent", order=["centrality"]), ("nodes-8", {"nodes": 8}), ("nodes-8-mtdf", {"nodes": 8, "plan": {"drivers": ["mtd_f"]}})] + ODE)})
+
+# Coloured nets: a place with a count per token colour, unfolded to a place per
+# colour copy. Rewards name a place (every copy) or a copy ("win_a.red").
+CNIM = [("default", {}), plan("filters-both", filters=["must_win", "non_losing"]), plan("root-nl", root={"order": ["non_losing"]}),
+        plan("mtdf", drivers=["mtd_f"]), plan("cent", order=["tt_best", "immediate_win", "centrality", "threats", "history"]),
+        plan("memo-8", memo={"entries": 8}), ("nodes-20", {"nodes": 20}), ("nodes-20-play", {"nodes": 20, "plan": {"mode": "play"}}),
+        ("reward-red", {"reward": {"win_a.red": 1, "win_b.red": -1}}),
+        ("reward-mixed", {"reward": {"win_a.blue": 1, "win_b.red": -1}}),
+        ("reward-weights", {"reward": {"win_a": 1.5, "win_b.blue": -2}}),
+        ("reward-mixed-mtdf", {"reward": {"win_a.blue": 1, "win_b.red": -1}, "plan": {"drivers": ["mtd_f"]}}),
+        ("reward-no-copy", {"reward": {"win_a.green": 1}}),
+        ("reward-no-place", {"reward": {"nope": 1}}),
+        ("sides-prefix", {"sides": {"a_take_r": 1, "b_take_r": -1, "a_take_b": 1, "b_take_b": -1, "a_take_rb": 1, "b_take_rb": -1}}),
+        ("book-refused", {"book": "x"})]
+for name, fixture in (("colored-nim", "game-colored-nim"), ("colored-spare", "game-colored-spare")):
+    sets.append({"name": name, "fixture": f"native/fixtures/{fixture}.jsonld", "rules": "cnim",
+                 "positions": [{"initial": True}, {"fire": ["a_take_r2"]}, {"fire": ["a_take_rb", "b_take_r1", "a_take_b1"]}, sweep(101, 8, 5)],
+                 "calls": calls(CNIM + ODE_SWEEP)})
+sets.append({"name": "colored-nim-ode", "fixture": "native/fixtures/game-colored-nim.jsonld", "rules": "cnim",
+             "positions": [{"initial": True}, sweep(102, 6, 6)],
+             "calls": calls(ODE)})
+sets.append({"name": "colored-nim3", "fixture": "native/fixtures/game-colored-nim3.jsonld", "rules": "cnim",
+             "positions": [{"initial": True}, {"fire": ["a_take_rg"]}, sweep(103, 8, 5)],
+             "calls": calls(CNIM[:8] + [("reward-green", {"reward": {"win_a.green": 1, "win_b.blue": -1}})] + ODE_SWEEP)})
 
 
 # Books: label caches built by the generator from native's own values.
