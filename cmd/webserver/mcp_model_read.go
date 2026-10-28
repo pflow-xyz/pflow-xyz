@@ -8,7 +8,9 @@ package main
 // of 2^53 or more), what pflow-native refuses to read at all (a name for a
 // kind, a net type or a merge policy that is not one), what would make a call
 // expensive (a name of more than mbMaxIDBytes bytes: flattening repeats the
-// name of a fused transition in every map and arc that mentions it).
+// name of a fused transition in every map and arc that mentions it), and
+// completes what pflow-native completes (a subnet that declares no ports has
+// one per exported place).
 
 import (
 	"encoding/json"
@@ -30,8 +32,19 @@ const (
 )
 
 // modelBundle checks the arguments and reads the bundle, refusing one past the
-// limits before any engine sees it.
+// limits before any engine sees it. Subnets that declare no ports get one inout
+// port per exported place, as pflow-native's resolve gives them.
 func modelBundle(tool string, args map[string]any, kinds map[string]argKind) (*metamodel.Bundle, error) {
+	return readBundleArg(tool, args, kinds, true)
+}
+
+// declaredBundle is modelBundle without the derived ports: pflow_bundle_candidates
+// lists the ports a subnet declares, as native's candidates do.
+func declaredBundle(tool string, args map[string]any, kinds map[string]argKind) (*metamodel.Bundle, error) {
+	return readBundleArg(tool, args, kinds, false)
+}
+
+func readBundleArg(tool string, args map[string]any, kinds map[string]argKind, derive bool) (*metamodel.Bundle, error) {
 	if err := checkArgs(tool, args, kinds); err != nil {
 		return nil, err
 	}
@@ -68,6 +81,9 @@ func modelBundle(tool string, args map[string]any, kinds map[string]argKind) (*m
 	}
 	if err := mbCheckSize(tool, b); err != nil {
 		return nil, err
+	}
+	if derive {
+		mbDerivePorts(b)
 	}
 	return b, nil
 }
@@ -273,4 +289,28 @@ func mbCheckSize(tool string, b *metamodel.Bundle) error {
 		}
 	}
 	return nil
+}
+
+// ---- derived ports
+
+// mbDerivePorts gives every subnet that declares no ports one inout port per
+// exported place, named for the place, as pflow-compose's resolve does
+// (Subnet::derived_ports). A place id that repeats gives one port: resolve
+// takes the first, and Validate would call a second a duplicate port.
+func mbDerivePorts(b *metamodel.Bundle) {
+	for i := range b.Subnets {
+		s := &b.Subnets[i]
+		if len(s.Ports) > 0 || s.Model == nil {
+			continue
+		}
+		seen := map[string]bool{}
+		for _, p := range s.Model.Places {
+			// (a port reads its place by id, the first one: it is derived only
+			// when that one is exported, or Validate would call the port wrong)
+			if first := s.Model.PlaceByID(p.ID); p.Exported && first != nil && first.Exported && !seen[p.ID] {
+				seen[p.ID] = true
+				s.Ports = append(s.Ports, metamodel.Port{ID: p.ID, Kind: metamodel.PortInOut, Place: p.ID, Schema: first.Type})
+			}
+		}
+	}
 }

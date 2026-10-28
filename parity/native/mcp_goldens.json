@@ -77203,6 +77203,703 @@
       }
     },
     {
+      "name": "pflow_bundle_validate/derived",
+      "tool": "pflow_bundle_validate",
+      "args": {},
+      "bundle_file": "native/fixtures/bundle-derived.json",
+      "native": [
+        {
+          "call": "Bundle::validate"
+        }
+      ],
+      "expect": {
+        "valid": true,
+        "errors": [],
+        "warnings": []
+      }
+    },
+    {
+      "name": "pflow_bundle_flatten/derived",
+      "tool": "pflow_bundle_flatten",
+      "args": {},
+      "bundle_file": "native/fixtures/bundle-derived.json",
+      "native": [
+        {
+          "call": "composition::flatten_json"
+        }
+      ],
+      "expect": {
+        "ok": true,
+        "error": "",
+        "places": [
+          {
+            "id": "a/p",
+            "kind": "token",
+            "initial": 3,
+            "capacity": 0,
+            "exported": true,
+            "resource": false,
+            "description": "",
+            "members": [
+              "a/p"
+            ]
+          },
+          {
+            "id": "wire:a/q",
+            "kind": "token",
+            "initial": 0,
+            "capacity": 0,
+            "exported": true,
+            "resource": false,
+            "description": "fused: a/q, b/r",
+            "members": [
+              "a/q",
+              "b/r"
+            ]
+          },
+          {
+            "id": "a/hidden",
+            "kind": "token",
+            "initial": 1,
+            "capacity": 0,
+            "exported": false,
+            "resource": false,
+            "description": "",
+            "members": [
+              "a/hidden"
+            ]
+          },
+          {
+            "id": "b/s",
+            "kind": "token",
+            "initial": 2,
+            "capacity": 0,
+            "exported": true,
+            "resource": false,
+            "description": "",
+            "members": [
+              "b/s"
+            ]
+          },
+          {
+            "id": "c/x",
+            "kind": "token",
+            "initial": 1,
+            "capacity": 0,
+            "exported": true,
+            "resource": false,
+            "description": "",
+            "members": [
+              "c/x"
+            ]
+          }
+        ],
+        "transitions": [
+          {
+            "id": "a/t",
+            "description": "",
+            "members": [
+              "a/t"
+            ],
+            "fused": false
+          },
+          {
+            "id": "b/u",
+            "description": "",
+            "members": [
+              "b/u"
+            ],
+            "fused": false
+          },
+          {
+            "id": "c/w",
+            "description": "",
+            "members": [
+              "c/w"
+            ],
+            "fused": false
+          }
+        ],
+        "arcs": [
+          {
+            "from": "a/p",
+            "to": "a/t",
+            "weight": 1,
+            "type": ""
+          },
+          {
+            "from": "a/t",
+            "to": "wire:a/q",
+            "weight": 1,
+            "type": ""
+          },
+          {
+            "from": "b/s",
+            "to": "b/u",
+            "weight": 1,
+            "type": ""
+          },
+          {
+            "from": "b/u",
+            "to": "wire:a/q",
+            "weight": 1,
+            "type": ""
+          },
+          {
+            "from": "c/x",
+            "to": "c/w",
+            "weight": 1,
+            "type": ""
+          }
+        ],
+        "constraints": [],
+        "wires": {
+          "wire:a/q": [
+            "a/q",
+            "b/r"
+          ]
+        },
+        "fused_groups": {},
+        "place_map": {
+          "a": {
+            "hidden": "a/hidden",
+            "p": "a/p",
+            "q": "wire:a/q"
+          },
+          "b": {
+            "r": "wire:a/q",
+            "s": "b/s"
+          },
+          "c": {
+            "x": "c/x"
+          }
+        },
+        "transition_map": {
+          "a": {
+            "t": "a/t"
+          },
+          "b": {
+            "u": "b/u"
+          },
+          "c": {
+            "w": "c/w"
+          }
+        },
+        "warnings": [],
+        "initial_enablement": [
+          {
+            "transition": "a/t",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "transition": "b/u",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "transition": "c/w",
+            "enabled": true,
+            "why": ""
+          }
+        ]
+      }
+    },
+    {
+      "name": "pflow_bundle_incidence/derived",
+      "tool": "pflow_bundle_incidence",
+      "args": {},
+      "bundle_file": "native/fixtures/bundle-derived.json",
+      "native": [
+        {
+          "call": "composition::incidence_json"
+        }
+      ],
+      "expect": {
+        "ok": true,
+        "rows": [
+          "a/p",
+          "wire:a/q",
+          "a/hidden",
+          "b/s",
+          "c/x"
+        ],
+        "cols": [
+          "a/t",
+          "b/u",
+          "c/w"
+        ],
+        "matrix": [
+          [
+            -1,
+            0,
+            0
+          ],
+          [
+            1,
+            1,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            -1,
+            0
+          ],
+          [
+            0,
+            0,
+            -1
+          ]
+        ],
+        "blocks": [
+          {
+            "subnet": "a",
+            "rows": [
+              "p",
+              "q",
+              "hidden"
+            ],
+            "cols": [
+              "t"
+            ],
+            "matrix": [
+              [
+                -1
+              ],
+              [
+                1
+              ],
+              [
+                0
+              ]
+            ]
+          },
+          {
+            "subnet": "b",
+            "rows": [
+              "r",
+              "s"
+            ],
+            "cols": [
+              "u"
+            ],
+            "matrix": [
+              [
+                1
+              ],
+              [
+                -1
+              ]
+            ]
+          },
+          {
+            "subnet": "c",
+            "rows": [
+              "x"
+            ],
+            "cols": [
+              "w"
+            ],
+            "matrix": [
+              [
+                -1
+              ]
+            ]
+          }
+        ],
+        "invariants": []
+      }
+    },
+    {
+      "name": "pflow_bundle_run/derived-wire",
+      "tool": "pflow_bundle_run",
+      "args": {
+        "script": [
+          "a/t",
+          "b/u",
+          "a/t"
+        ]
+      },
+      "bundle_file": "native/fixtures/bundle-derived.json",
+      "native": [
+        {
+          "call": "composition::flatten"
+        },
+        {
+          "call": "composition::run"
+        }
+      ],
+      "expect": {
+        "id": "script",
+        "title": "script",
+        "steps": [
+          {
+            "member": "a/t",
+            "flat": "a/t",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "b/u",
+            "flat": "b/u",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/t",
+            "flat": "a/t",
+            "enabled": true,
+            "why": ""
+          }
+        ],
+        "completed": true,
+        "stopped_at": -1,
+        "stopped_step": null,
+        "final_marking": {
+          "a/hidden": 1,
+          "a/p": 1,
+          "b/s": 1,
+          "c/x": 1,
+          "wire:a/q": 3
+        },
+        "expect": []
+      }
+    },
+    {
+      "name": "pflow_bundle_add_link/derived-dup-token",
+      "tool": "pflow_bundle_add_link",
+      "args": {
+        "kind": "token",
+        "from": "a:q",
+        "to": "b:r"
+      },
+      "bundle_file": "native/fixtures/bundle-derived.json",
+      "native": [
+        {
+          "call": "Composition::add_link"
+        }
+      ],
+      "error": "[PAGE_DUPLICATE] already linked"
+    },
+    {
+      "name": "pflow_bundle_add_link/derived-new-token",
+      "tool": "pflow_bundle_add_link",
+      "args": {
+        "kind": "token",
+        "from": "a:p",
+        "to": "b:s"
+      },
+      "bundle_file": "native/fixtures/bundle-derived.json",
+      "native": [
+        {
+          "call": "Composition::add_link"
+        }
+      ],
+      "expect": {
+        "index": 1,
+        "link": {
+          "kind": "token",
+          "from": {
+            "subnet": "a",
+            "port": "p"
+          },
+          "to": {
+            "subnet": "b",
+            "port": "s"
+          }
+        },
+        "key": "token:a:p->b:s",
+        "verdict": {
+          "ok": true,
+          "kind": "token",
+          "errors": [],
+          "warnings": []
+        },
+        "links": [
+          {
+            "kind": "token",
+            "from": {
+              "subnet": "a",
+              "port": "q"
+            },
+            "to": {
+              "subnet": "b",
+              "port": "r"
+            }
+          },
+          {
+            "kind": "token",
+            "from": {
+              "subnet": "a",
+              "port": "p"
+            },
+            "to": {
+              "subnet": "b",
+              "port": "s"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "pflow_bundle_add_link/derived-data",
+      "tool": "pflow_bundle_add_link",
+      "args": {
+        "kind": "data",
+        "from": "a:q",
+        "to": "c:x"
+      },
+      "bundle_file": "native/fixtures/bundle-derived.json",
+      "native": [
+        {
+          "call": "Composition::add_link"
+        }
+      ],
+      "error": "[E_DATALINK_CONSUMES] links[0]: observer c/x has arc x -> w on the observed place; a data link is read-only. Express the dependency as a read arc (tokens >= n), an inhibitor arc, or a guard (tokens(\"x\") > 0)."
+    },
+    {
+      "name": "pflow_bundle_add_link/derived-not-exported",
+      "tool": "pflow_bundle_add_link",
+      "args": {
+        "kind": "token",
+        "from": "a:hidden",
+        "to": "b:s"
+      },
+      "bundle_file": "native/fixtures/bundle-derived.json",
+      "native": [
+        {
+          "call": "Composition::add_link"
+        }
+      ],
+      "error": "[E_BAD_ENDPOINT] links[0]: from: subnet \"a\" has no port \"hidden\""
+    },
+    {
+      "name": "pflow_bundle_add_link/derived-to-declared",
+      "tool": "pflow_bundle_add_link",
+      "args": {
+        "kind": "token",
+        "from": "b:s",
+        "to": "c:x"
+      },
+      "bundle_file": "native/fixtures/bundle-derived.json",
+      "native": [
+        {
+          "call": "Composition::add_link"
+        }
+      ],
+      "expect": {
+        "index": 1,
+        "link": {
+          "kind": "token",
+          "from": {
+            "subnet": "b",
+            "port": "s"
+          },
+          "to": {
+            "subnet": "c",
+            "port": "x"
+          }
+        },
+        "key": "token:b:s->c:x",
+        "verdict": {
+          "ok": true,
+          "kind": "token",
+          "errors": [],
+          "warnings": []
+        },
+        "links": [
+          {
+            "kind": "token",
+            "from": {
+              "subnet": "a",
+              "port": "q"
+            },
+            "to": {
+              "subnet": "b",
+              "port": "r"
+            }
+          },
+          {
+            "kind": "token",
+            "from": {
+              "subnet": "b",
+              "port": "s"
+            },
+            "to": {
+              "subnet": "c",
+              "port": "x"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "pflow_bundle_add_link/derived-guard",
+      "tool": "pflow_bundle_add_link",
+      "args": {
+        "kind": "guard",
+        "from": "c:go",
+        "to": "a:q"
+      },
+      "bundle_file": "native/fixtures/bundle-derived.json",
+      "native": [
+        {
+          "call": "Composition::add_link"
+        }
+      ],
+      "expect": {
+        "index": 1,
+        "link": {
+          "kind": "guard",
+          "from": {
+            "subnet": "c",
+            "port": "go"
+          },
+          "to": {
+            "subnet": "a",
+            "port": "q"
+          }
+        },
+        "key": "guard:c:go->a:q",
+        "verdict": {
+          "ok": true,
+          "kind": "guard",
+          "errors": [],
+          "warnings": [
+            {
+              "code": "W_RESTRICTIVE_LINK",
+              "message": "links[0]: a guard link restricts c; properties proved of it alone may no longer hold",
+              "rule": "pflow-compose"
+            }
+          ]
+        },
+        "links": [
+          {
+            "kind": "token",
+            "from": {
+              "subnet": "a",
+              "port": "q"
+            },
+            "to": {
+              "subnet": "b",
+              "port": "r"
+            }
+          },
+          {
+            "kind": "guard",
+            "from": {
+              "subnet": "c",
+              "port": "go"
+            },
+            "to": {
+              "subnet": "a",
+              "port": "q"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "pflow_bundle_candidates/derived-from-declared",
+      "tool": "pflow_bundle_candidates",
+      "args": {
+        "from": "c:x"
+      },
+      "bundle_file": "native/fixtures/bundle-derived.json",
+      "native": [
+        {
+          "call": "composition::candidates"
+        }
+      ],
+      "expect": {
+        "from": {
+          "subnet": "c",
+          "port": "x"
+        },
+        "prefer": "auto",
+        "lit": 0,
+        "candidates": [
+          {
+            "ref": {
+              "subnet": "c",
+              "port": "go"
+            },
+            "key": "c:go",
+            "ok": false,
+            "link": {
+              "kind": "guard",
+              "from": {
+                "subnet": "c",
+                "port": "go"
+              },
+              "to": {
+                "subnet": "c",
+                "port": "x"
+              }
+            },
+            "verdict": {
+              "ok": false,
+              "kind": "guard",
+              "errors": [
+                {
+                  "code": "PAGE_SAME_SUBNET",
+                  "message": "links[0]: both ends are on subnet \"c\"; a link connects two subnets",
+                  "rule": "page"
+                }
+              ],
+              "warnings": []
+            },
+            "tried": [
+              {
+                "link": {
+                  "kind": "guard",
+                  "from": {
+                    "subnet": "c",
+                    "port": "go"
+                  },
+                  "to": {
+                    "subnet": "c",
+                    "port": "x"
+                  }
+                },
+                "verdict": {
+                  "ok": false,
+                  "kind": "guard",
+                  "errors": [
+                    {
+                      "code": "PAGE_SAME_SUBNET",
+                      "message": "links[0]: both ends are on subnet \"c\"; a link connects two subnets",
+                      "rule": "page"
+                    }
+                  ],
+                  "warnings": []
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "pflow_bundle_candidates/derived-from-derived",
+      "tool": "pflow_bundle_candidates",
+      "args": {
+        "from": "a:q"
+      },
+      "bundle_file": "native/fixtures/bundle-derived.json",
+      "native": [
+        {
+          "call": "composition::candidates"
+        }
+      ],
+      "error": "subnet \"a\" has no port \"q\""
+    },
+    {
       "name": "pflow_bundle_validate/shared-ids",
       "tool": "pflow_bundle_validate",
       "args": {},

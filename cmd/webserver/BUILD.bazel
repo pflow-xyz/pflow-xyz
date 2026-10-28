@@ -17,6 +17,7 @@ go_library(
         "mcp_model_firing.go",
         "mcp_model_fusion.go",
         "mcp_model_read.go",
+        "mcp_model_refusal.go",
         "mcp_model_rules.go",
         "mcp_oauth.go",
         "mcp_registry.go",

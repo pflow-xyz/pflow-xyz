@@ -134,7 +134,7 @@ func TestMCPBundleToolsOverRPC(t *testing.T) {
 	}
 	// and a refused one is an error of the call listing each reason
 	_, errText = bundleRPC(t, "pflow_bundle_add_link", map[string]any{"bundle": bundle, "kind": "event", "from": "orders:dequeue", "to": "workers:acquire"})
-	if errText != "[PAGE_DUPLICATE] already linked" {
+	if errText != "pflow_bundle_add_link: [PAGE_DUPLICATE] already linked" {
 		t.Fatalf("duplicate: %q", errText)
 	}
 	inc, errText := bundleRPC(t, "pflow_bundle_incidence", map[string]any{"bundle": bundle})
@@ -536,7 +536,7 @@ func TestMCPBundleFlattenOfAnInvalidBundle(t *testing.T) {
 	if asJSON(t, out).(map[string]any)["ok"] != false {
 		t.Errorf("incidence: %v", out)
 	}
-	if _, err := callBundleTool(t, "pflow_bundle_run", map[string]any{"bundle": bad, "script": []any{"shop/sell"}}); err == nil || !strings.HasPrefix(err.Error(), "invalid bundle") {
+	if _, err := callBundleTool(t, "pflow_bundle_run", map[string]any{"bundle": bad, "script": []any{"shop/sell"}}); err == nil || !strings.HasPrefix(err.Error(), "pflow_bundle_run: invalid bundle") {
 		t.Errorf("run: %v", err)
 	}
 }

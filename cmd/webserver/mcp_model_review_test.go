@@ -330,3 +330,97 @@ func TestMCPBundleFlattenIsDeterministicWithSharedLinkIds(t *testing.T) {
 		})
 	}
 }
+
+// ---- ports derived from exported places
+
+// A subnet that declares no ports has one per exported place: native resolves
+// an end to it, and so do the tools (candidates alone lists declared ports).
+func TestMCPBundleDerivesPortsFromExportedPlaces(t *testing.T) {
+	b := twoSubnets(tokenLink("a:q", "b:r"))
+	for _, tool := range []string{"pflow_bundle_validate", "pflow_bundle_flatten", "pflow_bundle_incidence"} {
+		out, err := callBundleTool(t, tool, map[string]any{"bundle": b})
+		if err != nil {
+			t.Fatalf("%s: %v", tool, err)
+		}
+		res := asJSON(t, out).(map[string]any)
+		if res["valid"] == false || res["ok"] == false {
+			t.Errorf("%s: %v", tool, res)
+		}
+	}
+	out, _ := callBundleTool(t, "pflow_bundle_flatten", map[string]any{"bundle": b})
+	wires, _ := asJSON(t, out).(map[string]any)["wires"].(map[string]any)
+	if _, ok := wires["wire:a/q"]; !ok {
+		t.Errorf("wires %v", wires)
+	}
+	res, err := callBundleTool(t, "pflow_bundle_run", map[string]any{"bundle": b, "script": []any{"a/t", "b/u"}})
+	if err != nil || res.(map[string]any)["completed"] != true {
+		t.Errorf("run: %v %v", res, err)
+	}
+	// a second token link on the same pair is a duplicate, and a new one is added
+	_, err = callBundleTool(t, "pflow_bundle_add_link", map[string]any{"bundle": b, "kind": "token", "from": "a:q", "to": "b:r"})
+	if err == nil || !strings.HasPrefix(err.Error(), "pflow_bundle_add_link: [PAGE_DUPLICATE] already linked") {
+		t.Errorf("duplicate: %v", err)
+	}
+	if _, err = callBundleTool(t, "pflow_bundle_add_link", map[string]any{"bundle": twoSubnets(), "kind": "token", "from": "a:q", "to": "b:r"}); err != nil {
+		t.Errorf("add: %v", err)
+	}
+	// candidates take declared ports only, and say so
+	_, err = callBundleTool(t, "pflow_bundle_candidates", map[string]any{"bundle": b, "from": "a:q"})
+	if err == nil || !strings.Contains(err.Error(), `pflow_bundle_candidates: subnet "a" has no port "q". subnet "a" declares no ports, so it offers no candidates`) {
+		t.Errorf("candidates: %v", err)
+	}
+	// the port lists a refusal gives: a subnet's own, or what to do
+	_, err = callBundleTool(t, "pflow_bundle_add_link", map[string]any{"bundle": b, "kind": "token", "from": "a:nope", "to": "b:r"})
+	if err == nil || !strings.Contains(err.Error(), `has no port "nope". subnet "a" has the ports "p", "q"`) {
+		t.Errorf("a port that is not there: %v", err)
+	}
+	noExports := twoSubnets()
+	for _, s := range noExports["subnets"].([]any) {
+		for _, p := range s.(map[string]any)["model"].(map[string]any)["places"].([]any) {
+			delete(p.(map[string]any), "exported")
+		}
+	}
+	_, err = callBundleTool(t, "pflow_bundle_add_link", map[string]any{"bundle": noExports, "kind": "token", "from": "a:q", "to": "b:r"})
+	if err == nil || !strings.Contains(err.Error(), `subnet "a" has no ports: declare them in its "ports"`) {
+		t.Errorf("no ports: %v", err)
+	}
+	// declared ports are the subnet's boundary, as ever
+	declared := twoSubnets()
+	declared["subnets"].([]any)[0].(map[string]any)["ports"] = []any{map[string]any{"id": "only", "kind": "inout", "place": "p"}}
+	_, err = callBundleTool(t, "pflow_bundle_add_link", map[string]any{"bundle": declared, "kind": "token", "from": "a:q", "to": "b:r"})
+	if err == nil || !strings.Contains(err.Error(), `subnet "a" has the ports "only"`) {
+		t.Errorf("declared: %v", err)
+	}
+}
+
+// ---- every refusal names its tool
+
+func TestMCPBundleEveryRefusalNamesItsTool(t *testing.T) {
+	cafe := cafeBundle(t)
+	for _, c := range []struct {
+		tool string
+		args map[string]any
+	}{
+		{"pflow_bundle_validate", map[string]any{}},
+		{"pflow_bundle_add_link", map[string]any{"bundle": cafe, "from": "a:b", "to": "c:d"}},
+		{"pflow_bundle_add_link", map[string]any{"bundle": cafe, "kind": "wire", "from": "a:b", "to": "c:d"}},
+		{"pflow_bundle_add_link", map[string]any{"bundle": cafe, "kind": "token", "from": "pantry", "to": "c:d"}},
+		{"pflow_bundle_add_link", map[string]any{"bundle": cafe, "kind": "token", "from": "bank:x", "to": "pantry:beans"}},
+		{"pflow_bundle_add_link", map[string]any{"bundle": cafe, "kind": "token", "from": "pantry:beans", "to": "pantry:beans"}},
+		{"pflow_bundle_candidates", map[string]any{"bundle": cafe}},
+		{"pflow_bundle_candidates", map[string]any{"bundle": cafe, "from": "pantry"}},
+		{"pflow_bundle_candidates", map[string]any{"bundle": cafe, "from": "bank:x"}},
+		{"pflow_bundle_candidates", map[string]any{"bundle": cafe, "from": "pantry:oven"}},
+		{"pflow_bundle_candidates", map[string]any{"bundle": cafe, "from": "pantry:beans", "prefer": "all"}},
+		{"pflow_bundle_run", map[string]any{"bundle": cafe}},
+		{"pflow_bundle_run", map[string]any{"bundle": cafe, "scenario": "nope"}},
+		{"pflow_bundle_run", map[string]any{"bundle": cafe, "script": []any{}, "expect": []any{map[string]any{"place": "nope/x", "n": 0}}}},
+		{"pflow_bundle_example", map[string]any{"instances": []any{"bank"}}},
+		{"pflow_bundle_example", map[string]any{"links": map[string]any{}}},
+		{"pflow_bundle_example", map[string]any{"links": []any{map[string]any{"from": "a:b", "to": "c:d"}}}},
+	} {
+		if _, err := callBundleTool(t, c.tool, c.args); err == nil || !strings.HasPrefix(err.Error(), c.tool+": ") {
+			t.Errorf("%s %v: %v", c.tool, c.args, err)
+		}
+	}
+}

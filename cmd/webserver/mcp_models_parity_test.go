@@ -135,7 +135,9 @@ func compareToGolden(t *testing.T, c bundleGoldenCase, out any, err error, what 
 		if err == nil {
 			t.Fatalf("%s: native refused (%s); the tool answered", what, *c.Error)
 		}
-		if err.Error() != *c.Error {
+		// the tool names itself in front of a refusal and may add a hint behind
+		// it; the words between are native's
+		if mbNativeText(err) != *c.Error {
 			t.Fatalf("%s: error differs:\n tool:   %s\n native: %s", what, err.Error(), *c.Error)
 		}
 		return

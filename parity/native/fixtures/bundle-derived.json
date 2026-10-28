@@ -1,0 +1,139 @@
+{
+  "@context": "https://pflow.xyz/schema",
+  "@type": "PetriNetBundle",
+  "name": "derived",
+  "description": "Subnets that declare no ports: pflow-rs resolves an end to one inout port per exported place, so a link may name an exported place as a port.",
+  "subnets": [
+    {
+      "@type": "PetriNet",
+      "id": "a",
+      "net_type": "ResourceNet",
+      "model": {
+        "name": "a",
+        "places": [
+          {
+            "id": "p",
+            "initial": 3,
+            "exported": true
+          },
+          {
+            "id": "q",
+            "initial": 0,
+            "exported": true
+          },
+          {
+            "id": "hidden",
+            "initial": 1
+          }
+        ],
+        "transitions": [
+          {
+            "id": "t"
+          }
+        ],
+        "arcs": [
+          {
+            "from": "p",
+            "to": "t",
+            "weight": 1
+          },
+          {
+            "from": "t",
+            "to": "q",
+            "weight": 1
+          }
+        ]
+      }
+    },
+    {
+      "@type": "PetriNet",
+      "id": "b",
+      "net_type": "ResourceNet",
+      "model": {
+        "name": "b",
+        "places": [
+          {
+            "id": "r",
+            "initial": 0,
+            "exported": true
+          },
+          {
+            "id": "s",
+            "initial": 2,
+            "exported": true
+          }
+        ],
+        "transitions": [
+          {
+            "id": "u"
+          }
+        ],
+        "arcs": [
+          {
+            "from": "s",
+            "to": "u",
+            "weight": 1
+          },
+          {
+            "from": "u",
+            "to": "r",
+            "weight": 1
+          }
+        ]
+      }
+    },
+    {
+      "@type": "PetriNet",
+      "id": "c",
+      "net_type": "ResourceNet",
+      "model": {
+        "name": "c",
+        "places": [
+          {
+            "id": "x",
+            "initial": 1,
+            "exported": true
+          }
+        ],
+        "transitions": [
+          {
+            "id": "w"
+          }
+        ],
+        "arcs": [
+          {
+            "from": "x",
+            "to": "w",
+            "weight": 1
+          }
+        ]
+      },
+      "ports": [
+        {
+          "id": "x",
+          "kind": "inout",
+          "place": "x"
+        },
+        {
+          "id": "go",
+          "kind": "inout",
+          "target": "transition",
+          "transition": "w"
+        }
+      ]
+    }
+  ],
+  "links": [
+    {
+      "kind": "token",
+      "from": {
+        "subnet": "a",
+        "port": "q"
+      },
+      "to": {
+        "subnet": "b",
+        "port": "r"
+      }
+    }
+  ]
+}

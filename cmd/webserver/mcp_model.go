@@ -213,20 +213,29 @@ func mcpBundleIncidence(_ *Server, _ *http.Request, args map[string]any) (any, e
 }
 
 func mcpBundleAddLink(_ *Server, _ *http.Request, args map[string]any) (any, error) {
-	b, err := modelBundle("pflow_bundle_add_link", args, bundleAddLinkKinds)
+	const tool = "pflow_bundle_add_link"
+	b, err := modelBundle(tool, args, bundleAddLinkKinds)
 	if err != nil {
 		return nil, err
 	}
-	l, err := mbLinkArg(args)
+	l, err := mbLinkArg(tool, args)
 	if err != nil {
 		return nil, err
 	}
 	v := mbVerdictIn(b, l)
 	if !v.ok {
-		return nil, fmt.Errorf("%s", v.refusal())
+		r := &mbRefusal{tool: tool, native: v.refusal()}
+		// a port that is not there: say which ones are
+		for _, e := range []metamodel.Endpoint{l.From, l.To} {
+			if s := b.SubnetByID(e.Subnet); s != nil && e.Port != "" && s.PortByID(e.Port) == nil {
+				r.hint = mbPortsHint(s, true)
+				break
+			}
+		}
+		return nil, r
 	}
 	if len(b.Links) >= mbMaxLinks {
-		return nil, fmt.Errorf("pflow_bundle_add_link: the composition has %d links; at most %d", len(b.Links), mbMaxLinks)
+		return nil, fmt.Errorf("%s: the composition has %d links; at most %d", tool, len(b.Links), mbMaxLinks)
 	}
 	links, err := mbBundleLinks(append(append([]metamodel.Link(nil), b.Links...), l))
 	if err != nil {
@@ -236,26 +245,28 @@ func mcpBundleAddLink(_ *Server, _ *http.Request, args map[string]any) (any, err
 }
 
 // mbLinkArg reads the kind, from and to arguments.
-func mbLinkArg(args map[string]any) (metamodel.Link, error) {
+func mbLinkArg(tool string, args map[string]any) (metamodel.Link, error) {
 	for _, k := range []string{"kind", "from", "to"} {
 		if args[k] == nil {
-			return metamodel.Link{}, fmt.Errorf("missing argument %q", k)
+			return metamodel.Link{}, fmt.Errorf("%s: missing argument %q", tool, k)
 		}
 	}
-	return mbParseLink(map[string]any{"kind": args["kind"], "from": args["from"], "to": args["to"]})
+	l, err := mbParseLink(map[string]any{"kind": args["kind"], "from": args["from"], "to": args["to"]})
+	return l, mbRefuse(tool, err)
 }
 
 func mcpBundleCandidates(_ *Server, r *http.Request, args map[string]any) (any, error) {
-	b, err := modelBundle("pflow_bundle_candidates", args, bundleCandidateKind)
+	const tool = "pflow_bundle_candidates"
+	b, err := declaredBundle(tool, args, bundleCandidateKind)
 	if err != nil {
 		return nil, err
 	}
 	if args["from"] == nil {
-		return nil, fmt.Errorf("pflow_bundle_candidates: missing argument \"from\"")
+		return nil, fmt.Errorf("%s: missing argument \"from\"", tool)
 	}
 	from, err := mbParseEndpoint(args["from"])
 	if err != nil {
-		return nil, err
+		return nil, mbRefuse(tool, err)
 	}
 	prefer := "auto"
 	if p, ok := args["prefer"].(string); ok {
@@ -263,7 +274,7 @@ func mcpBundleCandidates(_ *Server, r *http.Request, args map[string]any) (any, 
 	}
 	list, err := mbCandidates(r.Context(), b, from, prefer)
 	if err != nil {
-		return nil, err
+		return nil, mbRefuse(tool, err)
 	}
 	lit := 0
 	for _, c := range list {
@@ -283,25 +294,25 @@ func mcpBundleRun(_ *Server, _ *http.Request, args map[string]any) (any, error) 
 	scenario, hasScenario := args["scenario"].(string)
 	scriptArg, hasScript := args["script"].([]any)
 	if hasScenario == hasScript {
-		return nil, fmt.Errorf("pass `scenario` or `script`")
+		return nil, mbRefuse(tool, fmt.Errorf("pass `scenario` or `script`"))
 	}
 	var script []string
 	for _, s := range scriptArg {
 		script = append(script, s.(string))
 	}
 	if len(script) > mbMaxScript {
-		return nil, fmt.Errorf("pflow_bundle_run: script has %d steps; at most %d", len(script), mbMaxScript)
+		return nil, fmt.Errorf("%s: script has %d steps; at most %d", tool, len(script), mbMaxScript)
 	}
 	id, title := "script", "script"
 	var expect []mbExpect
 	if hasScenario {
 		sc := mbScenarioByID(scenario)
 		if sc == nil {
-			return nil, fmt.Errorf("no scenario %q; there are %s", scenario, mbQuote(mbScenarioIDs()))
+			return nil, mbRefuse(tool, fmt.Errorf("no scenario %q; there are %s", scenario, mbQuote(mbScenarioIDs())))
 		}
 		id, title, script, expect = sc.ID, sc.Title, sc.Script, sc.Expect
 		if args["expect"] != nil {
-			return nil, fmt.Errorf("pflow_bundle_run: `expect` goes with `script`; a scenario brings its own")
+			return nil, fmt.Errorf("%s: `expect` goes with `script`; a scenario brings its own", tool)
 		}
 	} else if args["expect"] != nil {
 		if expect, err = mbExpectArg(args["expect"]); err != nil {
@@ -310,7 +321,7 @@ func mcpBundleRun(_ *Server, _ *http.Request, args map[string]any) (any, error) 
 	}
 	f, err := mbFlatten(b)
 	if err != nil {
-		return nil, err
+		return nil, mbRefuse(tool, err)
 	}
 	if err := f.checkAnswer(tool); err != nil {
 		return nil, err
@@ -321,7 +332,7 @@ func mcpBundleRun(_ *Server, _ *http.Request, args map[string]any) (any, error) 
 		// n = 0 would pass, so a place that is not in the composition is refused.
 		for i, e := range expect {
 			if _, found := f.placeOf(e.Place); !found {
-				return nil, fmt.Errorf("pflow_bundle_run: expect[%d]: no place %q in the composition", i, e.Place)
+				return nil, fmt.Errorf("%s: expect[%d]: no place %q in the composition", tool, i, e.Place)
 			}
 		}
 	}
@@ -422,7 +433,8 @@ func mbOpen(instances []string, links []metamodel.Link) (*mbOpened, error) {
 }
 
 func mcpBundleExample(_ *Server, _ *http.Request, args map[string]any) (any, error) {
-	if err := checkArgs("pflow_bundle_example", args, bundleExampleKinds); err != nil {
+	const tool = "pflow_bundle_example"
+	if err := checkArgs(tool, args, bundleExampleKinds); err != nil {
 		return nil, err
 	}
 	instances := mbDefaultInstances
@@ -433,29 +445,29 @@ func mcpBundleExample(_ *Server, _ *http.Request, args map[string]any) (any, err
 		}
 	}
 	if len(instances) > len(mbCatalog) {
-		return nil, fmt.Errorf("pflow_bundle_example: %d instances; the catalog has %d", len(instances), len(mbCatalog))
+		return nil, fmt.Errorf("%s: %d instances; the catalog has %d", tool, len(instances), len(mbCatalog))
 	}
 	links := mbDefaultLinks()
 	if raw, ok := args["links"]; ok && raw != nil {
 		list, isList := raw.([]any)
 		if !isList {
-			return nil, fmt.Errorf("links must be an array, got %s", mbJSONText(raw))
+			return nil, fmt.Errorf("%s: links must be an array, got %s", tool, mbJSONText(raw))
 		}
 		if len(list) > mbMaxLinks {
-			return nil, fmt.Errorf("pflow_bundle_example: %d links; at most %d", len(list), mbMaxLinks)
+			return nil, fmt.Errorf("%s: %d links; at most %d", tool, len(list), mbMaxLinks)
 		}
 		links = nil
 		for _, x := range list {
 			l, err := mbParseLink(x)
 			if err != nil {
-				return nil, err
+				return nil, mbRefuse(tool, err)
 			}
 			links = append(links, l)
 		}
 	}
 	o, err := mbOpen(instances, links)
 	if err != nil {
-		return nil, err
+		return nil, mbRefuse(tool, err)
 	}
 	// The whole bundle, as the other tools read it.
 	text, err := json.Marshal(o.bundle)

@@ -256,7 +256,7 @@ func mbCandidates(ctx context.Context, b *metamodel.Bundle, from metamodel.Endpo
 	}
 	fp := fs.PortByID(from.Port)
 	if fp == nil {
-		return nil, fmt.Errorf("subnet %q has no port %q", from.Subnet, from.Port)
+		return nil, &mbRefusal{native: fmt.Sprintf("subnet %q has no port %q", from.Subnet, from.Port), hint: mbPortsHint(fs, false)}
 	}
 	out := []any{}
 	for si := range b.Subnets {
