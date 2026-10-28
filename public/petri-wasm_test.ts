@@ -23,6 +23,19 @@ Deno.test("vendor: the bundle matches pflow-native-wasm.lock", async () => {
     assertEquals(NATIVE_COMMANDS.map((c: any) => c.id), lock.exposed);
 });
 
+// The brotli form (served to a client that accepts br, cmd/webserver/wasm.go) is the same module as
+// the gzip form: pinned by the lock, and it must decode to the wasm the lock names.
+Deno.test("vendor: the .wasm.br decodes to the locked wasm and is the smaller form", async () => {
+    const lock = JSON.parse(await Deno.readTextFile(new URL("../pflow-native-wasm.lock", import.meta.url)));
+    const br = await Deno.readFile(new URL("./vendor/pflow-native-wasm/pflow_native_wasm_bg.wasm.br", import.meta.url));
+    assertEquals(await hex(br), lock.files["pflow_native_wasm_bg.wasm.br"]);
+    // a computed specifier, as scripts/sync-native-wasm.mjs does: a literal "node:zlib" makes Deno want @types/node to type-check
+    const { brotliDecompressSync } = await import(`node:${"zlib"}`);
+    assertEquals(await hex(new Uint8Array(brotliDecompressSync(br))), lock.files["pflow_native_wasm_bg.wasm"]);
+    assertEquals([lock.bytes.wasm, lock.bytes.gzip, lock.bytes.brotli], [wasm.length, gz.length, br.length]);
+    assert(br.length < gz.length, "the .br is no smaller than the .gz: do not ship it");
+});
+
 // Arguments the snapshot drops on purpose (they read or write the host's
 // files, or pin a note to an engine result): scripts/sync-native-wasm.mjs STRIP_ARGS.
 const STRIPPED: Record<string, string[]> = STRIP_ARGS;

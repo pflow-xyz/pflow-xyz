@@ -174,6 +174,7 @@ func validateKeys(data interface{}) error {
 type Server struct {
 	storage           Storage
 	publicFS          fs.FS
+	assets            assetCache   // ETags and gzip of the embedded files (static_assets.go)
 	files             *fileService // /api/files, each account's own files (files.go)
 	googleAnalyticsID string
 	schemaCache       schemaCache
@@ -1131,7 +1132,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			strings.HasSuffix(r.URL.Path, ".css") || strings.HasSuffix(r.URL.Path, ".txt") {
 			w.Header().Set("Access-Control-Allow-Origin", "*")
 		}
-		http.FileServer(http.FS(s.publicFS)).ServeHTTP(w, r)
+		s.serveStatic(w, r)
 		return
 	}
 

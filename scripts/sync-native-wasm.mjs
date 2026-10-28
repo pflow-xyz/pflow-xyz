@@ -2,18 +2,30 @@
 //
 //   node scripts/sync-native-wasm.mjs --from ../pflow-native/target/wasm-shim --commit <sha> [--to public/vendor/pflow-native-wasm]
 //
-// Build the shim first in pflow-native: `make wasm-shim` (size-optimised:
-// CARGO_PROFILE_RELEASE_OPT_LEVEL=z CARGO_PROFILE_RELEASE_LTO=true
-// CARGO_PROFILE_RELEASE_CODEGEN_UNITS=1). This script:
+// Build the shim first in pflow-native: `make wasm-shim` (cargo's wasm-release
+// profile at 1a13459: opt-level "s", lto, codegen-units 1; then wasm-bindgen
+// --target web, with no wasm-opt step and the `name` section kept: it is 3.2 MB of
+// the 8.5 MB, see docs/compose-load-budget.md). This script:
 //
 //   - copies the wasm-bindgen glue (pflow_native_wasm.js) as is;
-//   - stores the .wasm gzip-compressed only (pflow_native_wasm_bg.wasm.gz):
-//     the webserver serves it with Content-Encoding: gzip, and nginx on
-//     pflow.dev does not compress application/wasm;
+//   - stores the .wasm compressed only, twice: pflow_native_wasm_bg.wasm.gz
+//     (gzip -9) and pflow_native_wasm_bg.wasm.br (brotli, quality 11, a third
+//     smaller). The webserver (cmd/webserver/wasm.go) sends the .br to a client
+//     that accepts br and the .gz to the rest, with Content-Encoding set, because
+//     nginx on pflow.dev does not compress application/wasm;
 //   - snapshots the specs of the commands pflow.xyz exposes (EXPOSED below)
 //     into commands.js, so the registry can list them without loading wasm;
 //   - writes pflow-native-wasm.lock with the version, commit and sha256s,
-//     which public/petri-wasm_test.ts checks.
+//     which public/petri-wasm_test.ts checks (it also checks that the .gz and
+//     the .br both decompress to the wasm the lock names).
+//
+//   node scripts/sync-native-wasm.mjs --brotli-only
+//
+// makes the .br (and its lock entries) from the vendored .gz, without a
+// pflow-native build: the raw wasm is rebuilt from the .gz and checked against
+// the sha256 the lock holds. The .br bytes depend on Node's bundled brotli, so a
+// different Node can write different bytes for the same wasm; the lock pins the
+// vendored ones, and the test checks what they decode to.
 //
 // The lists and checkExposure() below are imported by public/petri-wasm_test.ts
 // too, so the node: modules are loaded in main() only (Deno would otherwise
@@ -183,7 +195,11 @@ async function main() {
   const { createHash } = await node('crypto');
   const { mkdirSync, readFileSync, writeFileSync } = await node('fs');
   const { join, resolve } = await node('path');
-  const { gzipSync } = await node('zlib');
+  const { gzipSync, gunzipSync, brotliCompressSync, constants } = await node('zlib');
+  // Quality 11 and a 16 MB window (browsers decode up to that); the size hint lets it plan for 8 MB of input.
+  const brotli = (b) => brotliCompressSync(b, { params: {
+    [constants.BROTLI_PARAM_QUALITY]: 11, [constants.BROTLI_PARAM_LGWIN]: 24, [constants.BROTLI_PARAM_SIZE_HINT]: b.length,
+  } });
   const arg = (name, dflt) => {
     const i = process.argv.indexOf(`--${name}`);
     return i > 0 ? process.argv[i + 1] : dflt;
@@ -191,6 +207,22 @@ async function main() {
   const from = arg('from');
   const commit = arg('commit', 'unknown');
   const to = arg('to', 'public/vendor/pflow-native-wasm');
+  if (process.argv.includes('--brotli-only')) {
+    const lockPath = join(to, '..', '..', '..', 'pflow-native-wasm.lock');
+    const lock = JSON.parse(readFileSync(lockPath, 'utf8'));
+    const wasm = gunzipSync(readFileSync(join(to, 'pflow_native_wasm_bg.wasm.gz')));
+    if (createHash('sha256').update(wasm).digest('hex') !== lock.files['pflow_native_wasm_bg.wasm']) {
+      console.error('the vendored .gz does not decompress to the wasm the lock names; not writing a .br');
+      process.exit(1);
+    }
+    const br = brotli(wasm);
+    writeFileSync(join(to, 'pflow_native_wasm_bg.wasm.br'), br);
+    lock.files['pflow_native_wasm_bg.wasm.br'] = createHash('sha256').update(br).digest('hex');
+    lock.bytes.brotli = br.length;
+    writeFileSync(lockPath, JSON.stringify(lock, null, 2) + '\n');
+    console.log(`wrote pflow_native_wasm_bg.wasm.br: ${br.length} B (gzip ${lock.bytes.gzip} B, wasm ${wasm.length} B)`);
+    return;
+  }
   if (!from) {
     console.error('usage: node scripts/sync-native-wasm.mjs --from <wasm-shim dir> --commit <sha> [--to dir]');
     process.exit(2);
@@ -229,9 +261,11 @@ async function main() {
   }
 
   const gz = gzipSync(wasm, { level: 9 });
+  const br = brotli(wasm);
   mkdirSync(to, { recursive: true });
   writeFileSync(join(to, 'pflow_native_wasm.js'), glue);
   writeFileSync(join(to, 'pflow_native_wasm_bg.wasm.gz'), gz);
+  writeFileSync(join(to, 'pflow_native_wasm_bg.wasm.br'), br);
 
   const specs = EXPOSED.map((id) => {
     const c = all.find((x) => x.id === id);
@@ -269,11 +303,12 @@ async function main() {
       'pflow_native_wasm.js': sha(glue),
       'pflow_native_wasm_bg.wasm': sha(wasm),
       'pflow_native_wasm_bg.wasm.gz': sha(gz),
+      'pflow_native_wasm_bg.wasm.br': sha(br),
     },
-    bytes: { wasm: wasm.length, gzip: gz.length },
+    bytes: { wasm: wasm.length, gzip: gz.length, brotli: br.length },
   };
   writeFileSync(join(to, '..', '..', '..', 'pflow-native-wasm.lock'), JSON.stringify(lock, null, 2) + '\n');
-  console.log(`vendored pflow-native-wasm ${Engine.version()} (${commit}): ${all.length} commands, ${EXPOSED.length} exposed; wasm ${wasm.length} B, gzip ${gz.length} B`);
+  console.log(`vendored pflow-native-wasm ${Engine.version()} (${commit}): ${all.length} commands, ${EXPOSED.length} exposed; wasm ${wasm.length} B, gzip ${gz.length} B, brotli ${br.length} B`);
 }
 
 // node sets argv[1] to the script's absolute path.

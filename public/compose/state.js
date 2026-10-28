@@ -9,6 +9,7 @@
 // Neither the composition nor the plan is in the engine's saved session state
 // (session.dump_state), so start() opens both by command on every load.
 
+import { VIEW_IDS } from './views-meta.js';
 import { IDIOMS, pieceByName, linkOf, linkKey, subnetOf, flattenLive, liveCommand, setLiveConfig, portKey, EXTRA_SPECS } from './model.js';
 
 const listeners = new Set();
@@ -194,7 +195,8 @@ export { linkKey, portKey };
 export function readHash() {
   const h = new URLSearchParams(location.hash.slice(1));
   if (h.get('ex') === 'orders' || h.get('ex') === 'connect4') state.example = h.get('ex');
-  if (h.get('view')) state.view = h.get('view');
+  // An id no view has (a stale or mistyped link) leaves the view as it is: the next write puts the real one back.
+  if (VIEW_IDS.includes(h.get('view'))) state.view = h.get('view');
 }
 export function writeHash() {
   // Keep parameters a view reads for itself (e.g. &level=transition).
