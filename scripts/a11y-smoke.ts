@@ -86,6 +86,10 @@ class Page {
     await this.send("Input.dispatchKeyEvent", { type: "keyUp", key, code: k.code, windowsVirtualKeyCode: k.vk, modifiers });
     await sleep(40);
   }
+  async click(x: number, y: number) {
+    for (const type of ["mouseMoved", "mousePressed", "mouseReleased"]) await this.send("Input.dispatchMouseEvent", { type, x, y, button: "left", clickCount: 1, buttons: type === "mousePressed" ? 1 : 0 });
+    await sleep(100);
+  }
   async waitFor(expr: string, ms = 20000): Promise<boolean> {
     for (let t = 0; t < ms; t += 100) { if (await this.eval(expr)) return true; await sleep(100); }
     return false;
@@ -104,13 +108,13 @@ for (let i = 0; i < 100; i++) {
   try { const r = await fetch(`http://127.0.0.1:${port}/json/version`); await r.body?.cancel(); if (r.ok) break; } catch { /* not up yet */ }
   await sleep(100);
 }
-async function newPage(): Promise<Page> {
+async function newPage(width = 1280, height = 900): Promise<Page> {
   const t = await (await fetch(`http://127.0.0.1:${port}/json/new?about:blank`, { method: "PUT" })).json();
   const ws = new WebSocket(t.webSocketDebuggerUrl);
   await new Promise((res, rej) => { ws.onopen = res; ws.onerror = rej; });
   const p = new Page(ws);
   p.close = async () => { ws.close(); try { const r = await fetch(`http://127.0.0.1:${port}/json/close/${t.id}`); await r.body?.cancel(); } catch { /* gone */ } };
-  await p.init();
+  await p.init(width, height);
   return p;
 }
 
@@ -146,8 +150,8 @@ const LOG = `(window.__a11yLog || []).slice()`;
 const LIVE = `document.getElementById('a11y-live').textContent`;
 const LIT = `document.querySelectorAll('.snap-legal').length`;
 
-async function open(view: string, ex: string, extra = ""): Promise<Page> {
-  const p = await newPage();
+async function open(view: string, ex: string, extra = "", width = 1280, height = 900): Promise<Page> {
+  const p = await newPage(width, height);
   await p.goto(`${url}#view=${view}&ex=${ex}${extra}`);
   await p.waitFor(`document.body.dataset.ready === '1' && !!document.querySelector('#stage svg, #stage .lw-bar')`);
   if (view === "laws") await p.waitFor(`!!document.querySelector('.lw-tab')`, 30000);
@@ -241,6 +245,34 @@ try {
     ok(first && (await title()) === first, "I on the second equally titled thing moves the pin", String(await title()));
     await p.press("i"); await sleep(100);
     ok((await title()) === null, "I again releases it");
+  }
+  {
+    // after a link from the second drawing of a port, focus is on that drawing (it used to go to the first)
+    const p = await open("cospan", "orders");
+    const twin = await p.eval(`(document.querySelector('[data-a11y-group=port][data-a11y-key*="#2"]') || {dataset: {}}).dataset.a11yKey || null`);
+    ok(twin, "cospan draws a port twice", String(twin));
+    if (twin) {
+      await p.eval(`document.querySelector('[data-a11y-key="${twin}"]').focus()`);
+      await p.press("Enter"); await sleep(100); await p.press("Tab"); await sleep(60); await p.press("Enter"); await sleep(500);
+      ok((await p.eval(ACTIVE))?.key === twin, "focus returns to the drawing the link started from", `${(await p.eval(ACTIVE))?.key} vs ${twin}`);
+    }
+  }
+  {
+    // a click on plain text ends link mode (it moves no focus, so it used to leave it on)
+    const p = await open("cospan", "orders");
+    await p.eval(`document.querySelector('[data-a11y-group=port]').focus()`); await p.press("Enter"); await sleep(100);
+    ok((await p.eval(LIT)) > 0, "link mode is on");
+    const at = await p.eval(`(() => { const h = document.querySelector('#keys h3'); h.scrollIntoView({ block: 'center' }); const r = h.getBoundingClientRect(); return { x: r.x + 10, y: r.y + r.height / 2 }; })()`);
+    await p.click(at.x, at.y);
+    ok((await p.eval(LIT)) === 0, "a click on plain text ends link mode");
+    ok((await p.eval(LOG)).includes("Linking cancelled."), "and says so");
+  }
+  {
+    // the reason a target is refused is on screen on a short laptop display
+    const p = await open("spiders", "connect4", "", 1366, 768);
+    await p.eval(`document.querySelector('[data-piece="threats"]').focus()`); await p.press("Enter"); await sleep(100); await p.press("r"); await sleep(150);
+    const r = await p.eval(`(() => { const b = document.querySelector('#snap-status').getBoundingClientRect(); return { top: b.top, bottom: b.bottom, text: document.querySelector('#snap-status').textContent }; })()`);
+    ok(r.text.includes("refused") && r.top >= 0 && r.bottom <= 768, "the refusal in the status line is inside a 1366 x 768 window", JSON.stringify(r));
   }
   {
     // skip links leave the address alone
