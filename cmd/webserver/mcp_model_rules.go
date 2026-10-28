@@ -6,8 +6,9 @@ package main
 //
 // The decisions are go-pflow's: a link is judged by metamodel.Bundle.Validate
 // (on a bundle of the link alone, as pflow-native judges it), the flat net is
-// Bundle.FlattenWithMap, and a script fires through Model.EnabledWhyNot and
-// Fire. What this file adds is the shape the answers have and a few rules
+// Bundle.FlattenWithMap, and a script fires by the rule of go-pflow's
+// Model.EnabledWhyNot and Fire as pflow-rs hardens it (mcp_model_firing.go).
+// What this file adds is the shape the answers have and a few rules
 // that are not Validate's, all of them pflow-native's, so that a composition
 // gets the same answer from this server as from the composition page (the
 // vendored native build): see mcp_models_parity_test.go.
@@ -18,10 +19,10 @@ package main
 //     link either way round);
 //   - candidates: which ports a drag from a port may reach, the first legal
 //     kind winning, as the composition page's rules.candidates does;
-//   - the names of what flattening makes, which are go-pflow's, and the order
-//     of the warnings it adds (go-pflow lists them in map order, so they are
-//     sorted by the canonical member of the fused class they name, native's
-//     order).
+//   - the names of what flattening makes, which are go-pflow's, and what
+//     go-pflow leaves to the order of a map (the warnings fused classes add,
+//     which class a shared name belongs to), in native's order
+//     (mcp_model_fusion.go).
 //
 // Verdicts leave out `passed`, the descriptive list of checks a legal link met
 // that native's page cites into go-pflow's source lines: the verdict is the
@@ -329,25 +330,7 @@ func mbFlatten(b *metamodel.Bundle) (*mbFlat, error) {
 	if err != nil {
 		return nil, err
 	}
-	// go-pflow adds one W_EVENTLINK_CYCLE warning per fused transition in the
-	// order of a map; native lists them by each class's canonical member (the
-	// smallest). Validate's own warnings come first and keep their order.
-	var rest, cycles []metamodel.ValidationError
-	for _, w := range fm.Warnings {
-		if w.Code == metamodel.WarnEventLinkCycle {
-			cycles = append(cycles, w)
-		} else {
-			rest = append(rest, w)
-		}
-	}
-	root := func(w metamodel.ValidationError) string {
-		if m := fm.FusedGroups[w.Element]; len(m) > 0 {
-			return m[0] // the smallest member, the class's canonical one
-		}
-		return w.Element
-	}
-	sort.SliceStable(cycles, func(i, j int) bool { return root(cycles[i]) < root(cycles[j]) })
-	fm.Warnings = append(rest, cycles...)
+	mbSettleFusion(b, m, fm)
 	return &mbFlat{m, fm}, nil
 }
 
@@ -452,7 +435,7 @@ func mbFlatView(f *mbFlat) map[string]any {
 		t := &f.model.Transitions[i]
 		_, fused := f.fm.FusedGroups[t.ID]
 		transitions[i] = map[string]any{"id": t.ID, "description": t.Description, "members": mbStrings(tm[t.ID]), "fused": fused}
-		if err := f.model.EnabledWhyNot(t.ID, mk); err != nil {
+		if err := mbEnabledWhyNot(f.model, t.ID, mk); err != nil {
 			enablement[i] = map[string]any{"transition": t.ID, "enabled": false, "why": err.Error()}
 		} else {
 			enablement[i] = map[string]any{"transition": t.ID, "enabled": true, "why": ""}
@@ -538,7 +521,7 @@ func (f *mbFlat) checkAnswer(tool string) error {
 // ---- running a script
 
 // mbRun fires `script` (members "<subnet>/<transition>") on the flat net from
-// its initial marking, through Model.EnabledWhyNot and Fire, stopping at the
+// its initial marking, through mbEnabledWhyNot and mbFire, stopping at the
 // first member that is not in the net or cannot fire; then it evaluates
 // `expect` on the marking reached.
 func mbRun(f *mbFlat, id, title string, script []string, expect []mbExpect) (map[string]any, error) {
@@ -556,7 +539,7 @@ func mbRun(f *mbFlat, id, title string, script []string, expect []mbExpect) (map
 		var why string
 		if !found {
 			why = fmt.Sprintf("no member %q in the composition", member)
-		} else if err := f.model.EnabledWhyNot(flat, mk); err != nil {
+		} else if err := mbEnabledWhyNot(f.model, flat, mk); err != nil {
 			why = err.Error()
 		}
 		var flatName any
@@ -571,7 +554,7 @@ func mbRun(f *mbFlat, id, title string, script []string, expect []mbExpect) (map
 			stoppedAt = i
 			break
 		}
-		mk = f.model.Fire(flat, mk)
+		mk = mbFire(f.model, flat, mk)
 	}
 	results := make([]any, len(expect))
 	for i, e := range expect {

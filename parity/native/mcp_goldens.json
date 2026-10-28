@@ -76706,6 +76706,3391 @@
         }
       ],
       "error": "[E_BAD_ENDPOINT] links[0]: to: subnet \"counter\" has no port \"pending\""
+    },
+    {
+      "name": "pflow_bundle_validate/weights",
+      "tool": "pflow_bundle_validate",
+      "args": {},
+      "bundle_file": "native/fixtures/bundle-weights.json",
+      "native": [
+        {
+          "call": "Bundle::validate"
+        }
+      ],
+      "expect": {
+        "valid": true,
+        "errors": [],
+        "warnings": []
+      }
+    },
+    {
+      "name": "pflow_bundle_flatten/weights",
+      "tool": "pflow_bundle_flatten",
+      "args": {},
+      "bundle_file": "native/fixtures/bundle-weights.json",
+      "native": [
+        {
+          "call": "composition::flatten_json"
+        }
+      ],
+      "expect": {
+        "ok": true,
+        "error": "",
+        "places": [
+          {
+            "id": "a/p",
+            "kind": "token",
+            "initial": 4,
+            "capacity": 0,
+            "exported": true,
+            "resource": false,
+            "description": "",
+            "members": [
+              "a/p"
+            ]
+          },
+          {
+            "id": "wire:a/q",
+            "kind": "token",
+            "initial": 0,
+            "capacity": 0,
+            "exported": true,
+            "resource": false,
+            "description": "fused: a/q, b/r",
+            "members": [
+              "a/q",
+              "b/r"
+            ]
+          },
+          {
+            "id": "a/big",
+            "kind": "token",
+            "initial": 0,
+            "capacity": 0,
+            "exported": true,
+            "resource": false,
+            "description": "",
+            "members": [
+              "a/big"
+            ]
+          }
+        ],
+        "transitions": [
+          {
+            "id": "a/neg_out",
+            "description": "",
+            "members": [
+              "a/neg_out"
+            ],
+            "fused": false
+          },
+          {
+            "id": "a/neg_in",
+            "description": "",
+            "members": [
+              "a/neg_in"
+            ],
+            "fused": false
+          },
+          {
+            "id": "a/order_in_first",
+            "description": "",
+            "members": [
+              "a/order_in_first"
+            ],
+            "fused": false
+          },
+          {
+            "id": "a/order_neg_first",
+            "description": "",
+            "members": [
+              "a/order_neg_first"
+            ],
+            "fused": false
+          },
+          {
+            "id": "a/order_out",
+            "description": "",
+            "members": [
+              "a/order_out"
+            ],
+            "fused": false
+          },
+          {
+            "id": "a/out_before_test",
+            "description": "",
+            "members": [
+              "a/out_before_test"
+            ],
+            "fused": false
+          },
+          {
+            "id": "a/neg_read",
+            "description": "",
+            "members": [
+              "a/neg_read"
+            ],
+            "fused": false
+          },
+          {
+            "id": "a/feed",
+            "description": "",
+            "members": [
+              "a/feed"
+            ],
+            "fused": false
+          },
+          {
+            "id": "a/ok",
+            "description": "",
+            "members": [
+              "a/ok"
+            ],
+            "fused": false
+          },
+          {
+            "id": "b/u",
+            "description": "",
+            "members": [
+              "b/u"
+            ],
+            "fused": false
+          }
+        ],
+        "arcs": [
+          {
+            "from": "a/p",
+            "to": "a/neg_out",
+            "weight": 2,
+            "type": ""
+          },
+          {
+            "from": "a/neg_out",
+            "to": "wire:a/q",
+            "weight": 2,
+            "type": ""
+          },
+          {
+            "from": "a/neg_out",
+            "to": "a/p",
+            "weight": -2,
+            "type": ""
+          },
+          {
+            "from": "a/p",
+            "to": "a/neg_in",
+            "weight": -3,
+            "type": ""
+          },
+          {
+            "from": "wire:a/q",
+            "to": "a/order_in_first",
+            "weight": 1,
+            "type": ""
+          },
+          {
+            "from": "a/p",
+            "to": "a/order_in_first",
+            "weight": -3,
+            "type": ""
+          },
+          {
+            "from": "a/p",
+            "to": "a/order_neg_first",
+            "weight": -3,
+            "type": ""
+          },
+          {
+            "from": "wire:a/q",
+            "to": "a/order_neg_first",
+            "weight": 1,
+            "type": ""
+          },
+          {
+            "from": "wire:a/q",
+            "to": "a/order_out",
+            "weight": 1,
+            "type": ""
+          },
+          {
+            "from": "a/order_out",
+            "to": "a/p",
+            "weight": -1,
+            "type": ""
+          },
+          {
+            "from": "wire:a/q",
+            "to": "a/out_before_test",
+            "weight": 1,
+            "type": "read"
+          },
+          {
+            "from": "a/out_before_test",
+            "to": "a/p",
+            "weight": -1,
+            "type": ""
+          },
+          {
+            "from": "a/p",
+            "to": "a/neg_read",
+            "weight": -1,
+            "type": "read"
+          },
+          {
+            "from": "a/neg_read",
+            "to": "wire:a/q",
+            "weight": 1,
+            "type": ""
+          },
+          {
+            "from": "a/feed",
+            "to": "a/big",
+            "weight": 36028797018963968,
+            "type": ""
+          },
+          {
+            "from": "a/p",
+            "to": "a/ok",
+            "weight": 2,
+            "type": ""
+          },
+          {
+            "from": "a/ok",
+            "to": "wire:a/q",
+            "weight": 1,
+            "type": ""
+          },
+          {
+            "from": "wire:a/q",
+            "to": "b/u",
+            "weight": 1,
+            "type": ""
+          },
+          {
+            "from": "b/u",
+            "to": "wire:a/q",
+            "weight": 1,
+            "type": ""
+          }
+        ],
+        "constraints": [],
+        "wires": {
+          "wire:a/q": [
+            "a/q",
+            "b/r"
+          ]
+        },
+        "fused_groups": {},
+        "place_map": {
+          "a": {
+            "big": "a/big",
+            "p": "a/p",
+            "q": "wire:a/q"
+          },
+          "b": {
+            "r": "wire:a/q"
+          }
+        },
+        "transition_map": {
+          "a": {
+            "feed": "a/feed",
+            "neg_in": "a/neg_in",
+            "neg_out": "a/neg_out",
+            "neg_read": "a/neg_read",
+            "ok": "a/ok",
+            "order_in_first": "a/order_in_first",
+            "order_neg_first": "a/order_neg_first",
+            "order_out": "a/order_out",
+            "out_before_test": "a/out_before_test"
+          },
+          "b": {
+            "u": "b/u"
+          }
+        },
+        "warnings": [],
+        "initial_enablement": [
+          {
+            "transition": "a/neg_out",
+            "enabled": false,
+            "why": "a/neg_out: arc to/from a/p has negative weight -2"
+          },
+          {
+            "transition": "a/neg_in",
+            "enabled": false,
+            "why": "a/neg_in: arc to/from a/p has negative weight -3"
+          },
+          {
+            "transition": "a/order_in_first",
+            "enabled": false,
+            "why": "a/order_in_first needs 1 token(s) on wire:a/q, have 0"
+          },
+          {
+            "transition": "a/order_neg_first",
+            "enabled": false,
+            "why": "a/order_neg_first: arc to/from a/p has negative weight -3"
+          },
+          {
+            "transition": "a/order_out",
+            "enabled": false,
+            "why": "a/order_out needs 1 token(s) on wire:a/q, have 0"
+          },
+          {
+            "transition": "a/out_before_test",
+            "enabled": false,
+            "why": "a/out_before_test: arc to/from a/p has negative weight -1"
+          },
+          {
+            "transition": "a/neg_read",
+            "enabled": false,
+            "why": "a/neg_read: arc to/from a/p has negative weight -1"
+          },
+          {
+            "transition": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "transition": "a/ok",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "transition": "b/u",
+            "enabled": false,
+            "why": "b/u needs 1 token(s) on wire:a/q, have 0"
+          }
+        ]
+      }
+    },
+    {
+      "name": "pflow_bundle_incidence/weights",
+      "tool": "pflow_bundle_incidence",
+      "args": {},
+      "bundle_file": "native/fixtures/bundle-weights.json",
+      "native": [
+        {
+          "call": "composition::incidence_json"
+        }
+      ],
+      "expect": {
+        "ok": true,
+        "rows": [
+          "a/p",
+          "wire:a/q",
+          "a/big"
+        ],
+        "cols": [
+          "a/neg_out",
+          "a/neg_in",
+          "a/order_in_first",
+          "a/order_neg_first",
+          "a/order_out",
+          "a/out_before_test",
+          "a/neg_read",
+          "a/feed",
+          "a/ok",
+          "b/u"
+        ],
+        "matrix": [
+          [
+            -4,
+            3,
+            3,
+            3,
+            -1,
+            -1,
+            0,
+            0,
+            -2,
+            0
+          ],
+          [
+            2,
+            0,
+            -1,
+            -1,
+            -1,
+            0,
+            1,
+            0,
+            1,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            36028797018963968,
+            0,
+            0
+          ]
+        ],
+        "blocks": [
+          {
+            "subnet": "a",
+            "rows": [
+              "p",
+              "q",
+              "big"
+            ],
+            "cols": [
+              "neg_out",
+              "neg_in",
+              "order_in_first",
+              "order_neg_first",
+              "order_out",
+              "out_before_test",
+              "neg_read",
+              "feed",
+              "ok"
+            ],
+            "matrix": [
+              [
+                -4,
+                3,
+                3,
+                3,
+                -1,
+                -1,
+                0,
+                0,
+                -2
+              ],
+              [
+                2,
+                0,
+                -1,
+                -1,
+                -1,
+                0,
+                1,
+                0,
+                1
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                36028797018963968,
+                0
+              ]
+            ]
+          },
+          {
+            "subnet": "b",
+            "rows": [
+              "r"
+            ],
+            "cols": [
+              "u"
+            ],
+            "matrix": [
+              [
+                0
+              ]
+            ]
+          }
+        ],
+        "invariants": []
+      }
+    },
+    {
+      "name": "pflow_bundle_validate/shared-ids",
+      "tool": "pflow_bundle_validate",
+      "args": {},
+      "bundle_file": "native/fixtures/bundle-shared-ids.json",
+      "native": [
+        {
+          "call": "Bundle::validate"
+        }
+      ],
+      "expect": {
+        "valid": true,
+        "errors": [],
+        "warnings": []
+      }
+    },
+    {
+      "name": "pflow_bundle_flatten/shared-ids",
+      "tool": "pflow_bundle_flatten",
+      "args": {},
+      "bundle_file": "native/fixtures/bundle-shared-ids.json",
+      "native": [
+        {
+          "call": "composition::flatten_json"
+        }
+      ],
+      "expect": {
+        "ok": true,
+        "error": "",
+        "places": [
+          {
+            "id": "a/p",
+            "kind": "token",
+            "initial": 2,
+            "capacity": 0,
+            "exported": true,
+            "resource": false,
+            "description": "",
+            "members": [
+              "a/p"
+            ]
+          },
+          {
+            "id": "b/p",
+            "kind": "token",
+            "initial": 0,
+            "capacity": 0,
+            "exported": true,
+            "resource": false,
+            "description": "",
+            "members": [
+              "b/p"
+            ]
+          },
+          {
+            "id": "c/p",
+            "kind": "token",
+            "initial": 1,
+            "capacity": 0,
+            "exported": true,
+            "resource": false,
+            "description": "",
+            "members": [
+              "c/p"
+            ]
+          },
+          {
+            "id": "d/p",
+            "kind": "token",
+            "initial": 0,
+            "capacity": 0,
+            "exported": true,
+            "resource": false,
+            "description": "",
+            "members": [
+              "d/p"
+            ]
+          }
+        ],
+        "transitions": [
+          {
+            "id": "x",
+            "description": "fires with: c/w, d/w",
+            "members": [
+              "a/t",
+              "a/u",
+              "b/t",
+              "b/v",
+              "c/w",
+              "d/w"
+            ],
+            "fused": true
+          }
+        ],
+        "arcs": [
+          {
+            "from": "a/p",
+            "to": "x",
+            "weight": 2,
+            "type": ""
+          },
+          {
+            "from": "x",
+            "to": "b/p",
+            "weight": 2,
+            "type": ""
+          },
+          {
+            "from": "c/p",
+            "to": "x",
+            "weight": 1,
+            "type": ""
+          },
+          {
+            "from": "x",
+            "to": "d/p",
+            "weight": 1,
+            "type": ""
+          }
+        ],
+        "constraints": [],
+        "wires": {},
+        "fused_groups": {
+          "x": [
+            "c/w",
+            "d/w"
+          ]
+        },
+        "place_map": {
+          "a": {
+            "p": "a/p"
+          },
+          "b": {
+            "p": "b/p"
+          },
+          "c": {
+            "p": "c/p"
+          },
+          "d": {
+            "p": "d/p"
+          }
+        },
+        "transition_map": {
+          "a": {
+            "t": "x",
+            "u": "x"
+          },
+          "b": {
+            "t": "x",
+            "v": "x"
+          },
+          "c": {
+            "w": "x"
+          },
+          "d": {
+            "w": "x"
+          }
+        },
+        "warnings": [
+          {
+            "code": "W_EVENTLINK_CYCLE",
+            "element": "x",
+            "message": "transitions a/t, b/t fire as one"
+          },
+          {
+            "code": "W_EVENTLINK_CYCLE",
+            "element": "x",
+            "message": "transitions a/u, b/v fire as one"
+          },
+          {
+            "code": "W_EVENTLINK_CYCLE",
+            "element": "x",
+            "message": "transitions c/w, d/w fire as one"
+          }
+        ],
+        "initial_enablement": [
+          {
+            "transition": "x",
+            "enabled": true,
+            "why": ""
+          }
+        ]
+      }
+    },
+    {
+      "name": "pflow_bundle_incidence/shared-ids",
+      "tool": "pflow_bundle_incidence",
+      "args": {},
+      "bundle_file": "native/fixtures/bundle-shared-ids.json",
+      "native": [
+        {
+          "call": "composition::incidence_json"
+        }
+      ],
+      "expect": {
+        "ok": true,
+        "rows": [
+          "a/p",
+          "b/p",
+          "c/p",
+          "d/p"
+        ],
+        "cols": [
+          "x"
+        ],
+        "matrix": [
+          [
+            -2
+          ],
+          [
+            2
+          ],
+          [
+            -1
+          ],
+          [
+            1
+          ]
+        ],
+        "blocks": [
+          {
+            "subnet": "a",
+            "rows": [
+              "p"
+            ],
+            "cols": [
+              "t",
+              "u"
+            ],
+            "matrix": [
+              [
+                -1,
+                -1
+              ]
+            ]
+          },
+          {
+            "subnet": "b",
+            "rows": [
+              "p"
+            ],
+            "cols": [
+              "t",
+              "v"
+            ],
+            "matrix": [
+              [
+                1,
+                1
+              ]
+            ]
+          },
+          {
+            "subnet": "c",
+            "rows": [
+              "p"
+            ],
+            "cols": [
+              "w"
+            ],
+            "matrix": [
+              [
+                -1
+              ]
+            ]
+          },
+          {
+            "subnet": "d",
+            "rows": [
+              "p"
+            ],
+            "cols": [
+              "w"
+            ],
+            "matrix": [
+              [
+                1
+              ]
+            ]
+          }
+        ],
+        "invariants": []
+      }
+    },
+    {
+      "name": "pflow_bundle_run/shared-ids-x",
+      "tool": "pflow_bundle_run",
+      "args": {
+        "script": [
+          "a/t",
+          "a/u"
+        ]
+      },
+      "bundle_file": "native/fixtures/bundle-shared-ids.json",
+      "native": [
+        {
+          "call": "composition::flatten"
+        },
+        {
+          "call": "composition::run"
+        }
+      ],
+      "expect": {
+        "id": "script",
+        "title": "script",
+        "steps": [
+          {
+            "member": "a/t",
+            "flat": "x",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/u",
+            "flat": "x",
+            "enabled": false,
+            "why": "x needs 2 token(s) on a/p, have 0"
+          }
+        ],
+        "completed": false,
+        "stopped_at": 1,
+        "stopped_step": "a/u",
+        "final_marking": {
+          "a/p": 0,
+          "b/p": 2,
+          "c/p": 0,
+          "d/p": 1
+        },
+        "expect": []
+      }
+    },
+    {
+      "name": "pflow_bundle_run/shared-ids-member",
+      "tool": "pflow_bundle_run",
+      "args": {
+        "script": [
+          "c/w",
+          "b/v"
+        ]
+      },
+      "bundle_file": "native/fixtures/bundle-shared-ids.json",
+      "native": [
+        {
+          "call": "composition::flatten"
+        },
+        {
+          "call": "composition::run"
+        }
+      ],
+      "expect": {
+        "id": "script",
+        "title": "script",
+        "steps": [
+          {
+            "member": "c/w",
+            "flat": "x",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "b/v",
+            "flat": "x",
+            "enabled": false,
+            "why": "x needs 2 token(s) on a/p, have 0"
+          }
+        ],
+        "completed": false,
+        "stopped_at": 1,
+        "stopped_step": "b/v",
+        "final_marking": {
+          "a/p": 0,
+          "b/p": 2,
+          "c/p": 0,
+          "d/p": 1
+        },
+        "expect": []
+      }
+    },
+    {
+      "name": "pflow_bundle_run/weights-neg-output",
+      "tool": "pflow_bundle_run",
+      "args": {
+        "script": [
+          "a/neg_out",
+          "a/neg_out"
+        ]
+      },
+      "bundle_file": "native/fixtures/bundle-weights.json",
+      "native": [
+        {
+          "call": "composition::flatten"
+        },
+        {
+          "call": "composition::run"
+        }
+      ],
+      "expect": {
+        "id": "script",
+        "title": "script",
+        "steps": [
+          {
+            "member": "a/neg_out",
+            "flat": "a/neg_out",
+            "enabled": false,
+            "why": "a/neg_out: arc to/from a/p has negative weight -2"
+          }
+        ],
+        "completed": false,
+        "stopped_at": 0,
+        "stopped_step": "a/neg_out",
+        "final_marking": {
+          "a/big": 0,
+          "a/p": 4,
+          "wire:a/q": 0
+        },
+        "expect": []
+      }
+    },
+    {
+      "name": "pflow_bundle_run/weights-neg-input",
+      "tool": "pflow_bundle_run",
+      "args": {
+        "script": [
+          "a/neg_in"
+        ]
+      },
+      "bundle_file": "native/fixtures/bundle-weights.json",
+      "native": [
+        {
+          "call": "composition::flatten"
+        },
+        {
+          "call": "composition::run"
+        }
+      ],
+      "expect": {
+        "id": "script",
+        "title": "script",
+        "steps": [
+          {
+            "member": "a/neg_in",
+            "flat": "a/neg_in",
+            "enabled": false,
+            "why": "a/neg_in: arc to/from a/p has negative weight -3"
+          }
+        ],
+        "completed": false,
+        "stopped_at": 0,
+        "stopped_step": "a/neg_in",
+        "final_marking": {
+          "a/big": 0,
+          "a/p": 4,
+          "wire:a/q": 0
+        },
+        "expect": []
+      }
+    },
+    {
+      "name": "pflow_bundle_run/weights-order-input-first",
+      "tool": "pflow_bundle_run",
+      "args": {
+        "script": [
+          "a/order_in_first"
+        ]
+      },
+      "bundle_file": "native/fixtures/bundle-weights.json",
+      "native": [
+        {
+          "call": "composition::flatten"
+        },
+        {
+          "call": "composition::run"
+        }
+      ],
+      "expect": {
+        "id": "script",
+        "title": "script",
+        "steps": [
+          {
+            "member": "a/order_in_first",
+            "flat": "a/order_in_first",
+            "enabled": false,
+            "why": "a/order_in_first needs 1 token(s) on wire:a/q, have 0"
+          }
+        ],
+        "completed": false,
+        "stopped_at": 0,
+        "stopped_step": "a/order_in_first",
+        "final_marking": {
+          "a/big": 0,
+          "a/p": 4,
+          "wire:a/q": 0
+        },
+        "expect": []
+      }
+    },
+    {
+      "name": "pflow_bundle_run/weights-order-negative-first",
+      "tool": "pflow_bundle_run",
+      "args": {
+        "script": [
+          "a/order_neg_first"
+        ]
+      },
+      "bundle_file": "native/fixtures/bundle-weights.json",
+      "native": [
+        {
+          "call": "composition::flatten"
+        },
+        {
+          "call": "composition::run"
+        }
+      ],
+      "expect": {
+        "id": "script",
+        "title": "script",
+        "steps": [
+          {
+            "member": "a/order_neg_first",
+            "flat": "a/order_neg_first",
+            "enabled": false,
+            "why": "a/order_neg_first: arc to/from a/p has negative weight -3"
+          }
+        ],
+        "completed": false,
+        "stopped_at": 0,
+        "stopped_step": "a/order_neg_first",
+        "final_marking": {
+          "a/big": 0,
+          "a/p": 4,
+          "wire:a/q": 0
+        },
+        "expect": []
+      }
+    },
+    {
+      "name": "pflow_bundle_run/weights-order-output",
+      "tool": "pflow_bundle_run",
+      "args": {
+        "script": [
+          "a/order_out"
+        ]
+      },
+      "bundle_file": "native/fixtures/bundle-weights.json",
+      "native": [
+        {
+          "call": "composition::flatten"
+        },
+        {
+          "call": "composition::run"
+        }
+      ],
+      "expect": {
+        "id": "script",
+        "title": "script",
+        "steps": [
+          {
+            "member": "a/order_out",
+            "flat": "a/order_out",
+            "enabled": false,
+            "why": "a/order_out needs 1 token(s) on wire:a/q, have 0"
+          }
+        ],
+        "completed": false,
+        "stopped_at": 0,
+        "stopped_step": "a/order_out",
+        "final_marking": {
+          "a/big": 0,
+          "a/p": 4,
+          "wire:a/q": 0
+        },
+        "expect": []
+      }
+    },
+    {
+      "name": "pflow_bundle_run/weights-output-before-test",
+      "tool": "pflow_bundle_run",
+      "args": {
+        "script": [
+          "a/out_before_test"
+        ]
+      },
+      "bundle_file": "native/fixtures/bundle-weights.json",
+      "native": [
+        {
+          "call": "composition::flatten"
+        },
+        {
+          "call": "composition::run"
+        }
+      ],
+      "expect": {
+        "id": "script",
+        "title": "script",
+        "steps": [
+          {
+            "member": "a/out_before_test",
+            "flat": "a/out_before_test",
+            "enabled": false,
+            "why": "a/out_before_test: arc to/from a/p has negative weight -1"
+          }
+        ],
+        "completed": false,
+        "stopped_at": 0,
+        "stopped_step": "a/out_before_test",
+        "final_marking": {
+          "a/big": 0,
+          "a/p": 4,
+          "wire:a/q": 0
+        },
+        "expect": []
+      }
+    },
+    {
+      "name": "pflow_bundle_run/weights-neg-read",
+      "tool": "pflow_bundle_run",
+      "args": {
+        "script": [
+          "a/neg_read"
+        ]
+      },
+      "bundle_file": "native/fixtures/bundle-weights.json",
+      "native": [
+        {
+          "call": "composition::flatten"
+        },
+        {
+          "call": "composition::run"
+        }
+      ],
+      "expect": {
+        "id": "script",
+        "title": "script",
+        "steps": [
+          {
+            "member": "a/neg_read",
+            "flat": "a/neg_read",
+            "enabled": false,
+            "why": "a/neg_read: arc to/from a/p has negative weight -1"
+          }
+        ],
+        "completed": false,
+        "stopped_at": 0,
+        "stopped_step": "a/neg_read",
+        "final_marking": {
+          "a/big": 0,
+          "a/p": 4,
+          "wire:a/q": 0
+        },
+        "expect": []
+      }
+    },
+    {
+      "name": "pflow_bundle_run/weights-fine-then-neg",
+      "tool": "pflow_bundle_run",
+      "args": {
+        "script": [
+          "a/ok",
+          "a/ok",
+          "a/neg_in"
+        ]
+      },
+      "bundle_file": "native/fixtures/bundle-weights.json",
+      "native": [
+        {
+          "call": "composition::flatten"
+        },
+        {
+          "call": "composition::run"
+        }
+      ],
+      "expect": {
+        "id": "script",
+        "title": "script",
+        "steps": [
+          {
+            "member": "a/ok",
+            "flat": "a/ok",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/ok",
+            "flat": "a/ok",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/neg_in",
+            "flat": "a/neg_in",
+            "enabled": false,
+            "why": "a/neg_in: arc to/from a/p has negative weight -3"
+          }
+        ],
+        "completed": false,
+        "stopped_at": 2,
+        "stopped_step": "a/neg_in",
+        "final_marking": {
+          "a/big": 0,
+          "a/p": 0,
+          "wire:a/q": 2
+        },
+        "expect": []
+      }
+    },
+    {
+      "name": "pflow_bundle_run/weights-saturate",
+      "tool": "pflow_bundle_run",
+      "args": {
+        "script": [
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed",
+          "a/feed"
+        ]
+      },
+      "bundle_file": "native/fixtures/bundle-weights.json",
+      "native": [
+        {
+          "call": "composition::flatten"
+        },
+        {
+          "call": "composition::run"
+        }
+      ],
+      "expect": {
+        "id": "script",
+        "title": "script",
+        "steps": [
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          }
+        ],
+        "completed": true,
+        "stopped_at": -1,
+        "stopped_step": null,
+        "final_marking": {
+          "a/big": 9223372036854775807,
+          "a/p": 4,
+          "wire:a/q": 0
+        },
+        "expect": []
+      }
+    },
+    {
+      "name": "pflow_bundle_run/weights-saturate-short",
+      "tool": "pflow_bundle_run",
+      "args": {
+        "script": [
+          "a/feed",
+          "a/feed",
+          "a/feed"
+        ]
+      },
+      "bundle_file": "native/fixtures/bundle-weights.json",
+      "native": [
+        {
+          "call": "composition::flatten"
+        },
+        {
+          "call": "composition::run"
+        }
+      ],
+      "expect": {
+        "id": "script",
+        "title": "script",
+        "steps": [
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          },
+          {
+            "member": "a/feed",
+            "flat": "a/feed",
+            "enabled": true,
+            "why": ""
+          }
+        ],
+        "completed": true,
+        "stopped_at": -1,
+        "stopped_step": null,
+        "final_marking": {
+          "a/big": 108086391056891904,
+          "a/p": 4,
+          "wire:a/q": 0
+        },
+        "expect": []
+      }
     }
   ]
 }
