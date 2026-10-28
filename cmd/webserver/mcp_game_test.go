@@ -98,6 +98,7 @@ func TestMCPGameAnswersTheOdeEstimate(t *testing.T) {
 	}{
 		{`{"root":{"order":["ode"]}}`, 2432},
 		{`{"root":{"order":["ode","non_losing"]}}`, 2432},
+		{`{"drivers":["aspiration","null_window"],"root":{"order":["ode"]}}`, 2307},
 	} {
 		v := structured(t, gameCall(t, "pflow_game_value", "game-tic-tac-toe.jsonld", `,"plan":`+c.plan))
 		if v["value"] != 0.0 || v["exact"] != true || v["nodes"] != c.nodes {
@@ -110,19 +111,11 @@ func TestMCPGameAnswersTheOdeEstimate(t *testing.T) {
 	}
 }
 
-// The aspiration driver starts from an estimate: refused without one, in
-// native's words, and not ported with one.
-func TestMCPGameRefusesTheAspirationDriver(t *testing.T) {
-	for plan, want := range map[string]string{
-		`{"drivers":["aspiration"]}`:                                  `driver "aspiration" starts from the root's estimate`,
-		`{"drivers":["aspiration"],"root":{"order":["ode"]}}`:         `the driver "aspiration" is not ported`,
-		`{"drivers":["aspiration","mtd_f"],"root":{"order":["ode"]}}`: `the driver "aspiration" is not ported`,
-	} {
-		for _, tool := range []string{"pflow_game_value", "pflow_game_move"} {
-			if msg := toolError(t, gameCall(t, tool, "game-tic-tac-toe.jsonld", `,"plan":`+plan)); !strings.Contains(msg, want) {
-				t.Errorf("%s %s: %s", tool, plan, msg)
-			}
-		}
+// The aspiration driver starts from an estimate, and has none without one.
+func TestMCPGameAspirationNeedsAnEstimate(t *testing.T) {
+	msg := toolError(t, gameCall(t, "pflow_game_value", "game-tic-tac-toe.jsonld", `,"plan":{"drivers":["aspiration"]}`))
+	if !strings.Contains(msg, `driver "aspiration" starts from the root's estimate`) {
+		t.Errorf("%s", msg)
 	}
 }
 

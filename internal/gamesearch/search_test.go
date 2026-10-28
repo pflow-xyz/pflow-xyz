@@ -105,10 +105,14 @@ var plans = []string{
 	`{"drivers": ["mtd_f"]}`,
 	`{"drivers": ["mtd_f"], "filters": [], "memo": {"entries": 5}}`,
 	`{"memo": {"entries": 1}, "order": []}`,
-	// The root estimate changes the order of the root's moves, never the value.
+	// The root estimate and the aspiration driver change the order and the
+	// start of the search, never the value.
 	`{"root": {"order": ["ode"]}}`,
 	`{"root": {"order": ["ode", "non_losing"]}, "filters": []}`,
-	`{"root": {"order": ["non_losing", "ode"]}, "drivers": ["mtd_f"], "memo": {"entries": 7}}`,
+	`{"root": {"order": ["ode"]}, "drivers": ["aspiration", "null_window"]}`,
+	`{"root": {"order": ["ode"]}, "drivers": ["aspiration", "mtd_f"]}`,
+	`{"root": {"order": ["ode"]}, "drivers": ["aspiration"]}`,
+	`{"root": {"order": ["non_losing", "ode"]}, "drivers": ["aspiration", "mtd_f"], "memo": {"entries": 7}}`,
 }
 
 func TestValueIsTheMinimaxValue(t *testing.T) {
@@ -209,7 +213,6 @@ func TestWhatIsStillRefused(t *testing.T) {
 	net, _ := load(t, games["ttt"].file)
 	for _, c := range []struct{ plan, want string }{
 		{`{"drivers": ["aspiration"]}`, `driver "aspiration" starts from the root's estimate: name one in root.order`},
-		{`{"drivers": ["aspiration"], "root": {"order": ["ode"]}}`, `the driver "aspiration" is not ported`},
 		{`{"root": {"order": ["nope"]}}`, `unknown root piece "nope"`},
 		{`{"root": {"order": ["ode", "ode"]}}`, `root piece "ode" is listed twice`},
 		{`{"drivers": [{"budget": {"nodes": 1000, "ms": 50}}]}`, "budget.ms"},

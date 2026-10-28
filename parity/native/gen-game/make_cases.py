@@ -115,13 +115,23 @@ ODE = [
     ode("root-ode"),
     ode("root-ode-nl", root=("ode", "non_losing")),
     ode("root-nl-ode", root=("non_losing", "ode")),
+    ode("aspiration-ode", drivers=["aspiration", "null_window"]),
+    ode("mtdf-aspiration-ode", drivers=["mtd_f", "aspiration"]),
+    ode("aspiration-only-ode", drivers=["aspiration"]),
     ode("no-driver-ode", drivers=[]),
     ode("mtdf-ode", drivers=["mtd_f"]),
     ode("ode-cent", order=["tt_best", "immediate_win", "centrality", "threats", "history"]),
     ode("ode-filters-none", filters=[]),
+    ode("ode-nl-filters", filters=["must_win", "non_losing"], drivers=["aspiration", "null_window"]),
+    ode("aspiration-ode-memo-16", drivers=["aspiration", "null_window"], memo={"entries": 16}),
+    ode("mtdf-aspiration-ode-memo-16", drivers=["aspiration", "mtd_f"], memo={"entries": 16}, filters=[]),
+    ode("aspiration-ode-nl-root", root=("non_losing", "ode"), drivers=["aspiration", "mtd_f"]),
     ("nodes-40-ode", {"nodes": 40, "plan": {"root": {"order": ["ode"]}}}),
+    ("nodes-300-aspiration-ode", {"nodes": 300, "plan": {"root": {"order": ["ode"]}, "drivers": ["aspiration"]}}),
     ("nodes-40-play-ode", {"nodes": 40, "plan": {"mode": "play", "root": {"order": ["ode"]}}}),
     ("nodes-5-play-ode", {"nodes": 5, "plan": {"mode": "play", "root": {"order": ["ode"]}}}),
+    ("nodes-60-play-aspiration-ode", {"nodes": 60, "plan": {"mode": "play", "root": {"order": ["ode"]}, "drivers": ["aspiration", "mtd_f"]}}),
+    ("plan-string-ode", {"plan": json.dumps({"root": {"order": ["ode"]}, "drivers": ["aspiration"]})}),
 ]
 # A smaller set, for the nets and the sweeps where each call is dear.
 SWEEP_NAMES = ["root-ode", "root-ode-nl", "aspiration-ode", "mtdf-aspiration-ode", "aspiration-only-ode", "ode-cent",
@@ -223,6 +233,7 @@ sets.append({"name": "ttt-final", "fixture": TTT, "rules": "ttt",
                  ("default", {}),
                  plan("play", mode="play"),
                  plan("ode", root={"order": ["ode"]}),
+                 plan("aspiration-ode", root={"order": ["ode"]}, drivers=["aspiration"]),
              ])})
 sets.append({"name": "ttt-ode", "fixture": TTT, "rules": "ttt",
              "positions": [{"initial": True}, {"fire": ["x_play_11"]}, {"fire": ["x_play_11", "o_play_00"]}, sweep(91, 9, 8)],
@@ -241,6 +252,7 @@ sets.append({"name": "connect3-ode", "fixture": "native/fixtures/game-connect-3.
              "positions": [{"initial": True}, sweep(23, 14, 3)],
              "calls": calls(ODE_SWEEP + [
                  ("nodes-5000-ode", {"nodes": 5000, "plan": {"root": {"order": ["ode"]}}}),
+                 ("nodes-5000-aspiration-ode", {"nodes": 5000, "plan": {"root": {"order": ["ode"]}, "drivers": ["aspiration"]}}),
              ])})
 sets.append({"name": "connect4", "fixture": "native/fixtures/game-connect-4.jsonld", "rules": "ttt",
              "positions": [sweep(31, 40, 4), {"initial": True}],
@@ -251,6 +263,8 @@ sets.append({"name": "connect4", "fixture": "native/fixtures/game-connect-4.json
                              ("play-nodes-4000", {"nodes": 4000, "plan": {"mode": "play"}}),
                              ("ode-nodes-4000", {"nodes": 4000, "plan": {"root": {"order": ["ode"]}}}),
                              ("ode-nl-nodes-4000", {"nodes": 4000, "plan": {"root": {"order": ["ode", "non_losing"]}, "filters": []}}),
+                             ("aspiration-ode-nodes-4000", {"nodes": 4000, "plan": {"root": {"order": ["ode"]}, "drivers": ["aspiration", "null_window"]}}),
+                             ("mtdf-aspiration-ode-nodes-4000", {"nodes": 4000, "plan": {"root": {"order": ["ode"]}, "drivers": ["aspiration", "mtd_f"]}}),
                              ("play-ode-nodes-4000", {"nodes": 4000, "plan": {"mode": "play", "root": {"order": ["ode"]}}})])})
 
 sets.append({"name": "ttt-count", "fixture": "native/fixtures/game-ttt-count.jsonld", "rules": "ttt",

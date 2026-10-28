@@ -17,10 +17,9 @@ package main
 // to every call in parity/native/game_cases.json (parity/native/gen-game),
 // and mcp_game_parity_test.go holds these tools to it: identical values and
 // moves, identical node counts, identical refusals' words. That covers the
-// root estimate "ode" (the mass-action ODE solved at the root, ode.go). What differs:
+// root estimate "ode" (the mass-action ODE solved at the root, ode.go) and the
+// aspiration driver that starts from it. What differs:
 //
-//   - The "aspiration" driver is refused (it starts from the estimate's guess,
-//     which this search does not take yet).
 //   - A net with several token colours is refused (native supports one whose
 //     colour copies are all used).
 //   - The caps are tighter than native's (wbGameMaxNodes, wbGameMaxMemo): a
@@ -81,7 +80,8 @@ var (
 			"filters: must_win (default), non_losing. root: {order: [\"non_losing\"]}. " +
 			"drivers: null_window (default), mtd_f, {budget: {nodes: N}}. memo: {entries: N}. " +
 			"root: {order: [\"non_losing\", \"ode\"]}, at most one estimate: \"ode\" solves the mass-action ODE of the net with every transition at rate 1 (not the net's rates) from each position the root's moves reach, to rank them. " +
-			"Refused: a time budget (budget.ms), and the \"aspiration\" driver (not ported)"},
+			"drivers also takes aspiration (needs root \"ode\"): start from where its best guess points. " +
+			"Refused: a time budget (budget.ms)"},
 		"nodes": map[string]any{"type": "integer", "minimum": 1, "maximum": wbGameMaxNodes, "description": fmt.Sprintf("the node budget when the plan's drivers set none (default 1,000,000; at most %d here)", wbGameMaxNodes)},
 		"book":  map[string]any{"type": "string", "description": "an opening book: the text of a label cache (JSONL, a header line naming the net and rules, then one position per line {mk, vals}); its positions are pinned in the table, exact"},
 	}

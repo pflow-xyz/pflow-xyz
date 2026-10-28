@@ -19,10 +19,9 @@ import (
 //	 "memo": {"entries": 500000}}
 //
 // The estimate "ode" (a root piece) solves the mass-action ODE; see ode.go.
-// The solver a plan builds takes the estimate from the caller, as pflow-rs'
-// SearchPlan::solver_with does. Not ported: the "aspiration" driver, which
-// starts from the estimate's guess; a plan naming it is refused by Options,
-// after the plan is checked as pflow-native checks it.
+// The solver a plan builds takes the estimate from the caller (Options
+// carries the plan's name for it in Estimate, and the "aspiration" driver
+// in Aspiration), as pflow-rs' SearchPlan::solver_with does.
 
 // SearchPlan is a plan, as the JSON gives it.
 type SearchPlan struct {
@@ -612,9 +611,6 @@ func (p *SearchPlan) Options() (Options, error) {
 	if err != nil {
 		return Options{}, err
 	}
-	if d.aspiration {
-		return Options{}, planError("the driver \"aspiration\" is not ported to this server: use a plan without it")
-	}
 	r, err := p.roots()
 	if err != nil {
 		return Options{}, err
@@ -633,6 +629,7 @@ func (p *SearchPlan) Options() (Options, error) {
 		NullWindow:    d.nullWindow,
 		MtdF:          d.mtdF,
 		RootNonLosing: r.nonLosing,
+		Aspiration:    d.aspiration,
 		Play:          p.Mode == "play",
 	}
 	if d.hasBudget {

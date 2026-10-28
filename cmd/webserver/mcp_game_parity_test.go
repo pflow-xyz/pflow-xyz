@@ -9,7 +9,7 @@ package main
 // move, the node count (which counts the table's every eviction), the budget
 // and the words of an error.
 //
-// That includes the root estimate "ode", whose
+// That includes the root estimate "ode" and the aspiration driver, whose
 // guesses come from a mass-action ODE solved in floating point (see
 // docs/workbench-progress.md for why the node counts agree to the digit).
 //
@@ -94,7 +94,7 @@ func runGameCase(t *testing.T, c gameGolden) (any, error) {
 
 func TestMCPGameMatchesNative(t *testing.T) {
 	seen := map[string]int{}
-	var ode int
+	var ode, aspiration int
 	for _, c := range loadGameGoldens(t) {
 		t.Run(c.Name, func(t *testing.T) {
 			out, err := runGameCase(t, c)
@@ -124,6 +124,9 @@ func TestMCPGameMatchesNative(t *testing.T) {
 			if strings.Contains(string(plan), `"ode"`) {
 				ode++
 			}
+			if strings.Contains(string(plan), `"aspiration"`) {
+				aspiration++
+			}
 		})
 	}
 	for _, tool := range []string{"game.value", "game.move", "error"} {
@@ -132,7 +135,7 @@ func TestMCPGameMatchesNative(t *testing.T) {
 		}
 	}
 	// What this port used to refuse is held to native like the rest.
-	for what, n := range map[string]int{"the ode estimate": ode} {
+	for what, n := range map[string]int{"the ode estimate": ode, "the aspiration driver": aspiration} {
 		if n < 100 {
 			t.Errorf("only %d answered golden cases use %s", n, what)
 		}

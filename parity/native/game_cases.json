@@ -1470,6 +1470,38 @@
        }
       }
      }
+    },
+    {
+     "name": "value-aspiration-ode",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-aspiration-ode",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration"
+       ]
+      }
+     }
     }
    ]
   },
@@ -1580,6 +1612,106 @@
          "ode"
         ]
        }
+      }
+     }
+    },
+    {
+     "name": "value-aspiration-ode",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "null_window"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-aspiration-ode",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "null_window"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-mtdf-aspiration-ode",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "mtd_f",
+        "aspiration"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-mtdf-aspiration-ode",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "mtd_f",
+        "aspiration"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-aspiration-only-ode",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-aspiration-only-ode",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration"
+       ]
       }
      }
     },
@@ -1712,6 +1844,166 @@
      }
     },
     {
+     "name": "value-ode-nl-filters",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "filters": [
+        "must_win",
+        "non_losing"
+       ],
+       "drivers": [
+        "aspiration",
+        "null_window"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-ode-nl-filters",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "filters": [
+        "must_win",
+        "non_losing"
+       ],
+       "drivers": [
+        "aspiration",
+        "null_window"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-aspiration-ode-memo-16",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "null_window"
+       ],
+       "memo": {
+        "entries": 16
+       }
+      }
+     }
+    },
+    {
+     "name": "move-aspiration-ode-memo-16",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "null_window"
+       ],
+       "memo": {
+        "entries": 16
+       }
+      }
+     }
+    },
+    {
+     "name": "value-mtdf-aspiration-ode-memo-16",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "mtd_f"
+       ],
+       "memo": {
+        "entries": 16
+       },
+       "filters": []
+      }
+     }
+    },
+    {
+     "name": "move-mtdf-aspiration-ode-memo-16",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "mtd_f"
+       ],
+       "memo": {
+        "entries": 16
+       },
+       "filters": []
+      }
+     }
+    },
+    {
+     "name": "value-aspiration-ode-nl-root",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "non_losing",
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "mtd_f"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-aspiration-ode-nl-root",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "non_losing",
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "mtd_f"
+       ]
+      }
+     }
+    },
+    {
      "name": "value-nodes-40-ode",
      "tool": "game.value",
      "args": {
@@ -1736,6 +2028,40 @@
          "ode"
         ]
        }
+      }
+     }
+    },
+    {
+     "name": "value-nodes-300-aspiration-ode",
+     "tool": "game.value",
+     "args": {
+      "nodes": 300,
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-nodes-300-aspiration-ode",
+     "tool": "game.move",
+     "args": {
+      "nodes": 300,
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration"
+       ]
       }
      }
     },
@@ -1797,6 +2123,58 @@
         ]
        }
       }
+     }
+    },
+    {
+     "name": "value-nodes-60-play-aspiration-ode",
+     "tool": "game.value",
+     "args": {
+      "nodes": 60,
+      "plan": {
+       "mode": "play",
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "mtd_f"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-nodes-60-play-aspiration-ode",
+     "tool": "game.move",
+     "args": {
+      "nodes": 60,
+      "plan": {
+       "mode": "play",
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "mtd_f"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-plan-string-ode",
+     "tool": "game.value",
+     "args": {
+      "plan": "{\"root\": {\"order\": [\"ode\"]}, \"drivers\": [\"aspiration\"]}"
+     }
+    },
+    {
+     "name": "move-plan-string-ode",
+     "tool": "game.move",
+     "args": {
+      "plan": "{\"root\": {\"order\": [\"ode\"]}, \"drivers\": [\"aspiration\"]}"
      }
     }
    ]
@@ -3331,6 +3709,106 @@
      }
     },
     {
+     "name": "value-aspiration-ode",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "null_window"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-aspiration-ode",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "null_window"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-mtdf-aspiration-ode",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "mtd_f",
+        "aspiration"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-mtdf-aspiration-ode",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "mtd_f",
+        "aspiration"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-aspiration-only-ode",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-aspiration-only-ode",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration"
+       ]
+      }
+     }
+    },
+    {
      "name": "value-ode-cent",
      "tool": "game.value",
      "args": {
@@ -3366,6 +3844,42 @@
         "centrality",
         "threats",
         "history"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-aspiration-ode-nl-root",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "non_losing",
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "mtd_f"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-aspiration-ode-nl-root",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "non_losing",
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "mtd_f"
        ]
       }
      }
@@ -3453,6 +3967,40 @@
          "ode"
         ]
        }
+      }
+     }
+    },
+    {
+     "name": "value-nodes-5000-aspiration-ode",
+     "tool": "game.value",
+     "args": {
+      "nodes": 5000,
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-nodes-5000-aspiration-ode",
+     "tool": "game.move",
+     "args": {
+      "nodes": 5000,
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration"
+       ]
       }
      }
     }
@@ -3652,6 +4200,78 @@
         ]
        },
        "filters": []
+      }
+     }
+    },
+    {
+     "name": "value-aspiration-ode-nodes-4000",
+     "tool": "game.value",
+     "args": {
+      "nodes": 4000,
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "null_window"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-aspiration-ode-nodes-4000",
+     "tool": "game.move",
+     "args": {
+      "nodes": 4000,
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "null_window"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-mtdf-aspiration-ode-nodes-4000",
+     "tool": "game.value",
+     "args": {
+      "nodes": 4000,
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "mtd_f"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-mtdf-aspiration-ode-nodes-4000",
+     "tool": "game.move",
+     "args": {
+      "nodes": 4000,
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "mtd_f"
+       ]
       }
      }
     },
@@ -5232,6 +5852,106 @@
      }
     },
     {
+     "name": "value-aspiration-ode",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "null_window"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-aspiration-ode",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "null_window"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-mtdf-aspiration-ode",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "mtd_f",
+        "aspiration"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-mtdf-aspiration-ode",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "mtd_f",
+        "aspiration"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-aspiration-only-ode",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-aspiration-only-ode",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration"
+       ]
+      }
+     }
+    },
+    {
      "name": "value-no-driver-ode",
      "tool": "game.value",
      "args": {
@@ -5360,6 +6080,166 @@
      }
     },
     {
+     "name": "value-ode-nl-filters",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "filters": [
+        "must_win",
+        "non_losing"
+       ],
+       "drivers": [
+        "aspiration",
+        "null_window"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-ode-nl-filters",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "filters": [
+        "must_win",
+        "non_losing"
+       ],
+       "drivers": [
+        "aspiration",
+        "null_window"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-aspiration-ode-memo-16",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "null_window"
+       ],
+       "memo": {
+        "entries": 16
+       }
+      }
+     }
+    },
+    {
+     "name": "move-aspiration-ode-memo-16",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "null_window"
+       ],
+       "memo": {
+        "entries": 16
+       }
+      }
+     }
+    },
+    {
+     "name": "value-mtdf-aspiration-ode-memo-16",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "mtd_f"
+       ],
+       "memo": {
+        "entries": 16
+       },
+       "filters": []
+      }
+     }
+    },
+    {
+     "name": "move-mtdf-aspiration-ode-memo-16",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "mtd_f"
+       ],
+       "memo": {
+        "entries": 16
+       },
+       "filters": []
+      }
+     }
+    },
+    {
+     "name": "value-aspiration-ode-nl-root",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "non_losing",
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "mtd_f"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-aspiration-ode-nl-root",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "non_losing",
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "mtd_f"
+       ]
+      }
+     }
+    },
+    {
      "name": "value-nodes-40-ode",
      "tool": "game.value",
      "args": {
@@ -5384,6 +6264,40 @@
          "ode"
         ]
        }
+      }
+     }
+    },
+    {
+     "name": "value-nodes-300-aspiration-ode",
+     "tool": "game.value",
+     "args": {
+      "nodes": 300,
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-nodes-300-aspiration-ode",
+     "tool": "game.move",
+     "args": {
+      "nodes": 300,
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration"
+       ]
       }
      }
     },
@@ -5445,6 +6359,58 @@
         ]
        }
       }
+     }
+    },
+    {
+     "name": "value-nodes-60-play-aspiration-ode",
+     "tool": "game.value",
+     "args": {
+      "nodes": 60,
+      "plan": {
+       "mode": "play",
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "mtd_f"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-nodes-60-play-aspiration-ode",
+     "tool": "game.move",
+     "args": {
+      "nodes": 60,
+      "plan": {
+       "mode": "play",
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "mtd_f"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-plan-string-ode",
+     "tool": "game.value",
+     "args": {
+      "plan": "{\"root\": {\"order\": [\"ode\"]}, \"drivers\": [\"aspiration\"]}"
+     }
+    },
+    {
+     "name": "move-plan-string-ode",
+     "tool": "game.move",
+     "args": {
+      "plan": "{\"root\": {\"order\": [\"ode\"]}, \"drivers\": [\"aspiration\"]}"
      }
     }
    ]
@@ -5564,6 +6530,106 @@
      }
     },
     {
+     "name": "value-aspiration-ode",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "null_window"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-aspiration-ode",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "null_window"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-mtdf-aspiration-ode",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "mtd_f",
+        "aspiration"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-mtdf-aspiration-ode",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "mtd_f",
+        "aspiration"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-aspiration-only-ode",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-aspiration-only-ode",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration"
+       ]
+      }
+     }
+    },
+    {
      "name": "value-no-driver-ode",
      "tool": "game.value",
      "args": {
@@ -5692,6 +6758,166 @@
      }
     },
     {
+     "name": "value-ode-nl-filters",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "filters": [
+        "must_win",
+        "non_losing"
+       ],
+       "drivers": [
+        "aspiration",
+        "null_window"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-ode-nl-filters",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "filters": [
+        "must_win",
+        "non_losing"
+       ],
+       "drivers": [
+        "aspiration",
+        "null_window"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-aspiration-ode-memo-16",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "null_window"
+       ],
+       "memo": {
+        "entries": 16
+       }
+      }
+     }
+    },
+    {
+     "name": "move-aspiration-ode-memo-16",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "null_window"
+       ],
+       "memo": {
+        "entries": 16
+       }
+      }
+     }
+    },
+    {
+     "name": "value-mtdf-aspiration-ode-memo-16",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "mtd_f"
+       ],
+       "memo": {
+        "entries": 16
+       },
+       "filters": []
+      }
+     }
+    },
+    {
+     "name": "move-mtdf-aspiration-ode-memo-16",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "mtd_f"
+       ],
+       "memo": {
+        "entries": 16
+       },
+       "filters": []
+      }
+     }
+    },
+    {
+     "name": "value-aspiration-ode-nl-root",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "non_losing",
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "mtd_f"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-aspiration-ode-nl-root",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "non_losing",
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "mtd_f"
+       ]
+      }
+     }
+    },
+    {
      "name": "value-nodes-40-ode",
      "tool": "game.value",
      "args": {
@@ -5716,6 +6942,40 @@
          "ode"
         ]
        }
+      }
+     }
+    },
+    {
+     "name": "value-nodes-300-aspiration-ode",
+     "tool": "game.value",
+     "args": {
+      "nodes": 300,
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-nodes-300-aspiration-ode",
+     "tool": "game.move",
+     "args": {
+      "nodes": 300,
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration"
+       ]
       }
      }
     },
@@ -5777,6 +7037,58 @@
         ]
        }
       }
+     }
+    },
+    {
+     "name": "value-nodes-60-play-aspiration-ode",
+     "tool": "game.value",
+     "args": {
+      "nodes": 60,
+      "plan": {
+       "mode": "play",
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "mtd_f"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-nodes-60-play-aspiration-ode",
+     "tool": "game.move",
+     "args": {
+      "nodes": 60,
+      "plan": {
+       "mode": "play",
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "mtd_f"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-plan-string-ode",
+     "tool": "game.value",
+     "args": {
+      "plan": "{\"root\": {\"order\": [\"ode\"]}, \"drivers\": [\"aspiration\"]}"
+     }
+    },
+    {
+     "name": "move-plan-string-ode",
+     "tool": "game.move",
+     "args": {
+      "plan": "{\"root\": {\"order\": [\"ode\"]}, \"drivers\": [\"aspiration\"]}"
      }
     }
    ]
@@ -5899,6 +7211,106 @@
      }
     },
     {
+     "name": "value-aspiration-ode",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "null_window"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-aspiration-ode",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "null_window"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-mtdf-aspiration-ode",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "mtd_f",
+        "aspiration"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-mtdf-aspiration-ode",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "mtd_f",
+        "aspiration"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-aspiration-only-ode",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-aspiration-only-ode",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration"
+       ]
+      }
+     }
+    },
+    {
      "name": "value-no-driver-ode",
      "tool": "game.value",
      "args": {
@@ -6027,6 +7439,166 @@
      }
     },
     {
+     "name": "value-ode-nl-filters",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "filters": [
+        "must_win",
+        "non_losing"
+       ],
+       "drivers": [
+        "aspiration",
+        "null_window"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-ode-nl-filters",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "filters": [
+        "must_win",
+        "non_losing"
+       ],
+       "drivers": [
+        "aspiration",
+        "null_window"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-aspiration-ode-memo-16",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "null_window"
+       ],
+       "memo": {
+        "entries": 16
+       }
+      }
+     }
+    },
+    {
+     "name": "move-aspiration-ode-memo-16",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "null_window"
+       ],
+       "memo": {
+        "entries": 16
+       }
+      }
+     }
+    },
+    {
+     "name": "value-mtdf-aspiration-ode-memo-16",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "mtd_f"
+       ],
+       "memo": {
+        "entries": 16
+       },
+       "filters": []
+      }
+     }
+    },
+    {
+     "name": "move-mtdf-aspiration-ode-memo-16",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "mtd_f"
+       ],
+       "memo": {
+        "entries": 16
+       },
+       "filters": []
+      }
+     }
+    },
+    {
+     "name": "value-aspiration-ode-nl-root",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "non_losing",
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "mtd_f"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-aspiration-ode-nl-root",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "non_losing",
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "mtd_f"
+       ]
+      }
+     }
+    },
+    {
      "name": "value-nodes-40-ode",
      "tool": "game.value",
      "args": {
@@ -6051,6 +7623,40 @@
          "ode"
         ]
        }
+      }
+     }
+    },
+    {
+     "name": "value-nodes-300-aspiration-ode",
+     "tool": "game.value",
+     "args": {
+      "nodes": 300,
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-nodes-300-aspiration-ode",
+     "tool": "game.move",
+     "args": {
+      "nodes": 300,
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration"
+       ]
       }
      }
     },
@@ -6112,6 +7718,58 @@
         ]
        }
       }
+     }
+    },
+    {
+     "name": "value-nodes-60-play-aspiration-ode",
+     "tool": "game.value",
+     "args": {
+      "nodes": 60,
+      "plan": {
+       "mode": "play",
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "mtd_f"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-nodes-60-play-aspiration-ode",
+     "tool": "game.move",
+     "args": {
+      "nodes": 60,
+      "plan": {
+       "mode": "play",
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "mtd_f"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-plan-string-ode",
+     "tool": "game.value",
+     "args": {
+      "plan": "{\"root\": {\"order\": [\"ode\"]}, \"drivers\": [\"aspiration\"]}"
+     }
+    },
+    {
+     "name": "move-plan-string-ode",
+     "tool": "game.move",
+     "args": {
+      "plan": "{\"root\": {\"order\": [\"ode\"]}, \"drivers\": [\"aspiration\"]}"
      }
     }
    ]
@@ -6193,6 +7851,106 @@
      }
     },
     {
+     "name": "value-aspiration-ode",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "null_window"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-aspiration-ode",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "null_window"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-mtdf-aspiration-ode",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "mtd_f",
+        "aspiration"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-mtdf-aspiration-ode",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "mtd_f",
+        "aspiration"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-aspiration-only-ode",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-aspiration-only-ode",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration"
+       ]
+      }
+     }
+    },
+    {
      "name": "value-ode-cent",
      "tool": "game.value",
      "args": {
@@ -6228,6 +7986,42 @@
         "centrality",
         "threats",
         "history"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-aspiration-ode-nl-root",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "non_losing",
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "mtd_f"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-aspiration-ode-nl-root",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "non_losing",
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "mtd_f"
        ]
       }
      }
@@ -6369,6 +8163,106 @@
      }
     },
     {
+     "name": "value-aspiration-ode",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "null_window"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-aspiration-ode",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "null_window"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-mtdf-aspiration-ode",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "mtd_f",
+        "aspiration"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-mtdf-aspiration-ode",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "mtd_f",
+        "aspiration"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-aspiration-only-ode",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-aspiration-only-ode",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration"
+       ]
+      }
+     }
+    },
+    {
      "name": "value-ode-cent",
      "tool": "game.value",
      "args": {
@@ -6404,6 +8298,42 @@
         "centrality",
         "threats",
         "history"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-aspiration-ode-nl-root",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "non_losing",
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "mtd_f"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-aspiration-ode-nl-root",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "non_losing",
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "mtd_f"
        ]
       }
      }
@@ -6545,6 +8475,106 @@
      }
     },
     {
+     "name": "value-aspiration-ode",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "null_window"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-aspiration-ode",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "null_window"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-mtdf-aspiration-ode",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "mtd_f",
+        "aspiration"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-mtdf-aspiration-ode",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "mtd_f",
+        "aspiration"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-aspiration-only-ode",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-aspiration-only-ode",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration"
+       ]
+      }
+     }
+    },
+    {
      "name": "value-ode-cent",
      "tool": "game.value",
      "args": {
@@ -6580,6 +8610,42 @@
         "centrality",
         "threats",
         "history"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-aspiration-ode-nl-root",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "non_losing",
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "mtd_f"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-aspiration-ode-nl-root",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "non_losing",
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "mtd_f"
        ]
       }
      }
@@ -6739,6 +8805,112 @@
      }
     },
     {
+     "name": "value-aspiration-ode-nodes-20000",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "null_window"
+       ]
+      },
+      "nodes": 20000
+     }
+    },
+    {
+     "name": "move-aspiration-ode-nodes-20000",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "null_window"
+       ]
+      },
+      "nodes": 20000
+     }
+    },
+    {
+     "name": "value-mtdf-aspiration-ode-nodes-20000",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "mtd_f",
+        "aspiration"
+       ]
+      },
+      "nodes": 20000
+     }
+    },
+    {
+     "name": "move-mtdf-aspiration-ode-nodes-20000",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "mtd_f",
+        "aspiration"
+       ]
+      },
+      "nodes": 20000
+     }
+    },
+    {
+     "name": "value-aspiration-only-ode-nodes-20000",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration"
+       ]
+      },
+      "nodes": 20000
+     }
+    },
+    {
+     "name": "move-aspiration-only-ode-nodes-20000",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration"
+       ]
+      },
+      "nodes": 20000
+     }
+    },
+    {
      "name": "value-ode-cent-nodes-20000",
      "tool": "game.value",
      "args": {
@@ -6775,6 +8947,44 @@
         "centrality",
         "threats",
         "history"
+       ]
+      },
+      "nodes": 20000
+     }
+    },
+    {
+     "name": "value-aspiration-ode-nl-root-nodes-20000",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "non_losing",
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "mtd_f"
+       ]
+      },
+      "nodes": 20000
+     }
+    },
+    {
+     "name": "move-aspiration-ode-nl-root-nodes-20000",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "non_losing",
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "mtd_f"
        ]
       },
       "nodes": 20000
@@ -7228,6 +9438,106 @@
      }
     },
     {
+     "name": "value-aspiration-ode",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "null_window"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-aspiration-ode",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "null_window"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-mtdf-aspiration-ode",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "mtd_f",
+        "aspiration"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-mtdf-aspiration-ode",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "mtd_f",
+        "aspiration"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-aspiration-only-ode",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-aspiration-only-ode",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration"
+       ]
+      }
+     }
+    },
+    {
      "name": "value-no-driver-ode",
      "tool": "game.value",
      "args": {
@@ -7356,6 +9666,166 @@
      }
     },
     {
+     "name": "value-ode-nl-filters",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "filters": [
+        "must_win",
+        "non_losing"
+       ],
+       "drivers": [
+        "aspiration",
+        "null_window"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-ode-nl-filters",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "filters": [
+        "must_win",
+        "non_losing"
+       ],
+       "drivers": [
+        "aspiration",
+        "null_window"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-aspiration-ode-memo-16",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "null_window"
+       ],
+       "memo": {
+        "entries": 16
+       }
+      }
+     }
+    },
+    {
+     "name": "move-aspiration-ode-memo-16",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "null_window"
+       ],
+       "memo": {
+        "entries": 16
+       }
+      }
+     }
+    },
+    {
+     "name": "value-mtdf-aspiration-ode-memo-16",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "mtd_f"
+       ],
+       "memo": {
+        "entries": 16
+       },
+       "filters": []
+      }
+     }
+    },
+    {
+     "name": "move-mtdf-aspiration-ode-memo-16",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "mtd_f"
+       ],
+       "memo": {
+        "entries": 16
+       },
+       "filters": []
+      }
+     }
+    },
+    {
+     "name": "value-aspiration-ode-nl-root",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "non_losing",
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "mtd_f"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-aspiration-ode-nl-root",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "non_losing",
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "mtd_f"
+       ]
+      }
+     }
+    },
+    {
      "name": "value-nodes-40-ode",
      "tool": "game.value",
      "args": {
@@ -7380,6 +9850,40 @@
          "ode"
         ]
        }
+      }
+     }
+    },
+    {
+     "name": "value-nodes-300-aspiration-ode",
+     "tool": "game.value",
+     "args": {
+      "nodes": 300,
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-nodes-300-aspiration-ode",
+     "tool": "game.move",
+     "args": {
+      "nodes": 300,
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration"
+       ]
       }
      }
     },
@@ -7441,6 +9945,58 @@
         ]
        }
       }
+     }
+    },
+    {
+     "name": "value-nodes-60-play-aspiration-ode",
+     "tool": "game.value",
+     "args": {
+      "nodes": 60,
+      "plan": {
+       "mode": "play",
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "mtd_f"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-nodes-60-play-aspiration-ode",
+     "tool": "game.move",
+     "args": {
+      "nodes": 60,
+      "plan": {
+       "mode": "play",
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "mtd_f"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-plan-string-ode",
+     "tool": "game.value",
+     "args": {
+      "plan": "{\"root\": {\"order\": [\"ode\"]}, \"drivers\": [\"aspiration\"]}"
+     }
+    },
+    {
+     "name": "move-plan-string-ode",
+     "tool": "game.move",
+     "args": {
+      "plan": "{\"root\": {\"order\": [\"ode\"]}, \"drivers\": [\"aspiration\"]}"
      }
     }
    ]
@@ -7833,6 +10389,106 @@
      }
     },
     {
+     "name": "value-aspiration-ode",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "null_window"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-aspiration-ode",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "null_window"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-mtdf-aspiration-ode",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "mtd_f",
+        "aspiration"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-mtdf-aspiration-ode",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "mtd_f",
+        "aspiration"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-aspiration-only-ode",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-aspiration-only-ode",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration"
+       ]
+      }
+     }
+    },
+    {
      "name": "value-no-driver-ode",
      "tool": "game.value",
      "args": {
@@ -7961,6 +10617,166 @@
      }
     },
     {
+     "name": "value-ode-nl-filters",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "filters": [
+        "must_win",
+        "non_losing"
+       ],
+       "drivers": [
+        "aspiration",
+        "null_window"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-ode-nl-filters",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "filters": [
+        "must_win",
+        "non_losing"
+       ],
+       "drivers": [
+        "aspiration",
+        "null_window"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-aspiration-ode-memo-16",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "null_window"
+       ],
+       "memo": {
+        "entries": 16
+       }
+      }
+     }
+    },
+    {
+     "name": "move-aspiration-ode-memo-16",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "null_window"
+       ],
+       "memo": {
+        "entries": 16
+       }
+      }
+     }
+    },
+    {
+     "name": "value-mtdf-aspiration-ode-memo-16",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "mtd_f"
+       ],
+       "memo": {
+        "entries": 16
+       },
+       "filters": []
+      }
+     }
+    },
+    {
+     "name": "move-mtdf-aspiration-ode-memo-16",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "mtd_f"
+       ],
+       "memo": {
+        "entries": 16
+       },
+       "filters": []
+      }
+     }
+    },
+    {
+     "name": "value-aspiration-ode-nl-root",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "non_losing",
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "mtd_f"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-aspiration-ode-nl-root",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "non_losing",
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "mtd_f"
+       ]
+      }
+     }
+    },
+    {
      "name": "value-nodes-40-ode",
      "tool": "game.value",
      "args": {
@@ -7985,6 +10801,40 @@
          "ode"
         ]
        }
+      }
+     }
+    },
+    {
+     "name": "value-nodes-300-aspiration-ode",
+     "tool": "game.value",
+     "args": {
+      "nodes": 300,
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-nodes-300-aspiration-ode",
+     "tool": "game.move",
+     "args": {
+      "nodes": 300,
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration"
+       ]
       }
      }
     },
@@ -8046,6 +10896,58 @@
         ]
        }
       }
+     }
+    },
+    {
+     "name": "value-nodes-60-play-aspiration-ode",
+     "tool": "game.value",
+     "args": {
+      "nodes": 60,
+      "plan": {
+       "mode": "play",
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "mtd_f"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-nodes-60-play-aspiration-ode",
+     "tool": "game.move",
+     "args": {
+      "nodes": 60,
+      "plan": {
+       "mode": "play",
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "aspiration",
+        "mtd_f"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-plan-string-ode",
+     "tool": "game.value",
+     "args": {
+      "plan": "{\"root\": {\"order\": [\"ode\"]}, \"drivers\": [\"aspiration\"]}"
+     }
+    },
+    {
+     "name": "move-plan-string-ode",
+     "tool": "game.move",
+     "args": {
+      "plan": "{\"root\": {\"order\": [\"ode\"]}, \"drivers\": [\"aspiration\"]}"
      }
     }
    ]

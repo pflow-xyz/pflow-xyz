@@ -36,6 +36,9 @@ type Options struct {
 	// Estimate, when set, guesses the value after each of the root's moves;
 	// the guess breaks the order chain's ties among them, best first.
 	Estimate Estimate
+	// Aspiration starts the run of yes/no searches from the estimate's best
+	// guess (it needs an Estimate).
+	Aspiration bool
 	// Play lets Choose guess when the budget runs out.
 	Play bool
 	// Memo is the table's entries; 0 means DefaultMemo.
@@ -59,6 +62,10 @@ type Choice struct {
 type ranked struct {
 	order []int
 	rank  []uint64
+	// guess is the best guess among the moves kept, when there is an
+	// estimate.
+	guess    float64
+	hasGuess bool
 }
 
 // Solver is alpha-beta with a transposition table that persists across
@@ -76,6 +83,7 @@ type Solver struct {
 	nullWindow, mtdF bool
 	rootNonLosing    bool
 	estimate         Estimate
+	aspiration       bool
 	ranked           *ranked
 	play             bool
 	cancel           func() error
@@ -117,6 +125,7 @@ func NewSolver(g *Game, o Options) (*Solver, error) {
 		mtdF:          o.MtdF,
 		rootNonLosing: o.RootNonLosing,
 		estimate:      o.Estimate,
+		aspiration:    o.Aspiration,
 		play:          o.Play,
 		cancel:        o.Cancel,
 	}, nil
@@ -229,6 +238,9 @@ func (s *Solver) rank(mk []int64) (*ranked, error) {
 	for i, k := range ks {
 		r.rank[k.t] = uint64(len(ks) - i)
 		r.order = append(r.order, k.t)
+	}
+	if s.estimate != nil && len(ks) > 0 {
+		r.guess, r.hasGuess = sd*ks[0].guess, true
 	}
 	return r, nil
 }
@@ -370,11 +382,15 @@ func (s *Solver) run(mk []int64, r *ranked) (float64, bool, error) {
 		}
 		return s.filters.bound(g, -sd), true, nil
 	}
+	var guess *float64
+	if r != nil && r.hasGuess && s.aspiration {
+		guess = &r.guess
+	}
 	if k, ok := g.bitMarking(mk); ok {
 		w := newBits(g, mk, k)
 		s.nodes = 0
 		s.spilled = false
-		v, vok, err := s.solve(w)
+		v, vok, err := s.solve(w, guess)
 		if err != nil {
 			return 0, false, err
 		}
@@ -383,18 +399,31 @@ func (s *Solver) run(mk []int64, r *ranked) (float64, bool, error) {
 		}
 	}
 	s.nodes = 0
-	return s.solve(newCounts(g, mk))
+	return s.solve(newCounts(g, mk), guess)
 }
 
 // solve is the value at w as a run of yes/no searches, one per gap between
-// adjacent rewards, starting from the mover's worst, and going on the way
-// the answers point. With too many rewards to step through, one search over
-// the whole range.
-func (s *Solver) solve(w *walk) (float64, bool, error) {
+// adjacent rewards, starting from the mover's worst ("does the mover avoid
+// it?"), or from the gap nearest guess, and going on the way the answers
+// point. With too many rewards to step through, one search over the whole
+// range, or first over a window around guess.
+func (s *Solver) solve(w *walk, guess *float64) (float64, bool, error) {
 	g := s.g
 	vals := g.values
 	lo, hi := g.Bounds[0], g.Bounds[1]
 	if len(vals) < 3 || !(s.nullWindow || s.mtdF) {
+		if guess != nil {
+			e := *guess
+			d := (hi - lo) / 8.0
+			a, b := rmax(e-d, lo), rmin(e+d, hi)
+			v, ok, err := s.search(w, a, b, true)
+			if err != nil || !ok {
+				return 0, false, err
+			}
+			if a < v && v < b {
+				return v, true, nil
+			}
+		}
 		return s.search(w, lo, hi, true)
 	}
 	moves := w.moves(g, nil)
@@ -408,12 +437,21 @@ func (s *Solver) solve(w *walk) (float64, bool, error) {
 	}
 	gaps := len(vals) - 1
 	if s.mtdF {
-		return s.mtdFRun(w)
+		return s.mtdFRun(w, guess)
 	}
+	mid := func(k int) float64 { return (vals[k] + vals[k+1]) / 2.0 }
 	var k int
-	if sd > 0 {
+	switch {
+	case guess != nil:
+		// Iterator::min_by: the first of several equally near.
+		for x := 1; x < gaps; x++ {
+			if totalCmp(math.Abs(mid(x)-*guess), math.Abs(mid(k)-*guess)) < 0 {
+				k = x
+			}
+		}
+	case sd > 0:
 		k = 0
-	} else {
+	default:
 		k = gaps - 1
 	}
 	// The value is one of vals[i..=j].
@@ -451,7 +489,7 @@ func partitionPoint(vals []float64, pred func(float64) bool) int {
 // rewards. The value is one of vals[i..=j]; a test between vals[k] and
 // vals[k+1] fails high or low, and fail-soft says by how much, so the bound
 // it proves can pass several rewards at once.
-func (s *Solver) mtdFRun(w *walk) (float64, bool, error) {
+func (s *Solver) mtdFRun(w *walk, guess *float64) (float64, bool, error) {
 	const eps = 1e-9
 	g := s.g
 	vals := g.values
@@ -472,10 +510,40 @@ func (s *Solver) mtdFRun(w *walk) (float64, bool, error) {
 		}
 		j--
 	}
-	// No estimate is ported, so there is no guess to start from: f is none
-	// and each test bisects the gaps left.
+	// f: the reward the next test is about, as in MTD(f); with no guess each
+	// test bisects the gaps left.
+	f, hasF := 0, false
+	if guess != nil {
+		// Iterator::min_by: the first of several equally near.
+		for x := 1; x <= gaps; x++ {
+			if totalCmp(math.Abs(vals[x]-*guess), math.Abs(vals[f]-*guess)) < 0 {
+				f = x
+			}
+		}
+		hasF = true
+		jm := j
+		if i > jm {
+			jm = i
+		}
+		if f < i {
+			f = i
+		} else if f > jm {
+			f = jm
+		}
+	}
 	for i < j {
-		k := i + (j-i-1)/2
+		var k int
+		switch {
+		case hasF && f <= i:
+			k = i
+		case hasF:
+			k = f - 1
+			if j-1 < k {
+				k = j - 1
+			}
+		default:
+			k = i + (j-i-1)/2
+		}
 		a, b := vals[k], vals[k+1]
 		v, ok, err := s.search(w, a, b, true)
 		if err != nil || !ok {
@@ -489,6 +557,9 @@ func (s *Solver) mtdFRun(w *walk) (float64, bool, error) {
 			if p > i {
 				i = p
 			}
+			if hasF {
+				f = i
+			}
 		} else {
 			p := partitionPoint(vals, func(x float64) bool { return x <= v+eps })
 			if p < 1 {
@@ -500,6 +571,9 @@ func (s *Solver) mtdFRun(w *walk) (float64, bool, error) {
 			}
 			if j < i {
 				j = i
+			}
+			if hasF {
+				f = j
 			}
 		}
 	}
