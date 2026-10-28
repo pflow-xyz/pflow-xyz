@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"testing/fstest"
 
 	"github.com/pflow-xyz/pflow-xyz/internal/static"
 )
@@ -84,16 +85,112 @@ func TestComposePageNoAnalyticsWhenUnset(t *testing.T) {
 	}
 }
 
-// A page that already carries the tag is not tagged a second time.
-func TestInjectAnalyticsIsIdempotent(t *testing.T) {
-	s := &Server{googleAnalyticsID: testGAID}
-	once := s.injectAnalytics([]byte("<html><head><title>x</title></head><body></body></html>"))
-	twice := s.injectAnalytics(once)
-	if !bytes.Equal(once, twice) {
-		t.Error("injecting twice changed the page")
+// The compose page is never tagged twice: a copy of the file that already
+// carries the tag is served as it is, and only the whole tag counts, not a
+// mention of its URL.
+func TestComposePageNeverTaggedTwice(t *testing.T) {
+	serve := func(page string) string {
+		s := &Server{publicFS: fstest.MapFS{"compose.html": {Data: []byte(page)}}, googleAnalyticsID: testGAID}
+		rec := servePage(s, "GET", "/compose.html", nil)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status = %d", rec.Code)
+		}
+		return rec.Body.String()
 	}
-	if n := bytes.Count(twice, []byte("gtag/js")); n != 1 {
-		t.Errorf("gtag/js appears %d times after two injections, want 1", n)
+	own := `<html><head><title>x</title>` + gtagTagPrefix + `?id=G-HANDADDED"></script></head><body></body></html>`
+	if got := serve(own); got != own {
+		t.Errorf("a page with its own tag was changed:\n%s", got)
+	}
+	// The tag the server writes is the one the guard recognises.
+	s := &Server{googleAnalyticsID: testGAID}
+	if !strings.Contains(s.getAnalyticsScript(), gtagTagPrefix) {
+		t.Errorf("getAnalyticsScript does not write %q; gtagTagPrefix has drifted", gtagTagPrefix)
+	}
+	once := serve(`<html><head><title>x</title></head><body></body></html>`)
+	if n := strings.Count(once, gtagTagPrefix); n != 1 {
+		t.Errorf("a plain page got %d tags, want 1", n)
+	}
+	// The URL in running text is not a tag: the page still gets its own.
+	mention := serve(`<html><head><title>about googletagmanager.com/gtag/js</title></head><body></body></html>`)
+	if n := strings.Count(mention, gtagTagPrefix); n != 1 {
+		t.Errorf("a page that only mentions the URL got %d tags, want 1", n)
+	}
+}
+
+// "/" is tagged exactly once even when the model it shows echoes the tag's URL
+// into the head (a title override, or a stored name): the shared injector must
+// not read the document, or such a model's page loses analytics.
+func TestRootTaggedOnceWhateverTheHeadSays(t *testing.T) {
+	const landing = `<!DOCTYPE html><html><head><title>pflow</title></head><body>landing</body></html>`
+	s := &Server{
+		storage:           &missingStorage{raw: loadSample(t)},
+		publicFS:          fstest.MapFS{"index.html": {Data: []byte(landing)}},
+		googleAnalyticsID: testGAID,
+	}
+	for _, q := range []string{
+		"",
+		"?cid=" + sampleCID,
+		"?cid=" + sampleCID + "&title=see+googletagmanager.com/gtag/js+here",
+		"?title=googletagmanager.com/gtag/js",
+	} {
+		rec := servePage(s, "GET", "/"+q, nil)
+		body := rec.Body.String()
+		if n := strings.Count(body, gtagTagPrefix); n != 1 {
+			t.Errorf("GET /%s: %d analytics tags, want 1", q, n)
+		}
+		if strings.Contains(q, "title=") && strings.Contains(q, "cid=") {
+			// Make sure the case is the one that matters: the head echoes the text.
+			if n := strings.Count(body, "googletagmanager.com/gtag/js"); n < 2 {
+				t.Errorf("GET /%s: the head does not echo the title (%d mentions); the case no longer tests anything", q, n)
+			}
+		}
+	}
+}
+
+// A GOOGLE_ANALYTICS_ID that is not a tag ID is not written into the page.
+func TestAnalyticsIDIsValidated(t *testing.T) {
+	for _, id := range []string{"G-E7Q5BVDGYB", "GTM-ABC123", "UA-12345-1", "AW-123456789", "G_x-9"} {
+		if !validAnalyticsID(id) {
+			t.Errorf("%q rejected", id)
+		}
+		if got := analyticsIDFromEnv(" " + id + "\n"); got != id {
+			t.Errorf("analyticsIDFromEnv(%q) = %q, want %q", id, got, id)
+		}
+	}
+	hostile := []string{
+		`G-X'); alert(1); //`,
+		`G-X"></script><script>alert(1)</script>`,
+		"G-X\nG-Y",
+		`G-X&l=evil`,
+		`G-X?id=Y`,
+		"G X",
+		"G-é",
+		`</script>`,
+	}
+	for _, id := range hostile {
+		if validAnalyticsID(id) {
+			t.Errorf("%q accepted", id)
+		}
+		if got := analyticsIDFromEnv(id); got != "" {
+			t.Errorf("analyticsIDFromEnv(%q) = %q, want analytics off", id, got)
+		}
+		// A Server built any other way is protected too: no tag at all.
+		s := &Server{googleAnalyticsID: id, publicFS: fstest.MapFS{"compose.html": {Data: []byte("<html><head></head></html>")}}}
+		if script := s.getAnalyticsScript(); script != "" {
+			t.Errorf("getAnalyticsScript with ID %q wrote %q", id, script)
+		}
+		if got := s.injectAnalytics([]byte("<head></head>")); string(got) != "<head></head>" {
+			t.Errorf("injectAnalytics with ID %q changed the page: %s", id, got)
+		}
+		if body := servePage(s, "GET", "/compose.html", nil).Body.String(); strings.Contains(body, "script") {
+			t.Errorf("the compose page with ID %q carries a script: %s", id, body)
+		}
+	}
+	if got := analyticsIDFromEnv(""); got != "" {
+		t.Errorf("unset = %q", got)
+	}
+	if got := analyticsIDFromEnv("   "); got != "" {
+		t.Errorf("blank = %q", got)
 	}
 }
 

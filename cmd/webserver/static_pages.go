@@ -22,11 +22,40 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"io/fs"
+	"log"
 	"net/http"
 	"path"
+	"regexp"
 	"strings"
 	"time"
 )
+
+// analyticsIDPattern is what a Google tag ID looks like (G-XXXXXXXXXX,
+// GTM-XXXX, UA-12345-1, AW-123456789): letters, digits, "-" and "_". The ID
+// is written into a script URL and a JS string literal, so nothing else gets in.
+var analyticsIDPattern = regexp.MustCompile(`^[A-Za-z0-9_-]+$`)
+
+// validAnalyticsID reports whether id can be written into the tag.
+func validAnalyticsID(id string) bool { return analyticsIDPattern.MatchString(id) }
+
+// analyticsIDFromEnv turns the GOOGLE_ANALYTICS_ID value into the ID to use:
+// "" when it is unset or is not a tag ID, in which case analytics is off and
+// the reason is logged once, at startup.
+func analyticsIDFromEnv(value string) string {
+	id := strings.TrimSpace(value)
+	if id == "" {
+		return ""
+	}
+	if !validAnalyticsID(id) {
+		log.Printf("Google Analytics disabled: GOOGLE_ANALYTICS_ID %q is not a tag ID (letters, digits, '-' and '_' only)", id)
+		return ""
+	}
+	return id
+}
+
+// gtagTagPrefix is the start of the script tag getAnalyticsScript writes. A
+// page that already carries a tag is not given a second one.
+const gtagTagPrefix = `<script async src="https://www.googletagmanager.com/gtag/js`
 
 // The compose page's URL path and its file in the embedded tree.
 const (
@@ -74,7 +103,14 @@ func (s *Server) serveHTMLWithAnalytics(w http.ResponseWriter, r *http.Request, 
 		http.NotFound(w, r)
 		return
 	}
-	data = s.injectAnalytics(data)
+	// Matched as the whole tag, not a substring: this is a file we ship, so a
+	// tag in it means someone added one by hand, and the idempotence stops there.
+	// (injectAnalytics itself does not look: "/" pages echo stored model text
+	// and ?title= into their head, and a name that mentions the URL must not
+	// switch analytics off for its page.)
+	if !bytes.Contains(data, []byte(gtagTagPrefix)) {
+		data = s.injectAnalytics(data)
+	}
 	sum := sha256.Sum256(data)
 	w.Header().Set("ETag", `"`+hex.EncodeToString(sum[:8])+`"`)
 	// The page is not content-hashed and the tag depends on the configured ID:

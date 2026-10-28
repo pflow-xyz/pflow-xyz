@@ -905,7 +905,9 @@ func (s *Server) handleGetUser(w http.ResponseWriter, r *http.Request) {
 
 // getAnalyticsScript returns the Google Analytics script tag if configured
 func (s *Server) getAnalyticsScript() string {
-	if s.googleAnalyticsID == "" {
+	// The ID is written into a URL and a JS string: only a tag-ID-shaped one is
+	// (static_pages.go).
+	if !validAnalyticsID(s.googleAnalyticsID) {
 		return ""
 	}
 	return fmt.Sprintf(`<!-- Google Analytics -->
@@ -922,8 +924,7 @@ func (s *Server) getAnalyticsScript() string {
 // injectAnalytics injects Google Analytics script into HTML content
 func (s *Server) injectAnalytics(html []byte) []byte {
 	script := s.getAnalyticsScript()
-	// A page that already carries the tag is left alone: counted once, not twice.
-	if script == "" || bytes.Contains(html, []byte("googletagmanager.com/gtag/js")) {
+	if script == "" {
 		return html
 	}
 	// Inject before </head>
@@ -1161,7 +1162,7 @@ func main() {
 	server.configureMCPOAuth(*dataDir)
 
 	// Configure Google Analytics if set
-	if gaID := os.Getenv("GOOGLE_ANALYTICS_ID"); gaID != "" {
+	if gaID := analyticsIDFromEnv(os.Getenv("GOOGLE_ANALYTICS_ID")); gaID != "" {
 		server.googleAnalyticsID = gaID
 		log.Printf("Google Analytics: %s", gaID)
 	}
