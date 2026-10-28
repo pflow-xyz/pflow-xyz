@@ -43,6 +43,7 @@ import { cite, citeLabel, citeURL } from '../sources.js';
 import { chainOf, driversOf, fieldOrDefault, PLAN_LAWS_CITE, PLAN_DEFAULTS, PLAN_RS_REV, pieceByName } from '../model.js';
 import { defaultLinks } from '../model.js';
 import * as live from '../laws-live.js';
+import { announce } from '../announce.js';
 
 const THEORIES = ['orderer-monoid', 'filter-meet', 'driver-wrap', 'sync-spiders'];
 const FOR_EXAMPLE = { connect4: ['orderer-monoid', 'filter-meet', 'driver-wrap'], orders: ['sync-spiders'] };
@@ -144,6 +145,7 @@ function startLive(ctx) {
   LIVE.state = 'checking';
   LIVE.preCheck = Object.fromEntries(Object.entries(DATA.th).map(([k, th]) => [k, th.check]));
   const status = (t) => { LIVE.status = t; paintLive(); };
+  announce(`Laws: running Chyp's checker live in your browser. This fetches Pyodide from cdn.jsdelivr.net and lark from PyPI (${live.DOWNLOAD_NOTE}) and can take several seconds; the precomputed result is shown meanwhile.`);
   (async () => {
     try {
       const r = await live.check(THEORIES, status);
@@ -151,6 +153,7 @@ function startLive(ctx) {
       LIVE.t.load = r.loadSeconds; LIVE.t.check = r.checkSeconds;
       LIVE.cmp = live.compare(r.results, LIVE.preCheck);
       LIVE.state = 'checked';
+      announce(LIVE.cmp.differences.length ? `Laws: the live check differs from the precomputed one (${LIVE.cmp.differences.length} differences). Laying the diagrams out live.` : `Laws: the live check agrees with the precomputed one (${LIVE.cmp.agree} of ${LIVE.cmp.total} rewrites). Laying the diagrams out live.`);
       ctx.rerender();
       LIVE.state = 'laying-out';
       const l = await live.layout(THEORIES, status);
@@ -171,10 +174,12 @@ function startLive(ctx) {
       LIVE.layoutCmp = { numbers, maxDiff, shapeDiffers };
       LIVE.shown = 'live';
       LIVE.state = 'live';
+      announce('Laws: the live layout is drawn.');
       ctx.rerender();
     } catch (e) {
-      LIVE.err = String(e && e.message ? e.message : e);
+      LIVE.err = live.explain(e);
       LIVE.state = LIVE.cmp ? 'layout-error' : 'error';
+      announce(`Laws: the live ${LIVE.cmp ? 'layout' : 'check'} did not run (${LIVE.err}); the precomputed result stays.`);
       ctx.rerender();
     }
   })();

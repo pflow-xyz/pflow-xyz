@@ -11,8 +11,11 @@
 // Pyodide's own cvxpy-base and clarabel packages for the layout. pflow.xyz sets
 // no Content-Security-Policy on its pages and the editor already loads Ace from
 // cdnjs (petri-view.js), so a third-party CDN is within the repo's practice.
-// Nothing is loaded until the Laws view asks (it is opened), and a failure
-// (offline, CDN blocked) leaves the view on its precomputed results.
+// Nothing is loaded until the Laws view asks (it is opened: app.js imports this
+// view's module only then, and Pyodide is imported inside pyodide() below, on the
+// first check()), and a failure (offline, CDN blocked) leaves the view on its
+// precomputed results. The page's other nine views never reach this file.
+// parity/composition-views/load_budget_test.ts holds both facts.
 //
 // Two steps, each awaited separately so the view can show the first while the
 // second runs:
@@ -23,16 +26,29 @@
 //             document assets/chyp/<theory>.json holds.
 
 export const PYODIDE_VERSION = '314.0.7';
+/** About what the two steps download, said before they start (measured: docs/compose-load-budget.md). */
+export const DOWNLOAD_NOTE = 'about 6.5 MB for Pyodide and lark, then about 18 MB more for the live layout (numpy, scipy, cvxpy-base, clarabel)';
 export const PYODIDE_URL = `https://cdn.jsdelivr.net/pyodide/v${PYODIDE_VERSION}/full/pyodide.mjs`;
 export const LARK = 'lark==1.3.1';
 const BASE = new URL('./chyp/', import.meta.url);
 
 let pyPromise = null;
 
+/**
+ * One readable line for a failure. A failed fetch says what it fetched; a
+ * Python error (micropip with PyPI blocked, say) arrives as the whole
+ * traceback, of which the last line is the one that says what went wrong.
+ */
+export function explain(e) {
+  const lines = String(e && e.message ? e.message : e).split('\n').map((l) => l.trim()).filter(Boolean);
+  const last = lines[lines.length - 1] || 'unknown error';
+  return last.length > 240 ? `${last.slice(0, 237)}…` : last;
+}
+
 async function pyodide(onStatus) {
   pyPromise ||= (async () => {
     const t0 = performance.now();
-    onStatus?.(`loading Pyodide ${PYODIDE_VERSION} (cdn.jsdelivr.net)…`);
+    onStatus?.(`loading Pyodide ${PYODIDE_VERSION} (cdn.jsdelivr.net, about 6.5 MB)…`);
     const { loadPyodide } = await import(/* @vite-ignore */ PYODIDE_URL);
     const py = await loadPyodide();
     onStatus?.('loading Chyp 3d28483 and the theories into Pyodide…');
@@ -81,7 +97,7 @@ json.dumps({'python': sys.version.split()[0], 'results': {f: ch.check(ch.load_th
 /** export() with Chyp's layout on each theory: {docs: {theory: export}, layoutSeconds}. */
 export async function layout(theories, onStatus) {
   const { py } = await pyodide(onStatus);
-  onStatus?.('loading cvxpy-base and clarabel for Chyp\'s layout…');
+  onStatus?.('loading numpy, scipy, cvxpy-base and clarabel for Chyp\'s layout (about 18 MB)…');
   const t0 = performance.now();
   await py.loadPackage(['cvxpy-base', 'clarabel']);
   onStatus?.('laying the diagrams out with Chyp (convex_layout)…');
