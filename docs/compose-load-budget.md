@@ -75,7 +75,11 @@ What the log shows (full request list in the appendix):
    jsdelivr, no PyPI, no fonts, no Ace. `laws-live.js` is fetched (6 KB) and
    does nothing until the Laws view is drawn. The comment at the top of
    `laws-live.js` ("Nothing is loaded until the Laws view asks") is true; the
-   guard test below holds it.
+   guard test below holds it. (Measured with analytics off: when the server has
+   `GOOGLE_ANALYTICS_ID` set, as on pflow.dev, it injects `gtag.js` from
+   `www.googletagmanager.com` into the HTML of `/` and of `/compose.html`, which
+   this table and the guard test, which reads the file and not the served page,
+   do not see.)
 2. **The view JS waterfalls behind the wasm.** `loadViews()` ran after
    `await registry.init()`, and imported the ten modules one after another. On
    Fast 3G the wasm finished at 15 s and the views started at 16 s and ended
@@ -293,10 +297,10 @@ and failed requests on load):
   two example buttons drawn disabled, the keys `7`, `3`, `e` and a hash change
   do nothing.
 
-### Not done in this branch: two lines in the page's `<head>` (the disco builder's file)
+### Two lines in the page's `<head>` (added to `public/compose.html` when the branches were merged)
 
 The wasm download only starts after five dependent round trips (finding 3).
-Adding to `public/compose.html`:
+The two lines, in `public/compose.html`:
 
 ```html
 <link rel="preload" href="vendor/pflow-native-wasm/pflow_native_wasm_bg.wasm" as="fetch" crossorigin>
@@ -305,8 +309,9 @@ Adding to `public/compose.html`:
 
 starts it with the html (measured on a throwaway copy of this branch): the wasm
 fetch starts at 0.8 s instead of 4.3 s, **first view drawn 14.4 s -> 9.8 s on
-Fast 3G, 4.0 s -> 2.5 s on 4G, warm 6.1 s -> 4.9 s on Fast 3G**. Worth adding
-when the head is merged.
+Fast 3G, 4.0 s -> 2.5 s on 4G, warm 6.1 s -> 4.9 s on Fast 3G**. They are in
+`compose.html` now (one wasm request, no duplicate fetch, zero console problems on the
+merged build).
 
 ## Budget
 
@@ -414,7 +419,6 @@ no code here.
   reproduces numbers the page already has, and the review's privacy gap
   (visitor IPs to jsdelivr/PyPI) is about exactly these fetches. Left as is:
   it changes what the Laws view claims ("the layout drawn is the live one").
-- The two `<head>` lines above.
 - Strip the `name` section in pflow-native (item 2).
 - A `Content-Security-Policy` that names the three third-party hosts would turn
   the guard test's promise into the browser's.
