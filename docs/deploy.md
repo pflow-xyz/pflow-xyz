@@ -466,13 +466,26 @@ and `TRUST_UNDEFINED 0 pgp`. (On macOS `gpg --import` prints gpg-agent errors wh
 `GNUPGHOME` is a long path, because the agent socket path exceeds the OS limit;
 they are unrelated and absent with a short path such as `~/.gnupg`.)
 
-The whole deploy was also replayed with the real binary, real git and real gpg
-against a local clone whose `origin/main` was `57f6caf` and a stand-in for the
-GitHub API: refused with the web-flow message and the checkout untouched
-(`89e6f34` before and after); after the key import, refused with red CI; refused
-on a `check run still in_progress` timeout; accepted with green CI (fast-forward
-to `57f6caf`, build, restart request, status file persisted and reloaded after
-the restart).
+The whole deploy was also replayed with the real binary (built from a clean
+clone, so it carries `vcs.revision`), real git and real gpg: a scratch origin
+whose `main` is `57f6caf` (the web-flow-signed merge from the incident), a box
+checkout at `eb0a490` (where pflow.dev stood), the box's git configuration
+(`gpg.format=ssh`, an `allowed_signers` with only an unrelated key), an empty
+throwaway `GNUPGHOME`, and a stand-in for the GitHub API on a local port. Each
+line is one run of the webhook or `/admin/deploy`:
+
+| Scenario | Result |
+|---|---|
+| web-flow tip, key not imported | refused with the web-flow message; box still at `eb0a490`; GitHub never asked |
+| key imported, CI red | refused, `concluded "failure"` and the run URL; box unchanged |
+| a failing GitHub Actions `test` next to a passing `test` from another app | refused on the Actions run; `ci_run_url` is the Actions run's |
+| webhook with `?skip_ci=1` in its URL, CI red | refused: the webhook ignores it |
+| webhook deploy waiting on a pending check, then `POST /admin/deploy?skip_ci=1` | the waiting deploy is superseded at once (the stream says so), the skip deploy builds, `ci_gate: skipped`, restart requested |
+| a push of another commit while a deploy waits on a pending check | `202 deploy queued; it supersedes the deploy that was waiting for CI`; the follow-up deploys |
+| origin has a **tag named `main`** (on `89e6f34`) and the branch is at `57f6caf` | deploys `57f6caf` (a bare `git fetch origin main` returns the tag's `89e6f34`) |
+| origin hangs (accepts the connection, never answers) | `git fetch` is killed at its 2 minute limit, state `failed`, no `git` or `git-remote-http` process left, and the next delivery (origin repaired) deploys normally |
+| deliveries during the two seconds before the restart | `503` with `Retry-After: 10`, then the process exits |
+| green CI | fast-forward to `57f6caf`, build, restart requested, status persisted (`0600`) and read back by the fresh process, which also serves `X-Build-Revision` |
 
 ## Things that will surprise you
 
