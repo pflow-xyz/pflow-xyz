@@ -15,6 +15,7 @@
 import { el } from './dom.js';
 import { citeLabel, citeURL, bibLabel, bibURL } from './sources.js';
 import { describeInfo, initialInspector, reduceInspector, shortIri } from './a11y-inspect.js';
+import { uniqueKeys } from './a11y-text.js';
 import { announce, linkMode } from './a11y-bus.js';
 
 // Hover is not the only way in. Hover and keyboard focus SHOW an info in the panel (unless one is
@@ -49,10 +50,27 @@ export function initInspector(panelEl) {
 const short = shortIri;
 const idOf = (info) => `${info.title || ''}|${info.concept ? info.concept.iri : ''}`;
 
+/**
+ * The things drawn now, in page order, with an id each: the title and concept, then `#2`, `#3` for
+ * equally titled ones. Two things can share a title and say different things, so a tap on the second
+ * must not read as a second tap on the first; and the id is the same after a redraw, so a pin
+ * survives the edits that leave its thing in place (and can tell when its thing is gone).
+ */
+function thingsNow() {
+  const nodes = [...document.querySelectorAll('.inspectable')].filter((n) => infos.has(n));
+  const ids = uniqueKeys(nodes.map((n) => idOf(infos.get(n))));
+  return { nodes, ids };
+}
+const idOfNode = (node, info) => {
+  const { nodes, ids } = thingsNow();
+  const i = nodes.indexOf(node);
+  return i >= 0 ? ids[i] : `${idOf(info)}#detached`; // a node already out of the page (it cannot be found again)
+};
+
 export function renderInfo(info, { pinned = false } = {}) {
   const c = info.concept;
   return el('div', { class: 'insp' },
-    pinned ? el('button', { class: 'insp-close', type: 'button', onclick: () => dismiss(), title: 'Dismiss the pinned inspector (Escape)' }, 'Dismiss ✕') : null,
+    pinned ? el('button', { class: 'insp-close', type: 'button', onclick: (e) => dismiss({ byKey: e.detail === 0 }), title: 'Dismiss the pinned inspector (Escape)' }, 'Dismiss ✕') : null,
     el('div', { class: 'insp-title' }, info.title || ''),
     c && el('div', { class: 'insp-concept' },
       el('code', { title: c.iri }, short(c.iri)),
@@ -104,8 +122,34 @@ function applyEffect(r, info) {
   announce(r.announce);
 }
 
-function dismiss() {
+/**
+ * The panel's own Dismiss button. The button goes with the pin, so a keyboard user would be dropped on
+ * <body>: focus returns to the thing that was pinned (`byKey`: a key pressed it, not a pointer).
+ */
+function dismiss({ byKey = false } = {}) {
+  const back = byKey ? pinnedNode() : null;
   const r = reduceInspector(inspector, { type: 'dismiss' });
+  if (r.handled) applyEffect(r, null);
+  if (back && back.isConnected) back.focus();
+  return r.handled;
+}
+
+/** The node the pin is on, if it is still drawn. */
+function pinnedNode() {
+  if (inspector.pinned === null) return null;
+  const { nodes, ids } = thingsNow();
+  const i = ids.indexOf(inspector.pinned);
+  return i >= 0 ? nodes[i] : null;
+}
+
+/**
+ * After a redraw: a pin whose thing is no longer drawn (the link it described was removed, the piece
+ * was taken out) is released, so the panel does not describe something that is gone. A pin on a thing
+ * that is still there stays. Returns whether it released.
+ */
+export function syncPin() {
+  if (inspector.pinned === null || pinnedNode()) return false;
+  const r = reduceInspector(inspector, { type: 'gone' });
   if (r.handled) applyEffect(r, null);
   return r.handled;
 }
@@ -127,7 +171,7 @@ export const infoOf = (node) => infos.get(node) || null;
 export function activate(node, { reveal = false } = {}) {
   const info = infos.get(node);
   if (!info) return;
-  const r = reduceInspector(inspector, { type: 'activate', id: idOf(info), title: info.title });
+  const r = reduceInspector(inspector, { type: 'activate', id: idOfNode(node, info), title: info.title });
   applyEffect(r, info);
   if (reveal && r.effect === 'pin' && card && card.scrollIntoView) card.scrollIntoView({ block: 'nearest', inline: 'nearest' });
 }

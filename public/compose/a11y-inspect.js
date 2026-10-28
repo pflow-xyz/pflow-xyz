@@ -3,7 +3,13 @@
 // inspect.js (panel, hover tip) and a11y.js (keys, aria wiring).
 //
 // Hover and focus SHOW an info in the panel unless one is pinned. A click or a tap
-// PINS it; a second click or tap on the same thing, or Escape, dismisses.
+// PINS it; a second click or tap on the same thing, or Escape, dismisses. If a
+// redraw leaves the pinned thing out (a link removed, a piece taken out), the pin goes.
+//
+// `id` identifies a THING, not a title: two boxes can share a title and say different
+// things (the Operad draws "port orders:in" twice), and a tap on the second must move
+// the pin, not release it. inspect.js builds the id from the title plus the thing's
+// place among the equally titled ones, so it is the same after a redraw.
 
 /** ns:Foo / pat:foo / lk:foo for the ontology IRIs the page names. */
 export function shortIri(iri) {
@@ -39,6 +45,7 @@ export const initialInspector = () => ({ pinned: null, shown: null });
  *         {type: 'activate', id, title} click, tap, Enter or I on a focused thing
  *         {type: 'escape'}              Escape pressed
  *         {type: 'dismiss'}             the panel's own close button
+ *         {type: 'gone'}                a redraw no longer has the pinned thing
  * Returns {state, effect, announce, handled}; effect is 'show' | 'pin' | 'unpin' | 'none'.
  */
 export function reduceInspector(state, ev) {
@@ -53,6 +60,9 @@ export function reduceInspector(state, ev) {
     case 'dismiss':
       if (state.pinned === null) return { state, effect: 'none', announce: '', handled: false };
       return { state: { pinned: null, shown: null }, effect: 'unpin', announce: 'Inspector dismissed.', handled: true };
+    case 'gone':
+      if (state.pinned === null) return { state, effect: 'none', announce: '', handled: false };
+      return { state: { pinned: null, shown: null }, effect: 'unpin', announce: 'Inspector released: the pinned thing is no longer in the view.', handled: true };
     default:
       return { state, effect: 'none', announce: '', handled: false };
   }

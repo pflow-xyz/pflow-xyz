@@ -163,7 +163,8 @@ kbd { font-family: var(--font-mono); font-size: 10.5px; border: 1px solid var(--
 .lg-lit { box-shadow: 0 0 4px 2px var(--accent); }
 .lg-dim { opacity: 0.2; }
 .lg-ring { background: #fff; border: 3px solid var(--focus); box-shadow: 0 0 0 2px #fff; }
-.insp-close { float: right; margin: 0 0 4px 8px; font: inherit; font-size: 11.5px; border: 1px solid var(--line); background: #fff; border-radius: 6px; padding: 2px 8px; cursor: pointer; }
+/* at least 24 x 24 px (WCAG 2.2 target size, 2.5.8), also on a narrow screen where the pinned inspector is a sheet */
+.insp-close { float: right; margin: 0 0 4px 8px; font: inherit; font-size: 11.5px; border: 1px solid var(--line); background: #fff; border-radius: 6px; padding: 4px 10px; min-width: 28px; min-height: 28px; cursor: pointer; }
 /* On a narrow screen the inspector is below the stage, out of sight from a tap: a pinned one is a sheet. */
 @media (max-width: 1000px) {
   #inspector.has-pin { position: fixed; left: 8px; right: 8px; bottom: 8px; max-height: 45vh; overflow: auto; z-index: 25; border: 2px solid var(--accent); box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.25); }

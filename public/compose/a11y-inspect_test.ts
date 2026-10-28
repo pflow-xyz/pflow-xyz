@@ -29,6 +29,42 @@ Deno.test("a second tap on the same thing dismisses; a tap on another thing move
   assertEquals(r.state.pinned, "b");
 });
 
+Deno.test("the dismissal is said in words, from a second tap, Escape and the close button alike", () => {
+  const pinned = reduceInspector(initialInspector(), { type: "activate", id: "a", title: "A" }).state;
+  assertEquals(reduceInspector(pinned, { type: "activate", id: "a", title: "A" }).announce, "Inspector dismissed.");
+  assertEquals(reduceInspector(pinned, { type: "escape" }).announce, "Inspector dismissed.");
+  assertEquals(reduceInspector(pinned, { type: "dismiss" }).announce, "Inspector dismissed.");
+  assertEquals(reduceInspector(initialInspector(), { type: "escape" }).announce, "", "nothing pinned, nothing said");
+});
+
+Deno.test("two different things with the same title: a tap on the second moves the pin, it does not release it", () => {
+  // inspect.js gives each thing its own id (the title, then #2 for the second of the same title), so
+  // the Operad's two "port orders:in" differ here although their titles are equal.
+  const first = reduceInspector(initialInspector(), { type: "activate", id: "port orders:in|ns:Port", title: "port orders:in" });
+  assertEquals(first.effect, "pin");
+  const second = reduceInspector(first.state, { type: "activate", id: "port orders:in|ns:Port#2", title: "port orders:in" });
+  assertEquals(second.effect, "pin", "moved, not dismissed");
+  assertEquals(second.state.pinned, "port orders:in|ns:Port#2");
+  assertStringIncludes(second.announce, "Inspector pinned: port orders:in");
+  // and a tap on that same second thing again does release it
+  const third = reduceInspector(second.state, { type: "activate", id: "port orders:in|ns:Port#2", title: "port orders:in" });
+  assertEquals(third.effect, "unpin");
+  assertEquals(third.announce, "Inspector dismissed.");
+});
+
+Deno.test("a redraw that drops the pinned thing releases the pin and says so; one that keeps it does nothing", () => {
+  const pinned = reduceInspector(initialInspector(), { type: "activate", id: "a", title: "A" }).state;
+  const r = reduceInspector(pinned, { type: "gone" });
+  assertEquals(r.effect, "unpin");
+  assertEquals(r.handled, true);
+  assertEquals(r.state, { pinned: null, shown: null });
+  assertEquals(r.announce, "Inspector released: the pinned thing is no longer in the view.");
+  const none = reduceInspector(initialInspector(), { type: "gone" });
+  assertEquals(none.effect, "none");
+  assertEquals(none.announce, "");
+  assertEquals(none.handled, false);
+});
+
 Deno.test("Escape and the close button dismiss a pin, and do nothing (unhandled) when nothing is pinned", () => {
   const pinned = reduceInspector(initialInspector(), { type: "activate", id: "a", title: "A" }).state;
   for (const type of ["escape", "dismiss"]) {

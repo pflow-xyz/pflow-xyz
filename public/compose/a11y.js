@@ -19,7 +19,7 @@
 // the pure modules a11y-text / a11y-nav / a11y-inspect / a11y-link, tested under deno.
 
 import { registered, startKeyboard, kbActive } from './snap.js';
-import { infoOf, activate, dismissPinned, isPinned, revealPanel } from './inspect.js';
+import { infoOf, activate, dismissPinned, isPinned, revealPanel, syncPin } from './inspect.js';
 import { rovingTarget, tabTarget, tabStop, roleFor, keepsOwnName, clicksItself } from './a11y-nav.js';
 import { portLabel, slotLabel, pieceLabel, viewLabel, eventText, schemaCode, uniqueKeys, distinctDashes } from './a11y-text.js';
 import { state, subnetsById } from './state.js';
@@ -196,6 +196,7 @@ export function afterRender({ view, event }) {
   schemaBadges(stage, subnets);
   tabsAndToggles();
   linkList();
+  syncPin(); // a pin on a thing this redraw dropped (a link removed) is released, and said so
   restoreFocus(stage);
   const idx = VIEW_IDS.indexOf(state.view) + 1;
   if (lastView !== null && (lastView !== state.view || lastExample !== state.example)) announce(viewLabel(view, state.example, idx, VIEW_IDS.length));

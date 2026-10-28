@@ -148,7 +148,7 @@ function renderComposition() {
           `${l.from.subnet}:${l.from.port} — ${l.to.subnet}:${l.to.port}`,
           l.idiom ? el('span', { class: 'idiom' }, ` pat:${l.idiom}`) : null,
           l.leak ? el('div', { class: 'leak-note' }, 'pool leaks a worker on rollback (idiom caveat)') : null,
-          el('button', { class: 'x', title: 'bundle.remove_link', onclick: () => actions.removeLink(l.index) }, '×'));
+          el('button', { class: 'x', title: 'bundle.remove_link', onclick: (e) => { e.stopPropagation(); actions.removeLink(l.index); } }, '×')); // not a click on the row: it would pin a link that is going
         hover(li, info.linkInfo(l, byId));
         return li;
       })) : el('p', { class: 'muted' }, 'No links: the composite is the monoidal product (disjoint union) of the instances.'),
