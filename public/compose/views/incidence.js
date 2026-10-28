@@ -2,7 +2,8 @@
 // net, and how composition acts on it.
 //
 // orders: the block-diagonal C of the active instances (⊗ is a disjoint union)
-// next to the C of the flat net (ctx.orders.flat, the port of go-pflow Flatten).
+// next to the C of the flat net (ctx.orders.flat: the registry's bundle.flatten,
+// pflow-compose's port of go-pflow Flatten).
 // An event link fuses transitions and MergeSum adds the fused columns; a token or
 // data link fuses places and adds the fused rows; a guard link lowers to a read
 // arc, which moves nothing, so C does not change. Under the flat matrix, y·C for
@@ -10,13 +11,19 @@
 // this page from the flat net.
 //
 // connect4: a SearchPlan is not a net and has no incidence matrix. The view says
-// so and draws the Connect-4 net's matrix instead (data/connect-4.json).
+// so and draws the Connect-4 net's matrix instead: the registry's
+// analysis.incidence on data/connect-4.json (the c4 engine's document).
+//
+// Scene manifest (parity contract): orders `block` per instance (rows, cols),
+// `matrix` "flat" (rows, cols), `invariant` per declared constraint (holds:
+// y·C = 0 and y·M₀ = n; a constraint that is not a plain sum of tokens is not
+// checked, holds false); connect4 `matrix` "connect-4" (rows, cols).
 //
 // No ports are drawn (a matrix has no boundary), so nothing is registered with
 // ctx.snap; links are made in the views that draw ports and this one recomputes.
 
 import { cite } from '../sources.js';
-import { flatten, FLATTEN_CITES } from '../model.js';
+import { flatten, c4Incidence, FLATTEN_CITES } from '../model.js';
 
 const go = (path, from, to = from, note = '') => cite('goPflow', path, from, to, note);
 const rs = (path, from, to = from, note = '') => cite('pflowRs', path, from, to, note);
@@ -140,10 +147,11 @@ export default {
       connect4: 'A SearchPlan has no incidence matrix: it is a composite of search pieces, not a net. Drawn instead: the 131 × 222 incidence matrix of the Connect-4 net the plan searches (data/connect-4.json), with places grouped by prefix (open_, x_, o_ cells; other) and transitions by prefix (x_play_ / o_play_ drops, x_win_ / o_win_ detectors). The win detectors take a cell and put it back (pre = post = 1), which C records as 0; grey dots mark those pairs.',
     },
     honesty: [
-      'C is computed in this page from the arcs, with go-pflow\'s and pflow-rs\'s definition (output − input over the arcs that move tokens). Rows and columns are drawn in declaration (or prefix-grouped) order; go-pflow IncidenceMatrix sorts them by ID. That is a permutation, so nothing changes.',
+      'Orders: C is computed in this page from the arcs of the instances and of the flat net (bundle.flatten), with go-pflow\'s and pflow-rs\'s definition (output − input over the arcs that move tokens). Connect-4: C is the registry\'s (analysis.incidence). Rows and columns are drawn in declaration (or prefix-grouped) order; go-pflow IncidenceMatrix sorts them by ID. That is a permutation, so nothing changes.',
       'C forgets read arcs, inhibitor arcs and self-loops (pre = post). A guard link changes the net but not C, and the Connect-4 win detectors\' reads of the board do not show in C.',
       'The P-invariant check (y·C = 0 and y·M₀ = n) is computed in this page from the flat net. It is not a run of go-pflow verify. Together the two prove the constraint for every reachable marking (go-pflow calls this the structural method). Capacities, read arcs and inhibitors only restrict firing, so they cannot break an invariant.',
       'The pool-leak caveat is not a P-invariant failure: a leaked worker is still counted in in_use. A scenario check catches it (ROADMAP 4.4); a matrix cannot.',
+      'Before/after of a new link (the merge animation): the previous link set is flattened by the registry too (bundle.flatten on a scratch engine).',
       'No ports are drawn: a matrix has no boundary. Links are made in the views that draw ports, and this one recomputes both matrices from them.',
       'ROADMAP 4.2 is a planned deliverable: compare this matrix with pflow-jl glue, on token links only and up to place renaming. That comparison is not run here.',
       'The event-class tags ⊗A, ⊗B… use RenderDOT\'s event-link glyph; that ⊗ is not the monoidal product ⊗ in the left title.',
@@ -303,6 +311,7 @@ function renderOrders(ctx) {
   const gL = svg('g', { class: 'inc-left' });
   root.append(gL);
   for (const b of blocks) {
+    ctx.emit('block', b.s.id, { rows: b.r1 - b.r0, cols: b.c1 - b.c0 });
     const r = svg('rect', { x: x0L + b.c0 * cw, y: yM + b.r0 * rh, width: (b.c1 - b.c0) * cw, height: (b.r1 - b.r0) * rh, fill: T.PATTERN_TINT[b.s.pattern], stroke: '#c9d1db', 'stroke-width': 0.8 });
     gL.append(r);
     if (ev && ev.type === 'instance-added' && ev.id === b.s.id) anim(r, [{ opacity: 0 }, { opacity: 1 }], { duration: 700, easing: EASE });
@@ -397,7 +406,7 @@ function renderOrders(ctx) {
       text((ax0 + ax1) / 2, ay + 15, 'Σ cols, Σ rows', { 'text-anchor': 'middle', class: 'mut', 'font-size': 8.5 }));
     ctx.hover(arrow, {
       title: 'Flatten: from the disjoint union to the flat net',
-      definition: 'go-pflow Bundle.Flatten, as ported in js/model/flatten.js: namespace every element, fuse places joined by token/data links and transitions joined by event links, merge duplicate arcs (MergeSum), lower guard links.',
+      definition: 'go-pflow Bundle.Flatten, as pflow-compose ports it (the registry\'s bundle.flatten): namespace every element, fuse places joined by token/data links and transitions joined by event links, merge duplicate arcs (MergeSum), lower guard links.',
       facts: [
         ['on C', 'event classes add columns, wires add rows, guard links leave C alone'],
         ['here', `${mL} × ${nL} → ${mR} × ${nR}; ${Object.keys(flat.map.fusedGroups).length} event class${Object.keys(flat.map.fusedGroups).length === 1 ? '' : 'es'}, ${Object.keys(flat.map.wires).length} wire${Object.keys(flat.map.wires).length === 1 ? '' : 's'}`],
@@ -416,6 +425,7 @@ function renderOrders(ctx) {
   if (flat.ok) {
     const gR = svg('g', { class: 'inc-right' });
     root.append(gR);
+    ctx.emit('matrix', 'flat', { rows: mR, cols: nR });
     for (const t of fm.transitions) { const c = classOf.get(t.id); if (c) gR.append(svg('rect', { x: x0R + fm.transitions.indexOf(t) * cw, y: yM, width: cw, height: mR * rh, fill: c.color, opacity: 0.1 })); }
     fm.places.forEach((p, i) => { const w = wireOf.get(p.id); if (w) gR.append(svg('rect', { x: x0R, y: yM + i * rh, width: nR * cw, height: rh, fill: w.color, opacity: 0.1 })); });
     fm.places.forEach((p, i) => { const b = svg('rect', { x: x0R - 2, y: yM + i * rh, width: nR * cw + 4, height: rh, class: 'yband' }); yBands.push(b); gR.append(b); });
@@ -480,11 +490,13 @@ function renderOrders(ctx) {
           if (showVal) g.append(text(x0R + j * cw + cw / 2, y + rh / 2 + 3.2, fmt(v.s), { class: 'val', 'text-anchor': 'middle' }));
         });
         const okC = iv.bad === 0 && !iv.missing.length, okM = iv.yM0 === iv.ts.n;
+        ctx.emit('invariant', iv.c.id, { holds: okC && okM });
         g.append(text(x0R + nR * cw + 8, y + rh / 2 + 3.5, '', {},
           svg('tspan', { class: okC ? 'ok' : 'bad' }, okC ? 'y·C = 0 ✓' : `y·C ≠ 0 at ${iv.bad} ✗`),
           svg('tspan', { class: 'mut', dx: 8 }, 'y·M₀ = '),
           svg('tspan', { class: okM ? 'ok' : 'bad' }, okM ? `${iv.yM0} ✓` : `${iv.yM0} ≠ ${iv.ts.n} ✗`)));
       } else {
+        ctx.emit('invariant', iv.c.id, { holds: false });
         g.append(text(x0R, y + rh / 2 + 3.5, 'not a plain sum of tokens(…) == n: not checked here', { class: 'mut', 'font-style': 'italic', 'font-size': 10 }));
       }
       const info = invariantRowInfo(ctx, iv, fm);
@@ -610,7 +622,7 @@ function leftCellInfo(ctx, r, c, e, wireOf, classOf) {
       w ? ['row fuses into', `${w.name} (${w.tag})`] : null,
       k ? ['column fuses into', `${k.name} (${k.tag})`] : null,
     ].filter(Boolean),
-    note: 'Computed in this page from the instance\'s arcs (the subnets are the go-pflow constructors, transcribed in js/model/orders.js).',
+    note: 'Computed in this page from the instance\'s arcs (the subnets are built by pflow-compose\'s constructors, ports of go-pflow\'s: bundle.state).',
     cites: [CITE.incGo, CITE.firing, ...(r.s.cites || [])],
   };
 }
@@ -631,7 +643,7 @@ function rightCellInfo(p, t, e, sum, wireOf, classOf) {
       e.tests.length ? ['read / inhibitor arcs', `${e.tests.map((a) => `${a.type} ${a.weight}${a.guard ? ' (guard link)' : ''}`).join(', ')}: move nothing, so they are not in C`] : null,
       !e.c && e.pre && e.post ? ['self-loop', 'pre = post: C records 0'] : null,
     ].filter(Boolean),
-    note: 'C of the flat net, computed in this page from ctx.orders.flat (the port of go-pflow Flatten). Under MergeSum the arcs of fused members add, so this entry is the sum of the member entries.',
+    note: 'C of the flat net, computed in this page from ctx.orders.flat (the registry\'s bundle.flatten, pflow-compose\'s port of go-pflow Flatten). Under MergeSum the arcs of fused members add, so this entry is the sum of the member entries.',
     cites: [CITE.mergeArcs, CITE.firing, ...(e.tests.length ? [CITE.guard] : [])],
   };
 }
@@ -793,26 +805,23 @@ function renderConnect4(ctx) {
   ctx.note('A SearchPlan has no incidence matrix: it is a composite of search pieces (plan.rs), not a P/T net, and its pieces have no places or transitions to put in one. Drawn instead, as the nearest honest thing: the incidence matrix of the Connect-4 net the plan searches (data/connect-4.json, the pflow-rs fixture). Nothing here is a plan slot; pieces are placed in the plan views.', 'na');
   if (!net) { ctx.note('data/connect-4.json did not load, so there is no net to draw.', 'warn'); return; }
 
-  const P = Object.keys(net.places), Tr = Object.keys(net.transitions);
-  const Pset = new Set(P), Tset = new Set(Tr);
-  const pre = new Map(), post = new Map(), inhib = new Map();
-  const add = (m, k, w) => m.set(k, (m.get(k) || 0) + w);
-  let nInhib = 0, nOther = 0;
+  // C, pre and post are the registry's: analysis.incidence on the net loaded
+  // into the c4 engine (rows: places in document order, cols: transitions).
+  let inc;
+  try { inc = c4Incidence(net); } catch (e) { ctx.note(`analysis.incidence refused the net: ${e.message}`, 'warn'); return; }
+  const P = inc.rows, Tr = inc.cols;
+  const ri = new Map(P.map((p, i) => [p, i])), ci = new Map(Tr.map((t, j) => [t, j]));
+  // Inhibitor arcs are not in C; they are marked from the document's own arcs.
+  const Pset = new Set(P);
+  const inhib = new Map();
+  let nInhib = 0;
   for (const a of net.arcs) {
-    // The sum over token colors, as go-pflow GetWeightSum (petri/net.go:100-109) and pflow-core
-    // weight_sum (net.rs:101-107); an absent weight is [1] (json.rs:186-191).
+    if (!a.inhibitTransition) continue;
+    nInhib++;
     const w = Array.isArray(a.weight) && a.weight.length ? a.weight.reduce((s, v) => s + v, 0) : 1;
-    if (a.inhibitTransition) {
-      nInhib++;
-      const k = Pset.has(a.source) ? K(a.source, a.target) : K(a.target, a.source);
-      inhib.set(k, w);
-      continue; // invariants.go:129-131: inhibitor arcs don't affect incidence
-    }
-    if (Pset.has(a.source) && Tset.has(a.target)) add(pre, K(a.source, a.target), w);
-    else if (Tset.has(a.source) && Pset.has(a.target)) add(post, K(a.target, a.source), w);
-    else nOther++;
+    inhib.set(Pset.has(a.source) ? K(a.source, a.target) : K(a.target, a.source), w);
   }
-  const at = (p, t) => { const k = K(p, t), pr = pre.get(k) || 0, po = post.get(k) || 0; return { pre: pr, post: po, c: po - pr, inhib: inhib.get(k) || 0 }; };
+  const at = (p, t) => { const i = ri.get(p), j = ci.get(t); return { pre: inc.pre[i][j], post: inc.post[i][j], c: inc.incidence[i][j], inhib: inhib.get(K(p, t)) || 0 }; };
 
   // Groups by ID prefix (this page's grouping; the fixture has none).
   const cellRe = /^(open|x|o)_(\d+)_(\d+)$/;
@@ -861,9 +870,10 @@ function renderConnect4(ctx) {
   ctx.root.append(root);
   root.append(svg('rect', { x: 0, y: 0, width: W, height: H, fill: '#fafafa' }));
   const text = (tx, ty, s, attrs = {}, ...kids) => svg('text', { x: tx, y: ty, ...attrs }, s, ...kids);
+  ctx.emit('matrix', 'connect-4', { rows: P.length, cols: Tr.length });
   root.append(
     text(M, 18, `C of the Connect-4 net: ${P.length} places × ${Tr.length} transitions`, { class: 'ttl' }),
-    text(M, 34, `${net.name} · data/connect-4.json (pflow-rs fixture) · grouped by ID prefix on this page`, { class: 'sub' }),
+    text(M, 34, `${net.name} · data/connect-4.json (pflow-rs fixture) · C from the registry (analysis.incidence) · grouped by ID prefix on this page`, { class: 'sub' }),
   );
   const readout = text(xEnd, 34, 'hover a cell', { class: 'id', 'text-anchor': 'end', fill: MUTEDC });
   root.append(readout);
@@ -961,7 +971,7 @@ function renderConnect4(ctx) {
       !e.c && e.pre && e.post ? ['pre = post', 'the transition takes the token and puts it back (a catalytic read): in the net, not in C'] : null,
       e.inhib ? ['inhibitTransition arc', `weight ${e.inhib}: excluded from C`] : null,
     ].filter(Boolean),
-    note: 'Computed in this page from data/connect-4.json as go-pflow IncidenceMatrix does: each arc\'s weight is the sum of its weight vector (GetWeightSum; this fixture has one token color and every weight is [1]), and inhibitTransition arcs are left out. pflow-rs incidence_matrix applies the same rule to its metamodel Model.',
+    note: 'pre, post and C are the registry\'s (analysis.incidence on data/connect-4.json): output − input over the arcs that move tokens, read and inhibitor arcs left out, as go-pflow IncidenceMatrix and pflow-rs incidence_matrix define it. The inhibitTransition mark is read from the document\'s arcs.',
     cites: [CITE.incGo, CITE.weightGo, CITE.incRs, CITE.inhibRs, CITE.rawArc, CITE.rawWeight, CITE.weightRs, CITE.fixture],
   });
   const clearHL = () => { rowBand.setAttribute('visibility', 'hidden'); colBand.setAttribute('visibility', 'hidden'); readout.textContent = 'hover a cell'; readout.setAttribute('fill', MUTEDC); };
@@ -994,7 +1004,7 @@ function renderConnect4(ctx) {
   sw((sx, sy) => svg('g', {}, svg('rect', { x: sx, y: sy, width: 12, height: 11, fill: '#fff', stroke: '#c3cbd5' }), svg('circle', { cx: sx + 6, cy: sy + 5.5, r: 1.8, fill: '#9aa1ab' })), 'pre = post = 1 (a win detector reads a cell): in the net, C = 0');
   sw((sx, sy) => svg('path', { d: `M${sx + 1},${sy + 1}l10,9M${sx + 11},${sy + 1}l-10,9`, stroke: T.LINK_STYLE.guard.color, 'stroke-width': 1.4 }), `inhibitTransition arc: left out of C (${nInhib} here)`);
   ly += 18;
-  root.append(text(M, ly, `${thousands(P.length * Tr.length)} entries · ${nz} nonzero (${neg} × −1, ${pos} × +1) · ${cat} pre = post pairs that C cannot see · ${nInhib} inhibitTransition arcs · ${net.arcs.length} arcs${nOther ? ` (${nOther} not place↔transition, ignored)` : ''} · computed in this page`, { class: 'mut', 'font-size': 10.5 }));
+  root.append(text(M, ly, `${thousands(P.length * Tr.length)} entries · ${nz} nonzero (${neg} × −1, ${pos} × +1) · ${cat} pre = post pairs that C cannot see · ${nInhib} inhibitTransition arcs · ${net.arcs.length} arcs · C, pre and post from the registry (analysis.incidence); the counts are this page's`, { class: 'mut', 'font-size': 10.5 }));
   ly += 16;
   root.append(text(M, ly, 'The fixture declares no invariants, so no y·C check is drawn. Rows and columns are grouped by prefix here; go-pflow and pflow-rs sort them by ID (a permutation of the same C).', { class: 'mut', 'font-size': 10.5 }));
 }

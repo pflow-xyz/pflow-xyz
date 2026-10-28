@@ -14,13 +14,13 @@
 // which a cospan of places does not express. This view draws each instance as a
 // net with boundaries: its left edge is its outer boundary (the transition ports
 // no event link uses), its right edge faces one shared boundary. The shared
-// boundary has one port per event class (flatten()'s map.fusedGroups), and
+// boundary has one port per event class (bundle.flatten's fused_groups), and
 // beyond each port the composite transition Flatten builds for that class.
 // Places and token/data/guard links are drawn faint: they are the Cospans view's
 // subject.
 
 import { cite } from '../sources.js';
-import { flatten, initialMarking, whyNotEnabled, FLATTEN_CITES } from '../model.js';
+import { flatten, initialMarking, memberAlone, FLATTEN_CITES, PLAN_RS_REV } from '../model.js';
 import { IDIOMS } from '../model.js';
 import { CONNECT4_EXACT, toJSON } from '../model.js';
 
@@ -141,7 +141,7 @@ function ext(info, more = {}) {
 
 function layoutOrders(subnets, links, flat, tw) {
   const byId = Object.fromEntries(subnets.map((s) => [s.id, s]));
-  const pk = (r) => `${r.subnet}|${r.port}`;
+  const pk = (r) => `${r.subnet}:${r.port}`;
   const eventPorts = new Set();
   for (const l of links) if (l.kind === 'event') { eventPorts.add(pk(l.from)); eventPorts.add(pk(l.to)); }
   const fused = flat.ok ? flat.map.fusedGroups : {};
@@ -160,7 +160,7 @@ function layoutOrders(subnets, links, flat, tw) {
       const cls = classOfMember.get(member) || null;
       const row = { s, t, cy, member, cls, linked: !!cls, rx: cls ? BOX_R - 26 - RECT_W : BOX_X + 26, ports: [] };
       for (const p of s.ports.filter((q) => q.target === 'transition' && q.transition === t.id)) {
-        const key = `${s.id}|${p.id}`;
+        const key = `${s.id}:${p.id}`;
         const side = eventPorts.has(key) ? 'R' : 'L';
         const pos = { key, s, p, side, x: side === 'R' ? BOX_R : BOX_X, y: cy, row };
         row.ports.push(pos);
@@ -172,7 +172,7 @@ function layoutOrders(subnets, links, flat, tw) {
     }
     ry += 4;
     for (const p of s.ports.filter((q) => q.target === 'place')) {
-      const key = `${s.id}|${p.id}`;
+      const key = `${s.id}:${p.id}`;
       const pos = { key, s, p, side: 'L', x: BOX_X, y: ry + PROW / 2 };
       box.pports.push(pos);
       ports.set(key, pos);
@@ -198,37 +198,31 @@ function layoutOrders(subnets, links, flat, tw) {
   const marking = flat.ok ? initialMarking(model) : {};
   const placeById = Object.fromEntries(model.places.map((p) => [p.id, p]));
   const isRead = (a) => a.type === 'read' || a.type === 'inhibitor';
+  const enablement = new Map((flat.ok ? flat.initialEnablement : []).map((r) => [r.transition, r]));
   const classes = Object.entries(fused).map(([name, members]) => {
     const mports = members.map((m) => { const row = rows.get(m); return { m, row, port: row.ports.find((q) => q.side === 'R') || row.ports[0] }; });
     const clinks = links.filter((l) => l.kind === 'event' && members.includes(memberOfRef(l.from)));
     const pre = model.arcs.filter((a) => a.to === name && !isRead(a));
     const reads = model.arcs.filter((a) => a.to === name && isRead(a));
     const post = model.arcs.filter((a) => a.from === name && !isRead(a));
-    const why = flat.ok ? whyNotEnabled(model, marking, name) : 'not flattened';
-    // Each member on its own: go-pflow's EnabledWhyNot (the page's port) on a
-    // one-transition model holding only this member's arcs (and any guard link
-    // that gates it, lowered to a read arc as Flatten does), retargeted to the
-    // flat places, at the flat initial marking. So capacity and read arcs count,
-    // exactly as they do for the composite.
+    // At the initial marking, the composite's enablement is the registry's
+    // (bundle.flatten's initial_enablement, pflow-metamodel's reason).
+    const ie = enablement.get(name);
+    const why = ie ? (ie.enabled ? null : ie.why) : 'not in bundle.flatten\'s initial enablement';
+    // Each member on its own: the same composition with the event links removed
+    // (token, data and guard links kept), run one step from its initial marking
+    // by the registry (model.memberAlone: bundle.run). So capacity and guard
+    // read arcs count, as they do for the composite.
     const alone = members.map((m) => {
-      const i = m.indexOf('/'); const s = byId[m.slice(0, i)], tid = m.slice(i + 1);
-      const fp = (pid) => flat.map.place[s.id][pid];
-      const arcs = s.arcs.filter((a) => a.to === tid || a.from === tid)
-        .map((a) => (a.to === tid ? { ...a, from: fp(a.from), to: m } : { ...a, from: m, to: fp(a.to) }));
-      for (const l of links) {
-        if (l.kind !== 'guard' || memberOfRef(l.from) !== m) continue;
-        const tp = byId[l.to.subnet]?.ports.find((q) => q.id === l.to.port);
-        if (tp) arcs.push({ from: flat.map.place[l.to.subnet][tp.place], to: m, weight: 1, type: 'read', guard: true });
-      }
-      const why = whyNotEnabled({ places: model.places, transitions: [{ id: m }], arcs }, marking, m);
+      const why = memberAlone(subnets.map((x) => x.id), links, m);
       return why === null ? { m, ok: true } : { m, ok: false, why: why.startsWith(`${m} `) ? why.slice(m.length + 1) : why };
     });
     const leakLink = clinks.find((l) => l.leak) || null;
     const leakIdiom = leakLink ? IDIOMS.find((i) => i.key === leakLink.idiom) : null;
     const leakLines = leakIdiom ? wrap(leakIdiom.caveat, 82) : [];
     const nrows = Math.max(pre.length + reads.length, post.length, 1);
-    // each member's status sits right of the longest member name; a long go-pflow
-    // reason wraps onto further lines instead of running off the card
+    // each member's status sits right of the longest member name; a long
+    // registry reason wraps onto further lines instead of running off the card
     const statusX = CARD_X + 24 + Math.max(...members.map((m) => (m.length + 6) * 10.5 * 0.6)) + 14;
     const statusChars = Math.max(16, Math.floor((CARD_X + CARD_W - 8 - statusX) / (9.5 * 0.52)));
     for (const a of alone) a.lines = wrap(a.ok ? 'enabled on its own' : `alone: ${a.why}`, statusChars);
@@ -311,7 +305,7 @@ function renderOrders(ctx) {
   const pk = ctx.orders.portKey;
 
   if (!flat.ok) {
-    ctx.note(`Flatten refused the links (${flat.errors.map((e) => e.code).join(', ')}); nothing to synchronise.`, 'warn');
+    ctx.note(`bundle.flatten refused the links (${flat.error || flat.errors.map((e) => e.code).join(', ')}); nothing to synchronise.`, 'warn');
     return;
   }
 
@@ -504,6 +498,7 @@ function renderOrders(ctx) {
       S('circle', { cx: SHARED_X, cy: c.by, r: BPORT_R, fill: '#fff', stroke: EV, 'stroke-width': 2 }),
       S('text', { x: SHARED_X, y: c.by + 5.2, 'text-anchor': 'middle', 'font-size': 15, fill: EV }, '⊗'),
       S('text', { x: SHARED_X - BPORT_R - 5, y: c.by - BPORT_R - 2, 'text-anchor': 'end', 'font-size': 10.5, 'font-weight': 700, fill: EV }, c.letter));
+    ctx.emit('boundary', c.name, { legs: c.members });
     bp.style.transformBox = 'fill-box';
     bp.style.transformOrigin = 'center';
     ctx.hover(bp, ext(info.flatTransitionInfo(flatT), {
@@ -516,6 +511,7 @@ function renderOrders(ctx) {
 
     // card
     const card = S('g', { class: 'bnd-card' });
+    ctx.emit('composite', c.name, { members: c.members });
     const cx = CARD_X, top = c.top;
     card.append(S('line', { x1: SHARED_X + BPORT_R, y1: c.by, x2: cx, y2: c.by, stroke: EV, 'stroke-width': 1.4 }));
     const bg = S('rect', { x: cx, y: top, width: CARD_W, height: c.h, rx: 6, fill: '#fff', stroke: '#b9d8c4', 'stroke-width': 1.3 });
@@ -524,7 +520,7 @@ function renderOrders(ctx) {
     const head = S('g', {});
     head.append(S('text', { x: cx + 12, y: top + 18, 'font-size': 11.5, fill: INK }, S('tspan', { 'font-weight': 700, fill: EV }, `${c.letter} `), S('tspan', { 'font-weight': 600 }, 'composite transition'), S('tspan', { fill: MUTED, 'font-size': 10 }, `  · ${c.members.length} members, one firing`)),
       S('text', { x: cx + CARD_W - 12, y: top + 18, 'text-anchor': 'end', 'font-size': 10, fill: c.why ? MUTED : T.LINK_STYLE.event.color, 'font-weight': 600 }, c.why ? '✗ not enabled at the initial marking' : '✓ enabled at the initial marking'));
-    ctx.hover(head, ext(info.flatTransitionInfo(flatT), { facts: [['at the initial marking', c.why ? `not enabled: ${c.why}` : 'enabled'], ['computed by', 'the page\'s port of go-pflow EnabledWhyNot (firing.go), on the flat net']], cites: [C.whyNot] }));
+    ctx.hover(head, ext(info.flatTransitionInfo(flatT), { facts: [['at the initial marking', c.why ? `not enabled: ${c.why}` : 'enabled'], ['computed by', 'the registry: bundle.flatten\'s initial_enablement (pflow-metamodel\'s enabled check on pflow-compose\'s flat net; go-pflow\'s EnabledWhyNot is where the rule comes from)']], cites: [C.whyNot] }));
     card.append(head);
 
     // flat name, one member per line, each with its own enabledness
@@ -538,7 +534,7 @@ function renderOrders(ctx) {
         S('text', { x: c.statusX, y: yy, 'font-size': 9.5, fill: MUTED }, ...a.lines.map((ln, k) => S('tspan', { x: c.statusX, dy: k ? 13 : 0 }, ln))));
       yy += (a.lines.length - 1) * 13;
       const i0 = m.indexOf('/');
-      ctx.hover(lg2, ext(info.transitionInfo(byId[m.slice(0, i0)], m.slice(i0 + 1)), { facts: [['on its own, at the initial marking', a.ok ? 'enabled' : `not enabled: ${a.why}`], ['computed by', 'the page\'s port of go-pflow EnabledWhyNot, on this member\'s own arcs (and any guard gating it) over the flat places and the flat initial marking'], ['in the composite', 'fires only with every other member']], note: 'The flat name is go-pflow\'s: "fused:" + the sorted members joined by "+" (there is no explicit link ID on this page).', cites: [C.flatName, C.whyNot] }));
+      ctx.hover(lg2, ext(info.transitionInfo(byId[m.slice(0, i0)], m.slice(i0 + 1)), { facts: [['on its own, at the initial marking', a.ok ? 'enabled' : `not enabled: ${a.why}`], ['computed by', 'the registry: the same composition with its event links removed (token, data and guard links kept), this member run one step from the initial marking by bundle.run'], ['in the composite', 'fires only with every other member']], note: 'The flat name is Flatten\'s (bundle.flatten, as go-pflow names it): "fused:" + the sorted members joined by "+" (there is no explicit link ID on this page).', cites: [C.flatName, C.whyNot] }));
       card.append(lg2);
     });
     yy += 4;
@@ -742,7 +738,8 @@ function animate(ctx, L, reg, svg) {
 
 function renderConnect4(ctx) {
   const S = ctx.svg, T = ctx.theme;
-  ctx.note('Does not apply: a search plan composes pieces into slots (plan.rs\'s check decides); nothing synchronises transitions across a boundary. And the Connect-4 net is closed: it has no ports, so as a net with boundaries it is N : 0 → 0 (Bruni et al. Def. 4.1 with m = n = 0; Remark 3.6 for C/E nets), with nothing to compose along. The honest nearest drawing is that closed box; the plan is drawn in the Operad and Lens views.', 'na');
+  ctx.emit('na', 'boundaries');
+  ctx.note('Does not apply: a search plan composes pieces into slots (pflow-rs\'s SearchPlan::check decides, through plan.check); nothing synchronises transitions across a boundary. And the Connect-4 net is closed: it has no ports, so as a net with boundaries it is N : 0 → 0 (Bruni et al. Def. 4.1 with m = n = 0; Remark 3.6 for C/E nets), with nothing to compose along. The honest nearest drawing is that closed box; the plan is drawn in the Operad and Lens views.', 'na');
   const sm = ctx.connect4.summary;
   const H = 430;
   const svg = ctx.svgRoot(W, H, { class: 'view-svg bnd-svg', role: 'img', 'aria-label': 'The Connect-4 net as a closed net with boundaries 0 → 0' });
@@ -783,7 +780,7 @@ function renderConnect4(ctx) {
       S('text', { x: bx + 80, y: by + 62 + i * 26, 'font-size': 11.5, fill: T.MUTED }, t));
   });
   // the fixture's source, under the box (it is wider than the box)
-  svg.append(S('text', { x: bx + bw / 2, y: by + bh + 22, 'text-anchor': 'middle', 'font-size': 9.5, fill: T.MUTED, class: 'mono' }, 'pflow-rs crates/pflow-metamodel/tests/fixtures/connect-4.json @c396d46 (MIT)'));
+  svg.append(S('text', { x: bx + bw / 2, y: by + bh + 22, 'text-anchor': 'middle', 'font-size': 9.5, fill: T.MUTED, class: 'mono' }, 'pflow-rs crates/pflow-metamodel/tests/fixtures/connect-4.json (MIT; vendored as compose/data/connect-4.json)'));
   ctx.hover(box, {
     title: `${sm.name}: a closed net`,
     definition: sm.description,
@@ -808,7 +805,7 @@ function renderConnect4(ctx) {
   }
   expl.append(S('text', { x: W / 2, y: ty, 'text-anchor': 'middle', 'font-size': 12, fill: T.INK }, 'The search plan ', isExample ? S('tspan', { class: 'mono', 'font-size': 11 }, 'plan:connect4-exact ') : '(edited from plan:connect4-exact) ', 'fills slots with pieces; it has no transitions to synchronise.'),
     ...planLines.map((ln, i) => S('text', { x: W / 2, y: ty + 18 + i * 14, 'text-anchor': 'middle', 'font-size': 10.5, fill: T.MUTED }, ln)));
-  ctx.hover(expl, { title: 'the search plan (not a net with boundaries)', definition: 'SearchPlan JSON, checked by plan.rs SearchPlan::check: order pieces, drivers, filters, heuristics and memo go into slots. No piece is a transition, and no slot is a boundary port.', facts: [['plan', planStr], ['check', ctx.plan.error || 'accepted']], cites: [ctx.plan.exampleCite] });
+  ctx.hover(expl, { title: 'the search plan (not a net with boundaries)', definition: `SearchPlan JSON, checked by pflow-rs @${PLAN_RS_REV} SearchPlan::check (plan.check): order pieces, drivers, filters, heuristics and memo go into slots. No piece is a transition, and no slot is a boundary port.`, facts: [['plan', planStr], ['check', ctx.plan.error || 'accepted']], cites: [ctx.plan.exampleCite] });
   svg.append(expl);
   const goto = (x, view, label, sub) => {
     const g = S('g', { class: 'bnd-goto', role: 'link', tabindex: 0 });
@@ -838,11 +835,11 @@ export default {
     honesty: [
       'The paper composes two nets, one on each side of a shared boundary (M : l → m ; N : m → n). go-pflow fuses n subnets at once, by union-find over binary event links. Here every instance faces one shared boundary from the same side, each n-ary class is drawn as one boundary port, and the card beyond it is the composite transition (exactly Flatten\'s fused group), not a second net.',
       'In the paper, two transitions wired to one port from the same side are alternatives, not partners: in contention for C/E nets (Def. 3.1 (iii)-(iv)), and a P/T synchronisation needs U• = •V (Def. 4.3). So the single port per class is go-pflow\'s rendezvous written in the paper\'s notation, not the paper\'s port semantics. Read by Def. 4.3 (the page\'s reading), with the default links the paper would give orders/dequeue one port per partner (workers/acquire, payment/do_reserve on the other side); the minimal synchronisation would again be the whole class.',
-      '"Enabled on its own" on a card runs the same EnabledWhyNot on one member\'s own arcs over the flat places, so it counts capacity and read arcs as the composite check does; it says why the rendezvous waits, not how the paper would compose.',
+      '"Enabled on its own" on a card is the registry\'s answer for the same composition with its event links removed (token, data and guard links kept): bundle.run fires that member one step from the initial marking, so capacity and guard read arcs count as they do for the composite. It says why the rendezvous waits, not how the paper would compose.',
       'Which edge a transition port sits on is this drawing\'s choice, made by the event links; the pattern fixes the ports, not their sides. An instance\'s type k → l counts its outer and shared transition ports.',
       'Arcs inside an instance are not drawn (places are listed with their initial marking; hover a transition for its pre/postset). The cards show each composite\'s full pre/postset from the flat net.',
       'Place ports and token/data/guard links are not this convention\'s subject. They are drawn faint, as pointers to the Cospans view: token and data links glue places (Baez–Master); a guard link is a read arc outside the free-SMC fragment.',
-      '"Enabled at the initial marking" is the page\'s port of go-pflow\'s EnabledWhyNot, run on the flat net at one marking. It is a check, not a proof of anything about other markings.',
+      '"Enabled at the initial marking" is the registry\'s (bundle.flatten\'s initial_enablement for a composite; bundle.run of one step for a member on its own, with its event links removed): a check at one marking, not a proof of anything about other markings.',
     ],
     bib: ['bruni-et-al', 'sobocinski-2010', 'baez-master'],
     cites: [C.rendezvous, C.classes, C.transClasses, C.unionFind, C.flatName, C.everyMember, C.whyNot, C.legal, C.guardLower, C.modelNoPorts, C.lkEvent, C.leak, C.roadRow, C.roadEvent, C.fixture],

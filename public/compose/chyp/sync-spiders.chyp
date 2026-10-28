@@ -1,0 +1,190 @@
+# Event links (transition fusion) as spider fusion on a sync wire.
+#
+# Sources (read, not modified):
+#   ontology-pflow-xyz ROADMAP.md @f854116:
+#     410-411  "lk:event: transition fusion. Draw it as a synchronising spider
+#              joining two boxes, not as a wire. Its semantics is the Bruni et
+#              al. one, not the Baez-Master one."
+#   go-pflow metamodel/compose_flatten.go @c802f34 (identical at 69257b3):
+#     72-88    transition classes: every transition starts in its own class, and
+#              each EventLink is a union-find union of its two ends
+#     89-101   an explicit Link.ID names a class; two links naming the same class
+#              differently is an error
+#   go-pflow metamodel/compose_fuse.go @c802f34:
+#     9-20     "Fusion is computed over *equivalence classes*, not pairwise. That
+#              is what makes it associative: linking a->b and b->c yields one
+#              three-member class no matter which order the links appear in, so
+#              (A;B);C and A;(B;C) agree. It also makes an EventLink cycle a
+#              non-event -- a<->b is simply a two-member class"
+#   this repo js/model/orders.js:292-298, defaultLinks(): the orders example's
+#     event links L1 = orders.dequeue ~ workers.acquire,
+#     L2 = orders.dequeue ~ payment.do:reserve, L3 = workers.release ~ payment.commit
+#   this repo js/model/flatten.js:85-104: the port of that union-find
+#     (tools/chyp/flatten-crosscheck.mjs runs it on both link orders and on a
+#     cycle; see chyp/RESULTS.md)
+#
+# Reading. A wire of type Sync is a transition's synchronisation handle: which
+# flat transition it fires as. An event link between two handles is the
+# 2-in/2-out spider link = m ; n (merge the two handles into one class, then
+# hand that class back to both). A connected diagram of such spiders is one
+# spider: that is the spider fusion law, and it is the diagram form of
+# "union-find computes equivalence classes". The fused transition of a
+# three-member class is spider3 below, one leg per member on each side.
+#
+# ASSUMED: (m, u, n, v) is a special commutative Frobenius algebra on Sync.
+# Those are the laws a partition of handles into classes satisfies (merging is
+# associative, commutative, has a unit; copying a class and merging the copies
+# gives the class back), so they are what compose_fuse.go:9-20 claims for event
+# links. Background, NOT checked here: such algebras present cospans of finite
+# sets (S. Lack, "Composing PROPs", 2004).
+# PROVED by Chyp from those rules: frobL, frobR, link order does not matter
+# (both for the shared-dequeue pair and for a~b, b~c), a cycle is one class,
+# and a repeated link is one link.
+#
+# Attribution: the axioms follow the presentation in Chyp's
+# examples/frobenius.chyp, and the proofs of frobL and frobR below are that
+# file's proofs (lines 37-49 at Chyp 3d28483). Chyp is Copyright (C)
+# 2022-2023 Aleks Kissinger, Apache License 2.0.
+#
+# NOT modelled (not equational, or not about classes):
+#   - naming: compose_flatten.go:96-99 refuses two links that name one class
+#     differently. That is a side condition on Link.ID, not an equation.
+#   - arcs: a fused transition's pre/postset is the union of its members'
+#     (compose_fuse.go:11-14), merged by sum. The spider records only which
+#     transitions fire together; a member is in its class once, so linking it
+#     twice (link_idempotent) adds no arcs.
+#   - guard links: a cross-subnet read or inhibitor arc, "outside the free-SMC
+#     fragment" (ROADMAP.md:412-413). Nothing here covers them.
+#   - token and data links: place gluing (a pushout of open nets along places,
+#     Baez-Master), not transition fusion. Not in this file.
+
+# UNTYPED on purpose: every wire in this file is a Sync handle (intended type
+# Sync; m : Sync * Sync -> Sync, u : None -> Sync, n : Sync -> Sync * Sync,
+# v : Sync -> None, and each member transition None -> Sync). With one wire type
+# a type adds nothing, and the typed version does not check at Chyp 3d28483:
+# composing two inferred identity wires fixes them to the default type
+# (chyp/graph.py:894-905), so terms like "u * id * id ; n * id * id ; id * m * id"
+# fail to compose (tools/chyp/controls/typed-id-inference.chyp; RESULTS.md).
+gen m : 2 -> 1 "000000" "ffffff"
+gen u : 0 -> 1 "000000" "ffffff"
+gen n : 1 -> 2 "000000" "ffffff"
+gen v : 1 -> 0 "000000" "ffffff"
+
+# ASSUMED: a monoid (merge), a comonoid (copy), the Frobenius law.
+rule assoc : m * id ; m = id * m ; m
+rule unitL : u * id ; m = id
+rule unitR : id * u ; m = id
+rule coassoc : n ; n * id = n ; id * n
+rule counitL : n ; v * id = id
+rule counitR : n ; id * v = id
+rule frob : n * id ; id * m = id * n ; m * id
+
+# ASSUMED: commutative, cocommutative, special. A class is a set of members,
+# so the order of a merge does not matter, and copying then merging is nothing.
+rule comm : sw ; m = m
+rule cocomm : n ; sw = n
+rule special : n ; m = id
+
+# PROVED (Chyp examples/frobenius.chyp:37-49): the two one-sided forms.
+rewrite frobL :
+  n * id ; id * m
+  = u * n * id ; m * m by -unitL
+  = u * id * id ; n * id * id ; id * m * id ; id * m by -frob
+  = u * m ; n * id ; id * m by assoc
+  = u * m ; id * n ; m * id by frob
+  = m ; n by unitL
+
+rewrite frobR :
+  id * n ; m * id
+  = n * id ; id * m by -frob
+  = m ; n by frobL
+
+# An event link on two handles, and the one three-member class.
+let link = m ; n
+let spider3 = m * id ; m ; n ; n * id
+
+# --- the orders example: L1 and L2 share orders.dequeue ---------------------
+# Handles in the order (dequeue, acquire, do_reserve). L1 links wires 0 and 1;
+# L2 links wires 0 and 2 (the sw[0, 2, 1] brings wire 2 next to wire 0 and back).
+let links_L1_L2 = link * id ; sw[0, 2, 1] ; link * id ; sw[0, 2, 1]
+let links_L2_L1 = sw[0, 2, 1] ; link * id ; sw[0, 2, 1] ; link * id
+
+# PROVED: L1 then L2 is the one three-member class.
+rewrite fuse_L1_L2 :
+  links_L1_L2
+  = (m ; n ; sw) * id ; sw[0, 2, 1] ; link * id ; sw[0, 2, 1] by -cocomm
+  = m * id ; m ; n ; id * n ; sw * id by frobL
+  = m * id ; m ; n ; n * id ; sw * id by -coassoc
+  = spider3 by cocomm
+
+# PROVED: L2 then L1 is the same class.
+rewrite fuse_L2_L1 :
+  links_L2_L1
+  = sw[0, 2, 1] ; (m ; n ; sw) * id ; sw[0, 2, 1] ; link * id by -cocomm
+  = sw[0, 2, 1] ; m * id ; m ; n ; id * n ; sw[1, 2, 0] by frobL
+  = sw[0, 2, 1] ; id * m ; m ; n ; id * n ; sw[1, 2, 0] by assoc
+  = id * m ; m ; n ; id * n ; sw[1, 2, 0] by comm
+  = m * id ; m ; n ; id * n ; sw[1, 2, 0] by -assoc
+  = spider3 by cocomm
+
+# PROVED: so the order of the two links does not matter.
+rewrite link_order_irrelevant :
+  links_L1_L2
+  = spider3 by fuse_L1_L2
+  = links_L2_L1 by -fuse_L2_L1
+
+# The same on the example's member transitions (orders.js:292-298;
+# flatten.js names the class fused:orders/dequeue+payment/do_reserve+workers/acquire).
+gen orders_dequeue : 0 -> 1 "fde2c4"
+gen workers_acquire : 0 -> 1 "fde2c4"
+gen payment_do_reserve : 0 -> 1 "fde2c4"
+
+rewrite orders_example_fused :
+  orders_dequeue * workers_acquire * payment_do_reserve ; links_L1_L2
+  = orders_dequeue * workers_acquire * payment_do_reserve ; spider3 by fuse_L1_L2
+  = orders_dequeue * workers_acquire * payment_do_reserve ; links_L2_L1 by -fuse_L2_L1
+
+# PROVED: L3 (workers.release ~ payment.commit) is on other handles, so where
+# it sits in the link list does not matter either. This is the interchange law
+# of a symmetric monoidal category, which Chyp has built in: simp() with no
+# rules only checks the two sides are the same diagram (see RESULTS.md for why
+# simp() and not a bare step).
+rewrite L3_position_irrelevant :
+  links_L1_L2 * id * id ; id * id * id * link
+  = id * id * id * link ; links_L1_L2 * id * id by simp()
+
+# --- associativity of fusion: a~b then b~c, and b~c then a~b ----------------
+let ab_then_bc = link * id ; id * link
+let bc_then_ab = id * link ; link * id
+
+# PROVED
+rewrite fuse_ab_bc :
+  ab_then_bc
+  = m * id ; m ; n ; id * n by frobL
+  = spider3 by -coassoc
+
+# PROVED
+rewrite fuse_bc_ab :
+  bc_then_ab
+  = id * m ; m ; n ; n * id by frobR
+  = spider3 by -assoc
+
+# PROVED: (A;B);C and A;(B;C) agree (compose_fuse.go:16-18).
+rewrite fusion_assoc :
+  ab_then_bc
+  = spider3 by fuse_ab_bc
+  = bc_then_ab by -fuse_bc_ab
+
+# --- cycles and repeats ------------------------------------------------------
+# PROVED: a link a->b followed by a link b->a (the same spider with its ends
+# exchanged: sw ; link ; sw) is one two-member class (compose_fuse.go:19-20).
+rewrite cycle_one_class :
+  link ; sw ; link ; sw
+  = m ; n ; m ; n ; sw by comm
+  = m ; n ; sw by special
+  = link by cocomm
+
+# PROVED: linking the same pair twice is linking it once.
+rewrite link_idempotent :
+  link ; link
+  = link by special

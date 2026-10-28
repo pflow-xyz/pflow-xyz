@@ -14,20 +14,22 @@
 // right foot Y (out and inout place ports: an inout port is in both feet), the
 // legs from each foot point to its place, observe ports as dotted taps on the
 // top edge, and the transition ports on the bottom edge, outside the cospan.
-// A token or data link (from ctx.orders.links, which go-pflow's validateLink
-// rules decided) is drawn as the pushout: the two instances side by side, the
+// A token or data link (from ctx.orders.links: bundle.state, every link
+// validated by the registry's bundle.add_link, pflow-compose's port of go-pflow
+// validateLink) is drawn as the pushout: the two instances side by side, the
 // glued boundary points fused into one place on the seam, named and marked as
-// flatten() names and marks it (wire:<smallest member>, initial markings
+// bundle.flatten names and marks it (wire:<smallest member>, initial markings
 // summed). Event and guard links are drawn as faint ghosts that say what they
 // are instead.
 //
 // Connect-4: a search plan is not an open net, so the view draws the game net
 // as the closed net ∅ → N ← ∅ the plan runs over, and the plan as a strip of
-// slots beside it (its slots take snap drops; plan.rs's check decides).
+// slots beside it (its slots take snap drops; pflow-rs's check decides, by
+// plan.slot_candidates / plan.add_piece).
 
 import { cite } from '../sources.js';
 import { NS, LINK_STYLE_CITE } from '../model.js';
-import { CONNECT4_EXACT, toJSON } from '../model.js';
+import { CONNECT4_EXACT, toJSON, fieldOrDefault, PLAN_RS_REV } from '../model.js';
 
 const go = (path, from, to = from, note = '') => cite('goPflow', path, from, to, note);
 const road = (from, to, note) => cite('ontologyRoadmap', 'ROADMAP.md', from, to, note);
@@ -58,7 +60,7 @@ const C = {
   cq13: onto('cq/13-linkable-ports.rq', 7, 7, 'expect event candidates and no token candidates: the three patterns\' place ports carry different schemas'),
   depthPort: onto('ns/patterns.ttl', 220, 221, 'queue-port-depth: place items, for a data or guard link (observe the backlog)'),
   arcs: onto('ns/core.ttl', 27, 37, 'ns:InputArc (place → transition) and ns:OutputArc (transition → place)'),
-  fixture: cite('pflowRs', 'crates/pflow-metamodel/tests/fixtures/connect-4.json', 0, 0, 'the Connect-4 net (data/connect-4.json is byte-identical at c396d46)'),
+  fixture: cite('pflowRs', 'crates/pflow-metamodel/tests/fixtures/connect-4.json', 0, 0, 'the Connect-4 net (data/connect-4.json is a byte-identical copy of this fixture at c396d46)'),
   solver: rs('plan.rs', 240, 252, 'SearchPlan::solver(&self, g: &Game): the plan builds a solver over a game; it is not glued to the net'),
   game: rs('game.rs', 42, 45, 'Game: a two-sided game on a net'),
 };
@@ -117,6 +119,10 @@ function mk(ctx) {
 }
 
 const tw = (s, size) => String(s).length * size * 0.58;
+// The manifest's name for where a port is drawn: its foot (X left, Y right,
+// both for an inout port), the top edge (observe taps) or the bottom edge
+// (transition ports: event ports, outside the cospan).
+const SIDE_NAME = (port) => { const s = portSides(port); return s.includes('X') && s.includes('Y') ? 'both' : ({ X: 'left', Y: 'right', top: 'top', bottom: 'bottom' })[s[0]]; };
 const portSides = (port) => (port.target === 'transition' ? ['bottom'] : ({ in: ['X'], out: ['Y'], inout: ['X', 'Y'], observe: ['top'] }[port.kind] || ['X']));
 
 /** Shorten a segment so it starts/ends at the node boundary. */
@@ -338,7 +344,7 @@ function renderOrders(ctx) {
   const glue = links.filter((l) => l.kind === 'token' || l.kind === 'data');
   const ghosts = links.filter((l) => l.kind === 'event' || l.kind === 'guard');
   const flatOk = flat && flat.ok;
-  if (!flatOk && links.length) ctx.note(`flatten() refused the links (${(flat?.errors || []).map((e) => e.code).join(', ')}); no pushout is drawn.`, 'warn');
+  if (!flatOk && links.length) ctx.note(`bundle.flatten refused the links (${(flat?.errors || []).map((e) => e.code).join(', ')}); no pushout is drawn.`, 'warn');
   const haloOf = (s) => `--halo: ${FRAME_FILL[s.pattern] || '#f4f5f7'}`;
 
   // 1. Components (instances glued by token/data links) and their left-to-right order.
@@ -566,6 +572,7 @@ function renderOrders(ctx) {
     const I = inst[s.id];
     const { x0, y0, w } = I;
     const g = S('g', { class: 'cp-inst', 'data-subnet': s.id, style: haloOf(s) });
+    ctx.emit('subnet', s.id, { pattern: s.pattern });
     anim.frames[s.id] = g;
     layers.frames.append(g);
     const frame = S('rect', { x: x0, y: y0, width: w, height: FH, rx: 9, fill: FRAME_FILL[s.pattern] || '#f4f5f7', stroke: '#c5ccd5', 'stroke-width': 1.2 });
@@ -676,6 +683,7 @@ function renderOrders(ctx) {
   const portGroup = (s, port, side, vis, hit, ring, info) => {
     const inner = S('g', { class: 'cp-anim-move' }, hit, ring, ...vis);
     const g = S('g', { class: 'cp-port', 'data-side': side }, inner);
+    ctx.emit('port', `${s.id}:${port.id}`, { side: SIDE_NAME(port), target: port.target });
     ctx.snap.port(g, { subnet: s.id, port: port.id });
     ctx.hover(g, info);
     anim.ports[`${s.id}|${port.id}|${side}`] = { g: inner };
@@ -713,7 +721,7 @@ function renderOrders(ctx) {
       const leg = S('g', { class: 'cp-leg' }, S('path', { d, class: 'cp-arc-hit' }), S('path', { d, class: 'cp-leg-line', fill: 'none', stroke: col, 'stroke-width': 1.3, 'stroke-dasharray': '1.5 3' }));
       const info = ctx.info.portInfo(s, port);
       info.facts.push(['drawn as', 'a tap on the top edge, in neither foot: read-only by the ontology\'s reading (data or guard links)']);
-      info.note = 'An observe port is a side tap (ROADMAP Phase 6), not a foot. Note: go-pflow\'s validateLink checks only in/out for token links, so a token link through this port is allowed; the ontology describes it for data or guard links.';
+      info.note = 'An observe port is a side tap (ROADMAP Phase 6), not a foot. Note: validateLink (go-pflow\'s rule, which the registry runs as pflow-compose\'s port) checks only in/out for token links, so a token link through this port is allowed; the ontology describes it for data or guard links.';
       info.cites = [...info.cites, C.sides, C.depthPort, C.direction];
       ctx.hover(leg, info);
       if (!target.home) fadeFor(target.P.name).push(leg);
@@ -776,7 +784,7 @@ function renderOrders(ctx) {
         title: `pushout seam: ${A.s.id} ; ${B.s.id}`,
         definition: 'Gluing the right foot of one open net to the left foot of the next identifies the places the glued points map to: the pushout of the two place sets over the shared boundary.',
         facts: [['glued wires', Ps.filter((q) => q.seamLeft === A).map((q) => q.name).join(', ')], ['links', seamLinks.map((l) => `${l.kind}: ${l.from.subnet}:${l.from.port} → ${l.to.subnet}:${l.to.port}`).join('; ')]],
-        note: back && fwd ? `Some links glue ${A.s.id}'s Y to ${B.s.id}'s X and others glue ${B.s.id}'s Y back to ${A.s.id}'s X. go-pflow allows both; the places are identified all the same (one class per wire), but the composite is no longer a plain sequence ${A.s.id} ; ${B.s.id}: it closes a loop. Drawn on one seam.` : back ? `The link runs from ${B.s.id} to ${A.s.id}; the view keeps the first link's from side on the left.` : null,
+        note: back && fwd ? `Some links glue ${A.s.id}'s Y to ${B.s.id}'s X and others glue ${B.s.id}'s Y back to ${A.s.id}'s X. The registry allows both; the places are identified all the same (one class per wire), but the composite is no longer a plain sequence ${A.s.id} ; ${B.s.id}: it closes a loop. Drawn on one seam.` : back ? `The link runs from ${B.s.id} to ${A.s.id}; the view keeps the first link's from side on the left.` : null,
         cites: [C.cospanRow, C.pushout, C.placeClasses], bib: ['baez-master'],
       });
       layers.seams.append(seam);
@@ -796,7 +804,7 @@ function renderOrders(ctx) {
     if (P.flatPlace) {
       const fi = ctx.info.flatPlaceInfo(P.flatPlace);
       fi.title = `glued place ${P.name}`;
-      fi.note = `The pushout: ${P.members.join(' and ')} are one place in the composite, named as go-pflow's Flatten names a fused class (its smallest member). The marking (${sums.join(' + ')} = ${total}) and the capacity (the tighter one) are Flatten's: a Baez–Master open net carries neither, so the pushout itself says nothing about them.`;
+      fi.note = `The pushout: ${P.members.join(' and ')} are one place in the composite, named as Flatten names a fused class (its smallest member; bundle.flatten). The marking (${sums.join(' + ')} = ${total}) and the capacity (the tighter one) are Flatten's: a Baez–Master open net carries neither, so the pushout itself says nothing about them.`;
       fi.cites = [C.placeClasses, C.wireName, C.smallest, C.initialSum, C.pushout, ...fi.cites];
       fi.bib = ['baez-master', 'meseguer-montanari'];
       ctx.hover(g, fi);
@@ -804,6 +812,7 @@ function renderOrders(ctx) {
     layers.seams.append(g);
     anim.Ps[P.name] = { ...(anim.Ps[P.name] || { fade: [] }), g: inner, labels: [lbl1, lbl2], P, handles: {} };
     P.links.forEach((l, k) => {
+      ctx.emit('link', l.key, { kind: l.kind, style: 'pushout' });
       const r = 15 + k * 5;
       for (const end of [l.from, l.to]) {
         const I = inst[end.subnet];
@@ -852,7 +861,7 @@ function renderOrders(ctx) {
   const ghostInfo = (l) => {
     const info = ctx.info.linkInfo(l, byId);
     if (l.kind === 'event') {
-      info.note = 'Event link: transition fusion, not a pushout. A Baez–Master cospan has places on its feet, so fusing two transitions is not a cospan composite; it is the composition of nets with boundaries (Bruni et al.). Drawn as a ghost: real in go-pflow (it fuses the two transitions), not this convention\'s.';
+      info.note = 'Event link: transition fusion, not a pushout. A Baez–Master cospan has places on its feet, so fusing two transitions is not a cospan composite; it is the composition of nets with boundaries (Bruni et al.). Drawn as a ghost: real in the flat net (bundle.flatten fuses the two transitions), not this convention\'s.';
       info.bib = ['bruni-et-al', 'sobocinski-2010'];
       info.cites = [C.event, C.boundariesRow, ...info.cites];
     } else {
@@ -938,6 +947,7 @@ function renderOrders(ctx) {
       if (p.side === 'bottom' || p.side === 'top') laneDeep[rs] = Math.max(laneDeep[rs] || rows[rs].y0 + FH + 40, y2);
     }
     ctx.hover(g, ghostInfo(l));
+    ctx.emit('link', l.key, { kind: l.kind, style: l.kind === 'guard' ? 'guard' : 'ghost' });
     anim.ghosts[l.index] = { g, glyph: first };
     layers.ghosts.append(g);
   }
@@ -991,6 +1001,7 @@ function renderOrders(ctx) {
       }
       laneDeep[r] = Math.max(laneDeep[r] || e + 40, deepest - 19 > my ? deepest - 19 : my);
       ctx.hover(g, ghostInfo(l));
+      ctx.emit('link', l.key, { kind: l.kind, style: l.kind === 'guard' ? 'guard' : 'ghost' });
       anim.ghosts[l.index] = { g, glyph };
       layers.ghosts.append(g);
     }
@@ -999,7 +1010,7 @@ function renderOrders(ctx) {
     const hasEvent = ghosts.some((l) => l.kind === 'event' && (inst[l.from.subnet]?.row === r || inst[l.to.subnet]?.row === r));
     if (!hasEvent) return;
     const e = row.y0 + FH;
-    layers.ghosts.append(text(row.x - COLX, Math.min((laneDeep[r] || e + 40) + 36, e + LANE - 6), '⊗ event link: transition fusion, not a pushout (Bruni et al.). Drawn as a ghost: real in go-pflow, not a cospan composite.', { fill: theme.LINK_STYLE.event.color, 'font-size': 9.5, 'font-weight': 600, style: `--halo: ${PAPER}` }));
+    layers.ghosts.append(text(row.x - COLX, Math.min((laneDeep[r] || e + 40) + 36, e + LANE - 6), '⊗ event link: transition fusion, not a pushout (Bruni et al.). Drawn as a ghost: real in the flat net (bundle.flatten), not a cospan composite.', { fill: theme.LINK_STYLE.event.color, 'font-size': 9.5, 'font-weight': 600, style: `--halo: ${PAPER}` }));
   });
 
   // 9. Footer: the composite, and the legend.
@@ -1007,12 +1018,13 @@ function renderOrders(ctx) {
   const loops = (ids) => glue.some((l) => ids.includes(l.from.subnet) && ids.indexOf(l.from.subnet) > ids.indexOf(l.to.subnet));
   const compExpr = rows.flatMap((r) => r.comps).map((ids) => (ids.length > 1 ? `(${ids.join(' ; ')}${loops(ids) ? ', glued both ways' : ''})` : ids[0])).join(' ⊗ ');
   const compTitle = `Cospan composite: ${compExpr}`;
+  ctx.emit('composite', 'bundle', { form: rows.some((r) => r.comps.some((ids) => ids.length > 1)) ? 'pushout' : 'tensor' });
   layers.top.append(text(SIDE - 22, fy, compTitle, { 'font-size': 12.5, 'font-weight': 700, fill: theme.INK, class: 'cp-t cp-mono' }));
   const nEvent = ghosts.filter((l) => l.kind === 'event').length, nGuard = ghosts.length - nEvent;
   if (ghosts.length) {
     const parts = [nEvent ? `${nEvent} event fusion${nEvent === 1 ? '' : 's'}` : null, nGuard ? `${nGuard} guard read arc${nGuard === 1 ? '' : 's'}` : null].filter(Boolean).join(', ');
     const sfx = text(SIDE - 22 + compTitle.length * 12.5 * 0.62 + 14, fy, `+ ${parts} (${ghosts.length === 1 ? 'the ghost; not a cospan composite' : 'the ghosts; not cospan composites'})`, { 'font-size': 10.5, 'font-weight': 600, fill: nEvent ? theme.LINK_STYLE.event.color : theme.LINK_STYLE.guard.color });
-    ctx.hover(sfx, { title: 'event and guard links in the composite', definition: 'go-pflow\'s composite is the cospan composite plus these: Flatten fuses each event-linked pair of transitions into one (the composition of nets with boundaries, Bruni et al.) and lowers each guard link to a read arc across subnets (contextual, outside the free SMC). Neither glues places, so neither is a cospan composite.', cites: [C.model, C.event, C.guard, C.boundariesRow], bib: ['bruni-et-al'] });
+    ctx.hover(sfx, { title: 'event and guard links in the composite', definition: 'The registry\'s composite (bundle.flatten) is the cospan composite plus these: Flatten fuses each event-linked pair of transitions into one (the composition of nets with boundaries, Bruni et al.) and lowers each guard link to a read arc across subnets (contextual, outside the free SMC). Neither glues places, so neither is a cospan composite.', cites: [C.model, C.event, C.guard, C.boundariesRow], bib: ['bruni-et-al'] });
     layers.top.append(sfx);
   }
   if (!glue.length) {
@@ -1022,8 +1034,8 @@ function renderOrders(ctx) {
     );
   } else {
     layers.top.append(
-      text(SIDE - 22, fy + 18, '; is the cospan composite (the pushout along the glued foot: go-pflow lk:token / lk:data). ⊗ is the monoidal product (disjoint union).', { 'font-size': 10.5, fill: theme.INK }),
-      text(SIDE - 22, fy + 33, 'The glued place is named and marked as go-pflow\'s Flatten does it: wire:<smallest member>, initial markings summed (Flatten\'s choice: an open net carries no marking).', { 'font-size': 10.5, fill: theme.MUTED }),
+      text(SIDE - 22, fy + 18, '; is the cospan composite (the pushout along the glued foot: lk:token / lk:data). ⊗ is the monoidal product (disjoint union).', { 'font-size': 10.5, fill: theme.INK }),
+      text(SIDE - 22, fy + 33, 'The glued place is named and marked as Flatten does it (bundle.flatten): wire:<smallest member>, initial markings summed (Flatten\'s choice: an open net carries no marking).', { 'font-size': 10.5, fill: theme.MUTED }),
     );
   }
   const ly = fy + 62;
@@ -1056,9 +1068,9 @@ function renderOrders(ctx) {
   ctx.root.append(ctx.el('style', {}, STYLE), svg);
 
   if (!glue.length) {
-    ctx.note(`Only lk:token and lk:data are cospan composites: a Baez–Master open net has places on its feet, and go-pflow fuses the two places into one (Flatten's place classes). So as a cospan composite the instances are only ${compExpr}${nEvent ? '; the event links fuse transitions on top of that' : ''}. Among the three default instances nothing can be glued: cq/13 finds no token candidates (the place schemas differ), and dragging from their place ports lights no place port (only transition ports, for a guard link). ${ctx.orders.extras.length ? `A second instance is on the page (${ctx.orders.extras.join(', ')}): drag from one of its place ports to the same port of its twin (for example payment:account:customer to payment2:account:customer) to see the pushout.` : 'Add + payment2, + orders2 or + workers2 and drag between same-schema place ports to see the pushout.'} Event links fuse transitions (Bruni et al.) and guard links are contextual, outside the free SMC: both are drawn as ghosts.`, 'honesty');
+    ctx.note(`Only lk:token and lk:data are cospan composites: a Baez–Master open net has places on its feet, and Flatten fuses the two places into one (its place classes; bundle.flatten). So as a cospan composite the instances are only ${compExpr}${nEvent ? '; the event links fuse transitions on top of that' : ''}. Among the three default instances cq/13 expects nothing to be glued: no token candidates (the place schemas differ). What lights up when you drag from a place port is the registry's answer (bundle.candidates), not this note's. ${ctx.orders.extras.length ? `A second instance is on the page (${ctx.orders.extras.join(', ')}): drag from one of its place ports to the same port of its twin (for example payment:account:customer to payment2:account:customer) to see the pushout.` : 'Add + payment2, + orders2 or + workers2 and drag between same-schema place ports to see the pushout.'} Event links fuse transitions (Bruni et al.) and guard links are contextual, outside the free SMC: both are drawn as ghosts.`, 'honesty');
   } else {
-    ctx.note('The pushout is drawn where a token or data link glues two feet: the two instances meet at a seam and the two places become one, named and marked as go-pflow\'s Flatten does (wire:<smallest member>, initial markings summed). go-pflow keeps every port after linking, so the glued points stay draggable (the two half-rings). Event links (transition fusion, Bruni et al.) and guard links (contextual, outside the free SMC) are ghosts, not composites.', 'honesty');
+    ctx.note('The pushout is drawn where a token or data link glues two feet: the two instances meet at a seam and the two places become one, named and marked as Flatten does (bundle.flatten: wire:<smallest member>, initial markings summed). The composition keeps every port after linking, so the glued points stay draggable (the two half-rings). Event links (transition fusion, Bruni et al.) and guard links (contextual, outside the free SMC) are ghosts, not composites.', 'honesty');
   }
 
   // 10. Merge animations.
@@ -1112,6 +1124,7 @@ function renderConnect4(ctx) {
   const theme = ctx.theme;
   const net = ctx.connect4.net, sum = ctx.connect4.summary;
   ctx.note('Does not apply as drawn: a SearchPlan is not an open net. It composes searches by chaining order pieces, wrapping drivers around the search and filling slots, and there is no place on its boundary to glue. The nearest honest picture is the operad view (tab 3). The plan runs over this closed net (SearchPlan::solver takes the game), it does not compose with it: below, the net is drawn as ∅ → N ← ∅ with the plan beside it.', 'na');
+  ctx.emit('note', 'closed', {});
   if (!net) { ctx.note('data/connect-4.json did not load.', 'warn'); return; }
   const W = W0, H = 800;
   const svg = ctx.svgRoot(W, H, { class: 'view-svg cospan-svg', role: 'img', 'aria-label': 'The Connect-4 net as a closed net, empty feet on both sides' });
@@ -1122,6 +1135,7 @@ function renderConnect4(ctx) {
   );
   const fx = 140, fy = 92, fw = 870, fh = 452;
   const frame = S('rect', { x: fx, y: fy, width: fw, height: fh, rx: 10, fill: '#f4f6f8', stroke: '#c5ccd5', 'stroke-width': 1.2 });
+  ctx.emit('net', 'connect-4', { places: sum.places, transitions: sum.transitions });
   ctx.hover(frame, {
     title: `N: ${sum.name}, a closed net`,
     concept: { iri: NS + 'PetriNet', types: ['ns:PetriNet'] },
@@ -1215,7 +1229,7 @@ function renderConnect4(ctx) {
   );
   const isExample = JSON.stringify(ctx.plan.json) === JSON.stringify(toJSON(CONNECT4_EXACT));
   const box = S('rect', { x: px0, y: py, width: pw, height: ph, rx: 9, fill: '#fff', stroke: '#9fb6d3', 'stroke-width': 1.2 });
-  ctx.hover(box, { title: 'the search plan', definition: 'A SearchPlan: the pieces of the game search, picked by name. Its slots are filled by pieces; plan.rs\'s check decides what fits. It composes by chaining, wrapping and filling, which is the operad view\'s subject.', facts: [['plan JSON', JSON.stringify(ctx.plan.json)], ['is plan:connect4-exact', isExample ? 'yes (the plan.rs module-doc example)' : 'no: changed on this page'], ['check', ctx.plan.error ? `refused: ${ctx.plan.error}` : 'passes (SearchPlan::check and solver)']], note: 'The laws named in the caption (a partial monoid of order pieces, drivers composed around the core) are the ontology ROADMAP\'s reading of plan.rs, not a theorem checked here.', cites: [C.solver, ctx.plan.exampleCite, C.laws] });
+  ctx.hover(box, { title: 'the search plan', definition: 'A SearchPlan: the pieces of the game search, picked by name. Its slots are filled by pieces; pflow-rs\'s check decides what fits (plan.slot_candidates, through the registry). It composes by chaining, wrapping and filling, which is the operad view\'s subject.', facts: [['plan JSON', JSON.stringify(ctx.plan.json)], ['is plan:connect4-exact', isExample ? 'yes (the plan.rs module-doc example)' : 'no: changed on this page'], ['check', ctx.plan.error ? `refused: ${ctx.plan.error}` : `passes (pflow-rs @${PLAN_RS_REV} SearchPlan::check and solver, by plan.state)`]], note: 'The laws named in the caption (a partial monoid of order pieces, drivers composed around the core) are the ontology ROADMAP\'s reading of plan.rs, not a theorem checked here.', cites: [C.solver, ctx.plan.exampleCite, C.laws] });
   svg.append(box, text(px0 + 12, py + 17, `Solver for ${isExample ? 'plan:connect4-exact' : 'a changed plan (not plan:connect4-exact)'}${ctx.plan.error ? ' (refused)' : ''} · mode: ${plan.mode || 'exact'}`, { 'font-size': 10.5, 'font-weight': 700, fill: theme.INK, style: '--halo: #fff' }),
     text(px0 + pw - 12, py + 17, 'drag a piece from the toolbar into a slot', { 'font-size': 9, fill: theme.MUTED, 'text-anchor': 'end', style: '--halo: #fff' }));
   // Slots.
@@ -1223,7 +1237,11 @@ function renderConnect4(ctx) {
     if (slot.designed) return null;
     const v = plan[slot.field];
     if (slot.field === 'memo') return v ? [{ name: 'memo', text: `memo entries ${v.entries}` }] : [];
-    if (v === undefined) return slot.field === 'drivers' ? 'default: null_window' : slot.field === 'order' ? 'default: tt_best, immediate_win, history' : [];
+    if (v === undefined) {
+      // An absent list stands for pflow-rs's default (read from the registry: model.js PLAN_DEFAULTS).
+      const d = fieldOrDefault(plan, slot.field);
+      return d.length ? `default: ${d.map((x) => pieceLabel(x).text).join(', ')}` : [];
+    }
     return v.map(pieceLabel);
   };
   const chipW = (t) => String(t).length * 9 * 0.62 + 14; // monospace
@@ -1293,10 +1311,10 @@ export default {
     },
     honesty: [
       'Only lk:token and lk:data are drawn as cospan composites (pushouts). Event links are transition fusion (Bruni et al., nets with boundaries) and are drawn as faint ghosts; guard links are contextual, outside the free SMC, flagged and drawn as ghosts too.',
-      'The glued place\'s name and marking are flatten()\'s (wire:<smallest member>, initial markings summed), not this view\'s.',
+      'The glued place\'s name and marking are Flatten\'s (bundle.flatten: pflow-compose, the Rust port of go-pflow\'s FlattenWithMap; wire:<smallest member>, initial markings summed), not this view\'s.',
       'A Baez–Master open net has places, transitions and arcs with multiplicities, and no capacities or markings. go-pflow places carry both (the queue\'s and the pool\'s places are bounded). The cospan reading covers the structure only: summing the markings and keeping the tighter capacity of a glued pair are Flatten\'s choices (compose_flatten.go:291-292), not part of the pushout.',
       'go-pflow keeps every port after a link, and a link may glue any compatible pair of ports, not only a whole foot onto a whole foot as in Baez–Master. The view draws each link as one glued pair of points; the unglued points stay on the composite\'s feet.',
-      'Observe ports are drawn as taps in neither foot (the ROADMAP\'s reading). go-pflow\'s validateLink checks only in/out for a token link, so a token link through an observe port is allowed; the view draws it and says so.',
+      'Observe ports are drawn as taps in neither foot (the ROADMAP\'s reading). validateLink (go-pflow\'s rule; the registry runs pflow-compose\'s port of it) checks only in/out for a token link, so a token link through an observe port is allowed; the view draws it and says so.',
       'Layout is this view\'s: the positions of places and transitions inside a frame, and which instance goes left of which in a glued pair (the first link\'s from side), are drawing choices.',
       'Connect-4: no cospan applies to the plan. The closed net and the "runs over" arrow are the honest nearest picture.',
     ],

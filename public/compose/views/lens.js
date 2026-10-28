@@ -10,18 +10,24 @@
 // store is fed by the backward pass. Dashed loops are state carried from a
 // backward pass into a later forward pass (the table, history).
 //
-// What is drawn comes from js/model/plan.js (chainOf, driversOf: ports of
-// plan.rs) and every lane label cites the pflow-rs line it paraphrases. No
-// search runs in the page; the "play" dot is illustrative.
+// What is drawn comes from the plan the registry holds open (plan.state; its
+// default lists are pflow-rs's, read through model.js chainOf / driversOf /
+// fieldOrDefault) and every lane label cites the pflow-rs line it paraphrases.
+// No search runs in the page; the "play" dot is illustrative.
+//
+// Scene manifest (parity contract), connect4: one `frame` per driver frame
+// drawn, one `lens` per order-chain piece drawn, `memo` {present}. Orders: see
+// lens-orders.js.
 
 import { cite, BIB } from '../sources.js';
-import { chainOf, driversOf, PLAN_LAWS_CITE, CONNECT4_EXACT_CITE } from '../model.js';
+import { chainOf, driversOf, fieldOrDefault, PLAN_LAWS_CITE, CONNECT4_EXACT_CITE, PLAN_RS_REV } from '../model.js';
 import { renderOrders } from './lens-orders.js';
 
 const rs = (path, from, to = from, note = '') => cite('pflowRs', `crates/pflow-metamodel/src/${path}`, from, to, note);
 const road = (from, to, note) => cite('ontologyRoadmap', 'ROADMAP.md', from, to, note);
 
-// Lines checked against pflow-rs c396d46 (crates/pflow-metamodel).
+// Lines checked against pflow-rs c396d46 (crates/pflow-metamodel), the
+// revision the cites name; the verdicts are pflow-rs's at the registry's pin.
 const C = {
   value: rs('game.rs', 526, 554, 'Solver::value: nodes reset to 0 (541, 548), then solve'),
   engine: rs('game.rs', 533, 553, 'value(): the bit engine when the marking fits, else counts'),
@@ -74,9 +80,9 @@ const C = {
   monoid: road(420, 423, 'orderers: a monoid under chaining, partial in code'),
 };
 
-// A few cites carried by js/model/plan.js (PIECES, SLOTS, SEARCH_CITES) are off
-// by a line or more against c396d46 (reported); this view shows the checked
-// ranges wherever it passes the model's cites through.
+// A few cites the page carries for pieces and slots (model.js) were off by a
+// line or more against c396d46 in the prototype; this view shows the checked
+// ranges wherever it passes them through.
 const FIXED = {
   'plan.rs:146-194': [146, 193], // drivers() ends at 193
   'plan.rs:15-18': [17, 19], // the drivers doc lines
@@ -162,12 +168,16 @@ const BULGE = 56; // the leaf cap's bulge
 
 function geometry(plan) {
   const d = driversOf(plan), c = chainOf(plan);
-  const g = { err: d.err || c.err || null };
+  // Legality is plan.check's (ctx.plan.error); these only read the plan.
+  const g = { err: null };
   g.budget = d.err ? null : d.budget;
   g.nw = d.err ? false : d.nullWindow;
   g.chain = c.err ? [] : c.pieces;
   g.chainDefault = !c.err && c.isDefault;
   g.memo = plan.memo ? plan.memo.entries : null;
+  g.filters = fieldOrDefault(plan, 'filters');
+  g.filtersDefault = !Array.isArray(plan.filters);
+  g.heuristics = fieldOrDefault(plan, 'heuristics');
   const depth = (g.budget !== null ? 1 : 0) + (g.nw ? 1 : 0);
   g.frames = [];
   let x = FX0, lvl = depth;
@@ -244,7 +254,7 @@ export default {
   convention: {
     summary: 'In compositional game theory (Ghani, Hedges, Winschel, Zahn) an open game has the shape of a lens: a box with a forward lane (play goes in on the left and out on the right) and a backward lane (utility comes in on the right and out on the left); boxes compose by plugging one box\'s forward output into the next and the next\'s backward output back into the first. This view borrows that shape, and only the shape, for the Connect-4 search plan: positions and move lists go forward, down the tree, on the top lanes; values and bounds come back, up the tree, on the bottom lanes. Read a box by its two lanes; read nesting as "runs around".',
     examples: {
-      orders: 'Strict test first: is queue ⊗ pool ⊗ saga, as go-pflow composes it, a lens composite? No: no place boundary is glued (go-pflow allows no token or data link among the three), and the parts\' backward maps do not fire together the way their forward maps do. The fallback ("assume a backward pass") finds every transition pair with a backward pass mechanically, draws the saga\'s steps as a chain of lenses with the pool and queue pairs above the step they fire with, and marks in red where the flat net stops being lens composition. Links dragged here re-run the check.',
+      orders: 'Strict test first: is queue ⊗ pool ⊗ saga, as the registry composes it, a lens composite? No: no place boundary is glued (the composition uses no token or data link among the three), and the parts\' backward maps do not fire together the way their forward maps do. The fallback ("assume a backward pass") finds every transition pair with a backward pass mechanically, draws the saga\'s steps as a chain of lenses with the pool and queue pairs above the step they fire with, and marks in red where the flat net stops being lens composition. Links dragged here re-run the check.',
       connect4: 'For plan:connect4-exact, budget ∘ null_window ∘ core, as game.rs nests them (the drawing follows the current plan as pieces are dropped or removed): each driver is a frame whose left band carries its two lanes; inside, the alpha-beta core turns a position into children, ranks them with the order chain (small lenses on the move-list lane) and turns child values back into a max/min with cutoffs. The memo is a lens inside the core: its get feeds the forward pass, its store is fed by the backward pass. Dashed loops are state a backward pass leaves for a later forward pass (the table for tt_best, history for history). The recursion and the leaf, where values come from, close the right end.',
     },
     honesty: [
@@ -252,7 +262,7 @@ export default {
       'Not a lens in the strict sense: alpha-beta interleaves the passes (each child\'s value comes back before the next child is tried, and a cutoff stops the forward pass, game.rs:653-668), and the table and history carry state from backward passes into later forward passes (dashed loops). The drawing shows the shape of one round trip, not a schedule.',
       'The nesting is game.rs\'s, not the JSON\'s: drivers are read into flags (plan.rs:146-193). budget counts nodes across every yes/no search of one solve() run (nodes is reset only in value(), before each engine run: game.rs:541, 548), so it is outermost; null_window wraps the root search. The ROADMAP\'s "Solver = drivers ∘ core[...]" is a PROPOSED reading, and it types the core Position → Value⊥ (ROADMAP:428-430): here ⊥ is drawn on the budget frame and passes through the inner lanes unchanged (game.rs:578-580, 654-656).',
       'Lane labels paraphrase the cited lines. Position, Value, Value⊥ and MoveList are the ROADMAP\'s PROPOSED wire types; Window, Table and Cutoff are this page\'s labels. The play dot is illustrative: no search runs in the page.',
-      'Orders example: the strict test and the fallback are computed (js/model/lensfind.js) from go-pflow\'s link rules and Flatten as this page ports them; the probe wirings (release fused with undo_reserve, with and without commit) were also run through go-pflow itself and agree. Assumed in the fallback: the pair rule (a residual only t produces and only u consumes, resource places returned) and the forward pass (the commit scenario, judgment). The saga is a lens only on runs where no step fails: fail_ steps turn the forward lane back, which no lens map does.',
+      'Orders example: the strict test and the fallback are the registry\'s (bundle.lens: pflow-native crates/core/src/lens.rs, a port of the prototype\'s lensfind.js), on pflow-compose\'s link rules and Flatten (pflow-rs\'s port of go-pflow\'s); each one-link repair is re-validated, flattened and re-run there. In the prototype the probe wirings (release fused with undo_reserve, with and without commit) were also run through go-pflow itself and agreed. Assumed in the fallback: the pair rule (a residual only t produces and only u consumes, resource places returned) and the forward pass (the commit scenario, judgment). The saga is a lens only on runs where no step fails: fail_ steps turn the forward lane back, which no lens map does.',
       'The CyberCat Institute is linked for context only; no claim on this page is attributed to it.',
     ],
     bib: BIBKEYS,
@@ -313,7 +323,7 @@ function renderPlan(ctx) {
     const b = S('g', { class: 'lens-x', transform: `translate(${x},${y})` }, S('circle', { r: 6.5 }), S('text', { y: 3.6, 'text-anchor': 'middle' }, '×'));
     b.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); onClick(); });
     b.addEventListener('pointerdown', (e) => e.stopPropagation());
-    b.append(S('title', {}, `remove ${what} (the plan still passes plan.rs check)`));
+    b.append(S('title', {}, `remove ${what} (plan.remove_piece; pflow-rs then checks the plan)`));
     return b;
   };
 
@@ -371,6 +381,7 @@ function renderPlan(ctx) {
     layers.over.append(g);
   }
   for (const f of G.frames) {
+    ctx.emit('frame', f.id, {});
     const L = LENS[f.id];
     const isB = f.id === 'budget';
     const fg = S('g', { class: 'lens-passive', 'data-lens-frame': f.id, style: { '--halo': frameFill[f.id] } });
@@ -523,6 +534,7 @@ function renderPlan(ctx) {
   // --- memo (a lens inside the core) --------------------------------------------------
   {
     const mx = G.memoBox.x, mr = G.memoBox.right, present = G.memo !== null;
+    ctx.emit('memo', 'memo', { present });
     const mg = S('g', { class: 'lens-passive', 'data-lens-memo': present ? '1' : '0', style: { '--halo': present ? '#eff7f5' : '#fff' } });
     const box = S('rect', { class: present ? 'lens-box' : 'lens-sock', x: mx, y: MEMO_TOP, width: mr - mx, height: MEMO_BOT - MEMO_TOP, rx: 8, fill: present ? '#eff7f5' : 'rgba(255,255,255,0.6)', stroke: present ? TABLE : '#9aa3ad', 'stroke-width': 1.4 });
     mg.append(box);
@@ -595,34 +607,25 @@ function renderPlan(ctx) {
     const sr = S('rect', { class: 'lens-sock', x: os.x, y: YF - 32, width: os.w, height: 60, rx: 6 });
     ctx.snap.slot(sr, 'order');
     const sg = S('g', {}, sr, T(os.x + os.w / 2, YF - 9, '+', { 'text-anchor': 'middle', 'font-size': 15, class: 'muted', 'font-weight': 600 }), T(os.x + os.w / 2, YF + 17, 'order', { 'text-anchor': 'middle', 'font-size': 8.5, class: 'muted' }));
-    ctx.hover(sg, { ...base, facts: [['drop', 'an order piece: it joins the end of the chain (plan.rs check decides)']], note: ANALOGY });
+    ctx.hover(sg, { ...base, facts: [['drop', 'an order piece: it joins the end of the chain (pflow-rs decides: plan.slot_candidates)']], note: ANALOGY });
     layers.pieces.append(sg);
-    // filters socket (identity on the lane: none built)
+    // filters socket: the plan's filters, or the default an absent list stands for (pflow-rs's)
     const fs = G.filtersSock;
     const fr = S('rect', { class: 'lens-sock', x: fs.x, y: YF - 32, width: fs.w, height: 60, rx: 6 });
     ctx.snap.slot(fr, 'filters');
-    const fg = S('g', {}, fr, T(fs.x + fs.w / 2, YF - 10, 'filters', { 'text-anchor': 'middle', 'font-size': 10, class: 'muted', 'font-weight': 600 }), T(fs.x + fs.w / 2, YF + 17, 'none built', { 'text-anchor': 'middle', 'font-size': 8.5, class: 'muted' }));
+    const fg = S('g', {}, fr, T(fs.x + fs.w / 2, YF - 10, 'filters', { 'text-anchor': 'middle', 'font-size': 10, class: 'muted', 'font-weight': 600 }), lines(fs.x + fs.w / 2, G.filters.length + (G.filtersDefault ? 1 : 0) > 1 ? YF + 9 : YF + 17, G.filters.length ? [...G.filters, ...(G.filtersDefault ? ['(default)'] : [])] : ['none'], { 'text-anchor': 'middle', 'font-size': 8.5, class: 'muted' }, 10));
     const fb = ctx.info.slotInfo('filters');
-    ctx.hover(fg, { ...fb, facts: [['plan.rs', 'filters and heuristics are names of pieces that can change the value; none is built (plan.rs:21-23)'], ['ROADMAP', 'sound filters (must_win, non_losing) are PROPOSED: a meet-semilattice under intersection (ROADMAP:424)'], ['placement', 'on the move-list lane, after the chain: this page\'s judgment'], ['today', 'none built: exact mode refuses a filter (it can change the value); play mode: not built in this release'], ['empty slot', 'the identity: the lane passes through unchanged']], cites: uniqCites([...fixCites(fb.cites), C.modeCheck, rs('plan.rs', 21, 23, 'filters, heuristics: names of pieces that can change the value; none built'), road(424, 425, 'Sound filters: a meet-semilattice under intersection')]), note: ANALOGY });
+    ctx.hover(fg, { ...fb, facts: [['now', G.filters.length ? `${G.filters.join(', ')}${G.filtersDefault ? ' (no "filters" in the plan: pflow-rs\'s default list)' : ''}` : 'none: the lane passes through unchanged'], ['pflow-rs', `@${PLAN_RS_REV}: a sound-pruning filter (must_win, non_losing) passes exact mode; a value-changing one (beam) is refused there. The verdict on any drop is plan.slot_candidates.`], ['ROADMAP', 'sound filters as a meet-semilattice under intersection (ROADMAP:424, PROPOSED)'], ['placement', 'on the move-list lane, after the chain: this page\'s judgment']], cites: uniqCites([...fixCites(fb.cites), road(424, 425, 'Sound filters: a meet-semilattice under intersection')]), note: ANALOGY });
     layers.pieces.append(fg);
   }
 
   // pieces
-  // Removing piece i. On Chain::default (no "order" in the plan), js/model/plan.js
-  // withoutPiece starts from [] and would leave the identity chain, not the default
-  // minus one piece (reported). Work around it here with the same checked actions:
-  // "order": [] first, then the kept pieces one by one (each through slotCandidates,
-  // the plan.rs check port). The last call replaces the event, so nothing animates
-  // as if it had been added.
-  const removeFromChain = (i) => {
-    if (!G.chainDefault) { ctx.actions.removePiece('order', i); return; }
-    const keep = G.chain.filter((_, k) => k !== i);
-    ctx.actions.removePiece('order', 0);
-    for (const n of keep) ctx.actions.addPiece(n, 'order');
-    ctx.actions.setMode(plan.mode || 'exact');
-  };
+  // Removing piece i: plan.remove_piece (on Chain::default, the registry
+  // removes from the default list and makes it explicit).
+  const removeFromChain = (i) => ctx.actions.removePiece('order', i);
   for (const p of G.pieces) {
-    const L = LENS[p.name];
+    ctx.emit('lens', p.name, {});
+    const L = LENS[p.name] || { key: [p.name], fwd: 'not described on this page', bwd: 'not described on this page', cites: [] };
     const isHist = p.name === 'history';
     const pg = S('g', { class: 'lens-passive', 'data-lens-piece': p.name, style: { '--halo': '#fff' } });
     const box = S('rect', { class: 'lens-box', x: p.x, y: YF - 32, width: p.w, height: 122, rx: 7, fill: '#fff', stroke: KC.Order, 'stroke-width': 1.4 });
@@ -703,10 +706,10 @@ function renderPlan(ctx) {
     layers.core.append(g);
     const hx = gx + 8, hy = YB - 70;
     const r = S('rect', { class: 'lens-sock', x: hx, y: hy, width: gw - 16, height: 38, rx: 6 });
-    const hg = S('g', {}, r, T(gx + gw / 2, hy + 16, 'heuristics', { 'text-anchor': 'middle', 'font-size': 9.5, class: 'muted', 'font-weight': 600 }), T(gx + gw / 2, hy + 29, 'none built', { 'text-anchor': 'middle', 'font-size': 8.5, class: 'muted' }));
+    const hg = S('g', {}, r, T(gx + gw / 2, hy + 16, 'heuristics', { 'text-anchor': 'middle', 'font-size': 9.5, class: 'muted', 'font-weight': 600 }), T(gx + gw / 2, hy + 29, G.heuristics.length ? G.heuristics.join(', ') : 'none', { 'text-anchor': 'middle', 'font-size': 8.5, class: 'muted' }));
     ctx.snap.slot(r, 'heuristics');
     const hb = ctx.info.slotInfo('heuristics');
-    ctx.hover(hg, { ...hb, facts: [['plan.rs', 'names of pieces that can change the value; the reserved name static_eval is refused (plan.rs:21-23, 70-71)'], ['placement', 'by the recursion, where a static evaluation would stand in for searching further down: this page\'s judgment'], ['today', 'none built: exact mode refuses a heuristic (it can change the value); play mode: not built in this release']], cites: uniqCites([...fixCites(hb.cites), C.modeCheck, rs('plan.rs', 21, 23, 'filters, heuristics: names of pieces that can change the value; none built'), rs('plan.rs', 70, 71, 'UNSOUND: beam, static_eval')]), note: ANALOGY });
+    ctx.hover(hg, { ...hb, facts: [['plan.rs', 'names of pieces that can change the value; the reserved name static_eval is refused (plan.rs:21-23, 70-71)'], ['placement', 'by the recursion, where a static evaluation would stand in for searching further down: this page\'s judgment'], ['now', G.heuristics.length ? G.heuristics.join(', ') : 'none'], ['pflow-rs', `@${PLAN_RS_REV}: exact mode refuses a heuristic that can change the value; the verdict on any drop is plan.slot_candidates`]], cites: uniqCites([...fixCites(hb.cites), C.modeCheck, rs('plan.rs', 21, 23, 'filters, heuristics: names of pieces that can change the value; none built'), rs('plan.rs', 70, 71, 'UNSOUND: beam, static_eval')]), note: ANALOGY });
     layers.pieces.append(hg);
   }
 
@@ -753,7 +756,7 @@ function renderPlan(ctx) {
   ctx.root.appendChild(svgEl);
   btn.addEventListener('click', () => play(svgEl, btn, { trip, dot, pulse, pulse2, paths, G, colors: { POS, MOVES, VAL } }));
 
-  if (G.err) ctx.note(`refused: ${G.err}`, 'warn');
+  if (ctx.plan.error) ctx.note(`refused by pflow-rs (plan.state): ${ctx.plan.error}`, 'warn');
   ctx.note('Analogy of shape only. Open games (Ghani, Hedges, Winschel, Zahn) characterise equilibria: a best-response condition on strategy profiles. This plan computes a value: minimax with alpha-beta under a node budget. The lens drawing borrows only the shape (moves flow forward, down the tree; values flow back, up); no equilibrium is computed or checked, and no game-theoretic claim is made.', 'honesty');
 
   animateEvent(ctx, svgEl);

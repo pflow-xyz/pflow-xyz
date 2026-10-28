@@ -12,12 +12,14 @@
 //    class), token / data links are cables between place ports, guard links are
 //    flagged taps. Unlinked ports are exposed faintly on the outer boundary.
 //
-// Everything that changes state goes through ctx.snap (go-pflow's validateLink,
-// plan.rs's check) or ctx.actions. Layout is deterministic: no randomness, no
+// Everything that changes state goes through ctx.snap or ctx.actions, which
+// ask the registry (bundle.candidates / bundle.add_link: pflow-compose's port
+// of go-pflow validateLink; plan.slot_candidates / plan.add_piece: pflow-rs's
+// SearchPlan check). Layout is deterministic: no randomness, no
 // measurement of rendered text.
 
 import { cite } from '../sources.js';
-import { chainOf, driversOf, check } from '../model.js';
+import { chainOf, driversOf, check, fieldOrDefault, PLAN_RS_REV } from '../model.js';
 import { RULE_CITES } from '../model.js';
 import { LINK_STYLE_CITE, NS } from '../model.js';
 
@@ -174,8 +176,8 @@ function crosses([a, b], [c, d]) {
   return x > hx0 + 0.5 && x < hx1 - 0.5 && y > vy0 + 0.5 && y < vy1 - 0.5;
 }
 
-// Two line ranges in js/model/plan.js are off at c396d46 (reported, not edited
-// here): SLOTS memo cites plan.rs:113-118, which is Budget (Memo is 107-112), and
+// Two line ranges in the prototype's piece and slot cites (model.js) are off at
+// c396d46: SLOTS memo cites plan.rs:113-118, which is Budget (Memo is 107-112), and
 // null_window cites game.rs:556-591, but Solver::solve ends at 588.
 function fixCite(c) {
   if (c.repo !== 'pflowRs') return c;
@@ -259,9 +261,10 @@ function renderPlan(ctx) {
   // ---- header: the composite as a formula, and the mode badge ----
   const drvOK = !dr.err;
   const drvParts = drvOK ? [dr.budget != null ? `budget{${fmtN(dr.budget)}}` : null, dr.nullWindow ? 'null_window' : null].filter(Boolean) : ['drivers?'];
+  const listTxt = (f) => { const l = fieldOrDefault(plan, f); return l.length ? `${l.join(' · ')}${Array.isArray(plan[f]) ? '' : ' (default)'}` : '∅'; };
   const f1line = `Solver = ${drvParts.length ? `${drvParts.join(' ∘ ')} ∘ ` : ''}core[order, filters, heuristics, memo]`;
   const orderTxt = ch.err ? 'refused' : ch.pieces.length ? ch.pieces.join(' · ') : '[]';
-  const f2line = `core[ order = ${orderTxt}${ch.isDefault ? ' (default)' : ''},  filters = ${(plan.filters || []).length ? plan.filters.join(' · ') : '∅'},  heuristics = ${(plan.heuristics || []).length ? plan.heuristics.join(' · ') : '∅'},  memo = ${plan.memo ? `{entries: ${fmtN(plan.memo.entries)}}` : '∅'} ]`;
+  const f2line = `core[ order = ${orderTxt}${ch.isDefault ? ' (default)' : ''},  filters = ${listTxt('filters')},  heuristics = ${listTxt('heuristics')},  memo = ${plan.memo ? `{entries: ${fmtN(plan.memo.entries)}}` : '∅'} ]`;
   const head = S('g', {},
     mkText(ctx, 14, 24, f1line, { size: 15, bold: true }),
     mkText(ctx, 14, 44, f2line, { size: 11.5, mono: true, fill: '#3c4656' }),
@@ -270,7 +273,7 @@ function renderPlan(ctx) {
     title: 'the plan as one operadic composite',
     concept: { iri: 'https://ontology.pflow.xyz/ns#Composite', types: ['ns:Composite with op:wrap and op:fill (PROPOSED vocabulary, ROADMAP Phase 6)'] },
     definition: 'A whole plan is one operadic composite: Solver = drivers ∘ core[order chain, filters, bounds, memo].',
-    facts: [['plan JSON', JSON.stringify(ctx.plan.json)], ['check', err ? `refused: ${err}` : 'SearchPlan::check and solver(connect-4) accept it (JS port)']],
+    facts: [['plan JSON', JSON.stringify(ctx.plan.json)], ['check', err ? `refused: ${err}` : `pflow-rs @${PLAN_RS_REV}: SearchPlan::check and solver(connect-4) accept it (plan.state)`]],
     cites: [C.composite, C.operadRow, C.check, C.planDoc],
     bib: ['spivak-wd', 'fong-spivak'],
   });
@@ -283,14 +286,14 @@ function renderPlan(ctx) {
   ctx.hover(badge, {
     title: `mode: ${mode}`,
     concept: { iri: 'https://ontology.pflow.xyz/ns#ModeAdmits', types: ['mode (plan.rs Mode; ns:ModeAdmits is PROPOSED, ROADMAP Phase 5)'] },
-    definition: mode === 'exact' ? '"exact" (the default) holds every piece to returning the value: filters and heuristics are refused because they can change it.' : '"play" would allow pieces that trade the value for speed; at c396d46 every filter and heuristic is refused as not built in this release.',
+    definition: mode === 'exact' ? '"exact" (the default) holds every piece to returning the value: a piece that can change it (a value-changing filter or heuristic) is refused; sound filters are allowed.' : '"play" would allow pieces that trade the value for speed; which of them pflow-rs builds is its answer (plan.slot_candidates), not this view\'s.',
     facts: [['switch', 'the toolbar chips: exact / play']],
     cites: [C.mode, C.exactRefuses],
   });
   L.top.appendChild(badge);
   if (err) {
     const rb = S('g', {}, S('rect', { x: 1008, y: 42, width: 132, height: 22, rx: 11, fill: '#fff', stroke: TH.LEAK, 'stroke-width': 1.5 }),
-      mkText(ctx, 1074, 57, 'refused by plan.rs', { size: 11, bold: true, anchor: 'middle', fill: TH.LEAK }));
+      mkText(ctx, 1074, 57, 'refused by pflow-rs', { size: 11, bold: true, anchor: 'middle', fill: TH.LEAK }));
     ctx.hover(rb, { title: 'refused', definition: err, cites: [C.check, C.solver] });
     L.top.appendChild(rb);
   }
@@ -305,6 +308,7 @@ function renderPlan(ctx) {
     const present = drvOK && (id === 'budget' ? dr.budget != null : dr.nullWindow);
     const isDefault = id === 'null_window' && present && !plan.drivers;
     const g = S('g', { 'data-frame': id });
+    if (present) ctx.emit('frame', id, {});
     g.appendChild(S('rect', { x: r.x, y: r.y, width: r.x1 - r.x, height: r.y1 - r.y, rx: 14, fill: present ? '#fff' : 'none', 'fill-opacity': present ? 0.6 : null, stroke: present ? drvColor : '#a9b0b9', 'stroke-width': present ? 1.8 : 1.2, 'stroke-dasharray': present ? null : '7 5' }));
     // the header strip is the drivers slot (drop a driver here)
     const strip = S('g', {}, S('rect', { class: 'slot-strip', x: r.x + 1, y: r.y + 1, width: r.x1 - r.x - 2, height: 44, rx: 13, fill: drvColor, 'fill-opacity': present ? 0.07 : 0.025 }));
@@ -419,6 +423,7 @@ function renderPlan(ctx) {
   const IX0 = K.x + 20, IX1 = K.x1 - 20, IW = IX1 - IX0;
 
   function holeFrame(g, slotId, x, y, w, h, color, label, designed = false) {
+    ctx.emit('hole', slotId, { accepts: ctx.plan.slots.find((q) => q.id === slotId)?.accepts || '' });
     g.appendChild(S('rect', { class: 'hole-frame', x, y, width: w, height: h, rx: 8, fill: designed ? 'url(#opv-hatch)' : '#fdfdfd', stroke: color, 'stroke-width': 1.5, 'stroke-dasharray': designed ? '4 4' : '6 4' }));
     const tw = ctx.textWidth(label, 10.5) + 14;
     g.appendChild(S('rect', { x: x + 10, y: y - 9, width: tw, height: 18, rx: 4, fill: '#fff', stroke: color, 'stroke-width': 1.1, 'stroke-dasharray': designed ? '3 3' : null }));
@@ -467,6 +472,7 @@ function renderPlan(ctx) {
       const p = ctx.plan.pieceByName[name] || { name, kind: 'Order' };
       const x = xOf(i);
       const pg = S('g', { 'data-piece-box': name });
+      ctx.emit('piece', `order/${name}`, {});
       pg.appendChild(S('rect', { x, y: PY, width: pwid, height: PH2, rx: 6, fill: '#fff', stroke: KC.Order, 'stroke-width': p.decisive ? 2.2 : 1.3, 'stroke-dasharray': ch.isDefault ? '5 3' : null }));
       pg.appendChild(S('circle', { cx: x + 13, cy: PY + 13, r: 8, fill: KC.Order }));
       pg.appendChild(mkText(ctx, x + 13, PY + 13.5, String(i + 1), { size: 9.5, anchor: 'middle', baseline: 'central', fill: '#fff', bold: true }));
@@ -515,25 +521,29 @@ function renderPlan(ctx) {
 
   // row 2: filters, heuristics, memo
   const R2Y = OY + OH + 14, R2H = 88, R2W = (IW - 28) / 3;
-  const filled = (slot) => (plan[slot] || []).length > 0;
   [['filters', 'Filter'], ['heuristics', 'Heuristic']].forEach(([slot, kind], k) => {
     const x = IX0 + k * (R2W + 14);
     const hg = S('g', { 'data-hole': slot });
     holeFrame(hg, slot, x, R2Y, R2W, R2H, KC[kind], `${slot} : ${kind}*`);
-    if (filled(slot)) {
-      // check() stops at the first error, which may be in another hole: this
-      // hole shows what check() says about its own field (same function, same words).
-      const own = check({ mode, [slot]: plan[slot] });
-      const why = err && err === own ? `refused: ${err}` : own ? `refused on its own: ${own}` : `refused: ${err || 'not allowed'}`;
-      hg.appendChild(mkText(ctx, x + 16, R2Y + 30, plan[slot].join(' · '), { size: 12, mono: true, fill: TH.LEAK, bold: true }));
-      hg.append(...lines(ctx, x + 16, R2Y + 46, wrap(ctx, why, R2W - 32, 10), 13, { size: 10, fill: TH.LEAK }).slice(0, 3));
+    // The list the solver reads: explicit, or the default pflow-rs reads for an
+    // absent field (model.js PLAN_DEFAULTS, from plan.slot_candidates).
+    const explicit = Array.isArray(plan[slot]);
+    const list = fieldOrDefault(plan, slot);
+    // check() stops at the first error, which may be in another hole: this hole
+    // shows what pflow-rs (plan.check) says about its own field alone.
+    const own = explicit && list.length ? check({ mode, [slot]: plan[slot] }) : null;
+    if (list.length) {
+      for (const name of list) ctx.emit('piece', `${slot}/${name}`, {});
+      hg.appendChild(mkText(ctx, x + 16, R2Y + 30, list.join(' · '), { size: 12, mono: true, fill: own ? TH.LEAK : KC[kind], bold: true, italic: !explicit }));
+      const why = own ? `refused on its own: ${own}` : explicit ? `pflow-rs @${PLAN_RS_REV} accepts this list (plan.check)` : `default: an absent "${slot}" is [${list.join(', ')}] in pflow-rs @${PLAN_RS_REV}`;
+      hg.append(...lines(ctx, x + 16, R2Y + 46, wrap(ctx, why, R2W - 32, 10), 13, { size: 10, fill: own ? TH.LEAK : MUTED }).slice(0, 3));
     } else {
       hg.appendChild(mkText(ctx, x + 16, R2Y + 31, '∅  empty', { size: 12.5, mono: true, fill: '#8a929c' }));
-      const why = mode === 'exact' ? `exact mode refuses every ${kind.toLowerCase()}: it can change the value (plan.rs:229-234)` : `play mode: no ${kind.toLowerCase()} is built in this release (plan.rs:229-234)`;
+      const why = `drag a ${kind.toLowerCase()} here: pflow-rs @${PLAN_RS_REV} decides what fits in ${mode} mode (plan.slot_candidates)`;
       hg.append(...lines(ctx, x + 16, R2Y + 49, wrap(ctx, why, R2W - 30, 10.5), 14, { size: 10.5, fill: MUTED }));
     }
     ctx.snap.slot(hg, slot);
-    ctx.hover(hg, extend(I.slotInfo(slot), { facts: [['type', `${kind} pieces`], ['filled by', filled(slot) ? plan[slot].join(', ') : 'nothing'], ['why empty', mode === 'exact' ? 'beam and static_eval are reserved names, refused in exact mode; the proposed filters are unknown to plan.rs' : 'Mode::Play parses, but every filter and heuristic is refused as not built'], ...(filled(slot) && err && err !== check({ mode, [slot]: plan[slot] }) ? [['plan.rs reports', `${err} (check stops at the first error it meets, in another hole; this hole shows what check says about its own field)`]] : [])], cites: [C.check, C.exactRefuses] }));
+    ctx.hover(hg, extend(I.slotInfo(slot), { facts: [['type', `${kind} pieces`], ['filled by', list.length ? `${list.join(', ')}${explicit ? '' : ' (default)'}` : 'nothing'], ['decided by', `pflow-rs @${PLAN_RS_REV} (plan.slot_candidates on a drag, plan.check on the plan)`], ...(own === null && err && explicit && list.length ? [['pflow-rs reports', `${err} (check stops at the first error it meets, in another hole; this hole shows what check says about its own field)`]] : [])], cites: [C.check, C.exactRefuses] }));
     L.holes.appendChild(hg);
     if (ev && ev.type === 'piece-removed' && ev.slot === slot) anims.push(() => hg.animate([{ opacity: 0.4 }, { opacity: 1 }], { duration: 600 }));
   });
@@ -542,6 +552,7 @@ function renderPlan(ctx) {
     const hg = S('g', { 'data-hole': 'memo' });
     holeFrame(hg, 'memo', x, R2Y, R2W, R2H, KC.Memo, 'memo : Memo');
     if (plan.memo) {
+      ctx.emit('piece', 'memo/memo', {});
       const mg = S('g', {},
         S('rect', { x: x + 8, y: R2Y + 14, width: R2W - 16, height: R2H - 22, rx: 6, fill: '#f1faf8', stroke: KC.Memo, 'stroke-width': 1.5 }),
         mkText(ctx, x + 20, R2Y + 34, `memo {entries: ${fmtN(plan.memo.entries)}}`, { size: 12, mono: true, bold: true, fill: '#0f5f54' }),
@@ -571,7 +582,7 @@ function renderPlan(ctx) {
     holeFrame(hg, slot, x, R3Y, R3W, R3H, '#9aa1aa', `${slot} : ${kind}`, true);
     hg.append(...lines(ctx, x + 16, R3Y + 30, wrap(ctx, why, R3W - 32, 10.5), 14, { size: 10.5, fill: '#7d848e', italic: true }));
     ctx.snap.slot(hg, slot);
-    ctx.hover(hg, extend(I.slotInfo(slot), { facts: [['fillable', 'never: every drop is refused (designed in the ROADMAP, not a field of SearchPlan at c396d46)']], cites: [C.noBound] }));
+    ctx.hover(hg, extend(I.slotInfo(slot), { facts: [['fillable', `never: every drop is refused (designed in the ROADMAP, not a field of SearchPlan at pflow-rs @${PLAN_RS_REV})`]], cites: [C.noBound] }));
     L.holes.appendChild(hg);
   });
 
@@ -582,7 +593,7 @@ function renderPlan(ctx) {
     mkText(ctx, 14, capY + 16, 'null-window run (game.rs:526-597), so budget is always the outer box. The JSON order of drivers does not change the nesting.', { size: 11.5 }),
     mkText(ctx, 14, capY + 36, 'A chain is a monoid under concatenation, [] the identity, and the composite is lexicographic (ROADMAP:420-423; order.rs:194-265). A decisive piece\'s', { size: 11.5, fill: '#7a4a08' }),
     mkText(ctx, 14, capY + 52, 'nonzero key settles the rank, so decisive pieces that lead the chain form a top tier (order.rs:26-31). Partial in code: at most 8 pieces (order.rs:13), none twice (plan.rs:204-206).', { size: 11.5, fill: '#7a4a08' }));
-  ctx.hover(cap, { title: 'the laws behind the nesting', definition: 'Drivers are endomorphisms on search composed around the core; in general their order matters, but at c396d46 the two drivers are flags and the nesting is fixed.', cites: [C.drivers, C.run, C.driverOrder, C.monoid, C.chainNew, C.chainKey] });
+  ctx.hover(cap, { title: 'the laws behind the nesting', definition: 'Drivers are endomorphisms on search composed around the core; in general their order matters, but in plan.rs (read at c396d46) the two drivers are flags and the nesting is fixed.', cites: [C.drivers, C.run, C.driverOrder, C.monoid, C.chainNew, C.chainKey] });
   L.top.appendChild(cap);
 
   const lg = S('g', {});
@@ -603,14 +614,14 @@ function renderPlan(ctx) {
   sw(KC.Filter, 'filter hole');
   sw(KC.Heuristic, 'heuristic hole');
   sw('#9aa1aa', 'designed hole / driver off', true);
-  lg.appendChild(mkText(ctx, 14, ly + 22, 'Drag a piece from the toolbar onto a hole: only the holes plan.rs\'s check accepts light up; hover a dark one for its refusal. Hover anything for its source line.', { size: 10.5, fill: MUTED, italic: true }));
+  lg.appendChild(mkText(ctx, 14, ly + 22, 'Drag a piece from the toolbar onto a hole: only the holes pflow-rs accepts light up (plan.slot_candidates); hover a dark one for its refusal. Hover anything for its source line.', { size: 10.5, fill: MUTED, italic: true }));
   L.top.appendChild(lg);
 
   ctx.root.appendChild(root);
   for (const a of anims) a();
 
   // notes, top to bottom (each prepends)
-  ctx.note('Holes are typed by piece kind, not by wires: a piece has no wires of its own, so this is read as an operad in the sense of Fong-Spivak (Rough Def. 6.91: types, operations, substitution), not as Spivak\'s cospan operad of wires. The reading is partial: SearchPlan::check refuses some fillings of the right kind (an order piece listed twice, plan.rs:204-206; at c396d46 every filter and heuristic, plan.rs:229-234), as the ROADMAP\'s "partial monoid" says (ROADMAP:420-423). Only the search\'s interface, Position → Value⊥ (ROADMAP:428-430), is drawn as wires.', 'honesty');
+  ctx.note('Holes are typed by piece kind, not by wires: a piece has no wires of its own, so this is read as an operad in the sense of Fong-Spivak (Rough Def. 6.91: types, operations, substitution), not as Spivak\'s cospan operad of wires. The reading is partial: SearchPlan::check refuses some fillings of the right kind (an order piece listed twice, plan.rs:204-206; in exact mode every piece that can change the value), as the ROADMAP\'s "partial monoid" says (ROADMAP:420-423). Only the search\'s interface, Position → Value⊥ (ROADMAP:428-430), is drawn as wires.', 'honesty');
   if (err) ctx.note(`Refused by SearchPlan::check / solver: ${err}`, 'warn');
 }
 
@@ -881,7 +892,7 @@ function renderOrders(ctx) {
   const cableTxt = [nEv && `${nEv} event link${nEv > 1 ? 's' : ''} in ${classes.size} junction${classes.size > 1 ? 's' : ''}`, nTok && `${nTok} token`, nData && `${nData} data`, nGuard && `${nGuard} guard (flagged)`].filter(Boolean).join(', ') || 'no cables: the composite is the monoidal product of the instances';
   Ly.top.append(
     rich(ctx, 14, 24, ['Φ(', ...cells.flatMap((c, i) => [i ? ', x' : 'x', { sub: String(c.idx + 1) }]), `): one wiring diagram with ${cells.length} typed holes, filled by ${ids.join(', ')}`], { size: 15, bold: true }),
-    mkText(ctx, 14, 43, `Filling a hole with a box whose ports match its interface is operadic composition. ${links.length ? `Cables: ${cableTxt}; every one is a link go-pflow's validateLink allowed.` : 'No cables: the composite is the monoidal product (disjoint union) of the instances.'}`, { size: 11, fill: MUTED }));
+    mkText(ctx, 14, 43, `Filling a hole with a box whose ports match its interface is operadic composition. ${links.length ? `Cables: ${cableTxt}; every one is a link the registry's bundle.add_link allowed (pflow-compose's port of go-pflow validateLink).` : 'No cables: the composite is the monoidal product (disjoint union) of the instances.'}`, { size: 11, fill: MUTED }));
 
   // outer box
   const outerLabel = `outer box: ${ids.join(' ⊗ ')}`;
@@ -912,6 +923,7 @@ function renderOrders(ctx) {
     const p = orth(ld.pts, 5);
     Ly.leaders.appendChild(S('path', { class: 'leader', d: p.d }));
     const port = ld.port;
+    ctx.emit('exposed', `${ld.cell.s.id}:${port.id}`, {});
     const color = TH.portColor(port);
     const isT = port.target === 'transition';
     const mg = S('g', { transform: `translate(${f1(ld.mark.x)},${f1(ld.mark.y)})` },
@@ -928,6 +940,7 @@ function renderOrders(ctx) {
   for (const w of wires) {
     const st = LS[w.l.kind];
     const g = S('g', { 'data-link': w.l.key });
+    ctx.emit('junction', w.l.key, { kind: w.l.kind });
     const width = w.l.kind === 'guard' ? 1.8 : 2.2;
     g.appendChild(S('path', { d: w.path.d, fill: 'none', stroke: st.color, 'stroke-width': width, 'stroke-dasharray': st.dash || null, 'stroke-linecap': 'round' }));
     g.appendChild(S('path', { class: 'wire-hit', d: w.path.d }));
@@ -982,6 +995,7 @@ function renderOrders(ctx) {
       bib: ['spivak-wd', 'bruni-et-al'],
     };
     const jg = S('g', { 'data-junction': j.root });
+    for (const l of j.cl.links) ctx.emit('junction', l.key, { kind: l.kind });
     for (const sp of j.spokes) {
       const pg = S('g', {},
         S('path', { d: sp.path.d, fill: 'none', stroke: EV, 'stroke-width': 2.6, 'stroke-linecap': 'round' }),
@@ -1016,6 +1030,7 @@ function renderOrders(ctx) {
     const pat = ctx.orders.patterns[s.pattern];
     const tint = TH.PATTERN_TINT[s.pattern] || '#f4f5f7';
     const hg = S('g', { 'data-hole': s.id });
+    ctx.emit('hole', s.id, {});
     // the hole (dashed) and its type tab
     hg.appendChild(S('rect', { x: cell.x, y: cell.y, width: cell.w, height: cell.h, rx: 9, fill: '#fff', stroke: '#8e96a1', 'stroke-width': 1.2, 'stroke-dasharray': '6 4' }));
     const tab = S('g', {}, rich(ctx, cell.x + 4, cell.y - 8, ['hole x', { sub: String(cell.idx + 1) }, ` : ${pat.prefLabel} interface`], { size: 10.5, italic: true, fill: MUTED, cls: 'halo' }));
@@ -1107,7 +1122,7 @@ function renderOrders(ctx) {
   item2((x, y) => S('path', { d: `M${x},${y} L${x + 22},${y}`, stroke: LS.guard.color, 'stroke-width': 1.8, 'stroke-dasharray': LS.guard.dash }), 'guard (flagged, not a cable)', 22);
   item2((x, y) => S('g', {}, S('path', { d: `M${x},${y} L${x + 14},${y}`, class: 'leader' }), S('circle', { cx: x + 17, cy: y, r: 3.8, fill: '#fff', stroke: FAINT, 'stroke-width': 1.4 })), 'exposed on the outer box', 22);
   item2((x, y) => S('g', {}, S('path', { d: `M${x + 1},${y - 3.5} L${x + 6},${y} L${x + 1},${y + 3.5} Z`, fill: '#3c4656' }), S('path', { d: `M${x + 10},${y} L${x + 13},${y - 3} L${x + 13},${y + 3} Z M${x + 18},${y} L${x + 15},${y - 3} L${x + 15},${y + 3} Z`, fill: '#3c4656' })), 'in (left) · out (right) · inout (both sides)', 20);
-  lg.appendChild(mkText(ctx, 14, ly2 + 28, 'Drag from any port, in a hole or on the outer box: only the ports go-pflow\'s validateLink accepts light up. Colors and glyphs are go-pflow RenderDOT\'s (composedot.go:28-33).', { size: 10.5, fill: MUTED, italic: true }));
+  lg.appendChild(mkText(ctx, 14, ly2 + 28, 'Drag from any port, in a hole or on the outer box: only the ports the registry accepts light up (bundle.candidates: pflow-compose\'s port of go-pflow validateLink). Colors and glyphs are go-pflow RenderDOT\'s (composedot.go:28-33).', { size: 10.5, fill: MUTED, italic: true }));
   Ly.top.appendChild(lg);
 
   // ---- merge animation: cables meeting at the junction / the wire drawing on ----
@@ -1172,12 +1187,12 @@ export default {
     honesty: [
       'Spivak\'s operad (arXiv:1305.0297) is undirected: a wiring diagram is a cospan of ports onto cables. A directed version appears there only in §6.3 (Future work), as the subject of a paper then in preparation. The in / out sides drawn here are go-pflow port kinds (ns:portKind), kept for reading.',
       'Typed cables: in the typed operad (1305.0297 §4) ports soldered together carry one type; here a place port\'s type is its schema, which validateLink also requires to agree (compose.go:667-674). Transition ports carry no schema, so event cables are untyped.',
-      'One junction per fused class: event links are binary in go-pflow, but fusion is over equivalence classes (compose_fuse.go:9-20), so links a—b and b—c draw one junction with three legs.',
-      'A token cable and an event cable look alike here and mean different things: place gluing (Baez-Master) versus synchronisation (Bruni et al.). The operad records connectivity; the link kind is go-pflow\'s.',
+      'One junction per fused class: event links are binary, but fusion is over equivalence classes (compose_fuse.go:9-20), so links a—b and b—c draw one junction with three legs.',
+      'A token cable and an event cable look alike here and mean different things: place gluing (Baez-Master) versus synchronisation (Bruni et al.). The operad records connectivity; the link kind is the registry\'s (bundle.state).',
       'The outer box\'s interface (the faint exposed ports) is this view\'s reading: a go-pflow Bundle declares no ports of its own (compose.go:207-227). Guard links are not cables; they are drawn and flagged, with no operadic composite claimed.',
-      'The plan\'s holes are typed by piece kind, and SearchPlan::check is the typing (plan.rs:216-238). It is partial: check also refuses some fillings of the right kind (a name listed twice; every filter and heuristic at c396d46), so the plan is read as a partial operad, not proved to be one. Pieces have no wires of their own, so only the search\'s interface, Position → Value⊥ (ROADMAP:428-430), is drawn as wires; every driver has the interface of what it wraps.',
-      'The nesting order of the drivers is fixed by the code: plan.rs reads them into two flags (plan.rs:134-138, 146-194) and game.rs counts nodes across the whole null-window run (game.rs:526-597). ROADMAP Phase 6 says driver order matters in general (ROADMAP:426-427); for these two pieces at c396d46 it cannot be chosen.',
-      'bounds and engine are designed holes (ROADMAP:307), drawn dashed; every drop on them is refused. Proposed pieces (mtd_f, must_win, …) are unknown to plan.rs and fill nothing.',
+      'The plan\'s holes are typed by piece kind, and SearchPlan::check is the typing (plan.rs:216-238). It is partial: check also refuses some fillings of the right kind (a name listed twice; in exact mode every piece that can change the value), so the plan is read as a partial operad, not proved to be one. Pieces have no wires of their own, so only the search\'s interface, Position → Value⊥ (ROADMAP:428-430), is drawn as wires; every driver has the interface of what it wraps.',
+      'The nesting order of the drivers is fixed by the code: plan.rs reads them into two flags (plan.rs:134-138, 146-194) and game.rs counts nodes across the whole null-window run (game.rs:526-597). ROADMAP Phase 6 says driver order matters in general (ROADMAP:426-427); for these two pieces (plan.rs read at c396d46) it cannot be chosen.',
+      'bounds and engine are designed holes (ROADMAP:307), drawn dashed; every drop on them is refused. Proposed pieces (status "proposed" in plan.pieces: mtd_f, forced_moves, …) are unknown to pflow-rs and fill nothing.',
       'Value⊥: Solver::value returns None past the budget (game.rs:526-528). With no budget, plan.rs passes usize::MAX (plan.rs:245), so ⊥ is out of reach in practice but stays in the type.',
     ],
     bib: ['spivak-wd', 'fong-spivak', 'baez-master', 'bruni-et-al'],

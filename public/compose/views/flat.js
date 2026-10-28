@@ -1,27 +1,29 @@
 // View 5: the flattened net.
 //
-// The one place/transition net go-pflow's Flatten produces from the composition
-// (js/model/flatten.js, a port that tests/gopflow.test.mjs checks against
-// go-pflow), drawn the way RenderFlatDOT marks it (metamodel/composedot.go:59-115):
+// The one place/transition net Flatten produces from the composition (the
+// registry's bundle.flatten: pflow-compose's flatten_with_map, pflow-rs's Rust
+// port of go-pflow's FlattenWithMap), drawn the way RenderFlatDOT marks it (metamodel/composedot.go:59-115):
 // a place is a circle, a transition a box, a fused element is double-bordered,
 // a read arc is dashed and undirected, an arc weight above 1 is written on it.
 // The light clusters are this page's grouping by member subnet; RenderFlatDOT
 // draws none, and a flat net has no ports (Flatten removes the boundary).
 //
-// orders:   a token game on ctx.orders.flat.model (flatten.js whyNotEnabled/fire),
-//           the ROADMAP 4.4 scenarios fired step by step, the declared constraints
-//           evaluated at the current marking, and go-pflow's own firing of the
-//           same scenarios (data/receipts/gopflow.json, written by tools/gocheck).
+// orders:   a token game on ctx.orders.flat.model (model.js whyNotEnabled/fire:
+//           the registry's bundle.run {script}), the ROADMAP 4.4 scenarios run by
+//           bundle.run {scenario} and replayed step by step, and the declared
+//           constraints evaluated at the current marking.
 // connect4: a search plan is not a net. Drawn instead: the net the plan searches,
-//           at the fixture's own coordinates, playable; automatic transitions
-//           settle as pflow-rs's Game does, with the sides and rewards that
-//           pflow-rs tests/common/mod.rs declares for it.
+//           at the fixture's own coordinates, playable on the registry's token
+//           game (sim.fire / sim.enabled on the net loaded into its own engine);
+//           automatic transitions settle as pflow-rs's Game does, with the sides
+//           and rewards that pflow-rs tests/common/mod.rs declares for it.
 
 import { cite } from '../sources.js';
-import { FLATTEN_CITES, initialMarking, whyNotEnabled, fire, flatOf, flatPlaceOf } from '../model.js';
+import { FLATTEN_CITES, initialMarking, whyNotEnabled, fire, flatOf, flatPlaceOf, runOf, c4Model } from '../model.js';
 import { NS } from '../model.js';
 import { defaultLinks } from '../model.js';
 import { CONNECT4_EXACT, toJSON } from '../model.js';
+import { engines } from '../registry.js';
 
 // --- sources ---------------------------------------------------------------------------
 
@@ -75,22 +77,9 @@ const S = {
   run: null,        // { key, scenario, result, shown }
   busy: false,
   gen: 0,           // bumped on every render; a stale animation stops
-  receipt: undefined, // undefined: loading; null: not generated; object: the receipt
   c4: null,         // { marking, log, last }
-  c4model: null,    // { net, model }: the fixture as a flatten.js model
+  c4model: null,    // { net, model }: the fixture read for drawing, its token game on the registry's c4 engine
 };
-
-let receiptLoad = null;
-function loadReceipt(onDone) {
-  if (S.receipt !== undefined) return;
-  if (!receiptLoad) {
-    receiptLoad = fetch('data/receipts/gopflow.json')
-      .then((r) => (r.ok ? r.json() : null))
-      .catch(() => null)
-      .then((j) => { S.receipt = j; });
-  }
-  receiptLoad.then(onDone);
-}
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const splitId = (id) => { const i = id.indexOf('/'); return i < 0 ? ['', id] : [id.slice(0, i + 1), id.slice(i + 1)]; };
@@ -591,7 +580,7 @@ function renderOrders(ctx) {
   const gen = S.gen;
   const flat = ctx.orders.flat;
   if (!flat.ok) {
-    ctx.note(`Flatten refuses this composition, so there is no flat net to draw: ${flat.errors.map((e) => `${e.code} ${e.msg}`).join('; ')}`, 'warn');
+    ctx.note(`bundle.flatten refuses this composition, so there is no flat net to draw: ${flat.error || flat.errors.map((e) => `${e.code || ''} ${e.message}`).join('; ')}`, 'warn');
     return;
   }
   const model = flat.model, map = flat.map;
@@ -601,7 +590,9 @@ function renderOrders(ctx) {
   if (S.run && S.run.key !== key) S.run = null;
   if (S.run && !S.run.done) { // a re-render interrupted a run: finish it at once
     const r = S.run.result;
-    game.marking = r.finalMarking; game.fired = r.steps.filter((x) => x.enabled).map((x) => x.flat);
+    // replay the run's fired steps through the registry, so the marking keeps the script that reached it
+    game.marking = initialMarking(model); game.fired = [];
+    for (const x of r.steps.filter((y) => y.enabled)) { game.marking = fire(model, game.marking, x.flat); game.fired.push(x.flat); }
     S.run.shown = r.steps.length; S.run.done = true;
   }
   const lay = layoutOrders(ctx, model, map);
@@ -610,11 +601,20 @@ function renderOrders(ctx) {
 
   // Control bar.
   const status = ctx.el('span', { class: 'fv-status' });
-  const scButtons = ctx.orders.scenarios.map((sc) => ctx.el('button', {
-    class: `fv-sc${S.run && S.run.scenario.id === sc.id ? ' active' : ''}`, title: sc.title,
-    onclick: () => runScenario(sc),
-  }, `▶ ${sc.id}`));
-  const resetBtn = ctx.el('button', { onclick: () => { if (S.busy) return; game.marking = initialMarking(model); game.fired = []; S.run = null; refresh(); }, title: 'back to the initial marking (go-pflow InitialMarking)' }, '↺ Reset marking');
+  // Each button carries the registry's verdict on its scenario (bundle.run {scenario}):
+  // ✓ every predicate holds, ✗ one fails, ⏹ the run stopped early.
+  const scButtons = ctx.orders.scenarios.map((sc) => {
+    const r = scenarioRun(model, map, sc);
+    const pass = r.expect.every((e) => e.pass);
+    ctx.emit('scenario', sc.id, { pass, stopped_step: r.completed ? '' : (r.stoppedStep || '') });
+    const badge = ctx.el('span', { class: pass ? 'fv-pass' : 'fv-fail', style: { 'margin-left': '5px' } }, r.completed ? (pass ? '✓' : '✗') : '⏹');
+    return ctx.el('button', {
+      class: `fv-sc${S.run && S.run.scenario.id === sc.id ? ' active' : ''}`,
+      title: `${sc.title} — bundle.run: ${r.completed ? 'all steps fire' : `stops at ${r.stoppedStep}`}; ${pass ? 'every predicate holds' : `${r.expect.filter((e) => !e.pass).length} predicate(s) fail`}`,
+      onclick: () => runScenario(sc),
+    }, `▶ ${sc.id}`, badge);
+  });
+  const resetBtn = ctx.el('button', { onclick: () => { if (S.busy) return; game.marking = initialMarking(model); game.fired = []; S.run = null; refresh(); }, title: 'back to the initial marking (bundle.run of the empty script)' }, '↺ Reset marking');
   const bar = ctx.el('div', { class: 'fv-bar' },
     ctx.el('span', { class: 'fv-lab' }, 'Token game:'), resetBtn,
     ctx.el('span', { class: 'fv-sep' }),
@@ -708,6 +708,8 @@ function renderOrders(ctx) {
   const halo = { stroke: PAPER, 'stroke-width': 3.2, 'paint-order': 'stroke', 'stroke-linejoin': 'round' };
   for (const n of lay.nodes.values()) {
     const g = ctx.svg('g', { class: `fv-node ${n.kind === 'place' ? 'fv-p' : 'fv-t'}`, transform: `translate(${n.x},${n.y})`, 'data-flat-id': n.id });
+    if (n.kind === 'place') ctx.emit('place', n.id, { initial: n.el.initial || 0, fused: (n.el.members || []).length > 1 });
+    else ctx.emit('transition', n.id, { fused: (n.el.members || []).length > 1 });
     if (n.kind === 'place') {
       const isData = (n.el.kind || 'token') !== 'token';
       if (isData) { // RenderFlatDOT: a data place is a box (composedot.go:88-91)
@@ -760,6 +762,7 @@ function renderOrders(ctx) {
   // Panels.
   const panels = ctx.el('div', { class: 'fv-panels' });
   const pScen = ctx.el('div', { class: 'fv-card' }), pCons = ctx.el('div', { class: 'fv-card' }), pGo = ctx.el('div', { class: 'fv-card' });
+  // pGo: who fires these runs (the registry), in one line.
   panels.append(pScen, pCons, pGo);
   ctx.root.appendChild(panels);
 
@@ -788,7 +791,7 @@ function renderOrders(ctx) {
     paint();
     paintScenario(ctx, pScen, model, map);
     paintConstraints(ctx, pCons, model, map, game.marking, ctx.orders.byId);
-    paintGo(ctx, pGo, model, map);
+    paintGo(ctx, pGo);
   }
 
   async function animate(tid, before) {
@@ -858,11 +861,10 @@ function renderOrders(ctx) {
   }
 
   refresh();
-  loadReceipt(() => { if (gen === S.gen) paintGo(ctx, pGo, model, map); });
   mergeAnimation(ctx, lay, map, gFx, refs, arcEls);
 
   // Notes (prepended, so the last call shows first).
-  ctx.note('No ports are drawn here: Flatten removes the boundary, and a flat net has only places, transitions and arcs. Links are made in the pattern-level views; this view shows the one net they produce, under go-pflow\'s flat IDs.', 'na');
+  ctx.note('No ports are drawn here: Flatten removes the boundary, and a flat net has only places, transitions and arcs. Links are made in the pattern-level views; this view shows the one net they produce, under Flatten\'s flat IDs (bundle.flatten).', 'na');
 }
 
 // --- orders: hover info ----------------------------------------------------------------------
@@ -992,31 +994,20 @@ function mergeAnimation(ctx, lay, map, gFx, refs, arcEls) {
 
 const holds = (op, a, n) => ({ '==': a === n, '!=': a !== n, '>=': a >= n, '<=': a <= n, '>': a > n, '<': a < n }[op]);
 
-/** A scenario fired on the flat net, the way tools/gocheck's runScenario does it (from the initial marking, stop at the first step not enabled). */
+/**
+ * A scenario as the registry runs it (bundle.run {scenario}): from the initial
+ * marking, each member resolved to the flat transition that contains it, stopping
+ * at the first that cannot fire, then the predicates. The flat net drawn here is
+ * the live composition's, so the live engine runs it.
+ */
 function scenarioRun(model, map, sc) {
-  let mk = initialMarking(model);
-  const steps = [];
-  let stoppedAt = -1, error = null;
-  for (let i = 0; i < sc.script.length; i++) {
-    const member = sc.script[i];
-    const flat = flatOf(map, member);
-    if (!flat) { error = `${member} is not a transition of the flattened bundle`; stoppedAt = i; steps.push({ member, flat: null, enabled: false, why: error }); break; }
-    const why = whyNotEnabled(model, mk, flat);
-    if (why !== null) { steps.push({ member, flat, enabled: false, why }); stoppedAt = i; break; }
-    steps.push({ member, flat, enabled: true, why: '' });
-    mk = fire(model, mk, flat);
-  }
-  const expect = sc.expect.map((e) => {
-    const flat = flatPlaceOf(map, e.place);
-    const actual = flat ? mk[flat] || 0 : null;
-    return { ...e, flat, actual, pass: flat ? holds(e.op, actual, e.n) : false };
-  });
-  return { steps, stoppedAt, completed: stoppedAt < 0, finalMarking: mk, expect, error };
+  const r = runOf(engines.live.call('bundle.run', { scenario: sc.id }));
+  return { ...r, error: null };
 }
 
 /** Same links as the page default (event links compared either way round, as they have no direction rule) and no second instance. */
 function isDefaultComposition(ctx) {
-  const k = (l) => (l.kind === 'event' ? `event:${[`${l.from.subnet}|${l.from.port}`, `${l.to.subnet}|${l.to.port}`].sort().join('~')}` : `${l.kind}:${l.from.subnet}|${l.from.port}->${l.to.subnet}|${l.to.port}`);
+  const k = (l) => (l.kind === 'event' ? `event:${[`${l.from.subnet}:${l.from.port}`, `${l.to.subnet}:${l.to.port}`].sort().join('~')}` : `${l.kind}:${l.from.subnet}:${l.from.port}->${l.to.subnet}:${l.to.port}`);
   const a = ctx.orders.links.map(k).sort().join(','), b = defaultLinks().map(k).sort().join(',');
   return a === b && !(ctx.orders.extras || []).length;
 }
@@ -1061,7 +1052,7 @@ function paintScenario(ctx, box, model, map) {
   if (!run) {
     box.replaceChildren(el('h4', {}, 'Scenario checks'),
       el('p', {}, 'A scenario starts from the initial marking, fires its script one step at a time (each member transition resolved to the flat transition that contains it), stops at the first step that is not enabled, then checks its expected marking predicates.'),
-      el('p', { class: 'fv-muted' }, 'The scripts and predicates are judgment, written from the description and then frozen (js/model/orders.js, ROADMAP 4.4). Whether a step is enabled, and what the marking becomes, is go-pflow\'s firing rule.'));
+      el('p', { class: 'fv-muted' }, 'The scripts and predicates are judgment, written from the description and then frozen (bundle.scenarios, ROADMAP 4.4). Whether a step is enabled, and what the marking becomes, is the registry\'s run (bundle.run: pflow-metamodel\'s enabled/fire, the firing rule of go-pflow\'s firing.go).'));
     return;
   }
   const sc = run.scenario, r = run.result;
@@ -1076,7 +1067,7 @@ function paintScenario(ctx, box, model, map) {
     kids.push(el('ul', { class: 'fv-cons' }, r.expect.map((e) => {
       const li = el('li', {}, e.pass ? el('span', { class: 'fv-pass' }, 'PASS') : el('span', { class: 'fv-fail' }, 'FAIL'), e.says, ' ',
         el('span', { class: 'fv-muted' }, `(${e.flat || e.place} ${e.op} ${e.n}; is ${e.actual ?? 'no such place'})`));
-      ctx.hover(li, { title: `expected: ${e.says}`, definition: `${e.place} ${e.op} ${e.n}`, facts: [['flat place', e.flat || '(not in the flat net)'], ['at the end of the run', String(e.actual)], ['verdict', e.pass ? 'PASS' : 'FAIL']], note: 'A scenario predicate: judgment, written from the description and frozen in js/model/orders.js. ROADMAP 4.3 proposes recording such checks as ns:FaithfulnessCheck receipts; that class is not in the ontology yet.', cites: [C.faith, C.d44] });
+      ctx.hover(li, { title: `expected: ${e.says}`, definition: `${e.place} ${e.op} ${e.n}`, facts: [['flat place', e.flat || '(not in the flat net)'], ['at the end of the run', String(e.actual)], ['verdict', e.pass ? 'PASS' : 'FAIL']], note: 'A scenario predicate: judgment, written from the description and frozen (bundle.scenarios). The verdict is bundle.run\'s. ROADMAP 4.3 proposes recording such checks as ns:FaithfulnessCheck receipts; that class is not in the ontology yet.', cites: [C.faith, C.d44] });
       return li;
     })));
     const leakFail = r.expect.some((e) => !e.pass && e.place === 'workers/available') && r.completed;
@@ -1084,8 +1075,8 @@ function paintScenario(ctx, box, model, map) {
     if (why) kids.push(why);
     if (sc.note) {
       kids.push(el('p', { class: 'fv-muted' }, isDefaultComposition(ctx)
-        ? `Scenario note (orders.js): ${sc.note}`
-        : `Scenario note (orders.js, written for the three-idiom composition; this composition differs, so read the run above instead): ${sc.note}`));
+        ? `Scenario note (bundle.scenarios): ${sc.note}`
+        : `Scenario note (bundle.scenarios, written for the three-idiom composition; this composition differs, so read the run above instead): ${sc.note}`));
     }
   } else {
     kids.push(el('p', { class: 'fv-muted' }, 'firing…'));
@@ -1147,76 +1138,21 @@ function paintConstraints(ctx, box, model, map, mk, byId) {
   box.replaceChildren(...kids);
 }
 
-// --- orders: go-pflow's own firing (the receipt) -------------------------------------------
+// --- orders: who fires the runs ---------------------------------------------------------------
 
-function sameNet(model, f) {
-  if (!f || !f.ok) return false;
-  const a = shapeKey(model);
-  const b = shapeKey({ places: f.places, transitions: f.transitions, arcs: f.arcs });
-  return a === b;
-}
-
-function paintGo(ctx, box, model, map) {
+function paintGo(ctx, box) {
   const el = ctx.el;
-  const g = S.receipt;
-  const head = el('h4', {}, 'go-pflow\'s own firing');
-  if (g === undefined) { box.replaceChildren(head, el('p', { class: 'fv-muted' }, 'reading data/receipts/gopflow.json…')); return; }
-  if (!g) { box.replaceChildren(head, el('p', {}, 'go-pflow receipt not generated (tools/gocheck writes data/receipts/gopflow.json).')); return; }
-  const rev = g.goPflow ? `go-pflow ${g.goPflow.rev}${g.goPflow.dirty ? ' (dirty)' : ''}` : 'go-pflow';
-  const kids = [head];
-  // The initial enablement, for any recorded config that flattened to this same net.
-  const cfg = (g.flatten || []).find((f) => sameNet(model, f));
-  if (cfg && cfg.initialEnablement) {
-    const mk0 = initialMarking(model);
-    const bad = cfg.initialEnablement.filter((r) => (whyNotEnabled(model, mk0, r.transition) ?? '') !== (r.enabled ? '' : r.why));
-    kids.push(el('p', {}, bad.length ? el('span', { class: 'fv-disagree' }, `✗ ${bad.length} disagreement(s)`) : el('span', { class: 'fv-agree' }, '✓ agrees'),
-      ` at the initial marking: EnabledWhyNot for all ${cfg.initialEnablement.length} transitions, word for word (${rev}, config "${cfg.id}").`));
-  } else {
-    kids.push(el('p', { class: 'fv-muted' }, `None of the ${(g.flatten || []).length} configurations ${rev} flattened is this net, so there is nothing of go-pflow's to compare it with. Reset to the 3 idioms and remove second instances to compare.`));
-  }
-  // The scenarios, run by tools/gocheck on its scenario config.
-  if (!Array.isArray(g.scenarios)) {
-    kids.push(el('p', { class: 'fv-muted' }, 'This receipt has no scenarios section.'));
-    box.replaceChildren(...kids); return;
-  }
-  const sCfg = (g.flatten || []).find((f) => f.id === (g.spec && g.spec.scenarioConfig));
-  if (!sameNet(model, sCfg)) {
-    kids.push(el('p', { class: 'fv-muted' }, `go-pflow ran the scenarios on config "${sCfg ? sCfg.id : '?'}" (${sCfg ? sCfg.note : ''}). This net differs from it, so the scenario receipts do not apply here.`));
-    box.replaceChildren(...kids); return;
-  }
-  const rows = g.scenarios.map((rs) => {
-    const sc = ctx.orders.scenarios.find((x) => x.id === rs.id);
-    if (!sc) return el('li', {}, el('code', {}, rs.id), ' (not a scenario of this page)');
-    const mine = scenarioRun(model, map, sc);
-    const diffs = [];
-    if (mine.stoppedAt !== rs.stoppedAt) diffs.push(`stops at ${mine.stoppedAt} vs ${rs.stoppedAt}`);
-    rs.steps.forEach((st, i) => {
-      const m = mine.steps[i];
-      if (!m || m.flat !== st.flat || m.enabled !== st.enabled || (m.why || '') !== (st.why || '')) diffs.push(`step ${i + 1}`);
-    });
-    for (const [p, v] of Object.entries(rs.finalMarking || {})) if ((mine.finalMarking[p] || 0) !== v) diffs.push(`${p}: ${mine.finalMarking[p] || 0} vs ${v}`);
-    rs.expect.forEach((e, i) => { const m = mine.expect[i]; if (!m || m.actual !== e.actual || m.pass !== e.pass) diffs.push(`predicate ${i + 1}`); });
-    const fails = rs.expect.filter((e) => !e.pass).length;
-    const li = el('li', {}, diffs.length ? el('span', { class: 'fv-disagree' }, '✗') : el('span', { class: 'fv-agree' }, '✓'), ' ', el('code', {}, rs.id), ': ',
-      rs.completed ? `${rs.steps.length} steps fired` : `stops at step ${rs.stoppedAt + 1}`, `, ${rs.expect.length - fails} pass / ${fails} fail`,
-      diffs.length ? el('div', { class: 'fv-disagree' }, `page differs: ${diffs.slice(0, 4).join('; ')}`) : el('span', { class: 'fv-muted' }, ` · same steps, final marking (${Object.keys(rs.finalMarking || {}).length} places) and verdicts`));
-    ctx.hover(li, {
-      title: `go-pflow ran scenario ${rs.id}`,
-      definition: 'tools/gocheck flattens the same bundle with go-pflow, fires the script from InitialMarking with EnabledWhyNot and Fire, and records the steps, the final marking and each predicate.',
-      facts: [['go-pflow', rev], ['config', rs.config], ...rs.steps.map((st, i) => [`step ${i + 1}`, `${st.flat}${st.enabled ? '' : ` — not enabled: ${st.why}`}`]), ...rs.expect.map((e) => [`${e.place} ${e.op} ${e.n}`, `${e.actual}: ${e.pass ? 'PASS' : 'FAIL'}`])],
-      cites: [C.initial, C.whyNot, C.fire],
-    });
-    return li;
-  });
-  kids.push(el('p', {}, `The same scenarios, fired by ${rev} itself on config "${sCfg.id}":`), el('ul', { class: 'fv-cons' }, rows));
-  box.replaceChildren(...kids);
+  box.replaceChildren(el('h4', {}, 'Who fires these runs'),
+    el('p', {}, 'Every step above, the token game and the scenario verdicts are the registry\'s (pflow-native\'s bundle.run, in the vendored wasm): pflow-metamodel\'s enabled/fire on pflow-compose\'s flat net. The page fires nothing itself.'),
+    el('p', { class: 'fv-muted' }, 'No go-pflow run is shown beside them: the engine here is the registry, and pflow-native checks the same four scenario runs against go-pflow c802f34 in its own tests (crates/core/tests/views_compose.rs).'));
 }
 
 // =============================================================================================
 // connect4: the net the plan searches
 // =============================================================================================
 
-function c4Model(net) {
+/** The fixture's places, transitions and arcs, read for drawing (the token game is the c4 engine's). */
+function netModel(net) {
   const one = (v, d) => (Array.isArray(v) ? (v[0] ?? d) : (v ?? d));
   return {
     name: net.name,
@@ -1254,7 +1190,8 @@ function renderConnect4(ctx) {
   const net = ctx.connect4.net;
   injectStyle(ctx);
   if (!net) { ctx.note('data/connect-4.json did not load, so there is no net to draw.', 'warn'); return; }
-  if (!S.c4model || S.c4model.net !== net) S.c4model = { net, model: c4Model(net) };
+  if (!S.c4model || S.c4model.net !== net) S.c4model = { net, model: c4Model(netModel(net), net) };
+  ctx.emit('net', 'connect-4', { places: Object.keys(net.places).length, transitions: Object.keys(net.transitions).length, arcs: net.arcs.length });
   const model = S.c4model.model;
   if (!S.c4 || S.c4.name !== net.name) {
     const s0 = settle(model, initialMarking(model));
@@ -1275,7 +1212,7 @@ function renderConnect4(ctx) {
   const status = ctx.el('span', { class: 'fv-status' });
   const resetBtn = ctx.el('button', { onclick: () => { if (S.busy) return; const s0 = settle(model, initialMarking(model)); st.marking = s0.mk; st.log = []; st.last = null; paint(); } }, '↺ New game');
   ctx.root.appendChild(ctx.el('div', { class: 'fv-bar' }, ctx.el('span', { class: 'fv-lab' }, 'Play the net:'), resetBtn,
-    ctx.el('span', { class: 'fv-lab' }, 'click a green drop transition; automatic ones then settle (pflow-rs Game::settle).'), status));
+    ctx.el('span', { class: 'fv-lab' }, 'click a green drop transition (the registry fires it: sim.fire); automatic ones then settle (pflow-rs Game::settle).'), status));
 
   const root = ctx.svgRoot(W, H, { class: 'view-svg fv-svg' });
   root.appendChild(markers(ctx));
@@ -1461,18 +1398,18 @@ export default {
   title: 'The flattened net',
   short: 'Flat net',
   convention: {
-    summary: 'The single place/transition net go-pflow\'s Flatten produces from the composition: every subnet\'s places and transitions under namespaced IDs, places joined by token or data links fused into one wire:… place, transitions joined by event links fused into one fused:… transition, duplicate arcs merged (MergeSum: weights add), guard links with the default condition "> 0" lowered to read arcs. The shapes are RenderFlatDOT\'s: places are circles, transitions rounded boxes, fused elements double-bordered (peripheries=2), an arc weight above 1 written on the arc, a read arc dashed and undirected. The tokens are drawn as dots in the place (RenderFlatDOT writes the initial count in the label instead). A green transition is enabled at the current marking; click it to fire.',
+    summary: 'The single place/transition net Flatten produces from the composition (go-pflow\'s FlattenWithMap, run here by the registry as pflow-compose\'s port, bundle.flatten): every subnet\'s places and transitions under namespaced IDs, places joined by token or data links fused into one wire:… place, transitions joined by event links fused into one fused:… transition, duplicate arcs merged (MergeSum: weights add), guard links with the default condition "> 0" lowered to read arcs. The shapes are RenderFlatDOT\'s: places are circles, transitions rounded boxes, fused elements double-bordered (peripheries=2), an arc weight above 1 written on the arc, a read arc dashed and undirected. The tokens are drawn as dots in the place (RenderFlatDOT writes the initial count in the label instead). A green transition is enabled at the current marking; click it to fire.',
     examples: {
       orders: 'queue ⊗ pool ⊗ saga with the three event idioms flattens to 21 places and 9 transitions. fused:orders/dequeue+payment/do_reserve+workers/acquire and fused:payment/commit+workers/release sit between the clusters they join. Play the token game or run a ROADMAP 4.4 scenario: the refund run ends with the worker still in workers/in_use, so "the worker returns to the pool" fails, while pool_conservation still holds.',
       connect4: 'A search plan is not a net, so there is nothing to flatten. Drawn instead is the net the plan searches: the pflow-rs Connect-4 fixture (131 places, 222 transitions, 1,924 arcs) at its own coordinates. Click a green drop to play; the automatic win detectors then settle, as pflow-rs\'s Game does.',
     },
     honesty: [
-      'The flat IDs, arcs, weights, initial markings and constraints are Flatten\'s (js/model/flatten.js, checked against go-pflow by tests/gopflow.test.mjs). The positions and the clusters are this page\'s layout: RenderFlatDOT draws no clusters, and in the flat net an element belongs to a subnet only through its ID.',
+      'The flat IDs, arcs, weights, initial markings and constraints are Flatten\'s (the registry\'s bundle.flatten: pflow-compose, pflow-rs\'s port of go-pflow\'s FlattenWithMap). The positions and the clusters are this page\'s layout: RenderFlatDOT draws no clusters, and in the flat net an element belongs to a subnet only through its ID.',
       'No ports are drawn: Flatten removes the boundary. Links are made in the pattern-level views.',
       'A read arc (a guard link, lowered) is dashed and undirected, as RenderFlatDOT draws it; the small dot that marks its transition end is this page\'s. A hollow circle head would be an inhibitor arc.',
-      'The scenario scripts and their expected predicates are judgment, written from the description and frozen in js/model/orders.js. Whether a step is enabled, and the marking it leaves, is go-pflow\'s firing rule (firing.go) as ported; the go-pflow card compares with go-pflow\'s own run.',
+      'The scenario scripts and their expected predicates are judgment, written from the description and frozen (bundle.scenarios). Whether a step is enabled, and the marking it leaves, is the registry\'s bundle.run (pflow-metamodel\'s enabled/fire, go-pflow\'s firing rule from firing.go); the page fires nothing itself.',
       'Constraints are evaluated at the current marking only. Holding at one marking proves no invariant, and an invariant that holds is not liveness: pool_conservation holds while the refund run leaks a worker.',
-      'Connect-4: the sides, the automatic transitions and the rewards are what pflow-rs tests/common/mod.rs declares for this fixture; nothing else is claimed. Automatic transitions settle as Game::settle does, lowest index first, and pflow-rs\'s index order is the sorted transition IDs (pflow-parser model_from_json), so the page fires the same detector pflow-rs would.',
+      'Connect-4: the sides, the automatic transitions and the rewards are what pflow-rs tests/common/mod.rs declares for this fixture; nothing else is claimed. Automatic transitions settle as Game::settle does, lowest index first, and pflow-rs\'s index order is the sorted transition IDs (pflow-parser model_from_json), so the page asks for the same detector pflow-rs would fire; each firing is the registry\'s (sim.fire on the fixture).',
     ],
     bib: ['meseguer-montanari', 'baez-master', 'bruni-et-al', 'mei-douglas'],
     cites: [C.flatDot, C.dotDoc, C.wirePeri, C.fusedPeri, C.arcAttrs, ...FLATTEN_CITES, C.guardLower, C.constraints, C.initial, C.whyNot, C.fire, C.leak, C.faith, C.exit41, C.worked, C.d44, C.c4fixture, C.c4names, C.c4decl, C.gameDoc, C.settle, C.idOrder, C.score],

@@ -1,5 +1,5 @@
 // VIEW 4: string diagrams, in the visual conventions of pflow-xyz
-// public/diagram-viewer.js (vendored unmodified in vendor/).
+// public/diagram-viewer.js (this repo's own module, imported unmodified).
 //
 // Two levels, switched by the toggle above the drawing:
 //  - pattern level: this view's own drawing. Orders: pattern instances are
@@ -19,7 +19,7 @@
 import { translatePetriNet, generateSVG } from '../../diagram-viewer.js';
 import { cite } from '../sources.js';
 import { NS, LINK_STYLE_CITE } from '../model.js';
-import { SEARCH_CITES, PLAN_LAWS_CITE, chainOf, driversOf } from '../model.js';
+import { SEARCH_CITES, PLAN_LAWS_CITE, chainOf, driversOf, fieldOrDefault, PLAN_DEFAULTS, PLAN_RS_REV } from '../model.js';
 import { FLATTEN_CITES } from '../model.js';
 
 // --- sources ------------------------------------------------------------------------
@@ -172,7 +172,7 @@ export default {
   convention: {
     summary: 'String diagrams in a symmetric monoidal category: boxes are morphisms, wires are objects, side by side is the tensor ⊗ and stacking (top to bottom) is composition ∘. Drawn in the conventions of pflow-xyz diagram-viewer.js: flow runs top to bottom, inputs sit on a box\'s top edge and outputs on its bottom, wires are grey cubics labelled by their type, back edges are dashed red and go round the right side. The toggle switches between the pattern level (this view\'s drawing of the instances and their links) and the transition level (the flat net, drawn by diagram-viewer.js itself, unmodified).',
     examples: {
-      orders: 'Pattern level: orders (Queue), workers (ResourcePool) and payment (Saga) side by side (⊗). Place ports are wires typed by their schema (in and inout on top, out and inout below, observe as a tap on the right edge); transition ports are squares on the left (in) and right (out) edges. The three event idioms are green connectors with RenderDOT\'s ⊗ glyph, and the pool-leak caveat is the red note on release ⊗ commit. Transition level: go-pflow Flatten\'s net (as this page ports it) through diagram-viewer.js, where each fused transition is one box.',
+      orders: 'Pattern level: orders (Queue), workers (ResourcePool) and payment (Saga) side by side (⊗). Place ports are wires typed by their schema (in and inout on top, out and inout below, observe as a tap on the right edge); transition ports are squares on the left (in) and right (out) edges. The three event idioms are green connectors with RenderDOT\'s ⊗ glyph, and the pool-leak caveat is the red note on release ⊗ commit. Transition level: Flatten\'s net (the registry\'s bundle.flatten) through diagram-viewer.js, where each fused transition is one box.',
       connect4: 'Pattern level (ROADMAP Slice B): the alpha-beta core Position → Value⊥, the order chain as MoveList → MoveList boxes on its parameter wire, the memo as a side wire (Table), and the drivers as nested frames budget ⊃ null_window. Back edges, each read from game.rs: the null-window loop, the recursion, the transposition-table feedback and cutoff → history. Transition level: the Connect-4 net through diagram-viewer.js, which is too large to read on one stage, so it is shown as a scaled overview with a 1:1 lens.',
     },
     honesty: [
@@ -216,7 +216,7 @@ function toggle(ctx) {
     if (ctx.actions.rerender) ctx.actions.rerender(); else ctx.actions.setPrefer(ctx.orders.prefer); // older shells: a no-op that notifies
   };
   const hint = level === 'pattern'
-    ? (ctx.example === 'orders' ? 'drag from any port: only the links go-pflow\'s validateLink allows light up' : 'drag a palette piece onto a slot: plan.rs\'s check decides')
+    ? (ctx.example === 'orders' ? 'drag from any port: only the links the registry allows light up (bundle.candidates)' : 'drag a palette piece onto a slot: pflow-rs decides (plan.slot_candidates)')
     : (ctx.example === 'orders' ? 'drawn by diagram-viewer.js, unmodified; the squares are transition ports you can drag' : 'drawn by diagram-viewer.js, unmodified; click the overview to move the lens');
   return ctx.el('div', { class: 'sv-toggle' },
     ctx.el('button', { class: level === 'pattern' ? 'on' : '', 'data-level': 'pattern', onclick: pick('pattern') }, 'pattern level'),
@@ -630,6 +630,7 @@ function ordersPattern(ctx) {
       svg('path', { d, class: 'sv-hitline', stroke: 'transparent', 'stroke-width': 12, fill: 'none' }),
       svg('path', { d, class: 'sv-stroke', stroke: style.color, 'stroke-width': 2.6, fill: 'none', 'stroke-linecap': 'round' }),
       glyph(ctx, 'event', gx, gy));
+    ctx.emit('fusion', l.key, {});
     ctx.hover(g, { ...info, facts: [...info.facts, ['ROADMAP op', 'op:sync: transition fusion (Bruni et al.), not a wire'], ['flat transition', flatName || '(flatten refused)'], ['drawn as', `a bold green connector with RenderDOT's ⊗ (composedot.go:31), ROADMAP Slice B${chanY !== undefined ? '; between rows it runs along the channel between them' : ''}`]], cites: [...info.cites, LINK_STYLE_CITE, ROAD.sliceB], bib: ['bruni-et-al'] });
     linksG.append(g);
     glyphAt.set(l.key, [gx, gy]);
@@ -745,7 +746,7 @@ function ordersPattern(ctx) {
       obstacles.push(pick.rects[0]);
     }
     const info = ctx.info.linkInfo(l, byId);
-    ctx.hover(g, { ...info, title: `caveat on ${info.title}`, note: 'The page\'s refund scenario (js/model/orders.js) expects this: the worker never returns to the pool. ROADMAP Phase 4 names it as the expected failure of the rollback scenario.', cites: [ttl(493, 498, 'pat:idiom-pool-release-saga-commit and its caveat'), ROAD.orders41, ROAD.worked, ...info.cites] });
+    ctx.hover(g, { ...info, title: `caveat on ${info.title}`, note: 'The refund scenario (bundle.scenarios, judgment) expects this: the worker never returns to the pool. ROADMAP Phase 4 names it as the expected failure of the rollback scenario.', cites: [ttl(493, 498, 'pat:idiom-pool-release-saga-commit and its caveat'), ROAD.orders41, ROAD.worked, ...info.cites] });
     notesG.append(g);
     leakN++;
   }
@@ -786,6 +787,7 @@ function ordersPattern(ctx) {
     const si = ctx.info.subnetInfo(s);
     ctx.hover(body, { ...si, facts: [...si.facts, ['as a morphism (ROADMAP Phase 6)', `${domS} → ${codS}`], b.obs.length ? ['side taps', b.obs.map((p) => `${p.id}: ${p.schema}`).join(', ')] : null, ['sync boundary', `${b.left.length} in (left), ${b.right.length} out (right) transition ports`]].filter(Boolean), cites: [...si.cites, ROAD.wires, DVC.box] });
     g.append(body);
+    ctx.emit('box', s.id, {});
     // Port labels inside the box.
     for (const [pid, copies] of Object.entries(b.pos)) {
       for (const c of copies) {
@@ -828,9 +830,10 @@ function ordersPattern(ctx) {
           if (p.kind === 'inout') pg.append(svg('circle', { cx: c.x, cy: c.y, r: 1.6, fill: '#fff' }));
         }
         ctx.snap.port(pg, { subnet: s.id, port: pid });
+        if (p.target === 'place') ctx.emit('wire', `${s.id}:${pid}`, { schema: p.schema });
         const pi = ctx.info.portInfo(s, p);
         const where = { top: 'top edge: an input (dom)', bottom: 'bottom edge: an output (cod)', left: 'left edge: an in transition port (sync boundary)', right: p.target === 'transition' ? 'right edge: an out transition port (sync boundary)' : 'right edge: a side tap (observe), outside dom and cod' }[c.side];
-        ctx.hover(pg, { ...pi, facts: [...pi.facts, ['drawn on', p.kind === 'inout' ? `${where}; inout ports are drawn on both edges (ROADMAP)` : where], ['drag', 'from here to link: the lit ports are the ones validateLink allows']], cites: [...pi.cites, ROAD.wires] });
+        ctx.hover(pg, { ...pi, facts: [...pi.facts, ['drawn on', p.kind === 'inout' ? `${where}; inout ports are drawn on both edges (ROADMAP)` : where], ['drag', 'from here to link: the lit ports are the ones the registry allows (bundle.candidates: pflow-compose\'s port of go-pflow validateLink)']], cites: [...pi.cites, ROAD.wires] });
         pgBox.append(pg);
         if (!portEls.has(`${s.id}|${pid}`)) portEls.set(`${s.id}|${pid}`, []);
         portEls.get(`${s.id}|${pid}`).push(pg);
@@ -852,7 +855,7 @@ function ordersPattern(ctx) {
   root.append(legendOrders(ctx, MARGIN, legendY, W - 2 * MARGIN));
 
   ctx.root.append(root);
-  if (ctx.orders.flat && !ctx.orders.flat.ok) ctx.note(`go-pflow Flatten (as ported) refuses this composition: ${ctx.orders.flat.errors.map((e) => e.code).join(', ')}`, 'warn');
+  if (ctx.orders.flat && !ctx.orders.flat.ok) ctx.note(`bundle.flatten refuses this composition: ${ctx.orders.flat.error || ctx.orders.flat.errors.map((e) => e.code).join(', ')}`, 'warn');
 
   // --- merge animation ---
   const ev = ctx.event;
@@ -945,7 +948,7 @@ function ordersTransition(ctx) {
   const tw = ctx.textWidth;
   const flat = ctx.orders.flat;
   if (!flat.ok) {
-    ctx.note(`go-pflow Flatten (as ported) refuses this composition (${flat.errors.map((e) => e.code).join(', ')}), so there is no flat net to draw.`, 'warn');
+    ctx.note(`bundle.flatten refuses this composition (${flat.error || flat.errors.map((e) => e.code).join(', ')}), so there is no flat net to draw.`, 'warn');
     return;
   }
   const m = flat.model;
@@ -966,9 +969,9 @@ function ordersTransition(ctx) {
   const para = [];
   const P = (text, opts = {}) => para.push({ text, ...opts });
   P('drawn by diagram-viewer.js, unmodified', { bold: true, size: 13 });
-  P('pflow-xyz public/diagram-viewer.js @954b75c (MIT), vendored byte-identical in vendor/. This view calls its translatePetriNet and generateSVG and inserts the SVG string as it comes.', { muted: true });
+  P('pflow-xyz public/diagram-viewer.js (MIT), this repo\'s own module, imported unmodified. This view calls its translatePetriNet and generateSVG and inserts the SVG string as it comes.', { muted: true });
   P('Its convention, from its header comment (lines 1-5): transitions are boxes (morphisms), places are wire types (objects), arcs are typed ports and wires. Inputs sit on top, outputs below; a cycle is broken by DFS and its back edges go round the right side, dashed red.');
-  P(`Input: ctx.orders.flat.model, the flat net go-pflow Flatten would build, as this page ports it (tests/gopflow.test.mjs compares the port with go-pflow's own FlattenWithMap on the configurations recorded in data/receipts/gopflow.json): ${m.places.length} places, ${m.transitions.length} transitions, ${m.arcs.length - reads.length} arcs drawn.`);
+  P(`Input: ctx.orders.flat.model, the flat net the registry builds (bundle.flatten: pflow-compose's flatten_with_map, pflow-rs's port of go-pflow's FlattenWithMap): ${m.places.length} places, ${m.transitions.length} transitions, ${m.arcs.length - reads.length} arcs drawn.`);
   if (fused.length) P(`Fused boxes (${fused.length}): each is one event-link class, named fused:<sorted members> (compose_flatten.go:201-227): ${fused.map((t) => t.members.join(' ⊗ ')).join('; ')}.`, { color: theme.LINK_STYLE.event.color });
   else P('No event links, so no box is fused: every box is one subnet\'s transition.');
   if (wires.length) P(`Shared places (${wires.length}): wire:<representative>, from token or data links: ${wires.map((p) => p.members.join(' = ')).join('; ')}.`, { color: theme.LINK_STYLE.token.color });
@@ -1055,7 +1058,7 @@ function ordersTransition(ctx) {
     cap.append(svg('text', { x: capX, y, 'font-size': l.size, 'font-weight': l.bold ? 600 : 400, fill: l.color || (l.muted ? '#6a717c' : '#2b2f36') }, l.t));
     y += l.size + 4;
   }
-  ctx.hover(cap, { title: 'diagram-viewer.js (pflow-xyz, MIT), vendored unmodified', definition: 'Petri net → string diagram: transitions are boxes, places are wire types, arcs are typed ports and wires.', cites: [DVC.header, DVC.boxes, DVC.cycles, DVC.layers, DVC.back, ...FLATTEN_CITES.slice(0, 3), goc('metamodel/compose_flatten.go', 424, 482, 'applyGuardLinks: a guard link becomes a read arc (or inhibitor, or guard conjunct)')], bib: ['selinger'] });
+  ctx.hover(cap, { title: 'diagram-viewer.js (pflow-xyz, MIT), imported unmodified', definition: 'Petri net → string diagram: transitions are boxes, places are wire types, arcs are typed ports and wires.', cites: [DVC.header, DVC.boxes, DVC.cycles, DVC.layers, DVC.back, ...FLATTEN_CITES.slice(0, 3), goc('metamodel/compose_flatten.go', 424, 482, 'applyGuardLinks: a guard link becomes a read arc (or inhibitor, or guard conjunct)')], bib: ['selinger'] });
   root.append(cap);
   ctx.root.append(root);
   if (reads.length) ctx.note(`${reads.length} read arc${reads.length === 1 ? '' : 's'} from guard links ${reads.length === 1 ? 'is' : 'are'} left out: diagram-viewer.js draws only input and output arcs, and would show a read as a consuming input.`, 'na');
@@ -1121,14 +1124,14 @@ function c4Pattern(ctx) {
   const { W, H, core, col } = C4;
   const root = ctx.svgRoot(W, H, { class: 'view-svg sv' });
   root.append(defs(ctx), svg('rect', { width: W, height: H, fill: DV.PAPER, rx: 4 }));
-  if (err) ctx.note(`plan.rs refuses this plan: ${err}`, 'warn');
+  if (err) ctx.note(`pflow-rs refuses this plan (plan.state): ${err}`, 'warn');
 
   // Head: the composite, as the ROADMAP writes it (Solver = drivers ∘ core[order chain, filters, bounds, memo]).
   let expr = `alpha-beta[${pieces.length ? pieces.join(' · ') : '[]'}${plan.memo ? `, memo ${fmt(plan.memo.entries)}` : ''}]`;
   if (nullWindow) expr = `null_window(${expr})`;
   if (budget) expr = `budget(${expr})`;
   root.append(svg('text', { x: 40, y: 28, 'font-size': 15, 'font-weight': 600, fill: '#2b2f36' }, svg('tspan', {}, 'Solver = '), svg('tspan', { class: 'mono', 'font-size': 13.5 }, expr)),
-    svg('text', { x: 40, y: 48, 'font-size': 11, fill: '#6a717c' }, `mode ${plan.mode || 'exact'} · ${err ? 'refused by SearchPlan::check' : 'SearchPlan::check and solver(connect-4) accept it (the JS port)'} · ${plan.mode === 'play' ? 'play parses, but solver() never reads the mode: it builds the same search as exact mode (plan.rs:242-251)' : 'drivers ∘ core[order chain, filters, bounds, memo] (ROADMAP Phase 6)'}`));
+    svg('text', { x: 40, y: 48, 'font-size': 11, fill: '#6a717c' }, `mode ${plan.mode || 'exact'} · ${err ? `refused by pflow-rs @${PLAN_RS_REV}` : `pflow-rs @${PLAN_RS_REV} SearchPlan::check and solver(connect-4) accept it (plan.state)`} · ${plan.mode === 'play' ? 'play parses, but solver() never reads the mode: it builds the same search as exact mode (plan.rs:242-251)' : 'drivers ∘ core[order chain, filters, bounds, memo] (ROADMAP Phase 6)'}`));
 
   const backG = svg('g', {}), wireG = svg('g', {}), frameG = svg('g', {}), boxG = svg('g', {}), slotG = svg('g', {}), labG = svg('g', {});
   const flipItems = [];
@@ -1148,6 +1151,7 @@ function c4Pattern(ctx) {
   // checked at every node (594-597), so budget wraps every yes/no search.
   const frame = (r, name, sub, kind, empty, onRemove, pieceName) => {
     const g = svg('g', { class: 'sv-frame', 'data-piece-el': pieceName || '' });
+    if (pieceName) ctx.emit('frame', pieceName, {});
     g.append(svg('rect', { x: r.x, y: r.y, width: r.w, height: r.h, rx: 12, fill: empty ? 'none' : (kind === 'budget' ? 'rgba(47,111,179,0.035)' : 'rgba(47,111,179,0.05)'), stroke: K.Driver, 'stroke-width': empty ? 1.2 : 1.5, 'stroke-dasharray': empty ? '6,4' : null }));
     const label = `${name}${sub ? ' ' : ''}`;
     const tabW = tw(label, 11.5) + (sub ? tw(sub, 10) * 1.05 : 0) + 22 + (onRemove ? 18 : 0);
@@ -1197,6 +1201,7 @@ function c4Pattern(ctx) {
     cites: [GR.search, GR.value, ROAD.search],
   });
   boxG.append(coreG);
+  ctx.emit('box', 'core', {});
 
   // Position in (from the top boundary), Value⊥ out (to the bottom boundary).
   const vTap = [P.value[0], cb + 50];
@@ -1217,7 +1222,7 @@ function c4Pattern(ctx) {
     svg('text', { x: col.x - 12, y: col.top - 26, 'font-size': 9, fill: '#8a6d3b' }, 'a monoid: [] is the identity'));
   ctx.snap.slot(region, 'order');
   const si = ctx.info.slotInfo('order');
-  ctx.hover(region, { ...si, facts: [['pieces', pieces.length ? pieces.join(', ') : '[] (the identity)'], ['law (ROADMAP)', 'a monoid under chaining: [] is the identity, concatenation is associative, every composite stays ct:order-only'], ['partial in code (ROADMAP)', 'a repeated piece is refused (plan.rs:204-206) and a chain holds at most 8 pieces (order.rs:221-226)'], ['in code', 'one comparator over a key per piece, compared first-to-differ; decisive pieces form a top tier (order.rs:249-265)'], chain.isDefault ? ['default', 'no "order" field: Chain::default, tt_best · immediate_win · history (order.rs:205-217)'] : null, ['ROADMAP op', 'op:chain']].filter(Boolean), cites: [...si.cites, GR.chain, GR.decisive, SEARCH_CITES.orderOnly, rs('plan.rs', 204, 206, 'a piece listed twice is refused'), rs('order.rs', 220, 230, 'Chain::new: at most 8 pieces'), ROAD.search, PLAN_LAWS_CITE] });
+  ctx.hover(region, { ...si, facts: [['pieces', pieces.length ? pieces.join(', ') : '[] (the identity)'], ['law (ROADMAP)', 'a monoid under chaining: [] is the identity, concatenation is associative, every composite stays ct:order-only'], ['partial in code (ROADMAP)', 'a repeated piece is refused (plan.rs:204-206) and a chain holds at most 8 pieces (order.rs:221-226)'], ['in code', 'one comparator over a key per piece, compared first-to-differ; decisive pieces form a top tier (order.rs:249-265)'], chain.isDefault ? ['default', `no "order" field: Chain::default, ${(PLAN_DEFAULTS.order || []).join(' · ')} (pflow-rs's default, read from plan.slot_candidates)`] : null, ['ROADMAP op', 'op:chain']].filter(Boolean), cites: [...si.cites, GR.chain, GR.decisive, SEARCH_CITES.orderOnly, rs('plan.rs', 204, 206, 'a piece listed twice is refused'), rs('order.rs', 220, 230, 'Chain::new: at most 8 pieces'), ROAD.search, PLAN_LAWS_CITE] });
   slotG.append(region);
   // The wire: from the top boundary of the chain, through every box, into the core's left edge.
   const chainW = svg('g', { class: 'sv-wire' });
@@ -1239,6 +1244,7 @@ function c4Pattern(ctx) {
       svg('text', { x: col.x + 12, y: y + col.bh / 2 + 4, 'font-size': 11.5, fill: '#333', class: 'mono' }, name),
       p && p.decisive ? svg('text', { x: col.x + col.w - 8, y: y + col.bh / 2 + 3, 'font-size': 8.5, fill: '#999', 'text-anchor': 'end' }, 'decisive') : null,
       port(colX, y, T.MoveList), port(colX, y + col.bh, T.MoveList));
+    ctx.emit('chain', name, { index: i });
     const pi = ctx.info.pieceInfo(name);
     ctx.hover(g, { ...pi, facts: [...pi.facts, ['place in the chain', `${i + 1} of ${pieces.length}: compared ${i === 0 ? 'first' : 'after the ones above'} (highest priority first, plan.rs:15-16)`], ['drawn as', 'a box MoveList → MoveList on the core\'s parameter wire (ROADMAP Slice B)']], cites: [...pi.cites, GR.chain] });
     g.append(removeX(col.x - 12, y + col.bh / 2, () => ctx.actions.removePiece('order', i), `remove ${name} from the chain`));
@@ -1248,7 +1254,10 @@ function c4Pattern(ctx) {
 
   // Filters: an empty position on the same wire; heuristics beside it (none built).
   const emptySlot = (id, x, y, w, h, label, sub, onWire) => {
-    const list = plan[id] || [];
+    // An absent list stands for pflow-rs's default (must_win for filters at this pin): the registry's, not the page's.
+    const list = fieldOrDefault(plan, id);
+    const isDefault = !Array.isArray(plan[id]) && list.length > 0;
+    if (list.length) sub = isDefault ? 'default' : '';
     const g = svg('g', { class: 'sv-slotbox' },
       svg('rect', { x, y, width: w, height: h, rx: DV.RX, fill: '#fff', stroke: K[id === 'filters' ? 'Filter' : 'Heuristic'], 'stroke-width': 1.2, 'stroke-dasharray': '5,3' }),
       svg('text', { x: x + 10, y: y + h / 2 + 3.5, 'font-size': 10.5, fill: K[id === 'filters' ? 'Filter' : 'Heuristic'], class: 'mono' }, list.length ? list.join(', ') : label),
@@ -1256,7 +1265,7 @@ function c4Pattern(ctx) {
       onWire ? [port(colX, y, T.MoveList), port(colX, y + h, T.MoveList)] : null);
     ctx.snap.slot(g, id);
     const s = ctx.info.slotInfo(id);
-    ctx.hover(g, { ...s, facts: [['now', list.length ? list.join(', ') : 'empty'], ['exact mode', 'refuses every filter and heuristic: they can change the value (plan.rs:221-236)'], ['play mode', 'parses, but every filter or heuristic is "not built in this release"'], onWire ? ['drawn as', 'an empty position on the MoveList wire: an empty slot is the identity'] : ['drawn as', 'an empty position, wired to nothing: the ROADMAP gives heuristics no type']], cites: [...s.cites, ROAD.search] });
+    ctx.hover(g, { ...s, facts: [['now', list.length ? `${list.join(', ')}${isDefault ? ` (the default an absent "${id}" stands for, pflow-rs @${PLAN_RS_REV})` : ''}` : 'empty'], ['which pieces fit', 'pflow-rs decides (plan.slot_candidates): a piece whose contract can change the value is refused in exact mode; drag one to see its verdict'], onWire ? ['drawn as', list.length ? 'a position on the MoveList wire holding the filters' : 'an empty position on the MoveList wire: an empty slot is the identity'] : ['drawn as', 'an empty position, wired to nothing: the ROADMAP gives heuristics no type']], cites: [...s.cites, ROAD.search] });
     slotG.append(g);
     return g;
   };
@@ -1271,7 +1280,7 @@ function c4Pattern(ctx) {
       svg('text', { x: x + 9, y: y + 28, 'font-size': 8.5, fill: '#9aa1aa' }, l2));
     ctx.snap.slot(g, id);
     const s = ctx.info.slotInfo(id);
-    ctx.hover(g, { ...s, facts: [['status', 'designed in the ROADMAP; not a field of SearchPlan at c396d46'], ['drawn as', 'a ghost: shown, never fillable']], cites: [...s.cites, ...cites] });
+    ctx.hover(g, { ...s, facts: [['status', `designed in the ROADMAP; not a field of SearchPlan at ${PLAN_RS_REV}`], ['drawn as', 'a ghost: shown, never fillable']], cites: [...s.cites, ...cites] });
     slotG.append(g);
   };
   ghost('bounds', 712, cy - 44, 132, 36, 'bounds', 'designed: interval meet', [ROAD.search]);
@@ -1313,6 +1322,7 @@ function c4Pattern(ctx) {
     for (const [i, t] of label.entries()) g.append(svg('text', { x: lx, y: ly + i * 12, 'font-size': 9.5, fill: DV.BACK, 'text-anchor': anchor, 'paint-order': 'stroke', stroke: DV.PAPER, 'stroke-width': 3 }, t));
     ctx.hover(g, { ...info, facts: [...(info.facts || []), ['drawn as', 'a back edge: dashed #c44 (6,3) with an arrowhead, round the right side (diagram-viewer.js:490-501)']], cites: [...info.cites, DVC.back] });
     backG.append(g);
+    ctx.emit('backedge', key === 'window' ? 'nullwindow' : key, {});
   };
   // the null-window loop: the value of each yes/no search moves i or j, and the next window is (vals[k], vals[k+1]).
   if (nullWindow) {

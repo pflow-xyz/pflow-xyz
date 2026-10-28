@@ -1,17 +1,24 @@
 // The lens view's orders example (imported by lens.js; not a view of its own).
 //
 // Two modes, switched by the bar at the top (deep link: &lens=assume):
-//  - strict: the lens test on the composition as go-pflow builds it, three
-//    checks from js/model/lensfind.js, each with its verdict and receipt;
+//  - strict: the lens test on the composition as the registry builds it,
+//    three checks from bundle.lens, each with its verdict;
 //  - assume: the fallback. Every transition pair with a backward pass, found
-//    mechanically (lensfind.backwardPairs), is drawn as a lens: the saga's
+//    mechanically (bundle.lens pairs), is drawn as a lens: the saga's
 //    steps as a chain of boxes (do_ on the forward lane, undo_ on the backward
 //    lane, the residual between them), the other instances' pairs above the
 //    step their forward transition is fused with. Fusion lines come from the
 //    flat net (Flatten's classes), so a link dragged in here or in any view
 //    redraws the picture and re-runs the composition check.
-// Nothing here decides a verdict by reading: lensfind.js does, on the same
-// rules and Flatten port the other views use (both checked against go-pflow).
+// Nothing here decides a verdict by reading: the registry's bundle.lens does
+// (pflow-native crates/core/src/lens.rs, a port of the prototype's lensfind.js),
+// on pflow-compose's link rules and Flatten (pflow-rs's Rust port of go-pflow's
+// validateLink and Flatten), the same ones every other view draws from.
+//
+// Scene manifest (parity contract): both modes draw the verdict ("strict":
+// holds, glued, legal_token, legal_data), every backward pair bundle.lens
+// found ("s/t->u"), the forward steps (composes, split, dead_forward) and the
+// one-link repairs ("how:u", holds); the strict mode is the default.
 
 import { lens, flatOf, FLATTEN_CITES } from '../model.js';
 import { RULE_CITES } from '../model.js';
@@ -69,7 +76,7 @@ export function renderOrders(ctx, common) {
     ctx.el('span', {}, 'Lens test:'),
     ctx.el('button', { class: mode === 'strict' ? 'on' : '', onclick: () => setMode(ctx, 'strict') }, 'strict (as composed)'),
     ctx.el('button', { class: mode === 'assume' ? 'on' : '', onclick: () => setMode(ctx, 'assume') }, 'assume a backward pass (fallback)'),
-    ctx.el('span', {}, mode === 'strict' ? 'the composition as go-pflow builds it' : 'pairs with a backward pass, found mechanically; the composition is still checked')));
+    ctx.el('span', {}, mode === 'strict' ? 'the composition as the registry builds it (bundle.lens)' : 'pairs with a backward pass, found mechanically; the composition is still checked')));
 
   if (!a.ok) {
     ctx.note(`The composition does not flatten: ${a.errors.map((e) => e.message || e.msg || e).join('; ')}`, 'warn');
@@ -89,31 +96,42 @@ function renderStrict(ctx, a, common) {
   const leakRuns = a.runs.filter((r) => r.expect.some((e) => !e.ok));
   const card = E('div', { class: 'lo-card' },
     E('h3', {}, a.holds ? 'The composition is a lens composite.' : `No: ${ids.join(' ⊗ ')} is not a lens composite as composed.`),
-    E('p', {}, 'A lens composite needs a boundary to compose along, a backward map in every part, and the parts\' backward maps to fire together the way their forward maps do. Each check below is computed from go-pflow\'s link rules and its Flatten (as this page ports them, both cross-checked against go-pflow).'),
+    E('p', {}, 'A lens composite needs a boundary to compose along, a backward map in every part, and the parts\' backward maps to fire together the way their forward maps do. Each check below is the registry\'s (bundle.lens), on pflow-compose\'s link rules and its Flatten (pflow-rs\'s port of go-pflow\'s validateLink and Flatten).'),
     E('ol', {},
       E('li', {}, ok(a.glued > 0), E('b', {}, 'A boundary to compose along. '),
-        `Lens composition is sequential: one part's output boundary is the next part's input. Among ${ids.join(', ')} go-pflow allows ${a.legal.token} token and ${a.legal.data} data links (and ${a.legal.event} event, ${a.legal.guard} guard), and the composition uses ${a.glued} place links, so no boundary is glued: the composite is ⊗ plus transition fusion (the cospan view shows no pushout). Event fusion is a rendezvous, not a composition along a boundary.`),
+        `Lens composition is sequential: one part's output boundary is the next part's input. Among ${ids.join(', ')} the link rules (pflow-compose) allow ${a.legal.token} token and ${a.legal.data} data links (and ${a.legal.event} event, ${a.legal.guard} guard), and the composition uses ${a.glued} place links, so no boundary is glued: the composite is ⊗ plus transition fusion (the cospan view shows no pushout). Event fusion is a rendezvous, not a composition along a boundary.`),
       E('li', {}, ok(a.noBackward.length === 0), E('b', {}, 'A backward map in every part. '),
         a.noBackward.length ? `None found in ${a.noBackward.join(', ')}. ` : '',
         `Found mechanically (a residual place only t produces and only u consumes, and u returns what t moved on resource places): `,
-        E('span', { class: 'mono' }, orientedPairs(a).join(', ') || 'none'), '. Only the saga\'s are compensations; the pool\'s and the queue\'s are plain inverses.'),
+        E('span', { class: 'mono' }, pairList(ctx, a)), '. Only the saga\'s are compensations; the pool\'s and the queue\'s are plain inverses.'),
       E('li', {}, ok(bad.length === 0 && a.roundTrips.length === 0), E('b', {}, 'Backward maps fire together as the forward maps do. '),
         bad.length || a.roundTrips.length ? breakText(a) : 'Every forward rendezvous has one backward rendezvous, and it can fire.'),
     ),
-    leakRuns.length ? E('p', {}, E('b', {}, 'The runs agree (go-pflow\'s own run gives the same markings): '),
+    leakRuns.length ? E('p', {}, E('b', {}, 'The scenario runs (bundle.lens, on the flat net): '),
       leakRuns.map((r) => `${r.id}: ${r.expect.filter((e) => !e.ok).map((e) => `${e.place} = ${e.got}, expected ${e.n}${r.stoppedStep ? ` (stopped at ${r.stoppedStep})` : ''}`).join('; ')}`).join(' · ')) : null,
-    fixTable(ctx, a),
     E('p', {}, 'The Connect-4 plan is drawn as lenses (an analogy of shape; press e). For this composition, the fallback draws what does have a backward pass and shows where the composite stops being a lens.'),
     E('button', { class: 'lo-go', onclick: () => setMode(ctx, 'assume') }, 'Assume a backward pass →'));
   ctx.hover(card, {
     title: 'the lens test (strict)',
-    definition: 'Computed by js/model/lensfind.js from the subnets, go-pflow\'s link rules (validateLink) and its Flatten.',
+    definition: 'Computed by the registry (bundle.lens: pflow-native lens.rs) from the subnets, pflow-compose\'s link rules (validateLink) and its Flatten.',
     facts: [['legal links', Object.entries(a.legal).map(([k, n]) => `${k} ${n}`).join(', ')], ['place links used', String(a.glued)], ['verdict', a.holds ? 'a lens composite' : 'not a lens composite']],
     cites: [RULE_CITES.legal, RULE_CITES.endpoint, ...FLATTEN_CITES],
     bib: common.bib,
   });
+  ctx.emit('verdict', 'strict', { holds: !!a.holds, glued: a.glued, legal_token: a.legal.token, legal_data: a.legal.data });
   ctx.root.appendChild(card);
+  renderVerdict(ctx, a);
   ctx.note('Strict test: the composition as composed, no assumption. Switch to the fallback to see the pairs that do have a backward pass drawn as lenses.', 'na');
+}
+
+/** Every backward pair bundle.lens found, as "s/t->u"; the oriented ones (forward map on the commit run) marked →. */
+function pairList(ctx, a) {
+  if (!a.pairs.length) return 'none';
+  return a.pairs.map((p) => {
+    const id = `${p.subnet}/${p.t}->${p.u}`;
+    ctx.emit('pair', id, {});
+    return id;
+  }).join(', ');
 }
 
 function orientedPairs(a) {
@@ -204,9 +222,10 @@ function renderAssumed(ctx, a, common) {
     const box = S('g', {});
     box.append(S('rect', { x: bx, y: FY - 50, width: SW, height: BY - FY + 100, rx: 10, fill: T.PATTERN_TINT.saga, stroke: '#8a929c', 'stroke-width': 1.3 }),
       S('text', { x: bx + 10, y: FY - 34, 'font-size': 11.5, 'font-weight': 600 }, `step ${st}`));
-    ctx.hover(box, { title: `saga step ${st} as a lens`, definition: `Forward: do_${st} takes next_${st} on the forward lane. Backward: undo_${st} takes unwind_${st} on the backward lane. Between them, the residual do_${st} leaves for undo_${st}.`, facts: [['found by', 'lensfind.backwardPairs: a residual place only do_ produces and only undo_ consumes; undo_ returns what do_ moved on the accounts'], ['assumption', 'this pair is read as a lens; go-pflow builds it inside one subnet (Saga.ToMetaSubnet), so no link rule checks it']], cites: saga.cites });
+    ctx.hover(box, { title: `saga step ${st} as a lens`, definition: `Forward: do_${st} takes next_${st} on the forward lane. Backward: undo_${st} takes unwind_${st} on the backward lane. Between them, the residual do_${st} leaves for undo_${st}.`, facts: [['found by', 'bundle.lens pairs: a residual place only do_ produces and only undo_ consumes; undo_ returns what do_ moved on the accounts'], ['assumption', 'this pair is read as a lens; the saga constructor builds it inside one subnet (pflow-compose\'s port of Saga.ToMetaSubnet), so no link rule checks it']], cites: saga.cites });
     layer.boxes.append(box);
     const p = pairOf(`do_${st}`);
+    if (p) ctx.emit('pair', `${p.subnet}/${p.t}->${p.u}`, {});
     layer.top.append(square(saga, `do_${st}`, cx, FY, FWD, 'forward map (get)'), square(saga, `undo_${st}`, cx, BY, BWD, 'backward map (put)'));
     (p ? p.residuals : []).forEach((r, k, all) => {
       const rx = cx + (k - (all.length - 1) / 2) * 92;
@@ -273,6 +292,7 @@ function renderAssumed(ctx, a, common) {
       ctx.hover(g, ctx.info.subnetInfo(s));
       layer.boxes.append(g);
       const ty = BT + 42, uy = BT + BH - 30, ry = (ty + uy) / 2;
+      ctx.emit('pair', `${sid}/${tid}->${uid}`, {});
       layer.top.append(square(s, tid, cx - 30, ty, FWD, 'forward map', [['backward map', uid]]),
         square(s, uid, cx - 30, uy, BWD, o.trip ? 'backward map, but it fires on the forward pass' : 'backward map', [['forward map', tid]]));
       for (const r of o.p.residuals) layer.top.append(circle(s, r, cx + 2, ry, '#8a929c', 'residual', [['produced only by', tid], ['consumed only by', uid]]));
@@ -325,7 +345,7 @@ function renderAssumed(ctx, a, common) {
     if (s.deadForward && fwdSaga) {
       const at = anchors[fwdSaga];
       ring(at.x, at.y, [`✗ ${s.flat.length > 40 ? 'this rendezvous' : s.flat} can never fire:`, `needs ${s.deadForward.places.map((p) => p.split('/')[1]).join(' + ')};`, `${s.deadForward.constraint.split('/')[1]} allows one`],
-        { title: 'dead rendezvous', definition: `${s.flat} needs a token on each of ${s.deadForward.places.join(', ')}; the declared invariant ${s.deadForward.constraint} keeps exactly one token among them.`, facts: [['decided by', 'lensfind.deadBy on the flat net (go-pflow\'s run stops here too)']], cites: [...FLATTEN_CITES, ...saga.cites] });
+        { title: 'dead rendezvous', definition: `${s.flat} needs a token on each of ${s.deadForward.places.join(', ')}; the declared invariant ${s.deadForward.constraint} keeps exactly one token among them.`, facts: [['decided by', 'bundle.lens (dead_forward) on the flat net; the scenario run stops here too']], cites: [...FLATTEN_CITES, ...saga.cites] });
     }
     const back = [...s.back.map((b) => ({ u: b.u, uFlat: b.uFlat, why: 'fires on its own' })),
       ...s.trips.filter((r) => r.tFlat === s.flat).map((r) => ({ u: r.u, uFlat: r.uFlat, why: `fires on the forward pass (${r.uFlat})` }))];
@@ -335,17 +355,18 @@ function renderAssumed(ctx, a, common) {
     if (!missing.length) continue;
     const at = anchors[target.u];
     ring(at.x, at.y, [`✗ lens composition needs ${missing.map((b) => b.u.split('/')[1]).join(', ')} here,`, 'firing with ' + target.u.split('/')[1] + ', as their forward maps fire together;', ...missing.map((b) => `${b.u}: ${b.why}`)],
-      { title: 'where the composite stops being a lens', definition: `Going forward, ${s.flat} fires ${s.members.join(', ')} as one. A lens composite would fire their backward maps as one on the way back; here they are ${[...new Set(back.map((b) => b.uFlat))].join('; ')}.`, facts: [['decided by', 'lensfind.analyse on the flat net (Flatten\'s classes)'], ['fix with a link?', 'an event link only adds a rendezvous: fusing release with undo_reserve as well as commit makes one transition that needs both, and saga_control allows one (try it: drag undo:reserve to release)']], cites: FLATTEN_CITES });
+      { title: 'where the composite stops being a lens', definition: `Going forward, ${s.flat} fires ${s.members.join(', ')} as one. A lens composite would fire their backward maps as one on the way back; here they are ${[...new Set(back.map((b) => b.uFlat))].join('; ')}.`, facts: [['decided by', 'bundle.lens on the flat net (Flatten\'s classes)'], ['fix with a link?', 'an event link only adds a rendezvous: fusing release with undo_reserve as well as commit makes one transition that needs both, and saga_control allows one (try it: drag undo:reserve to release)']], cites: FLATTEN_CITES });
   }
 
+  ctx.emit('verdict', 'strict', { holds: !!a.holds, glued: a.glued, legal_token: a.legal.token, legal_data: a.legal.data });
   ctx.root.appendChild(svgEl);
   renderVerdict(ctx, a);
   animateLinks(ctx, svgEl);
-  ctx.note('Assumption (fallback): the pairs drawn as lenses were found mechanically (a residual only t produces and only u consumes; u returns what t moved on resource places), and the forward pass is the "commit" scenario\'s run (judgment, frozen). Inside the saga the chain is go-pflow\'s own construction; across instances only the flat net decides what fires together. The red rings are where that fails to be lens composition.', 'honesty');
+  ctx.note('Assumption (fallback): the pairs drawn as lenses were found mechanically (a residual only t produces and only u consumes; u returns what t moved on resource places), and the forward pass is the "commit" scenario\'s run (judgment, frozen). Inside the saga the chain is the saga constructor\'s own (pflow-compose); across instances only the flat net decides what fires together. The red rings are where that fails to be lens composition.', 'honesty');
   if (ctx.orders.subnets.some((s) => s.extra)) ctx.note('Added instances count in the check; only those fused with the first saga are drawn above it.', 'na');
 }
 
-/** "Can one link fix it?": every repair lensfind.tryFixes tries, with what the flat net then does. */
+/** "Can one link fix it?": every repair bundle.lens tries, with what the flat net then does. */
 function fixTable(ctx, a) {
   const E = ctx.el;
   const fixes = a.fixes || [];
@@ -353,7 +374,8 @@ function fixTable(ctx, a) {
   const rows = fixes.map((x) => {
     const r = x.result;
     const what = `${x.how === 'add' ? 'add' : 'move to'} ${x.link.from.subnet}:${x.link.from.port} ⊗ ${x.link.to.subnet}:${x.link.to.port}${x.removed.length ? ` (drop ${x.removed.map((l) => `${l.from.port} ⊗ ${l.to.port}`).join(', ')})` : ''}`;
-    const runs = !x.legal ? E('span', { class: 'lo-no' }, 'refused by go-pflow\'s rules')
+    ctx.emit('fix', `${x.how}:${x.u}`, { holds: !!(r && r.holds) });
+    const runs = !x.legal ? E('span', { class: 'lo-no' }, `refused by the link rules${x.verdict && x.verdict.errors ? ` (${x.verdict.errors.map((e) => e.code).join(', ')})` : ''}`)
       : !r ? E('span', { class: 'lo-no' }, 'does not flatten')
       : E('span', {}, ...r.runs.map((run, i) => {
         const bad = run.expect.filter((e) => !e.ok);
@@ -364,7 +386,7 @@ function fixTable(ctx, a) {
       E('td', {}, r && r.holds ? E('span', { class: 'lo-ok' }, '✓ a lens') : E('span', { class: 'lo-no' }, '✗')));
   });
   return E('div', { class: 'lo-verdict' },
-    E('b', {}, 'Can one link fix it? '), 'Each repair below is validated by go-pflow\'s rules, flattened, and the scenarios re-run. An event link only adds a rendezvous (all members fire as one); a lens needs the pool released on either outcome, which is a choice no link kind expresses.',
+    E('b', {}, 'Can one link fix it? '), 'Each repair below is validated by the registry\'s link rules, flattened, and the scenarios re-run (bundle.lens). An event link only adds a rendezvous (all members fire as one); a lens needs the pool released on either outcome, which is a choice no link kind expresses.',
     E('table', {}, E('tr', {}, E('th', {}, 'repair'), E('th', {}, 'scenarios after it'), E('th', {}, 'lens?')), ...rows));
 }
 
@@ -376,12 +398,13 @@ function renderVerdict(ctx, a) {
       : s.composes && !s.trips.some((r) => r.tFlat === s.flat) ? E('span', { class: 'lo-ok' }, '✓ composes')
       : s.noBackward && !s.trips.some((r) => r.tFlat === s.flat) ? E('span', {}, '— no backward map (the turnaround)')
       : E('span', { class: 'lo-no' }, '✗ backward maps do not fire together');
+    ctx.emit('step', s.flat, { composes: !!s.composes, split: !!s.split, dead_forward: s.deadForward ? s.deadForward.constraint : '' });
     return E('tr', {}, E('td', { class: 'mono' }, s.flat), E('td', { class: 'mono' }, back.join(', ') || '—'), E('td', {}, verdict));
   });
   const runs = a.runs.map((r) => E('tr', {}, E('td', {}, r.title), E('td', { class: 'mono' }, r.expect.map((e) => `${e.place}=${e.got}`).join(', ')),
     E('td', {}, r.expect.every((e) => e.ok) ? E('span', { class: 'lo-ok' }, '✓') : E('span', { class: 'lo-no' }, `✗ ${r.expect.filter((e) => !e.ok).map((e) => e.says).join('; ')}${r.stoppedStep ? ` (stopped at ${r.stoppedStep})` : ''}`))));
   const box = E('div', { class: 'lo-verdict' },
-    E('b', {}, a.holds ? 'The assumed lenses compose.' : 'The assumed lenses do not compose into one lens.'),
+    E('b', {}, mode === 'strict' ? 'Step by step, on the commit run (bundle.lens):' : a.holds ? 'The assumed lenses compose.' : 'The assumed lenses do not compose into one lens.'),
     E('table', {}, E('tr', {}, E('th', {}, 'forward rendezvous (commit run)'), E('th', {}, 'its backward maps, and where they fire'), E('th', {}, 'lens composition')), ...rows),
     E('table', {}, E('tr', {}, E('th', {}, 'scenario'), E('th', {}, 'end marking'), E('th', {}, 'predicates')), ...runs));
   ctx.root.appendChild(box);

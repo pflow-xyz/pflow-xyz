@@ -1,7 +1,8 @@
 // View 2: sync points as spiders (ZX-style).
 //
 // Only the SHAPE of ZX-calculus spider fusion is borrowed (Coecke-Duncan,
-// arXiv 0906.4725). What justifies it is go-pflow's Flatten: transition classes
+// arXiv 0906.4725). What justifies it is Flatten (go-pflow's FlattenWithMap,
+// which the registry runs as pflow-compose's port: bundle.flatten): transition classes
 // (event links) and place classes (token/data links) are computed by two
 // separate union-finds whose representative is the smallest member
 // (metamodel/unionfind.go; compose_fuse.go:9-20; compose_flatten.go:55-88,
@@ -14,7 +15,7 @@
 // history table) as junctions, hollow dots that are explicitly not spiders,
 // with a leg to each part of the plan that game.rs / order.rs show touching them.
 
-import { chainOf, driversOf } from '../model.js';
+import { chainOf, driversOf, fieldOrDefault, PLAN_RS_REV } from '../model.js';
 import { parsePortKey } from '../model.js';
 import { cite } from '../sources.js';
 
@@ -238,13 +239,13 @@ export default {
   title: 'Sync points as spiders (ZX-style)',
   short: 'Spiders',
   convention: {
-    summary: 'In ZX-calculus, spiders are dots of two colours whose legs are wires, and two spiders of one colour that share a leg fuse into one (spider fusion). Here a green spider is one transition class of go-pflow\'s Flatten with two or more members (event links: its member transitions fire as one), and a red spider is one place class with two or more members (token and data links: its members become one place); a transition or place no link touches is a class of one and is not drawn. Instances are opaque boxes, stacked (⊗ runs down the page). Their ports are legs: transition ports are squares on the right edge, place ports are smaller circles on the left, coloured by schema. Links that share a member are drawn first as separate spiders joined through the shared leg, then slide together into the one spider Flatten makes, labelled with its flat name.',
+    summary: 'In ZX-calculus, spiders are dots of two colours whose legs are wires, and two spiders of one colour that share a leg fuse into one (spider fusion). Here a green spider is one transition class of Flatten (go-pflow\'s, run by the registry as bundle.flatten) with two or more members (event links: its member transitions fire as one), and a red spider is one place class with two or more members (token and data links: its members become one place); a transition or place no link touches is a class of one and is not drawn. Instances are opaque boxes, stacked (⊗ runs down the page). Their ports are legs: transition ports are squares on the right edge, place ports are smaller circles on the left, coloured by schema. Links that share a member are drawn first as separate spiders joined through the shared leg, then slide together into the one spider Flatten makes, labelled with its flat name.',
     examples: {
-      orders: 'Three boxes (orders, workers, payment). The three idioms are three event links, but Flatten makes two classes: dequeue⊗acquire and dequeue⊗do:reserve share orders/dequeue, so they fuse into fused:orders/dequeue+payment/do_reserve+workers/acquire; release⊗commit stays a two-legged spider and carries the pool-leak caveat in red. The ROADMAP sketch draws three sync spiders, one per idiom; after fusion two remain. There is no red spider: no token or data link is legal among these three, because their place ports\' schemas all differ (compose.go:667-674; cq/13 expects no token candidates). Add a second instance to make one.',
+      orders: 'Three boxes (orders, workers, payment). The three idioms are three event links, but Flatten makes two classes: dequeue⊗acquire and dequeue⊗do:reserve share orders/dequeue, so they fuse into fused:orders/dequeue+payment/do_reserve+workers/acquire; release⊗commit stays a two-legged spider and carries the pool-leak caveat in red. The ROADMAP sketch draws three sync spiders, one per idiom; after fusion two remain. There is no red spider: the three default links are event links. cq/13 expects no token candidates among these three, because their place ports\' schemas all differ (compose.go:667-674); what may be linked is the registry\'s answer (bundle.candidates). Add a second instance to make one.',
       connect4: 'A plan has no event links, so nothing fuses and no spider is drawn. The nearest honest picture: the two pieces of shared state the search keeps, the transposition table and the history table, as junctions (hollow dots, not spiders) with a leg to each part of the plan that reads, writes or caps them. A piece\'s leg is drawn only when that piece is in the plan.',
     },
     honesty: [
-      'ZX spiders carry phases and denote linear maps (a quantum semantics). None of that is used: a spider here has no phase and stands for one equivalence class of go-pflow\'s Flatten, nothing more.',
+      'ZX spiders carry phases and denote linear maps (a quantum semantics). None of that is used: a spider here has no phase and stands for one equivalence class of Flatten (bundle.flatten), nothing more.',
       'No colour-change, copy, π-commutation, bialgebra or Hopf rule applies. The only law used is fusion of same-colour spiders that share a leg, because that is what Flatten\'s union-find does (unionfind.go:5-14, compose_fuse.go:9-20).',
       'Green and red never fuse with each other: Flatten keeps transition classes and place classes in two separate union-finds (compose_flatten.go:55-88). That parallels ZX, where a Z and an X spider do not fuse; it is a parallel of shape, not an identity (in ZX the two colours interact through the bialgebra law; no rule here relates the two union-finds, so a place class and a transition class never merge).',
       'A cycle of event links a↔b is one class (compose_fuse.go:19-20), so it is drawn as one spider, never as a loop.',
@@ -286,7 +287,7 @@ function renderOrders(ctx, wrap) {
   const subnets = arrange(ctx.orders.subnets);
   const ev = ctx.event;
   const GREEN = LS.event.color, RED = LS.token.color;
-  ctx.note('Analogy of shape only: ZX spiders without phases or any quantum semantics. The one law used, fusion of same-colour spiders that share a leg, is what go-pflow\'s Flatten does with its union-finds (compose_fuse.go:9-20); green never fuses with red because Flatten keeps transition classes and place classes apart.', 'honesty');
+  ctx.note('Analogy of shape only: ZX spiders without phases or any quantum semantics. The one law used, fusion of same-colour spiders that share a leg, is what Flatten does with its union-finds (compose_fuse.go:9-20; the registry\'s bundle.flatten, pflow-compose\'s port of it); green never fuses with red because Flatten keeps transition classes and place classes apart.', 'honesty');
 
   // ---- boxes and port anchors ----
   const BOX_X = 300, BOX_W = 252, HEAD = 42, TOP = 78;
@@ -465,7 +466,7 @@ function renderOrders(ctx, wrap) {
   bg.append(hR, hM, hG);
   if (!pClasses.length) {
     const lines = subnets.some((x) => x.extra)
-      ? ['No place classes yet: no token or data', 'link. Drag from a round port to a port', 'of the same schema on another instance;', 'go-pflow\'s rules decide (compose.go:', '667-674 for schemas).']
+      ? ['No place classes yet: no token or data', 'link. Drag from a round port to a port', 'of the same schema on another instance;', 'the registry decides (bundle.candidates;', 'schemas: compose.go:667-674).']
       : ['No place classes. Token and data links', 'need agreeing port schemas, and these', 'patterns\' place ports all differ', '(cq/13; compose.go:667-674). Add a', 'second instance in the toolbar to', 'link one (a red spider).'];
     const t = s('text', { x: 16, y: TOP + 18, 'font-size': 11, fill: T.MUTED }, lines.map((ln, i) => s('tspan', { x: 16, dy: i ? 15 : 0 }, ln)));
     bg.append(t);
@@ -550,6 +551,7 @@ function renderOrders(ctx, wrap) {
     const outer = s('g', { transform: `translate(${r1(c.pos.x)},${r1(c.pos.y)})`, class: 'sp-spider' });
     const body = s('g', {});
     body.append(spiderGlyph(s, color, glyph));
+    ctx.emit('spider', c.name, { colour: isE ? 'event' : 'token', legs: c.members });
     const L = c.label;
     const halo = isE ? BAND.g : BAND.r;
     if (L.d > 0) {
@@ -573,6 +575,7 @@ function renderOrders(ctx, wrap) {
     g.append(s('line', { x1: r1(sp.x + (q.x - sp.x) * 14 / dd), y1: r1(sp.y + (q.y - sp.y) * 14 / dd), x2: q.x, y2: q.y, stroke: T.LEAK, 'stroke-width': 1.3, 'stroke-dasharray': '3 3' }));
     g.append(s('rect', { x: lb.x, y: lb.y, width: lb.w, height: lb.h, rx: 5, fill: '#fdf0ee', stroke: T.LEAK, 'stroke-width': 1.1 }));
     lb.lines.forEach((ln, i) => g.append(s('text', { x: lb.x + 7, y: lb.y + 16 + i * 14, 'font-size': 11, fill: T.LEAK, 'font-weight': i === 0 ? 600 : null }, ln)));
+    ctx.emit('leak', leakLink.key, {});
     const base = ctx.info.linkInfo(leakLink, byId);
     ctx.hover(g, { ...base, title: 'pool-leak caveat on release ⊗ commit', note: 'Fusion only says release and commit fire as one. Nothing fires release on the rollback path, so a worker taken by acquire stays in in_use: the expected failure ROADMAP 4.4 records.', cites: [C.leak, C.roadLeak, C.roadScenario, ...base.cites] });
     gNotes.append(g);
@@ -1022,8 +1025,10 @@ function renderPlan(ctx, wrap) {
   const drv = driversOf(plan);
   slotRect('drivers', 'drivers', 'touch neither table');
   if (!plan.drivers) {
-    chip('drivers', 'null_window', 'null_window', SL.drivers.x + 12, SL.drivers.y + 46, { ghost: true });
-    gText.append(s('text', { x: SL.drivers.x + 12, y: SL.drivers.y + 76, 'font-size': 10.5, fill: T.MUTED }, 'default: on (plan.rs:17-19)'));
+    // absent: pflow-rs's default list (plan.slot_candidates shows it; model.js PLAN_DEFAULTS)
+    const dflt = fieldOrDefault(plan, 'drivers');
+    dflt.forEach((d, i) => { const name = typeof d === 'string' ? d : Object.keys(d)[0]; chip('drivers', name, name, SL.drivers.x + 12, SL.drivers.y + 46 + i * 32, { ghost: true }); });
+    gText.append(s('text', { x: SL.drivers.x + 12, y: SL.drivers.y + 46 + Math.max(1, dflt.length) * 32, 'font-size': 10.5, fill: T.MUTED }, `default: ${dflt.length ? dflt.map((d) => (typeof d === 'string' ? d : Object.keys(d)[0])).join(', ') : 'none'} (pflow-rs @${PLAN_RS_REV})`));
   } else if (!plan.drivers.length) {
     wrapText(SL.drivers.x + 12, SL.drivers.y + 46, 'none, so null_window is off: one search over the whole reward range (plan.rs:17-19, game.rs:564-566)', SL.drivers.w - 24);
   } else {
@@ -1059,13 +1064,19 @@ function renderPlan(ctx, wrap) {
 
   // filters, heuristics, designed slots
   const mode = plan.mode || 'exact';
-  const why = mode === 'exact' ? 'exact mode refuses every one: it can change the value (plan.rs:221-236)' : 'play mode: none is built in this release (plan.rs:221-236)';
   slotRect('filters', 'filters', null);
   slotRect('heuristics', 'heuristics', null);
-  for (const id of ['filters', 'heuristics']) wrapText(SL[id].x + 12, SL[id].y + 42, `empty. ${why}`, SL[id].w - 24, 10.5);
+  for (const id of ['filters', 'heuristics']) {
+    // What the slot holds: the explicit list, or the default pflow-rs reads for an absent one.
+    // Which pieces may go here is pflow-rs's (plan.slot_candidates), shown on a drag.
+    const explicit = Array.isArray(plan[id]);
+    const list = fieldOrDefault(plan, id);
+    const what = list.length ? `${explicit ? '' : 'default: '}${list.join(', ')}` : 'empty';
+    wrapText(SL[id].x + 12, SL[id].y + 42, `${what} (mode ${mode}). Drag a piece here: pflow-rs @${PLAN_RS_REV} decides what fits.`, SL[id].w - 24, 10.5);
+  }
   slotRect('bounds', 'bounds', 'designed, not built');
   slotRect('engine', 'engine', 'designed, not built');
-  wrapText(SL.bounds.x + 12, SL.bounds.y + 42, 'In the ROADMAP\'s design; not a SearchPlan field at c396d46, so nothing can be dropped here.', SL.bounds.w - 24, 10.5);
+  wrapText(SL.bounds.x + 12, SL.bounds.y + 42, `In the ROADMAP\'s design; not a SearchPlan field at pflow-rs @${PLAN_RS_REV}, so nothing can be dropped here.`, SL.bounds.w - 24, 10.5);
   wrapText(SL.engine.x + 12, SL.engine.y + 42, 'game.rs picks BitModel or IndexedModel itself; no plan field chooses it.', SL.engine.w - 24, 10.5);
 
   // core
@@ -1082,8 +1093,10 @@ function renderPlan(ctx, wrap) {
   // junctions
   const inChain = (n) => !ch.err && ch.pieces.includes(n);
   const hasHistory = inChain('history');
+  const junctionEls = [];
   const junction = (pos, title, sub, info) => {
     const g = s('g', { class: 'sp-junction' });
+    junctionEls.push(pos);
     g.append(s('circle', { cx: pos.x, cy: pos.y, r: 18, fill: 'transparent' }),
       s('circle', { cx: pos.x, cy: pos.y, r: 9.5, fill: PAPER, stroke: TABLE, 'stroke-width': 3 }),
       s('text', { x: pos.x - 14, y: pos.y - 34, 'text-anchor': 'end', 'font-size': 12.5, 'font-weight': 700, fill: TABLE, class: 'sp-halo', stroke: '#f1f7f6' }, title),
@@ -1160,7 +1173,9 @@ function renderPlan(ctx, wrap) {
     const r = pobs.best(cands);
     pobs.rect(r);
     leg(d, { ...opts, label, at: [r.anchor === 'end' ? r.x + r.w : r.x, r.y + 11, r.anchor] }, info, key);
+    (pieceLegsOf.get(J) || pieceLegsOf.set(J, []).get(J)).push(chipC.name);
   };
+  const pieceLegsOf = new Map();
   const ttb = chips['order:tt_best'];
   if (ttb) pieceLeg(ttb, TT, curveX(ttb.x, ttb.y, TT.x + 11, TT.y + 2), ['tt_best reads Ctx.first = e.best', 'game.rs:610 · order.rs:52-58'], { end: 'url(#sp-arrow)' },
     { title: 'tt_best reads the remembered best move', facts: [['key', 'the move equal to Ctx.first ranks first (decisive)'], ['set from', 'first = e.best when the table holds the position']], cites: [C.ttBestKey, C.ttRead, C.ctxDoc] }, 'ttbest');
@@ -1171,6 +1186,8 @@ function renderPlan(ctx, wrap) {
   if (memo) pieceLeg({ ...memo, y: memo.y - 16 }, TT, curveY(memo.x + 20, memo.y + 13, TT.x + 4, TT.y - 12), ['memo caps it: with_memo', 'game.rs:495-505 · plan.rs:247-249'], { end: 'url(#sp-bar)', color: KC.Memo, dash: '5 3' },
     { title: 'memo caps the transposition table', facts: [['how', 'with_memo sets table and cap: cleared past N between calls, never grown past N inside one search'], ['contract', 'value-preserving (ROADMAP: tested by a_memo_bounds_the_table_not_the_value)']], cites: [C.withMemo, C.planMemo, C.store, C.clear] }, 'memo');
   for (const args of pending) placePieceLeg(...args);
+  // The two junctions as drawn, each with the piece legs drawn to it.
+  for (const [J, id] of [[TT, 'tt'], [HI, 'history']]) if (junctionEls.includes(J)) ctx.emit('junction', id, { legs: pieceLegsOf.get(J) || [] });
 
   wrap.append(root);
 

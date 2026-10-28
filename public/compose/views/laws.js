@@ -7,8 +7,11 @@
 // view reads what chyp_headless exported (data/chyp/index.json and
 // data/chyp/<theory>.json) and the .chyp files themselves (chyp/<theory>.chyp,
 // fetched for their comments; nothing in a comment box here is written by this
-// view). It draws a rewrite the way Chyp's editor shows one (docs/chyp-notes.md
-// §4.4): one string diagram per term, left to right, inputs on the left and
+// view). When the view is opened in a browser it also runs Chyp's checker live
+// under Pyodide (../laws-live.js) and compares the verdicts with the exported
+// ones, then lays the diagrams out live and shows that layout; it always says
+// which one is shown. It draws a rewrite the way Chyp's editor shows one
+// (pflow-views-prototype docs/chyp-notes.md §4.4): one string diagram per term, left to right, inputs on the left and
 // outputs on the right, boxes = generators (hyperedges), wires = vertices;
 // each "=" carries the rule, its direction and Chyp's verdict. Where Chyp's
 // matcher found the rule (diagrams.rewrites[].steps[].match, computed by
@@ -20,19 +23,26 @@
 // chyp_headless): box centres, layers, wire heights, and the routes wires take
 // through Chyp's hidden identity boxes. Only box widths are widened here so the
 // labels fit; ports stay on the box edges. Diagrams Chyp did not lay out (the
-// live plan's chain and solver) are laid out with js/layout/hypergraph.js, which
+// live plan's chain and solver) are laid out with layout/hypergraph.js, which
 // is adapted from Chyp (attribution in that file); wires use its wirePath,
 // Chyp's tentacle cubic.
 //
 // Chyp: https://github.com/akissinger/chyp @3d28483, Copyright (C) 2022-2023
 // Aleks Kissinger, Apache-2.0. No Chyp code is in this file. The port offsets
 // (k/(n-1) - 0.5 units, chyp/gui/graphscene.py:151-170) and box sizes (1.1 x 0.8
-// or 1.6 units, graphscene.py:29-31, 60-66) are restated from docs/chyp-notes.md §3.
+// or 1.6 units, graphscene.py:29-31, 60-66) are restated from the prototype's
+// docs/chyp-notes.md §3.
+//
+// The live plan and links come from the registry (ctx.plan: plan.state and
+// plan.check; ctx.orders.flat: bundle.flatten); what the page says about them is
+// what the registry says, never what a theory file's header says about its own
+// date (those headers are quoted, as written, in the cards below).
 
 import { layoutHypergraph, wirePath } from '../layout/hypergraph.js';
 import { cite, citeLabel, citeURL } from '../sources.js';
-import { chainOf, driversOf, PLAN_LAWS_CITE } from '../model.js';
+import { chainOf, driversOf, fieldOrDefault, PLAN_LAWS_CITE, PLAN_DEFAULTS, PLAN_RS_REV, pieceByName } from '../model.js';
 import { defaultLinks } from '../model.js';
+import * as live from '../laws-live.js';
 
 const THEORIES = ['orderer-monoid', 'filter-meet', 'driver-wrap', 'sync-spiders'];
 const FOR_EXAMPLE = { connect4: ['orderer-monoid', 'filter-meet', 'driver-wrap'], orders: ['sync-spiders'] };
@@ -54,7 +64,7 @@ const C = {
   orderKey: rs('order.rs', 250, 265, 'key(): one slot per piece in list order; before(): arrays compared lexicographically (orderer-monoid.chyp reads this as concatenation)'),
   planChain: rs('plan.rs', 196, 210, 'chain(): absent "order" is Chain::default(); a repeated piece is refused'),
   planDrivers: rs('plan.rs', 146, 194, 'drivers(): the list is read into two flags (driver-wrap.chyp)'),
-  planFilters: rs('plan.rs', 222, 235, 'check(): every named filter is refused at c396d46 (filter-meet.chyp: PROPOSED)'),
+  planFilters: rs('plan.rs', 222, 235, 'check() at c396d46, when filter-meet.chyp was written: every named filter refused (the file says PROPOSED); at the vendored pin plan.check decides'),
   fuse: go('metamodel/compose_fuse.go', 9, 20, 'fusion over equivalence classes: associative, a cycle is one class (sync-spiders.chyp)'),
   transClasses: go('metamodel/compose_flatten.go', 72, 88, 'transition classes: a union-find over event links'),
   roadSpider: road(410, 411, 'lk:event: draw it as a synchronising spider'),
@@ -77,6 +87,10 @@ const SEPW = 132;
 // --- module state ------------------------------------------------------------------
 
 const DATA = { state: 'idle', index: null, th: {}, src: {}, sha: {}, err: null, promise: null };
+// The live run (laws-live.js): idle → checking → checked → laying-out → live, or error.
+const LIVE = { state: 'idle', status: '', cmp: null, python: null, t: {}, err: null, shown: 'precomputed', preCheck: null };
+const COMPOSE = new URL('../', import.meta.url); // public/compose/: the index's `source` paths are relative to it
+const headless = (ctx) => !!ctx.headless || typeof Deno !== 'undefined' || typeof document === 'undefined';
 const SEL = { orders: null, connect4: null }; // { theory, rw: {theory: name}, rule: {theory: name|null} }
 let lastWritten = null; // law|rw|rule as this view last wrote them into the hash
 
@@ -95,13 +109,14 @@ function load(ctx) {
   DATA.state = 'loading';
   DATA.promise = (async () => {
     try {
-      const r = await fetch('data/chyp/index.json');
+      const r = await fetch(new URL('data/chyp/index.json', COMPOSE));
       if (!r.ok) throw new Error(`data/chyp/index.json: HTTP ${r.status}`);
       DATA.index = await r.json();
       await Promise.all(DATA.index.theories.map(async (t) => {
         const [j, buf] = await Promise.all([
-          fetch(`data/chyp/${t.file}`).then((x) => { if (!x.ok) throw new Error(`data/chyp/${t.file}: HTTP ${x.status}`); return x.json(); }),
-          fetch(t.source).then((x) => (x.ok ? x.arrayBuffer() : null)).catch(() => null),
+          fetch(new URL(`data/chyp/${t.file}`, COMPOSE)).then((x) => { if (!x.ok) throw new Error(`data/chyp/${t.file}: HTTP ${x.status}`); return x.json(); }),
+          // chyp/<theory>.chyp, vendored in public/compose/chyp/ (sha256 checked in provenance())
+          fetch(new URL(t.source, COMPOSE)).then((x) => (x.ok ? x.arrayBuffer() : null)).catch(() => null),
         ]);
         DATA.th[t.name] = prepare(j);
         if (buf) {
@@ -116,6 +131,88 @@ function load(ctx) {
     }
   })();
   DATA.promise.then(() => ctx.rerender());
+}
+
+/**
+ * The live check (browser only, once, when the view is first drawn with its
+ * data): Chyp under Pyodide checks every theory, the verdicts are compared
+ * with the exported ones, then the diagrams are laid out live and replace the
+ * exported layout. Any failure leaves the precomputed display and says why.
+ */
+function startLive(ctx) {
+  if (LIVE.state !== 'idle' || headless(ctx) || DATA.state !== 'ready') return;
+  LIVE.state = 'checking';
+  LIVE.preCheck = Object.fromEntries(Object.entries(DATA.th).map(([k, th]) => [k, th.check]));
+  const status = (t) => { LIVE.status = t; paintLive(); };
+  (async () => {
+    try {
+      const r = await live.check(THEORIES, status);
+      LIVE.python = r.python;
+      LIVE.t.load = r.loadSeconds; LIVE.t.check = r.checkSeconds;
+      LIVE.cmp = live.compare(r.results, LIVE.preCheck);
+      LIVE.state = 'checked';
+      ctx.rerender();
+      LIVE.state = 'laying-out';
+      const l = await live.layout(THEORIES, status);
+      LIVE.t.layout = l.layoutSeconds;
+      let numbers = 0, maxDiff = 0, shapeDiffers = false;
+      for (const [k, doc] of Object.entries(l.docs)) {
+        const pre = DATA.th[k];
+        if (pre) {
+          const c = live.compareLayout(doc.diagrams, pre.diagrams);
+          numbers += c.numbers; maxDiff = Math.max(maxDiff, c.maxDiff); shapeDiffers ||= c.shapeDiffers;
+          // In Pyodide chyp_headless cannot read the Chyp checkout's git commit or a
+          // dist version (it is the vendored copy): say which one it is.
+          doc.provenance.chyp = { ...pre.provenance.chyp, path: 'public/compose/chyp/py (vendored, unmodified)' };
+        }
+        doc.provenance.python_implementation = `CPython (Pyodide ${live.PYODIDE_VERSION})`;
+        DATA.th[k] = prepare(doc);
+      }
+      LIVE.layoutCmp = { numbers, maxDiff, shapeDiffers };
+      LIVE.shown = 'live';
+      LIVE.state = 'live';
+      ctx.rerender();
+    } catch (e) {
+      LIVE.err = String(e && e.message ? e.message : e);
+      LIVE.state = LIVE.cmp ? 'layout-error' : 'error';
+      ctx.rerender();
+    }
+  })();
+}
+
+let liveBox = null;
+const fmt = (x) => (x == null ? '?' : `${x.toFixed(1)} s`);
+function liveText() {
+  const ix = DATA.index;
+  const pre = `precomputed: chyp_headless export of ${ix?.generated_at || '?'} (Chyp ${String(ix?.chyp?.commit || '').slice(0, 7)}, CPython ${ix?.python}, lark ${ix?.lark}, cvxpy ${ix?.cvxpy})`;
+  const cmp = LIVE.cmp ? (LIVE.cmp.differences.length ? `live check DIFFERS from the precomputed one: ${LIVE.cmp.differences.join('; ')}` : `live check agrees (${LIVE.cmp.agree}/${LIVE.cmp.total} rewrites, every step's verdict)`) : null;
+  const t = `Pyodide ${live.PYODIDE_VERSION} + Python ${LIVE.python || '?'}: load ${fmt(LIVE.t.load)}, check ${fmt(LIVE.t.check)}${LIVE.t.layout != null ? `, layout ${fmt(LIVE.t.layout)}` : ''}`;
+  switch (LIVE.state) {
+    case 'idle': return [`Shown: ${pre}.`, 'lw-muted'];
+    case 'checking': return [`Shown: ${pre}. Running Chyp live: ${LIVE.status}`, 'lw-muted'];
+    case 'checked':
+    case 'laying-out': return [`Shown: ${pre}. ${cmp} (${t}). Laying the diagrams out live: ${LIVE.status}`, LIVE.cmp.differences.length ? 'warn' : 'ok'];
+    case 'live': {
+      const lc = LIVE.layoutCmp;
+      const lay = lc ? (lc.shapeDiffers ? 'the live layout\'s structure differs from the precomputed one' : lc.maxDiff === 0 ? `the live layout equals the precomputed one (${lc.numbers} numbers)` : `the live layout differs from the precomputed one by at most ${lc.maxDiff.toPrecision(3)} units over ${lc.numbers} numbers`) : '';
+      return [`Shown: the live result (Chyp 3d28483 under ${t}); ${cmp}; the layout drawn is the live one: ${lay}.`, LIVE.cmp.differences.length || (lc && lc.shapeDiffers) ? 'warn' : 'ok'];
+    }
+    case 'layout-error': return [`Shown: ${pre}. ${cmp} (${t}). The live layout failed (${LIVE.err}), so the precomputed layout stays.`, 'warn'];
+    case 'error': return [`Shown: ${pre}. The live check did not run (${LIVE.err}): Pyodide loads from cdn.jsdelivr.net and lark from PyPI, so it needs the network.`, 'warn'];
+    default: return [`Shown: ${pre}.`, 'lw-muted'];
+  }
+}
+function paintLive() {
+  if (!liveBox) return;
+  const [text, cls] = liveText();
+  liveBox.textContent = text;
+  liveBox.setAttribute('class', `lw-livebar ${cls}`);
+}
+function liveBar(ctx) {
+  const [text, cls] = liveText();
+  liveBox = ctx.el('div', { class: `lw-livebar ${cls}` }, text);
+  ctx.hover(liveBox, { title: 'which Chyp result is shown', definition: 'The page first shows the result chyp_headless exported under CPython (data/chyp/). In a browser it then runs Chyp 3d28483 itself under Pyodide, compares every rewrite\'s and every step\'s verdict with the exported ones, and lays the diagrams out with Chyp\'s convex_layout (cvxpy, CLARABEL); once that finishes the live layout replaces the exported one.', facts: [['Pyodide', `${live.PYODIDE_VERSION} (${live.PYODIDE_URL})`], ['lark', `${live.LARK} (PyPI)`], ['Chyp', '3d28483, vendored unmodified in chyp/py/chyp (Apache-2.0)']], bib: ['chyp'] });
+  return liveBox;
 }
 
 function prepare(j) {
@@ -359,7 +456,7 @@ function fromChyp(g, S, styles, tw) {
   return normalize({ boxes, wires, inDots, outDots, graph: g, layout: 'chyp', S }, tw);
 }
 
-/** A diagram Chyp did not lay out: layoutHypergraph (js/layout/hypergraph.js) at Chyp's proportions. */
+/** A diagram Chyp did not lay out: layoutHypergraph (layout/hypergraph.js) at Chyp's proportions. */
 function fromSpec(spec, S, tw, graph = null) {
   const widths = spec.boxes.map((b) => Math.max(1.1 * S, tw(b.label, BOX_FONT) + 10));
   const L = layoutHypergraph({
@@ -490,7 +587,7 @@ function boxInfo(ctx, th, b, extra = {}) {
   const facts = [
     gen ? ['generator', `gen ${gen.name} : ${gen.signature}  (${th.file}:${gen.line})`] : ['generator', 'not a generator of the theory'],
     ['ports', `${(b.inputs || []).join(', ') || '∅'} → ${(b.outputs || []).join(', ') || '∅'}`],
-    Number.isFinite(e.x) ? ['Chyp layout', `centre (${e.x}, ${e.y}), box ${e.w} × ${e.h} units (drawn wider to fit the label)`] : ['layout', 'js/layout/hypergraph.js (Chyp did not lay this diagram out)'],
+    Number.isFinite(e.x) ? ['Chyp layout', `centre (${e.x}, ${e.y}), box ${e.w} × ${e.h} units (drawn wider to fit the label)`] : ['layout', 'layout/hypergraph.js (Chyp did not lay this diagram out)'],
     ...(extra.facts || []),
   ];
   return {
@@ -769,7 +866,7 @@ function chainSvg(ctx, th, src, sel, W) {
             ['boxes / wires', `${it.D.boxes.length} / ${it.D.wires.length}`],
             ['boundary', `${(it.D.graph?.inputs || []).length} in → ${(it.D.graph?.outputs || []).length} out`],
             ['layers (Chyp)', (it.D.graph?.layers || []).map((l) => `[${l.join(' ')}]`).join(' ') || '—'],
-            ['layout', it.D.layout === 'chyp' ? `${th.diagrams.layout.engine}, ${scale} px per unit` : 'js/layout/hypergraph.js'],
+            ['layout', it.D.layout === 'chyp' ? `${th.diagrams.layout.engine}, ${scale} px per unit` : 'layout/hypergraph.js'],
             it.letDef ? ['let', `${it.letDef.name} = ${it.letDef.term} (line ${it.letDef.line})`] : null,
           ].filter(Boolean),
           bib: ['chyp'],
@@ -860,7 +957,7 @@ function liveSvg(ctx, th, spec, opts = {}) {
   svg.style.minWidth = `${Math.ceil(D.w * 0.75)}px`;
   svg.append(drawDiagram(ctx, D, 0, 0, {
     boxInfo: (b) => (ctx.plan.pieceByName[b.label] ? { ...ctx.info.pieceInfo(b.label), facts: [...(ctx.info.pieceInfo(b.label).facts || []), ['in the Chyp theory', th.genByName[b.label] ? `gen ${b.label} : ${th.genByName[b.label].signature} (${th.file}:${th.genByName[b.label].line})` : '—']] } : boxInfo(ctx, th, b, { note: opts.note })),
-    wireInfo: (w) => wireInfo(ctx, th, D, w, { note: 'Laid out by js/layout/hypergraph.js: this term is built from the page\'s live plan, so Chyp has no coordinates for it.' }),
+    wireInfo: (w) => wireInfo(ctx, th, D, w, { note: 'Laid out by layout/hypergraph.js: this term is built from the page\'s live plan, so Chyp has no coordinates for it.' }),
     anim: (b) => b.anim && ctx.event && ctx.event.type === 'piece-added' && ctx.event.name === b.label,
     graphInfo: opts.graphInfo,
   }));
@@ -876,7 +973,7 @@ function liveCard(ctx, sel, th) {
     const row = E('div', { class: 'lw-live-row' });
     if (drawing) {
       const holder = E('div', { class: 'lw-live-draw' }, drawing);
-      if (slotId) { ctx.snap.slot(holder, slotId); holder.title = `drop a palette piece here: it goes into the ${slotId} slot if plan.rs's check allows it`; }
+      if (slotId) { ctx.snap.slot(holder, slotId); holder.title = `drop a palette piece here: it goes into the ${slotId} slot if pflow-rs accepts the plan it makes (plan.slot_candidates)`; }
       row.append(holder);
     }
     row.append(E('div', { class: 'lw-live-text' }, ...body));
@@ -887,25 +984,27 @@ function liveCard(ctx, sel, th) {
   if (ex === 'connect4' && t === 'orderer-monoid') {
     const plan = ctx.plan.plan;
     const c = chainOf(plan);
-    if (c.err) return card('the current plan\'s order chain', [E('p', { class: 'warn' }, `chain() refuses it: ${c.err}`)]);
+    const body0 = [];
+    if (ctx.plan.error) body0.push(E('p', { class: 'warn' }, `pflow-rs refuses the plan (plan.check): ${ctx.plan.error}`));
     const term = chainTerm(c.pieces);
     const docLeft = th.letByName.doc_left, def = th.ruleByName.default_order_def;
     const body = [
-      E('p', {}, E('code', {}, `"order": ${plan.order ? JSON.stringify(plan.order) : '(absent)'}`), c.isDefault ? ' → Chain::default() (plan.rs:197-199, order.rs:205-216)' : ' → Chain::new keeps the list as given (order.rs:220-230)'),
+      ...body0,
+      E('p', {}, E('code', {}, `"order": ${plan.order ? JSON.stringify(plan.order) : '(absent)'}`), c.isDefault ? ` → pflow-rs's default chain ${JSON.stringify(c.pieces)} (Chain::default; read from plan.slot_candidates @${PLAN_RS_REV})` : ' → Chain::new keeps the list as given (order.rs:220-230 @c396d46)'),
       E('p', {}, 'Folded from the left, as a JSON parser would, it is the Chyp term ', E('code', { class: 'lw-wrap' }, term)),
     ];
     if (c.isDefault && def && term === def.rhs) body.push(E('p', { class: 'ok' }, '= default_order (def, line ', String(def.line), '): ', pick('default_append_empty'), ' proves that appending [] to it changes nothing.'));
     else if (docLeft && term === docLeft.term) body.push(E('p', { class: 'ok' }, '= doc_left (line ', String(docLeft.line), '), the plan.rs:8 doc chain: Chyp proved its bracketings agree (', pick('doc_chain_bracketing'), ', ', pick('doc_chain_balanced'), ') and that [] on either end changes nothing (', pick('doc_chain_append_empty'), ', ', pick('doc_chain_prepend_empty'), ').'));
-    else if (!c.pieces.length) body.push(E('p', {}, '"order": [] is ', E('code', {}, 'empty'), ', the unit of chain (rules unitL, unitR). It is not the absent key, which is Chain::default() (RESULTS.md, mismatch 3).'));
+    else if (!c.pieces.length) body.push(E('p', {}, '"order": [] is ', E('code', {}, 'empty'), ', the unit of chain (rules unitL, unitR). It is not the absent key, which is Chain::default() (pflow-views-prototype chyp/RESULTS.md, mismatch 3).'));
     else body.push(E('p', { class: 'lw-na' }, `Not the doc chain. assoc, unitL and unitR are stated for every chain, but Chyp checked bracketings of the plan.rs:8 doc chain only, not of this ${c.pieces.length}-piece chain.`));
     body.push(E('p', { class: 'lw-muted' }, 'The chain does not commute (', pick('NOT_chains_commute'), ' fails, as it must); its value does (', pick('value_ignores_order'), ', from the assumed rule order_only, order.rs:4-6). Drop an order piece on the drawing to extend the chain.'));
-    return card('the current plan\'s order chain, as the term Chyp brackets', body, liveSvg(ctx, th, chainSpec(ctx, th, c.pieces), { graphInfo: { title: `the live chain: ${term}`, definition: 'Built from state.plan.order (chain(), plan.rs:196-210), folded from the left like doc_left (orderer-monoid.chyp:78). Laid out by js/layout/hypergraph.js.', cites: [C.planChain, C.orderKey], bib: ['chyp'] } }), 'order');
+    return card('the current plan\'s order chain, as the term Chyp brackets', body, liveSvg(ctx, th, chainSpec(ctx, th, c.pieces), { graphInfo: { title: `the live chain: ${term}`, definition: 'Built from the live plan\'s "order" (plan.state; an absent list is pflow-rs\'s default chain), folded from the left like doc_left (orderer-monoid.chyp:78). Laid out by layout/hypergraph.js.', cites: [C.planChain, C.orderKey], bib: ['chyp'] } }), 'order');
   }
 
   if (ex === 'connect4' && t === 'driver-wrap') {
     const plan = ctx.plan.plan;
     const d = driversOf(plan);
-    if (d.err) return card('the current plan\'s drivers', [E('p', { class: 'warn' }, `drivers() refuses it: ${d.err}`)]);
+    if (ctx.plan.error) return card('the current plan\'s drivers', [E('p', { class: 'warn' }, `pflow-rs refuses the plan (plan.check): ${ctx.plan.error}`)]);
     const list = plan.drivers;
     const sig = list === undefined || list === null ? 'absent' : list.map((x) => (typeof x === 'string' ? x : Object.keys(x)[0])).join(',');
     const constName = { absent: 'json_absent', 'null_window,budget': 'json_nw_budget', 'budget,null_window': 'json_budget_nw', null_window: 'json_nw', '': 'json_empty', budget: 'json_budget' }[sig];
@@ -919,7 +1018,7 @@ function liveCard(ctx, sel, th) {
     const solverTerm = `core${d.nullWindow ? ' ; null_window' : ''}${d.budget !== null ? ' ; budget' : ''}`;
     const rule = constName ? Object.values(th.ruleByName).find((r) => r.lhs === constName) : null;
     const body = [
-      E('p', {}, E('code', { class: 'lw-wrap' }, `"drivers": ${list ? JSON.stringify(list) : '(absent)'}`), ` → flags { null_window: ${d.nullWindow}, budget: ${d.budget ?? 'None'} } (plan.rs:146-194) → the solver `, E('code', {}, solverTerm), ', budget outermost (plan.rs:242-251, game.rs:593-597).'),
+      E('p', {}, E('code', { class: 'lw-wrap' }, `"drivers": ${list ? JSON.stringify(list) : '(absent)'}`), ` → flags { null_window: ${d.nullWindow}, budget: ${d.budget ?? 'None'} } (as plan.rs:146-194 reads the list) → the solver `, E('code', {}, solverTerm), ', budget outermost (plan.rs:242-251, game.rs:593-597).'),
     ];
     if (constName && rule) {
       body.push(E('p', { class: 'ok' }, 'This list is the JSON text ', E('code', {}, constName), ` (line ${th.genByName[constName]?.line}); the assumed rule `, E('code', {}, rule.name), ` reads it as `, E('code', {}, rule.rhs), '.'));
@@ -930,19 +1029,41 @@ function liveCard(ctx, sel, th) {
     } else body.push(E('p', { class: 'lw-na' }, 'No json_* constant in driver-wrap.chyp names this list, so no rewrite there covers it.'));
     if (!docOrder) body.push(E('p', { class: 'lw-na' }, 'core is doc_order ; alpha_beta, the doc chain; this plan\'s order chain is a different one, so the theory does not describe this exact plan.'));
     body.push(E('p', { class: 'lw-muted' }, 'null_window and budget do not commute in the theory (', pick('NOT_drivers_commute'), ' fails, as it must). Drop a driver on the drawing to change the list.'));
-    return card('the current plan\'s drivers, as the solver driver-wrap reads them', body, liveSvg(ctx, th, spec, { graphInfo: { title: `the live solver: ${solverTerm}`, definition: 'Built from driversOf(state.plan) (plan.rs:146-194); the order of the boxes is game.rs\'s nesting (budget outermost), not the JSON order. Laid out by js/layout/hypergraph.js.', cites: [C.planDrivers], bib: ['chyp'] } }), 'drivers');
+    return card('the current plan\'s drivers, as the solver driver-wrap reads them', body, liveSvg(ctx, th, spec, { graphInfo: { title: `the live solver: ${solverTerm}`, definition: 'Built from the live plan\'s "drivers" (plan.state), read into flags as plan.rs:146-194 does; the order of the boxes is game.rs\'s nesting (budget outermost), not the JSON order. Laid out by layout/hypergraph.js.', cites: [C.planDrivers], bib: ['chyp'] } }), 'drivers');
   }
 
   if (ex === 'connect4' && t === 'filter-meet') {
     const plan = ctx.plan.plan;
-    const fs = plan.filters || [];
-    const spec = { boxes: [{ id: 'a', label: 'all_moves', inputs: [], outputs: ['f'], bg: th.diagrams.styles.all_moves?.bg }], inputs: [], outputs: ['f'], types: { f: 'Filter' } };
+    const explicit = Array.isArray(plan.filters);
+    const fs = fieldOrDefault(plan, 'filters');
+    const named = fs.filter((f) => typeof f === 'string');
+    const S = th.diagrams.styles || {};
+    // all_moves alone for an empty list; else the filters met left to right (meet is
+    // associative and commutative in the theory, so the bracketing is immaterial there).
+    const spec = { boxes: [], inputs: [], outputs: [], types: {} };
+    if (!named.length) { spec.boxes.push({ id: 'a', label: 'all_moves', inputs: [], outputs: ['f'], bg: S.all_moves?.bg }); spec.outputs = ['f']; spec.types.f = 'Filter'; }
+    else {
+      named.forEach((n, i) => { spec.boxes.push({ id: `p${i}`, label: n, inputs: [], outputs: [`w${i}`], bg: S[n]?.bg, anim: true }); spec.types[`w${i}`] = 'Filter'; });
+      let acc = 'w0';
+      for (let i = 1; i < named.length; i++) { spec.boxes.push({ id: `m${i}`, label: 'meet', inputs: [acc, `w${i}`], outputs: [`c${i}`], bg: S.meet?.bg }); spec.types[`c${i}`] = 'Filter'; acc = `c${i}`; }
+      spec.outputs = [acc];
+    }
+    const term = named.length ? chainTerm(named).replace(/\bchain\b/g, 'meet') : 'all_moves';
+    const inTheory = named.filter((n) => th.genByName[n]);
+    const notInTheory = named.filter((n) => !th.genByName[n]);
+    const status = named.map((n) => `${n}: ${pieceByName[n]?.status || 'unknown to plan.pieces'}`).join(', ');
     const body = [
-      E('p', {}, E('code', {}, `"filters": ${JSON.stringify(fs)}`), fs.length ? ` — refused: ${ctx.plan.error || 'check() refuses every named filter'}` : ': the only list a legal plan has at c396d46 (check() refuses every named filter, plan.rs:222-235), so the plan\'s filter is all_moves, the unit of meet.'),
-      E('p', {}, 'Chyp: ', pick('empty_filter_list'), ' (all_moves ; fallback = all_moves) and ', pick('meet_unit'), '.'),
-      E('p', { class: 'lw-na' }, 'Everything else in filter-meet.chyp is about PROPOSED filters (must_win, non_losing: ROADMAP.md:309, 323); dropping one here is refused by plan.rs, so nothing on the page builds those terms yet.'),
+      E('p', {}, E('code', {}, `"filters": ${explicit ? JSON.stringify(plan.filters) : '(absent)'}`),
+        explicit ? '' : ` → pflow-rs's default ${JSON.stringify(PLAN_DEFAULTS.filters || [])} (read from plan.slot_candidates @${PLAN_RS_REV})`,
+        ctx.plan.error ? E('span', { class: 'warn' }, ` — refused by pflow-rs (plan.check): ${ctx.plan.error}`) : ` — pflow-rs @${PLAN_RS_REV} accepts the plan (plan.check).`),
+      named.length ? E('p', {}, `As the theory reads it: the meet of ${named.join(', ')} (${status}).`) : E('p', {}, 'No filter: the plan\'s filter is all_moves, the unit of meet. Chyp: ', pick('empty_filter_list'), ' (all_moves ; fallback = all_moves) and ', pick('meet_unit'), '.'),
     ];
-    return card('the current plan\'s filters', body, liveSvg(ctx, th, spec, { graphInfo: { title: 'the live filter: all_moves', definition: 'filters: [] denotes all_moves (filter-meet.chyp, set model). Laid out by js/layout/hypergraph.js.', cites: [C.planFilters], bib: ['chyp'] } }), 'filters');
+    if (named.length) {
+      if (notInTheory.length) body.push(E('p', { class: 'lw-na' }, `${notInTheory.join(', ')} ${notInTheory.length === 1 ? 'is' : 'are'} not a generator of filter-meet.chyp, so no rewrite there is about ${notInTheory.length === 1 ? 'it' : 'them'}.`));
+      if (inTheory.length) body.push(E('p', {}, 'Chyp proved, for the theory\'s filters: all_moves is the unit (', pick('meet_unit'), ') and the order filters are listed in does not matter (', pick('filter_list_order_irrelevant'), ').'));
+    }
+    body.push(E('p', { class: 'lw-na' }, `filter-meet.chyp was written at pflow-rs c396d46, when no filter was built (its header, quoted below, says PROPOSED). At the vendored pin pflow-rs @${PLAN_RS_REV} decides which filters a plan may name (plan.check); the theory's rules are still readings of the ROADMAP's design, not of that code.`));
+    return card('the current plan\'s filters', body, liveSvg(ctx, th, spec, { graphInfo: { title: `the live filter: ${term}`, definition: 'The live plan\'s filters (plan.state; an absent list is pflow-rs\'s default), met as filter-meet.chyp reads them (set model). Laid out by layout/hypergraph.js.', cites: [C.planFilters], bib: ['chyp'] } }), 'filters');
   }
 
   if (ex === 'orders' && t === 'sync-spiders') return liveOrders(ctx, sel, th, card, pick);
@@ -994,7 +1115,7 @@ function liveOrders(ctx, sel, th, card, pick) {
     });
     const ft = flat.model.transitions.find((t) => t.id === c.name);
     const dot = S('circle', { cx: sx, cy: sy, r: 9, fill: green, stroke: '#fff', 'stroke-width': 1.5, class: 'lw-spider-dot' });
-    ctx.hover(dot, { ...(ft ? ctx.info.flatTransitionInfo(ft) : { title: c.name }), note: `One event class = one spider: link${c.links.length === 1 ? '' : 's'} ${c.links.map((l) => l.L || `#${l.index}`).join(', ')} fuse its ${c.members.length} members into one flat transition (flatten.js union-find; compose_fuse.go:9-20). sync-spiders.chyp proves the spider laws that make this independent of link order.`, bib: ['coecke-duncan', 'chyp'] });
+    ctx.hover(dot, { ...(ft ? ctx.info.flatTransitionInfo(ft) : { title: c.name }), note: `One event class = one spider: link${c.links.length === 1 ? '' : 's'} ${c.links.map((l) => l.L || `#${l.index}`).join(', ')} fuse its ${c.members.length} members into one flat transition (bundle.flatten: pflow-compose's union-find, after compose_fuse.go:9-20). sync-spiders.chyp proves the spider laws that make this independent of link order.`, bib: ['coecke-duncan', 'chyp'] });
     g.append(dot);
     const lbl = c.links.map((l) => `${l.L || 'link'} #${l.index}`).join(', ');
     g.append(S('text', { x: sx + 15, y: sy - 3, 'font-size': 11, fill: green, 'font-weight': 600 }, `${c.members.length}-member class`));
@@ -1011,23 +1132,25 @@ function liveOrders(ctx, sel, th, card, pick) {
   });
   if (!classes.length) svg.append(S('text', { x: 4, y: H / 2 + 4, 'font-size': 12, fill: '#6a717c' }, 'No event links: every transition is its own class.'));
 
-  const body = [E('p', {}, `Flatten's event classes now (ctx.orders.flat.map.fusedGroups): ${classes.length} fused, from ${ev.length} event link${ev.length === 1 ? '' : 's'} `, E('code', { class: 'lw-wrap' }, ev.map((l) => `${l.L || '?'}=#${l.index} ${l.from.subnet}:${l.from.port}~${l.to.subnet}:${l.to.port}`).join('  ')), '.')];
+  const body = [E('p', {}, `Flatten's event classes now (bundle.flatten fused_groups): ${classes.length} fused, from ${ev.length} event link${ev.length === 1 ? '' : 's'} `, E('code', { class: 'lw-wrap' }, ev.map((l) => `${l.L || '?'}=#${l.index} ${l.from.subnet}:${l.from.port}~${l.to.subnet}:${l.to.port}`).join('  ')), '.')];
   const L = Object.fromEntries(ev.filter((l) => l.L).map((l) => [l.L, l]));
   for (const c of classes) {
     const names = c.links.map((l) => l.L);
     if (c.members.length === 3 && names.includes('L1') && names.includes('L2') && c.links.length === 2) {
       const first = L.L1.index < L.L2.index ? 'fuse_L1_L2' : 'fuse_L2_L1';
+      ctx.emit('cover', first, {});
       body.push(E('p', { class: 'ok' }, `The 3-member class from L1 and L2 (in this order: ${L.L1.index < L.L2.index ? 'L1 then L2' : 'L2 then L1'}) is spider3: `, pick(first), '; the other order gives the same spider (', pick('link_order_irrelevant'), ', on the member transitions ', pick('orders_example_fused'), ').'));
     } else if (c.members.length === 2 && c.links.length === 1) {
       body.push(E('p', {}, `${c.links[0].L || 'This link'} is one link = m ; n, a 2-member class; linking it again, or back the other way, is still one class (`, pick('link_idempotent'), ', ', pick('cycle_one_class'), ').'));
     } else if (c.members.length === 3) {
       body.push(E('p', { class: 'lw-na' }, `A 3-member class from ${c.links.length} links: Chyp proved a~b, b~c = b~c, a~b on unnamed handles (`, pick('fusion_assoc'), '); this wiring may need comm/cocomm steps that were not checked for it.'));
     } else {
-      body.push(E('p', { class: 'lw-na' }, `A ${c.members.length}-member class: sync-spiders.chyp proves 2- and 3-member cases only; this class is flatten.js's union-find, not a Chyp-checked rewrite.`));
+      body.push(E('p', { class: 'lw-na' }, `A ${c.members.length}-member class: sync-spiders.chyp proves 2- and 3-member cases only; this class is bundle.flatten's union-find, not a Chyp-checked rewrite.`));
     }
   }
+  if (L.L3 && L.L1 && L.L2) ctx.emit('cover', 'L3_position_irrelevant', {});
   if (L.L3 && L.L1 && L.L2) body.push(E('p', {}, 'L3 is on other handles, so its place in the link list does not matter: ', pick('L3_position_irrelevant'), ' (simp(): the interchange law).'));
-  body.push(E('p', { class: 'lw-muted' }, 'tools/chyp/flatten-crosscheck.mjs runs flatten.js on both link orders and on a cycle and gets the same classes (chyp/RESULTS.md).'));
+  body.push(E('p', { class: 'lw-muted' }, 'The classes are the registry\'s (bundle.flatten, pflow-compose\'s Flatten); drop the links in another order (bundle.clear_links, then drag them back) and the classes come back the same, which is what these laws say.'));
   return card('event links as spiders (the laws below are why the order of links does not matter)', body, svg, null);
 }
 
@@ -1050,7 +1173,7 @@ function theoryBar(ctx, sel) {
   };
   return E('div', { class: 'lw-bar' },
     E('span', { class: 'lw-lab' }, ex === 'connect4' ? 'Search-plan theories:' : 'Event-link theory:'),
-    ...mine.map(tab),
+    ...mine.map((n) => { ctx.emit('theory', n, {}); return tab(n); }),
     E('span', { class: 'lw-bsep' }),
     E('span', { class: 'lw-lab' }, 'other:'),
     ...other.map(tab));
@@ -1070,7 +1193,7 @@ function provenance(ctx, th, name) {
     ` (v${ch.version}, ${ch.license}, ${ch.copyright}), headless through ${p.generator} on ${p.python_implementation} ${p.python}, lark ${p.lark}; `,
     th.diagrams.layout.used === 'chyp'
       ? `layout ${String(th.diagrams.layout.engine || 'chyp.layout').split(' ')[0]} with cvxpy ${p.cvxpy}/${p.layout_solver?.default_lp_solver || '?'}; `
-      : `no Chyp layout in this export (${th.diagrams.layout.reason || th.diagrams.layout.used}): drawn with js/layout/hypergraph.js; `,
+      : `no Chyp layout in this export (${th.diagrams.layout.reason || th.diagrams.layout.used}): drawn with layout/hypergraph.js; `,
     `generated ${p.generated_at}. `,
     E('code', {}, `${p.source.path}`), ` sha256 ${p.source.sha256.slice(0, 12)}… `, E('span', { class: shaNote[1] }, shaNote[0]),
     ix && !ix.ok ? E('span', { class: 'warn' }, ' · index says NOT OK') : null);
@@ -1089,6 +1212,7 @@ function chips(ctx, th, src, sel) {
     const neg = r.expected === 'invalid';
     const ok = r.as_expected;
     const mark = r.status === 'valid' ? '✓' : r.status === 'invalid' ? '✗' : '⚠';
+    ctx.emit('rewrite', r.name, { status: r.status });
     const b = E('button', { class: `lw-chip lw-rw ${r.status}${neg ? ' neg' : ''}${!ok ? ' unexpected' : ''}${cur.rw === r.name ? ' active' : ''}`, onclick: () => choose(ctx, sel, { rw: r.name }) },
       E('span', { class: 'lw-mark' }, mark), ` ${r.name}`, neg ? E('span', { class: 'lw-negtag' }, ok ? 'must fail: fails' : 'must fail: CHECKED') : null);
     const c = commentAbove(src, r.line, 'rewrite');
@@ -1157,7 +1281,7 @@ function cards(ctx, th, src, sel) {
   const ne = E('div', { class: 'lw-card' }, E('h4', {}, `What ${th.file} says is NOT in the theory`));
   if (src.notEq.length) for (const b of src.notEq) ne.append(verbatim(ctx, src, b.from, b.to));
   else ne.append(E('p', { class: 'lw-muted' }, 'The file has no such comment block.'));
-  ne.append(E('p', { class: 'lw-muted' }, 'Verbatim from the file. Chyp checks equations between diagrams; side conditions, data-dependent properties and order relations are outside it (no "<=" rules: state.py:272-273; chyp/RESULTS.md, What did not work, 5).'));
+  ne.append(E('p', { class: 'lw-muted' }, 'Verbatim from the file. Chyp checks equations between diagrams; side conditions, data-dependent properties and order relations are outside it (no "<=" rules: state.py:272-273; pflow-views-prototype chyp/RESULTS.md, What did not work, 5).'));
   out.append(ne);
   // 2. the selected statement as written
   const rule = sel.rule[sel.theory];
@@ -1180,7 +1304,7 @@ function cards(ctx, th, src, sel) {
     const li = E('li', {}, u ? E('a', { href: u, target: '_blank', rel: 'noopener' }, label) : E('span', { class: 'lw-ref', title: s.cite ? 'private repo: file and line only' : 'this repository' }, label), s.note ? E('span', { class: 'lw-muted' }, ` — ${s.note}`) : null);
     const linkRev = s.cite ? citeLabel(s.cite).split('@').pop() : null;
     if (s.cite && s.rev && s.rev !== linkRev) li.append(E('span', { class: 'lw-muted' }, ` (link @${linkRev}${s.repo === 'go-pflow' ? ': identical file, git diff --stat empty' : ''})`));
-    if (s.cite) ctx.hover(li, { title: label, definition: s.note, facts: [['cited at', `${th.file}:${s.line}`], s.rev && s.rev !== linkRev ? ['revision', `the file cites @${s.rev}; the page links @${linkRev}${s.repo === 'go-pflow' ? ' (js/model/sources.js: go-pflow files identical at both; checked for compose_fuse.go and compose_flatten.go with git diff --stat 69257b3 c802f34)' : ''}`] : null].filter(Boolean), cites: [s.cite] });
+    if (s.cite) ctx.hover(li, { title: label, definition: s.note, facts: [['cited at', `${th.file}:${s.line}`], s.rev && s.rev !== linkRev ? ['revision', `the file cites @${s.rev}; the page links @${linkRev}${s.repo === 'go-pflow' ? ' (go-pflow files identical at both: git diff --stat 69257b3 c802f34 is empty for compose_fuse.go and compose_flatten.go)' : ''}`] : null].filter(Boolean), cites: [s.cite] });
     ul.append(li);
   }
   sc.append(src.sources.length ? ul : E('p', { class: 'lw-muted' }, 'No Sources block found.'));
@@ -1300,6 +1424,9 @@ const STYLE = `
 .lw-swatch { display: inline-block; width: 10px; height: 10px; border: 1px solid #333; margin-right: 6px; vertical-align: -1px; }
 .lw-spider .lw-member rect { stroke: #333; }
 .lw-loading { color: var(--muted); padding: 20px; }
+.lw-livebar { font-size: 11.5px; margin: 2px 0 8px; padding: 4px 8px; border-left: 3px solid #cfd4db; background: #f6f7f9; border-radius: 3px; }
+.lw-livebar.ok { border-left-color: #1e7a46; color: #1e5c39; }
+.lw-livebar.warn { border-left-color: #c47a12; }
 `;
 
 // --- the view ----------------------------------------------------------------------------------
@@ -1316,13 +1443,26 @@ export default {
     },
     honesty: [
       'Chyp checks that each rewrite follows from the stated rules. It does not check the rules: they are readings of the order.rs, plan.rs, game.rs, compose_fuse.go and ROADMAP lines each file cites (listed under the drawing), and they are marked ASSUMED.',
-      'Chyp 3d28483 has no rewriting modulo Frobenius and no nested boxes (chyp/RESULTS.md, What did not work, 5). So spiders are explicit generators m, u, n, v with the Frobenius rules and every fusion is a chain of single steps; drivers are drawn as Search → Search boxes after the core, not as boxes around it. No "<=" rules: nothing about order relations is checked.',
-      'A bare step never checks at 3d28483 (RESULTS.md item 1), so the files have none; the one purely symmetric-monoidal fact (L3_position_irrelevant) is closed by simp(). sync-spiders.chyp is untyped (typed identities fail to compose at 3d28483, item 2); every wire there is a Sync handle.',
+      'Chyp 3d28483 has no rewriting modulo Frobenius and no nested boxes (pflow-views-prototype chyp/RESULTS.md, What did not work, 5). So spiders are explicit generators m, u, n, v with the Frobenius rules and every fusion is a chain of single steps; drivers are drawn as Search → Search boxes after the core, not as boxes around it. No "<=" rules: nothing about order relations is checked.',
+      'A bare step never checks at 3d28483 (pflow-views-prototype chyp/RESULTS.md item 1), so the files have none; the one purely symmetric-monoidal fact (L3_position_irrelevant) is closed by simp(). sync-spiders.chyp is untyped (typed identities fail to compose at 3d28483, item 2); every wire there is a Sync handle.',
       'The live cards compare the page\'s plan and links with the instances Chyp checked. When they differ the card says so: the laws read the same, but that instance was not checked.',
-      'Box widths are widened to fit their labels; box centres, layers and wire heights are Chyp\'s layout (cvxpy, CLARABEL), which can vary with the solver (docs/chyp-notes.md §8.6). The match highlight is Chyp\'s matcher replayed by chyp_headless; Chyp 3d28483\'s GUI does not draw one (tactic/ruletac.py:41-48).',
+      'Box widths are widened to fit their labels; box centres, layers and wire heights are Chyp\'s layout (cvxpy, CLARABEL), which can vary with the solver (pflow-views-prototype docs/chyp-notes.md §8.6). The match highlight is Chyp\'s matcher replayed by chyp_headless; Chyp 3d28483\'s GUI does not draw one (tactic/ruletac.py:41-48).',
     ],
     bib: ['chyp', 'coecke-duncan', 'fong-spivak'],
     cites: [C.orderKey, C.planChain, C.planDrivers, C.planFilters, PLAN_LAWS_CITE, C.fuse, C.transClasses, C.roadSpider],
+  },
+
+  /**
+   * Resolves once the Chyp export is loaded. If this ctx's render() could only
+   * say "loading", draw it now (the headless parity test awaits this; in the
+   * page the load's own rerender does the same).
+   */
+  async ready(ctx) {
+    load(ctx);
+    await DATA.promise;
+    if (ctx.lawsDrawn) return;
+    ctx.root.replaceChildren();
+    this.render(ctx);
   },
 
   render(ctx) {
@@ -1330,11 +1470,13 @@ export default {
     ctx.root.append(E('style', {}, STYLE));
     load(ctx);
     if (DATA.state === 'loading' || DATA.state === 'idle') { ctx.root.append(E('p', { class: 'lw-loading' }, 'Loading the Chyp check results (data/chyp/) and theory files (chyp/*.chyp)…')); return; }
+    ctx.lawsDrawn = true;
+    startLive(ctx);
     if (DATA.state === 'error') { ctx.note(`Could not load the Chyp export: ${DATA.err}. Regenerate it with chyp_headless export (chyp_headless/README.md).`, 'warn'); return; }
     const sel = selection(ctx);
     const th = DATA.th[sel.theory];
     const src = DATA.src[sel.theory];
-    ctx.note('Chyp checked every rewrite from its file\'s rules; it did not check the rules. Those (ASSUMED) are readings of the source lines each file cites. Chyp 3d28483 cannot rewrite modulo Frobenius or nest boxes, so spiders are explicit generators and drivers are boxes after the core (chyp/RESULTS.md).', 'honesty');
+    ctx.note('Chyp checked every rewrite from its file\'s rules; it did not check the rules. Those (ASSUMED) are readings of the source lines each file cites. Chyp 3d28483 cannot rewrite modulo Frobenius or nest boxes, so spiders are explicit generators and drivers are boxes after the core (pflow-views-prototype chyp/RESULTS.md).', 'honesty');
     if (!th.check.ok) ctx.note(`${th.file}: the export says NOT OK (${th.check.errors.length} errors).`, 'warn');
     // The stage's content width once its vertical scrollbar is there (this view is always
     // taller than the stage, but the bar is not there yet while it renders): padding + bar.
@@ -1342,6 +1484,7 @@ export default {
     ctx.root.append(
       theoryBar(ctx, sel),
       provenance(ctx, th, sel.theory),
+      liveBar(ctx),
       liveCard(ctx, sel, th),
       chips(ctx, th, src, sel),
       chainHeader(ctx, th, src, sel),

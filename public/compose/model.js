@@ -125,7 +125,7 @@ export function flattenOn(engine, links) {
   const model = {
     places: f.places,
     transitions: f.transitions,
-    arcs: f.arcs.map((a) => ({ ...a, ...(a.type === 'read' && a.guard === undefined ? {} : {}) })),
+    arcs: f.arcs,
     constraints: f.constraints.map((c) => ({ ...c, subnet: c.id.slice(0, c.id.indexOf('/')) })),
   };
   // The token game and the scenario runs on this net go back to the engine
@@ -177,7 +177,7 @@ const sameLinks = (a, b) => a.length === b.length && a.every((l, i) => linkKey(l
 // The live configuration (state.js sets it after every edit), so flatten() of
 // what the page shows asks the live engine.
 let liveConfig = null;
-export function setLiveConfig(instances, links) { liveConfig = { instances: [...instances], links: links.map(linkOf) }; scratchKey = scratchKey; }
+export function setLiveConfig(instances, links) { liveConfig = { instances: [...instances], links: links.map(linkOf) }; }
 
 /** The engine holding a flat model's links (live, or the scratch engine re-opened on them). */
 function engineFor(model) {

@@ -7,10 +7,21 @@
 // postset, time runs left to right, and the initial marking is the domain and
 // the final marking the codomain.
 //
-// Orders: a scenario's firing script (orders.js SCENARIOS) is fired on the flat
-// net with flatten.js (go-pflow's firing rule, firing.go), stopping at the first
-// step that is not enabled. Connect-4: one fixed four-ply opening on the
-// fixture net. No search is run.
+// Orders: a scenario's firing script (bundle.scenarios) is fired on the flat net
+// by the registry (bundle.run: pflow-metamodel's enabled/fire, go-pflow's firing
+// rule), step by step through model.js, stopping at the first step it refuses;
+// the scenario's predicates are bundle.run {scenario}'s. Connect-4: one fixed
+// four-ply opening fired on the fixture net by the registry's token game
+// (sim.fire on the c4 engine). No search is run.
+//
+// The page reads each box's preset and postset off the flat net's arcs to draw
+// the token wires; whether a box fires, and the marking it leaves, is the
+// registry's.
+//
+// Scene manifest (parity contract): orders, one `run` per scenario chip drawn
+// (fired: the flat ids of the boxes fired, sorted, repeats kept; stopped_step:
+// the member bundle.run stopped at, or ""); connect4, `run` "opening" (fired:
+// the number of drops fired).
 //
 // Token identities are assigned first-in first-out per place. That is the
 // individual-token reading and it is this view's choice; the page says so.
@@ -19,7 +30,8 @@
 
 import { cite } from '../sources.js';
 import { NS } from '../model.js';
-import { initialMarking, whyNotEnabled, fire, flatOf, flatPlaceOf, FLATTEN_CITES } from '../model.js';
+import { initialMarking, whyNotEnabled, fire, flatOf, FLATTEN_CITES, runOf as runOfRegistry, c4Model as onC4Engine } from '../model.js';
+import { engines } from '../registry.js';
 
 const W = 1150;
 const PAD = 16;
@@ -78,7 +90,7 @@ function rerender() {
 
 const wt = (a) => a.weight || 1; // firing.go arcWeight
 
-/** Inputs, Outputs and Tests of one transition (firing.go:79-120, as flatten.js reads them). */
+/** Inputs, Outputs and Tests of one transition (firing.go:79-120), read off the arcs to draw wires; firing is the registry's. */
 function arcsOf(model, tid) {
   const tokenPlaces = new Set(model.places.filter((p) => (p.kind || 'token') === 'token').map((p) => p.id));
   const inputs = [], outputs = [], tests = [];
@@ -92,7 +104,7 @@ function arcsOf(model, tid) {
 
 /**
  * Fire steps [{tid, member, say}] from the initial marking, stopping at the
- * first one go-pflow's rule refuses. Tokens get identities first-in first-out
+ * first one the registry refuses (bundle.run). Tokens get identities first-in first-out
  * per place: {id, place, n, born (0 = domain, k = box k), died (k, or null = codomain)}.
  */
 export function runProcess(model, steps) {
@@ -756,8 +768,6 @@ function subnetColors(subnets) {
 
 function memberSubnet(m) { return m.slice(0, m.indexOf('/')); }
 
-// The comparison ops a scenario predicate may use (orders.js expect, as tests/gopflow.test.mjs reads them).
-const HOLDS = { '==': (a, n) => a === n, '!=': (a, n) => a !== n, '>=': (a, n) => a >= n, '<=': (a, n) => a <= n, '>': (a, n) => a > n, '<': (a, n) => a < n };
 
 function renderOrders(ctx) {
   const S = ctx.svg;
@@ -773,20 +783,19 @@ function renderOrders(ctx) {
     if (!flat.ok) return null;
     const steps = s.script.map((member) => ({ member, tid: flatOf(flat.map, member) }));
     const proc = runProcess(flat.model, steps);
-    const expect = s.expect.map((e) => {
-      const fp = flatPlaceOf(flat.map, e.place);
-      const have = fp ? proc.final[fp] ?? 0 : null;
-      return { ...e, flat: fp, have, pass: have !== null && HOLDS[e.op](have, e.n) };
-    });
-    return { steps, proc, expect };
+    // The predicates, and where the run stops, are bundle.run {scenario}'s.
+    const reg = runOfRegistry(engines.live.call('bundle.run', { scenario: s.id }));
+    const expect = reg.expect.map((e) => ({ ...e, flat: e.flat || null, have: e.actual, pass: e.pass }));
+    return { steps, proc, expect, reg };
   };
   const runs = Object.fromEntries(scenarios.map((s) => [s.id, runOf(s)]));
 
   // --- controls (HTML, above the drawing)
   const bar = ctx.el('div', { class: 'pv-proc-bar' },
-    ctx.el('span', { class: 'lbl' }, 'Run a scenario (orders.js, judgment):'),
+    ctx.el('span', { class: 'lbl' }, 'Run a scenario (bundle.scenarios, judgment):'),
     scenarios.map((s) => {
       const r = runs[s.id];
+      if (r) ctx.emit('run', s.id, { fired: r.proc.boxes.map((b) => b.tid), stopped_step: r.reg.stoppedStep ?? '' });
       const ran = r && !r.proc.stop;
       const fails = r ? r.expect.filter((e) => !e.pass).length : 0;
       const dc = !r ? '#999' : !ran ? '#c47a12' : fails ? LEAK : BACK;
@@ -961,7 +970,7 @@ function renderOrders(ctx) {
         return {
           title: `step ${stop.index + 1} refused: ${stop.tid || stop.step.member}`,
           definition: sk.domainOk
-            ? `Its domain is in the codomain, so as a box it would compose; go-pflow refuses the firing on ${sk.side}: ${SIDE_WHY[sk.side] || 'see the reason below'}. The string diagram has no wire for that, so the refusal is drawn as this box outside the morphism.`
+            ? `Its domain is in the codomain, so as a box it would compose; the registry (bundle.run) refuses the firing on ${sk.side}: ${SIDE_WHY[sk.side] || 'see the reason below'}. The string diagram has no wire for that, so the refusal is drawn as this box outside the morphism.`
             : 'The next box does not compose: its domain is not contained in the codomain of the run so far.',
           facts: [
             ['script step', `${stop.index + 1}. ${stop.step.member}`],
@@ -978,7 +987,7 @@ function renderOrders(ctx) {
     root.append(drawing.g);
     bottom = drawing.bottom;
 
-    // expected predicates (orders.js), evaluated on the codomain
+    // expected predicates (bundle.scenarios), evaluated on the codomain by bundle.run
     const ey = bottom + 6;
     const eg = S('g', {});
     let ex = drawing.xL;
@@ -986,7 +995,7 @@ function renderOrders(ctx) {
     for (const e of expect) {
       const txt = `${e.pass ? '✓' : '✗'} ${e.place} ${e.op} ${e.n}${e.pass ? '' : ` (has ${e.have ?? '—'})`}`;
       const pg = S('g', { class: 'pv-pred' }, S('text', { x: ex, y: ey, 'font-size': 10.5, fill: e.pass ? BACK : LEAK, 'font-weight': e.pass ? 500 : 700 }, txt));
-      ctx.hover(pg, { title: `expected: ${e.place} ${e.op} ${e.n}`, definition: e.says, facts: [['flat place', e.flat || '(not in the flat net)'], ['at the codomain', e.have ?? '—'], ['holds', e.pass ? 'yes' : 'no']], note: 'Scenario predicates are this page\'s judgment (orders.js), frozen as ROADMAP 4.4 says scenarios are; tests/ checks the run against go-pflow\'s own (data/receipts/gopflow.json) for the default links.' });
+      ctx.hover(pg, { title: `expected: ${e.place} ${e.op} ${e.n}`, definition: e.says, facts: [['flat place', e.flat || '(not in the flat net)'], ['at the codomain', e.have ?? '—'], ['holds', e.pass ? 'yes' : 'no']], note: 'Scenario predicates are judgment (bundle.scenarios), frozen as ROADMAP 4.4 says scenarios are; whether one holds is bundle.run {scenario}\'s verdict on the flat net.' });
       eg.append(pg);
       ex += tw(txt, 10.5) + 22;
     }
@@ -1001,7 +1010,7 @@ function renderOrders(ctx) {
       const sk = stopKind(proc.stop);
       const missing = sk.failed.filter((n) => n.kind === 'take').map((n) => n.place);
       const what = sk.domainOk
-        ? `Nothing it takes is missing from the codomain: go-pflow refuses it on ${sk.side} (${sk.failed.map((n) => n.place).join(', ')}); ${SIDE_WHY[sk.side] || ''}, so no wire shows it.`
+        ? `Nothing it takes is missing from the codomain: the registry (bundle.run) refuses it on ${sk.side} (${sk.failed.map((n) => n.place).join(', ')}); ${SIDE_WHY[sk.side] || ''}, so no wire shows it.`
         : `Missing from the codomain: ${missing.join(', ')}.`;
       notes.push(['warn', `The run stops at step ${proc.stop.index + 1} of ${sc.script.length} (${proc.stop.step.member}). go-pflow: "${proc.stop.why}". ${what} Steps after it are not drawn; the codomain is the marking where it stopped.`]);
     }
@@ -1070,7 +1079,7 @@ function drawInterface(ctx, subnets, byId, links, colors, top) {
   const g = S('g', { class: 'pv-interface' });
   g.append(S('line', { x1: PAD, y1: top, x2: W - PAD, y2: top, stroke: '#e1e5ea', 'stroke-width': 1 }));
   g.append(S('text', { x: PAD, y: top + 17, 'font-size': 11, 'font-weight': 600, fill: INK }, 'The composite\'s interface'),
-    S('text', { x: PAD + 160, y: top + 17, 'font-size': 10.5, fill: MUTED }, 'every port of every instance. Drag one onto another to link them (go-pflow\'s validateLink decides); the run above replays on the new flat net.'));
+    S('text', { x: PAD + 160, y: top + 17, 'font-size': 10.5, fill: MUTED }, 'every port of every instance. Drag one onto another to link them (the registry\'s link rules decide: bundle.add_link); the run above replays on the new flat net.'));
   const ABOVE = 46, BELOW = 40, CARD_H = 118, GAP = 20;
   const portW = (p) => Math.max(34, tw(p.id, 9.5) + 14, tw(p.kind, 8.5) + 14);
   const rowW = (ps) => ps.reduce((a, p) => a + portW(p), 0);
@@ -1244,9 +1253,10 @@ const C4_GROUP = { turn: 0, open: 1, x: 2, o: 3, active: 4, win: 5 };
 let c4Cache = null;
 function c4Run(net) {
   if (c4Cache && c4Cache.net === net) return c4Cache;
-  const model = c4Model(net);
+  // The token game runs on the registry's c4 engine (sim.reset / sim.fire / sim.enabled).
+  const model = onC4Engine(c4Model(net), net);
   const proc = runProcess(model, OPENING.map((o) => ({ ...o, member: o.tid })));
-  const isAuto = (tid) => tid.includes('win'); // tests/common/mod.rs:23
+  const isAuto = (tid) => tid.includes('win'); // the pflow-rs tests' reading: tests/common/mod.rs:23
   const markings = [proc.initial, ...proc.boxes.map((b) => b.marking)];
   const enabledAt = markings.map((mk) => {
     const en = model.transitions.filter((t) => whyNotEnabled(model, mk, t.id) === null).map((t) => t.id);
@@ -1264,6 +1274,7 @@ function renderConnect4(ctx) {
   const net = ctx.connect4.net;
   if (!net) { ctx.note('The Connect-4 fixture (data/connect-4.json) did not load, so there is no net to fire.', 'warn'); return; }
   const { model, proc, enabledAt, autoCount } = c4Run(net);
+  ctx.emit('run', 'opening', { fired: proc.boxes.length });
   const notes = [];
   const idle = idleTokens(proc);
   const vis = new Set(proc.tokens.filter((t) => !idle.has(t.id) || ui.idle).map((t) => t.id));
@@ -1316,7 +1327,7 @@ function renderConnect4(ctx) {
         ['gives (postset)', b.outs.map(tokName).join(', ')],
         ['then enabled', `${enabledAt[b.k].moves.length} moves (${enabledAt[b.k].sides.join(', ')}), ${enabledAt[b.k].autos.length} of ${autoCount} automatic`],
       ],
-      note: `One drop is one box. Enabled by go-pflow's firing rule (flatten.js port of firing.go); pflow-rs would also settle automatic transitions after it, and ${enabledAt[b.k].autos.length ? `${enabledAt[b.k].autos.length} is enabled here, which this drawing omits` : 'none is enabled here'}.`,
+      note: `One drop is one box, fired by the registry's token game (sim.fire: pflow-metamodel's firing rule); pflow-rs would also settle automatic transitions after it, and ${enabledAt[b.k].autos.length ? `${enabledAt[b.k].autos.length} is enabled here, which this drawing omits` : 'none is enabled here'}.`,
       cites: [CITES.fire, CITES.game, CITES.fixture],
       bib: ['baez-gms'],
     }),
@@ -1403,16 +1414,16 @@ export default {
   convention: {
     summary: 'A run of a Petri net is a morphism, a process, in the monoidal category the net generates. Each token is a wire labelled by its place; each firing is a box from its preset to its postset; time runs left to right. The left edge (the domain) is the initial marking and the right edge (the codomain) the final one. Boxes in sequence compose (∘); wires side by side are the tensor (⊗).',
     examples: {
-      orders: 'A scenario\'s firing script (orders.js) fired on the flat net with go-pflow\'s firing rule (flatten.js), stopping at the first step that is not enabled. Fused transitions are double-bordered boxes, fused places double wires, wires colored by subnet. In refund and charge-fails the worker taken at step 1 is still on in_use at the codomain: the leak is a wire that never comes back. The strip below holds every port; a new link replays the run.',
+      orders: 'A scenario\'s firing script (bundle.scenarios) fired on the flat net by the registry (bundle.run), stopping at the first step it refuses. Fused transitions are double-bordered boxes, fused places double wires, wires colored by subnet. In refund and charge-fails the worker taken at step 1 is still on in_use at the codomain: the leak is a wire that never comes back. The strip below holds every port; a new link replays the run.',
       connect4: 'One play is one process: a fixed four-drop opening fired on the fixture net. The search plan computes a value over all plays; no search is run here and the plan is not drawn.',
     },
     honesty: [
       'Individual tokens are a choice: tokens on one place are told apart first-in first-out (#1, #2). The net does not order them (queue caveat, patterns.ttl:201; in_use is an anonymous count, :251). Under the collective-token reading (Petri nets generate commutative monoidal categories), runs that differ only in which token was used are one morphism; Baez, Genovese, Master and Shulman relate both readings through Σ-nets.',
       'Crossings and the order of wires on the boundaries are layout: symmetries of the symmetric monoidal category, and identities under the collective reading. The layout keeps the ordering with the fewest crossings.',
       'One column per firing, in script order: a firing sequence is one interleaving. Firings on disjoint wires could slide past each other (interchange law). Each run is checked: a stage note says when a step takes nothing its left neighbour produced (on the default links, in the four scenarios and the Connect-4 opening, every step does).',
-      'Only places the run touches get wires; the other tokens are identity wires tensored on (toggle). A refused next step is drawn past the codomain, outside the morphism. Either its domain is not in the codomain, so it does not compose, or go-pflow refuses it on a side condition no wire shows (a capacity bound, a read or inhibitor arc), and the box and the note say which.',
+      'Only places the run touches get wires; the other tokens are identity wires tensored on (toggle). A refused next step is drawn past the codomain, outside the morphism. Either its domain is not in the codomain, so it does not compose, or the registry refuses it on a side condition no wire shows (a capacity bound, a read or inhibitor arc), and the box and the note say which.',
       'A guard link lowers to a read arc; a read token is drawn passing the box (◇). Read arcs are outside the free-SMC fragment (ROADMAP Phase 6): drawn, with no functorial semantics claimed.',
-      'Scenario scripts and predicates are this page\'s judgment (orders.js); whether a step fires is go-pflow\'s rule, ported in flatten.js and checked against go-pflow\'s own runs of the four scenarios (tests/gopflow.test.mjs, default links).',
+      'Scenario scripts and predicates are judgment, frozen from the prototype (bundle.scenarios); whether a step fires, where a run stops and whether a predicate holds are the registry\'s (bundle.run: pflow-metamodel\'s enabled/fire, go-pflow\'s firing rule). The preset/postset rows under a refused step are this page\'s reading of the arcs; the reason quoted is the registry\'s.',
       'Connect-4: the drops are read by the fixture\'s naming convention, as the pflow-rs tests do (x_ moves are +1, names containing "win" are automatic). The board is a reading of the codomain.',
     ],
     bib: BIB,
