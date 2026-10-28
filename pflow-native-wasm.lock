@@ -1,8 +1,8 @@
 {
   "_comment": "pflow-native wasm shim vendored by scripts/sync-native-wasm.mjs; checked by public/petri-wasm_test.ts",
   "version": "0.8.0",
-  "commit": "44db841ae492c1a3afaa7e7ebc9588baa098a8d9",
-  "commands": 177,
+  "commit": "cdd3816106e64df93456c45900ef92550cbbb90c",
+  "commands": 179,
   "exposed": [
     "analysis.validate",
     "analysis.incidence",
@@ -89,15 +89,17 @@
     "store.map_get",
     "store.map_list",
     "store.graph",
-    "store.info"
+    "store.info",
+    "game.value",
+    "game.move"
   ],
   "files": {
     "pflow_native_wasm.js": "aebfcaf880a4bc48bfa056504a0a6c2cbbe4a5816535faaba6a1d75128a1af5a",
-    "pflow_native_wasm_bg.wasm": "5fa4977c4232fddb9d95c571e994dc8768c977493c2d4dc2bd1cd466e4c9bac5",
-    "pflow_native_wasm_bg.wasm.gz": "6bf4b8272321c2a436ec612bb5ff52b4489ee1a2832f27a3db86146a9592b7a4"
+    "pflow_native_wasm_bg.wasm": "8bbe3164eeedf995356fefc258aae57fcef18a1d45ae441404ed8ef9cde3f6e3",
+    "pflow_native_wasm_bg.wasm.gz": "a3526ee47372878fd2e01cfbde4c65915d51c744d1a2df7c46290e76e8432612"
   },
   "bytes": {
-    "wasm": 6514927,
-    "gzip": 1195111
+    "wasm": 6753686,
+    "gzip": 1255855
   }
 }
