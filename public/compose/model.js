@@ -262,7 +262,8 @@ export function liveScenario(id) {
  * A command on the live engine: what the store (state.js) edits the open
  * composition and plan with (bundle.add_link, plan.add_piece, ...) and re-reads
  * them by (bundle.state, plan.state). With liveScenario() and the questions
- * above, the only way another module reaches an engine (registry_lint_test.ts).
+ * above, the only way another module reaches an engine; engine_access_test.ts
+ * checks that nothing but the store uses this one.
  */
 export function liveCommand(id, args) {
   return engines.live.call(id, args);
