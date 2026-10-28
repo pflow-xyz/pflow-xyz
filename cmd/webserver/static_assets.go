@@ -55,7 +55,7 @@ func (s *Server) serveStatic(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.Add("Vary", "Accept-Encoding")
-	if a.gz == nil || !acceptsEncoding(r, "gzip") {
+	if a.gz == nil || chooseEncoding(r, "gzip") != "gzip" {
 		h.Set("ETag", a.etag)
 		next.ServeHTTP(w, r)
 		return
@@ -137,23 +137,77 @@ func (c *assetCache) get(fsys fs.FS, name string) (*asset, error) {
 	return v.(*asset), nil
 }
 
-// acceptsEncoding reports whether the request lists enc (gzip, br) with a
-// quality above zero.
-func acceptsEncoding(r *http.Request, enc string) bool {
-	for _, part := range strings.Split(r.Header.Get("Accept-Encoding"), ",") {
-		fields := strings.SplitN(part, ";", 2)
-		if strings.TrimSpace(fields[0]) != enc {
+// acceptedEncodings reads an Accept-Encoding header (RFC 9110 12.5.3) into
+// coding -> quality. Codings are matched case-insensitively and "*" is kept as
+// a key of its own. A quality that is not a number from 0 to 1 ("abc", "1.5",
+// "-1", "") counts as 0: the coding is not accepted. "q" is matched
+// case-insensitively and "00" reads as 0. A coding listed twice keeps its first
+// quality.
+func acceptedEncodings(header string) map[string]float64 {
+	m := map[string]float64{}
+	for _, part := range strings.Split(header, ",") {
+		fields := strings.Split(part, ";")
+		coding := strings.ToLower(strings.TrimSpace(fields[0]))
+		if coding == "" {
 			continue
 		}
-		if len(fields) == 2 {
-			q := strings.ReplaceAll(fields[1], " ", "")
-			if q == "q=0" || q == "q=0.0" || q == "q=0.00" || q == "q=0.000" {
-				return false
+		if _, seen := m[coding]; seen {
+			continue
+		}
+		q := 1.0
+		for _, p := range fields[1:] {
+			if name, val, ok := strings.Cut(p, "="); ok && strings.ToLower(strings.TrimSpace(name)) == "q" {
+				q = parseQuality(strings.TrimSpace(val))
 			}
 		}
-		return true
+		m[coding] = q
 	}
-	return false
+	return m
+}
+
+// parseQuality reads a qvalue: digits with at most one point, 0 to 1. Anything
+// else (empty, a sign, an exponent, "NaN", "1.5") is 0.
+func parseQuality(v string) float64 {
+	dots := 0
+	for i := 0; i < len(v); i++ {
+		switch c := v[i]; {
+		case c >= '0' && c <= '9':
+		case c == '.' && dots == 0 && i > 0 && i < len(v)-1:
+			dots++
+		default:
+			return 0
+		}
+	}
+	q, err := strconv.ParseFloat(v, 64)
+	if err != nil || q < 0 || q > 1 {
+		return 0
+	}
+	return q
+}
+
+// chooseEncoding picks, from the content codings the server can send (in order
+// of preference: the first wins a tie), the one the request ranks highest. It
+// returns "" when none is acceptable, or when the request lists "identity" with
+// a quality above all of them: the caller sends the file as it is. A coding the
+// request does not name takes the quality of "*", else 0. The request is read
+// from every Accept-Encoding header line.
+func chooseEncoding(r *http.Request, offered ...string) string {
+	acc := acceptedEncodings(strings.Join(r.Header.Values("Accept-Encoding"), ","))
+	star, hasStar := acc["*"]
+	best, bestQ := "", 0.0
+	for _, enc := range offered {
+		q, ok := acc[enc]
+		if !ok && hasStar {
+			q = star
+		}
+		if q > bestQ {
+			best, bestQ = enc, q
+		}
+	}
+	if idq, ok := acc["identity"]; ok && idq > bestQ {
+		return ""
+	}
+	return best
 }
 
 // etagMatches reports whether an If-None-Match header names etag (weak

@@ -22,6 +22,10 @@ import (
 // decompressed. It reports false when there is no X.wasm.gz, so a plain .wasm
 // still falls through to the file server.
 //
+// The coding is the one the request ranks highest (Accept-Encoding with
+// q-values, "*" and case-insensitive tokens; br wins a tie), the .gz
+// decompressed when the request names neither or prefers "identity".
+//
 // The file is not content-hashed (the glue imports it by name), so a cached
 // copy must be asked about before it is used: each form carries an ETag and
 // Cache-Control: no-cache, and a matching If-None-Match gets a 304. A fixed
@@ -35,14 +39,17 @@ func (s *Server) serveGzippedWasm(w http.ResponseWriter, r *http.Request) bool {
 	if !fs.ValidPath(name) {
 		return false
 	}
-	stored, enc := name+".gz", "gzip"
+	stored := name + ".gz"
 	if st, err := fs.Stat(s.publicFS, stored); err != nil || st.IsDir() {
 		return false
 	}
-	if acceptsEncoding(r, "br") {
-		if st, err := fs.Stat(s.publicFS, name+".br"); err == nil && !st.IsDir() {
-			stored, enc = name+".br", "br"
-		}
+	offered := []string{"gzip"}
+	if st, err := fs.Stat(s.publicFS, name+".br"); err == nil && !st.IsDir() {
+		offered = []string{"br", "gzip"}
+	}
+	enc := chooseEncoding(r, offered...) // "" = the decompressed module
+	if enc == "br" {
+		stored = name + ".br"
 	}
 	a, err := s.assets.get(s.publicFS, stored)
 	if err != nil {
@@ -57,7 +64,7 @@ func (s *Server) serveGzippedWasm(w http.ResponseWriter, r *http.Request) bool {
 	if err != nil {
 		return false
 	}
-	passthrough := enc == "br" || acceptsEncoding(r, "gzip")
+	passthrough := enc != ""
 	etag := a.etag
 	if !passthrough {
 		etag = a.etag[:len(a.etag)-1] + `-raw"` // the decompressed form

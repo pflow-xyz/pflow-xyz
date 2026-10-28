@@ -133,3 +133,64 @@ func TestServeBrotliWasm(t *testing.T) {
 		t.Fatal("a .wasm.br without a .wasm.gz must fall through")
 	}
 }
+
+// The coding is the one the request ranks highest, tokens without regard to
+// case, "*" for the rest, br first on a tie; anything else is the module as it
+// is (TestChooseEncoding has the full table of the header's grammar).
+func TestServeWasmNegotiation(t *testing.T) {
+	raw := []byte("\x00asm\x01\x00\x00\x00 pretend module")
+	var gz bytes.Buffer
+	zw := gzip.NewWriter(&gz)
+	zw.Write(raw)
+	zw.Close()
+	br := []byte("pretend brotli stream")
+	s := &Server{publicFS: fstest.MapFS{
+		"vendor/x/m_bg.wasm.gz": {Data: gz.Bytes()},
+		"vendor/x/m_bg.wasm.br": {Data: br},
+	}}
+	get := func(ae string) *httptest.ResponseRecorder {
+		req := httptest.NewRequest("GET", "/vendor/x/m_bg.wasm", nil)
+		if ae != "" {
+			req.Header.Set("Accept-Encoding", ae)
+		}
+		rec := httptest.NewRecorder()
+		s.ServeHTTP(rec, req)
+		return rec
+	}
+	for _, c := range []struct {
+		header, enc string
+	}{
+		{"BR", "br"},
+		{"GZIP", "gzip"},
+		{"Gzip, Br;Q=0.5", "gzip"},
+		{"br;q=0.1, gzip;q=1", "gzip"},
+		{"br;q=0.9, gzip;q=0.8", "br"},
+		{"gzip, br", "br"},
+		{"*", "br"},
+		{"*;q=0", ""},
+		{"gzip, *;q=0", "gzip"},
+		{"br;q=abc, gzip", "gzip"},
+		{"br;q=0, gzip;q=0", ""},
+		{"gzip;q=00", ""},
+		{"identity, gzip;q=0.5", ""},
+		{"deflate", ""},
+	} {
+		rec := get(c.header)
+		if rec.Code != 200 || rec.Header().Get("Content-Encoding") != c.enc {
+			t.Errorf("Accept-Encoding %q: %d, Content-Encoding %q, want %q", c.header, rec.Code, rec.Header().Get("Content-Encoding"), c.enc)
+			continue
+		}
+		var want []byte
+		switch c.enc {
+		case "br":
+			want = br
+		case "gzip":
+			want = gz.Bytes()
+		default:
+			want = raw
+		}
+		if !bytes.Equal(rec.Body.Bytes(), want) {
+			t.Errorf("Accept-Encoding %q: wrong bytes for %q", c.header, c.enc)
+		}
+	}
+}
