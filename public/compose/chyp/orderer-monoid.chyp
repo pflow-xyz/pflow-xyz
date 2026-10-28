@@ -1,0 +1,139 @@
+# Move-order chains under chaining: a monoid.
+#
+# Sources (read, not modified):
+#   ontology-pflow-xyz ROADMAP.md:420-423 @f854116 (Phase 6, "What the categorical
+#     reading actually is"): "Orderers: a monoid under chaining (the empty chain []
+#     is the identity, concatenation is associative, and the composite is
+#     lexicographic). It is a *partial* monoid in code: chains over 8 pieces and
+#     repeated pieces are refused, and DECISIVE pieces form a top tier. The law
+#     that matters: every composite keeps ct:order-only."
+#   pflow-rs crates/pflow-metamodel/src/order.rs @c396d46:
+#     1-7    a chain of pieces, each a sort key per move, compared one after the
+#            other; "Order never changes a value, only how soon a cutoff comes"
+#     13     MAX_PIECES = 8
+#     117-123  the five pieces: tt_best, immediate_win, history, centrality, threats
+#     205-216  Chain::default() = [tt_best, immediate_win, history]
+#     220-230  Chain::new: refuses more than 8 pieces, keeps the list as given
+#     250-265  key(): one slot per piece, stop after a decisive nonzero key;
+#              before(): the key arrays compared lexicographically
+#   pflow-rs crates/pflow-metamodel/src/plan.rs @c396d46:
+#     8        the doc plan's chain ["tt_best", "immediate_win", "centrality", "history"]
+#     196-210  SearchPlan::chain(): absent "order" is Chain::default(); a repeated
+#              piece is refused (204-205); then Chain::new
+#
+# Reading. A wire of type Order carries an order chain. A piece is a state
+# None -> Order (the one-piece chain [p]). chain : Order * Order -> Order is
+# concatenation (left operand first = higher priority); empty is the chain [],
+# which plan.rs gets from "order": [] (Chain::new(&[]); every key array is empty,
+# before() says Equal, ties keep the net's order). An ABSENT "order" is not []:
+# it is Chain::default(), defined below as default_order.
+#
+# Why these are the laws. order.rs builds one flat key array over the chain's
+# pieces in list order (250-259) and compares arrays lexicographically
+# (262-265). Concatenating [a,b] with [c] or [a] with [b,c] gives the same list,
+# hence the same array and the same comparator: associativity holds on the nose.
+# [] contributes no slots: it is a unit on both sides. That is the content of
+# the three ASSUMED rules below; everything after them is PROVED by Chyp.
+#
+# Typing does the ROADMAP's "law that matters": every generator here has output
+# type Order (ct:order-only, ROADMAP.md:372), and chain maps Order * Order to
+# Order, so every composite term is again an Order. That is closure of a type,
+# checked by Chyp's type checker when a term is built, not a rewrite.
+#
+# NOT equational, so not in this theory (all of these are side conditions the
+# checker cannot see; this file is the free monoid on the five pieces):
+#   - repeats: plan.rs:204-205 refuses ["history", "history"]. Chain::new itself
+#     accepts repeats (order.rs test a_chain_has_a_limit, 288-292, builds eight
+#     history pieces), so the refusal lives in SearchPlan, not in Chain.
+#   - the cap: Chain::new refuses more than 8 pieces (order.rs:221-226). With
+#     repeats refused and only five pieces, no JSON plan can reach the cap; it
+#     binds only callers of Chain::new.
+#   - the top tier: a decisive piece (tt_best, immediate_win: order.rs:52-66)
+#     with a nonzero key zeroes the slots after it (order.rs:254-256). That is a
+#     data-dependent property of the comparator, not an equation between chains.
+#   - commutativity: [tt_best, history] and [history, tt_best] are different
+#     chains (Chain derives PartialEq on its Vec) and can try moves in a different
+#     order, so node counts can differ. They give the same VALUE (order.rs:4-6); that
+#     is the separate rule order_only below, stated on the value, not the chain.
+
+gen tt_best : None -> Order "f2d7a0"
+gen immediate_win : None -> Order "f2d7a0"
+gen history : None -> Order "f2d7a0"
+gen centrality : None -> Order "f2d7a0"
+gen threats : None -> Order "f2d7a0"
+
+gen chain : Order * Order -> Order "ffffff"
+gen empty : None -> Order "ffffff"
+
+# ASSUMED (order.rs:250-265 read as list concatenation; ROADMAP.md:420-421)
+rule assoc : chain * id ; chain = id * chain ; chain
+rule unitL : empty * id ; chain = id[Order]
+rule unitR : id * empty ; chain = id[Order]
+
+# ASSUMED (order.rs:205-216): the chain an absent "order" means.
+def default_order = tt_best * immediate_win * history ; chain * id ; chain
+
+# The plan.rs:8 doc chain, built left-nested (as a parser folding the JSON list
+# from the left would) and right-nested (as a cons-list would).
+let doc_left  = tt_best * immediate_win * centrality * history ; chain * id * id ; chain * id ; chain
+let doc_right = tt_best * immediate_win * centrality * history ; id * id * chain ; id * chain ; chain
+
+# PROVED: the two bracketings are the same chain. Each step is one application
+# of assoc, found and checked by Chyp's rule tactic.
+rewrite doc_chain_bracketing :
+  doc_left
+  = tt_best * immediate_win * centrality * history ; chain * chain ; chain by assoc
+  = doc_right by assoc
+
+# PROVED: the balanced bracketing ([tt_best, immediate_win] ++ [centrality, history])
+# is the same chain too; simp with the monoid laws reaches the unique normal form.
+rewrite doc_chain_balanced :
+  tt_best * immediate_win * centrality * history ; chain * chain ; chain
+  = doc_right by simp(assoc, unitL, unitR)
+
+# PROVED: appending the empty chain changes nothing ("order": [..., ] ++ []).
+rewrite doc_chain_append_empty :
+  doc_left * empty ; chain
+  = doc_left by unitR
+
+# PROVED: prepending it changes nothing either.
+rewrite doc_chain_prepend_empty :
+  empty * doc_right ; chain
+  = doc_right by unitL
+
+# PROVED: the default chain followed by [] is the default chain (unfolding the
+# def, then unitR, then folding it back).
+rewrite default_append_empty :
+  default_order * empty ; chain
+  = tt_best * immediate_win * history * empty ; chain * id * id ; chain * id ; chain by default_order_def
+  = tt_best * immediate_win * history ; chain * id ; chain by unitR
+  = default_order by -default_order_def
+
+# The value. value : Order -> Value is the solver's value of one fixed
+# position of one fixed net, run with the chain on its input.
+gen value : Order -> Value "dddddd"
+
+# ASSUMED (order.rs:4-6, "alpha-beta returns the same number whatever order it
+# tries the moves in"; ROADMAP.md:372 ct:order-only): the value does not see
+# the order of the two halves of a chain. The code's claim is stronger (the
+# value does not depend on the chain at all); this weaker rule is enough to
+# show that commutativity holds after value and not before.
+rule order_only : sw ; chain ; value = chain ; value
+
+# PROVED: the value is the same for [tt_best, history] and [history, tt_best].
+rewrite value_ignores_order :
+  tt_best * history ; chain ; value
+  = history * tt_best ; chain ; value by -order_only
+
+# PROVED: the doc chain and the doc chain with its halves exchanged
+# ([centrality, history] ++ [tt_best, immediate_win]) give the same value.
+rewrite value_ignores_halves :
+  tt_best * immediate_win * centrality * history ; chain * chain ; chain ; value
+  = centrality * history * tt_best * immediate_win ; chain * chain ; chain ; value by -order_only
+
+# NEGATIVE CONTROL (must fail): the chains themselves do not commute. The
+# monoid laws give unique normal forms (Chyp README, "Tactics"), and these two
+# are distinct normal forms, so this is not derivable here, which is right.
+rewrite NOT_chains_commute :
+  tt_best * history ; chain
+  = history * tt_best ; chain by simp(assoc, unitL, unitR)

@@ -1,0 +1,122 @@
+# Search drivers as endomorphisms around a core: Solver = drivers o core.
+#
+# Sources (read, not modified):
+#   ontology-pflow-xyz ROADMAP.md @f854116:
+#     426-427  "Drivers: endomorphisms on "search", composed like functions around
+#              the core. Order matters (budget around null-window != null-window
+#              around budget, in general)."
+#     428-430  "A whole plan is one operadic composite: Solver = drivers o
+#              core[order chain, filters, bounds, memo]. As a string diagram, the
+#              core is a box Position -> Value_bottom, the order chain is a
+#              parameter wire into it, and the drivers are functor-boxes (nested
+#              boxes) around it."
+#   pflow-rs crates/pflow-metamodel/src @c396d46:
+#     plan.rs:7-10     the doc plan: "order": ["tt_best", "immediate_win",
+#                      "centrality", "history"], "drivers": ["null_window",
+#                      {"budget": {"nodes": 1000000}}], "memo": {"entries": 500000}
+#     plan.rs:17-19    null_window is on by default, and off when "drivers" is
+#                      given without it
+#     plan.rs:146-194  drivers(): the list is read into two flags,
+#                      Drivers { null_window: bool, budget: Option<usize> };
+#                      absent list = { true, None } (147-152), a given list
+#                      starts from { false, None } (153-156) and each entry sets
+#                      its flag (157-191). Between different drivers the
+#                      position of an entry decides nothing; a repeated
+#                      "null_window" sets the same flag again (162), and of two
+#                      budget entries the LAST wins (183), so for two budgets
+#                      with different N the list order does matter.
+#     plan.rs:242-251  solver(): Solver::with_chain(g, budget or usize::MAX, chain)
+#                      .with_null_window(flag), then with_memo
+#     game.rs:528-554  value(): the node count is reset before the run (541; 548
+#                      again for the counts engine if the bit engine spilled)
+#     game.rs:561-588  solve(): with null_window on, a run of yes/no searches,
+#                      one per gap between adjacent rewards; with fewer than three
+#                      reward values it is one full search anyway (564), so on
+#                      such a net null_window changes nothing. That depends on
+#                      the net, so it is not a rule here.
+#     game.rs:593-597  search(): every node of every one of those searches
+#                      counts against the one budget
+#   So the budget is outermost: it bounds the whole null-window run, not one
+#   search of it. In diagrammatic order (Chyp's ";" reads left to right, inner
+#   first): core ; null_window ; budget.
+#
+# Reading. A wire of type Search carries a search procedure for one position
+# (the ROADMAP's Position -> Value_bottom, as a wire). Chyp draws boxes on
+# wires, not boxes nested in boxes, so a driver (a functor-box around the core
+# in the ROADMAP's picture) is drawn here as an endomorphism Search -> Search
+# applied after the core. The order chain is a parameter wire of type Order
+# into the core (its algebra is orderer-monoid.chyp; Chyp cannot import a file
+# whose name has a hyphen, so the doc chain is one box here). The memo is a
+# parameter of the core too (Solver::with_memo, game.rs:501-505), not a driver,
+# and is not drawn.
+#
+# There is NO rule that commutes null_window and budget. NOT_drivers_commute at
+# the end checks that the theory does not prove it.
+
+gen doc_order : None -> Order "f2d7a0"
+gen alpha_beta : Order -> Search "ffffff"
+gen null_window : Search -> Search "d6e4f5"
+gen budget : Search -> Search "d6e4f5"
+
+# The core of the doc plan: the fixed alpha-beta search with the doc chain.
+let core = doc_order ; alpha_beta
+
+# The doc plan's solver, as the composite game.rs builds.
+let doc_solver = core ; null_window ; budget
+
+# What a JSON "drivers" list denotes, one constant per list, each a solver
+# (None -> Search) for the doc plan's order chain. These are names for the
+# JSON texts, so the rules below are claims about plan.rs + game.rs, not
+# laws of driver composition.
+gen json_nw_budget : None -> Search "eeeeee"    # "drivers": ["null_window", {"budget": {"nodes": 1000000}}]
+gen json_budget_nw : None -> Search "eeeeee"    # "drivers": [{"budget": {"nodes": 1000000}}, "null_window"]
+gen json_absent : None -> Search "eeeeee"       # no "drivers" key
+gen json_nw : None -> Search "eeeeee"           # "drivers": ["null_window"]
+gen json_empty : None -> Search "eeeeee"        # "drivers": []
+gen json_budget : None -> Search "eeeeee"       # "drivers": [{"budget": {"nodes": 1000000}}]
+
+# ASSUMED, from the code reading above (plan.rs:146-194, 242-251;
+# game.rs:528-597). Each is the flags the list is read into, then the solver
+# built from them, budget outermost.
+rule reads_nw_budget : json_nw_budget = core ; null_window ; budget
+rule reads_budget_nw : json_budget_nw = core ; null_window ; budget
+rule reads_absent : json_absent = core ; null_window
+rule reads_nw : json_nw = core ; null_window
+rule reads_empty : json_empty = core
+rule reads_budget : json_budget = core ; budget
+
+# PROVED: the doc plan's JSON denotes doc_solver.
+rewrite doc_plan :
+  json_nw_budget
+  = doc_solver by reads_nw_budget
+
+# PROVED: both JSON orders of the two drivers denote the same solver. This
+# follows from the two code-reading rules, not from any commutation of
+# null_window with budget.
+rewrite json_driver_order_irrelevant :
+  json_nw_budget
+  = core ; null_window ; budget by reads_nw_budget
+  = json_budget_nw by -reads_budget_nw
+
+# PROVED: leaving "drivers" out is the same as listing only null_window
+# (plan.rs:17-19, 147-152).
+rewrite drivers_absent_is_null_window :
+  json_absent
+  = core ; null_window by reads_absent
+  = json_nw by -reads_nw
+
+# NEGATIVE CONTROL (must fail): the theory does not let budget and null_window
+# trade places. The reads_* rules only remove json_* boxes, so simp with all of
+# them terminates; neither side has a json_* box, and the two are different
+# diagrams, so this is not derivable here. Order matters in general
+# (ROADMAP.md:426-427): a budget inside the null-window run would bound each
+# yes/no search separately.
+rewrite NOT_drivers_commute :
+  core ; null_window ; budget
+  = core ; budget ; null_window by simp(reads_nw_budget, reads_budget_nw, reads_absent, reads_nw, reads_empty, reads_budget)
+
+# NEGATIVE CONTROL (must fail): "drivers": [] is not the absent key. It turns
+# null_window off (plan.rs:153-156), so the two plans differ.
+rewrite NOT_empty_is_absent :
+  json_empty
+  = json_absent by simp(reads_nw_budget, reads_budget_nw, reads_absent, reads_nw, reads_empty, reads_budget)

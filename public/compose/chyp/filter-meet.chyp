@@ -1,0 +1,120 @@
+# Sound move filters under intersection: a commutative idempotent monoid
+# (a meet-semilattice) with "all moves" as its unit.
+#
+# STATUS: PROPOSED. No filter is built in pflow-rs at c396d46.
+#   pflow-rs crates/pflow-metamodel/src/plan.rs @c396d46:
+#     21-23    "filters, heuristics: names of pieces that can change the value.
+#              None is built yet"
+#     71       the only filter name the registry knows is "beam", reserved, unsound
+#     222-235  check() refuses every named filter: in exact mode "can change the
+#              value", in play mode "is not built in this release"
+#   So the only filter a legal plan has today is the empty list, i.e. all_moves
+#   (the unit below). Everything else here is about the proposed design:
+#   ontology-pflow-xyz ROADMAP.md @f854116:
+#     309      "Filters must_win, non_losing (sound): Not built."
+#     323      slice 2: "Sound filters must_win and non_losing, read from declared
+#              goals and allowed in exact mode"
+#     375      ct:sound-pruning: "drops moves that provably cannot be best"
+#     424-425  "Sound filters: a meet-semilattice under intersection (an empty
+#              result falls back to all moves). Bounds: interval meet. Neither
+#              is built."
+#
+# Reading. A wire of type Filter carries a filter, denoted by the set of moves
+# it keeps at a node. meet is intersection, all_moves keeps every move, and
+# copy is the diagonal S |-> (S, S). Sets under intersection satisfy every
+# ASSUMED rule below (that is the model that justifies them); the rewrites
+# after them are PROVED by Chyp from those rules alone.
+#
+# NOT equational, so not a rule:
+#   - the empty-result fallback (ROADMAP.md:424): fallback(S) = S if S is
+#     nonempty, else all moves. It is not a homomorphism of meet: with
+#     A = {x}, B = {y}, fallback(A meet B) = all moves but
+#     fallback(A) meet fallback(B) = {} . So fallback is one box applied once,
+#     after the meet of all filters, and no rule moves it across meet. The two
+#     rules about fallback below hold in the set model only when the node has
+#     at least one move; a node without moves is scored, not searched
+#     (crates/pflow-metamodel/src/game.rs:612-615 @c396d46), so a filter would
+#     only ever see a nonempty move set.
+#   - must_win implies non_losing (a forcing win is not immediately losing),
+#     so on sets must_win meet non_losing = must_win. That is a fact about the
+#     two filters' meaning, not the lattice, and with the fallback applied per
+#     filter it fails when must_win is empty. Left out.
+#   - bounds as interval meet (ROADMAP.md:424-425): not modelled here.
+
+gen all_moves : None -> Filter "ffffff"
+gen must_win : None -> Filter "cfe8cf"
+gen non_losing : None -> Filter "cfe8cf"
+gen meet : Filter * Filter -> Filter "ffffff"
+gen copy : Filter -> Filter * Filter "ffffff"
+gen fallback : Filter -> Filter "eeeeee"
+
+# ASSUMED: intersection is a commutative monoid with all_moves as unit.
+rule assoc : meet * id ; meet = id * meet ; meet
+rule unitL : all_moves * id ; meet = id[Filter]
+rule unitR : id * all_moves ; meet = id[Filter]
+rule comm : sw ; meet = meet
+
+# ASSUMED: idempotence, S meet S = S, stated once for every filter through the
+# diagonal; and the diagonal copies each filter and commutes with meet (true of
+# sets: a filter is data and can be duplicated).
+rule idem : copy ; meet = id[Filter]
+rule copy_meet : meet ; copy = copy * copy ; id * sw * id ; meet * meet
+rule copy_all : all_moves ; copy = all_moves * all_moves
+rule copy_must_win : must_win ; copy = must_win * must_win
+rule copy_non_losing : non_losing ; copy = non_losing * non_losing
+
+# ASSUMED (set model, nodes with at least one move): falling back twice is
+# falling back once, and all moves never falls back.
+rule fallback_idem : fallback ; fallback = fallback
+rule fallback_all : all_moves ; fallback = all_moves
+
+# PROVED: "all moves" is the unit.
+rewrite meet_unit :
+  all_moves * must_win ; meet
+  = must_win by unitL
+
+# PROVED: the order a plan lists its filters in does not matter. Unlike an
+# order chain (orderer-monoid.chyp, NOT_chains_commute), filters form a set.
+rewrite filter_list_order_irrelevant :
+  must_win * non_losing ; meet
+  = non_losing * must_win ; meet by comm
+
+# PROVED: the same with the fallback box on the end.
+rewrite filter_list_order_irrelevant_fallback :
+  must_win * non_losing ; meet ; fallback
+  = non_losing * must_win ; meet ; fallback by comm
+
+# PROVED: listing a filter twice is listing it once.
+rewrite meet_idem_must_win :
+  must_win * must_win ; meet
+  = must_win ; copy ; meet by -copy_must_win
+  = must_win by idem
+
+# PROVED: a repeat further along the list is absorbed:
+# must_win meet non_losing meet must_win = must_win meet non_losing.
+rewrite meet_repeat_absorbed :
+  must_win * non_losing * must_win ; meet * id ; meet
+  = must_win * non_losing * must_win ; id * meet ; meet by assoc
+  = must_win * must_win * non_losing ; id * meet ; meet by comm
+  = must_win * must_win * non_losing ; meet * id ; meet by -assoc
+  = (must_win ; copy) * non_losing ; meet * id ; meet by -copy_must_win
+  = must_win * non_losing ; meet by idem
+
+# PROVED: a composite filter is copyable too (needed for the next one).
+rewrite composite_copyable :
+  must_win * non_losing ; meet ; copy
+  = must_win * non_losing ; copy * copy ; id * sw * id ; meet * meet by copy_meet
+  = must_win * must_win * non_losing ; id * id * copy ; id * sw * id ; meet * meet by copy_must_win
+  = must_win * non_losing * must_win * non_losing ; meet * meet by copy_non_losing
+
+# PROVED: idempotence of a composite, from idem on the generator only.
+rewrite composite_idem :
+  (must_win * non_losing ; meet) * (must_win * non_losing ; meet) ; meet
+  = must_win * non_losing ; meet ; copy ; meet by -composite_copyable
+  = must_win * non_losing ; meet by idem
+
+# PROVED: the plan Chyp builds today (filters: [], so all moves) with the
+# fallback is still all moves.
+rewrite empty_filter_list :
+  all_moves ; fallback
+  = all_moves by fallback_all

@@ -20,7 +20,7 @@
 // want @types/node to type-check the test).
 
 // The native commands the editor's registry exposes: the browser-safe subset
-// of pflow-native's registry (179 commands at 0.8.0, commit cdd3816). A
+// of pflow-native's registry (211 commands at 0.8.0, commit 1a13459: main's 179 at cdd3816 plus the composition views' bundle.* and plan.*). A
 // command is exposed when it runs from inline arguments (each call reloads the
 // editor's document into the engine), needs no OS access, and its result is
 // something the page can show: a JSON result or an artifact in the Results
@@ -153,6 +153,8 @@ export const NOT_EXPOSED = [
     prefixes: ['command.'] },
   { why: 'the browser has no data directory, so the receipt key is ephemeral and receipts would not verify later (provenance.verify_receipt is exposed, for receipts made elsewhere)',
     ids: ['sim.receipt', 'provenance.key'] },
+  { why: 'the composition views\' commands: they act on an open composition or search plan, not on the editor\'s document, and the composition views page (public/compose.html) drives them on an engine of its own (petri-wasm.js newEngine)',
+    prefixes: ['bundle.', 'plan.'] },
 ];
 
 // The guard, as a function the sync below and public/petri-wasm_test.ts both
