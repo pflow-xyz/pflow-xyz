@@ -106,3 +106,6 @@ export function uniqueKeys(titles) {
 export function firstDrawing(key) {
   return String(key).replace(/#\d+$/, '');
 }
+
+/** What a number key or E says while link mode is on: the view keys stand aside (app.js), and a key that did nothing, silently, would look like a broken page. */
+export const VIEW_KEYS_OFF = 'Linking is on, so the view keys are off. Escape cancels linking.';

@@ -9,7 +9,9 @@ import { assert, assertEquals, assertStringIncludes } from "https://deno.land/st
 import { begin, beginText, noTargetsText, press, targetText } from "./a11y-link.js";
 import { errText, portLegalReason, portRefusal, portTargets, slotLegalReason, slotRefusal, slotTargets } from "./verdicts.js";
 import { setup } from "../../parity/composition-views/render.js";
-import { actions, linkCandidates, slotCandidates, start } from "./state.js";
+import { actions, linkCandidates, slotCandidates, start, subnetsById } from "./state.js";
+import { portLabel, VIEW_KEYS_OFF } from "./a11y-text.js";
+import { initialInspector, reduceInspector } from "./a11y-inspect.js";
 
 const T = (key: string, ok: boolean, reason = ok ? "passed" : "refused", kind: string | null = ok ? "token" : null) => ({ key, label: `label ${key}`, ok, kind, reason });
 const k = (key: string, shiftKey = false) => ({ key, shiftKey });
@@ -282,4 +284,39 @@ Deno.test("registry: targets the view does not draw are left out, as the pointer
   const drawn = new Set(["workers:available", "payment:commit"]);
   const targets = portTargets(cands, { has: (key: string) => drawn.has(key) });
   assertEquals(targets.map((t: any) => t.key).sort(), [...drawn].sort());
+});
+
+// --- the texts ACCESSIBILITY.md quotes ----------------------------------------------------------------
+
+Deno.test("ACCESSIBILITY.md quotes what the page says: its samples are built from the machine, so they cannot drift", async () => {
+  start();
+  // the spoken name of a port, as snap.js builds it from the composition's own subnets
+  const name = (key: string) => {
+    const [sn, ...rest] = key.split(":");
+    const s = (subnetsById() as any)[sn];
+    return portLabel(sn, s.ports.find((q: any) => q.id === rest.join(":")));
+  };
+  const cands = linkCandidates({ subnet: "orders", port: "out" }) as any[];
+  const targets = portTargets(cands, { label: name });
+  const b = begin({ noun: "port", originKey: "port:orders:out", originLabel: name("orders:out"), targets });
+  const lit = press(b.state, k("Tab")).announce;
+  const refused = press(b.state, k("r")).announce;
+  const pinned = reduceInspector(initialInspector(), { type: "activate", id: "x", title: "port orders:in" });
+  const samples: Array<[string, string]> = [
+    ["entering link mode", b.announce],
+    ["a lit target", lit],
+    ["a refused target (R)", refused],
+    ["Escape in link mode", press(b.state, k("Escape")).announce],
+    ["a view that draws no target", noTargetsText("slot", "threats, order piece")],
+    ["a number key in link mode", VIEW_KEYS_OFF],
+    ["the inspector pinned", pinned.announce],
+    ["the inspector dismissed", reduceInspector(pinned.state, { type: "escape" }).announce],
+    ["the pin released by a redraw", reduceInspector(pinned.state, { type: "gone" }).announce],
+  ];
+  const doc = await Deno.readTextFile(new URL("./ACCESSIBILITY.md", import.meta.url));
+  const stale = samples.filter(([, text]) => !doc.includes(`"${text}"`));
+  assertEquals(stale.map(([what, text]) => `${what}: "${text}"`), [], "ACCESSIBILITY.md quotes these differently: paste the text above (between the quotes) into the document");
+  // and the refusal quoted is the registry's, not an invented code: it names PAGE_SAME_SUBNET and E_SCHEMA_MISMATCH only where they are said
+  assertStringIncludes(refused, "PAGE_SAME_SUBNET");
+  assert(!refused.includes("E_SCHEMA_MISMATCH"), "from orders:out the first refused port (orders:in) is refused for being on the same subnet");
 });

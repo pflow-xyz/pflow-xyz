@@ -1,18 +1,22 @@
 // The page's legend: what each link kind and port schema looks like WITHOUT its colour.
 //
-// Link kinds use go-pflow RenderDOT's vocabulary (metamodel/composedot.go:28-33): token
-// dashed, data dotted, event bold, guard dashed (here dash-dot, so it differs from
-// token) and each kind's glyph; ports carry their schema as a letter on the dot
-// (a11y.js schemaBadges). The views' own legends keep their drawings; this one is the
-// one place that lists all of it, in text too, and what the lit and refused states
-// look like while linking.
+// A link kind is told by its glyph first and its stroke second. The glyphs (◆ token, ▷ data,
+// ⊗ event, ⊘ guard) and the strokes token dashed, data dotted, event bold are go-pflow
+// RenderDOT's (metamodel/composedot.go:28-33). RenderDOT draws guard dashed too, the same as
+// token, so this page draws guard dash-dot (a11y-text.js distinctDashes) to keep the four
+// apart. The views do not all follow the legend's strokes: some draw their own dashes for what
+// they show (the exceptions are listed below and in ACCESSIBILITY.md), so a stroke is a
+// second channel and never the only one. Ports carry their schema as a letter on the dot
+// (a11y.js schemaBadges). The views' own legends keep their drawings; this one is the one
+// place that lists all of it, in text too, and what the lit and refused states look like
+// while linking.
 
 import { el, svg } from './dom.js';
 import { LINK_STYLE } from './model.js';
 import { SCHEMA_CODE } from './a11y-text.js';
 import { schemaColor } from './theme.js';
 
-// RenderDOT's words for each kind (composedot.go:28-33), and the stroke they stand for.
+// RenderDOT's words for each kind (composedot.go:28-33; guard is dashed there, dash-dot here), and the stroke they stand for.
 const KINDS = [
   ['token', 'dashed', 'a resource coupling: two places become one'],
   ['data', 'dotted', 'a read-only observation of a place'],
@@ -40,6 +44,7 @@ export function renderLegend(box) {
   box.replaceChildren(
     el('h3', { id: 'legend-h' }, 'Legend: kinds and schemas without colour'),
     el('h4', {}, 'Link kinds'),
+    el('p', { class: 'small muted' }, 'Read the glyph first (◆ token, ▷ data, ⊗ event, ⊘ guard), the stroke second: the strokes below are this page\'s, and some views draw their own. Cospans and Boundaries draw event ghost links as thin dashes, not bold, and the Spiders, String and Boundaries legends draw their guard and token swatches with other dashes.'),
     el('ul', { class: 'lg-list' }, KINDS.map(([kind, stroke, what]) => el('li', {},
       kindSample(kind),
       el('span', { class: 'lg-glyph', 'aria-hidden': 'true' }, LINK_STYLE[kind].glyph),

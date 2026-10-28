@@ -18,6 +18,7 @@ import { makeManifest } from './manifest.js';
 import * as a11y from './a11y.js';
 import { isTypingTarget } from './a11y-nav.js';
 import { announce } from './a11y-bus.js';
+import { VIEW_KEYS_OFF } from './a11y-text.js';
 import { renderLegend } from './legend.js';
 
 const views = new Map();
@@ -257,8 +258,8 @@ async function main() {
   window.addEventListener('keydown', (e) => {
     if (typingAt(e.target) || e.ctrlKey || e.metaKey || e.altKey) return;
     if (kbActive()) {
-      // link mode owns the keys: a number that did nothing, silently, would look like a broken page
-      if (/^[0-9e]$/.test(e.key)) announce('Linking is on, so the view keys are off. Escape cancels linking.');
+      // link mode owns the keys; say so rather than ignore them in silence
+      if (/^[0-9e]$/.test(e.key)) announce(VIEW_KEYS_OFF);
       return;
     }
     const n = e.key === '0' ? 10 : Number(e.key);
