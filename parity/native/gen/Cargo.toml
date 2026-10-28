@@ -17,5 +17,5 @@ publish = false
 
 [dependencies]
 # default features: the same set as the wasm build (no services, http, zk, rnn, png).
-pflow-native-core = { git = "https://github.com/pflow-xyz/pflow-native", rev = "44db841ae492c1a3afaa7e7ebc9588baa098a8d9" }
+pflow-native-core = { git = "https://github.com/pflow-xyz/pflow-native", rev = "e24beabf255d601d3fd377b5ebcd4c72dfcb0763" }
 serde_json = { version = "1", features = ["preserve_order", "float_roundtrip"] }
