@@ -1,0 +1,81 @@
+{
+  "@context": "https://pflow.xyz/schema",
+  "@type": "PetriNetBundle",
+  "name": "solo",
+  "description": "One subnet and no links: flattening is the identity.",
+  "subnets": [
+    {
+      "@type": "PetriNet",
+      "id": "till",
+      "model": {
+        "name": "till",
+        "places": [
+          {
+            "id": "float",
+            "initial": 5,
+            "exported": true
+          },
+          {
+            "id": "takings",
+            "initial": 0,
+            "exported": true
+          }
+        ],
+        "transitions": [
+          {
+            "id": "ring"
+          },
+          {
+            "id": "bank"
+          }
+        ],
+        "arcs": [
+          {
+            "from": "float",
+            "to": "ring"
+          },
+          {
+            "from": "ring",
+            "to": "takings",
+            "weight": 2
+          },
+          {
+            "from": "takings",
+            "to": "bank"
+          },
+          {
+            "from": "bank",
+            "to": "float"
+          }
+        ]
+      },
+      "net_type": "ResourceNet",
+      "ports": [
+        {
+          "id": "float",
+          "kind": "in",
+          "place": "float",
+          "schema": "money"
+        },
+        {
+          "id": "takings",
+          "kind": "out",
+          "place": "takings",
+          "schema": "money"
+        },
+        {
+          "id": "ring",
+          "kind": "in",
+          "target": "transition",
+          "transition": "ring"
+        },
+        {
+          "id": "bank",
+          "kind": "out",
+          "target": "transition",
+          "transition": "bank"
+        }
+      ]
+    }
+  ]
+}

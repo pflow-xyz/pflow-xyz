@@ -1,0 +1,250 @@
+{
+  "@context": "https://pflow.xyz/schema",
+  "@type": "PetriNetBundle",
+  "name": "weights",
+  "description": "Arc weights a hostile net can hold: negative ones (pflow-rs never enables the transition; go-pflow would make tokens) and counts that overflow (pflow-rs saturates).",
+  "subnets": [
+    {
+      "@type": "PetriNet",
+      "id": "a",
+      "net_type": "ResourceNet",
+      "model": {
+        "name": "a",
+        "places": [
+          {
+            "id": "p",
+            "initial": 4,
+            "exported": true
+          },
+          {
+            "id": "q",
+            "initial": 0,
+            "exported": true
+          },
+          {
+            "id": "big",
+            "initial": 0,
+            "exported": true
+          }
+        ],
+        "transitions": [
+          {
+            "id": "neg_out"
+          },
+          {
+            "id": "neg_in"
+          },
+          {
+            "id": "order_in_first"
+          },
+          {
+            "id": "order_neg_first"
+          },
+          {
+            "id": "order_out"
+          },
+          {
+            "id": "out_before_test"
+          },
+          {
+            "id": "neg_read"
+          },
+          {
+            "id": "feed"
+          },
+          {
+            "id": "ok"
+          }
+        ],
+        "arcs": [
+          {
+            "from": "p",
+            "to": "neg_out",
+            "weight": 2
+          },
+          {
+            "from": "neg_out",
+            "to": "q",
+            "weight": 2
+          },
+          {
+            "from": "neg_out",
+            "to": "p",
+            "weight": -2
+          },
+          {
+            "from": "p",
+            "to": "neg_in",
+            "weight": -3
+          },
+          {
+            "from": "q",
+            "to": "order_in_first",
+            "weight": 1
+          },
+          {
+            "from": "p",
+            "to": "order_in_first",
+            "weight": -3
+          },
+          {
+            "from": "p",
+            "to": "order_neg_first",
+            "weight": -3
+          },
+          {
+            "from": "q",
+            "to": "order_neg_first",
+            "weight": 1
+          },
+          {
+            "from": "q",
+            "to": "order_out",
+            "weight": 1
+          },
+          {
+            "from": "order_out",
+            "to": "p",
+            "weight": -1
+          },
+          {
+            "from": "q",
+            "to": "out_before_test",
+            "weight": 1,
+            "type": "read"
+          },
+          {
+            "from": "out_before_test",
+            "to": "p",
+            "weight": -1
+          },
+          {
+            "from": "p",
+            "to": "neg_read",
+            "weight": -1,
+            "type": "read"
+          },
+          {
+            "from": "neg_read",
+            "to": "q",
+            "weight": 1
+          },
+          {
+            "from": "feed",
+            "to": "big",
+            "weight": 4503599627370496
+          },
+          {
+            "from": "feed",
+            "to": "big",
+            "weight": 4503599627370496
+          },
+          {
+            "from": "feed",
+            "to": "big",
+            "weight": 4503599627370496
+          },
+          {
+            "from": "feed",
+            "to": "big",
+            "weight": 4503599627370496
+          },
+          {
+            "from": "feed",
+            "to": "big",
+            "weight": 4503599627370496
+          },
+          {
+            "from": "feed",
+            "to": "big",
+            "weight": 4503599627370496
+          },
+          {
+            "from": "feed",
+            "to": "big",
+            "weight": 4503599627370496
+          },
+          {
+            "from": "feed",
+            "to": "big",
+            "weight": 4503599627370496
+          },
+          {
+            "from": "p",
+            "to": "ok",
+            "weight": 2
+          },
+          {
+            "from": "ok",
+            "to": "q",
+            "weight": 1
+          }
+        ]
+      },
+      "ports": [
+        {
+          "id": "p",
+          "kind": "inout",
+          "place": "p"
+        },
+        {
+          "id": "q",
+          "kind": "inout",
+          "place": "q"
+        }
+      ]
+    },
+    {
+      "@type": "PetriNet",
+      "id": "b",
+      "net_type": "ResourceNet",
+      "model": {
+        "name": "b",
+        "places": [
+          {
+            "id": "r",
+            "initial": 0,
+            "exported": true
+          }
+        ],
+        "transitions": [
+          {
+            "id": "u"
+          }
+        ],
+        "arcs": [
+          {
+            "from": "r",
+            "to": "u",
+            "weight": 1
+          },
+          {
+            "from": "u",
+            "to": "r",
+            "weight": 1
+          }
+        ]
+      },
+      "ports": [
+        {
+          "id": "r",
+          "kind": "inout",
+          "place": "r"
+        }
+      ]
+    }
+  ],
+  "links": [
+    {
+      "kind": "token",
+      "from": {
+        "subnet": "a",
+        "port": "q"
+      },
+      "to": {
+        "subnet": "b",
+        "port": "r"
+      }
+    }
+  ]
+}

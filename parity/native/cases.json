@@ -403,6 +403,58 @@
 {"name": "game.move/past-the-budget", "fixture": "native/fixtures/tic-tac-toe.json", "steps": [
   {"command": "game.move", "args": {"sides": {"x_": 1, "o_": -1}, "reward": {"win_x": 1, "win_o": -1}, "auto": ["x_win_", "o_win_"], "nodes": 50}},
   {"command": "game.move", "args": {"sides": {"x_": 1, "o_": -1}, "reward": {"win_x": 1, "win_o": -1}, "auto": ["x_win_", "o_win_"], "nodes": 50, "plan": {"mode": "play"}}}
+]},
+{"name": "bundle.catalog", "fixture": "native/fixtures/sir.jsonld", "steps": [
+  {"command": "bundle.instances"},
+  {"command": "bundle.scenarios"}
+]},
+{"name": "bundle.default/queries", "fixture": "native/fixtures/sir.jsonld", "steps": [
+  {"command": "bundle.open"},
+  {"command": "bundle.state"},
+  {"command": "bundle.validate"},
+  {"command": "bundle.flatten"},
+  {"command": "bundle.incidence"},
+  {"command": "bundle.run", "args": {"scenario": "commit"}},
+  {"command": "bundle.run", "args": {"scenario": "refund"}},
+  {"command": "bundle.run", "args": {"scenario": "charge-fails"}},
+  {"command": "bundle.run", "args": {"scenario": "second-order"}},
+  {"command": "bundle.run", "args": {"script": ["orders/dequeue", "payment/commit"]}},
+  {"command": "bundle.candidates", "args": {"from": "orders:dequeue"}},
+  {"command": "bundle.candidates", "args": {"from": "payment:account:customer", "prefer": "token"}}
+]},
+{"name": "bundle.default/edits", "fixture": "native/fixtures/sir.jsonld", "steps": [
+  {"command": "bundle.open"},
+  {"command": "bundle.add_link", "args": {"kind": "event", "from": "orders:enqueue", "to": "workers:release"}},
+  {"command": "bundle.add_link", "args": {"kind": "event", "from": "orders:enqueue", "to": "workers:release"}},
+  {"command": "bundle.add_link", "args": {"kind": "guard", "from": "workers:acquire", "to": "orders:depth"}},
+  {"command": "bundle.add_link", "args": {"kind": "event", "from": "orders:enqueue", "to": "orders:dequeue"}},
+  {"command": "bundle.add_link", "args": {"kind": "token", "from": "orders:in", "to": "workers:available"}},
+  {"command": "bundle.validate"},
+  {"command": "bundle.flatten"},
+  {"command": "bundle.incidence"},
+  {"command": "bundle.run", "args": {"script": ["orders/enqueue", "orders/dequeue"]}},
+  {"command": "bundle.remove_link", "args": {"index": 3}},
+  {"command": "bundle.state"}
+]},
+{"name": "bundle.extras", "fixture": "native/fixtures/sir.jsonld", "steps": [
+  {"command": "bundle.open", "args": {"instances": ["orders", "workers", "payment", "payment2", "orders2", "workers2"], "links": [{"kind": "event", "from": "orders:dequeue", "to": "workers:acquire"}, {"kind": "event", "from": "orders:dequeue", "to": "payment:do:reserve"}, {"kind": "event", "from": "workers:release", "to": "payment:commit"}, {"kind": "token", "from": "orders:out", "to": "orders2:in"}, {"kind": "token", "from": "workers:available", "to": "workers2:available"}, {"kind": "token", "from": "payment:account:customer", "to": "payment2:account:customer"}, {"kind": "token", "from": "payment:account:merchant", "to": "payment2:account:merchant"}, {"kind": "event", "from": "orders2:dequeue", "to": "payment2:do:reserve"}, {"kind": "event", "from": "workers2:release", "to": "payment2:commit"}, {"kind": "guard", "from": "workers2:acquire", "to": "orders2:depth"}]}},
+  {"command": "bundle.validate"},
+  {"command": "bundle.flatten"},
+  {"command": "bundle.incidence"},
+  {"command": "bundle.run", "args": {"script": ["orders/dequeue", "payment/do_charge", "payment/commit", "orders2/enqueue"]}}
+]},
+{"name": "bundle.open/refusals", "fixture": "native/fixtures/sir.jsonld", "steps": [
+  {"command": "bundle.open", "args": {"instances": ["orders", "bank"]}},
+  {"command": "bundle.open", "args": {"instances": ["orders", "orders"]}},
+  {"command": "bundle.open", "args": {"links": [{"kind": "token", "from": "orders:in", "to": "workers:available"}]}},
+  {"command": "bundle.open", "args": {"instances": ["orders", "workers"]}},
+  {"command": "bundle.state"},
+  {"command": "bundle.candidates", "args": {"from": "orders:sideways"}},
+  {"command": "bundle.candidates", "args": {"from": "bank:out"}},
+  {"command": "bundle.candidates", "args": {"from": "orders"}},
+  {"command": "bundle.candidates", "args": {"from": "orders:out", "prefer": "wire"}},
+  {"command": "bundle.run", "args": {"scenario": "weekend"}},
+  {"command": "bundle.run"}
 ]}
 ]
 }

@@ -4,7 +4,8 @@ The editor runs part of pflow-native's command registry in the browser, as wasm
 (`public/vendor/pflow-native-wasm/`, locked by `pflow-native-wasm.lock`). Two
 suites keep that honest. Both run in `make test-js` and in CI, headless, from
 vendored files only. A third holds the hosted `/mcp` server's workbench tools
-(Go) to the same native build; it runs in `go test ./...` (`make test`, CI).
+(Go) to the same native build, and a fourth its composition tools; they run in
+`go test ./...` (`make test`, CI).
 
 ## native vs wasm (`native_parity_test.ts`)
 
@@ -194,6 +195,119 @@ as passing:
   document order (docs/workbench-progress.md, "pflow-native's SSA visits
   transitions in sorted-id order"). Native and the server use id order. On a net
   that lists its transitions in id order, all three agree to the bit.
+
+## /mcp composition tools vs native (`cmd/webserver/mcp_models_parity_test.go`)
+
+The hosted `/mcp` server serves `pflow_bundle_example`, `_validate`, `_add_link`,
+`_candidates`, `_flatten`, `_run` and `_incidence`: the composition page's
+`bundle.*` commands (`public/compose/model.js` asks them of the vendored wasm)
+without a browser. A composition is a PetriNetBundle, and the tools take it in the
+call (stateless, like the others). The decisions are go-pflow's (v0.34.0:
+`Bundle.Validate`, `Bundle.FlattenWithMap`, `Model.EnabledWhyNot`/`Fire`, and for
+the example the constructors `metamodel.NewQueue`, the resource pool's `ToSubnet`
+and `saga.ToMetaSubnet`); `mcp_model_rules.go` adds the shapes and the few rules
+native keeps outside `Validate` (below).
+
+`mcp_cases.json` holds a composition case as a tool, its arguments and a
+composition:
+
+- `composition` names an entry of `compositions` (what `bundle.open` takes:
+  instances of the catalog, and links). The generator (`gen/src/bundle.rs`) opens
+  it in a fresh session as the wasm engine does and runs the commands the page
+  runs for the tool; the golden holds the bundle native built (serialised by
+  pflow-compose, the wire format go-pflow reads) and the answer. The Go tool is
+  run on that bundle **and** on the one `pflow_bundle_example` builds with
+  go-pflow's constructors from the same instances and links; both must give
+  native's answer. The same commands are in `cases.json`, which holds the wasm
+  to native, so server, wasm and native are held to one answer.
+- `bundle_file` is a PetriNetBundle document (the cafe showcase, the fixtures
+  `native/fixtures/bundle-*.json`). **The registry cannot open one at the pinned
+  pflow-native** (`bundle.open` builds catalog instances), so for these the golden
+  is the composition module's functions that the commands call, run on the
+  document (`composition::flatten_json`, `incidence_json`, `candidates`, `run`,
+  `Composition::add_link` and pflow-compose's `Bundle::validate`): the answer the
+  registry would give if it could load one. The wasm cannot be asked these
+  (`cases.json` has none); that waits on pflow-native gaining a command that loads
+  a bundle document.
+- `pflow_bundle_example` is compared field by field: the catalog (parameters, the
+  reason for each), the scenarios, the default links and the refusals are native's,
+  and the places, transitions, arcs, ports and constraints of the subnets
+  go-pflow's constructors build are native's (`TestMCPBundleCatalogMatchesNative`).
+
+Compared exactly: strings, booleans, null, structure and every integer. Known
+differences, all deliberate:
+
+- **`passed` is not returned.** A legal link's verdict in native lists the checks it
+  met with cites into go-pflow's source lines (rev 69257b3); that is the page's
+  commentary, and it is left out of the golden too. A verdict is `ok`, `kind`,
+  `errors` and `warnings` (`{code, message, rule}`).
+- **The page's other fields are not returned**: a link's `idiom` and `leak` and the
+  `rule` card (the ontology's entries for the catalog's patterns), a port's
+  `pattern_port`, the artifact handles. They describe the six catalog instances,
+  not a bundle.
+- **Warning order, and which class a shared name belongs to.** go-pflow goes over
+  the event-link classes in the order of a map; pflow-compose goes over them in
+  order of their smallest member. The tool recomputes the classes from the links
+  (`mcp_model_fusion.go`) and answers as pflow-compose does: the `W_EVENTLINK_CYCLE`
+  warnings in class order, and, when two event links share an id and fuse different
+  transitions (both engines merge them into one flat transition, and Validate does
+  not object), the last class names the fused group and the description
+  (`bundle-shared-ids.json`). One answer for one bundle; go-pflow gave four.
+- **Firing is pflow-rs'**, not go-pflow's (`mcp_model_firing.go`): a negative arc
+  weight never enables (`t: arc to/from p has negative weight -2`, checked inputs
+  first, then outputs, then read and inhibitor arcs, each arc's sign before its
+  tokens), and counts saturate at the ends of int64 where go-pflow's wrap
+  (`bundle-weights.json`).
+- **A subnet that declares no ports has one inout port per exported place**, as
+  pflow-compose's `resolve` gives it (`bundle-derived.json`); the tool derives them
+  for every tool but `pflow_bundle_candidates`, whose candidates, and `from`, are the
+  declared ports (native's `candidates` read `ports` alone). One corner stays: a
+  subnet with the same place id twice, the first not exported and a later one
+  exported. Native derives a port for the later one and resolves it to the first
+  place; the tool derives none, or Validate would call the port wrong.
+- **Limits native does not have**: names of at most 128 bytes, counts and weights
+  below 2^53 (JSON-RPC delivers numbers as doubles; native takes any i64), a flat
+  net whose answer would pass 2 MB, incidence matrices of more than 50000 cells,
+  and the counts in `mcp_model.go`. Each is refused with a message, before anything
+  is built. A bundle past them has no native golden to differ from.
+- **Names for kinds are checked**: a misspelt `arc_merge`, `net_type`, place `kind`,
+  port `kind` or `target`, or link `kind` is refused (native refuses to read the
+  document; go-pflow would take it). Unit tests only.
+- **`notes`** is the one key the tool adds to native's answers (`pflow_bundle_flatten`,
+  `pflow_bundle_incidence`): an arc with no weight fires as 1 in both engines but is
+  0 in the incidence matrix of a subnet's own block (and everywhere for a lone
+  subnet), in native too. The parity test does not compare `notes`.
+- **Argument errors** are worded by the tool (`pflow_bundle_run: ...`), not by the
+  registry (`bundle.run: missing required argument ...`); refusals of a value
+  (`[CODE] message`, `no subnet "x" in the composition`, `unknown link kind ...`) are
+  native's, character for character, with the tool's name in front and, for a port
+  that is not there, a hint behind it that lists the ports its subnet has (the test
+  compares the words between: `mbNativeText`). A multi-member JSON object printed in a
+  message (`endpoint {...} needs "subnet" and "port"`) has its members sorted, as
+  Go prints them.
+- **`pflow_bundle_run` also takes `expect`** with a script (native's scenarios carry
+  their own): `[{place, n, says}]`, `==` only, as native evaluates. A place that is
+  not in the composition is refused (native reads it as 0 and reports `flat: null`,
+  so a typo with `n: 0` passes).
+- **`unknown arc type`** is a go-pflow validation error (`E_UNKNOWN_ARC_TYPE`);
+  pflow-compose refuses to read the document at all. Only the tool's unit test has it.
+- **Not built**: `bundle.lens` (the lens test and its one-link repairs: 560 lines
+  of the prototype's judgment, keyed to the example's commit scenario; a Go port
+  would be a third implementation of it) and `plan.*` (search plans for
+  Connect-4: `pflow_game_value` / `pflow_game_move` take plans already).
+  `bundle.verdicts` (every ordered port pair x every kind, as a table) and
+  `bundle.state`/`remove_link`/`reset_links`/`clear_links` (the open composition's
+  edits) have no tool: the bundle is the state, and `pflow_bundle_candidates`
+  gives the pairs from one port, with the kinds that fit its ends.
+
+### Regenerating
+
+`make native-goldens` writes everything, including the receipt and the store cases,
+which are clock- and key-stamped and change on every run. To add cases without that
+churn: `--only mcp` writes `mcp_goldens.json` alone (the composition cases are
+there); for `cases.json` run `--only registry --cases <file with just the new cases>
+--out <tmp>` and append the new cases' records to `goldens.json` (the generator's
+text for them is byte-for-byte what a full run writes).
 
 ## /mcp game tools vs native (`cmd/webserver/mcp_game_parity_test.go`)
 

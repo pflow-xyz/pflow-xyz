@@ -1,0 +1,214 @@
+{
+  "@context": "https://pflow.xyz/schema",
+  "@type": "PetriNetBundle",
+  "name": "shared-ids",
+  "description": "Event links with one id that fuse different transitions: both engines merge them into one flat transition; the answer must not depend on the order of a map.",
+  "subnets": [
+    {
+      "@type": "PetriNet",
+      "id": "a",
+      "net_type": "ResourceNet",
+      "model": {
+        "name": "a",
+        "places": [
+          {
+            "id": "p",
+            "initial": 2,
+            "exported": true
+          }
+        ],
+        "transitions": [
+          {
+            "id": "t"
+          },
+          {
+            "id": "u"
+          }
+        ],
+        "arcs": [
+          {
+            "from": "p",
+            "to": "t",
+            "weight": 1
+          },
+          {
+            "from": "p",
+            "to": "u",
+            "weight": 1
+          }
+        ]
+      },
+      "ports": [
+        {
+          "id": "t",
+          "kind": "inout",
+          "target": "transition",
+          "transition": "t"
+        },
+        {
+          "id": "u",
+          "kind": "inout",
+          "target": "transition",
+          "transition": "u"
+        }
+      ]
+    },
+    {
+      "@type": "PetriNet",
+      "id": "b",
+      "net_type": "ResourceNet",
+      "model": {
+        "name": "b",
+        "places": [
+          {
+            "id": "p",
+            "initial": 0,
+            "exported": true
+          }
+        ],
+        "transitions": [
+          {
+            "id": "t"
+          },
+          {
+            "id": "v"
+          }
+        ],
+        "arcs": [
+          {
+            "from": "t",
+            "to": "p",
+            "weight": 1
+          },
+          {
+            "from": "v",
+            "to": "p",
+            "weight": 1
+          }
+        ]
+      },
+      "ports": [
+        {
+          "id": "t",
+          "kind": "inout",
+          "target": "transition",
+          "transition": "t"
+        },
+        {
+          "id": "v",
+          "kind": "inout",
+          "target": "transition",
+          "transition": "v"
+        }
+      ]
+    },
+    {
+      "@type": "PetriNet",
+      "id": "c",
+      "net_type": "ResourceNet",
+      "model": {
+        "name": "c",
+        "places": [
+          {
+            "id": "p",
+            "initial": 1,
+            "exported": true
+          }
+        ],
+        "transitions": [
+          {
+            "id": "w"
+          }
+        ],
+        "arcs": [
+          {
+            "from": "p",
+            "to": "w",
+            "weight": 1
+          }
+        ]
+      },
+      "ports": [
+        {
+          "id": "w",
+          "kind": "inout",
+          "target": "transition",
+          "transition": "w"
+        }
+      ]
+    },
+    {
+      "@type": "PetriNet",
+      "id": "d",
+      "net_type": "ResourceNet",
+      "model": {
+        "name": "d",
+        "places": [
+          {
+            "id": "p",
+            "initial": 0,
+            "exported": true
+          }
+        ],
+        "transitions": [
+          {
+            "id": "w"
+          }
+        ],
+        "arcs": [
+          {
+            "from": "w",
+            "to": "p",
+            "weight": 1
+          }
+        ]
+      },
+      "ports": [
+        {
+          "id": "w",
+          "kind": "inout",
+          "target": "transition",
+          "transition": "w"
+        }
+      ]
+    }
+  ],
+  "links": [
+    {
+      "kind": "event",
+      "from": {
+        "subnet": "a",
+        "port": "t"
+      },
+      "to": {
+        "subnet": "b",
+        "port": "t"
+      },
+      "id": "x"
+    },
+    {
+      "kind": "event",
+      "from": {
+        "subnet": "a",
+        "port": "u"
+      },
+      "to": {
+        "subnet": "b",
+        "port": "v"
+      },
+      "id": "x"
+    },
+    {
+      "kind": "event",
+      "from": {
+        "subnet": "c",
+        "port": "w"
+      },
+      "to": {
+        "subnet": "d",
+        "port": "w"
+      },
+      "id": "x"
+    }
+  ]
+}

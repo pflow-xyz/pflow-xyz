@@ -1,0 +1,299 @@
+{
+  "@context": "https://pflow.xyz/schema",
+  "@type": "PetriNetBundle",
+  "name": "bad-subnets",
+  "description": "A subnet with a port on an unexported place, a repeated port, a port on nothing and a kinetic flag on an output arc; a second subnet of the same id.",
+  "subnets": [
+    {
+      "@type": "PetriNet",
+      "id": "shop",
+      "model": {
+        "name": "shop",
+        "places": [
+          {
+            "id": "stock",
+            "initial": 3,
+            "exported": true
+          },
+          {
+            "id": "cash",
+            "initial": 0,
+            "exported": true
+          },
+          {
+            "id": "menu",
+            "initial": 0,
+            "kind": "data",
+            "type": "string",
+            "exported": true
+          },
+          {
+            "id": "tab",
+            "initial": 0,
+            "exported": false
+          }
+        ],
+        "transitions": [
+          {
+            "id": "sell"
+          },
+          {
+            "id": "restock"
+          },
+          {
+            "id": "audit"
+          }
+        ],
+        "arcs": [
+          {
+            "from": "stock",
+            "to": "sell"
+          },
+          {
+            "from": "sell",
+            "to": "cash",
+            "weight": 2
+          },
+          {
+            "from": "restock",
+            "to": "stock"
+          },
+          {
+            "from": "tab",
+            "to": "audit"
+          },
+          {
+            "from": "cash",
+            "to": "audit",
+            "weight": 1,
+            "type": "read"
+          },
+          {
+            "from": "tab",
+            "to": "sell",
+            "weight": 1,
+            "type": "read"
+          },
+          {
+            "from": "sell",
+            "to": "cash",
+            "kinetic": false
+          }
+        ],
+        "constraints": [
+          {
+            "id": "goods_and_cash",
+            "expr": "tokens(\"stock\") + tokens(\"cash\") == 3"
+          }
+        ]
+      },
+      "net_type": "ResourceNet",
+      "ports": [
+        {
+          "id": "stock",
+          "kind": "inout",
+          "place": "stock",
+          "schema": "goods"
+        },
+        {
+          "id": "cash",
+          "kind": "out",
+          "place": "cash",
+          "schema": "money"
+        },
+        {
+          "id": "menu",
+          "kind": "observe",
+          "place": "menu",
+          "schema": "doc"
+        },
+        {
+          "id": "sell",
+          "kind": "in",
+          "target": "transition",
+          "transition": "sell"
+        },
+        {
+          "id": "restock",
+          "kind": "out",
+          "target": "transition",
+          "transition": "restock"
+        },
+        {
+          "id": "hidden",
+          "kind": "inout",
+          "place": "tab"
+        },
+        {
+          "id": "stock",
+          "kind": "inout",
+          "place": "stock"
+        },
+        {
+          "id": "nothing",
+          "kind": "inout",
+          "place": "void"
+        }
+      ]
+    },
+    {
+      "@type": "PetriNet",
+      "id": "till",
+      "model": {
+        "name": "till",
+        "places": [
+          {
+            "id": "float",
+            "initial": 5,
+            "exported": true
+          },
+          {
+            "id": "takings",
+            "initial": 0,
+            "exported": true
+          }
+        ],
+        "transitions": [
+          {
+            "id": "ring"
+          },
+          {
+            "id": "bank"
+          }
+        ],
+        "arcs": [
+          {
+            "from": "float",
+            "to": "ring"
+          },
+          {
+            "from": "ring",
+            "to": "takings",
+            "weight": 2
+          },
+          {
+            "from": "takings",
+            "to": "bank"
+          },
+          {
+            "from": "bank",
+            "to": "float"
+          }
+        ]
+      },
+      "net_type": "ResourceNet",
+      "ports": [
+        {
+          "id": "float",
+          "kind": "in",
+          "place": "float",
+          "schema": "money"
+        },
+        {
+          "id": "takings",
+          "kind": "out",
+          "place": "takings",
+          "schema": "money"
+        },
+        {
+          "id": "ring",
+          "kind": "in",
+          "target": "transition",
+          "transition": "ring"
+        },
+        {
+          "id": "bank",
+          "kind": "out",
+          "target": "transition",
+          "transition": "bank"
+        }
+      ]
+    },
+    {
+      "@type": "PetriNet",
+      "id": "till",
+      "model": {
+        "name": "till",
+        "places": [
+          {
+            "id": "float",
+            "initial": 5,
+            "exported": true
+          },
+          {
+            "id": "takings",
+            "initial": 0,
+            "exported": true
+          }
+        ],
+        "transitions": [
+          {
+            "id": "ring"
+          },
+          {
+            "id": "bank"
+          }
+        ],
+        "arcs": [
+          {
+            "from": "float",
+            "to": "ring"
+          },
+          {
+            "from": "ring",
+            "to": "takings",
+            "weight": 2
+          },
+          {
+            "from": "takings",
+            "to": "bank"
+          },
+          {
+            "from": "bank",
+            "to": "float"
+          }
+        ]
+      },
+      "net_type": "ResourceNet",
+      "ports": [
+        {
+          "id": "float",
+          "kind": "in",
+          "place": "float",
+          "schema": "money"
+        },
+        {
+          "id": "takings",
+          "kind": "out",
+          "place": "takings",
+          "schema": "money"
+        },
+        {
+          "id": "ring",
+          "kind": "in",
+          "target": "transition",
+          "transition": "ring"
+        },
+        {
+          "id": "bank",
+          "kind": "out",
+          "target": "transition",
+          "transition": "bank"
+        }
+      ]
+    }
+  ],
+  "links": [
+    {
+      "kind": "event",
+      "from": {
+        "subnet": "shop",
+        "port": "sell"
+      },
+      "to": {
+        "subnet": "till",
+        "port": "ring"
+      }
+    }
+  ]
+}

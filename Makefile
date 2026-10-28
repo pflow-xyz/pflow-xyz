@@ -41,12 +41,14 @@ learn-goldens:
 
 # Regenerate the native parity goldens: parity/native/goldens.json (the cases in
 # parity/native/cases.json, for the wasm) and parity/native/mcp_goldens.json (the
-# /mcp workbench tool calls in parity/native/mcp_cases.json), both run through
-# pflow-native's registry natively (Rust, pinned in parity/native/gen/Cargo.toml to
-# the commit the vendored wasm was built from). Deliberate, never a side effect.
+# /mcp workbench and composition (pflow_bundle_*) tool calls in
+# parity/native/mcp_cases.json), both run through pflow-native's registry
+# natively (Rust, pinned in parity/native/gen/Cargo.toml to the commit the
+# vendored wasm was built from). Deliberate, never a side effect.
 # Needs cargo and network access to github.com (git uses the CLI so your
-# credentials apply). The receipt case embeds a freshly signed receipt, so that
-# case's golden changes on every run.
+# credentials apply). The receipt case embeds a freshly signed receipt (and the
+# store cases a clock), so those cases' goldens change on every run: commit only
+# the cases you changed (parity/native/README.md, "Regenerating").
 native-goldens:
 	@CARGO_NET_GIT_FETCH_WITH_CLI=true cargo run --release --manifest-path parity/native/gen/Cargo.toml
 	@echo "regenerated parity/native/goldens.json and mcp_goldens.json — run 'make test-js' and 'go test ./cmd/webserver/' to verify"

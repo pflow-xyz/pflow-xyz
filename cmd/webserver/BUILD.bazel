@@ -12,6 +12,13 @@ go_library(
         "main.go",
         "mcp.go",
         "mcp_game.go",
+        "mcp_model.go",
+        "mcp_model_catalog.go",
+        "mcp_model_firing.go",
+        "mcp_model_fusion.go",
+        "mcp_model_read.go",
+        "mcp_model_refusal.go",
+        "mcp_model_rules.go",
         "mcp_oauth.go",
         "mcp_registry.go",
         "mcp_simulate_gated.go",
@@ -43,6 +50,7 @@ go_library(
         "@com_github_pflow_xyz_go_pflow//parser",
         "@com_github_pflow_xyz_go_pflow//petri",
         "@com_github_pflow_xyz_go_pflow//reachability",
+        "@com_github_pflow_xyz_go_pflow//saga",
         "@com_github_pflow_xyz_go_pflow//solver",
         "@com_github_pflow_xyz_go_pflow//stochastic",
         "@com_github_pflow_xyz_go_pflow//validation",
@@ -73,6 +81,10 @@ go_test(
         "llm_turn_test.go",
         "mcp_game_parity_test.go",
         "mcp_game_test.go",
+        "mcp_model_limits_test.go",
+        "mcp_model_review_test.go",
+        "mcp_model_test.go",
+        "mcp_models_parity_test.go",
         "mcp_oauth_test.go",
         "mcp_pages_test.go",
         "mcp_registry_test.go",
@@ -90,9 +102,13 @@ go_test(
     # keep: mcp_workbench_parity_test.go replays parity/native/mcp_goldens.json on its
     # fixtures and checks the goldens' pflow-native commit against pflow-native-wasm.lock.
     # keep: mcp_game_parity_test.go replays parity/native/game_goldens.json on its fixtures.
+    # keep: mcp_models_parity_test.go replays the pflow_bundle_* cases of the same
+    # parity/native/mcp_goldens.json on the bundle fixtures under parity/native/fixtures
+    # and on the cafe showcase bundle (//examples/showcase), which mcp_model_test.go reads too.
     data = [
         "//:pflow-native-wasm.lock",
         "//examples",
+        "//examples/showcase",
         "//parity:native_game",
         "//parity:native_mcp",
         "//public:public_files",
@@ -103,6 +119,7 @@ go_test(
         "//internal/llm",
         "//internal/static",
         "//internal/userfiles",
+        "@com_github_pflow_xyz_go_pflow//metamodel",
         "@com_github_pflow_xyz_go_pflow//solver",
     ],
 )

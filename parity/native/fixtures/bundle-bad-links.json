@@ -1,0 +1,449 @@
+{
+  "@context": "https://pflow.xyz/schema",
+  "@type": "PetriNetBundle",
+  "name": "bad-links",
+  "description": "The same four nets with links that Validate refuses, one reason each.",
+  "subnets": [
+    {
+      "@type": "PetriNet",
+      "id": "shop",
+      "model": {
+        "name": "shop",
+        "places": [
+          {
+            "id": "stock",
+            "initial": 3,
+            "exported": true
+          },
+          {
+            "id": "cash",
+            "initial": 0,
+            "exported": true
+          },
+          {
+            "id": "menu",
+            "initial": 0,
+            "kind": "data",
+            "type": "string",
+            "exported": true
+          },
+          {
+            "id": "tab",
+            "initial": 0
+          }
+        ],
+        "transitions": [
+          {
+            "id": "sell"
+          },
+          {
+            "id": "restock"
+          },
+          {
+            "id": "audit"
+          }
+        ],
+        "arcs": [
+          {
+            "from": "stock",
+            "to": "sell"
+          },
+          {
+            "from": "sell",
+            "to": "cash",
+            "weight": 2
+          },
+          {
+            "from": "restock",
+            "to": "stock"
+          },
+          {
+            "from": "tab",
+            "to": "audit"
+          },
+          {
+            "from": "cash",
+            "to": "audit",
+            "weight": 1,
+            "type": "read"
+          }
+        ],
+        "constraints": [
+          {
+            "id": "goods_and_cash",
+            "expr": "tokens(\"stock\") + tokens(\"cash\") == 3"
+          }
+        ]
+      },
+      "net_type": "ResourceNet",
+      "ports": [
+        {
+          "id": "stock",
+          "kind": "inout",
+          "place": "stock",
+          "schema": "goods"
+        },
+        {
+          "id": "cash",
+          "kind": "out",
+          "place": "cash",
+          "schema": "money"
+        },
+        {
+          "id": "menu",
+          "kind": "observe",
+          "place": "menu",
+          "schema": "doc"
+        },
+        {
+          "id": "sell",
+          "kind": "in",
+          "target": "transition",
+          "transition": "sell"
+        },
+        {
+          "id": "restock",
+          "kind": "out",
+          "target": "transition",
+          "transition": "restock"
+        }
+      ]
+    },
+    {
+      "@type": "PetriNet",
+      "id": "till",
+      "model": {
+        "name": "till",
+        "places": [
+          {
+            "id": "float",
+            "initial": 5,
+            "exported": true
+          },
+          {
+            "id": "takings",
+            "initial": 0,
+            "exported": true
+          }
+        ],
+        "transitions": [
+          {
+            "id": "ring"
+          },
+          {
+            "id": "bank"
+          }
+        ],
+        "arcs": [
+          {
+            "from": "float",
+            "to": "ring"
+          },
+          {
+            "from": "ring",
+            "to": "takings",
+            "weight": 2
+          },
+          {
+            "from": "takings",
+            "to": "bank"
+          },
+          {
+            "from": "bank",
+            "to": "float"
+          }
+        ]
+      },
+      "net_type": "ResourceNet",
+      "ports": [
+        {
+          "id": "float",
+          "kind": "in",
+          "place": "float",
+          "schema": "money"
+        },
+        {
+          "id": "takings",
+          "kind": "out",
+          "place": "takings",
+          "schema": "money"
+        },
+        {
+          "id": "ring",
+          "kind": "in",
+          "target": "transition",
+          "transition": "ring"
+        },
+        {
+          "id": "bank",
+          "kind": "out",
+          "target": "transition",
+          "transition": "bank"
+        }
+      ]
+    },
+    {
+      "@type": "PetriNet",
+      "id": "visit",
+      "model": {
+        "name": "visit",
+        "places": [
+          {
+            "id": "arrived",
+            "initial": 1,
+            "exported": true
+          },
+          {
+            "id": "seated",
+            "initial": 0
+          },
+          {
+            "id": "gone",
+            "initial": 0
+          }
+        ],
+        "transitions": [
+          {
+            "id": "enter"
+          },
+          {
+            "id": "leave"
+          }
+        ],
+        "arcs": [
+          {
+            "from": "arrived",
+            "to": "enter"
+          },
+          {
+            "from": "enter",
+            "to": "seated"
+          },
+          {
+            "from": "seated",
+            "to": "leave"
+          },
+          {
+            "from": "leave",
+            "to": "gone"
+          }
+        ]
+      },
+      "net_type": "WorkflowNet",
+      "ports": [
+        {
+          "id": "arrived",
+          "kind": "observe",
+          "place": "arrived",
+          "schema": "goods"
+        },
+        {
+          "id": "enter",
+          "kind": "in",
+          "target": "transition",
+          "transition": "enter"
+        },
+        {
+          "id": "leave",
+          "kind": "out",
+          "target": "transition",
+          "transition": "leave"
+        }
+      ]
+    },
+    {
+      "@type": "PetriNet",
+      "id": "legacy",
+      "model": {
+        "name": "legacy",
+        "places": [
+          {
+            "id": "count",
+            "initial": 1,
+            "exported": true
+          },
+          {
+            "id": "seen",
+            "initial": 0,
+            "exported": true
+          }
+        ],
+        "transitions": [
+          {
+            "id": "tick"
+          }
+        ],
+        "arcs": [
+          {
+            "from": "count",
+            "to": "tick"
+          },
+          {
+            "from": "tick",
+            "to": "count"
+          },
+          {
+            "from": "seen",
+            "to": "tick",
+            "weight": 1,
+            "type": "read"
+          }
+        ]
+      },
+      "ports": [
+        {
+          "id": "count",
+          "kind": "inout",
+          "place": "count"
+        },
+        {
+          "id": "seen",
+          "kind": "observe",
+          "place": "seen"
+        },
+        {
+          "id": "tick",
+          "kind": "in",
+          "target": "transition",
+          "transition": "tick"
+        }
+      ]
+    }
+  ],
+  "links": [
+    {
+      "kind": "token",
+      "from": {
+        "subnet": "visit",
+        "port": "arrived"
+      },
+      "to": {
+        "subnet": "shop",
+        "port": "stock"
+      }
+    },
+    {
+      "kind": "event",
+      "from": {
+        "subnet": "shop",
+        "port": "stock"
+      },
+      "to": {
+        "subnet": "till",
+        "port": "ring"
+      }
+    },
+    {
+      "kind": "token",
+      "from": {
+        "subnet": "shop",
+        "port": "stock"
+      },
+      "to": {
+        "subnet": "shop",
+        "port": "cash"
+      }
+    },
+    {
+      "kind": "token",
+      "from": {
+        "subnet": "shop",
+        "port": "cash"
+      },
+      "to": {
+        "subnet": "till",
+        "port": "float"
+      },
+      "id": "pay"
+    },
+    {
+      "kind": "token",
+      "from": {
+        "subnet": "till",
+        "port": "float"
+      },
+      "to": {
+        "subnet": "shop",
+        "port": "menu"
+      }
+    },
+    {
+      "kind": "data",
+      "from": {
+        "subnet": "shop",
+        "port": "stock"
+      },
+      "to": {
+        "subnet": "till",
+        "port": "float"
+      }
+    },
+    {
+      "kind": "data",
+      "from": {
+        "subnet": "visit",
+        "port": "arrived"
+      },
+      "to": {
+        "subnet": "shop",
+        "port": "stock"
+      }
+    },
+    {
+      "kind": "data",
+      "from": {
+        "subnet": "shop",
+        "port": "cash"
+      },
+      "to": {
+        "subnet": "shop",
+        "port": "menu"
+      }
+    },
+    {
+      "kind": "guard",
+      "from": {
+        "subnet": "legacy",
+        "port": "count"
+      },
+      "to": {
+        "subnet": "shop",
+        "port": "stock"
+      }
+    },
+    {
+      "kind": "guard",
+      "from": {
+        "subnet": "legacy",
+        "port": "tick"
+      },
+      "to": {
+        "subnet": "shop",
+        "port": "stock"
+      },
+      "condition": "~ 3"
+    },
+    {
+      "kind": "token",
+      "from": {
+        "subnet": "shop",
+        "port": "ghost"
+      },
+      "to": {
+        "subnet": "till",
+        "port": "float"
+      }
+    },
+    {
+      "kind": "token",
+      "from": {
+        "subnet": "nowhere",
+        "port": "x"
+      },
+      "to": {
+        "subnet": "till",
+        "port": "float"
+      }
+    }
+  ]
+}
