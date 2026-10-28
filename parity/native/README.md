@@ -245,13 +245,44 @@ differences, all deliberate:
   `rule` card (the ontology's entries for the catalog's patterns), a port's
   `pattern_port`, the artifact handles. They describe the six catalog instances,
   not a bundle.
-- **Warning order.** go-pflow adds one `W_EVENTLINK_CYCLE` warning per fused
-  transition in map order; the tool sorts them by the fused class's smallest
-  member, which is native's order.
+- **Warning order, and which class a shared name belongs to.** go-pflow goes over
+  the event-link classes in the order of a map; pflow-compose goes over them in
+  order of their smallest member. The tool recomputes the classes from the links
+  (`mcp_model_fusion.go`) and answers as pflow-compose does: the `W_EVENTLINK_CYCLE`
+  warnings in class order, and, when two event links share an id and fuse different
+  transitions (both engines merge them into one flat transition, and Validate does
+  not object), the last class names the fused group and the description
+  (`bundle-shared-ids.json`). One answer for one bundle; go-pflow gave four.
+- **Firing is pflow-rs'**, not go-pflow's (`mcp_model_firing.go`): a negative arc
+  weight never enables (`t: arc to/from p has negative weight -2`, checked inputs
+  first, then outputs, then read and inhibitor arcs, each arc's sign before its
+  tokens), and counts saturate at the ends of int64 where go-pflow's wrap
+  (`bundle-weights.json`).
+- **A subnet that declares no ports has one inout port per exported place**, as
+  pflow-compose's `resolve` gives it (`bundle-derived.json`); the tool derives them
+  for every tool but `pflow_bundle_candidates`, whose candidates, and `from`, are the
+  declared ports (native's `candidates` read `ports` alone). One corner stays: a
+  subnet with the same place id twice, the first not exported and a later one
+  exported. Native derives a port for the later one and resolves it to the first
+  place; the tool derives none, or Validate would call the port wrong.
+- **Limits native does not have**: names of at most 128 bytes, counts and weights
+  below 2^53 (JSON-RPC delivers numbers as doubles; native takes any i64), a flat
+  net whose answer would pass 2 MB, incidence matrices of more than 50000 cells,
+  and the counts in `mcp_model.go`. Each is refused with a message, before anything
+  is built. A bundle past them has no native golden to differ from.
+- **Names for kinds are checked**: a misspelt `arc_merge`, `net_type`, place `kind`,
+  port `kind` or `target`, or link `kind` is refused (native refuses to read the
+  document; go-pflow would take it). Unit tests only.
+- **`notes`** is the one key the tool adds to native's answers (`pflow_bundle_flatten`,
+  `pflow_bundle_incidence`): an arc with no weight fires as 1 in both engines but is
+  0 in the incidence matrix of a subnet's own block (and everywhere for a lone
+  subnet), in native too. The parity test does not compare `notes`.
 - **Argument errors** are worded by the tool (`pflow_bundle_run: ...`), not by the
   registry (`bundle.run: missing required argument ...`); refusals of a value
   (`[CODE] message`, `no subnet "x" in the composition`, `unknown link kind ...`) are
-  native's, character for character. A multi-member JSON object printed in a
+  native's, character for character, with the tool's name in front and, for a port
+  that is not there, a hint behind it that lists the ports its subnet has (the test
+  compares the words between: `mbNativeText`). A multi-member JSON object printed in a
   message (`endpoint {...} needs "subnet" and "port"`) has its members sorted, as
   Go prints them.
 - **`pflow_bundle_run` also takes `expect`** with a script (native's scenarios carry

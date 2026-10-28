@@ -424,3 +424,118 @@ func TestMCPBundleEveryRefusalNamesItsTool(t *testing.T) {
 		}
 	}
 }
+
+// ---- what the tools add to native's answers
+
+func TestMCPBundleNotesSayWhatNativeDoesNot(t *testing.T) {
+	cafe := cafeBundle(t) // its arcs have no weight
+	// several subnets flatten to arcs of weight 1, but each subnet's own block counts 0
+	out, err := callBundleTool(t, "pflow_bundle_incidence", map[string]any{"bundle": cafe})
+	if err != nil {
+		t.Fatal(err)
+	}
+	notes, _ := asJSON(t, out).(map[string]any)["notes"].([]any)
+	if len(notes) != 1 || !strings.Contains(notes[0].(string), "counted as 0 in the subnets' own blocks (") || strings.Contains(notes[0].(string), "flat matrix") {
+		t.Errorf("incidence of the cafe: notes %v", notes)
+	}
+	out, _ = callBundleTool(t, "pflow_bundle_flatten", map[string]any{"bundle": cafe})
+	if n := asJSON(t, out).(map[string]any)["notes"]; n != nil {
+		t.Errorf("flatten of the cafe: its flat arcs have weights: %v", n)
+	}
+	// a lone subnet is returned as written: weight 0 in its flat arcs and its flat matrix too
+	lone := map[string]any{"subnets": []any{cafe["subnets"].([]any)[0]}}
+	for tool, want := range map[string]string{
+		"pflow_bundle_flatten":   "arcs have no weight: they are listed with weight 0 here but fire as weight 1",
+		"pflow_bundle_incidence": "counted as 0 in the flat matrix (",
+	} {
+		out, err := callBundleTool(t, tool, map[string]any{"bundle": lone})
+		if err != nil {
+			t.Fatal(err)
+		}
+		notes, _ := asJSON(t, out).(map[string]any)["notes"].([]any)
+		if len(notes) != 1 || !strings.Contains(notes[0].(string), want) {
+			t.Errorf("%s of a lone subnet: notes %v", tool, notes)
+		}
+	}
+	// a bundle whose arcs all have a weight has none; neither has a run's answer
+	for _, tool := range []string{"pflow_bundle_flatten", "pflow_bundle_incidence", "pflow_bundle_run"} {
+		args := map[string]any{"bundle": twoSubnets(tokenLink("a:q", "b:r"))}
+		if tool == "pflow_bundle_run" {
+			args["script"] = []any{"a/t"}
+		}
+		out, err := callBundleTool(t, tool, args)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, ok := asJSON(t, out).(map[string]any)["notes"]; ok {
+			t.Errorf("%s: notes on a fully weighted bundle", tool)
+		}
+	}
+	out, _ = callBundleTool(t, "pflow_bundle_run", map[string]any{"bundle": cafe, "script": []any{"counter/order"}})
+	if out.(map[string]any)["completed"] != true {
+		t.Errorf("a weightless arc fires as 1: %v", out)
+	}
+	// the arcs of a data place carry bindings, not tokens: no weight is right
+	data := twoSubnets()
+	data["subnets"].([]any)[0].(map[string]any)["model"].(map[string]any)["places"] = []any{map[string]any{"id": "p", "kind": "data", "initial": 0}}
+	data["subnets"].([]any)[0].(map[string]any)["model"].(map[string]any)["arcs"] = []any{map[string]any{"from": "p", "to": "t"}}
+	out, _ = callBundleTool(t, "pflow_bundle_incidence", map[string]any{"bundle": data})
+	if n := asJSON(t, out).(map[string]any)["notes"]; n != nil {
+		t.Errorf("a data place's arc: %v", n)
+	}
+}
+
+func TestMCPBundleCandidatesOnlyOK(t *testing.T) {
+	bundle := exampleBundle(t, map[string]any{})
+	all, err := callBundleTool(t, "pflow_bundle_candidates", map[string]any{"bundle": bundle, "from": "orders:dequeue"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	legal, err := callBundleTool(t, "pflow_bundle_candidates", map[string]any{"bundle": bundle, "from": "orders:dequeue", "only_ok": true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	a, l := asJSON(t, all).(map[string]any), asJSON(t, legal).(map[string]any)
+	if a["lit"] != l["lit"] || len(l["candidates"].([]any)) != int(l["lit"].(float64)) || len(a["candidates"].([]any)) != 20 {
+		t.Fatalf("lit %v/%v, %d of %d listed", a["lit"], l["lit"], len(l["candidates"].([]any)), len(a["candidates"].([]any)))
+	}
+	var want []any
+	for _, c := range a["candidates"].([]any) {
+		if c.(map[string]any)["ok"] == true {
+			want = append(want, c)
+		}
+	}
+	if fmt.Sprint(want) != fmt.Sprint(l["candidates"]) {
+		t.Errorf("only_ok is not the legal ones in the same order")
+	}
+	// only_ok false is the default
+	out, _ := callBundleTool(t, "pflow_bundle_candidates", map[string]any{"bundle": bundle, "from": "orders:dequeue", "only_ok": false})
+	if len(asJSON(t, out).(map[string]any)["candidates"].([]any)) != 20 {
+		t.Error("only_ok: false")
+	}
+	// and on none legal it is an empty list, not null
+	out, err = callBundleTool(t, "pflow_bundle_candidates", map[string]any{"bundle": bundle, "from": "orders:dequeue", "only_ok": true, "prefer": "token"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c := asJSON(t, out).(map[string]any)["candidates"]; c == nil {
+		t.Error("candidates: null")
+	}
+}
+
+// ---- pflow_bundle_example
+
+func TestMCPBundleExampleOfNoInstances(t *testing.T) {
+	out, err := callBundleTool(t, "pflow_bundle_example", map[string]any{"instances": []any{}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	res := asJSON(t, out).(map[string]any)
+	subnets, ok := res["bundle"].(map[string]any)["subnets"].([]any)
+	if !ok || len(subnets) != 0 {
+		t.Errorf("subnets: %v", res["bundle"].(map[string]any)["subnets"])
+	}
+	if res["instances"] == nil || len(res["instances"].([]any)) != 0 {
+		t.Errorf("instances: %v", res["instances"])
+	}
+}

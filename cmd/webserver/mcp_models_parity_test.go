@@ -145,7 +145,15 @@ func compareToGolden(t *testing.T, c bundleGoldenCase, out any, err error, what 
 	if err != nil {
 		t.Fatalf("%s: tool error: %v", what, err)
 	}
-	if d := jsonDiff(c.Expect, asJSON(t, out), "", constTolerance(0), nil); len(d) > 0 {
+	got := asJSON(t, out)
+	// pflow_bundle_flatten and pflow_bundle_incidence add `notes` when an arc has
+	// no weight (it counts as 0 in the arcs and the matrix but fires as 1: native
+	// does the same and says nothing). It is the one key the tool adds to
+	// native's answer, so it is the one key not compared (TestMCPBundleNotesSayWhatNativeDoesNot).
+	if m, ok := got.(map[string]any); ok && (c.Tool == "pflow_bundle_flatten" || c.Tool == "pflow_bundle_incidence") {
+		delete(m, "notes")
+	}
+	if d := jsonDiff(c.Expect, got, "", constTolerance(0), nil); len(d) > 0 {
 		if len(d) > 20 {
 			d = append(d[:20], fmt.Sprintf("… %d more", len(d)-20))
 		}

@@ -69,7 +69,12 @@ var (
 			"\"model\": {\"places\": [{\"id\", \"initial\", \"exported\", \"capacity\", \"kind\": \"token\"|\"data\"}], \"transitions\": [{\"id\"}], \"arcs\": [{\"from\", \"to\", \"weight\", \"type\": \"read\"|\"inhibitor\"}], \"constraints\": [{\"id\", \"expr\"}]}, " +
 			"\"ports\": [{\"id\", \"kind\": \"in\"|\"out\"|\"inout\"|\"observe\", \"place\"|(\"target\": \"transition\", \"transition\"), \"schema\"}]}], " +
 			"\"links\": [{\"kind\": \"token\"|\"data\"|\"event\"|\"guard\", \"from\": {\"subnet\", \"port\"}, \"to\": {\"subnet\", \"port\"}, \"id\", \"condition\"}], \"namespace\", \"arc_merge\": \"sum\"|\"max\"}. " +
-			"pflow_bundle_example returns one to start from.",
+			"pflow_bundle_example returns one to start from. " +
+			"Limits: names (ids) of at most 128 bytes, counts and weights below 2^53, at most 32 subnets, 1000 places, 1000 transitions, 4000 arcs, 512 ports, 200 links and 200 constraints. " +
+			"Give every arc an explicit weight: one with none fires as 1 but counts as 0 in the incidence matrix (and, for a lone subnet, in the flat arcs). " +
+			"A subnet that declares no ports has one per exported place, named for it (pflow_bundle_candidates alone does not derive them); a port on a transition has to be declared. A link in the document may also name {subnet, place} or {subnet, transition} for an end that has no port. " +
+			"Fields not named here are ignored without a word (`tokens` on a place does nothing, it is `initial`; `inhibit: true` on an arc does nothing, it is `type: \"inhibitor\"`); a misspelt net_type, place kind, port kind or target, link kind or arc_merge is refused. " +
+			"A bundle and the flat net it makes are not pflow.xyz nets: pflow_simulate, pflow_fire and the other net tools cannot read them.",
 		"properties": map[string]any{
 			"subnets": map[string]any{"type": "array", "minItems": 1, "maxItems": mbMaxSubnets, "items": map[string]any{"type": "object"}},
 			"links":   map[string]any{"type": "array", "maxItems": mbMaxLinks, "items": map[string]any{"type": "object"}},
@@ -86,7 +91,7 @@ var (
 	bundleOnlyKinds     = map[string]argKind{"bundle": argAny}
 	bundleExampleKinds  = map[string]argKind{"instances": argStrList, "links": argAny}
 	bundleAddLinkKinds  = map[string]argKind{"bundle": argAny, "kind": argStr, "from": argAny, "to": argAny}
-	bundleCandidateKind = map[string]argKind{"bundle": argAny, "from": argAny, "prefer": argStr}
+	bundleCandidateKind = map[string]argKind{"bundle": argAny, "from": argAny, "prefer": argStr, "only_ok": argBool}
 	bundleRunKinds      = map[string]argKind{"bundle": argAny, "scenario": argStr, "script": argStrList, "expect": argAny}
 )
 
@@ -115,29 +120,34 @@ func modelTools() []mcpTool {
 		{
 			Name: "pflow_bundle_add_link",
 			Description: "Add a link to a composition: judge it as Validate does on the two subnets it joins and the page's two rules (a link joins two different subnets; the same link is not added twice, an event link either way round), and if legal return the composition's links with it appended. " +
-				"A refused link is an error listing each reason as \"[CODE] message\". Ends are ports: \"subnet:port\" or {subnet, port}. Returns the new link's index, key, verdict (ok, errors, warnings: a guard link warns that it restricts) and `links`. Stores nothing: pass the links back in the bundle.",
+				"A refused link is an error (isError) listing each reason as \"[CODE] message\", and for a port that is not there the ports its subnet has. Ends are ports: \"subnet:port\" or {subnet, port} (a subnet that declares no ports has one per exported place; to link a transition, declare a port for it in the bundle). " +
+				"Returns the new link's index, key, verdict (ok, errors, warnings: a guard link warns that it restricts) and `links`. It takes kind, from and to only: a link's id, a guard link's condition and its lowering cannot be set here, add them to the returned link before passing the links back in the bundle. Stores nothing.",
 			InputSchema: obj(map[string]any{"bundle": bundleArg, "kind": linkKindArg, "from": endpointArg("the link's from end (an event link either way round; a guard's from is the gated transition)"), "to": endpointArg("the link's to end (a guard's to is the observed place)")}, "bundle", "kind", "from", "to"),
 			run:         mcpBundleAddLink,
 		},
 		{
 			Name: "pflow_bundle_candidates",
 			Description: "The snap-together candidates: every other port of the composition, judged as the far end of a link dragged from `from`. Kinds are tried in order (transition to transition: event; transition to place: guard; place to transition: a guard oriented transition to place; place to place: token, then data) and the first legal one wins; " +
-				"`prefer` restricts to one kind. Returns `lit` (how many are legal) and for each port its ref, key, ok, the link it would make, its verdict and each kind tried. A port on the same subnet is never legal (PAGE_SAME_SUBNET), nor one the link would repeat (PAGE_DUPLICATE).",
-			InputSchema: obj(map[string]any{"bundle": bundleArg, "from": endpointArg("the port the drag starts from"), "prefer": map[string]any{"type": "string", "enum": []any{"auto", "token", "data", "event", "guard"}, "description": "auto (default) or one kind"}}, "bundle", "from"),
+				"`prefer` restricts to one kind. Returns `lit` (how many are legal) and for each port its ref, key, ok, the link it would make, its verdict and each kind tried, in the order of the bundle's subnets and ports; `only_ok` returns just the legal ones (otherwise every other port is listed, those of the same subnet among them, which are never legal (PAGE_SAME_SUBNET), and a long answer is cut by the result limit). A port the link would repeat is not legal either (PAGE_DUPLICATE). " +
+				"Only declared ports count here, both `from` and the candidates: a subnet with no \"ports\" array offers none (the other tools derive one port per exported place); a refused `from` names the ports its subnet has.",
+			InputSchema: obj(map[string]any{"bundle": bundleArg, "from": endpointArg("the port the drag starts from"), "prefer": map[string]any{"type": "string", "enum": []any{"auto", "token", "data", "event", "guard"}, "description": "auto (default) or one kind"}, "only_ok": map[string]any{"type": "boolean", "description": "list only the legal candidates (default false: every port, in the bundle's order)"}}, "bundle", "from"),
 			run:         mcpBundleCandidates,
 		},
 		{
 			Name: "pflow_bundle_flatten",
 			Description: "Flatten a composition into one net (go-pflow's Bundle.FlattenWithMap): token and data links fuse places (named wire:<canonical member>), event links fuse transitions (named by the link's id, else fused:<members>), a guard link lowers to a read or inhibitor arc; elements are prefixed <subnet>/ unless the bundle sets namespace false. " +
 				"Returns the flat places, transitions (each with the members it came from), arcs and constraints, the wires and fused groups, the place and transition maps (subnet to local id to flat id), the warnings and each transition's enablement at the initial marking with go-pflow's reason. " +
-				"A bundle Validate refuses answers {ok: false, error}, not an error of the call.",
+				"A bundle Validate refuses answers {ok: false, error}, not an error of the call; a flat net whose answer would pass about 2 MB (a fused name is repeated everywhere it is mentioned) is an error of the call. " +
+				"The flat net is not a pflow.xyz net: pflow_simulate, pflow_fire and the other net tools cannot read it, pflow_bundle_run fires it. Give every arc an explicit weight: an arc with none fires as 1, but a lone subnet is returned as written, with weight 0 (a `notes` entry says how many). " +
+				"Two event links that share an id and fuse different transitions merge into one flat transition (the last class by smallest member names its fused group and description).",
 			InputSchema: obj(map[string]any{"bundle": bundleArg}, "bundle"),
 			run:         mcpBundleFlatten,
 		},
 		{
 			Name: "pflow_bundle_run",
-			Description: "Fire a script on the flat net from its initial marking (go-pflow's firing rule, weights, read and inhibitor arcs, capacities): `script` is a list of members \"<subnet>/<transition>\" (a member of a fused transition fires the whole fusion), or `scenario` one of the example's four. Stops at the first member that is not in the net or cannot fire and says why, then evaluates the predicates. " +
-				"`expect` (with `script`) is a list of {place, n, says}: the place, as \"<subnet>/<place>\", must hold n tokens at the end. Returns the steps (member, the flat transition it fired, enabled, why not), whether the script completed, the final marking and each predicate's actual and pass.",
+			Description: "Fire a script on the flat net from its initial marking (go-pflow's firing rule, weights, read and inhibitor arcs, capacities): `script` is a list of members \"<subnet>/<transition>\", the transition's own id in its subnet (payment/do_charge, not the port id do:charge a link names; a member of a fused transition fires the whole fusion), or `scenario` one of the example's four. Stops at the first member that is not in the net or cannot fire and says why, then evaluates the predicates. " +
+				"`expect` (with `script`) is a list of {place, n, says}: the place, as \"<subnet>/<place>\", must hold n tokens at the end. Returns the steps (member, the flat transition it fired, enabled, why not), whether the script completed, the final marking and each predicate's actual and pass. " +
+				"A negative arc weight never enables (as in pflow-rs), counts saturate at the ends of int64, an arc with no weight fires as 1. The flat net is not a pflow.xyz net; this is how to fire it.",
 			InputSchema: obj(map[string]any{
 				"bundle":   bundleArg,
 				"script":   map[string]any{"type": "array", "maxItems": mbMaxScript, "items": map[string]any{"type": "string"}, "description": "members \"<subnet>/<transition>\" to fire, in order"},
@@ -149,7 +159,8 @@ func modelTools() []mcpTool {
 		{
 			Name: "pflow_bundle_incidence",
 			Description: "The flat net's incidence matrix C = post − pre (rows: flat places, columns: flat transitions, in the flat net's order; read and inhibitor arcs move nothing), each subnet's own block, and each declared constraint of the form tokens(\"a\") + … == n read as a P-invariant y (1 on each place it names): " +
-				"holds is true when y·C = 0 and y·M₀ = n, which proves the constraint for every reachable marking, false when it does not, and null when the constraint is not such a sum. A bundle Validate refuses answers {ok: false, error}.",
+				"holds is true when y·C = 0 and y·M₀ = n, which proves the constraint for every reachable marking, false when it does not, and null when the constraint is not such a sum. A bundle Validate refuses answers {ok: false, error}; matrices of more than 50000 cells in all (flat places x flat transitions, plus each subnet's own) are an error of the call. " +
+				"Give every arc an explicit weight: an arc with none counts as 0 in a subnet's own block (and everywhere for a lone subnet) but fires as 1, so that column is wrong (a `notes` entry says how many arcs; pflow-native's matrix does the same). The flat net is not a pflow.xyz net.",
 			InputSchema: obj(map[string]any{"bundle": bundleArg}, "bundle"),
 			run:         mcpBundleIncidence,
 		},
@@ -272,6 +283,7 @@ func mcpBundleCandidates(_ *Server, r *http.Request, args map[string]any) (any, 
 	if p, ok := args["prefer"].(string); ok {
 		prefer = p
 	}
+	onlyOK, _ := args["only_ok"].(bool)
 	list, err := mbCandidates(r.Context(), b, from, prefer)
 	if err != nil {
 		return nil, mbRefuse(tool, err)
@@ -281,6 +293,15 @@ func mcpBundleCandidates(_ *Server, r *http.Request, args map[string]any) (any, 
 		if c.(map[string]any)["ok"] == true {
 			lit++
 		}
+	}
+	if onlyOK {
+		legal := make([]any, 0, lit)
+		for _, c := range list {
+			if c.(map[string]any)["ok"] == true {
+				legal = append(legal, c)
+			}
+		}
+		list = legal
 	}
 	return map[string]any{"from": mbEnd(from), "prefer": prefer, "lit": lit, "candidates": list}, nil
 }
@@ -439,13 +460,10 @@ func mcpBundleExample(_ *Server, _ *http.Request, args map[string]any) (any, err
 	}
 	instances := mbDefaultInstances
 	if l, ok := args["instances"].([]any); ok {
-		instances = nil
+		instances = []string{}
 		for _, s := range l {
 			instances = append(instances, s.(string))
 		}
-	}
-	if len(instances) > len(mbCatalog) {
-		return nil, fmt.Errorf("%s: %d instances; the catalog has %d", tool, len(instances), len(mbCatalog))
 	}
 	links := mbDefaultLinks()
 	if raw, ok := args["links"]; ok && raw != nil {
@@ -477,6 +495,9 @@ func mcpBundleExample(_ *Server, _ *http.Request, args map[string]any) (any, err
 	var bundle any
 	if err := json.Unmarshal(text, &bundle); err != nil {
 		return nil, err
+	}
+	if m, ok := bundle.(map[string]any); ok && m["subnets"] == nil {
+		m["subnets"] = []any{} // a composition of no instances has no subnets, not a null
 	}
 	catalog := make([]any, len(mbCatalog))
 	for i := range mbCatalog {

@@ -381,8 +381,13 @@ func TestMCPBundleRefusesHugeBundles(t *testing.T) {
 		}
 	})
 	t.Run("example instances and links", func(t *testing.T) {
+		// more instances than the catalog has can only repeat or not exist: native's words
 		_, err := callBundleTool(t, "pflow_bundle_example", map[string]any{"instances": []any{"orders", "orders", "orders", "orders", "orders", "orders", "orders"}})
-		if err == nil || !strings.Contains(err.Error(), "the catalog has 6") {
+		if err == nil || !strings.Contains(err.Error(), `instance "orders" is already in the composition`) {
+			t.Errorf("error %v", err)
+		}
+		_, err = callBundleTool(t, "pflow_bundle_example", map[string]any{"instances": []any{"orders", "workers", "payment", "payment2", "orders2", "workers2", "bank"}})
+		if err == nil || !strings.Contains(err.Error(), `no instance "bank"`) {
 			t.Errorf("error %v", err)
 		}
 		_, err = callBundleTool(t, "pflow_bundle_example", map[string]any{"links": many(mbMaxLinks+1, func(int) map[string]any {

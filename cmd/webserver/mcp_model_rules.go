@@ -445,13 +445,43 @@ func mbFlatView(f *mbFlat) map[string]any {
 	for i, w := range f.fm.Warnings {
 		warnings[i] = map[string]any{"code": w.Code, "element": w.Element, "message": w.Message}
 	}
-	return map[string]any{
+	view := map[string]any{
 		"ok": true, "error": "",
 		"places": places, "transitions": transitions, "arcs": mbArcsView(f.model), "constraints": mbConstraintsView(f.model),
 		"wires": mbStringsMap(f.fm.Wires), "fused_groups": mbStringsMap(f.fm.FusedGroups),
 		"place_map": mbNestedMap(f.fm.Place), "transition_map": mbNestedMap(f.fm.Transition),
 		"warnings": warnings, "initial_enablement": enablement,
 	}
+	// (flattening several subnets gives an arc without a weight the weight 1;
+	// a lone subnet is returned as it is)
+	if n := mbWeightless(f.model, false); n > 0 {
+		view["notes"] = []any{fmt.Sprintf("%d of the %d arcs have no weight: they are listed with weight 0 here but fire as weight 1 (pflow_bundle_run, the initial enablement above). Give every arc an explicit weight.", n, len(f.model.Arcs))}
+	}
+	return view
+}
+
+// mbWeightless counts the arcs of a model that move tokens (or, unless
+// movingOnly, any arc between a token place and a transition) and have no
+// weight: every firing rule reads that as 1, a sum over the arcs as 0. An arc
+// of a data place carries bindings, not tokens; no weight is right for it.
+func mbWeightless(m *metamodel.Model, movingOnly bool) int {
+	token, transition := map[string]bool{}, map[string]bool{}
+	for i := range m.Places {
+		if m.Places[i].IsToken() {
+			token[m.Places[i].ID] = true
+		}
+	}
+	for i := range m.Transitions {
+		transition[m.Transitions[i].ID] = true
+	}
+	n := 0
+	for _, a := range m.Arcs {
+		touches := (token[a.From] && transition[a.To]) || (transition[a.From] && token[a.To])
+		if a.Weight == 0 && touches && !(movingOnly && a.IsReadOnly()) {
+			n++
+		}
+	}
+	return n
 }
 
 // ---- how big the answer is
@@ -741,5 +771,24 @@ func mbIncidenceView(b *metamodel.Bundle) (map[string]any, error) {
 		}
 		invariants[i] = map[string]any{"id": k.ID, "expr": k.Expr, "holds": holds}
 	}
-	return map[string]any{"ok": true, "rows": rows, "cols": cols, "matrix": mbMatrixView(c), "blocks": blocks, "invariants": invariants}, nil
+	view := map[string]any{"ok": true, "rows": rows, "cols": cols, "matrix": mbMatrixView(c), "blocks": blocks, "invariants": invariants}
+	// the flat net's arcs read as 1 once several subnets are flattened; the blocks
+	// are each subnet's own arcs, as written
+	flatN, blockN := mbWeightless(f.model, true), 0
+	for i := range b.Subnets {
+		if m := b.Subnets[i].Model; m != nil {
+			blockN += mbWeightless(m, true)
+		}
+	}
+	if flatN+blockN > 0 {
+		var where []string
+		if flatN > 0 {
+			where = append(where, fmt.Sprintf("the flat matrix (%d)", flatN))
+		}
+		if blockN > 0 {
+			where = append(where, fmt.Sprintf("the subnets' own blocks (%d)", blockN))
+		}
+		view["notes"] = []any{fmt.Sprintf("Arcs that move tokens have no weight and are counted as 0 in %s, but they fire as weight 1 (pflow_bundle_run). Give every arc an explicit weight.", strings.Join(where, " and "))}
+	}
+	return view, nil
 }
