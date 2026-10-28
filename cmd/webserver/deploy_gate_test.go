@@ -322,8 +322,8 @@ func TestGateFailsClosedWhenTheAPIStaysDown(t *testing.T) {
 	if got := g.clk.elapsed(start); got != 15*time.Minute {
 		t.Errorf("gave up after %s", got)
 	}
-	if gs.hitCount() != 61 { // every 15s for 15 minutes, plus the one at the deadline
-		t.Errorf("hits = %d, want 61", gs.hitCount())
+	if gs.hitCount() != 25 { // 15s for 2 minutes, 30s until 5, then 60s, the last look at the deadline
+		t.Errorf("hits = %d, want 25", gs.hitCount())
 	}
 }
 
@@ -389,6 +389,199 @@ func TestGateWaitsOutRateLimits(t *testing.T) {
 			t.Errorf("waited %s; a rate limit may not stretch the gate beyond its timeout", got)
 		}
 	})
+}
+
+// Unauthenticated, GitHub allows 60 requests an hour and every poll spends one
+// (a 304 included): a flat 15 seconds would spend all 60 on one stuck CI run.
+func TestGateBacksOffItsPolling(t *testing.T) {
+	gs := newGateServer(t, func(n int, w http.ResponseWriter, r *http.Request) {
+		writeRuns(w, runJSON(7, "test", "in_progress", ""))
+	})
+	g := newTestGate(t, gs)
+	_, err := g.wait(context.Background(), testSHA)
+	asRefusal(t, err)
+
+	var want []time.Duration
+	for i := 0; i < 8; i++ { // 0 .. 2m
+		want = append(want, 15*time.Second)
+	}
+	for i := 0; i < 6; i++ { // 2m .. 5m
+		want = append(want, 30*time.Second)
+	}
+	for i := 0; i < 10; i++ { // 5m .. 15m
+		want = append(want, time.Minute)
+	}
+	if fmt.Sprint(g.clk.slept) != fmt.Sprint(want) {
+		t.Errorf("polled at intervals %v\nwant %v", g.clk.slept, want)
+	}
+	if gs.hitCount() != 25 {
+		t.Errorf("a stuck run costs %d requests, want 25 (it was 61)", gs.hitCount())
+	}
+}
+
+func TestGateIntervalScalesWithThePollSetting(t *testing.T) {
+	for _, c := range []struct {
+		poll, elapsed, want time.Duration
+	}{
+		{15 * time.Second, 0, 15 * time.Second},
+		{15 * time.Second, ciFastFor - time.Second, 15 * time.Second},
+		{15 * time.Second, ciFastFor, 30 * time.Second},
+		{15 * time.Second, ciSlowAfter - time.Second, 30 * time.Second},
+		{15 * time.Second, ciSlowAfter, time.Minute},
+		{15 * time.Second, time.Hour, time.Minute},
+		{5 * time.Second, 0, 5 * time.Second},
+		{5 * time.Second, ciFastFor, 10 * time.Second},
+		{5 * time.Second, ciSlowAfter, 20 * time.Second},
+		{40 * time.Second, ciSlowAfter, time.Minute},    // 4x would be 160s: capped at a minute
+		{2 * time.Minute, 0, 2 * time.Minute},           // a slower poll than the cap is the operator's choice
+		{2 * time.Minute, ciSlowAfter, 2 * time.Minute}, // and is never made slower
+	} {
+		g := &ciGate{poll: c.poll}
+		if got := g.interval(c.elapsed); got != c.want {
+			t.Errorf("poll %s after %s: interval %s, want %s", c.poll, c.elapsed, got, c.want)
+		}
+	}
+}
+
+// rateHeaders sets the headers GitHub puts on every API response.
+func rateHeaders(w http.ResponseWriter, limit, remaining int, reset time.Time) {
+	w.Header().Set("X-RateLimit-Limit", strconv.Itoa(limit))
+	w.Header().Set("X-RateLimit-Remaining", strconv.Itoa(remaining))
+	w.Header().Set("X-RateLimit-Reset", strconv.FormatInt(reset.Unix(), 10))
+}
+
+func TestGateLogsTheRateLimit(t *testing.T) {
+	var clk *fakeClock
+	gs := newGateServer(t, func(n int, w http.ResponseWriter, r *http.Request) {
+		rateHeaders(w, 60, 60-n, clk.Now().Add(40*time.Minute))
+		if n < 3 {
+			writeRuns(w, runJSON(7, "test", "in_progress", ""))
+			return
+		}
+		writeRuns(w, runJSON(7, "test", "completed", "success"))
+	})
+	g := newTestGate(t, gs)
+	clk = g.clk
+	if _, err := g.wait(context.Background(), testSHA); err != nil {
+		t.Fatal(err)
+	}
+	log := strings.Join(*g.logs, "\n")
+	for _, want := range []string{
+		"GitHub API rate limit: 59 of 60 left, resets 16:14:00Z",
+		"unauthenticated, so every poll costs one request",
+		"DEPLOY_GITHUB_TOKEN",
+		"3 requests to GitHub; rate limit 57 of 60 left",
+	} {
+		if !strings.Contains(log, want) {
+			t.Errorf("gate log lacks %q:\n%s", want, log)
+		}
+	}
+	if n := strings.Count(log, "rate limit: "); n != 1 {
+		t.Errorf("the rate limit is logged once while it is comfortable, got %d times:\n%s", n, log)
+	}
+
+	// With a token the hint about unauthenticated requests is not shown.
+	gs2 := newGateServer(t, func(n int, w http.ResponseWriter, r *http.Request) {
+		rateHeaders(w, 5000, 4999, clk.Now().Add(time.Hour))
+		writeRuns(w, runJSON(7, "test", "completed", "success"))
+	})
+	g2 := newTestGate(t, gs2)
+	g2.token = "ghp_example"
+	if _, err := g2.wait(context.Background(), testSHA); err != nil {
+		t.Fatal(err)
+	}
+	if log2 := strings.Join(*g2.logs, "\n"); !strings.Contains(log2, "4999 of 5000 left") || strings.Contains(log2, "unauthenticated") {
+		t.Errorf("authenticated gate log:\n%s", log2)
+	}
+}
+
+func TestGateLogsEveryPollOnceTheRateLimitIsLow(t *testing.T) {
+	var clk *fakeClock
+	gs := newGateServer(t, func(n int, w http.ResponseWriter, r *http.Request) {
+		rateHeaders(w, 60, 14-n, clk.Now().Add(40*time.Minute)) // 13, 12, 11, 10, 9, ...
+		if n < 7 {
+			writeRuns(w, runJSON(7, "test", "in_progress", ""))
+			return
+		}
+		writeRuns(w, runJSON(7, "test", "completed", "success"))
+	})
+	g := newTestGate(t, gs)
+	clk = g.clk
+	if _, err := g.wait(context.Background(), testSHA); err != nil {
+		t.Fatal(err)
+	}
+	log := strings.Join(*g.logs, "\n")
+	for _, want := range []string{"13 of 60 left", "10 of 60 left", "9 of 60 left", "8 of 60 left", "7 of 60 left"} {
+		if !strings.Contains(log, want) {
+			t.Errorf("a low rate limit should be logged on every poll; lacks %q:\n%s", want, log)
+		}
+	}
+	if strings.Contains(log, "12 of 60 left") || strings.Contains(log, "11 of 60 left") {
+		t.Errorf("polls with a comfortable budget should not repeat the rate limit:\n%s", log)
+	}
+}
+
+// When the budget is gone and will not come back before the gate gives up,
+// waiting out the timeout only delays the same refusal and hides its cause.
+func TestGateFailsFastWhenTheRateLimitOutlastsIt(t *testing.T) {
+	for _, c := range []struct {
+		name   string
+		status int // what the exhausting response is
+		token  string
+		fix    string
+	}{
+		{"403 without a token", http.StatusForbidden, "", "Set DEPLOY_GITHUB_TOKEN"},
+		{"429 without a token", http.StatusTooManyRequests, "", "Set DEPLOY_GITHUB_TOKEN"},
+		{"a 200 that used the last request", http.StatusOK, "", "Set DEPLOY_GITHUB_TOKEN"},
+		{"with a token", http.StatusForbidden, "ghp_example", "its own limit is used up"},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			var clk *fakeClock
+			gs := newGateServer(t, func(n int, w http.ResponseWriter, r *http.Request) {
+				rateHeaders(w, 60, 0, clk.Now().Add(50*time.Minute))
+				if c.status == http.StatusOK {
+					writeRuns(w, runJSON(7, "test", "in_progress", ""))
+					return
+				}
+				http.Error(w, "API rate limit exceeded", c.status)
+			})
+			g := newTestGate(t, gs)
+			clk, g.token = g.clk, c.token
+			start := clk.Now()
+			_, err := g.wait(context.Background(), testSHA)
+			ref := asRefusal(t, err)
+			for _, want := range []string{"rate limit is used up", "0 of 60 left", "16:24:00Z", c.fix, "skip_ci=1"} {
+				if !strings.Contains(ref.msg, want) {
+					t.Errorf("refusal lacks %q: %s", want, ref.msg)
+				}
+			}
+			if strings.Contains(ref.msg, "gave up after") {
+				t.Errorf("this is not a timeout: %s", ref.msg)
+			}
+			if gs.hitCount() != 1 || len(clk.slept) != 0 || clk.elapsed(start) != 0 {
+				t.Errorf("hits %d, slept %v: it should refuse at once", gs.hitCount(), clk.slept)
+			}
+		})
+	}
+}
+
+// A reset that arrives before the deadline is worth waiting for.
+func TestGateWaitsForARateLimitThatResetsInTime(t *testing.T) {
+	var clk *fakeClock
+	gs := newGateServer(t, func(n int, w http.ResponseWriter, r *http.Request) {
+		if n == 1 {
+			rateHeaders(w, 60, 0, clk.Now().Add(5*time.Minute))
+			http.Error(w, "API rate limit exceeded", http.StatusForbidden)
+			return
+		}
+		rateHeaders(w, 60, 59, clk.Now().Add(time.Hour))
+		writeRuns(w, runJSON(7, "test", "completed", "success"))
+	})
+	g := newTestGate(t, gs)
+	clk = g.clk
+	if _, err := g.wait(context.Background(), testSHA); err != nil {
+		t.Fatalf("a limit that resets in 5 minutes must not fail a 15 minute gate: %v", err)
+	}
 }
 
 func TestGateUsesETagsSoPollingIsCheap(t *testing.T) {

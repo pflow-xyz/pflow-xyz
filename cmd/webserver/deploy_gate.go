@@ -44,6 +44,18 @@ const (
 
 	ciRequestTimeout = 20 * time.Second
 	ciMaxBody        = 1 << 20
+
+	// Polling backs off: DEPLOY_CI_POLL for the first ciFastFor (when a run
+	// registers or the gate learns there is none), twice that until ciSlowAfter,
+	// then four times it, never more than a minute (or the poll itself, if that
+	// is longer). An unauthenticated client has 60 requests an hour and every
+	// poll spends one, ETag or not (see docs/deploy.md).
+	ciFastFor   = 2 * time.Minute
+	ciSlowAfter = 5 * time.Minute
+	ciMaxPoll   = time.Minute
+
+	// ciLowWater is the remaining-request count below which every poll logs it.
+	ciLowWater = 10
 )
 
 // deployConfig is the deploy's environment-derived settings, read afresh for
@@ -175,6 +187,60 @@ type ciGate struct {
 	cached    []checkRun
 	truncated bool
 	cacheOK   bool
+
+	rate     rateLimit // from the latest response
+	requests int       // requests made
+}
+
+// rateLimit is what GitHub's X-RateLimit-* headers said.
+type rateLimit struct {
+	known     bool
+	limit     int
+	remaining int
+	reset     time.Time
+}
+
+func parseRateLimit(h http.Header) rateLimit {
+	var r rateLimit
+	rem, err1 := strconv.Atoi(h.Get("X-RateLimit-Remaining"))
+	reset, err2 := strconv.ParseInt(h.Get("X-RateLimit-Reset"), 10, 64)
+	if err1 != nil || err2 != nil {
+		return r
+	}
+	r.known, r.remaining, r.reset = true, rem, time.Unix(reset, 0)
+	r.limit, _ = strconv.Atoi(h.Get("X-RateLimit-Limit"))
+	return r
+}
+
+// interval is how long to sleep before the next poll, given how long the gate
+// has been waiting.
+func (g *ciGate) interval(elapsed time.Duration) time.Duration {
+	d := g.poll
+	switch {
+	case elapsed >= ciSlowAfter:
+		d = 4 * g.poll
+	case elapsed >= ciFastFor:
+		d = 2 * g.poll
+	}
+	if max := max(ciMaxPoll, g.poll); d > max {
+		d = max
+	}
+	return d
+}
+
+// exhausted reports whether GitHub has said the request budget is used up and
+// stays so past deadline: waiting longer cannot help.
+func (g *ciGate) exhausted(deadline time.Time) bool {
+	return g.rate.known && g.rate.remaining == 0 && g.rate.reset.After(deadline)
+}
+
+func (g *ciGate) exhaustedRefusal(short string, deadline time.Time) *deployRefusal {
+	fix := "Set DEPLOY_GITHUB_TOKEN on the box (a token with no scopes is enough for this public repository: authenticated requests get 5000 an hour, and an unchanged answer, a 304, costs nothing)"
+	if g.token != "" {
+		fix = "DEPLOY_GITHUB_TOKEN is set, so its own limit is used up; wait for the reset"
+	}
+	return &deployRefusal{fmt.Sprintf("refusing to deploy %s: GitHub's API rate limit is used up (%d of %d left) and does not reset until %s, after this gate's deadline (%s), so CI cannot be read. %s, or POST /admin/deploy?skip_ci=1 to override",
+		short, g.rate.remaining, g.rate.limit, g.rate.reset.UTC().Format("15:04:05Z"), deadline.UTC().Format("15:04:05Z"), fix)}
 }
 
 // gateQuery is the outcome of one API call.
@@ -216,6 +282,10 @@ func (g *ciGate) query(ctx context.Context, sha string) gateQuery {
 	}
 	defer resp.Body.Close()
 	body, _ := io.ReadAll(io.LimitReader(resp.Body, ciMaxBody))
+	g.requests++
+	if r := parseRateLimit(resp.Header); r.known {
+		g.rate = r
+	}
 
 	switch {
 	case resp.StatusCode == http.StatusNotModified:
@@ -350,8 +420,14 @@ func (g *ciGate) wait(ctx context.Context, sha string) (string, error) {
 			short, g.timeout, g.check, last)}
 	}
 
-	g.logf("ci-gate: waiting for check run %q on %s in %s (poll %s, grace %s, timeout %s)",
-		g.check, short, g.repo, g.poll, g.grace, g.timeout)
+	g.logf("ci-gate: waiting for check run %q on %s in %s (poll %s, backing off to %s; grace %s, timeout %s)",
+		g.check, short, g.repo, g.poll, g.interval(ciSlowAfter), g.grace, g.timeout)
+	var rateLogged bool
+	defer func() {
+		if g.rate.known {
+			g.logf("ci-gate: %d requests to GitHub; rate limit %d of %d left, resets %s", g.requests, g.rate.remaining, g.rate.limit, g.rate.reset.UTC().Format("15:04:05Z"))
+		}
+	}()
 	for {
 		if err := ctx.Err(); err != nil {
 			return "", err
@@ -359,6 +435,14 @@ func (g *ciGate) wait(ctx context.Context, sha string) (string, error) {
 		q := g.query(ctx, sha)
 		if err := ctx.Err(); err != nil {
 			return "", err // cancelled mid-request: not an API failure to retry or log
+		}
+		if g.rate.known && (!rateLogged || g.rate.remaining <= ciLowWater) {
+			msg := fmt.Sprintf("GitHub API rate limit: %d of %d left, resets %s", g.rate.remaining, g.rate.limit, g.rate.reset.UTC().Format("15:04:05Z"))
+			if !rateLogged && g.token == "" {
+				msg += "; unauthenticated, so every poll costs one request (DEPLOY_GITHUB_TOKEN raises the limit and makes an unchanged answer free)"
+			}
+			rateLogged = true
+			note(msg)
 		}
 		var advice time.Duration
 		switch {
@@ -400,10 +484,13 @@ func (g *ciGate) wait(ctx context.Context, sha string) (string, error) {
 		}
 
 		now := g.now()
+		if g.exhausted(deadline) {
+			return "", g.exhaustedRefusal(short, deadline)
+		}
 		if !now.Before(deadline) {
 			return "", timedOut()
 		}
-		d := g.poll
+		d := g.interval(now.Sub(start))
 		if advice > d {
 			d = advice
 		}
