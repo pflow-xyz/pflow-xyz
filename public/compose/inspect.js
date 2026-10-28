@@ -96,6 +96,8 @@ function show(info, e) {
   const r = reduceInspector(inspector, { type: 'show', id: idOf(info) });
   inspector = r.state;
   if (r.effect === 'show') panel.replaceChildren(renderInfo(info));
+  // A finger does not hover: the tip would be left on screen after the tap, over the pinned sheet's title.
+  if (e.pointerType === 'touch') return;
   tip.replaceChildren(el('b', {}, info.title || ''), el('code', {}, info.concept ? ` ${short(info.concept.iri)}` : ''));
   tip.className = 'hover-tip show';
   move(e);
@@ -115,6 +117,7 @@ export function clear() {
 function applyEffect(r, info) {
   inspector = r.state;
   if (r.effect === 'pin') {
+    hide(); // the panel (or, on a narrow screen, the sheet) says it now; the short tip would only sit on top of it
     panel.replaceChildren(renderInfo(info, { pinned: true }));
     panel.querySelector('.insp')?.classList.add('pinned');
     card && card.classList.add('has-pin');

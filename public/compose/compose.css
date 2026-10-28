@@ -150,7 +150,6 @@ svg *:focus, svg *:focus-visible { outline: none; }
 .a11y-ring { position: fixed; z-index: 40; display: none; pointer-events: none; border: 3px solid var(--focus); border-radius: 7px; box-shadow: 0 0 0 2px #fff, inset 0 0 0 1px #fff; }
 .a11y-ring.show { display: block; }
 .a11y-badge { font-family: var(--font-sans); font-weight: 700; user-select: none; }
-.a11y-badge-out { paint-order: stroke; stroke: var(--paper); stroke-width: 2.2px; }
 kbd { font-family: var(--font-mono); font-size: 10.5px; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 3px; padding: 0 4px; background: #fff; }
 .keys-list { margin: 4px 0; padding-left: 16px; font-size: 11.5px; }
 .keys-list li { margin: 3px 0; }

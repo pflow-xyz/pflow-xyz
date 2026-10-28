@@ -310,6 +310,7 @@ function schemaBadges(stage, subnets) {
     t.setAttribute('pointer-events', 'none');
     t.setAttribute('text-anchor', 'middle');
     t.textContent = code;
+    let badge = t;
     if (mb.width >= 9) {
       // inside the dot, white on the schema colour
       t.setAttribute('x', mb.x + mb.width / 2);
@@ -317,16 +318,24 @@ function schemaBadges(stage, subnets) {
       t.setAttribute('font-size', Math.max(6.5, mb.width * 0.72));
       t.setAttribute('fill', '#fff');
     } else {
-      // too small to hold a letter: beside it, in the schema colour, haloed
-      t.setAttribute('x', mb.x + mb.width + 4);
-      t.setAttribute('y', mb.y - 1);
-      t.setAttribute('font-size', 7.5);
+      // Too small to hold a letter: a boxed letter above the arrow, off the leader line. A bare "I" at
+      // this size is a 1.5 px bar that reads as a tick on the dashed leader, so it gets a frame.
+      const S = 10, gx = mb.x + mb.width + 3, gy = mb.y - S - 1;
+      badge = document.createElementNS(SVGNS, 'g');
+      badge.setAttribute('class', 'a11y-badge a11y-badge-out');
+      badge.setAttribute('aria-hidden', 'true');
+      badge.setAttribute('pointer-events', 'none');
+      const box = document.createElementNS(SVGNS, 'rect');
+      for (const [k, v] of Object.entries({ x: gx, y: gy, width: S, height: S, rx: 2, fill: '#fff', stroke: color, 'stroke-width': 1 })) box.setAttribute(k, v);
+      t.setAttribute('x', gx + S / 2);
+      t.setAttribute('y', gy + S - 2.4);
+      t.setAttribute('font-size', 8);
       t.setAttribute('fill', color);
-      t.classList.add('a11y-badge-out');
+      badge.append(box, t);
     }
     const tf = mk.getAttribute('transform');
-    if (tf) t.setAttribute('transform', tf);
-    mk.after(t);
+    if (tf) badge.setAttribute('transform', tf);
+    mk.after(badge);
   }
 }
 
