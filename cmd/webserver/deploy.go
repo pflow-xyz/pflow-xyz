@@ -108,10 +108,12 @@ func tokenMatches(got, secret string) bool {
 
 // ---- Signature failures ----------------------------------------------------
 
-// GitHub's web-flow key signs the commits GitHub itself creates: the merge,
-// squash and rebase buttons and edits in the web UI. pflow.dev's keyring holds
-// only the owner's keys, so such a tip cannot be verified there until the
-// owner imports this key; the deploy never trusts it by itself.
+// GitHub's web-flow key signs the commits GitHub itself creates: merge commits,
+// squash merges and edits in the web UI. (Not "Rebase and merge": GitHub cannot
+// sign the rebased commits, it lacks the committer's key, so that tip arrives
+// unsigned and no key import helps.) pflow.dev's keyring holds only the owner's
+// keys, so a web-flow tip cannot be verified there until the owner imports this
+// key; the deploy never trusts it by itself.
 const (
 	webFlowKeyID       = "B5690EEEBB952194"
 	webFlowFingerprint = "968479A1AFF927E37D1A566BB5690EEEBB952194"
@@ -123,7 +125,6 @@ var (
 	reNoPubKey   = regexp.MustCompile(`(?i)can't check signature: (?:no public key|public key not found)`)
 	reNoPubKeyST = regexp.MustCompile(`\bNO_PUBKEY ([0-9A-Fa-f]{8,40})\b`)
 	reBadSig     = regexp.MustCompile(`(?i)\bBAD signature\b|\bBADSIG\b`)
-	reNoSig      = regexp.MustCompile(`(?i)\bno signature found\b`)
 	reSSHSig     = regexp.MustCompile(`(?i)No principal matched|Could not verify signature|allowedSignersFile`)
 )
 
@@ -142,9 +143,14 @@ func isWebFlowKey(id string) bool {
 	return len(id) >= 8 && strings.HasSuffix(webFlowFingerprint, id)
 }
 
-// diagnoseVerify classifies the combined output of `git verify-commit`. It is a
-// pure function of the text so it can be tested against real output.
-func diagnoseVerify(output string) verifyDiagnosis {
+// diagnoseVerify classifies a failed `git verify-commit` from its combined
+// output and exit status (-1 if unknown). It is a pure function so it can be
+// tested against real output.
+//
+// An unsigned commit is the odd one: git (2.48, with gpg.format openpgp or ssh)
+// prints NOTHING and exits 1, so the exit status and the silence are the
+// evidence. A command killed by its timeout is silent too but exits -1.
+func diagnoseVerify(output string, exit int) verifyDiagnosis {
 	d := verifyDiagnosis{Kind: "unknown"}
 	if m := reGPGUsing.FindStringSubmatch(output); m != nil {
 		d.KeyAlgo, d.KeyID = m[1], strings.ToUpper(m[2])
@@ -159,10 +165,10 @@ func diagnoseVerify(output string) verifyDiagnosis {
 		}
 	case reBadSig.MatchString(output):
 		d.Kind = "bad-signature"
-	case reNoSig.MatchString(output):
-		d.Kind = "unsigned"
 	case reSSHSig.MatchString(output):
 		d.Kind = "ssh-untrusted"
+	case exit == 1 && strings.TrimSpace(output) == "":
+		d.Kind = "unsigned"
 	}
 	d.WebFlow = d.KeyID != "" && isWebFlowKey(d.KeyID)
 	return d
@@ -171,8 +177,8 @@ func diagnoseVerify(output string) verifyDiagnosis {
 // explainVerifyFailure turns a failed verify-commit into the error the deploy
 // reports: which commit, which key, and what to do. It names the remedy and
 // leaves the decision to the owner.
-func explainVerifyFailure(sha, output string) string {
-	d := diagnoseVerify(output)
+func explainVerifyFailure(sha, output string, exit int) string {
+	d := diagnoseVerify(output, exit)
 	key := d.KeyID
 	if key != "" && d.KeyAlgo != "" {
 		key = d.KeyAlgo + " key " + d.KeyID
@@ -184,7 +190,7 @@ func explainVerifyFailure(sha, output string) string {
 	case "no-public-key":
 		if d.WebFlow {
 			return pre + "its signature cannot be checked: pflow.dev's keyring has no public key for " + key +
-				", which is GitHub's web-flow key (it signs the merge, squash and rebase buttons and web edits). " +
+				", which is GitHub's web-flow key (it signs merge commits, squash merges and web edits). " +
 				"The deploy does not trust it by itself; that is a keyring decision for the owner. " +
 				"As ubuntu on pflow.dev run `" + webFlowImportCmd + "`, check that `gpg --fingerprint " + webFlowKeyID +
 				"` shows " + webFlowFingerprint + ", then redeliver the webhook or POST /admin/deploy (docs/deploy.md)"
@@ -197,7 +203,9 @@ func explainVerifyFailure(sha, output string) string {
 	case "bad-signature":
 		return pre + "its signature is BAD (gpg reports a signature that does not match the commit" + keySuffix(key) + ")"
 	case "unsigned":
-		return pre + "the commit is not signed (protected main should only carry signed commits)"
+		return pre + "the commit carries no signature (git verify-commit printed nothing and exited 1, which is how it reports an unsigned commit). " +
+			"Protected main should only carry signed commits. A tip made by the Rebase and merge button is unsigned: GitHub cannot sign rebased commits " +
+			"(it does not have the committer's key), and importing GitHub's key does not help. Use a merge commit or Squash and merge, which GitHub signs, or merge and sign locally"
 	case "ssh-untrusted":
 		return pre + "its SSH signature is not from a key in the box's allowed_signers file (gpg.ssh.allowedSignersFile)"
 	}
@@ -226,6 +234,16 @@ func lastLines(s string, n int) string {
 		return "no output"
 	}
 	return strings.Join(lines, " | ")
+}
+
+// exitStatus is the exit code of the command err came from, or -1 if err is
+// not the exit of a command (a start failure, a signal, a timeout).
+func exitStatus(err error) int {
+	var ec interface{ ExitCode() int }
+	if errors.As(err, &ec) {
+		return ec.ExitCode()
+	}
+	return -1
 }
 
 // deployRefusal is a deploy the policy turned away (signature, CI gate), as
@@ -312,7 +330,7 @@ const (
 // hide what is actually live.
 type deployMark struct {
 	SHA        string    `json:"sha"`
-	FinishedAt time.Time `json:"finished_at"`
+	FinishedAt time.Time `json:"finished_at,omitzero"`
 }
 
 // deployStatus is the last deploy attempt. Treat values as immutable: copies
@@ -773,7 +791,7 @@ func (d *deployer) pipeline(ctx context.Context, job *deployJob, cfg deployConfi
 	// 2. Signature, exactly as strict as before: git verify-commit must pass.
 	vout, err := do("verify", "verify signature", gitStepTimeout, false, "git", "verify-commit", sha)
 	if err != nil {
-		return &deployRefusal{explainVerifyFailure(sha, vout) + " [" + err.Error() + "]"}
+		return &deployRefusal{explainVerifyFailure(sha, vout, exitStatus(err)) + " [" + err.Error() + "]"}
 	}
 
 	// 3. CI gate on the same sha.

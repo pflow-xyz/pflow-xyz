@@ -278,6 +278,20 @@ func TestRealGitPipeline(t *testing.T) {
 		t.Errorf("restarts = %d, want 1", restarts.Load())
 	}
 
+	// An unsigned tip: git verify-commit prints nothing and exits 1. Refused as
+	// unsigned, before CI is even asked, with the checkout where it was.
+	r.write(r.src, "public/a.txt", "unsigned\n")
+	if _, ok := r.commit("unsigned", false); !ok {
+		t.Fatal("commit failed")
+	}
+	r.git(r.src, "push", "-q", "origin", "refs/heads/main:refs/heads/main")
+	before := api.calls.Load()
+	job, st = r.deploy(d)
+	if st.State != deployRefused || r.boxHead() != c2 || !strings.Contains(st.Error, "carries no signature") ||
+		strings.Contains(st.Error, "no output") || api.calls.Load() != before {
+		t.Fatalf("unsigned tip: status=%+v head=%s\n%s", st, r.boxHead(), job.out.String())
+	}
+
 	// Red CI on a signed tip: refused, the checkout is where it was.
 	r.signedPush("v3\n")
 	api.mode.Store("failure")

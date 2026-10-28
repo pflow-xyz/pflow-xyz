@@ -53,9 +53,12 @@ func TestVerifyHMAC(t *testing.T) {
 	}
 }
 
-// The exact text that stopped the deploy on 2026-10-28 (service log, 15:39:41Z
-// and 19:03:31Z), and the same failure as git prints it on a Mac, which is the
-// output the local proof in docs/deploy.md captured.
+// The gpg lines of the verification failure that stopped the deploy on
+// 2026-10-28 (service log, 15:39:41Z and 19:03:31Z): `using RSA key
+// B5690EEEBB952194` and `Can't check signature: No public key`. Those two lines
+// are the incident's. The `Signature made` line with its CDT timestamp and the
+// `cd` path around them are reconstructed from the local proof on a Mac
+// (docs/deploy.md), not copied from the incident log.
 const (
 	incidentLog = `==> verify signature
     cd /home/ubuntu/Workspace/pflow-xyz && git verify-commit origin/main
@@ -67,7 +70,7 @@ gpg: Can't check signature: No public key
 )
 
 func TestExplainVerifyFailureNamesTheWebFlowKeyAndTheRemedy(t *testing.T) {
-	msg := explainVerifyFailure(webFlowSHA, incidentLog)
+	msg := explainVerifyFailure(webFlowSHA, incidentLog, 1)
 	for _, want := range []string{
 		webFlowSHA,                 // the tip
 		"RSA key B5690EEEBB952194", // the signer, as gpg printed it
@@ -75,7 +78,8 @@ func TestExplainVerifyFailureNamesTheWebFlowKeyAndTheRemedy(t *testing.T) {
 		webFlowImportCmd,           // the remedy, verbatim
 		webFlowFingerprint,         // what to check the import against
 		"gpg --fingerprint B5690EEEBB952194",
-		"does not trust it by itself", // the code does not make the trust decision
+		"does not trust it by itself",                // the code does not make the trust decision
+		"merge commits, squash merges and web edits", // and not the rebase button, which GitHub cannot sign
 	} {
 		if !strings.Contains(msg, want) {
 			t.Errorf("message lacks %q:\n%s", want, msg)
@@ -84,7 +88,7 @@ func TestExplainVerifyFailureNamesTheWebFlowKeyAndTheRemedy(t *testing.T) {
 	if !strings.HasPrefix(msg, "refusing to deploy "+webFlowSHA+": ") {
 		t.Errorf("message should lead with the refusal and the sha: %s", msg)
 	}
-	d := diagnoseVerify(incidentLog)
+	d := diagnoseVerify(incidentLog, 1)
 	if d.Kind != "no-public-key" || d.KeyAlgo != "RSA" || d.KeyID != "B5690EEEBB952194" || !d.WebFlow {
 		t.Errorf("diagnosis = %+v", d)
 	}
@@ -94,6 +98,7 @@ func TestExplainVerifyFailureOtherKinds(t *testing.T) {
 	sha := strings.Repeat("ab", 20)
 	cases := []struct {
 		name, out string
+		exit      int // as git exited; -1 for "not an exit" (a timeout, a signal)
 		kind      string
 		contains  []string
 		lacks     []string
@@ -120,9 +125,27 @@ func TestExplainVerifyFailureOtherKinds(t *testing.T) {
 			kind: "bad-signature", contains: []string{"BAD", "B5690EEEBB952194"}, lacks: []string{webFlowImportCmd},
 		},
 		{
-			name: "unsigned commit",
-			out:  "error: no signature found\n",
-			kind: "unsigned", contains: []string{"not signed"},
+			// What git 2.48 really does for a commit with no signature, with
+			// gpg.format=openpgp and with ssh: nothing on stdout or stderr, exit 1.
+			name: "unsigned commit (git prints nothing and exits 1)",
+			out:  "", exit: 1,
+			kind: "unsigned", contains: []string{"carries no signature", "Rebase and merge", "does not help", "Squash and merge"},
+			lacks: []string{webFlowImportCmd, "no output"},
+		},
+		{
+			name: "silent and killed by a timeout is not an unsigned commit",
+			out:  "", exit: -1,
+			kind: "unknown", contains: []string{"no output"}, lacks: []string{"carries no signature"},
+		},
+		{
+			name: "silent with another exit status is not an unsigned commit",
+			out:  "", exit: 128,
+			kind: "unknown", contains: []string{"no output"}, lacks: []string{"carries no signature"},
+		},
+		{
+			name: "exit 1 with output is judged by the output",
+			out:  "fatal: something else\n", exit: 1,
+			kind: "unknown", contains: []string{"something else"}, lacks: []string{"carries no signature"},
 		},
 		{
 			name: "ssh signature from an unlisted key",
@@ -140,17 +163,17 @@ func TestExplainVerifyFailureOtherKinds(t *testing.T) {
 			kind: "unknown", contains: []string{"git verify-commit failed", "last line"},
 		},
 		{
-			name: "no output at all",
-			out:  "",
+			name: "no output at all, exit status unknown",
+			out:  "", exit: -1,
 			kind: "unknown", contains: []string{"no output"},
 		},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			if d := diagnoseVerify(c.out); d.Kind != c.kind {
+			if d := diagnoseVerify(c.out, c.exit); d.Kind != c.kind {
 				t.Errorf("kind = %q, want %q", d.Kind, c.kind)
 			}
-			msg := explainVerifyFailure(sha, c.out)
+			msg := explainVerifyFailure(sha, c.out, c.exit)
 			if !strings.Contains(msg, sha) {
 				t.Errorf("message must name the sha: %s", msg)
 			}
@@ -324,6 +347,13 @@ type cmdResult struct {
 	out string
 	err error
 }
+
+// fakeExit is the error of a command that exited with that status, as
+// *exec.ExitError reports it.
+type fakeExit int
+
+func (e fakeExit) Error() string { return fmt.Sprintf("exit status %d", int(e)) }
+func (e fakeExit) ExitCode() int { return int(e) }
 
 // deployHarness runs a deployer against a scripted git/go and a fake GitHub:
 // no process is started, no network is touched, no repository changes.
@@ -622,6 +652,60 @@ func asRefusalOrNil(err error) *deployRefusal {
 		return r
 	}
 	return nil
+}
+
+// git verify-commit says nothing at all about an unsigned commit; the deploy
+// has to read that silence (with the exit status) for what it is.
+func TestAnUnsignedTipIsExplainedAsUnsigned(t *testing.T) {
+	h := newHarness(t)
+	h.fail["git verify-commit"] = cmdResult{"", fakeExit(1)}
+	job := h.deploy(false)
+	ref := asRefusal(t, job.err)
+	for _, want := range []string{harnessSHA, "carries no signature", "Rebase and merge", "[verify signature: exit status 1]"} {
+		if !strings.Contains(ref.msg, want) {
+			t.Errorf("refusal lacks %q: %s", want, ref.msg)
+		}
+	}
+	if strings.Contains(ref.msg, "no output") || h.api.hitCount() != 0 || countPrefix(h.log(), "git merge") != 0 {
+		t.Errorf("hits %d, log %v\n%s", h.api.hitCount(), h.log(), ref.msg)
+	}
+	if st := h.status(); st.State != deployRefused || st.Step != "verify" {
+		t.Errorf("status = %+v", st)
+	}
+	// A command killed by its timeout is not an unsigned commit.
+	h2 := newHarness(t)
+	h2.fail["git verify-commit"] = cmdResult{"", errors.New("signal: killed")}
+	if ref := asRefusal(t, h2.deploy(false).err); strings.Contains(ref.msg, "carries no signature") {
+		t.Errorf("a killed git was called unsigned: %s", ref.msg)
+	}
+}
+
+func TestExitStatus(t *testing.T) {
+	if exitStatus(nil) != -1 || exitStatus(errors.New("x")) != -1 {
+		t.Error("not an exit")
+	}
+	if got := exitStatus(fmt.Errorf("verify signature: %w", fakeExit(1))); got != 1 {
+		t.Errorf("wrapped exit = %d", got)
+	}
+	err := exec.Command("sh", "-c", "exit 3").Run()
+	if got := exitStatus(fmt.Errorf("wrapped: %w", err)); got != 3 {
+		t.Errorf("real exit = %d", got)
+	}
+}
+
+func TestLastSuccessOmitsAnUnsetFinishTime(t *testing.T) {
+	b, err := json.Marshal(deployMark{SHA: "abc"})
+	if err != nil || strings.Contains(string(b), "finished_at") {
+		t.Errorf("deployMark without a time = %s (%v): a zero time must not print as 0001-01-01", b, err)
+	}
+	b, _ = json.Marshal(deployStatus{State: deployIdle})
+	if strings.Contains(string(b), "last_success") || strings.Contains(string(b), "0001-01-01") {
+		t.Errorf("an idle status = %s", b)
+	}
+	b, _ = json.Marshal(deployMark{SHA: "abc", FinishedAt: time.Date(2026, 10, 28, 21, 31, 0, 0, time.UTC)})
+	if !strings.Contains(string(b), `"finished_at":"2026-10-28T21:31:00Z"`) {
+		t.Errorf("a real time is kept: %s", b)
+	}
 }
 
 func TestRefusedGateIsRecordedInTheStatus(t *testing.T) {
@@ -1428,6 +1512,37 @@ func TestWebhookHandler(t *testing.T) {
 	h.wait()
 	if st := h.status(); st.AnnouncedSHA != "later" || st.Trigger != "webhook" || st.State != deploySucceeded {
 		t.Errorf("status = %+v", st)
+	}
+	// A webhook deploy is a GATED deploy: it asked GitHub about the sha and
+	// passed on what it heard. (Mutation: submitting webhooks with skipCI=true
+	// left every other assertion here green.)
+	if st := h.status(); st.CIGate != "passed" || st.CIRunURL == "" {
+		t.Errorf("the webhook deploy was not gated: %+v", st)
+	}
+	if n := h.api.hitCount(); n == 0 {
+		t.Error("the webhook deploy never asked GitHub about CI")
+	}
+	if got := h.log(); countPrefix(got, "GET check-runs") == 0 {
+		t.Errorf("no CI query in the command log: %v", got)
+	}
+
+	// And the same delivery with red CI is refused, with the checkout untouched.
+	red := newHarness(t)
+	red.gate = func(n int, w http.ResponseWriter, r *http.Request) {
+		writeRuns(w, runJSON(7, "test", "completed", "failure"))
+	}
+	w = httptest.NewRecorder()
+	red.d.handleWebhook(w, signedWebhook("s3cret", mainPush))
+	red.wait()
+	if w.Code != http.StatusAccepted {
+		t.Errorf("a refused deploy still answers the webhook with 202, got %d", w.Code)
+	}
+	st := red.status()
+	if st.State != deployRefused || st.CIGate != "refused" || !strings.Contains(st.Error, `concluded "failure"`) {
+		t.Errorf("a red commit must be refused when it arrives by webhook: %+v", st)
+	}
+	if countPrefix(red.log(), "git merge") != 0 || red.restarts.Load() != 0 {
+		t.Errorf("a refused webhook deploy touched the checkout: %v", red.log())
 	}
 }
 
