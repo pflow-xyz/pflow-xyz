@@ -184,7 +184,8 @@ Recommendation below.
 6. **Laws**: still lazy (nothing changed in what is fetched or when). Its
    status line now tells what is coming ("about 6.5 MB for Pyodide and lark,
    then about 18 MB more for the live layout"), the stages are announced in a
-   persistent `role=status aria-live=polite` region (`compose/announce.js`; the
+   persistent `role=status aria-live=polite` region (`compose/announce.js`, which speaks
+   through a11y-bus.js: the page has one region, `#a11y-live`; the
    stage is rebuilt on every redraw, a region inside it would be replaced), and
    a failure shows its last line, not a Python traceback (the whole error goes
    to `console.warn`). A failed check or layout leaves a **Retry the live

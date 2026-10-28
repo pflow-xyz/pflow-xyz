@@ -70,33 +70,58 @@
   <script type="module" src="compose/app.js"></script>
 </head>
 <body>
+  <a class="skip" href="#stage">Skip to the diagram</a>
+  <a class="skip" href="#inspector">Skip to the inspector</a>
   <header class="top">
     <div class="brand">
       <a href="/" class="home" title="back to the pflow.xyz editor">pflow.xyz</a>
-      <b>composition views</b>
+      <h1><b>composition views</b></h1>
       <span class="muted">one composition, many conventions · every link rule, Flatten and run is pflow-native's registry (pflow-compose); every plan rule is pflow-rs's</span>
     </div>
-    <div class="examples">
+    <div class="examples" role="group" aria-label="Example">
       <button id="ex-orders" class="seg">orders / workers / refund</button>
       <button id="ex-connect4" class="seg">connect-4 exact plan</button>
     </div>
-    <nav id="tabs" class="tabs"></nav>
+    <nav class="tabs-nav" aria-label="Views">
+      <div id="tabs" class="tabs" role="tablist" aria-label="Composition views"></div>
+    </nav>
   </header>
-  <main class="layout">
-    <section class="stage-wrap">
-      <div id="toolbar" class="toolbar"></div>
-      <div id="flash" class="flash-banner"></div>
-      <div id="stage" class="stage"></div>
-      <div id="snap-status" class="snap-status"></div>
+  <main class="layout" id="main">
+    <section class="stage-wrap" aria-label="Diagram">
+      <h2 class="sr-only">Diagram</h2>
+      <div id="toolbar" class="toolbar" role="group" aria-label="Linking and plan tools"></div>
+      <div id="flash" class="flash-banner" aria-hidden="true"></div>
+      <div id="stage" class="stage" tabindex="-1"></div>
+      <div id="snap-status" class="snap-status" aria-hidden="true"></div>
     </section>
-    <aside class="side">
+    <aside class="side" aria-label="Explanation, inspector, rules and keys">
+      <h2 class="sr-only">Explanation, inspector and rules</h2>
       <section id="convention" class="card"></section>
-      <section class="card"><h3>Inspector</h3><div id="inspector-body"></div></section>
+      <section id="inspector" class="card" aria-labelledby="inspector-h"><h3 id="inspector-h">Inspector</h3><div id="inspector-body"></div></section>
       <section id="rules" class="card"></section>
+      <section id="legend" class="card" aria-labelledby="legend-h"></section>
+      <section id="keys" class="card" aria-labelledby="keys-h">
+        <h3 id="keys-h">Keyboard</h3>
+        <ul class="keys-list">
+          <li><kbd>1</kbd>–<kbd>9</kbd>, <kbd>0</kbd> switch view (1 Cospans … 0 Laws); <kbd>E</kbd> switches the example. In the view tabs, <kbd>←</kbd> <kbd>→</kbd> move and <kbd>Enter</kbd> opens.</li>
+          <li><kbd>Tab</kbd> reaches the toolbar, then one stop each for the ports, the palette pieces and the rest of the diagram; the arrow keys move within a stop by position, <kbd>Home</kbd>/<kbd>End</kbd> to its ends.</li>
+          <li>Linking: <kbd>Enter</kbd> or <kbd>Space</kbd> on a port or piece lights the legal targets; <kbd>Tab</kbd> or the arrows walk the lit ones; <kbd>R</kbd> walks the refused ones and says why; <kbd>Enter</kbd> links; <kbd>Esc</kbd> cancels.</li>
+          <li>Inspector: focus shows it; <kbd>Enter</kbd> or <kbd>I</kbd> on a thing pins it (a click or tap does too); <kbd>Esc</kbd>, a second tap or Dismiss lets go.</li>
+          <li>The small buttons in a drawing (<kbd>×</kbd> remove a piece, <kbd>◀</kbd> <kbd>▶</kbd> move it) are their own Tab stop; <kbd>Enter</kbd> presses one. <kbd>Enter</kbd> on a thing does what a click on it does, such as firing an enabled transition in the Flat view.</li>
+        </ul>
+      </section>
       <section id="composition" class="card"></section>
       <section id="receipts" class="card"></section>
     </aside>
   </main>
+  <div id="a11y-live" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>
+  <div id="insp-desc" hidden></div>
+  <div hidden>
+    <p id="a11y-hint-port">Press Enter or Space to start linking from this port: the ports it may legally be linked to light up. Arrow keys move between ports.</p>
+    <p id="a11y-hint-piece">Press Enter or Space to place this piece: the slots that accept it light up. Arrow keys move between pieces.</p>
+    <p id="a11y-hint-action">Press Enter or Space to do this, as a click would. Arrow keys move between the buttons.</p>
+    <p id="a11y-hint-item">Press Enter or I to pin the inspector on this (Enter also does what a click does, such as firing an enabled transition). Arrow keys move between items; Escape lets go.</p>
+  </div>
   <noscript>This page draws everything with JavaScript, and runs pflow-native's registry as WebAssembly.</noscript>
 </body>
 </html>

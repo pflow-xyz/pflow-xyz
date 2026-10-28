@@ -18,7 +18,7 @@
 import * as registry from './registry.js';
 import { loadFacts, LINK_KINDS, LINK_STYLE, EXTRA_SPECS, PARAMS_NOTE, PIECES, PLAN_RS_REV, FACTS } from './model.js';
 import { state, subscribe, actions, subnetsById, orderLinks, flatOrders, planInfo, readHash, writeHash, start } from './state.js';
-import { initSnap, resetSnap, snap } from './snap.js';
+import { initSnap, resetSnap, snap, kbActive } from './snap.js';
 import { initInspector, hover, renderInfo } from './inspect.js';
 import { el } from './dom.js';
 import * as theme from './theme.js';
@@ -28,6 +28,11 @@ import { makeCtx } from './ctx.js';
 import { VIEW_IDS, VIEW_META } from './views-meta.js';
 import { makeManifest } from './manifest.js';
 import { createViewLoader, createStartup } from './loader.js';
+import * as a11y from './a11y.js';
+import { isTypingTarget } from './a11y-nav.js';
+import { announce } from './a11y-bus.js';
+import { VIEW_KEYS_OFF } from './a11y-text.js';
+import { renderLegend } from './legend.js';
 
 let connect4 = null;
 let lastManifest = null;
@@ -58,12 +63,18 @@ const $ = (s) => document.querySelector(s);
 const fill = (node, ...kids) => node.replaceChildren(...kids.flat(Infinity).filter((k) => k !== null && k !== undefined && k !== false));
 
 function renderTabs(disabled = false) {
-  fill($('#tabs'), ...VIEW_IDS.map((id, i) => {
+  const box = $('#tabs');
+  // The shell repaints the tabs while a view's module loads, and a tab may have focus (a key pressed on it):
+  // keep focus on the tab at the same place, with its tab semantics, so a keyboard user is not dropped to the page.
+  const at = [...box.children].indexOf(document.activeElement);
+  fill(box, ...VIEW_IDS.map((id, i) => {
     const m = VIEW_META[id];
     return el('button', { class: `tab${state.view === id ? ' active' : ''}${views.get(id)?.broken ? ' broken' : ''}`, title: m.title, disabled: disabled ? true : null, onclick: () => actions.setView(id) }, `${i + 1}. ${m.short}`);
   }));
   $('#ex-orders').classList.toggle('active', state.example === 'orders');
   $('#ex-connect4').classList.toggle('active', state.example === 'connect4');
+  a11y.tabsAndToggles();
+  if (at >= 0) box.children[at]?.focus();
 }
 
 function renderToolbar() {
@@ -163,7 +174,7 @@ function renderComposition() {
           `${l.from.subnet}:${l.from.port} — ${l.to.subnet}:${l.to.port}`,
           l.idiom ? el('span', { class: 'idiom' }, ` pat:${l.idiom}`) : null,
           l.leak ? el('div', { class: 'leak-note' }, 'pool leaks a worker on rollback (idiom caveat)') : null,
-          el('button', { class: 'x', title: 'bundle.remove_link', onclick: () => actions.removeLink(l.index) }, '×'));
+          el('button', { class: 'x', title: 'bundle.remove_link', onclick: (e) => { e.stopPropagation(); actions.removeLink(l.index); } }, '×')); // not a click on the row: it would pin a link that is going
         hover(li, info.linkInfo(l, byId));
         return li;
       })) : el('p', { class: 'muted' }, 'No links: the composite is the monoidal product (disjoint union) of the instances.'),
@@ -228,6 +239,7 @@ function renderShell(what) {
 }
 
 function render() {
+  a11y.beforeRender();
   writeHash();
   const v = views.get(state.view);
   if (!v) { // first use of this view: import it, then draw whatever view is current by then
@@ -256,6 +268,7 @@ function render() {
   }
   lastManifest = manifest;
   [stage.scrollLeft, stage.scrollTop] = scroll;
+  a11y.afterRender({ view: v, event: state.event });
   flash(state.event);
   state.event = null;
   document.body.dataset.example = state.example;
@@ -272,17 +285,28 @@ function renderFailure(e) {
   $('#stage').replaceChildren(el('pre', { class: 'warn' }, `The registry did not load: ${e.stack || e}`));
 }
 
+/** Is the key typed at someone who is typing (a field, a select, a contenteditable, an ARIA text box)? */
+function typingAt(target) {
+  const chain = [];
+  for (let n = target; n && n.nodeType === 1; n = n.parentElement) chain.push({ tag: n.tagName, editable: n.isContentEditable === true, role: n.getAttribute('role') });
+  return isTypingTarget(chain);
+}
+
 async function main() {
   readHash();
   initSnap();
   initInspector($('#inspector-body'));
+  a11y.initA11y();
   $('#ex-orders').onclick = () => actions.setExample('orders');
   $('#ex-connect4').onclick = () => actions.setExample('connect4');
   // The start-up sequence (loader.js): until the registry is ready a tab, a key or a link only moves the
   // selection; nothing renders before the registry and the view exist.
   const startup = createStartup({
     state, subscribe, actions, readHash, viewIds: VIEW_IDS,
-    initRegistry: () => registry.init(), loadFacts, start, loadView, preloadView,
+    initRegistry: () => registry.init(),
+    // the facts are in: the a11y styles (distinct dashes) and the legend read them
+    loadFacts: () => { loadFacts(); a11y.applyStyles(); renderLegend($('#legend')); },
+    start, loadView, preloadView,
     // The wasm, the shown view's module (fetched, not yet evaluated) and the Connect-4 data are fetched together, not one after another.
     fetchAlongside: loadConnect4,
     renderShell: (what) => renderShell(what),
@@ -291,7 +315,15 @@ async function main() {
     // Test hook for screenshots: the same actions the UI calls, and what the last render drew.
     ready: () => { window.__pv = { state, actions, render, views, loadView, VIEW_IDS, registry, manifest: () => lastManifest?.result() }; },
   });
-  window.addEventListener('keydown', (e) => startup.onKey(e));
+  window.addEventListener('keydown', (e) => {
+    if (typingAt(e.target) || e.ctrlKey || e.metaKey || e.altKey) return; // not the browser's shortcuts, not someone typing
+    if (kbActive()) {
+      // link mode owns the keys; say so rather than ignore them in silence
+      if (/^[0-9e]$/.test(e.key)) announce(VIEW_KEYS_OFF);
+      return;
+    }
+    startup.onKey(e);
+  });
   window.addEventListener('hashchange', () => startup.onHashChange());
   if (await startup.run()) loadRest();
 }

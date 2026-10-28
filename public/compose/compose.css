@@ -11,6 +11,7 @@
   --bad: #c0392b;
   --event: #227744;      /* RenderDOT event-link green */
   --side-w: 380px;
+  --focus: #0b57d0;      /* the focus ring: 3px, with a white halo, on any background */
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; }
@@ -26,6 +27,7 @@ a { color: var(--accent); }
 .top { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; padding: 8px 14px; background: var(--panel); border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 5; }
 .brand { display: flex; flex-direction: column; min-width: 260px; }
 .brand b { font-size: 15px; }
+.brand h1 { margin: 0; font-size: inherit; font-weight: inherit; }
 .brand .muted { font-size: 11px; }
 .examples { display: flex; }
 .seg { border: 1px solid var(--line); background: #f6f7f9; padding: 6px 10px; cursor: pointer; font: inherit; }
@@ -52,7 +54,9 @@ a { color: var(--accent); }
 .stage-note.honesty { background: #f3f6fb; border-color: var(--accent); }
 .stage-note.na { background: #fbf4e6; border-color: #c47a12; }
 .stage-note.warn { background: #fbecea; border-color: var(--bad); }
-.snap-status { position: absolute; bottom: 8px; left: 14px; font-size: 11.5px; color: var(--muted); pointer-events: none; }
+/* fixed to the viewport, not the stage: the stage can be taller than the screen, and the reason a target is refused is read here (the keyboard path never shows the pointer's tip) */
+.snap-status { position: fixed; bottom: 10px; left: 14px; max-width: min(760px, calc(100vw - 28px)); z-index: 30; font-size: 11.5px; color: var(--ink); pointer-events: none; }
+.snap-status:not(:empty) { background: rgba(255, 255, 255, 0.94); border: 1px solid var(--line); border-radius: 6px; padding: 3px 8px; }
 
 /* palette (connect-4) */
 .palette { display: flex; flex-wrap: wrap; gap: 4px 12px; width: 100%; }
@@ -133,4 +137,44 @@ a { color: var(--accent); }
 @media (max-width: 1000px) {
   .layout { grid-template-columns: 1fr; height: auto; }
   .stage { min-height: 60vh; }
+}
+
+/* accessibility (a11y.js, ACCESSIBILITY.md) */
+.sr-only { position: absolute !important; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; border: 0; }
+.skip { position: absolute; left: 8px; top: -48px; z-index: 60; background: var(--ink); color: #fff; padding: 8px 12px; border-radius: 6px; text-decoration: none; }
+.skip:focus { top: 8px; }
+.tabs-nav { display: block; }
+:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+/* SVG things get the page's own ring (a11y.js draws it: every browser, any shape, a white halo for contrast). */
+svg *:focus, svg *:focus-visible { outline: none; }
+.a11y-ring { position: fixed; z-index: 40; display: none; pointer-events: none; border: 3px solid var(--focus); border-radius: 7px; box-shadow: 0 0 0 2px #fff, inset 0 0 0 1px #fff; }
+.a11y-ring.show { display: block; }
+.a11y-badge { font-family: var(--font-sans); font-weight: 700; user-select: none; }
+kbd { font-family: var(--font-mono); font-size: 10.5px; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 3px; padding: 0 4px; background: #fff; }
+.keys-list { margin: 4px 0; padding-left: 16px; font-size: 11.5px; }
+.keys-list li { margin: 3px 0; }
+.card h4 { margin: 8px 0 2px; font-size: 12px; }
+.lg-list { list-style: none; padding: 0; margin: 2px 0 6px; font-size: 11.5px; }
+.lg-list li { display: flex; align-items: center; gap: 6px; margin: 3px 0; }
+.lg-sample { flex: none; }
+.lg-glyph { width: 1.2em; text-align: center; font-weight: 700; }
+.lg-schemas { display: flex; flex-wrap: wrap; gap: 2px 14px; }
+.lg-state { flex: none; width: 16px; height: 16px; border-radius: 50%; background: var(--accent); }
+.lg-lit { box-shadow: 0 0 4px 2px var(--accent); }
+.lg-dim { opacity: 0.2; }
+.lg-ring { background: #fff; border: 3px solid var(--focus); box-shadow: 0 0 0 2px #fff; }
+/* at least 24 x 24 px (WCAG 2.2 target size, 2.5.8), also on a narrow screen where the pinned inspector is a sheet */
+.insp-close { float: right; margin: 0 0 4px 8px; font: inherit; font-size: 11.5px; border: 1px solid var(--line); background: #fff; border-radius: 6px; padding: 4px 10px; min-width: 28px; min-height: 28px; cursor: pointer; }
+/* On a narrow screen the inspector is below the stage, out of sight from a tap: a pinned one is a sheet. */
+@media (max-width: 1000px) {
+  #inspector.has-pin { position: fixed; left: 8px; right: 8px; bottom: 8px; max-height: 45vh; overflow: auto; z-index: 25; border: 2px solid var(--accent); box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.25); }
+}
+@media (forced-colors: active) {
+  .a11y-ring { border-color: Highlight; box-shadow: none; }
+  .lg-state { forced-color-adjust: none; }
+}
+/* prefers-reduced-motion: no animation or transition anywhere (the Web Animations the views run are
+   zeroed by motion.js; a view that times its own frames asks reducedMotion()). */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.001ms !important; animation-delay: 0s !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; transition-delay: 0s !important; scroll-behavior: auto !important; }
 }
