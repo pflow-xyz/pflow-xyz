@@ -456,7 +456,13 @@ report a successful `test` check run for that sha (`.github/workflows/test.yml`
 runs `make test`; renaming the job means setting `DEPLOY_CI_CHECK`). A refused
 deploy changes nothing, and the webhook still answers 202, so **a green delivery
 in GitHub does not mean deployed**. Deploys run one at a time (one queued
-follow-up, latest wins).
+follow-up, latest wins; a deploy that is only waiting for CI is superseded by
+`skip_ci=1` or a push of another commit). "Rebase and merge" tips are unsigned
+and always refused. The check run counted is GitHub Actions' `test` only.
+
+**The first deploy after merging the PR that brought this in is done by the old
+binary** (ungated, old error text): import the web-flow key on the box first if
+merging with the button, and merge only with the PR's own CI green.
 
 ```bash
 # What happened? (needs DEPLOY_SECRET)
@@ -470,7 +476,8 @@ curl -N -X POST -H "X-Deploy-Token: $DEPLOY_SECRET" "https://pflow.xyz/admin/dep
 
 Endpoints: `POST /webhook/github`, `POST /admin/deploy` (`?skip_ci=1`),
 `GET /admin/deploy-status`, `GET /admin/logs`, all token-checked with
-`DEPLOY_SECRET` (the webhook by HMAC); the last attempt is also in
+`DEPLOY_SECRET` (the webhook by HMAC; send the token in the `X-Deploy-Token`
+header, not `?token=`); the last attempt is also in
 `data/deploy-status.json`. **`docs/deploy.md` is the reference**: the pipeline,
 the CI gate, how to diagnose a stuck deploy, the 2026-10-28 incident (merge-button
 commits refused for six hours), and the web-flow key import the box still needs.
@@ -485,7 +492,9 @@ Environment variables are configured in `~/services`. This service uses:
 - Deploy CI gate (all optional, defaults in `docs/deploy.md`): `DEPLOY_REQUIRE_CI`
   (`0` turns the gate off for the box), `DEPLOY_CI_CHECK` (default `test`),
   `DEPLOY_CI_POLL` (15s), `DEPLOY_CI_GRACE` (2m), `DEPLOY_CI_TIMEOUT` (15m),
-  `DEPLOY_REPO`, `DEPLOY_GITHUB_TOKEN`, `DEPLOY_GITHUB_API`
+  `DEPLOY_REPO`, `DEPLOY_GITHUB_API`, and `DEPLOY_GITHUB_TOKEN` (recommended: a
+  no-scope token; unauthenticated, the gate spends one of GitHub's 60 requests an
+  hour per poll)
 
 ## Decommissioning
 
