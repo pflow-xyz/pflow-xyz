@@ -1,0 +1,6 @@
+{
+  "@context": "https://pflow.xyz/schema",
+  "@type": "SearchPlan",
+  "model_cid": "z4EBG9jDsuUdvVN4bUXRHxoDG3p274FfhcJd8BiruRcE1jLCHi8",
+  "plan": "{\"drivers\":[\"null_window\",{\"budget\":{\"nodes\":1000000}}],\"filters\":[\"must_win\",\"non_losing\"],\"memo\":{\"entries\":500000},\"mode\":\"exact\",\"order\":[\"immediate_win\",\"tt_best\",\"centrality\",\"history\"]}"
+}

@@ -1,0 +1,519 @@
+{
+  "_comment": "Model-identity contract across Go (internal/model), JS (public/model-cid.mjs) and Rust (pflow-native crates/core/src/cid.rs model_cid). `sealed` is the CID of the document as written (the unchanged sealing contract); `model` is the model CID the rule gives it; `reduced` is true when a bare wrapper IS the net it names. Regenerate with: go run ./cmd/modelprobe parity/model/fixtures/*.json parity/model/fixtures/*.jsonld",
+  "vectors": [
+    {
+      "name": "cafe.bundle.json",
+      "file": "fixtures/cafe.bundle.json",
+      "kind": "composition",
+      "sealed": "z4EBG9j1SUhuY7XnEcPfHQPzQkmqjUtgrD2wHADw8qdRbpnNt6W",
+      "model": "z4EBG9j1SUhuY7XnEcPfHQPzQkmqjUtgrD2wHADw8qdRbpnNt6W",
+      "reduced": false,
+      "note": "examples/showcase/cafe.bundle.json: three inline (metamodel) parts. A composition whose parts have no net CID; the document is unchanged, so its composition CID is the raw-bundle CID."
+    },
+    {
+      "name": "compose-handoff-relinked.jsonld",
+      "file": "fixtures/compose-handoff-relinked.jsonld",
+      "kind": "composition",
+      "sealed": "z4EBG9jGS4QujMGAKfnQFpFvCoePfhonekCBjGnjRZbL4UAURx2",
+      "model": "z4EBG9jGS4QujMGAKfnQFpFvCoePfhonekCBjGnjRZbL4UAURx2",
+      "reduced": false,
+      "note": "same two parts, a different link: only the composition CID differs",
+      "parts": [
+        "z4EBG9j68TgJSCy7jvLPdavUwD8cXZ91R6soyhWuZuvmxZYr9t9",
+        "z4EBG9j8KydbA3FTecJ5Y6KP6gSatF8rdYxsRyETmf3VgqbVqcH"
+      ]
+    },
+    {
+      "name": "compose-handoff.jsonld",
+      "file": "fixtures/compose-handoff.jsonld",
+      "kind": "composition",
+      "sealed": "z4EBG9j1XvXcHgZsjxWnDKiCuDbrxXrF4KYbNk2N5Emnf91hxk6",
+      "model": "z4EBG9j1XvXcHgZsjxWnDKiCuDbrxXrF4KYbNk2N5Emnf91hxk6",
+      "reduced": false,
+      "note": "two stored nets by CID joined by one event link",
+      "parts": [
+        "z4EBG9j68TgJSCy7jvLPdavUwD8cXZ91R6soyhWuZuvmxZYr9t9",
+        "z4EBG9j8KydbA3FTecJ5Y6KP6gSatF8rdYxsRyETmf3VgqbVqcH"
+      ]
+    },
+    {
+      "name": "compose-recipe-other-params.jsonld",
+      "file": "fixtures/compose-recipe-other-params.jsonld",
+      "kind": "composition",
+      "sealed": "z4EBG9j45rBSCkWXvLmXNB5GcrXfii6FRaJpCfukfiESwEMGGNp",
+      "model": "z4EBG9j45rBSCkWXvLmXNB5GcrXfii6FRaJpCfukfiESwEMGGNp",
+      "reduced": false,
+      "note": "same net, different recipe text: a different composition"
+    },
+    {
+      "name": "compose-recipe.jsonld",
+      "file": "fixtures/compose-recipe.jsonld",
+      "kind": "composition",
+      "sealed": "z4EBG9j5seydjjqRdPb1jtt4sedXBc1VKokHAAyfgg6WB2nrbZH",
+      "model": "z4EBG9j5seydjjqRdPb1jtt4sedXBc1VKokHAAyfgg6WB2nrbZH",
+      "reduced": false,
+      "note": "an inline pattern instance: pattern + params (canonical-JSON text) beside the net it built"
+    },
+    {
+      "name": "part-maker.jsonld",
+      "file": "fixtures/part-maker.jsonld",
+      "kind": "net",
+      "sealed": "z4EBG9j68TgJSCy7jvLPdavUwD8cXZ91R6soyhWuZuvmxZYr9t9",
+      "model": "z4EBG9j68TgJSCy7jvLPdavUwD8cXZ91R6soyhWuZuvmxZYr9t9",
+      "reduced": false,
+      "note": "a net (Shape A): its model CID is the CID it always had"
+    },
+    {
+      "name": "part-taker.jsonld",
+      "file": "fixtures/part-taker.jsonld",
+      "kind": "net",
+      "sealed": "z4EBG9j8KydbA3FTecJ5Y6KP6gSatF8rdYxsRyETmf3VgqbVqcH",
+      "model": "z4EBG9j8KydbA3FTecJ5Y6KP6gSatF8rdYxsRyETmf3VgqbVqcH",
+      "reduced": false,
+      "note": "a net (Shape A)"
+    },
+    {
+      "name": "plan-coffee-shop-reordered.jsonld",
+      "file": "fixtures/plan-coffee-shop-reordered.jsonld",
+      "kind": "plan",
+      "sealed": "z4EBG9j4oyN6KgDmyujKkt9ex7XJQkCKJhfSsGxBLZVxm1rLmgG",
+      "model": "z4EBG9j4oyN6KgDmyujKkt9ex7XJQkCKJhfSsGxBLZVxm1rLmgG",
+      "reduced": false,
+      "note": "same plan with its order list reordered: a different plan (the list is hashed as text)"
+    },
+    {
+      "name": "plan-coffee-shop.jsonld",
+      "file": "fixtures/plan-coffee-shop.jsonld",
+      "kind": "plan",
+      "sealed": "z4EBG9jEdrNrjmbz1Ztqe2Jcy2avTxCksXLGBruLkKGDnRNCY4G",
+      "model": "z4EBG9jEdrNrjmbz1Ztqe2Jcy2avTxCksXLGBruLkKGDnRNCY4G",
+      "reduced": false,
+      "note": "a search plan on the coffee-shop net; the net keeps its CID"
+    },
+    {
+      "name": "plan-handoff.jsonld",
+      "file": "fixtures/plan-handoff.jsonld",
+      "kind": "plan",
+      "sealed": "z4EBG9izgoqggUnEzhNQExKMd7Fk3cnnxmaPMmRNUNBgeBrPkyY",
+      "model": "z4EBG9izgoqggUnEzhNQExKMd7Fk3cnnxmaPMmRNUNBgeBrPkyY",
+      "reduced": false,
+      "note": "a search plan on the handoff composition"
+    },
+    {
+      "name": "wrap-coffee-shop.jsonld",
+      "file": "fixtures/wrap-coffee-shop.jsonld",
+      "kind": "net",
+      "sealed": "z4EBG9jCPFrJGh9KDjNP4BticrCkisx1RnHCvUSCb3K7P6VEPdb",
+      "model": "z4EBG9jDsuUdvVN4bUXRHxoDG3p274FfhcJd8BiruRcE1jLCHi8",
+      "reduced": true,
+      "note": "bare wrapper around parity/fixtures/coffee-shop.jsonld: IS that net (model = the net CID, sealed differs)",
+      "parts": [
+        "z4EBG9jDsuUdvVN4bUXRHxoDG3p274FfhcJd8BiruRcE1jLCHi8"
+      ]
+    },
+    {
+      "name": "wrap-inline.jsonld",
+      "file": "fixtures/wrap-inline.jsonld",
+      "kind": "composition",
+      "sealed": "z4EBG9jB7zUmbvZ1VGg3oL8DwkxTJ3pBzNCQxx9jcsWwvCxAqqJ",
+      "model": "z4EBG9jB7zUmbvZ1VGg3oL8DwkxTJ3pBzNCQxx9jcsWwvCxAqqJ",
+      "reduced": false,
+      "note": "one inline subnet: never had an editor CID, so no reduction"
+    },
+    {
+      "name": "wrap-named.jsonld",
+      "file": "fixtures/wrap-named.jsonld",
+      "kind": "composition",
+      "sealed": "z4EBG9jFzpePhrDPpm1dum6QkYEGoqXy6WbnzJJMMuK747E5nZ6",
+      "model": "z4EBG9jFzpePhrDPpm1dum6QkYEGoqXy6WbnzJJMMuK747E5nZ6",
+      "reduced": false,
+      "note": "a name makes the wrapper its own composition (Flatten renames the lone net)",
+      "parts": [
+        "z4EBG9jDsuUdvVN4bUXRHxoDG3p274FfhcJd8BiruRcE1jLCHi8"
+      ]
+    }
+  ],
+  "refusals": [
+    {
+      "name": "no-subnets",
+      "doc": {
+        "@context": "https://pflow.xyz/schema",
+        "@type": "PetriNetBundle",
+        "subnets": []
+      },
+      "code": "E_NO_SUBNETS"
+    },
+    {
+      "name": "subnet-without-id",
+      "doc": {
+        "@context": "https://pflow.xyz/schema",
+        "@type": "PetriNetBundle",
+        "subnets": [
+          {
+            "cid": "z4EBG9jDsuUdvVN4bUXRHxoDG3p274FfhcJd8BiruRcE1jLCHi8"
+          }
+        ]
+      },
+      "code": "E_SUBNET"
+    },
+    {
+      "name": "duplicate-subnet-id",
+      "doc": {
+        "@context": "https://pflow.xyz/schema",
+        "@type": "PetriNetBundle",
+        "subnets": [
+          {
+            "id": "a",
+            "cid": "z4EBG9jDsuUdvVN4bUXRHxoDG3p274FfhcJd8BiruRcE1jLCHi8"
+          },
+          {
+            "id": "a",
+            "cid": "z4EBG9jDsuUdvVN4bUXRHxoDG3p274FfhcJd8BiruRcE1jLCHi8"
+          }
+        ]
+      },
+      "code": "E_SUBNET"
+    },
+    {
+      "name": "cid-and-model",
+      "doc": {
+        "@context": "https://pflow.xyz/schema",
+        "@type": "PetriNetBundle",
+        "subnets": [
+          {
+            "id": "a",
+            "cid": "z4EBG9jDsuUdvVN4bUXRHxoDG3p274FfhcJd8BiruRcE1jLCHi8",
+            "model": {
+              "name": "n",
+              "places": [
+                {
+                  "id": "p",
+                  "initial": 0
+                }
+              ],
+              "transitions": [
+                {
+                  "id": "t"
+                }
+              ],
+              "arcs": [
+                {
+                  "from": "p",
+                  "to": "t"
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "code": "E_PART"
+    },
+    {
+      "name": "neither-cid-nor-model",
+      "doc": {
+        "@context": "https://pflow.xyz/schema",
+        "@type": "PetriNetBundle",
+        "subnets": [
+          {
+            "id": "a",
+            "pattern": "queue",
+            "params": "{}"
+          }
+        ]
+      },
+      "code": "E_PART"
+    },
+    {
+      "name": "cid-not-a-cid",
+      "doc": {
+        "@context": "https://pflow.xyz/schema",
+        "@type": "PetriNetBundle",
+        "subnets": [
+          {
+            "id": "a",
+            "cid": "not-a-cid"
+          }
+        ]
+      },
+      "code": "E_PART"
+    },
+    {
+      "name": "params-as-object",
+      "doc": {
+        "@context": "https://pflow.xyz/schema",
+        "@type": "PetriNetBundle",
+        "subnets": [
+          {
+            "id": "a",
+            "model": {
+              "name": "n",
+              "places": [
+                {
+                  "id": "p",
+                  "initial": 0
+                }
+              ],
+              "transitions": [
+                {
+                  "id": "t"
+                }
+              ],
+              "arcs": [
+                {
+                  "from": "p",
+                  "to": "t"
+                }
+              ]
+            },
+            "pattern": "saga",
+            "params": {
+              "steps": [
+                "a",
+                "b"
+              ]
+            }
+          }
+        ]
+      },
+      "code": "E_PATTERN"
+    },
+    {
+      "name": "params-not-json",
+      "doc": {
+        "@context": "https://pflow.xyz/schema",
+        "@type": "PetriNetBundle",
+        "subnets": [
+          {
+            "id": "a",
+            "model": {
+              "name": "n",
+              "places": [
+                {
+                  "id": "p",
+                  "initial": 0
+                }
+              ],
+              "transitions": [
+                {
+                  "id": "t"
+                }
+              ],
+              "arcs": [
+                {
+                  "from": "p",
+                  "to": "t"
+                }
+              ]
+            },
+            "pattern": "saga",
+            "params": "steps"
+          }
+        ]
+      },
+      "code": "E_PATTERN"
+    },
+    {
+      "name": "tokenmodel-subnet-bundle",
+      "doc": {
+        "@context": "https://pflow.xyz/schema",
+        "@type": "PetriNetBundle",
+        "subnets": [
+          {
+            "id": "a",
+            "model": {
+              "name": "n",
+              "places": [
+                {
+                  "id": "p",
+                  "initial": 0
+                }
+              ],
+              "transitions": [
+                {
+                  "id": "t"
+                }
+              ],
+              "arcs": [
+                {
+                  "from": "p",
+                  "to": "t"
+                }
+              ]
+            }
+          },
+          {
+            "id": "b",
+            "model": {
+              "name": "n",
+              "places": [
+                {
+                  "id": "p",
+                  "initial": 0
+                }
+              ],
+              "transitions": [
+                {
+                  "id": "t"
+                }
+              ],
+              "arcs": [
+                {
+                  "from": "p",
+                  "to": "t"
+                }
+              ]
+            }
+          }
+        ],
+        "links": [
+          {
+            "kind": "token",
+            "from_subnet": "a",
+            "from_port": "x",
+            "to_subnet": "b",
+            "to_port": "y"
+          }
+        ]
+      },
+      "code": "E_BUNDLE_SHAPE"
+    },
+    {
+      "name": "link-to-unknown-part",
+      "doc": {
+        "@context": "https://pflow.xyz/schema",
+        "@type": "PetriNetBundle",
+        "subnets": [
+          {
+            "id": "a",
+            "model": {
+              "name": "n",
+              "places": [
+                {
+                  "id": "p",
+                  "initial": 0
+                }
+              ],
+              "transitions": [
+                {
+                  "id": "t"
+                }
+              ],
+              "arcs": [
+                {
+                  "from": "p",
+                  "to": "t"
+                }
+              ]
+            }
+          }
+        ],
+        "links": [
+          {
+            "kind": "event",
+            "from": {
+              "subnet": "a",
+              "transition": "t"
+            },
+            "to": {
+              "subnet": "zzz",
+              "transition": "t"
+            }
+          }
+        ]
+      },
+      "code": "E_LINK"
+    },
+    {
+      "name": "link-without-kind",
+      "doc": {
+        "@context": "https://pflow.xyz/schema",
+        "@type": "PetriNetBundle",
+        "subnets": [
+          {
+            "id": "a",
+            "model": {
+              "name": "n",
+              "places": [
+                {
+                  "id": "p",
+                  "initial": 0
+                }
+              ],
+              "transitions": [
+                {
+                  "id": "t"
+                }
+              ],
+              "arcs": [
+                {
+                  "from": "p",
+                  "to": "t"
+                }
+              ]
+            }
+          },
+          {
+            "id": "b",
+            "model": {
+              "name": "n",
+              "places": [
+                {
+                  "id": "p",
+                  "initial": 0
+                }
+              ],
+              "transitions": [
+                {
+                  "id": "t"
+                }
+              ],
+              "arcs": [
+                {
+                  "from": "p",
+                  "to": "t"
+                }
+              ]
+            }
+          }
+        ],
+        "links": [
+          {
+            "from": {
+              "subnet": "a",
+              "transition": "t"
+            },
+            "to": {
+              "subnet": "b",
+              "transition": "t"
+            }
+          }
+        ]
+      },
+      "code": "E_LINK"
+    },
+    {
+      "name": "plan-without-model",
+      "doc": {
+        "@context": "https://pflow.xyz/schema",
+        "@type": "SearchPlan",
+        "plan": "{}"
+      },
+      "code": "E_PLAN"
+    },
+    {
+      "name": "plan-as-object",
+      "doc": {
+        "@context": "https://pflow.xyz/schema",
+        "@type": "SearchPlan",
+        "model_cid": "z4EBG9jDsuUdvVN4bUXRHxoDG3p274FfhcJd8BiruRcE1jLCHi8",
+        "plan": {
+          "order": [
+            "a",
+            "b"
+          ]
+        }
+      },
+      "code": "E_PLAN"
+    }
+  ]
+}

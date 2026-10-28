@@ -1,0 +1,11 @@
+{
+  "@context": "https://pflow.xyz/schema",
+  "@type": "PetriNetBundle",
+  "subnets": [
+    {
+      "@type": "PetriNet",
+      "id": "coffee",
+      "cid": "z4EBG9jDsuUdvVN4bUXRHxoDG3p274FfhcJd8BiruRcE1jLCHi8"
+    }
+  ]
+}

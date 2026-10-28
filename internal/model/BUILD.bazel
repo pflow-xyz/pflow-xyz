@@ -1,0 +1,38 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "model",
+    srcs = [
+        "model.go",
+        "resolve.go",
+    ],
+    importpath = "github.com/pflow-xyz/pflow-xyz/internal/model",
+    visibility = ["//:__subpackages__"],
+    deps = [
+        "//internal/seal",
+        "@com_github_pflow_xyz_go_pflow//metamodel",
+        "@com_github_pflow_xyz_go_pflow//parser",
+    ],
+)
+
+go_test(
+    name = "model_test",
+    srcs = [
+        "flatten_parity_test.go",
+        "model_test.go",
+    ],
+    # keep: the tests read ../../parity/model (golden CIDs, fixtures, flat-net
+    # goldens), ../../parity/fixtures/coffee-shop.jsonld, and walk the repository
+    # for pflow.xyz JSON-LD (the backport proof), which under Bazel is what the
+    # data below puts in the runfiles.
+    data = [
+        "//examples",
+        "//parity:golden",
+        "//parity:model",
+    ],
+    embed = [":model"],
+    deps = [
+        "//internal/seal",
+        "@com_github_pflow_xyz_go_pflow//metamodel",
+    ],
+)
