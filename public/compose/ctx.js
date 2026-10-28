@@ -50,4 +50,4 @@ export function makeCtx(root, o) {
   };
 }
 
-export const VIEW_IDS = ['cospan', 'spiders', 'operad', 'string', 'flat', 'boundaries', 'lens', 'incidence', 'process', 'laws'];
+export { VIEW_IDS } from './views-meta.js';

@@ -3,6 +3,16 @@
 // a ctx (ctx.js). Every rule they show is the registry's (registry.js): the
 // page loads pflow-native's wasm, opens the composition and the plan by command
 // (bundle.open, plan.open) and re-reads them after every edit.
+//
+// Load order (docs/compose-load-budget.md): the shell (tabs, a status line) is
+// drawn at once; the wasm and the module of the view being shown are fetched
+// together; the other nine views are imported when the page is idle, or at once
+// if their tab is pressed first (loadView), and the Laws view's Pyodide is
+// fetched only when that view is drawn (laws-live.js). A view reads
+// the ontology facts (model.js, filled by loadFacts from the registry) when its
+// module is evaluated, so a view is evaluated only after loadFacts(); until then
+// its module is only fetched (preloadView). The page marks performance
+// 'compose:shell', 'compose:registry-ready' and 'compose:ready'.
 
 import * as registry from './registry.js';
 import { loadFacts, LINK_KINDS, LINK_STYLE, EXTRA_SPECS, PARAMS_NOTE, PIECES, PLAN_RS_REV, FACTS } from './model.js';
@@ -13,22 +23,38 @@ import { el } from './dom.js';
 import * as theme from './theme.js';
 import * as info from './info.js';
 import { citeLabel, citeURL, bibLabel, bibURL } from './sources.js';
-import { makeCtx, VIEW_IDS } from './ctx.js';
+import { makeCtx } from './ctx.js';
+import { VIEW_IDS, VIEW_META } from './views-meta.js';
 import { makeManifest } from './manifest.js';
 
-const views = new Map();
+const views = new Map();   // id -> the view, once its module is loaded
+const loading = new Map(); // id -> the import in flight
 let connect4 = null;
 let lastManifest = null;
 
-async function loadViews() {
-  for (const id of VIEW_IDS) {
-    try {
-      const m = await import(`./views/${id}.js`);
-      views.set(id, m.default);
-    } catch (e) {
-      views.set(id, { id, title: id, short: id, broken: String(e), convention: { summary: `View ${id} failed to load: ${e}` }, render() {} });
-    }
+const preloaded = new Set();
+
+/** Start fetching a view's module (modulepreload fetches that file, not what it imports) without evaluating it. */
+function preloadView(id, priority = 'auto') {
+  if (views.has(id) || preloaded.has(id)) return;
+  preloaded.add(id);
+  const link = document.createElement('link');
+  link.rel = 'modulepreload';
+  link.fetchPriority = priority;
+  link.href = new URL(`./views/${id}.js`, import.meta.url).href;
+  document.head.append(link);
+}
+
+/** The view `id`, importing its module the first time (a failed import is kept as a view that says why). */
+function loadView(id) {
+  if (views.has(id)) return Promise.resolve(views.get(id));
+  if (!loading.has(id)) {
+    loading.set(id, import(`./views/${id}.js`).then(
+      (m) => m.default,
+      (e) => ({ id, ...VIEW_META[id], broken: String(e), convention: { summary: `View ${id} failed to load: ${e}` }, render() {} }),
+    ).then((v) => { views.set(id, v); loading.delete(id); return v; }));
   }
+  return loading.get(id);
 }
 
 async function loadConnect4() {
@@ -42,8 +68,8 @@ const fill = (node, ...kids) => node.replaceChildren(...kids.flat(Infinity).filt
 
 function renderTabs() {
   fill($('#tabs'), ...VIEW_IDS.map((id, i) => {
-    const v = views.get(id);
-    return el('button', { class: `tab${state.view === id ? ' active' : ''}${v.broken ? ' broken' : ''}`, title: v.title, onclick: () => actions.setView(id) }, `${i + 1}. ${v.short || v.title}`);
+    const m = VIEW_META[id];
+    return el('button', { class: `tab${state.view === id ? ' active' : ''}${views.get(id)?.broken ? ' broken' : ''}`, title: m.title, onclick: () => actions.setView(id) }, `${i + 1}. ${m.short}`);
   }));
   $('#ex-orders').classList.toggle('active', state.example === 'orders');
   $('#ex-connect4').classList.toggle('active', state.example === 'connect4');
@@ -204,10 +230,22 @@ function flash(event) {
   flashTimer = setTimeout(() => f.classList.remove('show'), 4200);
 }
 
+/** What the page shows before the registry is ready, and while a view's module loads: the tabs and a status line. */
+function renderShell(what) {
+  renderTabs();
+  fill($('#stage'), el('p', { class: 'muted', role: 'status' }, what));
+}
+
 function render() {
   writeHash();
+  const v = views.get(state.view);
+  if (!v) { // first use of this view: import it, then draw whatever view is current by then
+    const id = state.view;
+    renderShell(`Loading the ${VIEW_META[id].short} view…`);
+    loadView(id).then(() => { if (state.view === id) render(); });
+    return;
+  }
   renderTabs();
-  const v = views.get(state.view) || views.get(VIEW_IDS[0]);
   renderConvention(v);
   renderRules();
   renderComposition();
@@ -231,6 +269,7 @@ function render() {
   state.event = null;
   document.body.dataset.example = state.example;
   document.body.dataset.view = state.view;
+  if (!document.body.dataset.ready) performance.mark('compose:ready');
   document.body.dataset.ready = '1';
 }
 
@@ -246,24 +285,52 @@ async function main() {
     if (n >= 1 && n <= VIEW_IDS.length) actions.setView(VIEW_IDS[n - 1]);
     if (e.key === 'e') actions.setExample(state.example === 'orders' ? 'connect4' : 'orders');
   });
-  window.addEventListener('hashchange', () => { readHash(); render(); });
-  const stage = $('#stage');
-  stage.replaceChildren(el('p', { class: 'muted' }, 'Loading pflow-native\'s registry (wasm)…'));
+  // Until the registry is ready, a click on a tab, a key or a link only moves the selection (in the order it happened):
+  // repaint the tabs and fetch that view's module. Nothing renders before the registry and the view exist.
+  let phase = 'loading'; // loading -> ready, or failed
+  const shell = () => { renderShell('Loading pflow-native\'s registry (wasm)…'); preloadView(state.view); };
+  const offShell = subscribe(shell);
+  window.addEventListener('hashchange', () => { readHash(); if (phase === 'ready') render(); else if (phase === 'loading') shell(); });
+  shell();
+  performance.mark('compose:shell');
+  // The wasm, the shown view's module (fetched, not yet evaluated) and the Connect-4 data are fetched together, not one after another.
+  const connect = loadConnect4();
   try {
     await registry.init();
     loadFacts();
     start();
+    performance.mark('compose:registry-ready');
   } catch (e) {
     console.error(e);
-    stage.replaceChildren(el('pre', { class: 'warn' }, `The registry did not load: ${e.stack || e}`));
+    phase = 'failed';
+    offShell();
+    $('#stage').replaceChildren(el('pre', { class: 'warn' }, `The registry did not load: ${e.stack || e}`));
     return;
   }
-  await Promise.all([loadViews(), loadConnect4()]);
-  if (!views.has(state.view)) state.view = VIEW_IDS[0];
+  offShell();
+  await Promise.all([loadView(state.view), connect]); // the facts are in: evaluate the view
   subscribe(render);
+  phase = 'ready';
   // Test hook for screenshots: the same actions the UI calls, and what the last render drew.
-  window.__pv = { state, actions, render, views, VIEW_IDS, registry, manifest: () => lastManifest?.result() };
+  window.__pv = { state, actions, render, views, loadView, VIEW_IDS, registry, manifest: () => lastManifest?.result() };
   render();
+  loadRest();
+}
+
+/**
+ * The other views, once the first is drawn: their modules are fetched together at low priority, then imported one by one
+ * when the browser is idle, so a switch does not wait for the network, keeps working if the network goes, and none of it stands
+ * between the page and its first view. A tab pressed sooner imports its view at once (render).
+ */
+function loadRest() {
+  const idle = (f) => (window.requestIdleCallback ? window.requestIdleCallback(f, { timeout: 3000 }) : setTimeout(f, 200));
+  const todo = VIEW_IDS.filter((id) => !views.has(id));
+  todo.forEach((id) => preloadView(id, 'low'));
+  const next = () => {
+    const id = todo.shift();
+    if (id) loadView(id).then(() => idle(next));
+  };
+  idle(next);
 }
 
 main();
