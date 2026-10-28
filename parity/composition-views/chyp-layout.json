@@ -1,0 +1,2790 @@
+{
+ "generator": "js/layout/receipts/chyp_layout_receipt.py",
+ "chyp": {
+  "repo": "https://github.com/akissinger/chyp",
+  "commit": "3d2848361e261b07a86daaacf70b2b4b018affcf",
+  "license": "Apache-2.0"
+ },
+ "python": "3.13.11",
+ "cvxpy": "1.9.3",
+ "lark": "1.3.1",
+ "solver_note": "cvxpy picks its default solver for convex_layout's problem; the value is problem.value",
+ "cases": [
+  {
+   "name": "readme_a",
+   "source": "README.md:58-64",
+   "term": "g * h ; h * f",
+   "graph": {
+    "boxes": [
+     {
+      "id": "e0",
+      "label": "g",
+      "inputs": [
+       "v0"
+      ],
+      "outputs": [
+       "v1",
+       "v2"
+      ],
+      "box_size": 2
+     },
+     {
+      "id": "e1",
+      "label": "h",
+      "inputs": [
+       "v3"
+      ],
+      "outputs": [
+       "v4"
+      ],
+      "box_size": 1
+     },
+     {
+      "id": "e2",
+      "label": "h",
+      "inputs": [
+       "v1"
+      ],
+      "outputs": [
+       "v6"
+      ],
+      "box_size": 1
+     },
+     {
+      "id": "e3",
+      "label": "f",
+      "inputs": [
+       "v2",
+       "v4"
+      ],
+      "outputs": [
+       "v9"
+      ],
+      "box_size": 2
+     }
+    ],
+    "inputs": [
+     "v0",
+     "v3"
+    ],
+    "outputs": [
+     "v6",
+     "v9"
+    ]
+   },
+   "expanded": {
+    "boxes": [
+     {
+      "id": "e0",
+      "label": "g",
+      "inputs": [
+       "v0"
+      ],
+      "outputs": [
+       "v1",
+       "v2"
+      ],
+      "box_size": 2
+     },
+     {
+      "id": "e1",
+      "label": "h",
+      "inputs": [
+       "v3"
+      ],
+      "outputs": [
+       "v4"
+      ],
+      "box_size": 1
+     },
+     {
+      "id": "e2",
+      "label": "h",
+      "inputs": [
+       "v1"
+      ],
+      "outputs": [
+       "v6"
+      ],
+      "box_size": 1
+     },
+     {
+      "id": "e3",
+      "label": "f",
+      "inputs": [
+       "v2",
+       "v4"
+      ],
+      "outputs": [
+       "v9"
+      ],
+      "box_size": 2
+     }
+    ],
+    "inputs": [
+     "v0",
+     "v3"
+    ],
+    "outputs": [
+     "v6",
+     "v9"
+    ]
+   },
+   "layers": [
+    [
+     "e0",
+     "e1"
+    ],
+    [
+     "e2",
+     "e3"
+    ]
+   ],
+   "layout": {
+    "vertices": {
+     "v0": {
+      "x": -3.0,
+      "y": -0.49999999999275363
+     },
+     "v1": {
+      "x": -0.8,
+      "y": -1.0000000000030167
+     },
+     "v2": {
+      "x": -0.8,
+      "y": -3.0166980025114754e-12
+     },
+     "v3": {
+      "x": -3.0,
+      "y": 0.9999999999957667
+     },
+     "v4": {
+      "x": -0.8,
+      "y": 1.0000000000060296
+     },
+     "v6": {
+      "x": 3.0,
+      "y": -0.9999999999957667
+     },
+     "v9": {
+      "x": 3.0,
+      "y": 0.49999999999275374
+     }
+    },
+    "edges": {
+     "e0": {
+      "x": -1.5,
+      "y": -0.5000000000030167,
+      "value": "g",
+      "highlight": false
+     },
+     "e1": {
+      "x": -1.5,
+      "y": 1.0000000000060296,
+      "value": "h",
+      "highlight": false
+     },
+     "e2": {
+      "x": 1.5,
+      "y": -1.0000000000060296,
+      "value": "h",
+      "highlight": false
+     },
+     "e3": {
+      "x": 1.5,
+      "y": 0.5000000000030167,
+      "value": "f",
+      "highlight": false
+     }
+    }
+   },
+   "objective": 0.6000000000526247,
+   "objective_recomputed": 0.6000000000526244
+  },
+  {
+   "name": "readme_b",
+   "source": "README.md:66-68",
+   "term": "g * g ; id * sw * id ; f * f",
+   "graph": {
+    "boxes": [
+     {
+      "id": "e0",
+      "label": "g",
+      "inputs": [
+       "v0"
+      ],
+      "outputs": [
+       "v1",
+       "v2"
+      ],
+      "box_size": 2
+     },
+     {
+      "id": "e1",
+      "label": "g",
+      "inputs": [
+       "v3"
+      ],
+      "outputs": [
+       "v4",
+       "v5"
+      ],
+      "box_size": 2
+     },
+     {
+      "id": "e2",
+      "label": "f",
+      "inputs": [
+       "v1",
+       "v4"
+      ],
+      "outputs": [
+       "v10"
+      ],
+      "box_size": 2
+     },
+     {
+      "id": "e3",
+      "label": "f",
+      "inputs": [
+       "v2",
+       "v5"
+      ],
+      "outputs": [
+       "v11"
+      ],
+      "box_size": 2
+     }
+    ],
+    "inputs": [
+     "v0",
+     "v3"
+    ],
+    "outputs": [
+     "v10",
+     "v11"
+    ]
+   },
+   "expanded": {
+    "boxes": [
+     {
+      "id": "e0",
+      "label": "g",
+      "inputs": [
+       "v0"
+      ],
+      "outputs": [
+       "v1",
+       "v2"
+      ],
+      "box_size": 2
+     },
+     {
+      "id": "e1",
+      "label": "g",
+      "inputs": [
+       "v3"
+      ],
+      "outputs": [
+       "v4",
+       "v5"
+      ],
+      "box_size": 2
+     },
+     {
+      "id": "e2",
+      "label": "f",
+      "inputs": [
+       "v1",
+       "v4"
+      ],
+      "outputs": [
+       "v10"
+      ],
+      "box_size": 2
+     },
+     {
+      "id": "e3",
+      "label": "f",
+      "inputs": [
+       "v2",
+       "v5"
+      ],
+      "outputs": [
+       "v11"
+      ],
+      "box_size": 2
+     }
+    ],
+    "inputs": [
+     "v0",
+     "v3"
+    ],
+    "outputs": [
+     "v10",
+     "v11"
+    ]
+   },
+   "layers": [
+    [
+     "e0",
+     "e1"
+    ],
+    [
+     "e2",
+     "e3"
+    ]
+   ],
+   "layout": {
+    "vertices": {
+     "v0": {
+      "x": -3.0,
+      "y": -0.9999999992227171
+     },
+     "v1": {
+      "x": -0.8,
+      "y": -1.4999999996826536
+     },
+     "v2": {
+      "x": -0.8,
+      "y": -0.49999999968265363
+     },
+     "v3": {
+      "x": -3.0,
+      "y": 0.9999999992227173
+     },
+     "v4": {
+      "x": -0.8,
+      "y": 0.4999999996826532
+     },
+     "v5": {
+      "x": -0.8,
+      "y": 1.4999999996826532
+     },
+     "v10": {
+      "x": 3.0,
+      "y": -0.9999999992227173
+     },
+     "v11": {
+      "x": 3.0,
+      "y": 0.9999999992227164
+     }
+    },
+    "edges": {
+     "e0": {
+      "x": -1.5,
+      "y": -0.9999999996826536,
+      "value": "g",
+      "highlight": false
+     },
+     "e1": {
+      "x": -1.5,
+      "y": 0.9999999996826532,
+      "value": "g",
+      "highlight": false
+     },
+     "e2": {
+      "x": 1.5,
+      "y": -0.9999999996826539,
+      "value": "f",
+      "highlight": false
+     },
+     "e3": {
+      "x": 1.5,
+      "y": 0.999999999682653,
+      "value": "f",
+      "highlight": false
+     }
+    }
+   },
+   "objective": 2.800000000132507,
+   "objective_recomputed": 2.800000000132508
+  },
+  {
+   "name": "readme_ba2_step2",
+   "source": "README.md:163",
+   "term": "g * g * g ; id * id * id * sw * id ; id * id * f * f ; id * sw * id ; f * f ; id * g",
+   "graph": {
+    "boxes": [
+     {
+      "id": "e0",
+      "label": "g",
+      "inputs": [
+       "v0"
+      ],
+      "outputs": [
+       "v1",
+       "v2"
+      ],
+      "box_size": 2
+     },
+     {
+      "id": "e1",
+      "label": "g",
+      "inputs": [
+       "v3"
+      ],
+      "outputs": [
+       "v4",
+       "v5"
+      ],
+      "box_size": 2
+     },
+     {
+      "id": "e2",
+      "label": "g",
+      "inputs": [
+       "v6"
+      ],
+      "outputs": [
+       "v7",
+       "v8"
+      ],
+      "box_size": 2
+     },
+     {
+      "id": "e3",
+      "label": "f",
+      "inputs": [
+       "v4",
+       "v7"
+      ],
+      "outputs": [
+       "v15"
+      ],
+      "box_size": 2
+     },
+     {
+      "id": "e4",
+      "label": "f",
+      "inputs": [
+       "v5",
+       "v8"
+      ],
+      "outputs": [
+       "v16"
+      ],
+      "box_size": 2
+     },
+     {
+      "id": "e5",
+      "label": "f",
+      "inputs": [
+       "v1",
+       "v15"
+      ],
+      "outputs": [
+       "v17"
+      ],
+      "box_size": 2
+     },
+     {
+      "id": "e6",
+      "label": "f",
+      "inputs": [
+       "v2",
+       "v16"
+      ],
+      "outputs": [
+       "v18"
+      ],
+      "box_size": 2
+     },
+     {
+      "id": "e7",
+      "label": "g",
+      "inputs": [
+       "v18"
+      ],
+      "outputs": [
+       "v19",
+       "v20"
+      ],
+      "box_size": 2
+     }
+    ],
+    "inputs": [
+     "v0",
+     "v3",
+     "v6"
+    ],
+    "outputs": [
+     "v17",
+     "v19",
+     "v20"
+    ]
+   },
+   "expanded": {
+    "boxes": [
+     {
+      "id": "e0",
+      "label": "g",
+      "inputs": [
+       "v0"
+      ],
+      "outputs": [
+       "v1",
+       "v2"
+      ],
+      "box_size": 2
+     },
+     {
+      "id": "e1",
+      "label": "g",
+      "inputs": [
+       "v3"
+      ],
+      "outputs": [
+       "v4",
+       "v5"
+      ],
+      "box_size": 2
+     },
+     {
+      "id": "e2",
+      "label": "g",
+      "inputs": [
+       "v6"
+      ],
+      "outputs": [
+       "v7",
+       "v8"
+      ],
+      "box_size": 2
+     },
+     {
+      "id": "e3",
+      "label": "f",
+      "inputs": [
+       "v4",
+       "v7"
+      ],
+      "outputs": [
+       "v15"
+      ],
+      "box_size": 2
+     },
+     {
+      "id": "e4",
+      "label": "f",
+      "inputs": [
+       "v5",
+       "v8"
+      ],
+      "outputs": [
+       "v16"
+      ],
+      "box_size": 2
+     },
+     {
+      "id": "e5",
+      "label": "f",
+      "inputs": [
+       "v21",
+       "v15"
+      ],
+      "outputs": [
+       "v17"
+      ],
+      "box_size": 2
+     },
+     {
+      "id": "e6",
+      "label": "f",
+      "inputs": [
+       "v22",
+       "v16"
+      ],
+      "outputs": [
+       "v18"
+      ],
+      "box_size": 2
+     },
+     {
+      "id": "e7",
+      "label": "g",
+      "inputs": [
+       "v18"
+      ],
+      "outputs": [
+       "v19",
+       "v20"
+      ],
+      "box_size": 2
+     },
+     {
+      "id": "e8",
+      "label": "id",
+      "inputs": [
+       "v1"
+      ],
+      "outputs": [
+       "v21"
+      ],
+      "box_size": 1
+     },
+     {
+      "id": "e9",
+      "label": "id",
+      "inputs": [
+       "v2"
+      ],
+      "outputs": [
+       "v22"
+      ],
+      "box_size": 1
+     },
+     {
+      "id": "e10",
+      "label": "id",
+      "inputs": [
+       "v17"
+      ],
+      "outputs": [
+       "v23"
+      ],
+      "box_size": 1
+     }
+    ],
+    "inputs": [
+     "v0",
+     "v3",
+     "v6"
+    ],
+    "outputs": [
+     "v23",
+     "v19",
+     "v20"
+    ]
+   },
+   "layers": [
+    [
+     "e0",
+     "e1",
+     "e2"
+    ],
+    [
+     "e8",
+     "e3",
+     "e9",
+     "e4"
+    ],
+    [
+     "e5",
+     "e6"
+    ],
+    [
+     "e10",
+     "e7"
+    ]
+   ],
+   "layout": {
+    "vertices": {
+     "v0": {
+      "x": -6.0,
+      "y": -1.9999999974833766
+     },
+     "v1": {
+      "x": -3.8,
+      "y": -2.499999997877424
+     },
+     "v2": {
+      "x": -3.8,
+      "y": -1.499999997877424
+     },
+     "v3": {
+      "x": -6.0,
+      "y": -1.4211490317883602e-10
+     },
+     "v4": {
+      "x": -3.8,
+      "y": -0.5000000003201573
+     },
+     "v5": {
+      "x": -3.8,
+      "y": 0.49999999967984265
+     },
+     "v6": {
+      "x": -6.0,
+      "y": 1.9999999974833766
+     },
+     "v7": {
+      "x": -3.8,
+      "y": 1.4999999980607202
+     },
+     "v8": {
+      "x": -3.8,
+      "y": 2.49999999806072
+     },
+     "v15": {
+      "x": -0.8,
+      "y": -0.9999999995313675
+     },
+     "v16": {
+      "x": -0.8,
+      "y": 1.9999999974203244
+     },
+     "v17": {
+      "x": 2.2,
+      "y": -1.4999999990812038
+     },
+     "v18": {
+      "x": 2.2,
+      "y": 0.9999999982835633
+     },
+     "v19": {
+      "x": 6.0,
+      "y": 0.499999994830414
+     },
+     "v20": {
+      "x": 6.0,
+      "y": 1.4999999974444536
+     },
+     "v21": {
+      "x": -0.8,
+      "y": -2.499999997572325
+     },
+     "v22": {
+      "x": -0.8,
+      "y": 0.4999999977917232
+     },
+     "v23": {
+      "x": 6.0,
+      "y": -1.4999999966240036
+     }
+    },
+    "edges": {
+     "e0": {
+      "x": -4.5,
+      "y": -1.999999997877424,
+      "value": "g",
+      "highlight": false
+     },
+     "e1": {
+      "x": -4.5,
+      "y": -3.201573728350837e-10,
+      "value": "g",
+      "highlight": false
+     },
+     "e2": {
+      "x": -4.5,
+      "y": 1.9999999980607202,
+      "value": "g",
+      "highlight": false
+     },
+     "e3": {
+      "x": -1.5,
+      "y": -0.9999999995313675,
+      "value": "f",
+      "highlight": false
+     },
+     "e4": {
+      "x": -1.5,
+      "y": 1.9999999974203244,
+      "value": "f",
+      "highlight": false
+     },
+     "e5": {
+      "x": 1.5,
+      "y": -1.4999999990812038,
+      "value": "f",
+      "highlight": false
+     },
+     "e6": {
+      "x": 1.5,
+      "y": 0.9999999982835633,
+      "value": "f",
+      "highlight": false
+     },
+     "e7": {
+      "x": 4.5,
+      "y": 0.9999999966402858,
+      "value": "g",
+      "highlight": false
+     },
+     "e8": {
+      "x": -1.5,
+      "y": -2.499999997572325,
+      "value": "id",
+      "highlight": false
+     },
+     "e9": {
+      "x": -1.5,
+      "y": 0.4999999977917232,
+      "value": "id",
+      "highlight": false
+     },
+     "e10": {
+      "x": 4.5,
+      "y": -1.4999999974379232,
+      "value": "id",
+      "highlight": false
+     }
+    }
+   },
+   "objective": 9.049999994733156,
+   "objective_recomputed": 9.04999999473316
+  },
+  {
+   "name": "readme_ba2_step3",
+   "source": "README.md:164",
+   "term": "g * g * g ; id * id * id * sw * id ; id * g * f * f ; sw * sw * id ; id * f * id * g ; sw * sw * id ; id * f * f",
+   "graph": {
+    "boxes": [
+     {
+      "id": "e0",
+      "label": "g",
+      "inputs": [
+       "v0"
+      ],
+      "outputs": [
+       "v1",
+       "v2"
+      ],
+      "box_size": 2
+     },
+     {
+      "id": "e1",
+      "label": "g",
+      "inputs": [
+       "v3"
+      ],
+      "outputs": [
+       "v4",
+       "v5"
+      ],
+      "box_size": 2
+     },
+     {
+      "id": "e2",
+      "label": "g",
+      "inputs": [
+       "v6"
+      ],
+      "outputs": [
+       "v7",
+       "v8"
+      ],
+      "box_size": 2
+     },
+     {
+      "id": "e3",
+      "label": "g",
+      "inputs": [
+       "v2"
+      ],
+      "outputs": [
+       "v15",
+       "v16"
+      ],
+      "box_size": 2
+     },
+     {
+      "id": "e4",
+      "label": "f",
+      "inputs": [
+       "v4",
+       "v7"
+      ],
+      "outputs": [
+       "v17"
+      ],
+      "box_size": 2
+     },
+     {
+      "id": "e5",
+      "label": "f",
+      "inputs": [
+       "v5",
+       "v8"
+      ],
+      "outputs": [
+       "v18"
+      ],
+      "box_size": 2
+     },
+     {
+      "id": "e6",
+      "label": "f",
+      "inputs": [
+       "v1",
+       "v17"
+      ],
+      "outputs": [
+       "v19"
+      ],
+      "box_size": 2
+     },
+     {
+      "id": "e7",
+      "label": "g",
+      "inputs": [
+       "v18"
+      ],
+      "outputs": [
+       "v20",
+       "v21"
+      ],
+      "box_size": 2
+     },
+     {
+      "id": "e8",
+      "label": "f",
+      "inputs": [
+       "v15",
+       "v20"
+      ],
+      "outputs": [
+       "v22"
+      ],
+      "box_size": 2
+     },
+     {
+      "id": "e9",
+      "label": "f",
+      "inputs": [
+       "v16",
+       "v21"
+      ],
+      "outputs": [
+       "v23"
+      ],
+      "box_size": 2
+     }
+    ],
+    "inputs": [
+     "v0",
+     "v3",
+     "v6"
+    ],
+    "outputs": [
+     "v19",
+     "v22",
+     "v23"
+    ]
+   },
+   "expanded": {
+    "boxes": [
+     {
+      "id": "e0",
+      "label": "g",
+      "inputs": [
+       "v0"
+      ],
+      "outputs": [
+       "v1",
+       "v2"
+      ],
+      "box_size": 2
+     },
+     {
+      "id": "e1",
+      "label": "g",
+      "inputs": [
+       "v3"
+      ],
+      "outputs": [
+       "v4",
+       "v5"
+      ],
+      "box_size": 2
+     },
+     {
+      "id": "e2",
+      "label": "g",
+      "inputs": [
+       "v6"
+      ],
+      "outputs": [
+       "v7",
+       "v8"
+      ],
+      "box_size": 2
+     },
+     {
+      "id": "e3",
+      "label": "g",
+      "inputs": [
+       "v2"
+      ],
+      "outputs": [
+       "v15",
+       "v16"
+      ],
+      "box_size": 2
+     },
+     {
+      "id": "e4",
+      "label": "f",
+      "inputs": [
+       "v4",
+       "v7"
+      ],
+      "outputs": [
+       "v17"
+      ],
+      "box_size": 2
+     },
+     {
+      "id": "e5",
+      "label": "f",
+      "inputs": [
+       "v5",
+       "v8"
+      ],
+      "outputs": [
+       "v18"
+      ],
+      "box_size": 2
+     },
+     {
+      "id": "e6",
+      "label": "f",
+      "inputs": [
+       "v24",
+       "v17"
+      ],
+      "outputs": [
+       "v19"
+      ],
+      "box_size": 2
+     },
+     {
+      "id": "e7",
+      "label": "g",
+      "inputs": [
+       "v18"
+      ],
+      "outputs": [
+       "v20",
+       "v21"
+      ],
+      "box_size": 2
+     },
+     {
+      "id": "e8",
+      "label": "f",
+      "inputs": [
+       "v25",
+       "v20"
+      ],
+      "outputs": [
+       "v22"
+      ],
+      "box_size": 2
+     },
+     {
+      "id": "e9",
+      "label": "f",
+      "inputs": [
+       "v26",
+       "v21"
+      ],
+      "outputs": [
+       "v23"
+      ],
+      "box_size": 2
+     },
+     {
+      "id": "e10",
+      "label": "id",
+      "inputs": [
+       "v1"
+      ],
+      "outputs": [
+       "v24"
+      ],
+      "box_size": 1
+     },
+     {
+      "id": "e11",
+      "label": "id",
+      "inputs": [
+       "v15"
+      ],
+      "outputs": [
+       "v25"
+      ],
+      "box_size": 1
+     },
+     {
+      "id": "e12",
+      "label": "id",
+      "inputs": [
+       "v16"
+      ],
+      "outputs": [
+       "v26"
+      ],
+      "box_size": 1
+     },
+     {
+      "id": "e13",
+      "label": "id",
+      "inputs": [
+       "v19"
+      ],
+      "outputs": [
+       "v27"
+      ],
+      "box_size": 1
+     }
+    ],
+    "inputs": [
+     "v0",
+     "v3",
+     "v6"
+    ],
+    "outputs": [
+     "v27",
+     "v22",
+     "v23"
+    ]
+   },
+   "layers": [
+    [
+     "e0",
+     "e1",
+     "e2"
+    ],
+    [
+     "e10",
+     "e4",
+     "e3",
+     "e5"
+    ],
+    [
+     "e6",
+     "e11",
+     "e12",
+     "e7"
+    ],
+    [
+     "e13",
+     "e8",
+     "e9"
+    ]
+   ],
+   "layout": {
+    "vertices": {
+     "v0": {
+      "x": -6.0,
+      "y": -2.2177091467950367
+     },
+     "v1": {
+      "x": -3.8,
+      "y": -2.7177091468137657
+     },
+     "v2": {
+      "x": -3.8,
+      "y": -1.7177091468137657
+     },
+     "v3": {
+      "x": -6.0,
+      "y": -0.2177091467375225
+     },
+     "v4": {
+      "x": -3.8,
+      "y": -0.7177091467402025
+     },
+     "v5": {
+      "x": -3.8,
+      "y": 0.2822908532597975
+     },
+     "v6": {
+      "x": -6.0,
+      "y": 1.7822908532963502
+     },
+     "v7": {
+      "x": -3.8,
+      "y": 1.2822908533178632
+     },
+     "v8": {
+      "x": -3.8,
+      "y": 2.282290853317863
+     },
+     "v15": {
+      "x": -0.8,
+      "y": -0.25000000003682943
+     },
+     "v16": {
+      "x": -0.8,
+      "y": 0.7499999999631706
+     },
+     "v17": {
+      "x": -0.8,
+      "y": -1.7499999999433844
+     },
+     "v18": {
+      "x": -0.8,
+      "y": 2.249999999899627
+     },
+     "v19": {
+      "x": 2.2,
+      "y": -2.2499999998909135
+     },
+     "v20": {
+      "x": 2.2,
+      "y": 1.7499999998950395
+     },
+     "v21": {
+      "x": 2.2,
+      "y": 2.7499999998950395
+     },
+     "v22": {
+      "x": 6.0,
+      "y": 0.24999999988218163
+     },
+     "v23": {
+      "x": 6.0,
+      "y": 2.2499999998182583
+     },
+     "v24": {
+      "x": -0.8,
+      "y": -3.2499999998313043
+     },
+     "v25": {
+      "x": 2.2,
+      "y": -0.2500000001206981
+     },
+     "v26": {
+      "x": 2.2,
+      "y": 0.7499999999576632
+     },
+     "v27": {
+      "x": 6.0,
+      "y": -2.2499999998182583
+     }
+    },
+    "edges": {
+     "e0": {
+      "x": -4.5,
+      "y": -2.2177091468137657,
+      "value": "g",
+      "highlight": false
+     },
+     "e1": {
+      "x": -4.5,
+      "y": -0.21770914674020247,
+      "value": "g",
+      "highlight": false
+     },
+     "e2": {
+      "x": -4.5,
+      "y": 1.7822908533178632,
+      "value": "g",
+      "highlight": false
+     },
+     "e3": {
+      "x": -1.5,
+      "y": 0.24999999996317057,
+      "value": "g",
+      "highlight": false
+     },
+     "e4": {
+      "x": -1.5,
+      "y": -1.7499999999433844,
+      "value": "f",
+      "highlight": false
+     },
+     "e5": {
+      "x": -1.5,
+      "y": 2.249999999899627,
+      "value": "f",
+      "highlight": false
+     },
+     "e6": {
+      "x": 1.5,
+      "y": -2.2499999998909135,
+      "value": "f",
+      "highlight": false
+     },
+     "e7": {
+      "x": 1.5,
+      "y": 2.2499999998950395,
+      "value": "g",
+      "highlight": false
+     },
+     "e8": {
+      "x": 4.5,
+      "y": 0.24999999988075483,
+      "value": "f",
+      "highlight": false
+     },
+     "e9": {
+      "x": 4.5,
+      "y": 2.2499999998435296,
+      "value": "f",
+      "highlight": false
+     },
+     "e10": {
+      "x": -1.5,
+      "y": -3.2499999998313043,
+      "value": "id",
+      "highlight": false
+     },
+     "e11": {
+      "x": 1.5,
+      "y": -0.2500000001206981,
+      "value": "id",
+      "highlight": false
+     },
+     "e12": {
+      "x": 1.5,
+      "y": 0.7499999999576632,
+      "value": "id",
+      "highlight": false
+     },
+     "e13": {
+      "x": 4.5,
+      "y": -2.2499999998417715,
+      "value": "id",
+      "highlight": false
+     }
+    }
+   },
+   "objective": 13.699999999568886,
+   "objective_recomputed": 13.699999999568883
+  },
+  {
+   "name": "monoid_assoc_lhs",
+   "source": "README.md:204",
+   "term": "m * id ; m",
+   "graph": {
+    "boxes": [
+     {
+      "id": "e0",
+      "label": "m",
+      "inputs": [
+       "v0",
+       "v1"
+      ],
+      "outputs": [
+       "v2"
+      ],
+      "box_size": 2
+     },
+     {
+      "id": "e1",
+      "label": "m",
+      "inputs": [
+       "v2",
+       "v3"
+      ],
+      "outputs": [
+       "v6"
+      ],
+      "box_size": 2
+     }
+    ],
+    "inputs": [
+     "v0",
+     "v1",
+     "v3"
+    ],
+    "outputs": [
+     "v6"
+    ]
+   },
+   "expanded": {
+    "boxes": [
+     {
+      "id": "e0",
+      "label": "m",
+      "inputs": [
+       "v0",
+       "v1"
+      ],
+      "outputs": [
+       "v2"
+      ],
+      "box_size": 2
+     },
+     {
+      "id": "e1",
+      "label": "m",
+      "inputs": [
+       "v2",
+       "v7"
+      ],
+      "outputs": [
+       "v6"
+      ],
+      "box_size": 2
+     },
+     {
+      "id": "e2",
+      "label": "id",
+      "inputs": [
+       "v3"
+      ],
+      "outputs": [
+       "v7"
+      ],
+      "box_size": 1
+     }
+    ],
+    "inputs": [
+     "v0",
+     "v1",
+     "v3"
+    ],
+    "outputs": [
+     "v6"
+    ]
+   },
+   "layers": [
+    [
+     "e0",
+     "e2"
+    ],
+    [
+     "e1"
+    ]
+   ],
+   "layout": {
+    "vertices": {
+     "v0": {
+      "x": -3.0,
+      "y": -1.0000000001582738
+     },
+     "v1": {
+      "x": -3.0,
+      "y": -5.290448634731604e-11
+     },
+     "v2": {
+      "x": -0.8,
+      "y": -0.5000000000703859
+     },
+     "v3": {
+      "x": -3.0,
+      "y": 1.0000000001582738
+     },
+     "v6": {
+      "x": 3.0,
+      "y": 0.2500000042833689
+     },
+     "v7": {
+      "x": -0.8,
+      "y": 1.000000000087229
+     }
+    },
+    "edges": {
+     "e0": {
+      "x": -1.5,
+      "y": -0.5000000000703859,
+      "value": "m",
+      "highlight": false
+     },
+     "e1": {
+      "x": 1.5,
+      "y": 0.250000004283369,
+      "value": "m",
+      "highlight": false
+     },
+     "e2": {
+      "x": -1.5,
+      "y": 1.000000000087229,
+      "value": "id",
+      "highlight": false
+     }
+    }
+   },
+   "objective": 0.8500000003814455,
+   "objective_recomputed": 0.8500000003814455
+  },
+  {
+   "name": "monoid_eq_lhs",
+   "source": "README.md:208-210",
+   "term": "id * u * u * id ; m * m ; m",
+   "graph": {
+    "boxes": [
+     {
+      "id": "e0",
+      "label": "u",
+      "inputs": [],
+      "outputs": [
+       "v1"
+      ],
+      "box_size": 1
+     },
+     {
+      "id": "e1",
+      "label": "u",
+      "inputs": [],
+      "outputs": [
+       "v2"
+      ],
+      "box_size": 1
+     },
+     {
+      "id": "e2",
+      "label": "m",
+      "inputs": [
+       "v0",
+       "v1"
+      ],
+      "outputs": [
+       "v6"
+      ],
+      "box_size": 2
+     },
+     {
+      "id": "e3",
+      "label": "m",
+      "inputs": [
+       "v2",
+       "v3"
+      ],
+      "outputs": [
+       "v9"
+      ],
+      "box_size": 2
+     },
+     {
+      "id": "e4",
+      "label": "m",
+      "inputs": [
+       "v6",
+       "v9"
+      ],
+      "outputs": [
+       "v10"
+      ],
+      "box_size": 2
+     }
+    ],
+    "inputs": [
+     "v0",
+     "v3"
+    ],
+    "outputs": [
+     "v10"
+    ]
+   },
+   "expanded": {
+    "boxes": [
+     {
+      "id": "e0",
+      "label": "u",
+      "inputs": [],
+      "outputs": [
+       "v1"
+      ],
+      "box_size": 1
+     },
+     {
+      "id": "e1",
+      "label": "u",
+      "inputs": [],
+      "outputs": [
+       "v2"
+      ],
+      "box_size": 1
+     },
+     {
+      "id": "e2",
+      "label": "m",
+      "inputs": [
+       "v11",
+       "v1"
+      ],
+      "outputs": [
+       "v6"
+      ],
+      "box_size": 2
+     },
+     {
+      "id": "e3",
+      "label": "m",
+      "inputs": [
+       "v2",
+       "v12"
+      ],
+      "outputs": [
+       "v9"
+      ],
+      "box_size": 2
+     },
+     {
+      "id": "e4",
+      "label": "m",
+      "inputs": [
+       "v6",
+       "v9"
+      ],
+      "outputs": [
+       "v10"
+      ],
+      "box_size": 2
+     },
+     {
+      "id": "e5",
+      "label": "id",
+      "inputs": [
+       "v0"
+      ],
+      "outputs": [
+       "v11"
+      ],
+      "box_size": 1
+     },
+     {
+      "id": "e6",
+      "label": "id",
+      "inputs": [
+       "v3"
+      ],
+      "outputs": [
+       "v12"
+      ],
+      "box_size": 1
+     }
+    ],
+    "inputs": [
+     "v0",
+     "v3"
+    ],
+    "outputs": [
+     "v10"
+    ]
+   },
+   "layers": [
+    [
+     "e5",
+     "e0",
+     "e1",
+     "e6"
+    ],
+    [
+     "e2",
+     "e3"
+    ],
+    [
+     "e4"
+    ]
+   ],
+   "layout": {
+    "vertices": {
+     "v0": {
+      "x": -4.5,
+      "y": -1.4999999999308995
+     },
+     "v1": {
+      "x": -2.3,
+      "y": -0.4999999999911914
+     },
+     "v2": {
+      "x": -2.3,
+      "y": 0.49999999999119116
+     },
+     "v3": {
+      "x": -4.5,
+      "y": 1.4999999999308995
+     },
+     "v6": {
+      "x": 0.7,
+      "y": -0.9999999999118626
+     },
+     "v9": {
+      "x": 0.7,
+      "y": 0.9999999999118621
+     },
+     "v10": {
+      "x": 4.5,
+      "y": 2.7716883231238934e-10
+     },
+     "v11": {
+      "x": -2.3,
+      "y": -1.5000000000667544
+     },
+     "v12": {
+      "x": -2.3,
+      "y": 1.500000000066754
+     }
+    },
+    "edges": {
+     "e0": {
+      "x": -3.0,
+      "y": -0.4999999999911914,
+      "value": "u",
+      "highlight": false
+     },
+     "e1": {
+      "x": -3.0,
+      "y": 0.49999999999119116,
+      "value": "u",
+      "highlight": false
+     },
+     "e2": {
+      "x": 0.0,
+      "y": -0.9999999999118626,
+      "value": "m",
+      "highlight": false
+     },
+     "e3": {
+      "x": 0.0,
+      "y": 0.9999999999118621,
+      "value": "m",
+      "highlight": false
+     },
+     "e4": {
+      "x": 3.0,
+      "y": 2.7717004313688597e-10,
+      "value": "m",
+      "highlight": false
+     },
+     "e5": {
+      "x": -3.0,
+      "y": -1.5000000000667544,
+      "value": "id",
+      "highlight": false
+     },
+     "e6": {
+      "x": -3.0,
+      "y": 1.500000000066754,
+      "value": "id",
+      "highlight": false
+     }
+    }
+   },
+   "objective": 1.80000000054578,
+   "objective_recomputed": 1.8000000005457801
+  },
+  {
+   "name": "frob_lhs",
+   "source": "examples/frobenius.chyp:22",
+   "term": "n * id ; id * m",
+   "graph": {
+    "boxes": [
+     {
+      "id": "e0",
+      "label": "n",
+      "inputs": [
+       "v0"
+      ],
+      "outputs": [
+       "v1",
+       "v2"
+      ],
+      "box_size": 2
+     },
+     {
+      "id": "e1",
+      "label": "m",
+      "inputs": [
+       "v2",
+       "v3"
+      ],
+      "outputs": [
+       "v7"
+      ],
+      "box_size": 2
+     }
+    ],
+    "inputs": [
+     "v0",
+     "v3"
+    ],
+    "outputs": [
+     "v1",
+     "v7"
+    ]
+   },
+   "expanded": {
+    "boxes": [
+     {
+      "id": "e0",
+      "label": "n",
+      "inputs": [
+       "v0"
+      ],
+      "outputs": [
+       "v1",
+       "v2"
+      ],
+      "box_size": 2
+     },
+     {
+      "id": "e1",
+      "label": "m",
+      "inputs": [
+       "v2",
+       "v8"
+      ],
+      "outputs": [
+       "v7"
+      ],
+      "box_size": 2
+     },
+     {
+      "id": "e2",
+      "label": "id",
+      "inputs": [
+       "v3"
+      ],
+      "outputs": [
+       "v8"
+      ],
+      "box_size": 1
+     },
+     {
+      "id": "e3",
+      "label": "id",
+      "inputs": [
+       "v1"
+      ],
+      "outputs": [
+       "v9"
+      ],
+      "box_size": 1
+     }
+    ],
+    "inputs": [
+     "v0",
+     "v3"
+    ],
+    "outputs": [
+     "v9",
+     "v7"
+    ]
+   },
+   "layers": [
+    [
+     "e0",
+     "e2"
+    ],
+    [
+     "e3",
+     "e1"
+    ]
+   ],
+   "layout": {
+    "vertices": {
+     "v0": {
+      "x": -3.0,
+      "y": -0.4999999999927535
+     },
+     "v1": {
+      "x": -0.8,
+      "y": -1.0000000000030165
+     },
+     "v2": {
+      "x": -0.8,
+      "y": -3.0164759579065503e-12
+     },
+     "v3": {
+      "x": -3.0,
+      "y": 0.9999999999957665
+     },
+     "v7": {
+      "x": 3.0,
+      "y": 0.49999999999275363
+     },
+     "v8": {
+      "x": -0.8,
+      "y": 1.0000000000060296
+     },
+     "v9": {
+      "x": 3.0,
+      "y": -0.9999999999957665
+     }
+    },
+    "edges": {
+     "e0": {
+      "x": -1.5,
+      "y": -0.5000000000030165,
+      "value": "n",
+      "highlight": false
+     },
+     "e1": {
+      "x": 1.5,
+      "y": 0.5000000000030167,
+      "value": "m",
+      "highlight": false
+     },
+     "e2": {
+      "x": -1.5,
+      "y": 1.0000000000060296,
+      "value": "id",
+      "highlight": false
+     },
+     "e3": {
+      "x": 1.5,
+      "y": -1.0000000000060294,
+      "value": "id",
+      "highlight": false
+     }
+    }
+   },
+   "objective": 0.6000000000526243,
+   "objective_recomputed": 0.6000000000526244
+  },
+  {
+   "name": "frobL_step2",
+   "source": "examples/frobenius.chyp (rewrite frobL, step 2)",
+   "term": "u * id * id ; n * id * id ; id * m * id ; id * m",
+   "graph": {
+    "boxes": [
+     {
+      "id": "e0",
+      "label": "u",
+      "inputs": [],
+      "outputs": [
+       "v0"
+      ],
+      "box_size": 1
+     },
+     {
+      "id": "e1",
+      "label": "n",
+      "inputs": [
+       "v0"
+      ],
+      "outputs": [
+       "v4",
+       "v5"
+      ],
+      "box_size": 2
+     },
+     {
+      "id": "e2",
+      "label": "m",
+      "inputs": [
+       "v5",
+       "v1"
+      ],
+      "outputs": [
+       "v8"
+      ],
+      "box_size": 2
+     },
+     {
+      "id": "e3",
+      "label": "m",
+      "inputs": [
+       "v8",
+       "v2"
+      ],
+      "outputs": [
+       "v9"
+      ],
+      "box_size": 2
+     }
+    ],
+    "inputs": [
+     "v1",
+     "v2"
+    ],
+    "outputs": [
+     "v4",
+     "v9"
+    ]
+   },
+   "expanded": {
+    "boxes": [
+     {
+      "id": "e0",
+      "label": "u",
+      "inputs": [],
+      "outputs": [
+       "v0"
+      ],
+      "box_size": 1
+     },
+     {
+      "id": "e1",
+      "label": "n",
+      "inputs": [
+       "v0"
+      ],
+      "outputs": [
+       "v4",
+       "v5"
+      ],
+      "box_size": 2
+     },
+     {
+      "id": "e2",
+      "label": "m",
+      "inputs": [
+       "v5",
+       "v12"
+      ],
+      "outputs": [
+       "v8"
+      ],
+      "box_size": 2
+     },
+     {
+      "id": "e3",
+      "label": "m",
+      "inputs": [
+       "v8",
+       "v15"
+      ],
+      "outputs": [
+       "v9"
+      ],
+      "box_size": 2
+     },
+     {
+      "id": "e4",
+      "label": "id",
+      "inputs": [
+       "v1"
+      ],
+      "outputs": [
+       "v10"
+      ],
+      "box_size": 1
+     },
+     {
+      "id": "e5",
+      "label": "id",
+      "inputs": [
+       "v2"
+      ],
+      "outputs": [
+       "v11"
+      ],
+      "box_size": 1
+     },
+     {
+      "id": "e6",
+      "label": "id",
+      "inputs": [
+       "v10"
+      ],
+      "outputs": [
+       "v12"
+      ],
+      "box_size": 1
+     },
+     {
+      "id": "e7",
+      "label": "id",
+      "inputs": [
+       "v11"
+      ],
+      "outputs": [
+       "v13"
+      ],
+      "box_size": 1
+     },
+     {
+      "id": "e8",
+      "label": "id",
+      "inputs": [
+       "v4"
+      ],
+      "outputs": [
+       "v14"
+      ],
+      "box_size": 1
+     },
+     {
+      "id": "e9",
+      "label": "id",
+      "inputs": [
+       "v13"
+      ],
+      "outputs": [
+       "v15"
+      ],
+      "box_size": 1
+     },
+     {
+      "id": "e10",
+      "label": "id",
+      "inputs": [
+       "v14"
+      ],
+      "outputs": [
+       "v16"
+      ],
+      "box_size": 1
+     }
+    ],
+    "inputs": [
+     "v1",
+     "v2"
+    ],
+    "outputs": [
+     "v16",
+     "v9"
+    ]
+   },
+   "layers": [
+    [
+     "e0",
+     "e4",
+     "e5"
+    ],
+    [
+     "e1",
+     "e6",
+     "e7"
+    ],
+    [
+     "e8",
+     "e2",
+     "e9"
+    ],
+    [
+     "e10",
+     "e3"
+    ]
+   ],
+   "layout": {
+    "vertices": {
+     "v0": {
+      "x": -3.8,
+      "y": -1.0000000010369179
+     },
+     "v1": {
+      "x": -6.0,
+      "y": 0.49999999822820185
+     },
+     "v2": {
+      "x": -6.0,
+      "y": 1.500000000122325
+     },
+     "v4": {
+      "x": -0.8,
+      "y": -1.5000000012320092
+     },
+     "v5": {
+      "x": -0.8,
+      "y": -0.5000000012320092
+     },
+     "v8": {
+      "x": 2.2,
+      "y": -8.430168230155743e-10
+     },
+     "v9": {
+      "x": 6.0,
+      "y": 0.4999999996353659
+     },
+     "v10": {
+      "x": -3.8,
+      "y": 0.49999999835701
+     },
+     "v11": {
+      "x": -3.8,
+      "y": 1.4999999999935172
+     },
+     "v12": {
+      "x": -0.8,
+      "y": 0.49999999891304975
+     },
+     "v13": {
+      "x": -0.8,
+      "y": 1.4999999996796343
+     },
+     "v14": {
+      "x": 2.2,
+      "y": -1.5000000011502856
+     },
+     "v15": {
+      "x": 2.2,
+      "y": 1.4999999989077764
+     },
+     "v16": {
+      "x": 6.0,
+      "y": -1.500000000122325
+     }
+    },
+    "edges": {
+     "e0": {
+      "x": -4.5,
+      "y": -1.0000000010369179,
+      "value": "u",
+      "highlight": false
+     },
+     "e1": {
+      "x": -1.5,
+      "y": -1.0000000012320092,
+      "value": "n",
+      "highlight": false
+     },
+     "e2": {
+      "x": 1.5,
+      "y": -8.430168230155743e-10,
+      "value": "m",
+      "highlight": false
+     },
+     "e3": {
+      "x": 4.5,
+      "y": 0.49999999997241296,
+      "value": "m",
+      "highlight": false
+     },
+     "e4": {
+      "x": -4.5,
+      "y": 0.49999999835701,
+      "value": "id",
+      "highlight": false
+     },
+     "e5": {
+      "x": -4.5,
+      "y": 1.4999999999935172,
+      "value": "id",
+      "highlight": false
+     },
+     "e6": {
+      "x": -1.5,
+      "y": 0.49999999891304975,
+      "value": "id",
+      "highlight": false
+     },
+     "e7": {
+      "x": -1.5,
+      "y": 1.4999999996796343,
+      "value": "id",
+      "highlight": false
+     },
+     "e8": {
+      "x": 1.5,
+      "y": -1.5000000011502856,
+      "value": "id",
+      "highlight": false
+     },
+     "e9": {
+      "x": 1.5,
+      "y": 1.4999999989077764,
+      "value": "id",
+      "highlight": false
+     },
+     "e10": {
+      "x": 4.5,
+      "y": -1.500000000459372,
+      "value": "id",
+      "highlight": false
+     }
+    }
+   },
+   "objective": 1.8000000043333124,
+   "objective_recomputed": 1.800000004333312
+  },
+  {
+   "name": "identity_wire",
+   "source": "this prototype: a wire straight from input to output",
+   "term": "f * id",
+   "graph": {
+    "boxes": [
+     {
+      "id": "e0",
+      "label": "f",
+      "inputs": [
+       "v0"
+      ],
+      "outputs": [
+       "v1"
+      ],
+      "box_size": 1
+     }
+    ],
+    "inputs": [
+     "v0",
+     "v2"
+    ],
+    "outputs": [
+     "v1",
+     "v2"
+    ]
+   },
+   "expanded": {
+    "boxes": [
+     {
+      "id": "e0",
+      "label": "f",
+      "inputs": [
+       "v0"
+      ],
+      "outputs": [
+       "v1"
+      ],
+      "box_size": 1
+     },
+     {
+      "id": "e1",
+      "label": "id",
+      "inputs": [
+       "v2"
+      ],
+      "outputs": [
+       "v3"
+      ],
+      "box_size": 1
+     }
+    ],
+    "inputs": [
+     "v0",
+     "v2"
+    ],
+    "outputs": [
+     "v1",
+     "v3"
+    ]
+   },
+   "layers": [
+    [
+     "e0",
+     "e1"
+    ]
+   ],
+   "layout": {
+    "vertices": {
+     "v0": {
+      "x": -1.5,
+      "y": -0.5000000000401078
+     },
+     "v1": {
+      "x": 1.5,
+      "y": -0.5000000000401078
+     },
+     "v2": {
+      "x": -1.5,
+      "y": 0.5000000000401078
+     },
+     "v3": {
+      "x": 1.5,
+      "y": 0.5000000000401077
+     }
+    },
+    "edges": {
+     "e0": {
+      "x": 0.0,
+      "y": -0.5000000000401078,
+      "value": "f",
+      "highlight": false
+     },
+     "e1": {
+      "x": 0.0,
+      "y": 0.5000000000401078,
+      "value": "id",
+      "highlight": false
+     }
+    }
+   },
+   "objective": 0.3000000000240648,
+   "objective_recomputed": 0.3000000000240648
+  },
+  {
+   "name": "orders_workers_payment",
+   "source": "this prototype: the orders/workers/payment event links as wires",
+   "term": "orders ; copy ; workers * id ; sw ; payment",
+   "graph": {
+    "boxes": [
+     {
+      "id": "e0",
+      "label": "orders",
+      "inputs": [
+       "v0"
+      ],
+      "outputs": [
+       "v1"
+      ],
+      "box_size": 1
+     },
+     {
+      "id": "e1",
+      "label": "copy",
+      "inputs": [
+       "v1"
+      ],
+      "outputs": [
+       "v3",
+       "v4"
+      ],
+      "box_size": 2
+     },
+     {
+      "id": "e2",
+      "label": "workers",
+      "inputs": [
+       "v3"
+      ],
+      "outputs": [
+       "v5"
+      ],
+      "box_size": 1
+     },
+     {
+      "id": "e3",
+      "label": "payment",
+      "inputs": [
+       "v4",
+       "v5"
+      ],
+      "outputs": [
+       "v6"
+      ],
+      "box_size": 2
+     }
+    ],
+    "inputs": [
+     "v0"
+    ],
+    "outputs": [
+     "v6"
+    ]
+   },
+   "expanded": {
+    "boxes": [
+     {
+      "id": "e0",
+      "label": "orders",
+      "inputs": [
+       "v0"
+      ],
+      "outputs": [
+       "v1"
+      ],
+      "box_size": 1
+     },
+     {
+      "id": "e1",
+      "label": "copy",
+      "inputs": [
+       "v1"
+      ],
+      "outputs": [
+       "v3",
+       "v4"
+      ],
+      "box_size": 2
+     },
+     {
+      "id": "e2",
+      "label": "workers",
+      "inputs": [
+       "v3"
+      ],
+      "outputs": [
+       "v5"
+      ],
+      "box_size": 1
+     },
+     {
+      "id": "e3",
+      "label": "payment",
+      "inputs": [
+       "v7",
+       "v5"
+      ],
+      "outputs": [
+       "v6"
+      ],
+      "box_size": 2
+     },
+     {
+      "id": "e4",
+      "label": "id",
+      "inputs": [
+       "v4"
+      ],
+      "outputs": [
+       "v7"
+      ],
+      "box_size": 1
+     }
+    ],
+    "inputs": [
+     "v0"
+    ],
+    "outputs": [
+     "v6"
+    ]
+   },
+   "layers": [
+    [
+     "e0"
+    ],
+    [
+     "e1"
+    ],
+    [
+     "e4",
+     "e2"
+    ],
+    [
+     "e3"
+    ]
+   ],
+   "layout": {
+    "vertices": {
+     "v0": {
+      "x": -6.0,
+      "y": -1.4630689175753312e-08
+     },
+     "v1": {
+      "x": -3.8,
+      "y": -1.4630687764838792e-08
+     },
+     "v3": {
+      "x": -0.8,
+      "y": -0.5000000146306863
+     },
+     "v4": {
+      "x": -0.8,
+      "y": 0.4999999853693137
+     },
+     "v5": {
+      "x": 2.2,
+      "y": 0.4999999821822676
+     },
+     "v6": {
+      "x": 6.0,
+      "y": -1.7537572770184027e-08
+     },
+     "v7": {
+      "x": 2.2,
+      "y": -0.5000000172574167
+     }
+    },
+    "edges": {
+     "e0": {
+      "x": -4.5,
+      "y": -1.4630687764838792e-08,
+      "value": "orders",
+      "highlight": false
+     },
+     "e1": {
+      "x": -1.5,
+      "y": -1.4630686287285478e-08,
+      "value": "copy",
+      "highlight": false
+     },
+     "e2": {
+      "x": 1.5,
+      "y": 0.4999999821822676,
+      "value": "workers",
+      "highlight": false
+     },
+     "e3": {
+      "x": 4.5,
+      "y": -1.7537573563840135e-08,
+      "value": "payment",
+      "highlight": false
+     },
+     "e4": {
+      "x": 1.5,
+      "y": -0.5000000172574167,
+      "value": "id",
+      "highlight": false
+     }
+    }
+   },
+   "objective": 2.099999999943972,
+   "objective_recomputed": 2.099999999943972
+  }
+ ],
+ "rewrite": {
+  "source": "README.md:98-108",
+  "code": "gen f : 2 -> 1\ngen g : 1 -> 2\nrule assoc : f * id ; f = id * f ; f\nrule bialg : f ; g = g * g ; id * sw * id ; f * f\nrewrite ba1 :\n  f * id ; f ; g ; g * id\n  = id * f ; f ; g ; g * id by assoc\nrewrite wrong :\n  f * id ; f ; g ; g * id\n  = id * f ; f ; g ; g * id by bialg\n",
+  "steps": [
+   {
+    "name": "ba1",
+    "line": 7,
+    "tactic": "rule",
+    "args": [
+     "assoc"
+    ],
+    "status": "VALID",
+    "highlight_flags_after_check": []
+   },
+   {
+    "name": "wrong",
+    "line": 10,
+    "tactic": "rule",
+    "args": [
+     "bialg"
+    ],
+    "status": "INVALID",
+    "highlight_flags_after_check": []
+   }
+  ],
+  "rule": "assoc",
+  "matches": [
+   {
+    "lhs_graph": {
+     "boxes": [
+      {
+       "id": "e0",
+       "label": "f",
+       "inputs": [
+        "v0",
+        "v1"
+       ],
+       "outputs": [
+        "v2"
+       ],
+       "box_size": 2
+      },
+      {
+       "id": "e1",
+       "label": "f",
+       "inputs": [
+        "v2",
+        "v3"
+       ],
+       "outputs": [
+        "v6"
+       ],
+       "box_size": 2
+      },
+      {
+       "id": "e2",
+       "label": "g",
+       "inputs": [
+        "v6"
+       ],
+       "outputs": [
+        "v7",
+        "v8"
+       ],
+       "box_size": 2
+      },
+      {
+       "id": "e3",
+       "label": "g",
+       "inputs": [
+        "v7"
+       ],
+       "outputs": [
+        "v9",
+        "v10"
+       ],
+       "box_size": 2
+      }
+     ],
+     "inputs": [
+      "v0",
+      "v1",
+      "v3"
+     ],
+     "outputs": [
+      "v9",
+      "v10",
+      "v8"
+     ]
+    },
+    "lhs_matched_edges": [
+     "e0",
+     "e1"
+    ],
+    "lhs_matched_vertices": [
+     "v0",
+     "v1",
+     "v2",
+     "v3",
+     "v6"
+    ],
+    "rewritten_graph": {
+     "boxes": [
+      {
+       "id": "e2",
+       "label": "g",
+       "inputs": [
+        "v6"
+       ],
+       "outputs": [
+        "v7",
+        "v8"
+       ],
+       "box_size": 2
+      },
+      {
+       "id": "e3",
+       "label": "g",
+       "inputs": [
+        "v7"
+       ],
+       "outputs": [
+        "v9",
+        "v10"
+       ],
+       "box_size": 2
+      },
+      {
+       "id": "e4",
+       "label": "f",
+       "inputs": [
+        "v1",
+        "v3"
+       ],
+       "outputs": [
+        "v11"
+       ],
+       "box_size": 2
+      },
+      {
+       "id": "e5",
+       "label": "f",
+       "inputs": [
+        "v0",
+        "v11"
+       ],
+       "outputs": [
+        "v6"
+       ],
+       "box_size": 2
+      }
+     ],
+     "inputs": [
+      "v0",
+      "v1",
+      "v3"
+     ],
+     "outputs": [
+      "v9",
+      "v10",
+      "v8"
+     ]
+    },
+    "rhs_inserted_edges": [
+     "e4",
+     "e5"
+    ],
+    "rhs_inserted_vertices": [
+     "v11"
+    ],
+    "equals_stated_rhs": true,
+    "lhs_layers": [
+     [
+      "e0",
+      "e4"
+     ],
+     [
+      "e1"
+     ],
+     [
+      "e2"
+     ],
+     [
+      "e3",
+      "e5"
+     ]
+    ],
+    "rhs_layers": [
+     [
+      "e6",
+      "e4"
+     ],
+     [
+      "e5"
+     ],
+     [
+      "e2"
+     ],
+     [
+      "e3",
+      "e7"
+     ]
+    ]
+   }
+  ]
+ }
+}
