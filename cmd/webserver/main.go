@@ -16,6 +16,7 @@ import (
 	"strings"
 
 	"github.com/pflow-xyz/pflow-xyz/internal/auth"
+	"github.com/pflow-xyz/pflow-xyz/internal/model"
 	"github.com/pflow-xyz/pflow-xyz/internal/seal"
 	"github.com/pflow-xyz/pflow-xyz/internal/static"
 	"github.com/pflow-xyz/pflow-xyz/internal/store"
@@ -370,6 +371,10 @@ func (s *Server) handleGetSVG(w http.ResponseWriter, r *http.Request) {
 	// Get layout parameter from query string
 	layoutAlgorithm := r.URL.Query().Get("layout")
 
+	// A composition is drawn as its flat net, a plan as a placeholder; a net
+	// as it is (internal/model).
+	data, _, _ = drawableNet(s.storage, data)
+
 	// Generate SVG from the JSON-LD data with optional layout
 	svgContent, err := svg.GenerateSVGWithLayout(data, layoutAlgorithm)
 	if err != nil {
@@ -404,6 +409,10 @@ func (s *Server) handlePostSVG(w http.ResponseWriter, r *http.Request) {
 
 	// Get layout parameter from query string
 	layoutAlgorithm := r.URL.Query().Get("layout")
+
+	// A composition is drawn as its flat net, a plan as a placeholder; a net
+	// as it is (internal/model).
+	data, _, _ = drawableNet(s.storage, data)
 
 	// Generate SVG from the JSON-LD data with optional layout
 	svgContent, err := svg.GenerateSVGWithLayout(data, layoutAlgorithm)
@@ -516,6 +525,19 @@ func (s *Server) handleSave(w http.ResponseWriter, r *http.Request) {
 	raw, err := json.Marshal(doc)
 	if err != nil {
 		http.Error(w, "Failed to serialize JSON", http.StatusInternalServerError)
+		return
+	}
+
+	// Compositions and plans take the identity rule (internal/model); a net
+	// takes the path below, unchanged.
+	if model.KindOf(raw) != model.KindNet {
+		status, out, err := s.saveModelDoc(raw, userInfo)
+		if err != nil {
+			http.Error(w, err.Error(), status)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(out)
 		return
 	}
 
@@ -1089,6 +1111,16 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// Serve static files from embedded filesystem
 	if s.publicFS != nil {
+		// A composition CID opens on the composition page; the editor cannot read a bundle.
+		if r.URL.Path == "/" && s.compositionRedirect(w, r) {
+			return
+		}
+
+		if r.URL.Path == "/compose.html" && r.URL.Query().Get("cid") != "" {
+			s.serveComposePage(w, r)
+			return
+		}
+
 		// For root path, serve index.html
 		if r.URL.Path == "/" {
 			data, err := fs.ReadFile(s.publicFS, "index.html")

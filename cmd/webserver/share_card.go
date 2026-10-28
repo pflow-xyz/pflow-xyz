@@ -640,6 +640,8 @@ func shareCardHandler(storage Storage, originFunc func(*http.Request) string) ht
 			http.Error(w, "lookup failed", http.StatusInternalServerError)
 			return
 		}
+		// A composition is drawn as its flat net, a plan as a placeholder (internal/model).
+		raw, _, _ = drawableNet(storage, raw)
 		p, err := parseCardPayload(raw)
 		if err != nil {
 			http.Error(w, "invalid payload", http.StatusBadRequest)

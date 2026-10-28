@@ -84,6 +84,20 @@ type NodePosition struct {
 	IsPlace bool
 }
 
+// LayoutJSON applies a layout algorithm to editor-shape net JSON and returns
+// the net with the positions it chose. It is for nets that have none (a
+// flattened composition), so the share card can draw them as the SVG does.
+func LayoutJSON(jsonData []byte, layoutAlgorithm string) ([]byte, error) {
+	var petriNet PetriNet
+	if err := json.Unmarshal(jsonData, &petriNet); err != nil {
+		return nil, fmt.Errorf("failed to parse JSON-LD: %w", err)
+	}
+	if err := applyLayout(&petriNet, layoutAlgorithm); err != nil {
+		return nil, err
+	}
+	return json.Marshal(petriNet)
+}
+
 // GenerateSVG generates an SVG representation of a Petri net from JSON-LD data
 func GenerateSVG(jsonData []byte) (string, error) {
 	return GenerateSVGWithLayout(jsonData, "")
