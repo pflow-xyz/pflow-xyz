@@ -1,5 +1,24 @@
 # Roadmap
 
+## Models first: re-centring pflow.xyz (proposed, 2026-10-28)
+
+**Status: proposal, awaiting Matt's approval. Nothing here is built.** The design is
+[docs/design/models-first.md](docs/design/models-first.md).
+
+Direction: pflow.xyz centres on **models** (a composition of subnets and typed links, its
+flat net, its search plans, its checks and its CID), not on Petri nets alone. The ten
+composition views of `/compose.html` become the model page, and the Petri-net editor is
+its flat-net view. The audience is people who want to get technical with models.
+[sim.pflow.xyz](https://sim.pflow.xyz) is the utility that answers questions, and the two
+hand a model to each other.
+
+If approved, this **supersedes the newcomer framing** of the next section (its problem and
+goal, and the "newcomer" exit of phase 6). Phases 0-8 stay as built. Phases 1, 5 and 7 are
+frozen, not removed; "start from a question", sensible defaults and plain-language results
+are sim's. First work is in pflow-native (`bundle.load`, `bundle.export`), because the
+registry cannot open a Bundle today; the first pflow.xyz slice is copy and navigation only.
+The decisions only Matt can make are D1-D9 in the design's section 5.3.
+
 ## Guided modelling and simulation in the browser
 
 **Problem.** The editor can simulate, but only if you already know what you
