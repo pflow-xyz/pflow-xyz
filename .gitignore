@@ -49,3 +49,4 @@ __pycache__/
 
 # Rust generator for parity/native/goldens.json
 parity/native/gen/target/
+parity/native/gen-game/target/

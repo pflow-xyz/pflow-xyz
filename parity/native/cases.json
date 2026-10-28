@@ -378,6 +378,31 @@
   {"command": "sim.marking"},
   {"command": "sim.enabled"},
   {"command": "net.info"}
+]},
+{"name": "game.value/tic-tac-toe", "fixture": "native/fixtures/tic-tac-toe.json", "steps": [
+  {"command": "game.value", "args": {"sides": {"x_": 1, "o_": -1}, "reward": {"win_x": 1, "win_o": -1}, "auto": ["x_win_", "o_win_"]}}
+]},
+{"name": "game.value/tic-tac-toe-plan", "fixture": "native/fixtures/tic-tac-toe.json", "steps": [
+  {"command": "game.value", "args": {"sides": {"x_": 1, "o_": -1}, "reward": {"win_x": 1, "win_o": -1}, "auto": ["x_win_", "o_win_"], "plan": {"mode": "exact", "order": ["tt_best", "immediate_win", "history"], "filters": ["must_win", "non_losing"], "root": {"order": ["non_losing"]}, "drivers": ["null_window", {"budget": {"nodes": 500000}}], "memo": {"entries": 65536}}}}
+]},
+{"name": "game.value/refusals", "fixture": "native/fixtures/tic-tac-toe.json", "steps": [
+  {"command": "game.value", "args": {"sides": {"x_": 1, "o_": -1}, "reward": {"win_x": 1, "win_o": -1}, "auto": ["x_win_", "o_win_"], "plan": {"drivers": [{"budget": {"ms": 100}}]}}},
+  {"command": "game.value", "args": {"sides": {"x_": 1, "o_": -1}, "reward": {"win_x": 1, "win_o": -1}, "auto": ["x_win_", "o_win_"], "nodes": 200000000}},
+  {"command": "game.value", "args": {"sides": {"x_": 1, "o_": -1}, "reward": {"win_x": 1, "win_o": -1}, "auto": ["x_win_", "o_win_"], "plan": {"memo": {"entries": 16777216}}}},
+  {"command": "game.value", "args": {"sides": {"x_": 1}, "reward": {"win_x": 1}}}
+]},
+{"name": "game.move/tic-tac-toe", "fixture": "native/fixtures/tic-tac-toe.json", "steps": [
+  {"command": "game.move", "args": {"sides": {"x_": 1, "o_": -1}, "reward": {"win_x": 1, "win_o": -1}, "auto": ["x_win_", "o_win_"]}}
+]},
+{"name": "game.move/midgame-plan-string", "fixture": "native/fixtures/tic-tac-toe.json", "steps": [
+  {"command": "sim.fire", "args": {"id": "x_play_11"}},
+  {"command": "sim.fire", "args": {"id": "o_play_01"}},
+  {"command": "game.move", "args": {"sides": {"x_": 1, "o_": -1}, "reward": {"win_x": 1, "win_o": -1}, "auto": ["x_win_", "o_win_"], "plan": "{\"order\": [\"immediate_win\", \"history\"], \"filters\": [], \"drivers\": [\"null_window\", {\"budget\": {\"nodes\": 200000}}]}"}},
+  {"command": "game.value", "args": {"sides": {"x_": 1, "o_": -1}, "reward": {"win_x": 1, "win_o": -1}, "auto": ["x_win_", "o_win_"]}}
+]},
+{"name": "game.move/past-the-budget", "fixture": "native/fixtures/tic-tac-toe.json", "steps": [
+  {"command": "game.move", "args": {"sides": {"x_": 1, "o_": -1}, "reward": {"win_x": 1, "win_o": -1}, "auto": ["x_win_", "o_win_"], "nodes": 50}},
+  {"command": "game.move", "args": {"sides": {"x_": 1, "o_": -1}, "reward": {"win_x": 1, "win_o": -1}, "auto": ["x_win_", "o_win_"], "nodes": 50, "plan": {"mode": "play"}}}
 ]}
 ]
 }

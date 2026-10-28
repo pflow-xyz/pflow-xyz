@@ -300,6 +300,7 @@ one to the other. **The map is data, not prompt:** a checked-in goal catalog
 | "What's the best setting?" | `opt.optimize` / `opt.heatmap` | Pareto front / grid | the objective is stated, not inferred silently |
 | "Does my data match the model?" | `data.conformance`, then `data.calibrate` | fitness, worst traces, learned rates | rates on a net that can't replay the log are not evidence |
 | "Are these two nets the same?" | `analysis.canonical`, `compose.diff` | same id / structural diff | — |
+| "Who wins with best play, and with which move?" (added later, `best_play`) | `game.move {sides, reward, auto, plan?, nodes?}` (pflow-native, wasm) | the exact value and a best move, or none past the node budget (a guessed move, `exact: false`, when the plan's mode is `"play"`) | exact and deterministic for a plan and node budget, except a plan naming the `ode` estimate can count nodes differently on another platform; "a best move", not "the best move" |
 
 - **With the LLM**, the user's words are routed to one or more catalog goals
   (a closed set), with at most one clarifying question per turn (sim's
@@ -510,6 +511,15 @@ wants an owner's decision.
 12. **Not yet exposed:** rate fitting (it needs an event-log import), data
     conformance (the "data_match" goal is listed as unavailable), and a
     two-net structural diff.
+    **The game tools in the browser.** `game.value` and `game.move`
+    (pflow-native `cdd3816`, pflow-metamodel's alpha-beta search run as a
+    `SearchPlan`) are in the editor's registry, the Assistant's tools
+    (`game_value`, `game_move`) and the `best_play` goal. `/mcp` has its own
+    Go port, `pflow_game_value` and `pflow_game_move` (`internal/gamesearch`),
+    which refuses the `ode` estimate and `aspiration`. In the browser they run synchronously on the page's
+    thread (natively they are a background job), so a node budget past
+    about 10,000,000 freezes the tab for tens of seconds; a worker for them
+    is a follow-up.
 
 **Follow-ups in other repos**
 

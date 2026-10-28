@@ -2,7 +2,7 @@
   "format": "composition-views-scene/1",
   "spec": "docs/composition-views-scene.md",
   "generated_by": "pflow-native crates/app/src/compviews.rs (egui renderers, headless)",
-  "pflow_rs": "9f8c36e53d35e66a0423e424d3feb9580191836a",
+  "pflow_rs": "aacb7eb0aa70c93d3d091c0f7809f0000a9d34b4",
   "manifests": [
     {
       "view": "cospan",

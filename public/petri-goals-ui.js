@@ -61,6 +61,7 @@ export async function openGoals(view) {
             return `${lab} <select id="${id}" data-in="${esc(i.name)}">${i.optional ? '<option value="">(default)</option>' : ''}${list.map((p) => `<option>${esc(p)}</option>`).join('')}</select>`;
         }
         if (i.kind === 'number') return `${lab} <input id="${id}" type="number" step="any" data-in="${esc(i.name)}" value="${esc(i.default ?? '')}">`;
+        if (i.kind === 'json') return `${lab} <textarea id="${id}" rows="2" spellcheck="false" data-in="${esc(i.name)}" placeholder="${esc(i.example ?? '')}">${esc(i.default === undefined ? '' : JSON.stringify(i.default))}</textarea>`;
         if (i.kind === 'marking') {
             return `<fieldset><legend>${esc(i.label)}</legend>${places.map((p) => `<label>${esc(p)} <input type="number" min="0" step="1" data-mark="${esc(p)}"></label>`).join(' ')}</fieldset>`;
         }

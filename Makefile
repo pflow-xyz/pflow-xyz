@@ -1,4 +1,4 @@
-.PHONY: all llm-eval build run clean test test-js test-parity ode-expected learn-goldens native-goldens sync-native-wasm test-publish test-npm-pack test-theme test-version publish
+.PHONY: all llm-eval build run clean test test-js test-parity ode-expected learn-goldens native-goldens game-goldens sync-native-wasm test-publish test-npm-pack test-theme test-version publish
 
 # Build the webserver
 build:
@@ -50,6 +50,26 @@ learn-goldens:
 native-goldens:
 	@CARGO_NET_GIT_FETCH_WITH_CLI=true cargo run --release --manifest-path parity/native/gen/Cargo.toml
 	@echo "regenerated parity/native/goldens.json and mcp_goldens.json — run 'make test-js' and 'go test ./cmd/webserver/' to verify"
+
+# Regenerate parity/native/game_goldens.json: pflow-native's game.value and
+# game.move on the positions and plans of parity/native/game_cases.json (the
+# /mcp game tools' parity suite, cmd/webserver/mcp_game_parity_test.go). The
+# search the Go port follows is pflow-rs at PFLOW_RS_REV, which pflow-native
+# (pinned to an older pflow-rs) does not use yet, so the generator is built
+# against a pflow-rs checkout you name:
+#   make game-goldens PFLOW_RS=../pflow-rs     (a checkout at PFLOW_RS_REV)
+# Needs cargo and network access to github.com (for pflow-native). The pflow-native
+# commit is pinned in parity/native/gen-game/Cargo.toml. After editing
+# game_cases.json's source, `python3 parity/native/gen-game/make_cases.py`;
+# fixtures: `python3 parity/native/gen-game/make_fixtures.py <pflow-native checkout>`.
+PFLOW_RS_REV := 35be80745784e9ed0375103bfc035ffcfcfaeb2c
+game-goldens:
+	@test -n "$(PFLOW_RS)" || { echo "usage: make game-goldens PFLOW_RS=<pflow-rs checkout at $(PFLOW_RS_REV)>"; exit 2; }
+	@test "$$(git -C "$(PFLOW_RS)" rev-parse HEAD)" = "$(PFLOW_RS_REV)" || { echo "$(PFLOW_RS) is not at $(PFLOW_RS_REV)"; exit 2; }
+	@mkdir -p parity/native/gen-game/target
+	@{ echo '[patch."https://github.com/pflow-xyz/pflow-rs"]'; for c in compose core eventlog learn metamodel mining parser reachability solver validation verify; do echo "pflow-$$c = { path = \"$$(cd "$(PFLOW_RS)" && pwd)/crates/pflow-$$c\" }"; done; } > parity/native/gen-game/target/patch.toml
+	@CARGO_NET_GIT_FETCH_WITH_CLI=true cargo run --release -q --config parity/native/gen-game/target/patch.toml --manifest-path parity/native/gen-game/Cargo.toml
+	@echo "regenerated parity/native/game_goldens.json — run 'go test ./cmd/webserver/ -run TestMCPGameMatchesNative' to verify"
 
 # Re-vendor the wasm shim from a pflow-native build (see scripts/sync-native-wasm.mjs):
 #   make sync-native-wasm FROM=../pflow-native/target/wasm-shim COMMIT=<sha>

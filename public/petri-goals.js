@@ -5,6 +5,10 @@
 // references and runs it step by step through a registry, so the picker
 // (petri-goals-ui.js), the tests and anything else run a goal the same way.
 //
+// An input of kind "json" (the game rules: who moves, what pays) is typed
+// as JSON text; runGoal parses it before the plan runs, so the picker passes
+// the text as is and a caller may pass the value itself.
+//
 // References in a step's args:
 //   "$input.<name>"     a value the person gave (blank optional inputs drop
 //                       the argument altogether)
@@ -69,9 +73,14 @@ export function missingInputs(goal, inputs) {
 export async function runGoal(registry, goal, inputs = {}, onStep = () => {}) {
     if (goal.available === false) throw new Error(goal.caveat || 'not available here');
     const filled = { ...inputs };
+    for (const i of goal.inputs || []) if (i.kind === 'json' && typeof filled[i.name] === 'string' && !filled[i.name].trim()) filled[i.name] = ''; // blank text
     for (const i of goal.inputs || []) if ((filled[i.name] === undefined || filled[i.name] === '') && i.default !== undefined) filled[i.name] = i.default;
     const missing = missingInputs(goal, filled);
     if (missing.length) throw new Error(`needs ${missing.map((i) => i.label || i.name).join(', ')}`);
+    for (const i of goal.inputs || []) {
+        if (i.kind !== 'json' || typeof filled[i.name] !== 'string' || filled[i.name] === '') continue;
+        try { filled[i.name] = JSON.parse(filled[i.name]); } catch (e) { throw new Error(`${i.label || i.name}: not valid JSON (${e.message})`); }
+    }
     const ctx = { inputs: filled, results: [] };
     const steps = [];
     for (let index = 0; index < goal.plan.length; index++) {

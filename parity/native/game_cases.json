@@ -1,0 +1,5795 @@
+{
+ "_comment": "Input of parity/native/gen-game (make game-goldens); written by gen-game/make_cases.py. See the generator's header for the shapes.",
+ "rules": {
+  "ttt": {
+   "auto": [
+    "o_win_",
+    "x_win_"
+   ],
+   "reward": {
+    "win_o": -1,
+    "win_x": 1
+   },
+   "sides": {
+    "o_": -1,
+    "x_": 1
+   }
+  },
+  "nim": {
+   "auto": [
+    "a_lose",
+    "b_lose"
+   ],
+   "reward": {
+    "win_a": 1,
+    "win_b": -1
+   },
+   "sides": {
+    "a_take": 1,
+    "b_take": -1
+   }
+  },
+  "bucket": {
+   "auto": [
+    "a_stuck",
+    "b_stuck"
+   ],
+   "reward": {
+    "win_a": 1,
+    "win_b": -1
+   },
+   "sides": {
+    "a_add": 1,
+    "b_add": -1
+   }
+  },
+  "prizes-123": {
+   "reward": {
+    "o0": -1,
+    "o1": -2,
+    "o2": -3,
+    "x0": 1,
+    "x1": 2,
+    "x2": 3
+   },
+   "sides": {
+    "o_take": -1,
+    "x_take": 1
+   }
+  },
+  "prizes-1111": {
+   "reward": {
+    "o0": -1,
+    "o1": -1,
+    "o2": -1,
+    "o3": -1,
+    "x0": 1,
+    "x1": 1,
+    "x2": 1,
+    "x3": 1
+   },
+   "sides": {
+    "o_take": -1,
+    "x_take": 1
+   }
+  }
+ },
+ "sets": [
+  {
+   "name": "ttt-matrix",
+   "fixture": "native/fixtures/game-tic-tac-toe.jsonld",
+   "rules": "ttt",
+   "positions": [
+    {
+     "initial": true
+    },
+    {
+     "fire": [
+      "x_play_11",
+      "o_play_00"
+     ]
+    },
+    {
+     "random": {
+      "seed": 3,
+      "plies": 6,
+      "count": 1
+     }
+    }
+   ],
+   "calls": [
+    {
+     "name": "value-default",
+     "tool": "game.value",
+     "args": {}
+    },
+    {
+     "name": "move-default",
+     "tool": "game.move",
+     "args": {}
+    },
+    {
+     "name": "value-empty-plan",
+     "tool": "game.value",
+     "args": {
+      "plan": {}
+     }
+    },
+    {
+     "name": "move-empty-plan",
+     "tool": "game.move",
+     "args": {
+      "plan": {}
+     }
+    },
+    {
+     "name": "value-order-hist",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "order": [
+        "history"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-order-hist",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "order": [
+        "history"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-order-none",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "order": []
+      }
+     }
+    },
+    {
+     "name": "move-order-none",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "order": []
+      }
+     }
+    },
+    {
+     "name": "value-order-ttb",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "order": [
+        "tt_best"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-order-ttb",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "order": [
+        "tt_best"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-order-iw-ttb",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "order": [
+        "immediate_win",
+        "tt_best",
+        "history"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-order-iw-ttb",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "order": [
+        "immediate_win",
+        "tt_best",
+        "history"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-order-cent",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "order": [
+        "tt_best",
+        "immediate_win",
+        "centrality",
+        "history"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-order-cent",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "order": [
+        "tt_best",
+        "immediate_win",
+        "centrality",
+        "history"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-order-threats",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "order": [
+        "threats",
+        "tt_best"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-order-threats",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "order": [
+        "threats",
+        "tt_best"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-order-cent-threats",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "order": [
+        "centrality",
+        "threats",
+        "immediate_win"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-order-cent-threats",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "order": [
+        "centrality",
+        "threats",
+        "immediate_win"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-filters-none",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "filters": []
+      }
+     }
+    },
+    {
+     "name": "move-filters-none",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "filters": []
+      }
+     }
+    },
+    {
+     "name": "value-filters-mw",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "filters": [
+        "must_win"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-filters-mw",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "filters": [
+        "must_win"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-filters-nl",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "filters": [
+        "non_losing"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-filters-nl",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "filters": [
+        "non_losing"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-filters-both",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "filters": [
+        "must_win",
+        "non_losing"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-filters-both",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "filters": [
+        "must_win",
+        "non_losing"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-filters-both-cent",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "filters": [
+        "non_losing",
+        "must_win"
+       ],
+       "order": [
+        "tt_best",
+        "centrality",
+        "threats"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-filters-both-cent",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "filters": [
+        "non_losing",
+        "must_win"
+       ],
+       "order": [
+        "tt_best",
+        "centrality",
+        "threats"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-root-nl",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "non_losing"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "move-root-nl",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "non_losing"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "value-root-nl-filters-none",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "non_losing"
+        ]
+       },
+       "filters": []
+      }
+     }
+    },
+    {
+     "name": "move-root-nl-filters-none",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "non_losing"
+        ]
+       },
+       "filters": []
+      }
+     }
+    },
+    {
+     "name": "value-root-empty",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": []
+       }
+      }
+     }
+    },
+    {
+     "name": "move-root-empty",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": []
+       }
+      }
+     }
+    },
+    {
+     "name": "value-drivers-none",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "drivers": []
+      }
+     }
+    },
+    {
+     "name": "move-drivers-none",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "drivers": []
+      }
+     }
+    },
+    {
+     "name": "value-drivers-nw",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "drivers": [
+        "null_window"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-drivers-nw",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "drivers": [
+        "null_window"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-drivers-mtdf",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "drivers": [
+        "mtd_f"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-drivers-mtdf",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "drivers": [
+        "mtd_f"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-drivers-mtdf-filters-none",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "drivers": [
+        "mtd_f"
+       ],
+       "filters": []
+      }
+     }
+    },
+    {
+     "name": "move-drivers-mtdf-filters-none",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "drivers": [
+        "mtd_f"
+       ],
+       "filters": []
+      }
+     }
+    },
+    {
+     "name": "value-drivers-mtdf-nl",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "drivers": [
+        "mtd_f"
+       ],
+       "filters": [
+        "non_losing"
+       ],
+       "root": {
+        "order": [
+         "non_losing"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "move-drivers-mtdf-nl",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "drivers": [
+        "mtd_f"
+       ],
+       "filters": [
+        "non_losing"
+       ],
+       "root": {
+        "order": [
+         "non_losing"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "value-drivers-budget",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "drivers": [
+        {
+         "budget": {
+          "nodes": 100000
+         }
+        }
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-drivers-budget",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "drivers": [
+        {
+         "budget": {
+          "nodes": 100000
+         }
+        }
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-drivers-nw-budget",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "drivers": [
+        "null_window",
+        {
+         "budget": {
+          "nodes": 100000
+         }
+        }
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-drivers-nw-budget",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "drivers": [
+        "null_window",
+        {
+         "budget": {
+          "nodes": 100000
+         }
+        }
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-drivers-mtdf-budget",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "drivers": [
+        {
+         "budget": {
+          "nodes": 100000
+         }
+        },
+        "mtd_f"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-drivers-mtdf-budget",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "drivers": [
+        {
+         "budget": {
+          "nodes": 100000
+         }
+        },
+        "mtd_f"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-memo-1",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "memo": {
+        "entries": 1
+       }
+      }
+     }
+    },
+    {
+     "name": "move-memo-1",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "memo": {
+        "entries": 1
+       }
+      }
+     }
+    },
+    {
+     "name": "value-memo-2",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "memo": {
+        "entries": 2
+       }
+      }
+     }
+    },
+    {
+     "name": "move-memo-2",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "memo": {
+        "entries": 2
+       }
+      }
+     }
+    },
+    {
+     "name": "value-memo-7",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "memo": {
+        "entries": 7
+       }
+      }
+     }
+    },
+    {
+     "name": "move-memo-7",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "memo": {
+        "entries": 7
+       }
+      }
+     }
+    },
+    {
+     "name": "value-memo-16",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "memo": {
+        "entries": 16
+       }
+      }
+     }
+    },
+    {
+     "name": "move-memo-16",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "memo": {
+        "entries": 16
+       }
+      }
+     }
+    },
+    {
+     "name": "value-memo-100",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "memo": {
+        "entries": 100
+       }
+      }
+     }
+    },
+    {
+     "name": "move-memo-100",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "memo": {
+        "entries": 100
+       }
+      }
+     }
+    },
+    {
+     "name": "value-memo-5000",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "memo": {
+        "entries": 5000
+       }
+      }
+     }
+    },
+    {
+     "name": "move-memo-5000",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "memo": {
+        "entries": 5000
+       }
+      }
+     }
+    },
+    {
+     "name": "value-memo-16-mtdf-nofilters",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "memo": {
+        "entries": 16
+       },
+       "drivers": [
+        "mtd_f"
+       ],
+       "filters": []
+      }
+     }
+    },
+    {
+     "name": "move-memo-16-mtdf-nofilters",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "memo": {
+        "entries": 16
+       },
+       "drivers": [
+        "mtd_f"
+       ],
+       "filters": []
+      }
+     }
+    },
+    {
+     "name": "value-memo-64-hist",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "memo": {
+        "entries": 64
+       },
+       "order": [
+        "history"
+       ],
+       "filters": []
+      }
+     }
+    },
+    {
+     "name": "move-memo-64-hist",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "memo": {
+        "entries": 64
+       },
+       "order": [
+        "history"
+       ],
+       "filters": []
+      }
+     }
+    },
+    {
+     "name": "value-mode-exact",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "mode": "exact"
+      }
+     }
+    },
+    {
+     "name": "move-mode-exact",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "mode": "exact"
+      }
+     }
+    },
+    {
+     "name": "value-mode-play",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "mode": "play"
+      }
+     }
+    },
+    {
+     "name": "move-mode-play",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "mode": "play"
+      }
+     }
+    },
+    {
+     "name": "value-heuristics-empty",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "heuristics": []
+      }
+     }
+    },
+    {
+     "name": "move-heuristics-empty",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "heuristics": []
+      }
+     }
+    },
+    {
+     "name": "value-nodes-1",
+     "tool": "game.value",
+     "args": {
+      "nodes": 1
+     }
+    },
+    {
+     "name": "move-nodes-1",
+     "tool": "game.move",
+     "args": {
+      "nodes": 1
+     }
+    },
+    {
+     "name": "value-nodes-5",
+     "tool": "game.value",
+     "args": {
+      "nodes": 5
+     }
+    },
+    {
+     "name": "move-nodes-5",
+     "tool": "game.move",
+     "args": {
+      "nodes": 5
+     }
+    },
+    {
+     "name": "value-nodes-40",
+     "tool": "game.value",
+     "args": {
+      "nodes": 40
+     }
+    },
+    {
+     "name": "move-nodes-40",
+     "tool": "game.move",
+     "args": {
+      "nodes": 40
+     }
+    },
+    {
+     "name": "value-nodes-300",
+     "tool": "game.value",
+     "args": {
+      "nodes": 300
+     }
+    },
+    {
+     "name": "move-nodes-300",
+     "tool": "game.move",
+     "args": {
+      "nodes": 300
+     }
+    },
+    {
+     "name": "value-nodes-2000",
+     "tool": "game.value",
+     "args": {
+      "nodes": 2000
+     }
+    },
+    {
+     "name": "move-nodes-2000",
+     "tool": "game.move",
+     "args": {
+      "nodes": 2000
+     }
+    },
+    {
+     "name": "value-nodes-5-play",
+     "tool": "game.value",
+     "args": {
+      "nodes": 5,
+      "plan": {
+       "mode": "play"
+      }
+     }
+    },
+    {
+     "name": "move-nodes-5-play",
+     "tool": "game.move",
+     "args": {
+      "nodes": 5,
+      "plan": {
+       "mode": "play"
+      }
+     }
+    },
+    {
+     "name": "value-nodes-40-play",
+     "tool": "game.value",
+     "args": {
+      "nodes": 40,
+      "plan": {
+       "mode": "play"
+      }
+     }
+    },
+    {
+     "name": "move-nodes-40-play",
+     "tool": "game.move",
+     "args": {
+      "nodes": 40,
+      "plan": {
+       "mode": "play"
+      }
+     }
+    },
+    {
+     "name": "value-nodes-40-play-nl",
+     "tool": "game.value",
+     "args": {
+      "nodes": 40,
+      "plan": {
+       "mode": "play",
+       "root": {
+        "order": [
+         "non_losing"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "move-nodes-40-play-nl",
+     "tool": "game.move",
+     "args": {
+      "nodes": 40,
+      "plan": {
+       "mode": "play",
+       "root": {
+        "order": [
+         "non_losing"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "value-nodes-40-play-mtdf",
+     "tool": "game.value",
+     "args": {
+      "nodes": 40,
+      "plan": {
+       "mode": "play",
+       "drivers": [
+        "mtd_f"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-nodes-40-play-mtdf",
+     "tool": "game.move",
+     "args": {
+      "nodes": 40,
+      "plan": {
+       "mode": "play",
+       "drivers": [
+        "mtd_f"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-plan-string",
+     "tool": "game.value",
+     "args": {
+      "plan": "{\"order\": [\"history\"], \"drivers\": [\"mtd_f\"]}"
+     }
+    },
+    {
+     "name": "move-plan-string",
+     "tool": "game.move",
+     "args": {
+      "plan": "{\"order\": [\"history\"], \"drivers\": [\"mtd_f\"]}"
+     }
+    },
+    {
+     "name": "value-plan-string-nodes",
+     "tool": "game.value",
+     "args": {
+      "plan": "{}",
+      "nodes": 77
+     }
+    },
+    {
+     "name": "move-plan-string-nodes",
+     "tool": "game.move",
+     "args": {
+      "plan": "{}",
+      "nodes": 77
+     }
+    },
+    {
+     "name": "value-plan-null",
+     "tool": "game.value",
+     "args": {
+      "plan": null
+     }
+    },
+    {
+     "name": "move-plan-null",
+     "tool": "game.move",
+     "args": {
+      "plan": null
+     }
+    },
+    {
+     "name": "value-nodes-float",
+     "tool": "game.value",
+     "args": {
+      "nodes": 500.0
+     }
+    },
+    {
+     "name": "move-nodes-float",
+     "tool": "game.move",
+     "args": {
+      "nodes": 500.0
+     }
+    }
+   ]
+  },
+  {
+   "name": "ttt-sweep",
+   "fixture": "native/fixtures/game-tic-tac-toe.jsonld",
+   "rules": "ttt",
+   "positions": [
+    {
+     "random": {
+      "seed": 11,
+      "plies": 9,
+      "count": 8
+     }
+    },
+    {
+     "random": {
+      "seed": 12,
+      "plies": 5,
+      "count": 3
+     }
+    }
+   ],
+   "calls": [
+    {
+     "name": "value-default",
+     "tool": "game.value",
+     "args": {}
+    },
+    {
+     "name": "move-default",
+     "tool": "game.move",
+     "args": {}
+    },
+    {
+     "name": "value-filters-both",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "filters": [
+        "must_win",
+        "non_losing"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-filters-both",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "filters": [
+        "must_win",
+        "non_losing"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-root-nl",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "non_losing"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "move-root-nl",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "non_losing"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "value-mtdf",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "drivers": [
+        "mtd_f"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-mtdf",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "drivers": [
+        "mtd_f"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-cent",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "order": [
+        "tt_best",
+        "immediate_win",
+        "centrality",
+        "threats",
+        "history"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-cent",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "order": [
+        "tt_best",
+        "immediate_win",
+        "centrality",
+        "threats",
+        "history"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-memo-32",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "memo": {
+        "entries": 32
+       }
+      }
+     }
+    },
+    {
+     "name": "move-memo-32",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "memo": {
+        "entries": 32
+       }
+      }
+     }
+    },
+    {
+     "name": "value-nodes-60",
+     "tool": "game.value",
+     "args": {
+      "nodes": 60
+     }
+    },
+    {
+     "name": "move-nodes-60",
+     "tool": "game.move",
+     "args": {
+      "nodes": 60
+     }
+    }
+   ]
+  },
+  {
+   "name": "ttt-final",
+   "fixture": "native/fixtures/game-tic-tac-toe.jsonld",
+   "rules": "ttt",
+   "positions": [
+    {
+     "fire": [
+      "x_play_00",
+      "o_play_01",
+      "x_play_11",
+      "o_play_02",
+      "x_play_22"
+     ]
+    },
+    {
+     "fire": [
+      "x_play_00",
+      "o_play_01",
+      "x_play_02",
+      "o_play_11",
+      "x_play_10",
+      "o_play_12",
+      "x_play_21",
+      "o_play_20",
+      "x_play_22"
+     ]
+    }
+   ],
+   "calls": [
+    {
+     "name": "value-default",
+     "tool": "game.value",
+     "args": {}
+    },
+    {
+     "name": "move-default",
+     "tool": "game.move",
+     "args": {}
+    },
+    {
+     "name": "value-play",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "mode": "play"
+      }
+     }
+    },
+    {
+     "name": "move-play",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "mode": "play"
+      }
+     }
+    },
+    {
+     "name": "value-ode",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "move-ode",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "name": "ttt-not-ported",
+   "fixture": "native/fixtures/game-tic-tac-toe.jsonld",
+   "rules": "ttt",
+   "positions": [
+    {
+     "initial": true
+    },
+    {
+     "fire": [
+      "x_play_11"
+     ]
+    }
+   ],
+   "calls": [
+    {
+     "name": "value-root-ode",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "move-root-ode",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "value-root-ode-nl",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode",
+         "non_losing"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "move-root-ode-nl",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode",
+         "non_losing"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "value-aspiration-ode",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "drivers": [
+        "aspiration",
+        "null_window"
+       ],
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "move-aspiration-ode",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "drivers": [
+        "aspiration",
+        "null_window"
+       ],
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "value-mtdf-aspiration-ode",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "drivers": [
+        "mtd_f",
+        "aspiration"
+       ],
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "move-mtdf-aspiration-ode",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "drivers": [
+        "mtd_f",
+        "aspiration"
+       ],
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "name": "ttt-refused",
+   "fixture": "native/fixtures/game-tic-tac-toe.jsonld",
+   "rules": "ttt",
+   "positions": [
+    {
+     "initial": true
+    }
+   ],
+   "calls": [
+    {
+     "name": "value-bad-order-piece",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "order": [
+        "bogus"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-order-is-a-filter",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "order": [
+        "must_win"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-order-twice",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "order": [
+        "history",
+        "history"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-order-too-long",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "order": [
+        "tt_best",
+        "immediate_win",
+        "history",
+        "centrality",
+        "threats",
+        "tt_best",
+        "history",
+        "history",
+        "tt_best"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-bad-filter",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "filters": [
+        "beam"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-filter-twice",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "filters": [
+        "must_win",
+        "must_win"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-filter-unknown",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "filters": [
+        "nope"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-heuristic-static-eval",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "heuristics": [
+        "static_eval"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-heuristic-static-eval-play",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "heuristics": [
+        "static_eval"
+       ],
+       "mode": "play"
+      }
+     }
+    },
+    {
+     "name": "value-heuristic-unknown",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "heuristics": [
+        "nope"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-driver-unknown",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "drivers": [
+        "nope"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-driver-twice",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "drivers": [
+        "null_window",
+        "null_window"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-driver-mtdf-twice",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "drivers": [
+        "mtd_f",
+        "mtd_f"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-driver-both-windows",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "drivers": [
+        "null_window",
+        "mtd_f"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-driver-budget-twice",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "drivers": [
+        {
+         "budget": {
+          "nodes": 10
+         }
+        },
+        {
+         "budget": {
+          "nodes": 20
+         }
+        }
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-driver-budget-bare",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "drivers": [
+        "budget"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-driver-budget-empty",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "drivers": [
+        {
+         "budget": {}
+        }
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-driver-budget-zero",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "drivers": [
+        {
+         "budget": {
+          "nodes": 0
+         }
+        }
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-driver-two-keys",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "drivers": [
+        {
+         "budget": {
+          "nodes": 5
+         },
+         "mtd_f": {}
+        }
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-driver-number",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "drivers": [
+        5
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-driver-args",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "drivers": [
+        {
+         "null_window": {}
+        }
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-driver-is-order",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "drivers": [
+        "history"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-aspiration-no-estimate",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "drivers": [
+        "aspiration"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-budget-ms",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "drivers": [
+        {
+         "budget": {
+          "nodes": 1000,
+          "ms": 50
+         }
+        }
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-budget-ms-only",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "drivers": [
+        {
+         "budget": {
+          "ms": 50
+         }
+        }
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-budget-over-cap",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "drivers": [
+        {
+         "budget": {
+          "nodes": 200000000
+         }
+        }
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-budget-and-nodes",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "drivers": [
+        {
+         "budget": {
+          "nodes": 10
+         }
+        }
+       ]
+      },
+      "nodes": 10
+     }
+    },
+    {
+     "name": "value-nodes-over-cap",
+     "tool": "game.value",
+     "args": {
+      "nodes": 200000000
+     }
+    },
+    {
+     "name": "value-nodes-zero",
+     "tool": "game.value",
+     "args": {
+      "nodes": 0
+     }
+    },
+    {
+     "name": "value-nodes-negative",
+     "tool": "game.value",
+     "args": {
+      "nodes": -3
+     }
+    },
+    {
+     "name": "value-nodes-fraction",
+     "tool": "game.value",
+     "args": {
+      "nodes": 2.5
+     }
+    },
+    {
+     "name": "value-nodes-string",
+     "tool": "game.value",
+     "args": {
+      "nodes": "ten"
+     }
+    },
+    {
+     "name": "value-memo-over-cap",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "memo": {
+        "entries": 16777216
+       }
+      }
+     }
+    },
+    {
+     "name": "value-memo-zero",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "memo": {
+        "entries": 0
+       }
+      }
+     }
+    },
+    {
+     "name": "value-memo-no-entries",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "memo": {}
+      }
+     }
+    },
+    {
+     "name": "value-memo-unknown-field",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "memo": {
+        "entries": 4,
+        "bits": 2
+       }
+      }
+     }
+    },
+    {
+     "name": "value-root-unknown",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "nope"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "value-root-twice",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "non_losing",
+         "non_losing"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "value-root-is-filter",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "must_win"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "value-root-two-estimates",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode",
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "value-root-no-order",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {}
+      }
+     }
+    },
+    {
+     "name": "value-plan-unknown-field",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "orders": []
+      }
+     }
+    },
+    {
+     "name": "value-plan-bad-mode",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "mode": "fast"
+      }
+     }
+    },
+    {
+     "name": "value-plan-order-not-list",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "order": "history"
+      }
+     }
+    },
+    {
+     "name": "value-plan-order-not-strings",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "order": [
+        1
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-plan-drivers-not-list",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "drivers": "mtd_f"
+      }
+     }
+    },
+    {
+     "name": "value-plan-not-object",
+     "tool": "game.value",
+     "args": {
+      "plan": [
+       1,
+       2
+      ]
+     }
+    },
+    {
+     "name": "value-plan-number",
+     "tool": "game.value",
+     "args": {
+      "plan": 5
+     }
+    },
+    {
+     "name": "value-plan-string-not-object",
+     "tool": "game.value",
+     "args": {
+      "plan": "[1]"
+     }
+    },
+    {
+     "name": "value-unknown-argument",
+     "tool": "game.value",
+     "args": {
+      "depth": 3
+     }
+    },
+    {
+     "name": "value-bad-auto-type",
+     "tool": "game.value",
+     "args": {
+      "auto": "x_win_"
+     }
+    },
+    {
+     "name": "value-bad-auto-prefix",
+     "tool": "game.value",
+     "args": {
+      "auto": [
+       "nothing_"
+      ]
+     }
+    },
+    {
+     "name": "value-bad-sides-prefix",
+     "tool": "game.value",
+     "args": {
+      "sides": {
+       "zzz": 1
+      }
+     }
+    },
+    {
+     "name": "value-bad-sides-sign",
+     "tool": "game.value",
+     "args": {
+      "sides": {
+       "x_": "yes",
+       "o_": -1
+      }
+     }
+    },
+    {
+     "name": "value-bad-sides-type",
+     "tool": "game.value",
+     "args": {
+      "sides": [
+       1
+      ]
+     }
+    },
+    {
+     "name": "value-sides-string",
+     "tool": "game.value",
+     "args": {
+      "sides": "{\"x_\": 1, \"o_\": -1}"
+     }
+    },
+    {
+     "name": "value-sides-bad-string",
+     "tool": "game.value",
+     "args": {
+      "sides": "x_"
+     }
+    },
+    {
+     "name": "value-missing-sides",
+     "tool": "game.value",
+     "args": {
+      "sides": null
+     }
+    },
+    {
+     "name": "value-missing-reward",
+     "tool": "game.value",
+     "args": {
+      "reward": null
+     }
+    },
+    {
+     "name": "value-bad-reward-place",
+     "tool": "game.value",
+     "args": {
+      "reward": {
+       "nowhere": 1
+      }
+     }
+    },
+    {
+     "name": "value-bad-reward-weight",
+     "tool": "game.value",
+     "args": {
+      "reward": {
+       "win_x": "one"
+      }
+     }
+    },
+    {
+     "name": "value-reward-type",
+     "tool": "game.value",
+     "args": {
+      "reward": 3
+     }
+    },
+    {
+     "name": "value-reward-string",
+     "tool": "game.value",
+     "args": {
+      "reward": "{\"win_x\": 1, \"win_o\": -1}"
+     }
+    },
+    {
+     "name": "value-one-side-only",
+     "tool": "game.value",
+     "args": {
+      "sides": {
+       "x_": 1
+      }
+     }
+    },
+    {
+     "name": "value-no-sides-at-all",
+     "tool": "game.value",
+     "args": {
+      "sides": {}
+     }
+    },
+    {
+     "name": "value-reward-too-big",
+     "tool": "game.value",
+     "args": {
+      "reward": {
+       "win_x": 5,
+       "win_o": -1
+      }
+     }
+    },
+    {
+     "name": "value-book-not-string",
+     "tool": "game.value",
+     "args": {
+      "book": 3
+     }
+    },
+    {
+     "name": "move-bad-order-piece",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "order": [
+        "bogus"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-order-is-a-filter",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "order": [
+        "must_win"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-order-twice",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "order": [
+        "history",
+        "history"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-order-too-long",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "order": [
+        "tt_best",
+        "immediate_win",
+        "history",
+        "centrality",
+        "threats",
+        "tt_best",
+        "history",
+        "history",
+        "tt_best"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-bad-filter",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "filters": [
+        "beam"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-filter-twice",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "filters": [
+        "must_win",
+        "must_win"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-filter-unknown",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "filters": [
+        "nope"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-heuristic-static-eval",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "heuristics": [
+        "static_eval"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-heuristic-static-eval-play",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "heuristics": [
+        "static_eval"
+       ],
+       "mode": "play"
+      }
+     }
+    },
+    {
+     "name": "move-heuristic-unknown",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "heuristics": [
+        "nope"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-driver-unknown",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "drivers": [
+        "nope"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-driver-twice",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "drivers": [
+        "null_window",
+        "null_window"
+       ]
+      }
+     }
+    }
+   ]
+  },
+  {
+   "name": "connect3",
+   "fixture": "native/fixtures/game-connect-3.jsonld",
+   "rules": "ttt",
+   "positions": [
+    {
+     "random": {
+      "seed": 21,
+      "plies": 12,
+      "count": 3
+     }
+    },
+    {
+     "random": {
+      "seed": 22,
+      "plies": 6,
+      "count": 1
+     }
+    }
+   ],
+   "calls": [
+    {
+     "name": "value-default",
+     "tool": "game.value",
+     "args": {}
+    },
+    {
+     "name": "move-default",
+     "tool": "game.move",
+     "args": {}
+    },
+    {
+     "name": "value-empty-plan",
+     "tool": "game.value",
+     "args": {
+      "plan": {}
+     }
+    },
+    {
+     "name": "move-empty-plan",
+     "tool": "game.move",
+     "args": {
+      "plan": {}
+     }
+    },
+    {
+     "name": "value-order-cent",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "order": [
+        "tt_best",
+        "immediate_win",
+        "centrality",
+        "history"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-order-cent",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "order": [
+        "tt_best",
+        "immediate_win",
+        "centrality",
+        "history"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-order-threats",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "order": [
+        "threats",
+        "tt_best"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-order-threats",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "order": [
+        "threats",
+        "tt_best"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-order-cent-threats",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "order": [
+        "centrality",
+        "threats",
+        "immediate_win"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-order-cent-threats",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "order": [
+        "centrality",
+        "threats",
+        "immediate_win"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-filters-mw",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "filters": [
+        "must_win"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-filters-mw",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "filters": [
+        "must_win"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-filters-nl",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "filters": [
+        "non_losing"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-filters-nl",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "filters": [
+        "non_losing"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-filters-both",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "filters": [
+        "must_win",
+        "non_losing"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-filters-both",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "filters": [
+        "must_win",
+        "non_losing"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-filters-both-cent",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "filters": [
+        "non_losing",
+        "must_win"
+       ],
+       "order": [
+        "tt_best",
+        "centrality",
+        "threats"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-filters-both-cent",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "filters": [
+        "non_losing",
+        "must_win"
+       ],
+       "order": [
+        "tt_best",
+        "centrality",
+        "threats"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-root-nl",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "non_losing"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "move-root-nl",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "non_losing"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "value-root-nl-filters-none",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "non_losing"
+        ]
+       },
+       "filters": []
+      }
+     }
+    },
+    {
+     "name": "move-root-nl-filters-none",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "non_losing"
+        ]
+       },
+       "filters": []
+      }
+     }
+    },
+    {
+     "name": "value-drivers-none",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "drivers": []
+      }
+     }
+    },
+    {
+     "name": "move-drivers-none",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "drivers": []
+      }
+     }
+    },
+    {
+     "name": "value-drivers-nw",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "drivers": [
+        "null_window"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-drivers-nw",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "drivers": [
+        "null_window"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-drivers-mtdf",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "drivers": [
+        "mtd_f"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-drivers-mtdf",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "drivers": [
+        "mtd_f"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-drivers-mtdf-filters-none",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "drivers": [
+        "mtd_f"
+       ],
+       "filters": []
+      }
+     }
+    },
+    {
+     "name": "move-drivers-mtdf-filters-none",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "drivers": [
+        "mtd_f"
+       ],
+       "filters": []
+      }
+     }
+    },
+    {
+     "name": "value-drivers-nw-budget",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "drivers": [
+        "null_window",
+        {
+         "budget": {
+          "nodes": 100000
+         }
+        }
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-drivers-nw-budget",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "drivers": [
+        "null_window",
+        {
+         "budget": {
+          "nodes": 100000
+         }
+        }
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-drivers-mtdf-budget",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "drivers": [
+        {
+         "budget": {
+          "nodes": 100000
+         }
+        },
+        "mtd_f"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-drivers-mtdf-budget",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "drivers": [
+        {
+         "budget": {
+          "nodes": 100000
+         }
+        },
+        "mtd_f"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-memo-1",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "memo": {
+        "entries": 1
+       }
+      }
+     }
+    },
+    {
+     "name": "move-memo-1",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "memo": {
+        "entries": 1
+       }
+      }
+     }
+    },
+    {
+     "name": "value-nodes-300",
+     "tool": "game.value",
+     "args": {
+      "nodes": 300
+     }
+    },
+    {
+     "name": "move-nodes-300",
+     "tool": "game.move",
+     "args": {
+      "nodes": 300
+     }
+    },
+    {
+     "name": "value-nodes-5000",
+     "tool": "game.value",
+     "args": {
+      "nodes": 5000
+     }
+    },
+    {
+     "name": "move-nodes-5000",
+     "tool": "game.move",
+     "args": {
+      "nodes": 5000
+     }
+    },
+    {
+     "name": "value-nodes-5000-play",
+     "tool": "game.value",
+     "args": {
+      "nodes": 5000,
+      "plan": {
+       "mode": "play"
+      }
+     }
+    },
+    {
+     "name": "move-nodes-5000-play",
+     "tool": "game.move",
+     "args": {
+      "nodes": 5000,
+      "plan": {
+       "mode": "play"
+      }
+     }
+    }
+   ]
+  },
+  {
+   "name": "connect3-start",
+   "fixture": "native/fixtures/game-connect-3.jsonld",
+   "rules": "ttt",
+   "positions": [
+    {
+     "initial": true
+    }
+   ],
+   "calls": [
+    {
+     "name": "value-default",
+     "tool": "game.value",
+     "args": {}
+    },
+    {
+     "name": "move-default",
+     "tool": "game.move",
+     "args": {}
+    },
+    {
+     "name": "value-nodes-3000",
+     "tool": "game.value",
+     "args": {
+      "nodes": 3000
+     }
+    },
+    {
+     "name": "move-nodes-3000",
+     "tool": "game.move",
+     "args": {
+      "nodes": 3000
+     }
+    },
+    {
+     "name": "value-nodes-3000-play",
+     "tool": "game.value",
+     "args": {
+      "nodes": 3000,
+      "plan": {
+       "mode": "play"
+      }
+     }
+    },
+    {
+     "name": "move-nodes-3000-play",
+     "tool": "game.move",
+     "args": {
+      "nodes": 3000,
+      "plan": {
+       "mode": "play"
+      }
+     }
+    }
+   ]
+  },
+  {
+   "name": "connect4",
+   "fixture": "native/fixtures/game-connect-4.jsonld",
+   "rules": "ttt",
+   "positions": [
+    {
+     "random": {
+      "seed": 31,
+      "plies": 40,
+      "count": 4
+     }
+    },
+    {
+     "initial": true
+    }
+   ],
+   "calls": [
+    {
+     "name": "value-default-nodes-4000",
+     "tool": "game.value",
+     "args": {
+      "nodes": 4000
+     }
+    },
+    {
+     "name": "move-default-nodes-4000",
+     "tool": "game.move",
+     "args": {
+      "nodes": 4000
+     }
+    },
+    {
+     "name": "value-cent-nodes-4000",
+     "tool": "game.value",
+     "args": {
+      "nodes": 4000,
+      "plan": {
+       "order": [
+        "tt_best",
+        "immediate_win",
+        "centrality",
+        "threats",
+        "history"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-cent-nodes-4000",
+     "tool": "game.move",
+     "args": {
+      "nodes": 4000,
+      "plan": {
+       "order": [
+        "tt_best",
+        "immediate_win",
+        "centrality",
+        "threats",
+        "history"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-nl-nodes-4000",
+     "tool": "game.value",
+     "args": {
+      "nodes": 4000,
+      "plan": {
+       "root": {
+        "order": [
+         "non_losing"
+        ]
+       },
+       "filters": []
+      }
+     }
+    },
+    {
+     "name": "move-nl-nodes-4000",
+     "tool": "game.move",
+     "args": {
+      "nodes": 4000,
+      "plan": {
+       "root": {
+        "order": [
+         "non_losing"
+        ]
+       },
+       "filters": []
+      }
+     }
+    },
+    {
+     "name": "value-mtdf-nodes-4000",
+     "tool": "game.value",
+     "args": {
+      "nodes": 4000,
+      "plan": {
+       "drivers": [
+        "mtd_f"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-mtdf-nodes-4000",
+     "tool": "game.move",
+     "args": {
+      "nodes": 4000,
+      "plan": {
+       "drivers": [
+        "mtd_f"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-play-nodes-4000",
+     "tool": "game.value",
+     "args": {
+      "nodes": 4000,
+      "plan": {
+       "mode": "play"
+      }
+     }
+    },
+    {
+     "name": "move-play-nodes-4000",
+     "tool": "game.move",
+     "args": {
+      "nodes": 4000,
+      "plan": {
+       "mode": "play"
+      }
+     }
+    }
+   ]
+  },
+  {
+   "name": "ttt-count",
+   "fixture": "native/fixtures/game-ttt-count.jsonld",
+   "rules": "ttt",
+   "positions": [
+    {
+     "initial": true
+    },
+    {
+     "fire": [
+      "x_play_00"
+     ]
+    },
+    {
+     "random": {
+      "seed": 41,
+      "plies": 7,
+      "count": 3
+     }
+    }
+   ],
+   "calls": [
+    {
+     "name": "value-default",
+     "tool": "game.value",
+     "args": {}
+    },
+    {
+     "name": "move-default",
+     "tool": "game.move",
+     "args": {}
+    },
+    {
+     "name": "value-filters-both",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "filters": [
+        "must_win",
+        "non_losing"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-filters-both",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "filters": [
+        "must_win",
+        "non_losing"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-root-nl",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "non_losing"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "move-root-nl",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "non_losing"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "value-mtdf",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "drivers": [
+        "mtd_f"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-mtdf",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "drivers": [
+        "mtd_f"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-cent",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "order": [
+        "tt_best",
+        "immediate_win",
+        "centrality",
+        "threats",
+        "history"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-cent",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "order": [
+        "tt_best",
+        "immediate_win",
+        "centrality",
+        "threats",
+        "history"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-memo-32",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "memo": {
+        "entries": 32
+       }
+      }
+     }
+    },
+    {
+     "name": "move-memo-32",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "memo": {
+        "entries": 32
+       }
+      }
+     }
+    },
+    {
+     "name": "value-nodes-60",
+     "tool": "game.value",
+     "args": {
+      "nodes": 60
+     }
+    },
+    {
+     "name": "move-nodes-60",
+     "tool": "game.move",
+     "args": {
+      "nodes": 60
+     }
+    },
+    {
+     "name": "value-mtdf-filters-none",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "drivers": [
+        "mtd_f"
+       ],
+       "filters": []
+      }
+     }
+    },
+    {
+     "name": "move-mtdf-filters-none",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "drivers": [
+        "mtd_f"
+       ],
+       "filters": []
+      }
+     }
+    },
+    {
+     "name": "value-memo-8",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "memo": {
+        "entries": 8
+       }
+      }
+     }
+    },
+    {
+     "name": "move-memo-8",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "memo": {
+        "entries": 8
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "name": "ttt-double",
+   "fixture": "native/fixtures/game-ttt-double.jsonld",
+   "rules": "ttt",
+   "positions": [
+    {
+     "initial": true
+    },
+    {
+     "random": {
+      "seed": 81,
+      "plies": 9,
+      "count": 6
+     }
+    }
+   ],
+   "calls": [
+    {
+     "name": "value-default",
+     "tool": "game.value",
+     "args": {}
+    },
+    {
+     "name": "move-default",
+     "tool": "game.move",
+     "args": {}
+    },
+    {
+     "name": "value-filters-both",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "filters": [
+        "must_win",
+        "non_losing"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-filters-both",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "filters": [
+        "must_win",
+        "non_losing"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-root-nl",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "non_losing"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "move-root-nl",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "non_losing"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "value-mtdf",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "drivers": [
+        "mtd_f"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-mtdf",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "drivers": [
+        "mtd_f"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-cent",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "order": [
+        "tt_best",
+        "immediate_win",
+        "centrality",
+        "threats",
+        "history"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-cent",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "order": [
+        "tt_best",
+        "immediate_win",
+        "centrality",
+        "threats",
+        "history"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-memo-32",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "memo": {
+        "entries": 32
+       }
+      }
+     }
+    },
+    {
+     "name": "move-memo-32",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "memo": {
+        "entries": 32
+       }
+      }
+     }
+    },
+    {
+     "name": "value-nodes-60",
+     "tool": "game.value",
+     "args": {
+      "nodes": 60
+     }
+    },
+    {
+     "name": "move-nodes-60",
+     "tool": "game.move",
+     "args": {
+      "nodes": 60
+     }
+    },
+    {
+     "name": "value-threats",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "order": [
+        "threats"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-threats",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "order": [
+        "threats"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-threats-nl",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "order": [
+        "threats",
+        "history"
+       ],
+       "filters": [
+        "non_losing"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-threats-nl",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "order": [
+        "threats",
+        "history"
+       ],
+       "filters": [
+        "non_losing"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-threats-mtdf",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "order": [
+        "tt_best",
+        "threats"
+       ],
+       "drivers": [
+        "mtd_f"
+       ],
+       "root": {
+        "order": [
+         "non_losing"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "move-threats-mtdf",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "order": [
+        "tt_best",
+        "threats"
+       ],
+       "drivers": [
+        "mtd_f"
+       ],
+       "root": {
+        "order": [
+         "non_losing"
+        ]
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "name": "ttt-wide",
+   "fixture": "native/fixtures/game-ttt-wide.jsonld",
+   "rules": "ttt",
+   "positions": [
+    {
+     "initial": true
+    },
+    {
+     "random": {
+      "seed": 51,
+      "plies": 7,
+      "count": 2
+     }
+    }
+   ],
+   "calls": [
+    {
+     "name": "value-default",
+     "tool": "game.value",
+     "args": {}
+    },
+    {
+     "name": "move-default",
+     "tool": "game.move",
+     "args": {}
+    },
+    {
+     "name": "value-filters-both",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "filters": [
+        "must_win",
+        "non_losing"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-filters-both",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "filters": [
+        "must_win",
+        "non_losing"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-root-nl",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "non_losing"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "move-root-nl",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "non_losing"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "value-mtdf",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "drivers": [
+        "mtd_f"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-mtdf",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "drivers": [
+        "mtd_f"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-cent",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "order": [
+        "tt_best",
+        "immediate_win",
+        "centrality",
+        "threats",
+        "history"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-cent",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "order": [
+        "tt_best",
+        "immediate_win",
+        "centrality",
+        "threats",
+        "history"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-memo-32",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "memo": {
+        "entries": 32
+       }
+      }
+     }
+    },
+    {
+     "name": "move-memo-32",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "memo": {
+        "entries": 32
+       }
+      }
+     }
+    },
+    {
+     "name": "value-nodes-60",
+     "tool": "game.value",
+     "args": {
+      "nodes": 60
+     }
+    },
+    {
+     "name": "move-nodes-60",
+     "tool": "game.move",
+     "args": {
+      "nodes": 60
+     }
+    },
+    {
+     "name": "value-filters-mw",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "filters": [
+        "must_win"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-filters-mw",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "filters": [
+        "must_win"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-filters-nl",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "filters": [
+        "non_losing"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-filters-nl",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "filters": [
+        "non_losing"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-filters-both",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "filters": [
+        "must_win",
+        "non_losing"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-filters-both",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "filters": [
+        "must_win",
+        "non_losing"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-memo-1",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "memo": {
+        "entries": 1
+       }
+      }
+     }
+    },
+    {
+     "name": "move-memo-1",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "memo": {
+        "entries": 1
+       }
+      }
+     }
+    },
+    {
+     "name": "value-memo-2",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "memo": {
+        "entries": 2
+       }
+      }
+     }
+    },
+    {
+     "name": "move-memo-2",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "memo": {
+        "entries": 2
+       }
+      }
+     }
+    },
+    {
+     "name": "value-memo-7",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "memo": {
+        "entries": 7
+       }
+      }
+     }
+    },
+    {
+     "name": "move-memo-7",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "memo": {
+        "entries": 7
+       }
+      }
+     }
+    },
+    {
+     "name": "value-memo-16",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "memo": {
+        "entries": 16
+       }
+      }
+     }
+    },
+    {
+     "name": "move-memo-16",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "memo": {
+        "entries": 16
+       }
+      }
+     }
+    },
+    {
+     "name": "value-memo-100",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "memo": {
+        "entries": 100
+       }
+      }
+     }
+    },
+    {
+     "name": "move-memo-100",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "memo": {
+        "entries": 100
+       }
+      }
+     }
+    },
+    {
+     "name": "value-memo-5000",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "memo": {
+        "entries": 5000
+       }
+      }
+     }
+    },
+    {
+     "name": "move-memo-5000",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "memo": {
+        "entries": 5000
+       }
+      }
+     }
+    },
+    {
+     "name": "value-memo-16-mtdf-nofilters",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "memo": {
+        "entries": 16
+       },
+       "drivers": [
+        "mtd_f"
+       ],
+       "filters": []
+      }
+     }
+    },
+    {
+     "name": "move-memo-16-mtdf-nofilters",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "memo": {
+        "entries": 16
+       },
+       "drivers": [
+        "mtd_f"
+       ],
+       "filters": []
+      }
+     }
+    }
+   ]
+  },
+  {
+   "name": "nim",
+   "fixture": "native/fixtures/game-nim.jsonld",
+   "rules": "nim",
+   "positions": [
+    {
+     "initial": true
+    },
+    {
+     "fire": [
+      "a_take1"
+     ]
+    },
+    {
+     "fire": [
+      "a_take2",
+      "b_take2"
+     ]
+    },
+    {
+     "fire": [
+      "a_take2",
+      "b_take1",
+      "a_take1"
+     ]
+    }
+   ],
+   "calls": [
+    {
+     "name": "value-default",
+     "tool": "game.value",
+     "args": {}
+    },
+    {
+     "name": "move-default",
+     "tool": "game.move",
+     "args": {}
+    },
+    {
+     "name": "value-filters-both",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "filters": [
+        "must_win",
+        "non_losing"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-filters-both",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "filters": [
+        "must_win",
+        "non_losing"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-root-nl",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "non_losing"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "move-root-nl",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "non_losing"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "value-mtdf",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "drivers": [
+        "mtd_f"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-mtdf",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "drivers": [
+        "mtd_f"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-cent",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "order": [
+        "tt_best",
+        "immediate_win",
+        "centrality",
+        "threats",
+        "history"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-cent",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "order": [
+        "tt_best",
+        "immediate_win",
+        "centrality",
+        "threats",
+        "history"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-memo-32",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "memo": {
+        "entries": 32
+       }
+      }
+     }
+    },
+    {
+     "name": "move-memo-32",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "memo": {
+        "entries": 32
+       }
+      }
+     }
+    },
+    {
+     "name": "value-nodes-60",
+     "tool": "game.value",
+     "args": {
+      "nodes": 60
+     }
+    },
+    {
+     "name": "move-nodes-60",
+     "tool": "game.move",
+     "args": {
+      "nodes": 60
+     }
+    },
+    {
+     "name": "value-filters-none",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "filters": []
+      }
+     }
+    },
+    {
+     "name": "move-filters-none",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "filters": []
+      }
+     }
+    },
+    {
+     "name": "value-memo-3",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "memo": {
+        "entries": 3
+       }
+      }
+     }
+    },
+    {
+     "name": "move-memo-3",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "memo": {
+        "entries": 3
+       }
+      }
+     }
+    },
+    {
+     "name": "value-hist",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "order": [
+        "history"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-hist",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "order": [
+        "history"
+       ]
+      }
+     }
+    }
+   ]
+  },
+  {
+   "name": "bucket",
+   "fixture": "native/fixtures/game-bucket.jsonld",
+   "rules": "bucket",
+   "positions": [
+    {
+     "initial": true
+    },
+    {
+     "fire": [
+      "a_add1"
+     ]
+    },
+    {
+     "fire": [
+      "a_add2",
+      "b_add2"
+     ]
+    },
+    {
+     "fire": [
+      "a_add1",
+      "b_add1",
+      "a_add1"
+     ]
+    },
+    {
+     "fire": [
+      "a_add2",
+      "b_add2",
+      "a_add1"
+     ]
+    }
+   ],
+   "calls": [
+    {
+     "name": "value-default",
+     "tool": "game.value",
+     "args": {}
+    },
+    {
+     "name": "move-default",
+     "tool": "game.move",
+     "args": {}
+    },
+    {
+     "name": "value-filters-both",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "filters": [
+        "must_win",
+        "non_losing"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-filters-both",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "filters": [
+        "must_win",
+        "non_losing"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-root-nl",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "non_losing"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "move-root-nl",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "non_losing"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "value-mtdf",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "drivers": [
+        "mtd_f"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-mtdf",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "drivers": [
+        "mtd_f"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-cent",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "order": [
+        "tt_best",
+        "immediate_win",
+        "centrality",
+        "threats",
+        "history"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-cent",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "order": [
+        "tt_best",
+        "immediate_win",
+        "centrality",
+        "threats",
+        "history"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-memo-32",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "memo": {
+        "entries": 32
+       }
+      }
+     }
+    },
+    {
+     "name": "move-memo-32",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "memo": {
+        "entries": 32
+       }
+      }
+     }
+    },
+    {
+     "name": "value-nodes-60",
+     "tool": "game.value",
+     "args": {
+      "nodes": 60
+     }
+    },
+    {
+     "name": "move-nodes-60",
+     "tool": "game.move",
+     "args": {
+      "nodes": 60
+     }
+    },
+    {
+     "name": "value-filters-none",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "filters": []
+      }
+     }
+    },
+    {
+     "name": "move-filters-none",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "filters": []
+      }
+     }
+    },
+    {
+     "name": "value-mtdf-nofilters",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "drivers": [
+        "mtd_f"
+       ],
+       "filters": []
+      }
+     }
+    },
+    {
+     "name": "move-mtdf-nofilters",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "drivers": [
+        "mtd_f"
+       ],
+       "filters": []
+      }
+     }
+    },
+    {
+     "name": "value-memo-3",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "memo": {
+        "entries": 3
+       }
+      }
+     }
+    },
+    {
+     "name": "move-memo-3",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "memo": {
+        "entries": 3
+       }
+      }
+     }
+    },
+    {
+     "name": "value-order-cent",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "order": [
+        "centrality",
+        "threats"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-order-cent",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "order": [
+        "centrality",
+        "threats"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-order-cent-nl",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "order": [
+        "threats",
+        "history"
+       ],
+       "filters": [
+        "non_losing"
+       ],
+       "root": {
+        "order": [
+         "non_losing"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "move-order-cent-nl",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "order": [
+        "threats",
+        "history"
+       ],
+       "filters": [
+        "non_losing"
+       ],
+       "root": {
+        "order": [
+         "non_losing"
+        ]
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "name": "prizes-123",
+   "fixture": "native/fixtures/game-prizes-123.jsonld",
+   "rules": "prizes-123",
+   "positions": [
+    {
+     "initial": true
+    },
+    {
+     "random": {
+      "seed": 61,
+      "plies": 3,
+      "count": 3
+     }
+    }
+   ],
+   "calls": [
+    {
+     "name": "value-default",
+     "tool": "game.value",
+     "args": {}
+    },
+    {
+     "name": "move-default",
+     "tool": "game.move",
+     "args": {}
+    },
+    {
+     "name": "value-nw",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "drivers": [
+        "null_window"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-nw",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "drivers": [
+        "null_window"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-mtdf",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "drivers": [
+        "mtd_f"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-mtdf",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "drivers": [
+        "mtd_f"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-none",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "drivers": []
+      }
+     }
+    },
+    {
+     "name": "move-none",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "drivers": []
+      }
+     }
+    },
+    {
+     "name": "value-mtdf-nofilters",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "drivers": [
+        "mtd_f"
+       ],
+       "filters": []
+      }
+     }
+    },
+    {
+     "name": "move-mtdf-nofilters",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "drivers": [
+        "mtd_f"
+       ],
+       "filters": []
+      }
+     }
+    },
+    {
+     "name": "value-mtdf-memo-6",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "drivers": [
+        "mtd_f"
+       ],
+       "memo": {
+        "entries": 6
+       }
+      }
+     }
+    },
+    {
+     "name": "move-mtdf-memo-6",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "drivers": [
+        "mtd_f"
+       ],
+       "memo": {
+        "entries": 6
+       }
+      }
+     }
+    },
+    {
+     "name": "value-nw-memo-6",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "memo": {
+        "entries": 6
+       }
+      }
+     }
+    },
+    {
+     "name": "move-nw-memo-6",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "memo": {
+        "entries": 6
+       }
+      }
+     }
+    },
+    {
+     "name": "value-filters-both",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "filters": [
+        "must_win",
+        "non_losing"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-filters-both",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "filters": [
+        "must_win",
+        "non_losing"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-root-nl",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "non_losing"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "move-root-nl",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "non_losing"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "value-mtdf-root-nl",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "drivers": [
+        "mtd_f"
+       ],
+       "root": {
+        "order": [
+         "non_losing"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "move-mtdf-root-nl",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "drivers": [
+        "mtd_f"
+       ],
+       "root": {
+        "order": [
+         "non_losing"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "value-order-cent",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "order": [
+        "centrality"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-order-cent",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "order": [
+        "centrality"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-nodes-8",
+     "tool": "game.value",
+     "args": {
+      "nodes": 8
+     }
+    },
+    {
+     "name": "move-nodes-8",
+     "tool": "game.move",
+     "args": {
+      "nodes": 8
+     }
+    },
+    {
+     "name": "value-nodes-8-mtdf",
+     "tool": "game.value",
+     "args": {
+      "nodes": 8,
+      "plan": {
+       "drivers": [
+        "mtd_f"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-nodes-8-mtdf",
+     "tool": "game.move",
+     "args": {
+      "nodes": 8,
+      "plan": {
+       "drivers": [
+        "mtd_f"
+       ]
+      }
+     }
+    }
+   ]
+  },
+  {
+   "name": "prizes-1111",
+   "fixture": "native/fixtures/game-prizes-1111.jsonld",
+   "rules": "prizes-1111",
+   "positions": [
+    {
+     "initial": true
+    },
+    {
+     "random": {
+      "seed": 61,
+      "plies": 3,
+      "count": 3
+     }
+    }
+   ],
+   "calls": [
+    {
+     "name": "value-default",
+     "tool": "game.value",
+     "args": {}
+    },
+    {
+     "name": "move-default",
+     "tool": "game.move",
+     "args": {}
+    },
+    {
+     "name": "value-nw",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "drivers": [
+        "null_window"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-nw",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "drivers": [
+        "null_window"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-mtdf",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "drivers": [
+        "mtd_f"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-mtdf",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "drivers": [
+        "mtd_f"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-none",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "drivers": []
+      }
+     }
+    },
+    {
+     "name": "move-none",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "drivers": []
+      }
+     }
+    },
+    {
+     "name": "value-mtdf-nofilters",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "drivers": [
+        "mtd_f"
+       ],
+       "filters": []
+      }
+     }
+    },
+    {
+     "name": "move-mtdf-nofilters",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "drivers": [
+        "mtd_f"
+       ],
+       "filters": []
+      }
+     }
+    },
+    {
+     "name": "value-mtdf-memo-6",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "drivers": [
+        "mtd_f"
+       ],
+       "memo": {
+        "entries": 6
+       }
+      }
+     }
+    },
+    {
+     "name": "move-mtdf-memo-6",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "drivers": [
+        "mtd_f"
+       ],
+       "memo": {
+        "entries": 6
+       }
+      }
+     }
+    },
+    {
+     "name": "value-nw-memo-6",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "memo": {
+        "entries": 6
+       }
+      }
+     }
+    },
+    {
+     "name": "move-nw-memo-6",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "memo": {
+        "entries": 6
+       }
+      }
+     }
+    },
+    {
+     "name": "value-filters-both",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "filters": [
+        "must_win",
+        "non_losing"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-filters-both",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "filters": [
+        "must_win",
+        "non_losing"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-root-nl",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "non_losing"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "move-root-nl",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "non_losing"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "value-mtdf-root-nl",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "drivers": [
+        "mtd_f"
+       ],
+       "root": {
+        "order": [
+         "non_losing"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "move-mtdf-root-nl",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "drivers": [
+        "mtd_f"
+       ],
+       "root": {
+        "order": [
+         "non_losing"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "value-order-cent",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "order": [
+        "centrality"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-order-cent",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "order": [
+        "centrality"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-nodes-8",
+     "tool": "game.value",
+     "args": {
+      "nodes": 8
+     }
+    },
+    {
+     "name": "move-nodes-8",
+     "tool": "game.move",
+     "args": {
+      "nodes": 8
+     }
+    },
+    {
+     "name": "value-nodes-8-mtdf",
+     "tool": "game.value",
+     "args": {
+      "nodes": 8,
+      "plan": {
+       "drivers": [
+        "mtd_f"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-nodes-8-mtdf",
+     "tool": "game.move",
+     "args": {
+      "nodes": 8,
+      "plan": {
+       "drivers": [
+        "mtd_f"
+       ]
+      }
+     }
+    }
+   ]
+  },
+  {
+   "name": "ttt-book",
+   "fixture": "native/fixtures/game-tic-tac-toe.jsonld",
+   "rules": "ttt",
+   "positions": [
+    {
+     "initial": true
+    },
+    {
+     "fire": [
+      "x_play_11"
+     ]
+    },
+    {
+     "random": {
+      "seed": 71,
+      "plies": 4,
+      "count": 1
+     }
+    }
+   ],
+   "calls": [
+    {
+     "name": "value-book",
+     "tool": "game.value",
+     "args": {
+      "book": {
+       "$book": {
+        "positions": [
+         {
+          "initial": true
+         },
+         {
+          "fire": [
+           "x_play_11"
+          ]
+         },
+         {
+          "fire": [
+           "x_play_11",
+           "o_play_00"
+          ]
+         }
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "move-book",
+     "tool": "game.move",
+     "args": {
+      "book": {
+       "$book": {
+        "positions": [
+         {
+          "initial": true
+         },
+         {
+          "fire": [
+           "x_play_11"
+          ]
+         },
+         {
+          "fire": [
+           "x_play_11",
+           "o_play_00"
+          ]
+         }
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "value-book-nodes-3",
+     "tool": "game.value",
+     "args": {
+      "book": {
+       "$book": {
+        "positions": [
+         {
+          "initial": true
+         },
+         {
+          "fire": [
+           "x_play_11"
+          ]
+         },
+         {
+          "fire": [
+           "x_play_11",
+           "o_play_00"
+          ]
+         }
+        ]
+       }
+      },
+      "nodes": 3
+     }
+    },
+    {
+     "name": "move-book-nodes-3",
+     "tool": "game.move",
+     "args": {
+      "book": {
+       "$book": {
+        "positions": [
+         {
+          "initial": true
+         },
+         {
+          "fire": [
+           "x_play_11"
+          ]
+         },
+         {
+          "fire": [
+           "x_play_11",
+           "o_play_00"
+          ]
+         }
+        ]
+       }
+      },
+      "nodes": 3
+     }
+    },
+    {
+     "name": "value-book-mtdf",
+     "tool": "game.value",
+     "args": {
+      "book": {
+       "$book": {
+        "positions": [
+         {
+          "initial": true
+         },
+         {
+          "fire": [
+           "x_play_11"
+          ]
+         },
+         {
+          "fire": [
+           "x_play_11",
+           "o_play_00"
+          ]
+         }
+        ]
+       }
+      },
+      "plan": {
+       "drivers": [
+        "mtd_f"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-book-mtdf",
+     "tool": "game.move",
+     "args": {
+      "book": {
+       "$book": {
+        "positions": [
+         {
+          "initial": true
+         },
+         {
+          "fire": [
+           "x_play_11"
+          ]
+         },
+         {
+          "fire": [
+           "x_play_11",
+           "o_play_00"
+          ]
+         }
+        ]
+       }
+      },
+      "plan": {
+       "drivers": [
+        "mtd_f"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-book-memo-4",
+     "tool": "game.value",
+     "args": {
+      "book": {
+       "$book": {
+        "positions": [
+         {
+          "initial": true
+         },
+         {
+          "fire": [
+           "x_play_11"
+          ]
+         },
+         {
+          "fire": [
+           "x_play_11",
+           "o_play_00"
+          ]
+         }
+        ]
+       }
+      },
+      "plan": {
+       "memo": {
+        "entries": 4
+       }
+      }
+     }
+    },
+    {
+     "name": "move-book-memo-4",
+     "tool": "game.move",
+     "args": {
+      "book": {
+       "$book": {
+        "positions": [
+         {
+          "initial": true
+         },
+         {
+          "fire": [
+           "x_play_11"
+          ]
+         },
+         {
+          "fire": [
+           "x_play_11",
+           "o_play_00"
+          ]
+         }
+        ]
+       }
+      },
+      "plan": {
+       "memo": {
+        "entries": 4
+       }
+      }
+     }
+    },
+    {
+     "name": "value-book-root-nl",
+     "tool": "game.value",
+     "args": {
+      "book": {
+       "$book": {
+        "positions": [
+         {
+          "initial": true
+         },
+         {
+          "fire": [
+           "x_play_11"
+          ]
+         },
+         {
+          "fire": [
+           "x_play_11",
+           "o_play_00"
+          ]
+         }
+        ]
+       }
+      },
+      "plan": {
+       "root": {
+        "order": [
+         "non_losing"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "move-book-root-nl",
+     "tool": "game.move",
+     "args": {
+      "book": {
+       "$book": {
+        "positions": [
+         {
+          "initial": true
+         },
+         {
+          "fire": [
+           "x_play_11"
+          ]
+         },
+         {
+          "fire": [
+           "x_play_11",
+           "o_play_00"
+          ]
+         }
+        ]
+       }
+      },
+      "plan": {
+       "root": {
+        "order": [
+         "non_losing"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "value-book-play-nodes-3",
+     "tool": "game.value",
+     "args": {
+      "book": {
+       "$book": {
+        "positions": [
+         {
+          "initial": true
+         },
+         {
+          "fire": [
+           "x_play_11"
+          ]
+         },
+         {
+          "fire": [
+           "x_play_11",
+           "o_play_00"
+          ]
+         }
+        ]
+       }
+      },
+      "nodes": 3,
+      "plan": {
+       "mode": "play"
+      }
+     }
+    },
+    {
+     "name": "move-book-play-nodes-3",
+     "tool": "game.move",
+     "args": {
+      "book": {
+       "$book": {
+        "positions": [
+         {
+          "initial": true
+         },
+         {
+          "fire": [
+           "x_play_11"
+          ]
+         },
+         {
+          "fire": [
+           "x_play_11",
+           "o_play_00"
+          ]
+         }
+        ]
+       }
+      },
+      "nodes": 3,
+      "plan": {
+       "mode": "play"
+      }
+     }
+    }
+   ]
+  },
+  {
+   "name": "ttt-book-refused",
+   "fixture": "native/fixtures/game-tic-tac-toe.jsonld",
+   "rules": "ttt",
+   "positions": [
+    {
+     "initial": true
+    }
+   ],
+   "calls": [
+    {
+     "name": "value-book-bad-header",
+     "tool": "game.value",
+     "args": {
+      "book": {
+       "$book": {
+        "positions": [
+         {
+          "initial": true
+         },
+         {
+          "fire": [
+           "x_play_11"
+          ]
+         },
+         {
+          "fire": [
+           "x_play_11",
+           "o_play_00"
+          ]
+         }
+        ],
+        "mutate": "header"
+       }
+      }
+     }
+    },
+    {
+     "name": "value-book-header-sign",
+     "tool": "game.value",
+     "args": {
+      "book": {
+       "$book": {
+        "positions": [
+         {
+          "initial": true
+         },
+         {
+          "fire": [
+           "x_play_11"
+          ]
+         },
+         {
+          "fire": [
+           "x_play_11",
+           "o_play_00"
+          ]
+         }
+        ],
+        "mutate": "sign"
+       }
+      }
+     }
+    },
+    {
+     "name": "value-book-final-line",
+     "tool": "game.value",
+     "args": {
+      "book": {
+       "$book": {
+        "positions": [
+         {
+          "initial": true
+         },
+         {
+          "fire": [
+           "x_play_11"
+          ]
+         },
+         {
+          "fire": [
+           "x_play_11",
+           "o_play_00"
+          ]
+         }
+        ],
+        "mutate": "final"
+       }
+      }
+     }
+    },
+    {
+     "name": "value-book-short-vals",
+     "tool": "game.value",
+     "args": {
+      "book": {
+       "$book": {
+        "positions": [
+         {
+          "initial": true
+         },
+         {
+          "fire": [
+           "x_play_11"
+          ]
+         },
+         {
+          "fire": [
+           "x_play_11",
+           "o_play_00"
+          ]
+         }
+        ],
+        "mutate": "short"
+       }
+      }
+     }
+    },
+    {
+     "name": "value-book-wrong-marking",
+     "tool": "game.value",
+     "args": {
+      "book": {
+       "$book": {
+        "positions": [
+         {
+          "initial": true
+         },
+         {
+          "fire": [
+           "x_play_11"
+          ]
+         },
+         {
+          "fire": [
+           "x_play_11",
+           "o_play_00"
+          ]
+         }
+        ],
+        "mutate": "marking"
+       }
+      }
+     }
+    },
+    {
+     "name": "value-book-cut-last",
+     "tool": "game.value",
+     "args": {
+      "book": {
+       "$book": {
+        "positions": [
+         {
+          "initial": true
+         },
+         {
+          "fire": [
+           "x_play_11"
+          ]
+         },
+         {
+          "fire": [
+           "x_play_11",
+           "o_play_00"
+          ]
+         }
+        ],
+        "mutate": "cut"
+       }
+      }
+     }
+    },
+    {
+     "name": "value-book-bad-middle",
+     "tool": "game.value",
+     "args": {
+      "book": {
+       "$book": {
+        "positions": [
+         {
+          "initial": true
+         },
+         {
+          "fire": [
+           "x_play_11"
+          ]
+         },
+         {
+          "fire": [
+           "x_play_11",
+           "o_play_00"
+          ]
+         }
+        ],
+        "mutate": "middle"
+       }
+      }
+     }
+    },
+    {
+     "name": "value-book-null-vals",
+     "tool": "game.value",
+     "args": {
+      "book": {
+       "$book": {
+        "positions": [
+         {
+          "initial": true
+         },
+         {
+          "fire": [
+           "x_play_11"
+          ]
+         },
+         {
+          "fire": [
+           "x_play_11",
+           "o_play_00"
+          ]
+         }
+        ],
+        "mutate": "null"
+       }
+      }
+     }
+    },
+    {
+     "name": "value-book-empty",
+     "tool": "game.value",
+     "args": {
+      "book": ""
+     }
+    },
+    {
+     "name": "value-book-not-json",
+     "tool": "game.value",
+     "args": {
+      "book": "not json"
+     }
+    }
+   ]
+  }
+ ]
+}

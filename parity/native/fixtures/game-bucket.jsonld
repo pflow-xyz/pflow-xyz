@@ -1,0 +1,278 @@
+{
+  "@context": "https://pflow.xyz/schema",
+  "@type": "PetriNet",
+  "@version": "1.1",
+  "arcs": [
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "a_turn",
+      "target": "a_add1",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "a_add1",
+      "target": "b_turn",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "a_add1",
+      "target": "bucket",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "a_turn",
+      "target": "a_add2",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "a_add2",
+      "target": "b_turn",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "a_add2",
+      "target": "bucket",
+      "weight": [
+        2
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "b_turn",
+      "target": "b_add1",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "b_add1",
+      "target": "a_turn",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "b_add1",
+      "target": "bucket",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "b_turn",
+      "target": "b_add2",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "b_add2",
+      "target": "a_turn",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "b_add2",
+      "target": "bucket",
+      "weight": [
+        2
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "a_turn",
+      "target": "a_stuck",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": true,
+      "source": "a_stuck",
+      "target": "bucket",
+      "weight": [
+        5
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "a_stuck",
+      "target": "win_b",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "b_turn",
+      "target": "b_stuck",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": true,
+      "source": "b_stuck",
+      "target": "bucket",
+      "weight": [
+        5
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "b_stuck",
+      "target": "win_a",
+      "weight": [
+        1
+      ]
+    }
+  ],
+  "places": {
+    "bucket": {
+      "@type": "Place",
+      "capacity": [
+        5
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 200,
+      "y": 100
+    },
+    "a_turn": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        1
+      ],
+      "offset": 0,
+      "x": 100,
+      "y": 200
+    },
+    "b_turn": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 300,
+      "y": 200
+    },
+    "win_a": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 100,
+      "y": 400
+    },
+    "win_b": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 300,
+      "y": 400
+    }
+  },
+  "token": [
+    "https://pflow.xyz/tokens/black"
+  ],
+  "transitions": {
+    "a_add1": {
+      "@type": "Transition",
+      "offset": 0,
+      "role": "default",
+      "x": 100,
+      "y": 150
+    },
+    "a_add2": {
+      "@type": "Transition",
+      "offset": 0,
+      "role": "default",
+      "x": 150,
+      "y": 150
+    },
+    "b_add1": {
+      "@type": "Transition",
+      "offset": 0,
+      "role": "default",
+      "x": 300,
+      "y": 150
+    },
+    "b_add2": {
+      "@type": "Transition",
+      "offset": 0,
+      "role": "default",
+      "x": 350,
+      "y": 150
+    },
+    "a_stuck": {
+      "@type": "Transition",
+      "offset": 0,
+      "role": "default",
+      "x": 100,
+      "y": 300
+    },
+    "b_stuck": {
+      "@type": "Transition",
+      "offset": 0,
+      "role": "default",
+      "x": 300,
+      "y": 300
+    }
+  }
+}

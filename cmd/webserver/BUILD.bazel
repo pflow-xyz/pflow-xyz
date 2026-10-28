@@ -11,6 +11,7 @@ go_library(
         "llm_turn.go",
         "main.go",
         "mcp.go",
+        "mcp_game.go",
         "mcp_oauth.go",
         "mcp_registry.go",
         "mcp_simulate_gated.go",
@@ -30,6 +31,7 @@ go_library(
     visibility = ["//visibility:private"],
     deps = [
         "//internal/auth",
+        "//internal/gamesearch",
         "//internal/llm",
         "//internal/seal",
         "//internal/static",
@@ -69,6 +71,8 @@ go_test(
         "llm_goals_test.go",
         "llm_test.go",
         "llm_turn_test.go",
+        "mcp_game_parity_test.go",
+        "mcp_game_test.go",
         "mcp_oauth_test.go",
         "mcp_pages_test.go",
         "mcp_registry_test.go",
@@ -85,9 +89,11 @@ go_test(
     # keep: llm_goals_test.go reads public/goals.json, the catalog the server embeds.
     # keep: mcp_workbench_parity_test.go replays parity/native/mcp_goldens.json on its
     # fixtures and checks the goldens' pflow-native commit against pflow-native-wasm.lock.
+    # keep: mcp_game_parity_test.go replays parity/native/game_goldens.json on its fixtures.
     data = [
         "//:pflow-native-wasm.lock",
         "//examples",
+        "//parity:native_game",
         "//parity:native_mcp",
         "//public:public_files",
     ],

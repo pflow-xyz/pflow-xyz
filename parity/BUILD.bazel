@@ -18,3 +18,15 @@ filegroup(
     ]),
     visibility = ["//visibility:public"],
 )
+
+# The /mcp game tools' parity suite (cmd/webserver/mcp_game_parity_test.go and
+# mcp_game_test.go, internal/gamesearch's tests): pflow-native's goldens, the
+# fixtures they name, and the generator's pins.
+filegroup(
+    name = "native_game",
+    srcs = [
+        "native/game_goldens.json",
+        "native/gen-game/Cargo.toml",
+    ] + glob(["native/fixtures/*"]),
+    visibility = ["//visibility:public"],
+)

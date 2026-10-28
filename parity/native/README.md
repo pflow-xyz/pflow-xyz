@@ -30,7 +30,9 @@ already does).
 
 `cases.json` — one **session** per case: load a fixture (paths relative to
 `parity/`: the shared `parity/fixtures/` nets and `native/fixtures/`: `sir` with
-rates, `gated` with capacities, an inhibitor arc and rates), then run the steps in
+rates, `gated` with capacities, an inhibitor arc and rates, `tic-tac-toe.json`
+a byte-identical copy of pflow-native's `examples/tic-tac-toe.json` for the
+`game.*` cases), then run the steps in
 order, so a command that needs an artifact follows the one that makes it
 (`data.generate` → `data.conformance {log: "a1"}`). A step with `generate_only` is
 run by both sides (so artifact ids line up) but compared on neither; a later
@@ -192,3 +194,73 @@ as passing:
   document order (docs/workbench-progress.md, "pflow-native's SSA visits
   transitions in sorted-id order"). Native and the server use id order. On a net
   that lists its transitions in id order, all three agree to the bit.
+
+## /mcp game tools vs native (`cmd/webserver/mcp_game_parity_test.go`)
+
+`pflow_game_value` and `pflow_game_move` are pflow-native's `game.value` and
+`game.move` (an exact alpha-beta search of a net read as a two-sided game) on the
+hosted `/mcp` server, which runs Go on go-pflow and cannot reach the wasm. The
+search is `internal/gamesearch`, a Go port of pflow-rs' `pflow-metamodel` game
+search (transposition table, move-order pieces, filters, `null_window` and
+`mtd_f`, node budget, opening book, root `non_losing`) with pflow-native's
+command layer (`crates/core/src/commands/game.rs`, `game.rs`): same arguments
+(`sides`, `reward`, `auto`, `plan`, `nodes`, `book`, plus the net in the call),
+same results, same refusals. go-pflow is used unmodified (its model and parser).
+
+`game_goldens.json` is native's answer to every call in `game_cases.json`, which
+`gen-game/make_cases.py` writes: tic-tac-toe, Connect-3, Connect-4 (a table key of
+three words), Nim (a pile of more than one token: the counts engine from the
+root), a tic-tac-toe with a counter place (the bit engine spills to counts
+mid-search), one with 230 more places (no bit engine at all), one whose win
+detectors read a cell twice (the bit and counts deficits differ), a bucket with a
+capacity, a weight-2 arc and a read arc, and prize games with 13 and 9 distinct
+rewards (so `null_window` and `mtd_f` take different paths); random positions of
+each, under every exact plan piece alone and in combination, tiny tables (1 to
+100 entries, where which entry a full bucket gives up changes the node count),
+tiny budgets, play mode, books built from native's own values, and 94 refusals (plus 20 calls that name `ode`).
+The test replays each through the tool's handler and compares exactly: the value,
+the move, the node count, the budget, and the words of an error. `ported: false`
+marks the cases whose plan names the root estimate `ode`, which native answers
+and the tool must refuse.
+
+```sh
+make game-goldens PFLOW_RS=../pflow-rs     # a pflow-rs checkout at PFLOW_RS_REV (Makefile)
+go test ./cmd/webserver/ -run TestMCPGameMatchesNative
+```
+
+`gen-game/Cargo.toml` pins pflow-native at the commit that has the commands
+(`cdd3816`, newer than the wasm in `pflow-native-wasm.lock`, which has neither),
+so these goldens are generated apart from `goldens.json` and `mcp_goldens.json`;
+the file records both commits and a test checks them against the generator's
+pins. pflow-native pins pflow-rs at `9ce3d43`, which is before `mtd_f`, before
+a repeated driver was refused and before the counts engine's Zobrist key, so the
+generator builds against pflow-rs `35be807` instead (a checkout you name; Cargo
+does not take a patch to another revision of one git URL). Native is run as a
+library (`Session::execute`, as `gen/` does), not through `pflow-native-cli`: the
+same code path. Regenerating is deterministic.
+
+Known differences, all deliberate and tested in `mcp_game_test.go`:
+
+- **The root estimate `ode`** (and the `aspiration` driver, which needs an
+  estimate) is refused: native solves the mass-action ODE for it, the Go side
+  has not ported one. The refusal says so. No other piece of a plan is missing.
+- **Tighter caps**: at most 10,000,000 nodes (native 100,000,000) and 2^21 table
+  entries (native 2^23), so a call fits the 60 s timeout and the memory of eight
+  at once; native's words, with the cap. A call whose context ends stops the
+  search and is an error, never a value. The search runs at about two
+  microseconds a node here.
+- **One token colour.** Native runs a coloured net whose colour copies are all
+  used; the tool refuses a net with several colours.
+- **Names**: `pflow_game_value` / `pflow_game_move` (the repo's convention, as
+  `pflow_sde` is `sim.sde`), and `tools/call` also takes `game.value` and
+  `game.move`. A dotted name is not one every MCP client accepts in a tool list.
+- **No Report artifact** (native stores each result as one; the tool is
+  stateless).
+- **Order of a JSON object's members**: they arrive sorted, not as written, so
+  `sides`, `reward` and a plan are read in id order. That changes which of two
+  mistakes is reported first, and the order a reward's weights are summed in
+  (not their value, for the weights a game has). Places and transitions are in
+  id order on both sides (both parsers sort), so moves tie-break the same way.
+- Parse errors of a JSON string argument are worded as serde_json words the
+  common ones ("expected value", "EOF while parsing a value"), without its
+  " at line 1 column 7".

@@ -651,6 +651,65 @@ they had parity tests. They are on it now, as `pflow_sde`, `pflow_what_if` and
   of this note said main's BUILD was already stale; it was not (#111 brought it
   up to date before this branch).
 
+### Follow-up: game search on `/mcp`
+
+`/mcp` runs Go on go-pflow and cannot reach pflow-native's wasm, so pflow-native's
+`game.value` and `game.move` (pflow-rs' exact alpha-beta search of a net read as
+a two-sided game, slice 5 of its search-pieces roadmap) are a Go port:
+`internal/gamesearch`, the tools `pflow_game_value` and `pflow_game_move`
+(`cmd/webserver/mcp_game.go`). go-pflow is a dependency, unmodified.
+
+- **Ported**: the transposition table (line for line: node counts depend on its
+  layout and replacement), the bit engine's behaviour (a 0/1 marking's key, the
+  spill to counts, its deficit) and the counts engine (Zobrist keys), the order
+  pieces (`tt_best`, `immediate_win`, `history`, `centrality`, `threats`), the
+  filters (`must_win`, `non_losing`), the drivers (`null_window`, `mtd_f`,
+  `budget`), `memo`, `mode` (play), the root's `non_losing`, and the opening
+  book. Refused with the same words as native: a time budget, repeated pieces,
+  unknown names, bad arguments.
+- **Not ported, refused**: the root estimate `ode` and the `aspiration` driver.
+  Native solves the mass-action ODE for them.
+- **Parity**: `parity/native/game_goldens.json`, native's answer to ~1,500 calls
+  (`make game-goldens`), replayed by `mcp_game_parity_test.go`: identical values,
+  moves and node counts, identical refusals. `parity/native/README.md` has the
+  list of deliberate differences (caps, one colour, names, no artifact).
+
+### Follow-up: the game tools in the browser
+
+pflow-native `cdd3816` adds `game.value` and `game.move`: a net read as a
+two-sided game (`sides` who owns each transition, `reward` what the final
+marking pays, `auto` transitions nobody chooses), searched exactly by
+pflow-metamodel's alpha-beta over its firing rule, run as a `SearchPlan`
+names it.
+
+- **Vendored** (179 commands, 88 exposed). Both are exposed and in no side
+  list: read-only (the move is not fired, the marking is not set), no
+  artifact arguments (`book` is the label cache's text inline), and each
+  result is also filed as a Report. The engine's own caps apply: a node
+  budget of 1,000,000 by default and at most 100,000,000, a table of 2^20
+  entries by default and at most 2^23, and no time budget (`budget.ms` is
+  refused: the wasm build has no clock). Those caps are not sized for a
+  browser tab: natively `game.*` runs as a background job, but the wasm
+  build runs it synchronously on the page's thread (`runNative`, no
+  worker), and its time grows about linearly with the budget (connect-4:
+  1.5 s at the default, 16.6 s at 10,000,000, so about 165 s at the cap). The goal's
+  budget label, its caveat and the Assistant's prompt say so; moving the
+  game commands to a worker is a follow-up.
+- **The Assistant** gets `game_value` and `game_move`; `sides`, `reward`
+  and `plan` travel as JSON strings (`json_args`).
+- **The `best_play` goal**, "Who wins with best play, and with which move?",
+  runs `game.move`. Its rules are a new input kind, `json`: a text box whose
+  text `runGoal` parses before the plan runs. `petri-goals_test.ts` runs it
+  on a per-goal fixture, pflow-native's tic-tac-toe (a draw, and a best move
+  for X), where every other goal still runs on SIR.
+- **Parity:** six cases on a byte-identical copy of pflow-native's
+  `examples/tic-tac-toe.json` (`parity/native/fixtures/tic-tac-toe.json`):
+  the value and a move with the default plan, a plan given as an object and
+  as a JSON string, a mid-game position, past the budget in exact and play
+  mode, and the refusals (a time budget, too many nodes, too big a table, a
+  move no side owns). None names the `ode` root estimate, whose node count
+  can differ between the native and wasm builds.
+
 ---
 
 ## How to review all of this
