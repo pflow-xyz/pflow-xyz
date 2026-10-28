@@ -31,7 +31,7 @@ h1{font-size:1.8rem;margin-bottom:.25rem}h2{font-size:1.2rem;margin-top:2rem}
 <li><b>Sign-in records.</b> When an app such as Claude signs you in to the MCP connector, we keep a record of that sign-in (your account id, the app and an expiry date) so the app can stay signed in. It lasts at most 30 days after the app last refreshed it. We never see or store your GitHub or Google password.</li>
 <li><b>Request logs.</b> Our servers log each request's method, path, time and IP address, for running and debugging the service.</li>
 <li><b>Analytics.</b> The editor's home page and the composition views page (<code>/compose.html</code>) use Google Analytics to count visits, which sends Google the page address, the referring page, your IP address and browser details. The composition page keeps its state in the part of the address after <code>#</code>; we have not checked whether Google's script reports that part, so don't put anything private in it. The MCP connector and the other pages do not use Google Analytics.</li>
-<li><b>Your browser's own storage.</b> The editor keeps your working session (your model library, notes and settings) in your browser's IndexedDB, and the composition page remembers a view setting in local storage. These stay on your device; we don't receive them.</li>
+<li><b>Your browser's own storage.</b> The editor keeps your working session (your model library and notes) in your browser's IndexedDB, and the composition page remembers a view setting in local storage. These stay on your device; we don't receive them.</li>
 </ul>
 
 <h2>What we don't collect</h2>
@@ -40,7 +40,7 @@ h1{font-size:1.8rem;margin-bottom:.25rem}h2{font-size:1.2rem;margin-top:2rem}
 <h2>Who else sees it</h2>
 <ul>
 <li><b>GitHub or Google</b>, when you choose to sign in with them, under their own privacy policies.</li>
-<li><b>jsDelivr, PyPI and Python Package Index file hosts</b> (<code>cdn.jsdelivr.net</code>, <code>pypi.org</code>, <code>files.pythonhosted.org</code>), only if you open the Laws view on the composition page: your browser then downloads Pyodide and some Python packages from them (about 24&nbsp;MB), so they see your IP address, browser details and that the request came from pflow.xyz. Nothing from your models is sent. They are not contacted when the page loads or for the other views.</li>
+<li><b>jsDelivr and PyPI</b> (<code>cdn.jsdelivr.net</code>, <code>pypi.org</code>, <code>files.pythonhosted.org</code>), only if you open the Laws view on the composition page: your browser then downloads Pyodide and some Python packages from them (about 24&nbsp;MB), so they see your IP address, browser details and that the request came from pflow.xyz. Nothing from your models is sent. They are not contacted when the page loads or for the other views.</li>
 <li><b>cdnjs</b> (<code>cdnjs.cloudflare.com</code>): the editor loads its code-editor component from there each time it opens, with the same information as above. The editor falls back to a plain text box if it is blocked.</li>
 <li><b>GitHub gists</b>, only if you press the editor's create-a-gist button while signed in: the net is posted to your GitHub account using your token.</li>
 <li><b>Google Gemini</b>, if you use the editor's drafting or assistant features: the text you type and the net you are working on are sent to Google's Gemini API to produce a reply.</li>
