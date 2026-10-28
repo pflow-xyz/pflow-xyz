@@ -89,17 +89,37 @@ func TestMCPGameToolsAnswerToNativesNames(t *testing.T) {
 	}
 }
 
-// What native answers by solving the mass-action ODE, the server refuses, and
-// says why.
-func TestMCPGameRefusesTheOdeEstimate(t *testing.T) {
-	for _, plan := range []string{
-		`{"root":{"order":["ode"]}}`,
-		`{"root":{"order":["ode","non_losing"]}}`,
-		`{"drivers":["aspiration"],"root":{"order":["ode"]}}`,
+// The root estimate "ode" and the aspiration driver are answered, with the
+// numbers native gives (held case by case in mcp_game_parity_test.go).
+func TestMCPGameAnswersTheOdeEstimate(t *testing.T) {
+	for _, c := range []struct {
+		plan  string
+		nodes float64
+	}{
+		{`{"root":{"order":["ode"]}}`, 2432},
+		{`{"root":{"order":["ode","non_losing"]}}`, 2432},
+	} {
+		v := structured(t, gameCall(t, "pflow_game_value", "game-tic-tac-toe.jsonld", `,"plan":`+c.plan))
+		if v["value"] != 0.0 || v["exact"] != true || v["nodes"] != c.nodes {
+			t.Errorf("%s: %v", c.plan, v)
+		}
+		m := structured(t, gameCall(t, "pflow_game_move", "game-tic-tac-toe.jsonld", `,"plan":`+c.plan))
+		if m["value"] != 0.0 || m["transition"] != "x_play_11" || m["exact"] != true {
+			t.Errorf("%s: %v", c.plan, m)
+		}
+	}
+}
+
+// The aspiration driver starts from an estimate: refused without one, in
+// native's words, and not ported with one.
+func TestMCPGameRefusesTheAspirationDriver(t *testing.T) {
+	for plan, want := range map[string]string{
+		`{"drivers":["aspiration"]}`:                                  `driver "aspiration" starts from the root's estimate`,
+		`{"drivers":["aspiration"],"root":{"order":["ode"]}}`:         `the driver "aspiration" is not ported`,
+		`{"drivers":["aspiration","mtd_f"],"root":{"order":["ode"]}}`: `the driver "aspiration" is not ported`,
 	} {
 		for _, tool := range []string{"pflow_game_value", "pflow_game_move"} {
-			msg := toolError(t, gameCall(t, tool, "game-tic-tac-toe.jsonld", `,"plan":`+plan))
-			if !strings.Contains(msg, `"ode"`) || !strings.Contains(msg, "not ported") || !strings.Contains(msg, "mass-action ODE") {
+			if msg := toolError(t, gameCall(t, tool, "game-tic-tac-toe.jsonld", `,"plan":`+plan)); !strings.Contains(msg, want) {
 				t.Errorf("%s %s: %s", tool, plan, msg)
 			}
 		}

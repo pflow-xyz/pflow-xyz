@@ -13,6 +13,13 @@ RULES = {
     "ttt": {"auto": ["o_win_", "x_win_"], "reward": {"win_o": -1, "win_x": 1}, "sides": {"o_": -1, "x_": 1}},
     "nim": {"auto": ["a_lose", "b_lose"], "reward": {"win_a": 1, "win_b": -1}, "sides": {"a_take": 1, "b_take": -1}},
     "bucket": {"auto": ["a_stuck", "b_stuck"], "reward": {"win_a": 1, "win_b": -1}, "sides": {"a_add": 1, "b_add": -1}},
+    # A reward of one place: two distinct rewards, so a value is one search
+    # over the range and aspiration starts from a window around the guess.
+    "nim-a": {"auto": ["a_lose", "b_lose"], "reward": {"win_a": 1}, "sides": {"a_take": 1, "b_take": -1}},
+    # Eighteen reward places: more than a search steps through value by value.
+    "ttt-cells": {"auto": ["o_win_", "x_win_"],
+                  "reward": {f"{s}{r}{c}": w for s, w in (("o", -1), ("x", 1)) for r in range(3) for c in range(3)},
+                  "sides": {"o_": -1, "x_": 1}},
     "prizes-123": {"reward": {"o0": -1, "o1": -2, "o2": -3, "x0": 1, "x1": 2, "x2": 3}, "sides": {"o_take": -1, "x_take": 1}},
     "prizes-1111": {"reward": {"o0": -1, "o1": -1, "o2": -1, "o3": -1, "x0": 1, "x1": 1, "x2": 1, "x3": 1}, "sides": {"o_take": -1, "x_take": 1}},
 }
@@ -98,13 +105,28 @@ SWEEP = [
     ("nodes-60", {"nodes": 60}),
 ]
 
-# What native computes and this server does not: refused here, answered there.
-NOT_PORTED = [
-    plan("root-ode", root={"order": ["ode"]}),
-    plan("root-ode-nl", root={"order": ["ode", "non_losing"]}),
-    plan("aspiration-ode", drivers=["aspiration", "null_window"], root={"order": ["ode"]}),
-    plan("mtdf-aspiration-ode", drivers=["mtd_f", "aspiration"], root={"order": ["ode"]}),
+def ode(label, root=("ode",), **p):
+    return plan(label, root={"order": list(root)}, **p)
+
+
+# The root estimate "ode" (the mass-action ODE, solved at the root once per
+# move) and the aspiration driver that starts from its best guess.
+ODE = [
+    ode("root-ode"),
+    ode("root-ode-nl", root=("ode", "non_losing")),
+    ode("root-nl-ode", root=("non_losing", "ode")),
+    ode("no-driver-ode", drivers=[]),
+    ode("mtdf-ode", drivers=["mtd_f"]),
+    ode("ode-cent", order=["tt_best", "immediate_win", "centrality", "threats", "history"]),
+    ode("ode-filters-none", filters=[]),
+    ("nodes-40-ode", {"nodes": 40, "plan": {"root": {"order": ["ode"]}}}),
+    ("nodes-40-play-ode", {"nodes": 40, "plan": {"mode": "play", "root": {"order": ["ode"]}}}),
+    ("nodes-5-play-ode", {"nodes": 5, "plan": {"mode": "play", "root": {"order": ["ode"]}}}),
 ]
+# A smaller set, for the nets and the sweeps where each call is dear.
+SWEEP_NAMES = ["root-ode", "root-ode-nl", "aspiration-ode", "mtdf-aspiration-ode", "aspiration-only-ode", "ode-cent",
+               "aspiration-ode-nl-root", "nodes-40-ode", "nodes-40-play-ode"]
+ODE_SWEEP = [c for c in ODE if c[0] in SWEEP_NAMES]
 
 # What both refuse, with the same words.
 REFUSED = [
@@ -148,6 +170,9 @@ REFUSED = [
     ("root-twice", {"plan": {"root": {"order": ["non_losing", "non_losing"]}}}),
     ("root-is-filter", {"plan": {"root": {"order": ["must_win"]}}}),
     ("root-two-estimates", {"plan": {"root": {"order": ["ode", "ode"]}}}),
+    ("root-estimate-is-a-driver", {"plan": {"root": {"order": ["aspiration"]}}}),
+    ("aspiration-estimate-in-order", {"plan": {"order": ["ode"], "drivers": ["aspiration"]}}),
+    ("estimate-as-filter", {"plan": {"filters": ["ode"]}}),
     ("root-no-order", {"plan": {"root": {}}}),
     ("plan-unknown-field", {"plan": {"orders": []}}),
     ("plan-bad-mode", {"plan": {"mode": "fast"}}),
@@ -194,10 +219,14 @@ sets.append({"name": "ttt-sweep", "fixture": TTT, "rules": "ttt",
 sets.append({"name": "ttt-final", "fixture": TTT, "rules": "ttt",
              "positions": [{"fire": ["x_play_00", "o_play_01", "x_play_11", "o_play_02", "x_play_22"]},
                            {"fire": ["x_play_00", "o_play_01", "x_play_02", "o_play_11", "x_play_10", "o_play_12", "x_play_21", "o_play_20", "x_play_22"]}],
-             "calls": calls([("default", {}), plan("play", mode="play"), plan("ode", root={"order": ["ode"]})])})
-sets.append({"name": "ttt-not-ported", "fixture": TTT, "rules": "ttt",
-             "positions": [{"initial": True}, {"fire": ["x_play_11"]}],
-             "calls": calls(NOT_PORTED)})
+             "calls": calls([
+                 ("default", {}),
+                 plan("play", mode="play"),
+                 plan("ode", root={"order": ["ode"]}),
+             ])})
+sets.append({"name": "ttt-ode", "fixture": TTT, "rules": "ttt",
+             "positions": [{"initial": True}, {"fire": ["x_play_11"]}, {"fire": ["x_play_11", "o_play_00"]}, sweep(91, 9, 8)],
+             "calls": calls(ODE)})
 sets.append({"name": "ttt-refused", "fixture": TTT, "rules": "ttt",
              "positions": [{"initial": True}],
              "calls": calls(REFUSED, tools=("game.value",)) + calls(REFUSED[:12], tools=("game.move",))})
@@ -208,13 +237,21 @@ sets.append({"name": "connect3", "fixture": "native/fixtures/game-connect-3.json
 sets.append({"name": "connect3-start", "fixture": "native/fixtures/game-connect-3.jsonld", "rules": "ttt",
              "positions": [{"initial": True}],
              "calls": calls([("default", {}), ("nodes-3000", {"nodes": 3000}), ("nodes-3000-play", {"nodes": 3000, "plan": {"mode": "play"}})])})
+sets.append({"name": "connect3-ode", "fixture": "native/fixtures/game-connect-3.jsonld", "rules": "ttt",
+             "positions": [{"initial": True}, sweep(23, 14, 3)],
+             "calls": calls(ODE_SWEEP + [
+                 ("nodes-5000-ode", {"nodes": 5000, "plan": {"root": {"order": ["ode"]}}}),
+             ])})
 sets.append({"name": "connect4", "fixture": "native/fixtures/game-connect-4.jsonld", "rules": "ttt",
              "positions": [sweep(31, 40, 4), {"initial": True}],
              "calls": calls([("default-nodes-4000", {"nodes": 4000}),
                              ("cent-nodes-4000", {"nodes": 4000, "plan": {"order": ["tt_best", "immediate_win", "centrality", "threats", "history"]}}),
                              ("nl-nodes-4000", {"nodes": 4000, "plan": {"root": {"order": ["non_losing"]}, "filters": []}}),
                              ("mtdf-nodes-4000", {"nodes": 4000, "plan": {"drivers": ["mtd_f"]}}),
-                             ("play-nodes-4000", {"nodes": 4000, "plan": {"mode": "play"}})])})
+                             ("play-nodes-4000", {"nodes": 4000, "plan": {"mode": "play"}}),
+                             ("ode-nodes-4000", {"nodes": 4000, "plan": {"root": {"order": ["ode"]}}}),
+                             ("ode-nl-nodes-4000", {"nodes": 4000, "plan": {"root": {"order": ["ode", "non_losing"]}, "filters": []}}),
+                             ("play-ode-nodes-4000", {"nodes": 4000, "plan": {"mode": "play", "root": {"order": ["ode"]}}})])})
 
 sets.append({"name": "ttt-count", "fixture": "native/fixtures/game-ttt-count.jsonld", "rules": "ttt",
              "positions": [{"initial": True}, {"fire": ["x_play_00"]}, sweep(41, 7, 3)],
@@ -234,6 +271,22 @@ sets.append({"name": "bucket", "fixture": "native/fixtures/game-bucket.jsonld", 
              "calls": calls(SWEEP + [plan("filters-none", filters=[]), plan("mtdf-nofilters", drivers=["mtd_f"], filters=[]),
                                      plan("memo-3", memo={"entries": 3}), plan("order-cent", order=["centrality", "threats"]),
                                      plan("order-cent-nl", order=["threats", "history"], filters=["non_losing"], root={"order": ["non_losing"]})])})
+sets.append({"name": "nim-ode", "fixture": "native/fixtures/game-nim.jsonld", "rules": "nim",
+             "positions": [{"initial": True}, {"fire": ["a_take1"]}, {"fire": ["a_take2", "b_take2"]}, {"fire": ["a_take2", "b_take1", "a_take1"]}, sweep(111, 5, 4)],
+             "calls": calls(ODE)})
+sets.append({"name": "nim-ode-two-rewards", "fixture": "native/fixtures/game-nim.jsonld", "rules": "nim-a",
+             "positions": [{"initial": True}, {"fire": ["a_take1"]}, sweep(112, 5, 4)],
+             "calls": calls([("default", {})] + ODE)})
+sets.append({"name": "bucket-ode", "fixture": "native/fixtures/game-bucket.jsonld", "rules": "bucket",
+             "positions": [{"initial": True}, {"fire": ["a_add1"]}, {"fire": ["a_add2", "b_add2"]}, {"fire": ["a_add1", "b_add1", "a_add1"]}, sweep(113, 4, 4)],
+             "calls": calls(ODE)})
+for k in ("ttt-count", "ttt-double", "ttt-wide"):
+    sets.append({"name": k + "-ode", "fixture": f"native/fixtures/game-{k}.jsonld", "rules": "ttt",
+                 "positions": [{"initial": True}, {"fire": ["x_play_00"]}, sweep(121, 7, 3)],
+                 "calls": calls(ODE_SWEEP)})
+sets.append({"name": "ttt-cells-ode", "fixture": TTT, "rules": "ttt-cells",
+             "positions": [{"fire": ["x_play_11", "o_play_00", "x_play_02", "o_play_20"]}, sweep(131, 8, 4)],
+             "calls": calls([("default-nodes-20000", {"nodes": 20000})] + [(n + "-nodes-20000", dict(a, nodes=20000)) for n, a in ODE_SWEEP])})
 for k in ("prizes-123", "prizes-1111"):
     sets.append({"name": k, "fixture": f"native/fixtures/game-{k}.jsonld", "rules": k,
                  "positions": [{"initial": True}, sweep(61, 3, 3)],
@@ -242,7 +295,8 @@ for k in ("prizes-123", "prizes-1111"):
                                  plan("mtdf-memo-6", drivers=["mtd_f"], memo={"entries": 6}),
                                  plan("nw-memo-6", memo={"entries": 6}), plan("filters-both", filters=["must_win", "non_losing"]),
                                  plan("root-nl", root={"order": ["non_losing"]}), plan("mtdf-root-nl", drivers=["mtd_f"], root={"order": ["non_losing"]}),
-                                 plan("order-cent", order=["centrality"]), ("nodes-8", {"nodes": 8}), ("nodes-8-mtdf", {"nodes": 8, "plan": {"drivers": ["mtd_f"]}})])})
+                                 plan("order-cent", order=["centrality"]), ("nodes-8", {"nodes": 8}), ("nodes-8-mtdf", {"nodes": 8, "plan": {"drivers": ["mtd_f"]}})] + ODE)})
+
 
 # Books: label caches built by the generator from native's own values.
 BOOK_POS = [{"initial": True}, {"fire": ["x_play_11"]}, {"fire": ["x_play_11", "o_play_00"]}]

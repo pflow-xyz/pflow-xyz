@@ -33,6 +33,9 @@ type Options struct {
 	// RootNonLosing drops the root's moves that leave the other side a win
 	// at once.
 	RootNonLosing bool
+	// Estimate, when set, guesses the value after each of the root's moves;
+	// the guess breaks the order chain's ties among them, best first.
+	Estimate Estimate
 	// Play lets Choose guess when the budget runs out.
 	Play bool
 	// Memo is the table's entries; 0 means DefaultMemo.
@@ -72,6 +75,7 @@ type Solver struct {
 
 	nullWindow, mtdF bool
 	rootNonLosing    bool
+	estimate         Estimate
 	ranked           *ranked
 	play             bool
 	cancel           func() error
@@ -112,6 +116,7 @@ func NewSolver(g *Game, o Options) (*Solver, error) {
 		nullWindow:    o.NullWindow,
 		mtdF:          o.MtdF,
 		rootNonLosing: o.RootNonLosing,
+		estimate:      o.Estimate,
 		play:          o.Play,
 		cancel:        o.Cancel,
 	}, nil
@@ -167,11 +172,11 @@ func (s *Solver) WithBook(book *Book) {
 }
 
 // rank runs the root's pieces at mk, or nil when none runs or there is no
-// move.
+// move. An estimate is solved once per move.
 func (s *Solver) rank(mk []int64) (*ranked, error) {
 	g := s.g
 	moves := g.Moves(mk)
-	if !s.rootNonLosing || len(moves) == 0 {
+	if (!s.rootNonLosing && s.estimate == nil) || len(moves) == 0 {
 		return nil, nil
 	}
 	sd, err := g.Mover(moves)
@@ -188,16 +193,35 @@ func (s *Solver) rank(mk []int64) (*ranked, error) {
 		if err != nil {
 			return nil, err
 		}
-		w := newCounts(g, next)
-		lost, err := s.filters.lost(g, sd, w)
-		if err != nil {
-			return nil, err
+		if s.rootNonLosing {
+			w := newCounts(g, next)
+			lost, err := s.filters.lost(g, sd, w)
+			if err != nil {
+				return nil, err
+			}
+			if lost == triTrue {
+				continue
+			}
 		}
-		if lost == triTrue {
-			continue
+		guess := 0.0
+		if s.estimate != nil {
+			if len(g.Moves(next)) == 0 {
+				if guess, err = g.Score(next); err != nil {
+					return nil, err
+				}
+			} else {
+				if guess, err = s.estimate.Estimate(g, next); err != nil {
+					return nil, err
+				}
+				// f64::clamp: a NaN stays one.
+				if guess < g.Bounds[0] {
+					guess = g.Bounds[0]
+				} else if guess > g.Bounds[1] {
+					guess = g.Bounds[1]
+				}
+			}
 		}
-		// No estimate is ported: every move guesses 0.
-		ks = append(ks, kept{sd * 0.0, t})
+		ks = append(ks, kept{sd * guess, t})
 	}
 	// Stable: ties keep the net's order.
 	sort.SliceStable(ks, func(i, j int) bool { return totalCmp(ks[j].guess, ks[i].guess) < 0 })

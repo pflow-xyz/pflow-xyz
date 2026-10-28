@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/pflow-xyz/go-pflow/metamodel"
 	"github.com/pflow-xyz/go-pflow/parser"
 )
 
@@ -104,6 +105,10 @@ var plans = []string{
 	`{"drivers": ["mtd_f"]}`,
 	`{"drivers": ["mtd_f"], "filters": [], "memo": {"entries": 5}}`,
 	`{"memo": {"entries": 1}, "order": []}`,
+	// The root estimate changes the order of the root's moves, never the value.
+	`{"root": {"order": ["ode"]}}`,
+	`{"root": {"order": ["ode", "non_losing"]}, "filters": []}`,
+	`{"root": {"order": ["non_losing", "ode"]}, "drivers": ["mtd_f"], "memo": {"entries": 7}}`,
 }
 
 func TestValueIsTheMinimaxValue(t *testing.T) {
@@ -197,18 +202,111 @@ func TestPastTheBudgetThereIsNoValue(t *testing.T) {
 	}
 }
 
-func TestTheOdeEstimateIsRefused(t *testing.T) {
+// What is still refused. The root estimate is built for "ode" alone; a time
+// budget needs a clock the browser build lacks, so it is refused as native
+// refuses it; the aspiration driver needs an estimate to start from.
+func TestWhatIsStillRefused(t *testing.T) {
 	net, _ := load(t, games["ttt"].file)
-	for _, p := range []string{
-		`{"root": {"order": ["ode"]}}`,
-		`{"root": {"order": ["ode", "non_losing"]}}`,
-		`{"drivers": ["aspiration"], "root": {"order": ["ode"]}}`,
+	for _, c := range []struct{ plan, want string }{
+		{`{"drivers": ["aspiration"]}`, `driver "aspiration" starts from the root's estimate: name one in root.order`},
+		{`{"drivers": ["aspiration"], "root": {"order": ["ode"]}}`, `the driver "aspiration" is not ported`},
+		{`{"root": {"order": ["nope"]}}`, `unknown root piece "nope"`},
+		{`{"root": {"order": ["ode", "ode"]}}`, `root piece "ode" is listed twice`},
+		{`{"drivers": [{"budget": {"nodes": 1000, "ms": 50}}]}`, "budget.ms"},
+		{`{"heuristics": ["static_eval"]}`, `heuristic "static_eval"`},
+		{`{"filters": ["beam"]}`, `filter "beam"`},
 	} {
 		for _, run := range []func(*Net, map[string]any, Config) (map[string]any, error){Value, Move} {
-			out, err := run(net, args(t, games["ttt"], p, nil), Config{})
-			if err == nil || !strings.Contains(err.Error(), `"ode"`) || !strings.Contains(err.Error(), "not ported") {
-				t.Errorf("%s: %v %v", p, out, err)
+			out, err := run(net, args(t, games["ttt"], c.plan, nil), Config{})
+			if err == nil || !strings.Contains(err.Error(), c.want) {
+				t.Errorf("%s: %v %v", c.plan, out, err)
 			}
+		}
+	}
+}
+
+// The caps stay: the node budget and the table are the server's.
+func TestTheCapsStay(t *testing.T) {
+	net, _ := load(t, games["ttt"].file)
+	cfg := Config{MaxNodes: 1000, MaxMemo: 64}
+	for _, c := range []struct {
+		plan  string
+		extra map[string]any
+		want  string
+	}{
+		{`{"root": {"order": ["ode"]}}`, map[string]any{"nodes": 5000.0}, "nodes must be in 1..1000"},
+		{`{"root": {"order": ["ode"]}, "drivers": [{"budget": {"nodes": 5000}}]}`, nil, "budget.nodes must be at most 1000"},
+		{`{"root": {"order": ["ode"]}, "memo": {"entries": 100}}`, nil, "memo.entries must be at most 64"},
+	} {
+		out, err := Value(net, args(t, games["ttt"], c.plan, c.extra), cfg)
+		if err == nil || !strings.Contains(err.Error(), c.want) {
+			t.Errorf("%s: %v %v", c.plan, out, err)
+		}
+	}
+}
+
+// The ODE estimate on a net small enough to solve by hand: A -> t -> B at
+// rate 1 for 3 time units leaves A e^-3 of its tokens.
+func TestOdeEstimateSolvesTheMassActionODE(t *testing.T) {
+	m := &metamodel.Model{
+		Places:      []metamodel.Place{{ID: "A", Initial: 4}, {ID: "B"}},
+		Transitions: []metamodel.Transition{{ID: "t"}},
+		Arcs:        []metamodel.Arc{{From: "A", To: "t", Weight: 1}, {From: "t", To: "B", Weight: 1}},
+	}
+	ix := NewIndexed(m)
+	g := NewGame(ix, []bool{false}, []float64{1}, []Reward{{Place: 1, Weight: 1}})
+	e := NewOdeEstimate(g, nil)
+	u, err := e.FinalState([]int64{4, 0})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := 4 * math.Exp(-3); math.Abs(u[0]-want) > 1e-3 || math.Abs(u[0]+u[1]-4) > 1e-9 {
+		t.Errorf("A = %v, want %v; A+B = %v", u[0], want, u[0]+u[1])
+	}
+	v, err := e.Estimate(g, []int64{4, 0})
+	if err != nil || v != u[1] {
+		t.Errorf("%v %v", v, err)
+	}
+	// A read arc gates a flux without taking from its place; an arc on the
+	// same place twice multiplies it twice.
+	m.Arcs = []metamodel.Arc{{From: "A", To: "t", Weight: 1, Type: metamodel.ReadArc}, {From: "t", To: "B", Weight: 1}}
+	e = NewOdeEstimate(NewGame(NewIndexed(m), []bool{false}, []float64{1}, []Reward{{Place: 1, Weight: 1}}), nil)
+	if u, _ = e.FinalState([]int64{4, 0}); u[0] != 4 || u[1] < 11 {
+		t.Errorf("read arc: %v", u)
+	}
+}
+
+// An estimate that is told to stop does.
+func TestTheOdeEstimateStopsWhenToldTo(t *testing.T) {
+	net, _ := load(t, games["ttt"].file)
+	stop := Config{Cancel: func() error { return os.ErrDeadlineExceeded }}
+	_, err := Value(net, args(t, games["ttt"], `{"root": {"order": ["ode"]}}`, nil), stop)
+	if err == nil {
+		t.Error("an estimate that was told to stop returned a value")
+	}
+}
+
+// The pow behind the step controller is the correctly rounded one. The
+// expected values are x^(1/6) (the double nearest 1/6) evaluated to 80
+// digits with Python's decimal module and rounded once.
+func TestPowIsCorrectlyRounded(t *testing.T) {
+	sixth := 1.0 / 6.0
+	for _, c := range []struct{ x, want float64 }{
+		{1e-9, 0.0316227766016838}, {0.37, 0.8472930043419643}, {2.5, 1.164993050750713},
+		{1e6, 9.999999999999998}, {3e11, 81.81888230000268}, {123.456, 2.231440786728173},
+		{0.9999999, 0.9999999833333326}, {7e-5, 0.2030094899212487},
+	} {
+		if got := pow(c.x, sixth); got != c.want {
+			t.Errorf("pow(%v, 1/6) = %v, want %v", c.x, got, c.want)
+		}
+	}
+	if got := pow(1024, 0.1); got != 2 {
+		t.Errorf("pow(1024, 0.1) = %v", got)
+	}
+	// The special cases are math.Pow's.
+	for _, c := range [][2]float64{{0, 0.5}, {-1, 0.5}, {math.Inf(1), 0.5}, {2, 0}, {math.NaN(), 1}, {1e-320, 0.5}, {1e300, 100}} {
+		if got, want := pow(c[0], c[1]), math.Pow(c[0], c[1]); got != want && !(math.IsNaN(got) && math.IsNaN(want)) {
+			t.Errorf("pow(%v, %v) = %v, want %v", c[0], c[1], got, want)
 		}
 	}
 }

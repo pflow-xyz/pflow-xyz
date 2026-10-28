@@ -26,7 +26,7 @@ use serde_json::{json, Map, Value};
 use std::fs;
 use std::sync::Arc;
 
-const PFLOW_NATIVE: &str = "cdd3816106e64df93456c45900ef92550cbbb90c";
+const PFLOW_NATIVE: &str = "cc2c63b2ece5fefddf3f3c65e2103d1e4724d0f3";
 const PFLOW_RS: &str = "35be80745784e9ed0375103bfc035ffcfcfaeb2c";
 
 fn arg(name: &str, dflt: &str) -> String {
@@ -291,14 +291,8 @@ fn main() {
                 rec.insert("marking".into(), mk.clone());
                 rec.insert("tool".into(), json!(tool));
                 rec.insert("args".into(), args.clone());
-                // A plan naming the "ode" estimate: native solves the ODE,
-                // the Go tool refuses it (see game_test.go).
-                let names_ode = args["plan"].to_string().contains("\"ode\"");
                 match s.execute(tool, args) {
                     Ok(mut v) => {
-                        if names_ode {
-                            rec.insert("ported".into(), json!(false));
-                        }
                         if let Some(o) = v.as_object_mut() {
                             o.remove("artifact");
                         }

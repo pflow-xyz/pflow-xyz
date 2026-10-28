@@ -16,17 +16,17 @@ package main
 // pflow-native is the reference. parity/native/game_goldens.json is its answer
 // to every call in parity/native/game_cases.json (parity/native/gen-game),
 // and mcp_game_parity_test.go holds these tools to it: identical values and
-// moves, identical node counts, identical refusals' words. What differs:
+// moves, identical node counts, identical refusals' words. That covers the
+// root estimate "ode" (the mass-action ODE solved at the root, ode.go). What differs:
 //
-//   - A plan that names the root estimate "ode" (or the "aspiration" driver
-//     that starts from it) is refused, as pflow-native runs a mass-action ODE
-//     for it and this server does not port one.
+//   - The "aspiration" driver is refused (it starts from the estimate's guess,
+//     which this search does not take yet).
+//   - A net with several token colours is refused (native supports one whose
+//     colour copies are all used).
 //   - The caps are tighter than native's (wbGameMaxNodes, wbGameMaxMemo): a
 //     call that asks for more is refused with native's words and the cap.
 //     The call's context stops a search that runs on; the result is an error,
 //     not a value.
-//   - A net with several token colours is refused (native supports one whose
-//     colour copies are all used).
 //   - A JSON object's members arrive in sorted order, not the order written,
 //     so `sides`, `reward` and the plan are read in sorted order. That
 //     changes which of two mistakes is reported first, and the reward's
@@ -80,7 +80,8 @@ var (
 			"order: tt_best, immediate_win, history, centrality, threats (highest priority first; default tt_best, immediate_win, history). " +
 			"filters: must_win (default), non_losing. root: {order: [\"non_losing\"]}. " +
 			"drivers: null_window (default), mtd_f, {budget: {nodes: N}}. memo: {entries: N}. " +
-			"Refused: a time budget (budget.ms), and the root estimate \"ode\" with the \"aspiration\" driver (they need the mass-action ODE, which this server does not run)"},
+			"root: {order: [\"non_losing\", \"ode\"]}, at most one estimate: \"ode\" solves the mass-action ODE of the net with every transition at rate 1 (not the net's rates) from each position the root's moves reach, to rank them. " +
+			"Refused: a time budget (budget.ms), and the \"aspiration\" driver (not ported)"},
 		"nodes": map[string]any{"type": "integer", "minimum": 1, "maximum": wbGameMaxNodes, "description": fmt.Sprintf("the node budget when the plan's drivers set none (default 1,000,000; at most %d here)", wbGameMaxNodes)},
 		"book":  map[string]any{"type": "string", "description": "an opening book: the text of a label cache (JSONL, a header line naming the net and rules, then one position per line {mk, vals}); its positions are pinned in the table, exact"},
 	}
@@ -100,7 +101,7 @@ func gameTools() []mcpTool {
 			Name: "pflow_game_value",
 			Description: "The exact value of a position of a two-sided game played on a net, from the +1 side's view, with both sides playing perfectly: pflow-native's game.value (alpha-beta over the firing rule, with a transposition table). " +
 				"The game is the net read through `sides` (who owns each transition), `reward` (read off the final marking) and `auto` (transitions nobody chooses, fired first); the position is the net's marking. " +
-				"Returns {value, exact, nodes, mover, moves, budget, book}; the value is null (exact false) when the search runs past its node budget (`nodes` then reports the budget). The same numbers, node counts and refusals as pflow-native for the same plan, except that the root estimate \"ode\" is refused. Changes nothing.",
+				"Returns {value, exact, nodes, mover, moves, budget, book}; the value is null (exact false) when the search runs past its node budget (`nodes` then reports the budget). The same numbers, node counts and refusals as pflow-native for the same plan (the root estimate \"ode\" included, whose node counts can differ across platforms only if the platform's math library rounds differently). Changes nothing.",
 			InputSchema: gameInput(),
 			run:         mcpGameValue,
 		},
@@ -108,7 +109,7 @@ func gameTools() []mcpTool {
 			Name: "pflow_game_move",
 			Description: "A best move at a position of a two-sided game played on a net, and the position's exact value: pflow-native's game.move (the same search as pflow_game_value, run as `plan` names it). " +
 				"It is a best move: another plan may pick another, equally good one. Past the node budget there is no move (transition null, reason \"past the budget\"), unless the plan's mode is \"play\", where the move is a guess (exact false). " +
-				"Returns {transition, value, exact, nodes, budget, book}. The move is not played. The same moves, values, node counts and refusals as pflow-native for the same plan, except that the root estimate \"ode\" is refused.",
+				"Returns {transition, value, exact, nodes, budget, book}. The move is not played. The same moves, values, node counts and refusals as pflow-native for the same plan.",
 			InputSchema: gameInput(),
 			run:         mcpGameMove,
 		},

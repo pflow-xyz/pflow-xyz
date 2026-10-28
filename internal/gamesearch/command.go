@@ -647,11 +647,6 @@ func newSearch(net *Net, a map[string]any, cfg Config) (*search, error) {
 	if err != nil {
 		return nil, err
 	}
-	if what, err := plan.RefusedPieces(); err != nil {
-		return nil, err
-	} else if what != "" {
-		return nil, fmt.Errorf("plan: %s is not ported to this server: use a plan without it (the exact pieces are filters, order, memo, drivers null_window, mtd_f and budget, and root non_losing)", what)
-	}
 	g := NewGame(ix, r.auto, r.sign, r.reward)
 	x := &search{ix: ix, g: g, plan: plan, budget: budget, cfg: cfg}
 	if text, ok := argStr(a, "book"); ok {
@@ -684,6 +679,16 @@ func (x *search) solver() (*Solver, error) {
 		return nil, err
 	}
 	o.Cancel = x.cfg.Cancel
+	if name, ok, err := x.plan.Estimate(); err != nil {
+		return nil, err
+	} else if ok {
+		switch name {
+		case "ode":
+			o.Estimate = NewOdeEstimate(x.g, x.cfg.Cancel)
+		default:
+			return nil, fmt.Errorf("search plan: the root names estimate %q, which is not built into this server", name)
+		}
+	}
 	s, err := NewSolver(x.g, o)
 	if err != nil {
 		return nil, err

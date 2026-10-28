@@ -43,6 +43,49 @@
     "b_add": -1
    }
   },
+  "nim-a": {
+   "auto": [
+    "a_lose",
+    "b_lose"
+   ],
+   "reward": {
+    "win_a": 1
+   },
+   "sides": {
+    "a_take": 1,
+    "b_take": -1
+   }
+  },
+  "ttt-cells": {
+   "auto": [
+    "o_win_",
+    "x_win_"
+   ],
+   "reward": {
+    "o00": -1,
+    "o01": -1,
+    "o02": -1,
+    "o10": -1,
+    "o11": -1,
+    "o12": -1,
+    "o20": -1,
+    "o21": -1,
+    "o22": -1,
+    "x00": 1,
+    "x01": 1,
+    "x02": 1,
+    "x10": 1,
+    "x11": 1,
+    "x12": 1,
+    "x20": 1,
+    "x21": 1,
+    "x22": 1
+   },
+   "sides": {
+    "o_": -1,
+    "x_": 1
+   }
+  },
   "prizes-123": {
    "reward": {
     "o0": -1,
@@ -1431,7 +1474,7 @@
    ]
   },
   {
-   "name": "ttt-not-ported",
+   "name": "ttt-ode",
    "fixture": "native/fixtures/game-tic-tac-toe.jsonld",
    "rules": "ttt",
    "positions": [
@@ -1442,6 +1485,19 @@
      "fire": [
       "x_play_11"
      ]
+    },
+    {
+     "fire": [
+      "x_play_11",
+      "o_play_00"
+     ]
+    },
+    {
+     "random": {
+      "seed": 91,
+      "plies": 9,
+      "count": 8
+     }
     }
    ],
    "calls": [
@@ -1500,16 +1556,13 @@
      }
     },
     {
-     "name": "value-aspiration-ode",
+     "name": "value-root-nl-ode",
      "tool": "game.value",
      "args": {
       "plan": {
-       "drivers": [
-        "aspiration",
-        "null_window"
-       ],
        "root": {
         "order": [
+         "non_losing",
          "ode"
         ]
        }
@@ -1517,16 +1570,13 @@
      }
     },
     {
-     "name": "move-aspiration-ode",
+     "name": "move-root-nl-ode",
      "tool": "game.move",
      "args": {
       "plan": {
-       "drivers": [
-        "aspiration",
-        "null_window"
-       ],
        "root": {
         "order": [
+         "non_losing",
          "ode"
         ]
        }
@@ -1534,14 +1584,139 @@
      }
     },
     {
-     "name": "value-mtdf-aspiration-ode",
+     "name": "value-no-driver-ode",
      "tool": "game.value",
      "args": {
       "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": []
+      }
+     }
+    },
+    {
+     "name": "move-no-driver-ode",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": []
+      }
+     }
+    },
+    {
+     "name": "value-mtdf-ode",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
        "drivers": [
-        "mtd_f",
-        "aspiration"
-       ],
+        "mtd_f"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-mtdf-ode",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "mtd_f"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-ode-cent",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "order": [
+        "tt_best",
+        "immediate_win",
+        "centrality",
+        "threats",
+        "history"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-ode-cent",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "order": [
+        "tt_best",
+        "immediate_win",
+        "centrality",
+        "threats",
+        "history"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-ode-filters-none",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "filters": []
+      }
+     }
+    },
+    {
+     "name": "move-ode-filters-none",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "filters": []
+      }
+     }
+    },
+    {
+     "name": "value-nodes-40-ode",
+     "tool": "game.value",
+     "args": {
+      "nodes": 40,
+      "plan": {
        "root": {
         "order": [
          "ode"
@@ -1551,14 +1726,71 @@
      }
     },
     {
-     "name": "move-mtdf-aspiration-ode",
+     "name": "move-nodes-40-ode",
      "tool": "game.move",
      "args": {
+      "nodes": 40,
       "plan": {
-       "drivers": [
-        "mtd_f",
-        "aspiration"
-       ],
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "value-nodes-40-play-ode",
+     "tool": "game.value",
+     "args": {
+      "nodes": 40,
+      "plan": {
+       "mode": "play",
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "move-nodes-40-play-ode",
+     "tool": "game.move",
+     "args": {
+      "nodes": 40,
+      "plan": {
+       "mode": "play",
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "value-nodes-5-play-ode",
+     "tool": "game.value",
+     "args": {
+      "nodes": 5,
+      "plan": {
+       "mode": "play",
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "move-nodes-5-play-ode",
+     "tool": "game.move",
+     "args": {
+      "nodes": 5,
+      "plan": {
+       "mode": "play",
        "root": {
         "order": [
          "ode"
@@ -2059,6 +2291,44 @@
          "ode"
         ]
        }
+      }
+     }
+    },
+    {
+     "name": "value-root-estimate-is-a-driver",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "aspiration"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "value-aspiration-estimate-in-order",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "order": [
+        "ode"
+       ],
+       "drivers": [
+        "aspiration"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-estimate-as-filter",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "filters": [
+        "ode"
+       ]
       }
      }
     },
@@ -2990,6 +3260,205 @@
    ]
   },
   {
+   "name": "connect3-ode",
+   "fixture": "native/fixtures/game-connect-3.jsonld",
+   "rules": "ttt",
+   "positions": [
+    {
+     "initial": true
+    },
+    {
+     "random": {
+      "seed": 23,
+      "plies": 14,
+      "count": 3
+     }
+    }
+   ],
+   "calls": [
+    {
+     "name": "value-root-ode",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "move-root-ode",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "value-root-ode-nl",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode",
+         "non_losing"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "move-root-ode-nl",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode",
+         "non_losing"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "value-ode-cent",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "order": [
+        "tt_best",
+        "immediate_win",
+        "centrality",
+        "threats",
+        "history"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-ode-cent",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "order": [
+        "tt_best",
+        "immediate_win",
+        "centrality",
+        "threats",
+        "history"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-nodes-40-ode",
+     "tool": "game.value",
+     "args": {
+      "nodes": 40,
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "move-nodes-40-ode",
+     "tool": "game.move",
+     "args": {
+      "nodes": 40,
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "value-nodes-40-play-ode",
+     "tool": "game.value",
+     "args": {
+      "nodes": 40,
+      "plan": {
+       "mode": "play",
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "move-nodes-40-play-ode",
+     "tool": "game.move",
+     "args": {
+      "nodes": 40,
+      "plan": {
+       "mode": "play",
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "value-nodes-5000-ode",
+     "tool": "game.value",
+     "args": {
+      "nodes": 5000,
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "move-nodes-5000-ode",
+     "tool": "game.move",
+     "args": {
+      "nodes": 5000,
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
    "name": "connect4",
    "fixture": "native/fixtures/game-connect-4.jsonld",
    "rules": "ttt",
@@ -3123,6 +3592,96 @@
       "nodes": 4000,
       "plan": {
        "mode": "play"
+      }
+     }
+    },
+    {
+     "name": "value-ode-nodes-4000",
+     "tool": "game.value",
+     "args": {
+      "nodes": 4000,
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "move-ode-nodes-4000",
+     "tool": "game.move",
+     "args": {
+      "nodes": 4000,
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "value-ode-nl-nodes-4000",
+     "tool": "game.value",
+     "args": {
+      "nodes": 4000,
+      "plan": {
+       "root": {
+        "order": [
+         "ode",
+         "non_losing"
+        ]
+       },
+       "filters": []
+      }
+     }
+    },
+    {
+     "name": "move-ode-nl-nodes-4000",
+     "tool": "game.move",
+     "args": {
+      "nodes": 4000,
+      "plan": {
+       "root": {
+        "order": [
+         "ode",
+         "non_losing"
+        ]
+       },
+       "filters": []
+      }
+     }
+    },
+    {
+     "name": "value-play-ode-nodes-4000",
+     "tool": "game.value",
+     "args": {
+      "nodes": 4000,
+      "plan": {
+       "mode": "play",
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "move-play-ode-nodes-4000",
+     "tool": "game.move",
+     "args": {
+      "nodes": 4000,
+      "plan": {
+       "mode": "play",
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
       }
      }
     }
@@ -4556,6 +5115,1732 @@
    ]
   },
   {
+   "name": "nim-ode",
+   "fixture": "native/fixtures/game-nim.jsonld",
+   "rules": "nim",
+   "positions": [
+    {
+     "initial": true
+    },
+    {
+     "fire": [
+      "a_take1"
+     ]
+    },
+    {
+     "fire": [
+      "a_take2",
+      "b_take2"
+     ]
+    },
+    {
+     "fire": [
+      "a_take2",
+      "b_take1",
+      "a_take1"
+     ]
+    },
+    {
+     "random": {
+      "seed": 111,
+      "plies": 5,
+      "count": 4
+     }
+    }
+   ],
+   "calls": [
+    {
+     "name": "value-root-ode",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "move-root-ode",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "value-root-ode-nl",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode",
+         "non_losing"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "move-root-ode-nl",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode",
+         "non_losing"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "value-root-nl-ode",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "non_losing",
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "move-root-nl-ode",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "non_losing",
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "value-no-driver-ode",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": []
+      }
+     }
+    },
+    {
+     "name": "move-no-driver-ode",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": []
+      }
+     }
+    },
+    {
+     "name": "value-mtdf-ode",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "mtd_f"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-mtdf-ode",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "mtd_f"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-ode-cent",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "order": [
+        "tt_best",
+        "immediate_win",
+        "centrality",
+        "threats",
+        "history"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-ode-cent",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "order": [
+        "tt_best",
+        "immediate_win",
+        "centrality",
+        "threats",
+        "history"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-ode-filters-none",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "filters": []
+      }
+     }
+    },
+    {
+     "name": "move-ode-filters-none",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "filters": []
+      }
+     }
+    },
+    {
+     "name": "value-nodes-40-ode",
+     "tool": "game.value",
+     "args": {
+      "nodes": 40,
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "move-nodes-40-ode",
+     "tool": "game.move",
+     "args": {
+      "nodes": 40,
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "value-nodes-40-play-ode",
+     "tool": "game.value",
+     "args": {
+      "nodes": 40,
+      "plan": {
+       "mode": "play",
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "move-nodes-40-play-ode",
+     "tool": "game.move",
+     "args": {
+      "nodes": 40,
+      "plan": {
+       "mode": "play",
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "value-nodes-5-play-ode",
+     "tool": "game.value",
+     "args": {
+      "nodes": 5,
+      "plan": {
+       "mode": "play",
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "move-nodes-5-play-ode",
+     "tool": "game.move",
+     "args": {
+      "nodes": 5,
+      "plan": {
+       "mode": "play",
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "name": "nim-ode-two-rewards",
+   "fixture": "native/fixtures/game-nim.jsonld",
+   "rules": "nim-a",
+   "positions": [
+    {
+     "initial": true
+    },
+    {
+     "fire": [
+      "a_take1"
+     ]
+    },
+    {
+     "random": {
+      "seed": 112,
+      "plies": 5,
+      "count": 4
+     }
+    }
+   ],
+   "calls": [
+    {
+     "name": "value-default",
+     "tool": "game.value",
+     "args": {}
+    },
+    {
+     "name": "move-default",
+     "tool": "game.move",
+     "args": {}
+    },
+    {
+     "name": "value-root-ode",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "move-root-ode",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "value-root-ode-nl",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode",
+         "non_losing"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "move-root-ode-nl",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode",
+         "non_losing"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "value-root-nl-ode",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "non_losing",
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "move-root-nl-ode",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "non_losing",
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "value-no-driver-ode",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": []
+      }
+     }
+    },
+    {
+     "name": "move-no-driver-ode",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": []
+      }
+     }
+    },
+    {
+     "name": "value-mtdf-ode",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "mtd_f"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-mtdf-ode",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "mtd_f"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-ode-cent",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "order": [
+        "tt_best",
+        "immediate_win",
+        "centrality",
+        "threats",
+        "history"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-ode-cent",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "order": [
+        "tt_best",
+        "immediate_win",
+        "centrality",
+        "threats",
+        "history"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-ode-filters-none",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "filters": []
+      }
+     }
+    },
+    {
+     "name": "move-ode-filters-none",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "filters": []
+      }
+     }
+    },
+    {
+     "name": "value-nodes-40-ode",
+     "tool": "game.value",
+     "args": {
+      "nodes": 40,
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "move-nodes-40-ode",
+     "tool": "game.move",
+     "args": {
+      "nodes": 40,
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "value-nodes-40-play-ode",
+     "tool": "game.value",
+     "args": {
+      "nodes": 40,
+      "plan": {
+       "mode": "play",
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "move-nodes-40-play-ode",
+     "tool": "game.move",
+     "args": {
+      "nodes": 40,
+      "plan": {
+       "mode": "play",
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "value-nodes-5-play-ode",
+     "tool": "game.value",
+     "args": {
+      "nodes": 5,
+      "plan": {
+       "mode": "play",
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "move-nodes-5-play-ode",
+     "tool": "game.move",
+     "args": {
+      "nodes": 5,
+      "plan": {
+       "mode": "play",
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "name": "bucket-ode",
+   "fixture": "native/fixtures/game-bucket.jsonld",
+   "rules": "bucket",
+   "positions": [
+    {
+     "initial": true
+    },
+    {
+     "fire": [
+      "a_add1"
+     ]
+    },
+    {
+     "fire": [
+      "a_add2",
+      "b_add2"
+     ]
+    },
+    {
+     "fire": [
+      "a_add1",
+      "b_add1",
+      "a_add1"
+     ]
+    },
+    {
+     "random": {
+      "seed": 113,
+      "plies": 4,
+      "count": 4
+     }
+    }
+   ],
+   "calls": [
+    {
+     "name": "value-root-ode",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "move-root-ode",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "value-root-ode-nl",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode",
+         "non_losing"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "move-root-ode-nl",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode",
+         "non_losing"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "value-root-nl-ode",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "non_losing",
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "move-root-nl-ode",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "non_losing",
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "value-no-driver-ode",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": []
+      }
+     }
+    },
+    {
+     "name": "move-no-driver-ode",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": []
+      }
+     }
+    },
+    {
+     "name": "value-mtdf-ode",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "mtd_f"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-mtdf-ode",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "mtd_f"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-ode-cent",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "order": [
+        "tt_best",
+        "immediate_win",
+        "centrality",
+        "threats",
+        "history"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-ode-cent",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "order": [
+        "tt_best",
+        "immediate_win",
+        "centrality",
+        "threats",
+        "history"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-ode-filters-none",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "filters": []
+      }
+     }
+    },
+    {
+     "name": "move-ode-filters-none",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "filters": []
+      }
+     }
+    },
+    {
+     "name": "value-nodes-40-ode",
+     "tool": "game.value",
+     "args": {
+      "nodes": 40,
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "move-nodes-40-ode",
+     "tool": "game.move",
+     "args": {
+      "nodes": 40,
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "value-nodes-40-play-ode",
+     "tool": "game.value",
+     "args": {
+      "nodes": 40,
+      "plan": {
+       "mode": "play",
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "move-nodes-40-play-ode",
+     "tool": "game.move",
+     "args": {
+      "nodes": 40,
+      "plan": {
+       "mode": "play",
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "value-nodes-5-play-ode",
+     "tool": "game.value",
+     "args": {
+      "nodes": 5,
+      "plan": {
+       "mode": "play",
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "move-nodes-5-play-ode",
+     "tool": "game.move",
+     "args": {
+      "nodes": 5,
+      "plan": {
+       "mode": "play",
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "name": "ttt-count-ode",
+   "fixture": "native/fixtures/game-ttt-count.jsonld",
+   "rules": "ttt",
+   "positions": [
+    {
+     "initial": true
+    },
+    {
+     "fire": [
+      "x_play_00"
+     ]
+    },
+    {
+     "random": {
+      "seed": 121,
+      "plies": 7,
+      "count": 3
+     }
+    }
+   ],
+   "calls": [
+    {
+     "name": "value-root-ode",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "move-root-ode",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "value-root-ode-nl",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode",
+         "non_losing"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "move-root-ode-nl",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode",
+         "non_losing"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "value-ode-cent",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "order": [
+        "tt_best",
+        "immediate_win",
+        "centrality",
+        "threats",
+        "history"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-ode-cent",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "order": [
+        "tt_best",
+        "immediate_win",
+        "centrality",
+        "threats",
+        "history"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-nodes-40-ode",
+     "tool": "game.value",
+     "args": {
+      "nodes": 40,
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "move-nodes-40-ode",
+     "tool": "game.move",
+     "args": {
+      "nodes": 40,
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "value-nodes-40-play-ode",
+     "tool": "game.value",
+     "args": {
+      "nodes": 40,
+      "plan": {
+       "mode": "play",
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "move-nodes-40-play-ode",
+     "tool": "game.move",
+     "args": {
+      "nodes": 40,
+      "plan": {
+       "mode": "play",
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "name": "ttt-double-ode",
+   "fixture": "native/fixtures/game-ttt-double.jsonld",
+   "rules": "ttt",
+   "positions": [
+    {
+     "initial": true
+    },
+    {
+     "fire": [
+      "x_play_00"
+     ]
+    },
+    {
+     "random": {
+      "seed": 121,
+      "plies": 7,
+      "count": 3
+     }
+    }
+   ],
+   "calls": [
+    {
+     "name": "value-root-ode",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "move-root-ode",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "value-root-ode-nl",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode",
+         "non_losing"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "move-root-ode-nl",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode",
+         "non_losing"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "value-ode-cent",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "order": [
+        "tt_best",
+        "immediate_win",
+        "centrality",
+        "threats",
+        "history"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-ode-cent",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "order": [
+        "tt_best",
+        "immediate_win",
+        "centrality",
+        "threats",
+        "history"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-nodes-40-ode",
+     "tool": "game.value",
+     "args": {
+      "nodes": 40,
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "move-nodes-40-ode",
+     "tool": "game.move",
+     "args": {
+      "nodes": 40,
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "value-nodes-40-play-ode",
+     "tool": "game.value",
+     "args": {
+      "nodes": 40,
+      "plan": {
+       "mode": "play",
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "move-nodes-40-play-ode",
+     "tool": "game.move",
+     "args": {
+      "nodes": 40,
+      "plan": {
+       "mode": "play",
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "name": "ttt-wide-ode",
+   "fixture": "native/fixtures/game-ttt-wide.jsonld",
+   "rules": "ttt",
+   "positions": [
+    {
+     "initial": true
+    },
+    {
+     "fire": [
+      "x_play_00"
+     ]
+    },
+    {
+     "random": {
+      "seed": 121,
+      "plies": 7,
+      "count": 3
+     }
+    }
+   ],
+   "calls": [
+    {
+     "name": "value-root-ode",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "move-root-ode",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "value-root-ode-nl",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode",
+         "non_losing"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "move-root-ode-nl",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode",
+         "non_losing"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "value-ode-cent",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "order": [
+        "tt_best",
+        "immediate_win",
+        "centrality",
+        "threats",
+        "history"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-ode-cent",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "order": [
+        "tt_best",
+        "immediate_win",
+        "centrality",
+        "threats",
+        "history"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-nodes-40-ode",
+     "tool": "game.value",
+     "args": {
+      "nodes": 40,
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "move-nodes-40-ode",
+     "tool": "game.move",
+     "args": {
+      "nodes": 40,
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "value-nodes-40-play-ode",
+     "tool": "game.value",
+     "args": {
+      "nodes": 40,
+      "plan": {
+       "mode": "play",
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "move-nodes-40-play-ode",
+     "tool": "game.move",
+     "args": {
+      "nodes": 40,
+      "plan": {
+       "mode": "play",
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "name": "ttt-cells-ode",
+   "fixture": "native/fixtures/game-tic-tac-toe.jsonld",
+   "rules": "ttt-cells",
+   "positions": [
+    {
+     "fire": [
+      "x_play_11",
+      "o_play_00",
+      "x_play_02",
+      "o_play_20"
+     ]
+    },
+    {
+     "random": {
+      "seed": 131,
+      "plies": 8,
+      "count": 4
+     }
+    }
+   ],
+   "calls": [
+    {
+     "name": "value-default-nodes-20000",
+     "tool": "game.value",
+     "args": {
+      "nodes": 20000
+     }
+    },
+    {
+     "name": "move-default-nodes-20000",
+     "tool": "game.move",
+     "args": {
+      "nodes": 20000
+     }
+    },
+    {
+     "name": "value-root-ode-nodes-20000",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      },
+      "nodes": 20000
+     }
+    },
+    {
+     "name": "move-root-ode-nodes-20000",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      },
+      "nodes": 20000
+     }
+    },
+    {
+     "name": "value-root-ode-nl-nodes-20000",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode",
+         "non_losing"
+        ]
+       }
+      },
+      "nodes": 20000
+     }
+    },
+    {
+     "name": "move-root-ode-nl-nodes-20000",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode",
+         "non_losing"
+        ]
+       }
+      },
+      "nodes": 20000
+     }
+    },
+    {
+     "name": "value-ode-cent-nodes-20000",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "order": [
+        "tt_best",
+        "immediate_win",
+        "centrality",
+        "threats",
+        "history"
+       ]
+      },
+      "nodes": 20000
+     }
+    },
+    {
+     "name": "move-ode-cent-nodes-20000",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "order": [
+        "tt_best",
+        "immediate_win",
+        "centrality",
+        "threats",
+        "history"
+       ]
+      },
+      "nodes": 20000
+     }
+    },
+    {
+     "name": "value-nodes-40-ode-nodes-20000",
+     "tool": "game.value",
+     "args": {
+      "nodes": 20000,
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "move-nodes-40-ode-nodes-20000",
+     "tool": "game.move",
+     "args": {
+      "nodes": 20000,
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "value-nodes-40-play-ode-nodes-20000",
+     "tool": "game.value",
+     "args": {
+      "nodes": 20000,
+      "plan": {
+       "mode": "play",
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "move-nodes-40-play-ode-nodes-20000",
+     "tool": "game.move",
+     "args": {
+      "nodes": 20000,
+      "plan": {
+       "mode": "play",
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
    "name": "prizes-123",
    "fixture": "native/fixtures/game-prizes-123.jsonld",
    "rules": "prizes-123",
@@ -4857,6 +7142,304 @@
        "drivers": [
         "mtd_f"
        ]
+      }
+     }
+    },
+    {
+     "name": "value-root-ode",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "move-root-ode",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "value-root-ode-nl",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode",
+         "non_losing"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "move-root-ode-nl",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode",
+         "non_losing"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "value-root-nl-ode",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "non_losing",
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "move-root-nl-ode",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "non_losing",
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "value-no-driver-ode",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": []
+      }
+     }
+    },
+    {
+     "name": "move-no-driver-ode",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": []
+      }
+     }
+    },
+    {
+     "name": "value-mtdf-ode",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "mtd_f"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-mtdf-ode",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "mtd_f"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-ode-cent",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "order": [
+        "tt_best",
+        "immediate_win",
+        "centrality",
+        "threats",
+        "history"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-ode-cent",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "order": [
+        "tt_best",
+        "immediate_win",
+        "centrality",
+        "threats",
+        "history"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-ode-filters-none",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "filters": []
+      }
+     }
+    },
+    {
+     "name": "move-ode-filters-none",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "filters": []
+      }
+     }
+    },
+    {
+     "name": "value-nodes-40-ode",
+     "tool": "game.value",
+     "args": {
+      "nodes": 40,
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "move-nodes-40-ode",
+     "tool": "game.move",
+     "args": {
+      "nodes": 40,
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "value-nodes-40-play-ode",
+     "tool": "game.value",
+     "args": {
+      "nodes": 40,
+      "plan": {
+       "mode": "play",
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "move-nodes-40-play-ode",
+     "tool": "game.move",
+     "args": {
+      "nodes": 40,
+      "plan": {
+       "mode": "play",
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "value-nodes-5-play-ode",
+     "tool": "game.value",
+     "args": {
+      "nodes": 5,
+      "plan": {
+       "mode": "play",
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "move-nodes-5-play-ode",
+     "tool": "game.move",
+     "args": {
+      "nodes": 5,
+      "plan": {
+       "mode": "play",
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
       }
      }
     }
@@ -5164,6 +7747,304 @@
        "drivers": [
         "mtd_f"
        ]
+      }
+     }
+    },
+    {
+     "name": "value-root-ode",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "move-root-ode",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "value-root-ode-nl",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode",
+         "non_losing"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "move-root-ode-nl",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode",
+         "non_losing"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "value-root-nl-ode",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "non_losing",
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "move-root-nl-ode",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "non_losing",
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "value-no-driver-ode",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": []
+      }
+     }
+    },
+    {
+     "name": "move-no-driver-ode",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": []
+      }
+     }
+    },
+    {
+     "name": "value-mtdf-ode",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "mtd_f"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-mtdf-ode",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "drivers": [
+        "mtd_f"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-ode-cent",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "order": [
+        "tt_best",
+        "immediate_win",
+        "centrality",
+        "threats",
+        "history"
+       ]
+      }
+     }
+    },
+    {
+     "name": "move-ode-cent",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "order": [
+        "tt_best",
+        "immediate_win",
+        "centrality",
+        "threats",
+        "history"
+       ]
+      }
+     }
+    },
+    {
+     "name": "value-ode-filters-none",
+     "tool": "game.value",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "filters": []
+      }
+     }
+    },
+    {
+     "name": "move-ode-filters-none",
+     "tool": "game.move",
+     "args": {
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       },
+       "filters": []
+      }
+     }
+    },
+    {
+     "name": "value-nodes-40-ode",
+     "tool": "game.value",
+     "args": {
+      "nodes": 40,
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "move-nodes-40-ode",
+     "tool": "game.move",
+     "args": {
+      "nodes": 40,
+      "plan": {
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "value-nodes-40-play-ode",
+     "tool": "game.value",
+     "args": {
+      "nodes": 40,
+      "plan": {
+       "mode": "play",
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "move-nodes-40-play-ode",
+     "tool": "game.move",
+     "args": {
+      "nodes": 40,
+      "plan": {
+       "mode": "play",
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "value-nodes-5-play-ode",
+     "tool": "game.value",
+     "args": {
+      "nodes": 5,
+      "plan": {
+       "mode": "play",
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "name": "move-nodes-5-play-ode",
+     "tool": "game.move",
+     "args": {
+      "nodes": 5,
+      "plan": {
+       "mode": "play",
+       "root": {
+        "order": [
+         "ode"
+        ]
+       }
       }
      }
     }
