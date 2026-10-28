@@ -6,16 +6,17 @@
 #
 # Two pins move together here, and game_goldens.json records both:
 #
-# - pflow-native-core: the commit that has game.value and game.move, with the
-#   root estimate "ode", the aspiration driver and coloured nets. It is newer
-#   than the wasm in pflow-native-wasm.lock (which has neither command), so
-#   these goldens are generated apart from goldens.json / mcp_goldens.json.
-# - pflow-rs 35be80745784e9ed0375103bfc035ffcfcfaeb2c: what that pflow-native
-#   pins (it has the mtd_f driver, the refusal of a repeated driver, the
-#   counts engine's Zobrist key and pflow_solver::game::OdeEstimate). Its
-#   Cargo.lock names the same revision. pflow-rs main (e7fe9a3) differs from it
-#   only in docs/search-pieces-roadmap.md; `make game-goldens PFLOW_RS=...`
-#   builds against a checkout instead, to try that or another.
+# - pflow-native-core 7d3a972 (feat/portable-cr-pow): game.value and
+#   game.move, with the root estimate "ode", the aspiration driver and
+#   coloured nets.
+# - pflow-rs a1c4b55aed9d1978f588b68ea5a82a985191bddf: what that pflow-native
+#   pins, main (aacb7eb) plus pflow_solver::crmath, the correctly rounded pow
+#   the ODE step control calls instead of the platform's powf. With it the
+#   goldens are the same on every host: generated here (darwin/arm64) and on
+#   Linux / x86_64 they are byte-identical, the wasm shim answers every case
+#   the same (parity/native/wasm_game_check.mjs) and so does the Go port.
+#   `make game-goldens PFLOW_RS=...` builds against a checkout instead.
+
 [package]
 name = "game-goldens"
 version = "0.1.0"
@@ -25,5 +26,5 @@ publish = false
 [workspace]
 
 [dependencies]
-pflow-native-core = { git = "https://github.com/pflow-xyz/pflow-native", rev = "cc2c63b2ece5fefddf3f3c65e2103d1e4724d0f3" }
+pflow-native-core = { git = "https://github.com/pflow-xyz/pflow-native", rev = "7d3a972ca33d57ebde04aebc6042804a07fd683e" }
 serde_json = { version = "1", features = ["preserve_order", "float_roundtrip"] }

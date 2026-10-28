@@ -8,7 +8,7 @@ require (
 	github.com/ipfs/go-cid v0.6.0
 	github.com/multiformats/go-multibase v0.2.0
 	github.com/multiformats/go-multihash v0.2.3
-	github.com/pflow-xyz/go-pflow v0.33.0
+	github.com/pflow-xyz/go-pflow v0.34.1-0.20261028210957-d97a9d3e4806
 	github.com/piprate/json-gold v0.7.0
 	github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e
 	golang.org/x/image v0.39.0

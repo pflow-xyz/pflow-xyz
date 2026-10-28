@@ -1,6 +1,10 @@
 package gamesearch
 
-import "math"
+import (
+	"math"
+
+	"github.com/pflow-xyz/go-pflow/crmath"
+)
 
 // The root estimate "ode": a port of pflow_solver::game::OdeEstimate (pflow-rs
 // crates/pflow-solver/src/game.rs) with the adaptive Tsitouras 5(4) loop it
@@ -26,8 +30,10 @@ import "math"
 // one rounding (arm64 does), and an explicit conversion forbids that, which
 // keeps the result the same on every machine.
 //
-// What can differ from pflow-native is math.Pow against the platform libm's
-// pow, in the step controller. See docs/workbench-progress.md.
+// The step controller's pow is crmath.Pow, correctly rounded and the same
+// function as pflow-rs' crmath::pow (which pflow-solver's controller calls
+// since pflow-rs feat/portable-cr-pow), so nothing here depends on a math
+// library: the guesses are pflow-native's bit for bit, natively and in wasm.
 
 // ODEHorizon is the model time solved ahead, as pflow-native's ODE player.
 const ODEHorizon = 3.0
@@ -240,12 +246,12 @@ func (e *OdeEstimate) FinalState(mk []int64) ([]float64, error) {
 			ucur, unext = unext, ucur
 			nsteps++
 			if err > 0.0 {
-				factor := 0.9 * pow(1.0/err, 1.0/(tsitOrder+1))
+				factor := 0.9 * crmath.Pow(1.0/err, 1.0/(tsitOrder+1))
 				factor = rmin(factor, 5.0)
 				dtcur = rmin(o.dtmax, rmax(o.dtmin, dtcur*factor))
 			}
 		} else {
-			factor := 0.9 * pow(1.0/err, 1.0/(tsitOrder+1))
+			factor := 0.9 * crmath.Pow(1.0/err, 1.0/(tsitOrder+1))
 			factor = rmax(factor, 0.1)
 			dtcur = rmax(o.dtmin, dtcur*factor)
 		}

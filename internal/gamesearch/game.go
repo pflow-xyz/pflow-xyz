@@ -178,7 +178,7 @@ func goalsOf(ix *Indexed, auto []bool, reward []Reward) []goal {
 					r += x.Weight
 				}
 			}
-			paid += r * float64(o.w)
+			paid += float64(r * float64(o.w))
 		}
 		if paid != 0 {
 			side := 1.0
@@ -376,7 +376,7 @@ func (g *Game) Moves(mk []int64) []int { return g.Ix.EnabledTransitions(mk) }
 func (g *Game) Score(mk []int64) (float64, error) {
 	var s float64
 	for _, r := range g.Reward {
-		s += r.Weight * float64(mk[r.Place])
+		s += float64(r.Weight * float64(mk[r.Place]))
 	}
 	return g.check(s)
 }

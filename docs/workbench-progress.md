@@ -800,6 +800,31 @@ held to pflow-native by the same goldens (now 5,048 calls).
 
 ---
 
+### Follow-up: one correctly rounded pow everywhere (2026-10-28)
+
+The `ode` estimate's last open risk (above: a libm `pow` that rounds a
+controller step differently) is closed by removing every libm from the path.
+
+- **One `pow`**, correctly rounded, from IEEE `+ - * /` only: pflow-rs
+  `pflow_solver::crmath::pow` (the reference), go-pflow `crmath.Pow`, and
+  `crPow` in `public/petri-solver.js`; operation for operation the same, and
+  held to one corpus (`parity/crmath/pow.txt`, Python `decimal` at 120
+  digits). Every ODE step controller calls it: pflow-solver's, go-pflow's
+  `Solve`, this server's workbench engine, `internal/gamesearch/ode.go`, and
+  the browser's solver. `internal/gamesearch/pow.go` is gone.
+- **No fused multiply-adds**: darwin/arm64 Go fused the RK loops in go-pflow,
+  the workbench engine and the game search's reward sums, so on Apple Silicon
+  the Go port did *not* match native (the `ttt-ode` goldens failed there; the
+  earlier "Go matches" was measured on Linux/amd64). Every such product is now
+  wrapped; go-pflow's `scripts/fma-check.sh` proves none is left in its core.
+- **Measured**: the 5,048 game goldens regenerated at pflow-native `7d3a972`
+  (pflow-rs `a1c4b55`) are byte-identical to the old ones; the Go tool matches
+  them on darwin/arm64 and amd64; a pflow-native wasm shim matches every case
+  under Node (`make game-wasm-check`), where one built from pflow-native main
+  differed on 30.
+- **Needs**: go-pflow `feat/portable-cr-pow` merged and tagged (go.mod pins its
+  pseudo-version), and pflow-native `feat/portable-cr-pow` merged.
+
 ## How to review all of this
 
 1. **Read this file's "Decisions to review" sections.** Every `REVIEW:`

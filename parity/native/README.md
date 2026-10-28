@@ -235,19 +235,25 @@ go test ./cmd/webserver/ -run TestMCPGameMatchesNative
 ```
 
 `gen-game/Cargo.toml` pins pflow-native at the commit that has the commands
-(`cc2c63b`, newer than the wasm in `pflow-native-wasm.lock`, which has neither),
-so these goldens are generated apart from `goldens.json` and `mcp_goldens.json`;
-the file records both commits and a test checks them against the generator's
-pins. pflow-native pins pflow-rs at `35be807`: the search this port follows,
-with the `mtd_f` driver, the refusal of a repeated driver, the counts engine's
-Zobrist key and `pflow_solver::game::OdeEstimate`, so the generator needs no
-patch. (An earlier pin of pflow-native, `cdd3816`, pinned the older `9ce3d43`
-and the generator patched `35be807` in; main's `e7fe9a3` differs from `35be807`
-only in a doc, and `PFLOW_RS=` accepts such a checkout.) Native is run as a
-library (`Session::execute`, as `gen/` does), not through `pflow-native-cli`: the
-same code path. Regenerating is deterministic, and platform-independent for
-the cases that name `ode`: the file is byte-identical when generated on
-macOS / arm64 and on Linux / x86_64 (see "The root estimate" below).
+(`7d3a972`, feat/portable-cr-pow, newer than the wasm in
+`pflow-native-wasm.lock`, which has neither), so these goldens are generated
+apart from `goldens.json` and `mcp_goldens.json`; the file records both commits
+and a test checks them against the generator's pins. pflow-native pins pflow-rs
+at `a1c4b55`: main (`aacb7eb`, the search this port follows, with the `mtd_f`
+driver, the refusal of a repeated driver, the counts engine's Zobrist key and
+`pflow_solver::game::OdeEstimate`) plus `pflow_solver::crmath`, the correctly
+rounded pow the ODE step control now calls. (The goldens were first generated
+at pflow-native `cc2c63b` / pflow-rs `35be807`, with the platform's `powf`;
+regenerated at the new pins every one of the 5,048 cases is byte-identical.)
+Native is run as a library (`Session::execute`, as `gen/` does), not through
+`pflow-native-cli`: the same code path. Regenerating is deterministic and
+platform-independent: the file is byte-identical when generated on macOS /
+arm64 and on Linux / x86_64, and the browser's build answers every case the
+same (below).
+
+```sh
+make game-wasm-check WASM=../pflow-native/target/wasm-shim   # every case through the wasm shim, under Node
+```
 
 ### The root estimate, and what parity means for it
 
@@ -260,28 +266,26 @@ best moves comes back. On a symmetric position the guesses of mirror moves
 differ only by rounding noise, so the Go estimate must be bit-identical to
 Rust's: `internal/gamesearch/ode.go` repeats `integrate_vec`'s arithmetic
 operation for operation (no fused multiply-add, Rust's `min`/`max`/`sum`
-semantics), and `pow.go` is the one place it cannot use the language's own
-function: Rust's `powf` is the platform libm's `pow`, Go's `math.Pow` is not
-(it is an ulp off often enough to reorder a tie), so it is computed in
-double-double and rounded once.
+semantics), and the step controller's pow is not the language's own on either
+side: pflow-solver calls `crmath::pow` and this port go-pflow's `crmath.Pow`,
+the same correctly rounded function, written with IEEE `+ - * /` only and held
+to one corpus (`parity/crmath/pow.txt`, which `crPow` in `petri-solver.js` is
+held to as well). Before that, Rust called the platform libm's `powf` (wrong on
+0.135% of controller-sized inputs on macOS 15, 0.063% on glibc, more in wasm32)
+and Go a double-double pow seeded by `math.Log`.
 
 - **Required, and held by every golden**: identical values and moves.
-- **Node counts: exact, no tolerance**, on every golden. Among 5,048 calls, 2,734
-  of the answered ones name `ode` (1,272 `aspiration`), and the file is
-  byte-identical whether native generates it on macOS (arm64, Apple's libm) or
-  Linux (x86_64, glibc), and the Go tool on Linux / amd64 matches it.
-- **The risk this does not remove**: a libm's `pow` is not always correctly
-  rounded (measured on 40,000 controller-sized inputs: 0.135% of calls wrong on
-  macOS 15, 0.063% on glibc; Go's is correctly rounded), so on a position where
-  mirror moves tie to within a few ulps, another platform's native build may
-  rank them otherwise than the Go tool does: a different node count, or a
-  different best move, never a different value. Nothing in the goldens shows it;
-  a regenerated file that differs on another libm is the signal, and the
-  tolerance to document then is "values equal; moves equally good; nodes equal
-  unless a tie is broken differently".
-- The browser's wasm build is the worse case (its `powf` is not a libm's, and
-  pflow-native documents that node counts differ there). `/mcp` follows the
-  native build; the wasm goldens (`goldens.json`) have no `ode` case.
+- **Node counts: exact, no tolerance**, on every golden. Among 5,048 calls, 2,747
+  name `ode`, and the file is byte-identical whether native generates it on
+  macOS (arm64) or Linux (x86_64); the Go tool on darwin/arm64 and Linux/amd64
+  matches it, and so does the browser's wasm build:
+  `parity/native/wasm_game_check.mjs` runs every case through a pflow-native
+  wasm shim under Node and compares exactly. Built from pflow-native main (the
+  platform `powf`), the shim differed on 30 cases (tic-tac-toe `ode` positions,
+  a node or two apart); built from `7d3a972`, on none.
+- Nothing platform-dependent is left on this path: no libm call, and no
+  multiply-add a compiler may fuse (go-pflow's `scripts/fma-check.sh` shows
+  none in its solver; `internal/gamesearch/ode.go` wraps each product).
 
 Known differences, all deliberate and tested in `mcp_game_test.go`:
 

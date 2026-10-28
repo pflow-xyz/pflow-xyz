@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/pflow-xyz/go-pflow/crmath"
 	"github.com/pflow-xyz/go-pflow/metamodel"
 	"github.com/pflow-xyz/go-pflow/parser"
 )
@@ -326,7 +327,7 @@ func TestTheOdeEstimateStopsWhenToldTo(t *testing.T) {
 	}
 }
 
-// The pow behind the step controller is the correctly rounded one. The
+// The pow behind the step controller (crmath.Pow) is the correctly rounded one. The
 // expected values are x^(1/6) (the double nearest 1/6) evaluated to 80
 // digits with Python's decimal module and rounded once.
 func TestPowIsCorrectlyRounded(t *testing.T) {
@@ -336,16 +337,16 @@ func TestPowIsCorrectlyRounded(t *testing.T) {
 		{1e6, 9.999999999999998}, {3e11, 81.81888230000268}, {123.456, 2.231440786728173},
 		{0.9999999, 0.9999999833333326}, {7e-5, 0.2030094899212487},
 	} {
-		if got := pow(c.x, sixth); got != c.want {
+		if got := crmath.Pow(c.x, sixth); got != c.want {
 			t.Errorf("pow(%v, 1/6) = %v, want %v", c.x, got, c.want)
 		}
 	}
-	if got := pow(1024, 0.1); got != 2 {
-		t.Errorf("pow(1024, 0.1) = %v", got)
+	if got := crmath.Pow(1024, 0.1); got != 2 {
+		t.Errorf("crmath.Pow(1024, 0.1) = %v", got)
 	}
 	// The special cases are math.Pow's.
 	for _, c := range [][2]float64{{0, 0.5}, {-1, 0.5}, {math.Inf(1), 0.5}, {2, 0}, {math.NaN(), 1}, {1e-320, 0.5}, {1e300, 100}} {
-		if got, want := pow(c[0], c[1]), math.Pow(c[0], c[1]); got != want && !(math.IsNaN(got) && math.IsNaN(want)) {
+		if got, want := crmath.Pow(c[0], c[1]), math.Pow(c[0], c[1]); got != want && !(math.IsNaN(got) && math.IsNaN(want)) {
 			t.Errorf("pow(%v, %v) = %v, want %v", c[0], c[1], got, want)
 		}
 	}

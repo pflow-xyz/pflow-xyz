@@ -39,6 +39,7 @@ go_library(
         "//internal/svg",
         "//internal/userfiles",
         "@com_github_fogleman_gg//:gg",
+        "@com_github_pflow_xyz_go_pflow//crmath",
         "@com_github_pflow_xyz_go_pflow//metamodel",
         "@com_github_pflow_xyz_go_pflow//parser",
         "@com_github_pflow_xyz_go_pflow//petri",

@@ -414,7 +414,7 @@ func (s *Solver) solve(w *walk, guess *float64) (float64, bool, error) {
 	if len(vals) < 3 || !(s.nullWindow || s.mtdF) {
 		if guess != nil {
 			e := *guess
-			d := (hi - lo) / 8.0
+			d := float64((hi - lo) / 8.0)
 			a, b := rmax(e-d, lo), rmin(e+d, hi)
 			v, ok, err := s.search(w, a, b, true)
 			if err != nil || !ok {
@@ -439,7 +439,7 @@ func (s *Solver) solve(w *walk, guess *float64) (float64, bool, error) {
 	if s.mtdF {
 		return s.mtdFRun(w, guess)
 	}
-	mid := func(k int) float64 { return (vals[k] + vals[k+1]) / 2.0 }
+	mid := func(k int) float64 { return float64((vals[k] + vals[k+1]) / 2.0) }
 	var k int
 	switch {
 	case guess != nil:

@@ -35,6 +35,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/pflow-xyz/go-pflow/crmath"
 	"github.com/pflow-xyz/go-pflow/metamodel"
 	"github.com/pflow-xyz/go-pflow/parser"
 	"github.com/pflow-xyz/go-pflow/petri"
@@ -1804,10 +1805,10 @@ func (r *odeRunner) deriv(rates, u, du []float64) {
 		}
 		if flux > 0 {
 			for _, in := range tr.in {
-				du[in.idx] -= flux * in.w
+				du[in.idx] -= float64(flux * in.w)
 			}
 			for _, out := range tr.out {
-				du[out.idx] += flux * out.w
+				du[out.idx] += float64(flux * out.w)
 			}
 		}
 	}
@@ -1862,7 +1863,7 @@ func (r *odeRunner) solveFinal(rates []float64, check func(iters int) error) (od
 				if aj != 0 {
 					scale := dtcur * aj
 					for i := 0; i < n; i++ {
-						ustage[i] += scale * k[j][i]
+						ustage[i] += float64(scale * k[j][i])
 					}
 				}
 			}
@@ -1873,7 +1874,7 @@ func (r *odeRunner) solveFinal(rates []float64, check func(iters int) error) (od
 			if s.B[j] != 0 {
 				scale := dtcur * s.B[j]
 				for i := 0; i < n; i++ {
-					unext[i] += scale * k[j][i]
+					unext[i] += float64(scale * k[j][i])
 				}
 			}
 		}
@@ -1882,11 +1883,11 @@ func (r *odeRunner) solveFinal(rates []float64, check func(iters int) error) (od
 			for i := 0; i < n; i++ {
 				errest := 0.0
 				for j := 0; j < len(s.Bhat); j++ {
-					errest += dtcur * s.Bhat[j] * k[j][i]
+					errest += float64(dtcur * s.Bhat[j] * k[j][i])
 				}
 				uc := ucur[i]
 				un := unext[i]
-				scale := abstol + reltol*math.Max(math.Abs(uc), math.Abs(un))
+				scale := abstol + float64(reltol*math.Max(math.Abs(uc), math.Abs(un)))
 				if scale == 0 {
 					scale = abstol
 				}
@@ -1901,12 +1902,12 @@ func (r *odeRunner) solveFinal(rates []float64, check func(iters int) error) (od
 			ucur, unext = unext, ucur
 			nsteps++
 			if o.Adaptive && err > 0 {
-				factor := 0.9 * math.Pow(1.0/err, 1.0/float64(s.Order+1))
+				factor := 0.9 * crmath.Pow(1.0/err, 1.0/float64(s.Order+1))
 				factor = math.Min(factor, 5.0)
 				dtcur = math.Min(dtmax, math.Max(dtmin, dtcur*factor))
 			}
 		} else {
-			factor := 0.9 * math.Pow(1.0/err, 1.0/float64(s.Order+1))
+			factor := 0.9 * crmath.Pow(1.0/err, 1.0/float64(s.Order+1))
 			factor = math.Max(factor, 0.1)
 			dtcur = math.Max(dtmin, dtcur*factor)
 		}
@@ -2165,9 +2166,9 @@ func runOptimize(ctx context.Context, n *wbNet, a wbArgs, o optOpts) (map[string
 		for i, p := range params {
 			u := rng.float64()
 			if p.log {
-				row[i] = math.Pow(10, math.Log10(p.min)+u*(math.Log10(p.max)-math.Log10(p.min)))
+				row[i] = math.Pow(10, float64(math.Log10(p.min))+float64(u*(float64(math.Log10(p.max))-float64(math.Log10(p.min)))))
 			} else {
-				row[i] = p.min + u*(p.max-p.min)
+				row[i] = p.min + float64(u*(p.max-p.min))
 			}
 			over[p.transition] = row[i]
 		}

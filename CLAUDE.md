@@ -141,7 +141,7 @@ examples/                # Example Petri nets in JSON-LD
 - `GET /api/llm/status` - whether LLM drafting is on, and (signed in) the caller's quota left today
 - `POST /api/llm/draft` - `{description}` → a draft net from Gemini (GitHub sign-in required; per-user and global daily limits). Same-origin only; the browser gates the draft (`public/petri-draft.js`) before loading it
 - `POST /api/llm/turn` - one model call of the editor's Assistant: `{mode, net, messages}` (`mode` may be `auto`: the server labels the message's intent and sentiment with a small model, `PFLOW_LLM_CLASSIFIER_MODEL`, default `gemini-flash-lite-latest`, not charged to the quota, and replies with the chosen `mode` plus `auto: {mode, sentiment, confidence}`; a failed or unsure label keeps `prev_mode`, else analyse). Each label is counted anonymously in `data/llm/auto-stats.json` (UTC day, mode, sentiment, coarse confidence band, fallback; no user, no text) → the model's message and the tool calls it may make (tools = `public/llm-tools.json`, run in the browser; regenerate with `node scripts/gen-llm-tools.mjs`)
-- `POST /mcp` - pflow.xyz as an MCP server (stateless JSON-RPC): pflow_check, pflow_cid, pflow_get, pflow_simulate, pflow_reachability, pflow_links, pflow_save (GitHub bearer; listed only when the connection sends one) on the server's go-pflow engines (`cmd/webserver/mcp.go`), plus the registry tools pflow_edit, pflow_info, pflow_fire, pflow_validate, pflow_verify, pflow_invariants, pflow_incidence, pflow_ssa, pflow_rate_scan, pflow_export, the workbench tools pflow_sde, pflow_what_if, pflow_optimize (`cmd/webserver/mcp_workbench.go`) and the game tools pflow_game_value, pflow_game_move (`cmd/webserver/mcp_game.go`, a Go port of pflow-native's `game.value` / `game.move` search in `internal/gamesearch`, including the `ode` root estimate (`ode.go`, `pow.go`), the `aspiration` driver and nets with several token colours, held to pflow-native by `parity/native/game_goldens.json`; `make game-goldens`) (`cmd/webserver/mcp_registry.go`, which also holds every tool's annotations, the 60s call timeout, the 8-call concurrency cap, protocol-version negotiation and the ~60KB result guard; a new tool needs an `mcpAnnotations` entry or `TestMCPEveryToolIsAnnotated` fails)
+- `POST /mcp` - pflow.xyz as an MCP server (stateless JSON-RPC): pflow_check, pflow_cid, pflow_get, pflow_simulate, pflow_reachability, pflow_links, pflow_save (GitHub bearer; listed only when the connection sends one) on the server's go-pflow engines (`cmd/webserver/mcp.go`), plus the registry tools pflow_edit, pflow_info, pflow_fire, pflow_validate, pflow_verify, pflow_invariants, pflow_incidence, pflow_ssa, pflow_rate_scan, pflow_export, the workbench tools pflow_sde, pflow_what_if, pflow_optimize (`cmd/webserver/mcp_workbench.go`) and the game tools pflow_game_value, pflow_game_move (`cmd/webserver/mcp_game.go`, a Go port of pflow-native's `game.value` / `game.move` search in `internal/gamesearch`, including the `ode` root estimate (`ode.go`; its step control calls go-pflow's correctly rounded `crmath.Pow`, so it is pflow-native's bit for bit natively and in wasm), the `aspiration` driver and nets with several token colours, held to pflow-native by `parity/native/game_goldens.json`; `make game-goldens`) (`cmd/webserver/mcp_registry.go`, which also holds every tool's annotations, the 60s call timeout, the 8-call concurrency cap, protocol-version negotiation and the ~60KB result guard; a new tool needs an `mcpAnnotations` entry or `TestMCPEveryToolIsAnnotated` fails)
 - `GET /?cid={cid}` - SPA shell, decorated with Open Graph / Twitter / JSON-LD `<head>` meta tags pointing at the share card (see `cmd/webserver/share_page.go`)
 
 Content negotiation for `/schema` and `/tokens/{color}` is implemented in `cmd/webserver/content_negotiation.go`. Browsers (Accept includes `text/html` ranked above JSON) get a styled dark-theme page; everything else (curl, no Accept, `*/*`) gets JSON-LD.
@@ -289,8 +289,11 @@ in this editor. Locked by `make test-parity-behavior` (`parity/sim/` and
   Fixed-step cases and the analytic-objective optimizer runs are asserted
   BIT-FOR-BIT (Adam's integer bias-correction pow is ported as `goPowInt`;
   Go constant-folds `1-beta` exactly, mirrored); adaptive-step cases are
-  asserted at 1e-12 relative because Go's step controller calls `math.Pow`
-  whose amd64 assembly V8 cannot bit-match (measured agreement ~4e-14).
+  asserted at 1e-12 relative because the goldens' Go step controller called
+  `math.Pow`, which V8's `Math.pow` cannot bit-match (measured agreement
+  ~4e-14). The ODE solver now calls `crPow` (below) and go-pflow
+  feat/portable-cr-pow `crmath.Pow`; regenerating the learn goldens from
+  that go-pflow is what would let these tighten to exact.
   **`LearnableProblem.solveAdjoint` / `mseLossAdjoint` / `relativeMseLossAdjoint`**
   mirror `learn/adjoint.go`'s reverse-mode gradient — one backward (costate)
   solve produces the full parameter gradient at a cost independent of
@@ -327,6 +330,15 @@ in this editor. Locked by `make test-parity-behavior` (`parity/sim/` and
   instead). `petri-ssa.js` is deliberately NOT in `//public:browser_modules`
   (that list pairs positionally with bitwrap-io's vendored list); no consumer
   lock changes.
+- **Correctly rounded pow** (`crPow` in `public/petri-solver.js`; go-pflow's
+  `crmath.Pow` on the Go side): the ODE step controller's `(1/err)^(1/(order+1))` is
+  `crPow`, not `Math.pow` (V8's is wrong on 27 of the corpus's 13,957 cases,
+  Go's `math.Pow` on 4,891, the platform libms on a few dozen, each on
+  different ones). It is an operation-for-operation port of pflow-rs'
+  `pflow_solver::crmath::pow` and go-pflow's `crmath.Pow`, held to the same
+  corpus, `parity/crmath/pow.txt` (`public/petri-crpow_test.ts`; go-pflow's
+  `crmath/testdata/pow.txt` is the same file). It lives inside `petri-solver.js` so the
+  vendoring repos get it with no new file to pin.
 - Changing firing semantics on either side means changing BOTH engines and
   their tests in lockstep — the differential fails otherwise. go-pflow's side
   of the contract is pinned by Go-native tests in its reachability package.

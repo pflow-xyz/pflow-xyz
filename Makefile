@@ -1,4 +1,4 @@
-.PHONY: all llm-eval build run clean test test-js test-parity ode-expected learn-goldens native-goldens game-goldens sync-native-wasm test-publish test-npm-pack test-theme test-version publish
+.PHONY: all llm-eval build run clean test test-js test-parity ode-expected learn-goldens native-goldens game-goldens game-wasm-check sync-native-wasm test-publish test-npm-pack test-theme test-version publish
 
 # Build the webserver
 build:
@@ -30,7 +30,7 @@ test: test-js test-parity test-parity-behavior test-publish test-npm-pack test-t
 
 # Run JavaScript tests
 test-js:
-	@deno test --allow-read=parity/ode,parity/editor-shape,parity/fixtures,parity/clipboard,parity/ssa,parity/roles,parity/native,examples,testdata,public,pflow-native-wasm.lock public/petri-sim_test.ts public/petri-colors_test.ts public/petri-shape_test.ts public/petri-solver_test.ts public/petri-learn_test.ts public/petri-ssa_test.ts public/petri-sde_test.ts public/petri-validate_test.ts public/petri-commands_test.ts public/petri-files_test.ts public/petri-draft_test.ts public/petri-wasm_test.ts public/petri-chat_test.ts public/petri-goals_test.ts public/petri-refine_test.ts public/petri-roles_test.ts public/petri-clipboard_test.ts parity/ode/ode_expected_test.ts parity/native/native_parity_test.ts parity/native/js_vs_wasm_test.ts
+	@deno test --allow-read=parity/crmath,parity/ode,parity/editor-shape,parity/fixtures,parity/clipboard,parity/ssa,parity/roles,parity/native,examples,testdata,public,pflow-native-wasm.lock public/petri-sim_test.ts public/petri-colors_test.ts public/petri-shape_test.ts public/petri-solver_test.ts public/petri-crpow_test.ts public/petri-learn_test.ts public/petri-ssa_test.ts public/petri-sde_test.ts public/petri-validate_test.ts public/petri-commands_test.ts public/petri-files_test.ts public/petri-draft_test.ts public/petri-wasm_test.ts public/petri-chat_test.ts public/petri-goals_test.ts public/petri-refine_test.ts public/petri-roles_test.ts public/petri-clipboard_test.ts parity/ode/ode_expected_test.ts parity/native/native_parity_test.ts parity/native/js_vs_wasm_test.ts
 
 # Regenerate the differentiable-fitting parity goldens (parity/learn/goldens.json)
 # from go-pflow's learn package. Deliberate, never a side effect of another
@@ -76,6 +76,13 @@ game-goldens:
 	  CARGO_NET_GIT_FETCH_WITH_CLI=true cargo run --release -q --manifest-path parity/native/gen-game/Cargo.toml; \
 	fi
 	@echo "regenerated parity/native/game_goldens.json — run 'go test ./cmd/webserver/ -run TestMCPGameMatchesNative' to verify"
+
+# Every game golden through a pflow-native wasm shim (the browser's build),
+# compared exactly with native's answers:
+#   make game-wasm-check WASM=../pflow-native/target/wasm-shim
+game-wasm-check:
+	@test -n "$(WASM)" || { echo "usage: make game-wasm-check WASM=<pflow-native target/wasm-shim>"; exit 2; }
+	@node parity/native/wasm_game_check.mjs "$(WASM)"
 
 # Re-vendor the wasm shim from a pflow-native build (see scripts/sync-native-wasm.mjs):
 #   make sync-native-wasm FROM=../pflow-native/target/wasm-shim COMMIT=<sha>

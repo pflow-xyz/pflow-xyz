@@ -26,8 +26,8 @@ use serde_json::{json, Map, Value};
 use std::fs;
 use std::sync::Arc;
 
-const PFLOW_NATIVE: &str = "cc2c63b2ece5fefddf3f3c65e2103d1e4724d0f3";
-const PFLOW_RS: &str = "35be80745784e9ed0375103bfc035ffcfcfaeb2c";
+const PFLOW_NATIVE: &str = "7d3a972ca33d57ebde04aebc6042804a07fd683e";
+const PFLOW_RS: &str = "a1c4b55aed9d1978f588b68ea5a82a985191bddf";
 
 fn arg(name: &str, dflt: &str) -> String {
     let flag = format!("--{name}");
