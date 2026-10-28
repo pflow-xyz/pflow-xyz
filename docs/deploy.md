@@ -2,9 +2,9 @@
 
 pflow.xyz is served by this repository's `cmd/webserver` on pflow.dev (port
 8081, behind nginx; the service list and ports are in `CLAUDE.md`, section
-"Deployment (pflow.dev)"). **There is no CI/CD system.** The server deploys
-itself: GitHub calls a webhook on every push to `main`, and the running binary
-fetches, checks, builds and restarts itself. This page is how that works, what
+"Deployment (pflow.dev)"). **There is no deploy pipeline outside the server.**
+The server deploys itself: GitHub calls a webhook on every push to `main`, and
+the running binary fetches, checks, builds and restarts itself. This page is how that works, what
 holds a deploy back, how to tell why one did not happen, and the one piece of
 box configuration it depends on.
 
@@ -49,8 +49,8 @@ worked. The outcome is in `GET /admin/deploy-status`.
 
 ### Environment
 
-Set in `~/services` on pflow.dev (and read afresh on every deploy, but only
-a restart of the service picks up a changed `~/services`).
+Set in `~/services` on pflow.dev; a change takes effect when the service is
+restarted.
 
 | Variable | Default | Meaning |
 |---|---|---|
