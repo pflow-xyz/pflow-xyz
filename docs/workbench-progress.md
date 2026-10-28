@@ -685,10 +685,16 @@ names it.
 - **Vendored** (179 commands, 88 exposed). Both are exposed and in no side
   list: read-only (the move is not fired, the marking is not set), no
   artifact arguments (`book` is the label cache's text inline), and each
-  result is also filed as a Report. Native caps what a browser tab can
-  afford: a node budget of 1,000,000 by default and at most 100,000,000,
-  a table of 2^20 entries by default and at most 2^23, and no time budget
-  (`budget.ms` is refused: the wasm build has no clock).
+  result is also filed as a Report. The engine's own caps apply: a node
+  budget of 1,000,000 by default and at most 100,000,000, a table of 2^20
+  entries by default and at most 2^23, and no time budget (`budget.ms` is
+  refused: the wasm build has no clock). Those caps are not sized for a
+  browser tab: natively `game.*` runs as a background job, but the wasm
+  build runs it synchronously on the page's thread (`runNative`, no
+  worker), and its time grows about linearly with the budget (connect-4:
+  1.5 s at the default, 16.6 s at 10,000,000, so about 165 s at the cap). The goal's
+  budget label, its caveat and the Assistant's prompt say so; moving the
+  game commands to a worker is a follow-up.
 - **The Assistant** gets `game_value` and `game_move`; `sides`, `reward`
   and `plan` travel as JSON strings (`json_args`).
 - **The `best_play` goal**, "Who wins with best play, and with which move?",

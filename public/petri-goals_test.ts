@@ -70,7 +70,9 @@ Deno.test("goal best_play: tic-tac-toe is a draw, a best move is X's, nothing is
     assertEquals([planned.steps[0].result.exact, planned.steps[0].result.budget], [false, 50]);
     await assertRejects(() => runGoal(r, goal, { ...inputsFor.best_play, sides: "{x_: 1}" }), Error, "not valid JSON");
     await assertRejects(() => runGoal(r, goal, { reward: inputsFor.best_play.reward, sides: "  " }), Error, "needs who moves");
-    for (const words of ["deterministic", "node budget", "\"ode\"", "a best move, not the best move"]) assert(goal.caveat.includes(words), words);
+    for (const words of ["deterministic", "node budget", "\"ode\"", "a best move, not the best move", "freezes the tab"]) assert(goal.caveat.includes(words), words);
+    // past the budget a "play" plan guesses (the run above): the answer must not claim it is always null
+    assert(goal.answer.includes("\"play\"") && goal.answer.includes("guess"), goal.answer);
 });
 
 Deno.test("goals: every plan names a registry command", () => {
