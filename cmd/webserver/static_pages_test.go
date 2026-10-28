@@ -415,6 +415,10 @@ func TestComposePageHead(t *testing.T) {
 			t.Errorf("empty or missing %s", n)
 		}
 	}
+	// Search results show about 160 characters; the share-card texts may run longer.
+	if d := []rune(meta("name", "description")); len(d) > 160 {
+		t.Errorf("meta description is %d characters, keep it to 160", len(d))
+	}
 	if got := meta("name", "twitter:card"); got != "summary_large_image" {
 		t.Errorf("twitter:card = %q", got)
 	}
@@ -455,8 +459,11 @@ func TestComposePageHead(t *testing.T) {
 	var doc struct {
 		Context string `json:"@context"`
 		Graph   []struct {
-			Type string `json:"@type"`
-			URL  string `json:"url"`
+			Type   string                 `json:"@type"`
+			URL    string                 `json:"url"`
+			Offers map[string]interface{} `json:"offers"`
+			Rating interface{}            `json:"aggregateRating"`
+			Review interface{}            `json:"review"`
 		} `json:"@graph"`
 	}
 	if err := json.Unmarshal([]byte(m[1]), &doc); err != nil {
@@ -465,6 +472,15 @@ func TestComposePageHead(t *testing.T) {
 	types := map[string]string{}
 	for _, n := range doc.Graph {
 		types[n.Type] = n.URL
+		// Nothing is claimed that is not so: free to use, and no ratings or reviews.
+		if n.Rating != nil || n.Review != nil {
+			t.Errorf("%s carries a rating or review; there are none", n.Type)
+		}
+		if n.Type == "WebApplication" {
+			if n.Offers["@type"] != "Offer" || n.Offers["price"] != "0" || n.Offers["priceCurrency"] != "USD" {
+				t.Errorf("WebApplication offers = %v, want a free Offer", n.Offers)
+			}
+		}
 	}
 	for _, want := range []string{"WebPage", "WebApplication"} {
 		if types[want] != "https://pflow.xyz/compose.html" {
