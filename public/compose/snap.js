@@ -60,6 +60,9 @@ export function initSnap() {
   window.addEventListener('keydown', (e) => { if (e.key === 'Escape') cancel(); });
   // Leaving the ports (a click elsewhere, Tab out of the stage) ends link mode.
   window.addEventListener('focusin', (e) => { if (kb && !kbOwns(e.target)) { announce('Linking cancelled.'); cancel(); } });
+  // A click on something that takes no focus (plain text, the page background) moves no focus and so
+  // would leave the mode on, lit, with the number keys swallowed: a press outside the ports ends it too.
+  window.addEventListener('pointerdown', (e) => { if (kb && !kbOwns(e.target)) { announce('Linking cancelled.'); cancel(); } }, true);
 }
 
 /** Forget what the last render registered (the app calls this before each render). */
@@ -287,21 +290,24 @@ export function startKeyboard(el) {
   const m = meta.get(el);
   if (!m || (m.type !== 'port' && m.type !== 'piece')) return false;
   if (drag || kb) cancel();
-  let cands, verdicts, targets, originLabel, noun;
+  let cands, targets, originLabel, noun;
   if (m.type === 'port') {
     try { cands = linkCandidates(m.ref); } catch (err) { status(`bundle.candidates refused: ${err.message}`); announce(`Cannot link from ${m.key}: ${err.message}`); return false; }
-    verdicts = lightPorts(m.ref, cands);
     targets = portTargets(cands, { has: (k) => reg.ports.has(k), label: portName });
     originLabel = portName(m.key);
     noun = 'port';
   } else {
     try { cands = slotCandidates(m.name); } catch (err) { status(`plan.slot_candidates refused: ${err.message}`); announce(`Cannot place ${m.name}: ${err.message}`); return false; }
-    verdicts = lightSlots(m.name, cands);
     targets = slotTargets(cands, { has: (k) => reg.slots.has(k), label: slotName });
     originLabel = pieceLabel(pieceByName[m.name] || { name: m.name, kind: '' });
     noun = 'slot';
   }
-  const r = linkKeys.begin({ noun, originKey: `${m.type}:${m.key}`, originLabel, targets });
+  // The key the origin is found by after a redraw: the one the accessibility pass gave it (an element
+  // drawn twice has key#2), else its registered key.
+  const originKey = el.dataset.a11yKey || `${m.type}:${m.key}`;
+  const r = linkKeys.begin({ noun, originKey, originLabel, targets });
+  if (r.state.phase !== 'linking') { announce(r.announce); return false; } // nothing drawn to link to: light nothing
+  const verdicts = m.type === 'port' ? lightPorts(m.ref, cands) : lightSlots(m.name, cands);
   kb = { type: m.type, originEl: el, name: m.name, verdicts, machine: r.state, ref: m.ref };
   quiet(true);
   const first = center(el);
@@ -318,10 +324,13 @@ const targetEls = (key) => (kb.type === 'port' ? reg.ports : reg.slots).get(key)
 /** Does focus on `el` belong to link mode (the origin or one of its targets)? */
 function kbOwns(el) {
   if (!kb) return false;
-  if (el === kb.originEl) return true;
-  const m = meta.get(el);
-  if (!m) return false;
-  return kb.type === 'port' ? m.type === 'port' : m.type === 'slot';
+  // the thing itself or, for a press, something drawn inside it
+  for (let n = el; n && n.nodeType === 1; n = n.parentNode) {
+    if (n === kb.originEl) return true;
+    const m = meta.get(n);
+    if (m) return kb.type === 'port' ? m.type === 'port' : m.type === 'slot';
+  }
+  return false;
 }
 
 function onKbKey(e) {

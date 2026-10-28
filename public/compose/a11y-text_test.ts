@@ -1,6 +1,6 @@
 // The words of the composition page: accessible names, announcements, schema codes, dashes.
 import { assert, assertEquals, assertNotEquals, assertStringIncludes } from "https://deno.land/std@0.224.0/assert/mod.ts";
-import { distinctDashes, eventText, pieceLabel, portLabel, schemaCode, SCHEMA_CODE, slotLabel, uniqueKeys, viewLabel } from "./a11y-text.js";
+import { distinctDashes, eventText, firstDrawing, pieceLabel, portLabel, schemaCode, SCHEMA_CODE, slotLabel, uniqueKeys, viewLabel } from "./a11y-text.js";
 
 Deno.test("schema codes: one letter each, all distinct, never empty for a schema", () => {
   const codes = Object.values(SCHEMA_CODE);
@@ -68,4 +68,13 @@ Deno.test("distinctDashes: guard no longer shares token's dash; the others are l
 Deno.test("uniqueKeys: repeats get a counter, first stays plain", () => {
   assertEquals(uniqueKeys(["a", "b", "a", "a", "b"]), ["a", "b", "a#2", "a#3", "b#2"]);
   assertEquals(uniqueKeys([]), []);
+});
+
+Deno.test("firstDrawing: the key of a thing's first drawing, for when a redraw drops the second", () => {
+  assertEquals(firstDrawing("port:orders:in#2"), "port:orders:in");
+  assertEquals(firstDrawing("port:orders:in#12"), "port:orders:in");
+  assertEquals(firstDrawing("port:orders:in"), "port:orders:in");
+  assertEquals(firstDrawing("item:junction #3: x"), "item:junction #3: x", "only a trailing counter counts");
+  // and it undoes uniqueKeys
+  assertEquals(uniqueKeys(["p", "p", "p"]).map(firstDrawing), ["p", "p", "p"]);
 });

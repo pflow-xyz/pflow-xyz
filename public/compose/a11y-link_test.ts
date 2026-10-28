@@ -6,7 +6,7 @@
 // what it announces must be what the registry said, and a commit must be a link
 // the registry accepts.
 import { assert, assertEquals, assertStringIncludes } from "https://deno.land/std@0.224.0/assert/mod.ts";
-import { begin, beginText, press, targetText } from "./a11y-link.js";
+import { begin, beginText, noTargetsText, press, targetText } from "./a11y-link.js";
 import { errText, portLegalReason, portRefusal, portTargets, slotLegalReason, slotRefusal, slotTargets } from "./verdicts.js";
 import { setup } from "../../parity/composition-views/render.js";
 import { actions, linkCandidates, slotCandidates, start } from "./state.js";
@@ -80,6 +80,37 @@ Deno.test("R walks the refused targets and says why each is refused", () => {
   assertEquals(r.effects, [{ type: "focus", key: "y" }]);
 });
 
+Deno.test("R walks the refused targets forward and Shift+R back, over a list of three or more (two cannot tell the directions apart)", () => {
+  const start = begin({ originKey: "o", originLabel: "o", targets: [T("a", true), T("x", false), T("y", false), T("z", false)] }).state;
+  const at = (s: any, ev: any) => { const r = press(s, ev); return { s: r.state, key: (r.effects[0] as any).key }; };
+  // forward from nowhere: the first, then on, wrapping
+  let w = at(start, k("r"));
+  assertEquals(w.key, "x");
+  w = at(w.s, k("r")); assertEquals(w.key, "y");
+  w = at(w.s, k("r")); assertEquals(w.key, "z");
+  w = at(w.s, k("r")); assertEquals(w.key, "x", "wraps forward");
+  // back from the middle goes to the one before it, not the one after
+  w = at(at(start, k("r")).s, k("r")); // on y
+  assertEquals(w.key, "y");
+  w = at(w.s, k("R")); assertEquals(w.key, "x", "Shift+R goes back");
+  w = at(w.s, k("R")); assertEquals(w.key, "z", "wraps backward");
+  // a terminal that reports the lower-case key with Shift held means the same
+  w = at(w.s, { key: "r", shiftKey: true }); assertEquals(w.key, "y");
+  // from nowhere, back starts at the end
+  assertEquals(at(start, k("R")).key, "z");
+});
+
+Deno.test("a view that draws no target: link mode is not entered, and the text says the view draws none (not that the rules refuse)", () => {
+  const r = begin({ noun: "slot", originKey: "piece:threats", originLabel: "threats, order piece", targets: [] });
+  assertEquals(r.state.phase, "ended");
+  assertEquals(r.effects, []);
+  assertEquals(r.announce, "threats, order piece: this view draws no slots to link to, so there is nothing to light. Another view may draw them.");
+  assert(!r.announce.includes("refuse"));
+  assertEquals(noTargetsText("port", "orders:in").startsWith("orders:in: this view draws no other ports to link to"), true);
+  assertEquals(press(r.state, k("r")).handled, false, "after an ended begin the machine takes nothing");
+  assertEquals(press(r.state, k("Enter")).handled, false);
+});
+
 Deno.test("Enter on a refused target explains and does not link; on a lit one it commits", () => {
   let s = begin({ originKey: "port:o", originLabel: "o", targets: [T("a", true), T("x", false, "E_X one")] }).state;
   s = press(s, k("r")).state;
@@ -136,6 +167,31 @@ Deno.test("verdicts: the phrases are the registry's, with the link index trimmed
   assertEquals(slotRefusal(undefined), "not a slot");
   assertEquals(portRefusal(undefined), "not a target");
   assertEquals(slotLegalReason({ slot: "order" }), "fits the order slot (pflow-rs accepts the plan: plan.slot_candidates)");
+});
+
+Deno.test("verdicts: a refused port reads kind by kind, joined by ' | ' and '; ' (literal)", () => {
+  const v = {
+    key: "workers:available", ok: false,
+    tried: [
+      { link: { kind: "token" }, verdict: { errors: [{ code: "E_A", message: "links[0]: one" }, { code: "E_B", message: "two" }] } },
+      { link: { kind: "data" }, verdict: { errors: [{ code: "E_C", message: "three" }] } },
+    ],
+  };
+  assertEquals(portRefusal(v), "token: E_A one; E_B two | data: E_C three");
+  assertEquals(portTargets([v])[0].reason, "token: E_A one; E_B two | data: E_C three");
+  assertEquals(portLegalReason({ verdict: { passed: [{ text: "schemas agree" }, { text: "directions fit" }] } }), "schemas agree; directions fit");
+});
+
+Deno.test("verdicts: slot targets carry no link kind, and a legal and a refused slot read as the pointer's tip does", () => {
+  const cands = [{ slot: "order", ok: true }, { slot: "memo", ok: false, why: "memo takes memo pieces", rule: "pflow-rs" }, { slot: "off", ok: true }];
+  const t = slotTargets(cands, { has: (k: string) => k !== "off", label: (k: string) => `${k} slot` });
+  assertEquals(t.map((x: any) => x.key), ["order", "memo"], "a slot the view does not draw is left out");
+  for (const x of t) assertEquals(x.kind, null, "a slot has no link kind");
+  assertEquals(t[0], { key: "order", label: "order slot", ok: true, kind: null, reason: "fits the order slot (pflow-rs accepts the plan: plan.slot_candidates)" });
+  assertEquals(t[1], { key: "memo", label: "memo slot", ok: false, kind: null, reason: "memo takes memo pieces (pflow-rs)" });
+  // and a port target carries its kind only when legal
+  const p = portTargets([{ key: "a:b", ok: true, link: { kind: "token" }, verdict: { passed: [{ text: "ok" }] } }, { key: "c:d", ok: false, tried: [] }]);
+  assertEquals([p[0].kind, p[1].kind], ["token", null]);
 });
 
 // --- the registry's own verdicts -------------------------------------------------------------------

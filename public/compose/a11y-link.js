@@ -7,6 +7,7 @@
 // A target is {key, label, ok, kind, reason}: ok targets are the "lit" ones.
 //
 //   begin({noun, originKey, originLabel, targets}) -> {state, announce, effects}
+//                                                     (state.phase is 'ended' when no target is drawn)
 //   press(state, {key, shiftKey, ...})              -> {state, announce, effects, handled}
 //
 // effects: {type: 'focus', key}   move focus to that target (and draw the band to it)
@@ -50,8 +51,23 @@ export function targetText(s, key) {
   return `${t.label}: refused. ${t.reason}. Refused ${s.noun} ${j} of ${s.refused.length}.`;
 }
 
-/** Enter link mode. */
+/**
+ * What is said when a view draws nothing to link to (the Flat net draws palette pieces and no slots):
+ * the registry may well accept the piece somewhere, the view just does not show it, so "the rules
+ * refuse every slot" would be false.
+ */
+export function noTargetsText(noun, originLabel) {
+  return `${originLabel}: this view draws no ${noun === 'port' ? 'other ports' : `${noun}s`} to link to, so there is nothing to light. Another view may draw them.`;
+}
+
+/**
+ * Enter link mode. With no target drawn at all there is no mode to enter: the state is already
+ * 'ended' and the announcement says why, so the page lights nothing.
+ */
 export function begin({ noun = 'port', originKey, originLabel, targets }) {
+  if (!targets.length) {
+    return { state: { phase: 'ended', noun, originKey, originLabel, byKey: {}, legal: [], refused: [], at: null }, announce: noTargetsText(noun, originLabel), effects: [] };
+  }
   const byKey = Object.fromEntries(targets.map((t) => [t.key, t]));
   const state = {
     phase: 'linking',

@@ -21,7 +21,7 @@
 import { registered, startKeyboard, kbActive } from './snap.js';
 import { infoOf, activate, dismissPinned, isPinned, revealPanel, syncPin } from './inspect.js';
 import { rovingTarget, tabTarget, tabStop, roleFor, keepsOwnName, clicksItself } from './a11y-nav.js';
-import { portLabel, slotLabel, pieceLabel, viewLabel, eventText, schemaCode, uniqueKeys, distinctDashes } from './a11y-text.js';
+import { portLabel, slotLabel, pieceLabel, viewLabel, eventText, schemaCode, uniqueKeys, distinctDashes, firstDrawing } from './a11y-text.js';
 import { state, subnetsById } from './state.js';
 import { SLOTS, pieceByName, LINK_STYLE } from './model.js';
 import { schemaColor } from './theme.js';
@@ -378,7 +378,9 @@ function restoreFocus(stage) {
   const wanted = asked || (lost ? lastFocusKey : null);
   lastFocusKey = null;
   if (!wanted) return;
-  const found = document.querySelector(`[data-a11y-key="${CSS.escape(wanted)}"]`) || byContainerKey(wanted);
+  const byKey = (k) => document.querySelector(`[data-a11y-key="${CSS.escape(k)}"]`);
+  // the thing itself; else, if it was a second drawing the redraw dropped, its first drawing; else a rebuilt button
+  const found = byKey(wanted) || (firstDrawing(wanted) !== wanted ? byKey(firstDrawing(wanted)) : null) || byContainerKey(wanted);
   if (found) { found.focus(); return; }
   // The thing is gone (another view): keep the person in the diagram, not back at the top of the page.
   if (/^(port|piece|slot|item|action)/.test(wanted)) stage.focus();

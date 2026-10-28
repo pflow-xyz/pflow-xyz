@@ -54,7 +54,8 @@ a { color: var(--accent); }
 .stage-note.honesty { background: #f3f6fb; border-color: var(--accent); }
 .stage-note.na { background: #fbf4e6; border-color: #c47a12; }
 .stage-note.warn { background: #fbecea; border-color: var(--bad); }
-.snap-status { position: absolute; bottom: 8px; left: 14px; right: 14px; font-size: 11.5px; color: var(--ink); pointer-events: none; }
+/* fixed to the viewport, not the stage: the stage can be taller than the screen, and the reason a target is refused is read here (the keyboard path never shows the pointer's tip) */
+.snap-status { position: fixed; bottom: 10px; left: 14px; max-width: min(760px, calc(100vw - 28px)); z-index: 30; font-size: 11.5px; color: var(--ink); pointer-events: none; }
 .snap-status:not(:empty) { background: rgba(255, 255, 255, 0.94); border: 1px solid var(--line); border-radius: 6px; padding: 3px 8px; }
 
 /* palette (connect-4) */

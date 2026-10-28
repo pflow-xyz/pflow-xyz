@@ -97,3 +97,12 @@ export function uniqueKeys(titles) {
     return n === 1 ? t : `${t}#${n}`;
   });
 }
+
+/**
+ * The key of the same thing in its first drawing: `port:orders:in#2` -> `port:orders:in`. Where a redraw
+ * no longer has the second drawing of a thing (a linked port leaves the outer interface), focus goes to
+ * the thing's other drawing rather than out of the diagram.
+ */
+export function firstDrawing(key) {
+  return String(key).replace(/#\d+$/, '');
+}

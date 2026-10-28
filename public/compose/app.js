@@ -16,6 +16,8 @@ import { citeLabel, citeURL, bibLabel, bibURL } from './sources.js';
 import { makeCtx, VIEW_IDS } from './ctx.js';
 import { makeManifest } from './manifest.js';
 import * as a11y from './a11y.js';
+import { isTypingTarget } from './a11y-nav.js';
+import { announce } from './a11y-bus.js';
 import { renderLegend } from './legend.js';
 
 const views = new Map();
@@ -238,6 +240,13 @@ function render() {
   document.body.dataset.ready = '1';
 }
 
+/** Is the key typed at someone who is typing (a field, a select, a contenteditable, an ARIA text box)? */
+function typingAt(target) {
+  const chain = [];
+  for (let n = target; n && n.nodeType === 1; n = n.parentElement) chain.push({ tag: n.tagName, editable: n.isContentEditable === true, role: n.getAttribute('role') });
+  return isTypingTarget(chain);
+}
+
 async function main() {
   readHash();
   initSnap();
@@ -246,7 +255,12 @@ async function main() {
   $('#ex-orders').onclick = () => actions.setExample('orders');
   $('#ex-connect4').onclick = () => actions.setExample('connect4');
   window.addEventListener('keydown', (e) => {
-    if (e.target.closest('input, textarea') || kbActive() || e.ctrlKey || e.metaKey || e.altKey) return;
+    if (typingAt(e.target) || e.ctrlKey || e.metaKey || e.altKey) return;
+    if (kbActive()) {
+      // link mode owns the keys: a number that did nothing, silently, would look like a broken page
+      if (/^[0-9e]$/.test(e.key)) announce('Linking is on, so the view keys are off. Escape cancels linking.');
+      return;
+    }
     const n = e.key === '0' ? 10 : Number(e.key);
     if (n >= 1 && n <= VIEW_IDS.length) actions.setView(VIEW_IDS[n - 1]);
     if (e.key === 'e') actions.setExample(state.example === 'orders' ? 'connect4' : 'orders');
