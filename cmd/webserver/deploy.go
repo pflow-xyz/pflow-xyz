@@ -5,7 +5,8 @@ package main
 // mechanism.
 //
 //	webhook / POST /admin/deploy
-//	  -> one deploy at a time (a delivery during a run queues ONE follow-up)
+//	  -> one deploy at a time (a delivery during a run queues ONE follow-up; one
+//	     that is only waiting for CI is superseded by skip_ci or a newer push)
 //	  -> git fetch origin refs/heads/main; pin the fetched sha
 //	  -> git verify-commit <sha>          (signature; unchanged strictness)
 //	  -> CI gate on <sha>                 (deploy_gate.go; fails closed)
@@ -234,6 +235,12 @@ type deployRefusal struct{ msg string }
 
 func (e *deployRefusal) Error() string { return e.msg }
 
+// deploySupersededError is the cancel cause of a CI wait that a newer request ended
+// (see deployer.submit). Like a refusal it leaves the checkout untouched.
+type deploySupersededError struct{ msg string }
+
+func (e *deploySupersededError) Error() string { return e.msg }
+
 // ---- Output buffer ---------------------------------------------------------
 
 // outBuf is a deploy's output, written by the worker while the admin endpoint
@@ -296,6 +303,9 @@ const (
 	deploySucceeded = "succeeded" // built; a restart follows when the queue empties
 	deployFailed    = "failed"    // something broke (fetch, merge, copy, build)
 	deployRefused   = "refused"   // policy said no (signature, CI); checkout untouched
+	// deploySuperseded: a newer request ended the run while it was only waiting
+	// for CI. Nothing in the checkout had changed.
+	deploySuperseded = "superseded"
 )
 
 // deployMark is a successful deploy, kept apart so a later refusal does not
@@ -423,6 +433,26 @@ type deployJob struct {
 	out       *outBuf
 	done      chan struct{} // closed when the run has finished
 	err       error         // set before done is closed
+
+	// Guarded by deployer.mu.
+	sha        string                  // the fetched tip, once pinned
+	waiting    bool                    // in the CI gate with nothing to decide yet: may be superseded
+	cancelGate context.CancelCauseFunc // ends the CI wait
+}
+
+// supersedeReason says why n, a request that arrived (or was queued) while cur
+// was running, should end cur's wait for CI; "" means it should not. cur is
+// obsolete if the request skips the gate (the operator wants the tip now, not
+// after cur's CI) or announces a push other than the one cur is polling.
+// Called with deployer.mu held.
+func (n *deployJob) supersedeReason(cur *deployJob) string {
+	switch {
+	case n.skipCI:
+		return "superseded by POST /admin/deploy?skip_ci=1, which deploys without waiting for CI"
+	case n.announced != "" && cur.sha != "" && !strings.EqualFold(n.announced, cur.sha):
+		return fmt.Sprintf("superseded by a newer push (%s) while %s was still waiting for CI", shortSHA(n.announced), shortSHA(cur.sha))
+	}
+	return ""
 }
 
 // deployer owns the deploy pipeline and everything it touches: the single
@@ -441,6 +471,7 @@ type deployer struct {
 	mu         sync.Mutex
 	statusPath string // "" = memory only
 	running    bool
+	restarting bool       // the service is about to be restarted: nothing new may start or queue
 	cur        *deployJob // the job being executed
 	next       *deployJob // the queued follow-up, at most one
 	status     deployStatus
@@ -534,14 +565,36 @@ func (d *deployer) update(f func(s *deployStatus), persist bool) {
 	}
 }
 
+// submission is what enqueue decided about one request.
+type submission struct {
+	job        *deployJob
+	queued     bool       // joined the follow-up behind a running deploy
+	superseded *deployJob // the running deploy this request ended, if it was only waiting for CI
+	restarting bool       // refused: the service is about to restart, so nothing can run or wait
+}
+
 // submit asks for a deploy. If none is running, one starts at once. If one is
 // running, the request joins a single queued follow-up (created if absent), so
 // a burst of deliveries costs one extra run, not one each and not none: the
 // follow-up fetches whatever main is when it starts, so the latest push wins.
 // If the requests disagree about skipping the CI gate, the gate stays on.
 func (d *deployer) submit(trigger, announced string, skipCI bool) (job *deployJob, queued bool) {
+	s := d.enqueue(trigger, announced, skipCI)
+	return s.job, s.queued
+}
+
+// enqueue is submit with the whole decision. A running deploy that is only
+// waiting for CI is ended when the queued request makes it obsolete (see
+// supersedeReason): an operator's skip_ci=1 must not sit behind the very wait
+// it exists to override, and a push must not queue behind a job polling a
+// commit that is no longer the tip. A deploy past its gate (merging, building)
+// is never interrupted: the request queues.
+func (d *deployer) enqueue(trigger, announced string, skipCI bool) submission {
 	d.mu.Lock()
 	defer d.mu.Unlock()
+	if d.restarting {
+		return submission{restarting: true}
+	}
 	if d.running {
 		if d.next == nil {
 			d.next = &deployJob{trigger: trigger, announced: announced, skipCI: skipCI, out: &outBuf{}, done: make(chan struct{})}
@@ -552,13 +605,21 @@ func (d *deployer) submit(trigger, announced string, skipCI bool) (job *deployJo
 			}
 			d.next.skipCI = d.next.skipCI && skipCI
 		}
-		return d.next, true
+		s := submission{job: d.next, queued: true}
+		if cur := d.cur; cur != nil && cur.waiting {
+			if reason := d.next.supersedeReason(cur); reason != "" {
+				cur.waiting = false
+				cur.cancelGate(&deploySupersededError{reason})
+				s.superseded = cur
+			}
+		}
+		return s
 	}
-	job = &deployJob{trigger: trigger, announced: announced, skipCI: skipCI, out: &outBuf{}, done: make(chan struct{})}
+	job := &deployJob{trigger: trigger, announced: announced, skipCI: skipCI, out: &outBuf{}, done: make(chan struct{})}
 	d.running, d.cur = true, job
 	d.loops.Add(1)
 	go d.loop(job)
-	return job, false
+	return submission{job: job}
 }
 
 // loop runs jobs one after another until the queue is empty, then restarts the
@@ -573,10 +634,16 @@ func (d *deployer) loop(job *deployJob) {
 		d.mu.Lock()
 		next := d.next
 		d.next, d.cur = nil, next
-		// While a restart is pending the flight stays taken: a delivery in that
-		// window queues rather than starting a build the exit would cut off.
-		if next == nil && !built {
+		switch {
+		case next == nil && !built:
 			d.running = false
+		case next == nil:
+			// Restarting. Until it has happened the flight stays taken and
+			// enqueue refuses everything: a build started now would be cut off by
+			// the exit, and a request queued now would die with the process. The
+			// webhook answers 503 so GitHub's delivery list shows it failed and
+			// it can be redelivered.
+			d.restarting = true
 		}
 		d.mu.Unlock()
 		if next == nil && built {
@@ -585,11 +652,8 @@ func (d *deployer) loop(job *deployJob) {
 				d.restart() // exits the process; returns only if the restart failed
 			}
 			d.mu.Lock()
-			next = d.next
-			d.next, d.cur = nil, next
-			if next == nil {
-				d.running = false
-			}
+			d.restarting = false
+			d.running = false
 			d.mu.Unlock()
 		}
 		job = next
@@ -621,6 +685,7 @@ func (d *deployer) execute(job *deployJob) {
 
 	finished := d.now().UTC()
 	var refusal *deployRefusal
+	var superseded *deploySupersededError
 	d.update(func(s *deployStatus) {
 		s.FinishedAt = finished
 		s.OutputTail = job.out.Tail(40, 8<<10)
@@ -628,6 +693,8 @@ func (d *deployer) execute(job *deployJob) {
 		case err == nil:
 			s.State, s.Error = deploySucceeded, ""
 			s.LastSuccess = deployMark{SHA: s.SHA, FinishedAt: finished}
+		case errors.As(err, &superseded):
+			s.State, s.Error = deploySuperseded, err.Error()
 		case errors.As(err, &refusal):
 			s.State, s.Error = deployRefused, err.Error()
 		default:
@@ -639,6 +706,8 @@ func (d *deployer) execute(job *deployJob) {
 	switch {
 	case err == nil:
 		log.Printf("[deploy] success, scheduling restart")
+	case errors.As(err, &superseded):
+		log.Printf("[deploy] %v", err)
 	case errors.As(err, &refusal):
 		log.Printf("[deploy] refused: %v\n%s", err, job.out.String())
 	default:
@@ -698,7 +767,7 @@ func (d *deployer) pipeline(ctx context.Context, job *deployJob, cfg deployConfi
 	if !shaRE.MatchString(sha) {
 		return fmt.Errorf("pin fetched tip: unexpected output %q", snippet([]byte(tip), 80))
 	}
-	d.update(func(s *deployStatus) { s.SHA = sha }, true)
+	d.update(func(s *deployStatus) { s.SHA = sha; job.sha = sha }, true)
 	fmt.Fprintf(out, "deploying %s\n\n", sha)
 
 	// 2. Signature, exactly as strict as before: git verify-commit must pass.
@@ -772,10 +841,34 @@ func (d *deployer) runCIGate(ctx context.Context, job *deployJob, cfg deployConf
 		grace:   cfg.CIGrace,
 		timeout: cfg.CITimeout,
 		logf:    func(format string, a ...any) { fmt.Fprintf(out, format+"\n", a...) },
+		onWait:  func() { d.markWaiting(job) },
 	}
-	runURL, err := g.wait(ctx, sha)
+
+	// The wait runs under a context a newer request can cancel (see enqueue).
+	gctx, cancel := context.WithCancelCause(ctx)
+	defer cancel(nil)
+	d.mu.Lock()
+	job.cancelGate = cancel
+	d.mu.Unlock()
+
+	runURL, err := g.wait(gctx, sha)
+
+	// From here on the job is committed: nothing may end it any more. A request
+	// that cancelled the wait just as it succeeded still wins, because the merge
+	// below has not happened.
+	d.mu.Lock()
+	job.waiting = false
+	var superseded *deploySupersededError
+	errors.As(context.Cause(gctx), &superseded)
+	d.mu.Unlock()
+
 	d.update(func(s *deployStatus) { s.CIRunURL = runURL }, false)
-	if err != nil {
+	switch {
+	case superseded != nil && (err == nil || errors.Is(err, context.Canceled)):
+		decide("superseded")
+		fmt.Fprintf(out, "ci-gate: %s\n", superseded.msg)
+		return superseded
+	case err != nil:
 		var refusal *deployRefusal
 		if errors.As(err, &refusal) {
 			decide("refused")
@@ -785,6 +878,26 @@ func (d *deployer) runCIGate(ctx context.Context, job *deployJob, cfg deployConf
 	decide("passed")
 	fmt.Fprintln(out)
 	return nil
+}
+
+// markWaiting is called by the CI gate when it has nothing to decide yet and is
+// about to sleep. From now on a request that makes this job obsolete may end
+// it, and one that is already queued does so at once. A job whose CI is already
+// green never gets here, so a queued push does not cost it a deploy that was
+// ready.
+func (d *deployer) markWaiting(job *deployJob) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if job.cancelGate == nil {
+		return
+	}
+	job.waiting = true
+	if d.next != nil {
+		if reason := d.next.supersedeReason(job); reason != "" {
+			job.waiting = false
+			job.cancelGate(&deploySupersededError{reason})
+		}
+	}
 }
 
 // ---- Handlers --------------------------------------------------------------
@@ -831,17 +944,29 @@ func (d *deployer) handleWebhook(w http.ResponseWriter, r *http.Request) {
 	}
 
 	log.Printf("[deploy] webhook triggered for %s", payload.Ref)
-	_, queued := d.submit("webhook", payload.After, false)
-
-	// The answer is 202 whatever happens next, so GitHub's delivery list shows
-	// green even when the deploy is refused; GET /admin/deploy-status has the
-	// outcome.
-	w.WriteHeader(http.StatusAccepted)
-	if queued {
-		fmt.Fprintf(w, "deploy queued behind a running deploy")
+	// The webhook never skips the CI gate, whatever its URL says: only the
+	// token-authenticated /admin/deploy can.
+	sub := d.enqueue("webhook", payload.After, false)
+	if sub.restarting {
+		// The service is about to restart and would lose a queued request. A
+		// failure shows red in GitHub's delivery list, where it can be redelivered.
+		w.Header().Set("Retry-After", "10")
+		http.Error(w, "restarting after a deploy; redeliver in a few seconds", http.StatusServiceUnavailable)
 		return
 	}
-	fmt.Fprintf(w, "deploy started")
+
+	// Otherwise the answer is 202 whatever happens next, so GitHub's delivery
+	// list shows green even when the deploy is refused; GET /admin/deploy-status
+	// has the outcome.
+	w.WriteHeader(http.StatusAccepted)
+	switch {
+	case sub.superseded != nil:
+		fmt.Fprintf(w, "deploy queued; it supersedes the deploy that was waiting for CI")
+	case sub.queued:
+		fmt.Fprintf(w, "deploy queued behind a running deploy")
+	default:
+		fmt.Fprintf(w, "deploy started")
+	}
 }
 
 func parseTruthy(v string) bool {
@@ -867,6 +992,15 @@ func (d *deployer) handleAdminDeploy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	skipCI := parseTruthy(r.URL.Query().Get("skip_ci"))
+	sub := d.enqueue("admin", "", skipCI)
+	if sub.restarting {
+		w.Header().Set("Retry-After", "10")
+		http.Error(w, "the service is restarting after a deploy; try again in a few seconds", http.StatusServiceUnavailable)
+		return
+	}
+	job := sub.job
+
 	cfg, _ := deployConfigFromEnv(d.getenv)
 	rc := http.NewResponseController(w)
 	// The CI gate may wait up to its timeout, then a build follows.
@@ -881,9 +1015,13 @@ func (d *deployer) handleAdminDeploy(w http.ResponseWriter, r *http.Request) {
 		flusher.Flush()
 	}
 
-	skipCI := parseTruthy(r.URL.Query().Get("skip_ci"))
-	job, queued := d.submit("admin", "", skipCI)
-	if queued {
+	switch {
+	case sub.superseded != nil:
+		write("The running deploy was only waiting for CI; this request supersedes it and runs next.\n")
+	case sub.queued && skipCI:
+		write("A deploy is already running and is not waiting for CI, so it is not interrupted; this request is queued behind it and runs next. " +
+			"If a push arrives before it starts, the follow-up is gated again; POST skip_ci=1 once more while it waits for CI to override that.\n")
+	case sub.queued:
 		write("A deploy is already running; this request is queued behind it and runs next.\n")
 	}
 	write("Starting deploy...\n\n")
@@ -908,6 +1046,11 @@ func (d *deployer) handleAdminDeploy(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	var superseded *deploySupersededError
+	if errors.As(job.err, &superseded) {
+		write(fmt.Sprintf("\nThis deploy was %v\n", superseded.msg))
+		return
+	}
 	if job.err != nil {
 		write(fmt.Sprintf("\nDEPLOY FAILED: %v\n", job.err))
 		return

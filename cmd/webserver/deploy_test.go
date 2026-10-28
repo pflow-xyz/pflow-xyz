@@ -350,6 +350,13 @@ type deployHarness struct {
 	blockFetch chan struct{}
 	fetchSeen  chan struct{}
 	blockOnce  sync.Once
+
+	// blockCmd, when set, parks the first command starting with it: cmdSeen is
+	// closed when it gets there, and cmdRelease lets it go.
+	blockCmd   string
+	cmdSeen    chan struct{}
+	cmdRelease chan struct{}
+	cmdOnce    sync.Once
 }
 
 const harnessSHA = "8d30d96a1b2c3d4e5f60718293a4b5c6d7e8f901"
@@ -425,6 +432,12 @@ func (h *deployHarness) runner(ctx context.Context, dir string, args ...string) 
 		h.blockOnce.Do(func() {
 			close(h.fetchSeen)
 			<-h.blockFetch
+		})
+	}
+	if h.blockCmd != "" && strings.HasPrefix(line, h.blockCmd) {
+		h.cmdOnce.Do(func() {
+			close(h.cmdSeen)
+			<-h.cmdRelease
 		})
 	}
 	if h.panicOn != "" && strings.HasPrefix(line, h.panicOn) {
@@ -846,6 +859,309 @@ func TestQueuedRequestsSkipTheGateOnlyIfAllOfThemAsk(t *testing.T) {
 	}
 }
 
+// ---- A deploy that is only waiting for CI can be superseded ----------------
+
+// pendingUntil makes the fake GitHub answer in_progress until green is set.
+func pendingUntil(green *atomic.Bool) func(n int, w http.ResponseWriter, r *http.Request) {
+	return func(n int, w http.ResponseWriter, r *http.Request) {
+		if green.Load() {
+			writeRuns(w, runJSON(7, "test", "completed", "success"))
+			return
+		}
+		writeRuns(w, runJSON(7, "test", "in_progress", ""))
+	}
+}
+
+// parkSleeps makes the gate's sleep block until the context ends (a supersede)
+// or release is closed, and reports each time the gate goes to sleep.
+func (h *deployHarness) parkSleeps() (parked chan struct{}, release chan struct{}) {
+	parked, release = make(chan struct{}, 1000), make(chan struct{})
+	h.d.sleep = func(ctx context.Context, d time.Duration) error {
+		select {
+		case parked <- struct{}{}:
+		default:
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-release:
+			return h.clk.Sleep(ctx, d)
+		}
+	}
+	return parked, release
+}
+
+func waitFor(t *testing.T, what string, ch <-chan struct{}) {
+	t.Helper()
+	select {
+	case <-ch:
+	case <-time.After(10 * time.Second):
+		t.Fatalf("timed out waiting for %s", what)
+	}
+}
+
+func isSuperseded(err error) *deploySupersededError {
+	var s *deploySupersededError
+	if errors.As(err, &s) {
+		return s
+	}
+	return nil
+}
+
+// The emergency override must not sit behind the wait it exists to override.
+func TestSkipCISupersedesAJobWaitingForCI(t *testing.T) {
+	h := newHarness(t)
+	var green atomic.Bool
+	h.gate = pendingUntil(&green)
+	parked, _ := h.parkSleeps()
+
+	a, _ := h.d.submit("webhook", harnessSHA, false)
+	waitFor(t, "the gate to start waiting", parked)
+	if st := h.status(); st.Step != "ci-gate" || st.State != deployRunning {
+		t.Fatalf("status while waiting = %+v", st)
+	}
+
+	sub := h.d.enqueue("admin", "", true)
+	if sub.superseded != a || !sub.queued || sub.restarting {
+		t.Fatalf("submission = %+v, want the waiting job superseded", sub)
+	}
+	waitFor(t, "the waiting job to end", a.done)
+	if isSuperseded(a.err) == nil || !strings.Contains(a.err.Error(), "skip_ci=1") {
+		t.Fatalf("a.err = %v", a.err)
+	}
+	if asRefusalOrNil(a.err) != nil {
+		t.Error("a superseded job is not a refusal: nobody judged its commit")
+	}
+	h.wait()
+	if sub.job.err != nil {
+		t.Fatalf("the skip deploy failed: %v\n%s", sub.job.err, sub.job.out.String())
+	}
+	if !strings.Contains(a.out.String(), "ci-gate: superseded by POST /admin/deploy?skip_ci=1") {
+		t.Errorf("the supersede must be in the waiting deploy's output:\n%s", a.out.String())
+	}
+	st := h.status()
+	if st.State != deploySucceeded || st.CIGate != "skipped" || st.Trigger != "admin" {
+		t.Errorf("status = %+v", st)
+	}
+	if h.restarts.Load() != 1 {
+		t.Errorf("restarts = %d: only the deploy that built restarts", h.restarts.Load())
+	}
+	// The waiting job never reached the merge; the skip job did, once.
+	if n := countPrefix(h.log(), "git merge"); n != 1 {
+		t.Errorf("merges = %d, want 1", n)
+	}
+	if n := countPrefix(h.log(), "git fetch"); n != 2 {
+		t.Errorf("fetches = %d, want 2 (the superseded job and the skip job)", n)
+	}
+}
+
+func TestANewerPushSupersedesAJobPollingAnObsoleteCommit(t *testing.T) {
+	h := newHarness(t)
+	var green atomic.Bool
+	h.gate = pendingUntil(&green)
+	parked, release := h.parkSleeps()
+
+	a, _ := h.d.submit("webhook", harnessSHA, false)
+	waitFor(t, "the gate to start waiting", parked)
+
+	// The same push delivered again is no reason to start over.
+	same := h.d.enqueue("webhook", strings.ToUpper(harnessSHA), false)
+	if same.superseded != nil || !same.queued {
+		t.Fatalf("a repeat of the commit being polled: %+v", same)
+	}
+	select {
+	case <-a.done:
+		t.Fatal("the waiting job ended although the request named the commit it is polling")
+	case <-time.After(50 * time.Millisecond):
+	}
+
+	newer := h.d.enqueue("webhook", strings.Repeat("ab", 20), false)
+	if newer.superseded != a || newer.job != same.job {
+		t.Fatalf("a push of another commit must supersede the poll and share the follow-up: %+v", newer)
+	}
+	waitFor(t, "the obsolete job to end", a.done)
+	if s := isSuperseded(a.err); s == nil || !strings.Contains(s.msg, "newer push") || !strings.Contains(s.msg, harnessSHA[:12]) {
+		t.Fatalf("a.err = %v", a.err)
+	}
+	// The follow-up now waits for its own CI; let it through.
+	waitFor(t, "the follow-up to start waiting", parked)
+	green.Store(true)
+	close(release)
+	h.wait()
+	if newer.job.err != nil {
+		t.Fatalf("follow-up: %v", newer.job.err)
+	}
+	if st := h.status(); st.State != deploySucceeded || st.CIGate != "passed" {
+		t.Errorf("status = %+v", st)
+	}
+}
+
+// Whatever is already queued when the gate first has to wait counts as well.
+func TestAPushQueuedBeforeTheGateWaitsSupersedesAtTheFirstWait(t *testing.T) {
+	h := newHarness(t)
+	var green atomic.Bool
+	h.gate = pendingUntil(&green)
+	h.blockFetch, h.fetchSeen = make(chan struct{}), make(chan struct{})
+	parked, release := h.parkSleeps()
+
+	a, _ := h.d.submit("webhook", harnessSHA, false)
+	waitFor(t, "the fetch", h.fetchSeen)
+	next := h.d.enqueue("webhook", strings.Repeat("cd", 20), false)
+	if next.superseded != nil {
+		t.Fatal("a job still fetching is not waiting for CI yet")
+	}
+	close(h.blockFetch)
+	waitFor(t, "the obsolete job to end", a.done)
+	if isSuperseded(a.err) == nil {
+		t.Fatalf("a.err = %v", a.err)
+	}
+	if n := h.api.hitCount(); n != 1 {
+		t.Errorf("API calls = %d: the obsolete job should stop after its first look", n)
+	}
+	waitFor(t, "the follow-up to start waiting", parked)
+	green.Store(true)
+	close(release)
+	h.wait()
+	if next.job.err != nil {
+		t.Fatal(next.job.err)
+	}
+}
+
+// Once the gate has passed, the job is merging and building: nothing may cut it
+// off, a skip request queues behind it.
+func TestAJobPastTheGateIsNeverSuperseded(t *testing.T) {
+	h := newHarness(t)
+	h.blockCmd, h.cmdSeen, h.cmdRelease = "git merge", make(chan struct{}), make(chan struct{})
+
+	a, _ := h.d.submit("webhook", harnessSHA, false)
+	waitFor(t, "the merge", h.cmdSeen)
+	sub := h.d.enqueue("admin", "", true)
+	push := h.d.enqueue("webhook", strings.Repeat("ef", 20), false)
+	if sub.superseded != nil || push.superseded != nil || !sub.queued {
+		t.Fatalf("a job past its gate was superseded: %+v %+v", sub, push)
+	}
+	close(h.cmdRelease)
+	h.wait()
+	if a.err != nil {
+		t.Fatalf("the running job must finish: %v", a.err)
+	}
+	// The skip request and the push shared the follow-up; they disagree about
+	// the gate, so it stays on (and the green fake lets it through).
+	if sub.job != push.job || sub.job.skipCI {
+		t.Errorf("follow-up = %+v", sub.job)
+	}
+	if st := h.status(); st.CIGate != "passed" || st.State != deploySucceeded {
+		t.Errorf("status = %+v", st)
+	}
+}
+
+// A skip request that finds nothing waiting simply queues.
+func TestSkipCIQueuesWhenNothingIsWaitingForCI(t *testing.T) {
+	h := newHarness(t)
+	h.blockFetch, h.fetchSeen = make(chan struct{}), make(chan struct{})
+	a, _ := h.d.submit("webhook", harnessSHA, false)
+	waitFor(t, "the fetch", h.fetchSeen)
+	sub := h.d.enqueue("admin", "", true)
+	if sub.superseded != nil || !sub.queued {
+		t.Fatalf("submission = %+v", sub)
+	}
+	close(h.blockFetch)
+	h.wait()
+	if a.err != nil && isSuperseded(a.err) == nil {
+		t.Fatal(a.err)
+	}
+}
+
+// execute files a superseded job under its own state, not under failed.
+func TestASupersededJobHasItsOwnStatus(t *testing.T) {
+	h := newHarness(t)
+	var green atomic.Bool
+	h.gate = pendingUntil(&green)
+	h.parkSleeps()
+	job := &deployJob{trigger: "webhook", announced: harnessSHA, out: &outBuf{}, done: make(chan struct{})}
+	// A newer push is already waiting; run the job without the loop so the
+	// status it leaves is the one of its own end.
+	h.d.mu.Lock()
+	h.d.running, h.d.cur = true, job
+	h.d.next = &deployJob{trigger: "webhook", announced: strings.Repeat("ab", 20), out: &outBuf{}, done: make(chan struct{})}
+	h.d.mu.Unlock()
+	h.d.execute(job)
+	st := h.d.snapshot()
+	if st.State != deploySuperseded || st.CIGate != "superseded" || !strings.Contains(st.Error, "newer push") || st.LastSuccess.SHA != "" {
+		t.Errorf("status = %+v", st)
+	}
+	if isSuperseded(job.err) == nil {
+		t.Errorf("job.err = %v", job.err)
+	}
+}
+
+// The webhook can never skip the gate, whatever is in its URL: only the
+// token-authenticated /admin/deploy can.
+func TestTheWebhookIgnoresSkipCIInItsURL(t *testing.T) {
+	t.Setenv("DEPLOY_SECRET", "s3cret")
+	h := newHarness(t)
+	h.gate = func(n int, w http.ResponseWriter, r *http.Request) {
+		writeRuns(w, runJSON(7, "test", "completed", "failure"))
+	}
+	body := `{"ref":"refs/heads/main","after":"` + harnessSHA + `"}`
+	for _, q := range []string{"?skip_ci=1", "?skip_ci=true&token=s3cret"} {
+		r := signedWebhook("s3cret", body)
+		r.URL.RawQuery = strings.TrimPrefix(q, "?")
+		w := httptest.NewRecorder()
+		h.d.handleWebhook(w, r)
+		h.wait()
+		if w.Code != http.StatusAccepted {
+			t.Fatalf("%s: %d", q, w.Code)
+		}
+		st := h.status()
+		if st.State != deployRefused || st.CIGate != "refused" || countPrefix(h.log(), "git merge") != 0 {
+			t.Errorf("%s: a red commit got through the webhook: %+v", q, st)
+		}
+	}
+}
+
+func TestAdminDeployStreamsASupersede(t *testing.T) {
+	t.Setenv("DEPLOY_SECRET", "s3cret")
+	h := newHarness(t)
+	var green atomic.Bool
+	h.gate = pendingUntil(&green)
+	parked, _ := h.parkSleeps()
+
+	post := func(url string) chan string {
+		out := make(chan string, 1)
+		go func() {
+			r := httptest.NewRequest("POST", url, nil)
+			r.Header.Set("X-Deploy-Token", "s3cret")
+			w := httptest.NewRecorder()
+			h.d.handleAdminDeploy(w, r)
+			out <- w.Body.String()
+		}()
+		return out
+	}
+	first := post("/admin/deploy")
+	waitFor(t, "the gate to start waiting", parked)
+	second := post("/admin/deploy?skip_ci=1")
+
+	var b1, b2 string
+	select {
+	case b1 = <-first:
+	case <-time.After(10 * time.Second):
+		t.Fatal("the waiting admin deploy never ended")
+	}
+	select {
+	case b2 = <-second:
+	case <-time.After(10 * time.Second):
+		t.Fatal("the skip deploy never ended")
+	}
+	h.wait()
+	if !strings.Contains(b1, "This deploy was superseded by POST /admin/deploy?skip_ci=1") || strings.Contains(b1, "DEPLOY FAILED") {
+		t.Errorf("the waiting deploy's stream:\n%s", b1)
+	}
+	if !strings.Contains(b2, "supersedes it") || !strings.Contains(b2, "SKIPPED by skip_ci=1") || !strings.Contains(b2, "Deploy succeeded") {
+		t.Errorf("the skip deploy's stream:\n%s", b2)
+	}
+}
+
 func TestADeployAfterIdleStartsImmediately(t *testing.T) {
 	h := newHarness(t)
 	h.deploy(false)
@@ -858,32 +1174,50 @@ func TestADeployAfterIdleStartsImmediately(t *testing.T) {
 	}
 }
 
-func TestADeliveryDuringTheRestartWindowQueuesInsteadOfStartingABuild(t *testing.T) {
+func TestADeliveryDuringTheRestartWindowIsRefusedNotQueued(t *testing.T) {
+	t.Setenv("DEPLOY_SECRET", "s3cret")
 	h := newHarness(t)
-	var duringQueued atomic.Bool
+	var webhook, admin *httptest.ResponseRecorder
 	var once sync.Once
 	h.d.restart = func() {
 		h.restarts.Add(1)
 		once.Do(func() {
 			// The restart is about to kill the process (in production it never
-			// returns); a build started now would be cut off half way.
-			_, queued := h.d.submit("webhook", "late", false)
-			duringQueued.Store(queued)
+			// returns). Anything accepted now would be lost with it, and a build
+			// started now would be cut off half way.
+			webhook = httptest.NewRecorder()
+			h.d.handleWebhook(webhook, signedWebhook("s3cret", `{"ref":"refs/heads/main","after":"late"}`))
+			admin = httptest.NewRecorder()
+			r := httptest.NewRequest("POST", "/admin/deploy", nil)
+			r.Header.Set("X-Deploy-Token", "s3cret")
+			h.d.handleAdminDeploy(admin, r)
 		})
 	}
 	h.deploy(false)
-	if !duringQueued.Load() {
-		t.Error("a delivery during the restart must queue, not start")
+
+	if webhook.Code != http.StatusServiceUnavailable || webhook.Header().Get("Retry-After") == "" || !strings.Contains(webhook.Body.String(), "redeliver") {
+		t.Errorf("webhook in the restart window: %d %q %v; want a 503 GitHub shows as failed", webhook.Code, webhook.Body, webhook.Header())
 	}
-	// The restart returned (it failed, here), so the queued run goes ahead.
-	if n := countPrefix(h.log(), "git fetch"); n != 2 {
-		t.Errorf("fetches = %d, want 2", n)
+	if admin.Code != http.StatusServiceUnavailable {
+		t.Errorf("admin deploy in the restart window: %d %q", admin.Code, admin.Body)
 	}
-	if h.restarts.Load() != 2 {
-		t.Errorf("restarts = %d, want 2 (one per built run)", h.restarts.Load())
+	if n := countPrefix(h.log(), "git fetch"); n != 1 {
+		t.Errorf("fetches = %d, want 1: nothing may start or queue during the restart", n)
 	}
-	if st := h.status(); st.AnnouncedSHA != "late" || st.State != deploySucceeded {
+	if st := h.status(); st.AnnouncedSHA == "late" || st.Queued {
 		t.Errorf("status = %+v", st)
+	}
+	// The restart returned (it failed, here): the deployer is usable again.
+	if job := h.deploy(false); job.err != nil {
+		t.Errorf("deploy after a failed restart: %v", job.err)
+	}
+	if w := func() *httptest.ResponseRecorder {
+		w := httptest.NewRecorder()
+		h.d.handleWebhook(w, signedWebhook("s3cret", `{"ref":"refs/heads/main","after":"later"}`))
+		h.wait()
+		return w
+	}(); w.Code != http.StatusAccepted {
+		t.Errorf("webhook once the restart is over: %d", w.Code)
 	}
 }
 
@@ -1230,7 +1564,7 @@ func TestAdminDeployWaitsItsTurnBehindARunningDeploy(t *testing.T) {
 	close(h.blockFetch)
 	body := <-done
 	h.wait()
-	if !strings.Contains(body, "already running; this request is queued") || !strings.Contains(body, "Deploy succeeded") {
+	if !strings.Contains(body, "already running") || !strings.Contains(body, "queued behind it") || !strings.Contains(body, "Deploy succeeded") {
 		t.Errorf("body:\n%s", body)
 	}
 	if n := countPrefix(h.log(), "git fetch"); n != 2 {

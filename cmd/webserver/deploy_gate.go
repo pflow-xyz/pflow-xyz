@@ -154,6 +154,7 @@ type ciGate struct {
 	grace   time.Duration
 	timeout time.Duration
 	logf    func(format string, args ...any) // goes to the deploy output
+	onWait  func()                           // called before each sleep: the gate has nothing to decide yet
 
 	etag    string
 	cached  []checkRun
@@ -294,6 +295,9 @@ func (g *ciGate) wait(ctx context.Context, sha string) (string, error) {
 			return "", err
 		}
 		q := g.query(ctx, sha)
+		if err := ctx.Err(); err != nil {
+			return "", err // cancelled mid-request: not an API failure to retry or log
+		}
 		var advice time.Duration
 		switch {
 		case q.fatal != nil:
@@ -339,6 +343,9 @@ func (g *ciGate) wait(ctx context.Context, sha string) (string, error) {
 		}
 		if rem := deadline.Sub(now); d > rem {
 			d = rem // one last look exactly at the deadline
+		}
+		if g.onWait != nil {
+			g.onWait()
 		}
 		if err := g.sleep(ctx, d); err != nil {
 			return "", err
