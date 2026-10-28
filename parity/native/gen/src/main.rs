@@ -36,7 +36,7 @@ use std::sync::Arc;
 
 /// The pflow-native commit Cargo.toml pins; both test suites compare it with
 /// pflow-native-wasm.lock.
-const PFLOW_NATIVE: &str = "e24beabf255d601d3fd377b5ebcd4c72dfcb0763";
+const PFLOW_NATIVE: &str = "5676bb068e7991f4baaee064f8f10a9ce4b5d9e7";
 
 fn arg(name: &str, dflt: &str) -> String {
     let flag = format!("--{name}");

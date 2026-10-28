@@ -1,0 +1,7994 @@
+{
+  "format": "composition-views-scene/1",
+  "spec": "docs/composition-views-scene.md",
+  "generated_by": "pflow-native crates/app/src/compviews.rs (egui renderers, headless)",
+  "pflow_rs": "9f8c36e53d35e66a0423e424d3feb9580191836a",
+  "manifests": [
+    {
+      "view": "cospan",
+      "example": "orders",
+      "state": "default",
+      "elements": [
+        {
+          "kind": "composite",
+          "id": "bundle",
+          "attrs": {
+            "form": "tensor"
+          }
+        },
+        {
+          "kind": "link",
+          "id": "event:orders:dequeue->payment:do:reserve",
+          "attrs": {
+            "kind": "event",
+            "style": "ghost"
+          }
+        },
+        {
+          "kind": "link",
+          "id": "event:orders:dequeue->workers:acquire",
+          "attrs": {
+            "kind": "event",
+            "style": "ghost"
+          }
+        },
+        {
+          "kind": "link",
+          "id": "event:workers:release->payment:commit",
+          "attrs": {
+            "kind": "event",
+            "style": "ghost"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "orders:depth",
+          "attrs": {
+            "side": "top",
+            "target": "place"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "orders:dequeue",
+          "attrs": {
+            "side": "bottom",
+            "target": "transition"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "orders:enqueue",
+          "attrs": {
+            "side": "bottom",
+            "target": "transition"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "orders:in",
+          "attrs": {
+            "side": "left",
+            "target": "place"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "orders:out",
+          "attrs": {
+            "side": "right",
+            "target": "place"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "payment:account:customer",
+          "attrs": {
+            "side": "both",
+            "target": "place"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "payment:account:merchant",
+          "attrs": {
+            "side": "both",
+            "target": "place"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "payment:commit",
+          "attrs": {
+            "side": "bottom",
+            "target": "transition"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "payment:completed",
+          "attrs": {
+            "side": "right",
+            "target": "place"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "payment:do:charge",
+          "attrs": {
+            "side": "bottom",
+            "target": "transition"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "payment:do:reserve",
+          "attrs": {
+            "side": "bottom",
+            "target": "transition"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "payment:fail:charge",
+          "attrs": {
+            "side": "bottom",
+            "target": "transition"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "payment:fail:reserve",
+          "attrs": {
+            "side": "bottom",
+            "target": "transition"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "payment:fail_commit",
+          "attrs": {
+            "side": "bottom",
+            "target": "transition"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "payment:rolled_back",
+          "attrs": {
+            "side": "right",
+            "target": "place"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "payment:undo:charge",
+          "attrs": {
+            "side": "bottom",
+            "target": "transition"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "payment:undo:reserve",
+          "attrs": {
+            "side": "bottom",
+            "target": "transition"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "workers:acquire",
+          "attrs": {
+            "side": "bottom",
+            "target": "transition"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "workers:available",
+          "attrs": {
+            "side": "both",
+            "target": "place"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "workers:in_use",
+          "attrs": {
+            "side": "right",
+            "target": "place"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "workers:release",
+          "attrs": {
+            "side": "bottom",
+            "target": "transition"
+          }
+        },
+        {
+          "kind": "subnet",
+          "id": "orders",
+          "attrs": {
+            "pattern": "queue"
+          }
+        },
+        {
+          "kind": "subnet",
+          "id": "payment",
+          "attrs": {
+            "pattern": "saga"
+          }
+        },
+        {
+          "kind": "subnet",
+          "id": "workers",
+          "attrs": {
+            "pattern": "resource-pool"
+          }
+        }
+      ]
+    },
+    {
+      "view": "cospan",
+      "example": "orders",
+      "state": "payment2-pushout",
+      "elements": [
+        {
+          "kind": "composite",
+          "id": "bundle",
+          "attrs": {
+            "form": "pushout"
+          }
+        },
+        {
+          "kind": "link",
+          "id": "event:orders:dequeue->payment:do:reserve",
+          "attrs": {
+            "kind": "event",
+            "style": "ghost"
+          }
+        },
+        {
+          "kind": "link",
+          "id": "event:orders:dequeue->workers:acquire",
+          "attrs": {
+            "kind": "event",
+            "style": "ghost"
+          }
+        },
+        {
+          "kind": "link",
+          "id": "event:workers:release->payment:commit",
+          "attrs": {
+            "kind": "event",
+            "style": "ghost"
+          }
+        },
+        {
+          "kind": "link",
+          "id": "token:payment:account:customer->payment2:account:customer",
+          "attrs": {
+            "kind": "token",
+            "style": "pushout"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "orders:depth",
+          "attrs": {
+            "side": "top",
+            "target": "place"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "orders:dequeue",
+          "attrs": {
+            "side": "bottom",
+            "target": "transition"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "orders:enqueue",
+          "attrs": {
+            "side": "bottom",
+            "target": "transition"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "orders:in",
+          "attrs": {
+            "side": "left",
+            "target": "place"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "orders:out",
+          "attrs": {
+            "side": "right",
+            "target": "place"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "payment2:account:customer",
+          "attrs": {
+            "side": "both",
+            "target": "place"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "payment2:account:merchant",
+          "attrs": {
+            "side": "both",
+            "target": "place"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "payment2:commit",
+          "attrs": {
+            "side": "bottom",
+            "target": "transition"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "payment2:completed",
+          "attrs": {
+            "side": "right",
+            "target": "place"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "payment2:do:charge",
+          "attrs": {
+            "side": "bottom",
+            "target": "transition"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "payment2:do:reserve",
+          "attrs": {
+            "side": "bottom",
+            "target": "transition"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "payment2:fail:charge",
+          "attrs": {
+            "side": "bottom",
+            "target": "transition"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "payment2:fail:reserve",
+          "attrs": {
+            "side": "bottom",
+            "target": "transition"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "payment2:fail_commit",
+          "attrs": {
+            "side": "bottom",
+            "target": "transition"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "payment2:rolled_back",
+          "attrs": {
+            "side": "right",
+            "target": "place"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "payment2:undo:charge",
+          "attrs": {
+            "side": "bottom",
+            "target": "transition"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "payment2:undo:reserve",
+          "attrs": {
+            "side": "bottom",
+            "target": "transition"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "payment:account:customer",
+          "attrs": {
+            "side": "both",
+            "target": "place"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "payment:account:merchant",
+          "attrs": {
+            "side": "both",
+            "target": "place"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "payment:commit",
+          "attrs": {
+            "side": "bottom",
+            "target": "transition"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "payment:completed",
+          "attrs": {
+            "side": "right",
+            "target": "place"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "payment:do:charge",
+          "attrs": {
+            "side": "bottom",
+            "target": "transition"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "payment:do:reserve",
+          "attrs": {
+            "side": "bottom",
+            "target": "transition"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "payment:fail:charge",
+          "attrs": {
+            "side": "bottom",
+            "target": "transition"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "payment:fail:reserve",
+          "attrs": {
+            "side": "bottom",
+            "target": "transition"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "payment:fail_commit",
+          "attrs": {
+            "side": "bottom",
+            "target": "transition"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "payment:rolled_back",
+          "attrs": {
+            "side": "right",
+            "target": "place"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "payment:undo:charge",
+          "attrs": {
+            "side": "bottom",
+            "target": "transition"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "payment:undo:reserve",
+          "attrs": {
+            "side": "bottom",
+            "target": "transition"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "workers:acquire",
+          "attrs": {
+            "side": "bottom",
+            "target": "transition"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "workers:available",
+          "attrs": {
+            "side": "both",
+            "target": "place"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "workers:in_use",
+          "attrs": {
+            "side": "right",
+            "target": "place"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "workers:release",
+          "attrs": {
+            "side": "bottom",
+            "target": "transition"
+          }
+        },
+        {
+          "kind": "subnet",
+          "id": "orders",
+          "attrs": {
+            "pattern": "queue"
+          }
+        },
+        {
+          "kind": "subnet",
+          "id": "payment",
+          "attrs": {
+            "pattern": "saga"
+          }
+        },
+        {
+          "kind": "subnet",
+          "id": "payment2",
+          "attrs": {
+            "pattern": "saga"
+          }
+        },
+        {
+          "kind": "subnet",
+          "id": "workers",
+          "attrs": {
+            "pattern": "resource-pool"
+          }
+        }
+      ]
+    },
+    {
+      "view": "cospan",
+      "example": "orders",
+      "state": "no-links",
+      "elements": [
+        {
+          "kind": "composite",
+          "id": "bundle",
+          "attrs": {
+            "form": "tensor"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "orders:depth",
+          "attrs": {
+            "side": "top",
+            "target": "place"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "orders:dequeue",
+          "attrs": {
+            "side": "bottom",
+            "target": "transition"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "orders:enqueue",
+          "attrs": {
+            "side": "bottom",
+            "target": "transition"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "orders:in",
+          "attrs": {
+            "side": "left",
+            "target": "place"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "orders:out",
+          "attrs": {
+            "side": "right",
+            "target": "place"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "payment:account:customer",
+          "attrs": {
+            "side": "both",
+            "target": "place"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "payment:account:merchant",
+          "attrs": {
+            "side": "both",
+            "target": "place"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "payment:commit",
+          "attrs": {
+            "side": "bottom",
+            "target": "transition"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "payment:completed",
+          "attrs": {
+            "side": "right",
+            "target": "place"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "payment:do:charge",
+          "attrs": {
+            "side": "bottom",
+            "target": "transition"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "payment:do:reserve",
+          "attrs": {
+            "side": "bottom",
+            "target": "transition"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "payment:fail:charge",
+          "attrs": {
+            "side": "bottom",
+            "target": "transition"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "payment:fail:reserve",
+          "attrs": {
+            "side": "bottom",
+            "target": "transition"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "payment:fail_commit",
+          "attrs": {
+            "side": "bottom",
+            "target": "transition"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "payment:rolled_back",
+          "attrs": {
+            "side": "right",
+            "target": "place"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "payment:undo:charge",
+          "attrs": {
+            "side": "bottom",
+            "target": "transition"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "payment:undo:reserve",
+          "attrs": {
+            "side": "bottom",
+            "target": "transition"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "workers:acquire",
+          "attrs": {
+            "side": "bottom",
+            "target": "transition"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "workers:available",
+          "attrs": {
+            "side": "both",
+            "target": "place"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "workers:in_use",
+          "attrs": {
+            "side": "right",
+            "target": "place"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "workers:release",
+          "attrs": {
+            "side": "bottom",
+            "target": "transition"
+          }
+        },
+        {
+          "kind": "subnet",
+          "id": "orders",
+          "attrs": {
+            "pattern": "queue"
+          }
+        },
+        {
+          "kind": "subnet",
+          "id": "payment",
+          "attrs": {
+            "pattern": "saga"
+          }
+        },
+        {
+          "kind": "subnet",
+          "id": "workers",
+          "attrs": {
+            "pattern": "resource-pool"
+          }
+        }
+      ]
+    },
+    {
+      "view": "cospan",
+      "example": "orders",
+      "state": "release-undo",
+      "elements": [
+        {
+          "kind": "composite",
+          "id": "bundle",
+          "attrs": {
+            "form": "tensor"
+          }
+        },
+        {
+          "kind": "link",
+          "id": "event:orders:dequeue->payment:do:reserve",
+          "attrs": {
+            "kind": "event",
+            "style": "ghost"
+          }
+        },
+        {
+          "kind": "link",
+          "id": "event:orders:dequeue->workers:acquire",
+          "attrs": {
+            "kind": "event",
+            "style": "ghost"
+          }
+        },
+        {
+          "kind": "link",
+          "id": "event:payment:undo:reserve->workers:release",
+          "attrs": {
+            "kind": "event",
+            "style": "ghost"
+          }
+        },
+        {
+          "kind": "link",
+          "id": "event:workers:release->payment:commit",
+          "attrs": {
+            "kind": "event",
+            "style": "ghost"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "orders:depth",
+          "attrs": {
+            "side": "top",
+            "target": "place"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "orders:dequeue",
+          "attrs": {
+            "side": "bottom",
+            "target": "transition"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "orders:enqueue",
+          "attrs": {
+            "side": "bottom",
+            "target": "transition"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "orders:in",
+          "attrs": {
+            "side": "left",
+            "target": "place"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "orders:out",
+          "attrs": {
+            "side": "right",
+            "target": "place"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "payment:account:customer",
+          "attrs": {
+            "side": "both",
+            "target": "place"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "payment:account:merchant",
+          "attrs": {
+            "side": "both",
+            "target": "place"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "payment:commit",
+          "attrs": {
+            "side": "bottom",
+            "target": "transition"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "payment:completed",
+          "attrs": {
+            "side": "right",
+            "target": "place"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "payment:do:charge",
+          "attrs": {
+            "side": "bottom",
+            "target": "transition"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "payment:do:reserve",
+          "attrs": {
+            "side": "bottom",
+            "target": "transition"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "payment:fail:charge",
+          "attrs": {
+            "side": "bottom",
+            "target": "transition"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "payment:fail:reserve",
+          "attrs": {
+            "side": "bottom",
+            "target": "transition"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "payment:fail_commit",
+          "attrs": {
+            "side": "bottom",
+            "target": "transition"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "payment:rolled_back",
+          "attrs": {
+            "side": "right",
+            "target": "place"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "payment:undo:charge",
+          "attrs": {
+            "side": "bottom",
+            "target": "transition"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "payment:undo:reserve",
+          "attrs": {
+            "side": "bottom",
+            "target": "transition"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "workers:acquire",
+          "attrs": {
+            "side": "bottom",
+            "target": "transition"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "workers:available",
+          "attrs": {
+            "side": "both",
+            "target": "place"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "workers:in_use",
+          "attrs": {
+            "side": "right",
+            "target": "place"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "workers:release",
+          "attrs": {
+            "side": "bottom",
+            "target": "transition"
+          }
+        },
+        {
+          "kind": "subnet",
+          "id": "orders",
+          "attrs": {
+            "pattern": "queue"
+          }
+        },
+        {
+          "kind": "subnet",
+          "id": "payment",
+          "attrs": {
+            "pattern": "saga"
+          }
+        },
+        {
+          "kind": "subnet",
+          "id": "workers",
+          "attrs": {
+            "pattern": "resource-pool"
+          }
+        }
+      ]
+    },
+    {
+      "view": "cospan",
+      "example": "orders",
+      "state": "plan-threats",
+      "elements": [
+        {
+          "kind": "composite",
+          "id": "bundle",
+          "attrs": {
+            "form": "tensor"
+          }
+        },
+        {
+          "kind": "link",
+          "id": "event:orders:dequeue->payment:do:reserve",
+          "attrs": {
+            "kind": "event",
+            "style": "ghost"
+          }
+        },
+        {
+          "kind": "link",
+          "id": "event:orders:dequeue->workers:acquire",
+          "attrs": {
+            "kind": "event",
+            "style": "ghost"
+          }
+        },
+        {
+          "kind": "link",
+          "id": "event:workers:release->payment:commit",
+          "attrs": {
+            "kind": "event",
+            "style": "ghost"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "orders:depth",
+          "attrs": {
+            "side": "top",
+            "target": "place"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "orders:dequeue",
+          "attrs": {
+            "side": "bottom",
+            "target": "transition"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "orders:enqueue",
+          "attrs": {
+            "side": "bottom",
+            "target": "transition"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "orders:in",
+          "attrs": {
+            "side": "left",
+            "target": "place"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "orders:out",
+          "attrs": {
+            "side": "right",
+            "target": "place"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "payment:account:customer",
+          "attrs": {
+            "side": "both",
+            "target": "place"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "payment:account:merchant",
+          "attrs": {
+            "side": "both",
+            "target": "place"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "payment:commit",
+          "attrs": {
+            "side": "bottom",
+            "target": "transition"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "payment:completed",
+          "attrs": {
+            "side": "right",
+            "target": "place"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "payment:do:charge",
+          "attrs": {
+            "side": "bottom",
+            "target": "transition"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "payment:do:reserve",
+          "attrs": {
+            "side": "bottom",
+            "target": "transition"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "payment:fail:charge",
+          "attrs": {
+            "side": "bottom",
+            "target": "transition"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "payment:fail:reserve",
+          "attrs": {
+            "side": "bottom",
+            "target": "transition"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "payment:fail_commit",
+          "attrs": {
+            "side": "bottom",
+            "target": "transition"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "payment:rolled_back",
+          "attrs": {
+            "side": "right",
+            "target": "place"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "payment:undo:charge",
+          "attrs": {
+            "side": "bottom",
+            "target": "transition"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "payment:undo:reserve",
+          "attrs": {
+            "side": "bottom",
+            "target": "transition"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "workers:acquire",
+          "attrs": {
+            "side": "bottom",
+            "target": "transition"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "workers:available",
+          "attrs": {
+            "side": "both",
+            "target": "place"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "workers:in_use",
+          "attrs": {
+            "side": "right",
+            "target": "place"
+          }
+        },
+        {
+          "kind": "port",
+          "id": "workers:release",
+          "attrs": {
+            "side": "bottom",
+            "target": "transition"
+          }
+        },
+        {
+          "kind": "subnet",
+          "id": "orders",
+          "attrs": {
+            "pattern": "queue"
+          }
+        },
+        {
+          "kind": "subnet",
+          "id": "payment",
+          "attrs": {
+            "pattern": "saga"
+          }
+        },
+        {
+          "kind": "subnet",
+          "id": "workers",
+          "attrs": {
+            "pattern": "resource-pool"
+          }
+        }
+      ]
+    },
+    {
+      "view": "cospan",
+      "example": "connect4",
+      "state": "default",
+      "elements": [
+        {
+          "kind": "net",
+          "id": "connect-4",
+          "attrs": {
+            "places": 131,
+            "transitions": 222
+          }
+        },
+        {
+          "kind": "note",
+          "id": "closed",
+          "attrs": {}
+        }
+      ]
+    },
+    {
+      "view": "cospan",
+      "example": "connect4",
+      "state": "payment2-pushout",
+      "elements": [
+        {
+          "kind": "net",
+          "id": "connect-4",
+          "attrs": {
+            "places": 131,
+            "transitions": 222
+          }
+        },
+        {
+          "kind": "note",
+          "id": "closed",
+          "attrs": {}
+        }
+      ]
+    },
+    {
+      "view": "cospan",
+      "example": "connect4",
+      "state": "no-links",
+      "elements": [
+        {
+          "kind": "net",
+          "id": "connect-4",
+          "attrs": {
+            "places": 131,
+            "transitions": 222
+          }
+        },
+        {
+          "kind": "note",
+          "id": "closed",
+          "attrs": {}
+        }
+      ]
+    },
+    {
+      "view": "cospan",
+      "example": "connect4",
+      "state": "release-undo",
+      "elements": [
+        {
+          "kind": "net",
+          "id": "connect-4",
+          "attrs": {
+            "places": 131,
+            "transitions": 222
+          }
+        },
+        {
+          "kind": "note",
+          "id": "closed",
+          "attrs": {}
+        }
+      ]
+    },
+    {
+      "view": "cospan",
+      "example": "connect4",
+      "state": "plan-threats",
+      "elements": [
+        {
+          "kind": "net",
+          "id": "connect-4",
+          "attrs": {
+            "places": 131,
+            "transitions": 222
+          }
+        },
+        {
+          "kind": "note",
+          "id": "closed",
+          "attrs": {}
+        }
+      ]
+    },
+    {
+      "view": "spiders",
+      "example": "orders",
+      "state": "default",
+      "elements": [
+        {
+          "kind": "leak",
+          "id": "event:workers:release->payment:commit",
+          "attrs": {}
+        },
+        {
+          "kind": "spider",
+          "id": "fused:orders/dequeue+payment/do_reserve+workers/acquire",
+          "attrs": {
+            "colour": "event",
+            "legs": [
+              "orders/dequeue",
+              "payment/do_reserve",
+              "workers/acquire"
+            ]
+          }
+        },
+        {
+          "kind": "spider",
+          "id": "fused:payment/commit+workers/release",
+          "attrs": {
+            "colour": "event",
+            "legs": [
+              "payment/commit",
+              "workers/release"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "view": "spiders",
+      "example": "orders",
+      "state": "payment2-pushout",
+      "elements": [
+        {
+          "kind": "leak",
+          "id": "event:workers:release->payment:commit",
+          "attrs": {}
+        },
+        {
+          "kind": "spider",
+          "id": "fused:orders/dequeue+payment/do_reserve+workers/acquire",
+          "attrs": {
+            "colour": "event",
+            "legs": [
+              "orders/dequeue",
+              "payment/do_reserve",
+              "workers/acquire"
+            ]
+          }
+        },
+        {
+          "kind": "spider",
+          "id": "fused:payment/commit+workers/release",
+          "attrs": {
+            "colour": "event",
+            "legs": [
+              "payment/commit",
+              "workers/release"
+            ]
+          }
+        },
+        {
+          "kind": "spider",
+          "id": "wire:payment/customer",
+          "attrs": {
+            "colour": "token",
+            "legs": [
+              "payment/customer",
+              "payment2/customer"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "view": "spiders",
+      "example": "orders",
+      "state": "no-links",
+      "elements": []
+    },
+    {
+      "view": "spiders",
+      "example": "orders",
+      "state": "release-undo",
+      "elements": [
+        {
+          "kind": "leak",
+          "id": "event:workers:release->payment:commit",
+          "attrs": {}
+        },
+        {
+          "kind": "spider",
+          "id": "fused:orders/dequeue+payment/do_reserve+workers/acquire",
+          "attrs": {
+            "colour": "event",
+            "legs": [
+              "orders/dequeue",
+              "payment/do_reserve",
+              "workers/acquire"
+            ]
+          }
+        },
+        {
+          "kind": "spider",
+          "id": "fused:payment/commit+payment/undo_reserve+workers/release",
+          "attrs": {
+            "colour": "event",
+            "legs": [
+              "payment/commit",
+              "payment/undo_reserve",
+              "workers/release"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "view": "spiders",
+      "example": "orders",
+      "state": "plan-threats",
+      "elements": [
+        {
+          "kind": "leak",
+          "id": "event:workers:release->payment:commit",
+          "attrs": {}
+        },
+        {
+          "kind": "spider",
+          "id": "fused:orders/dequeue+payment/do_reserve+workers/acquire",
+          "attrs": {
+            "colour": "event",
+            "legs": [
+              "orders/dequeue",
+              "payment/do_reserve",
+              "workers/acquire"
+            ]
+          }
+        },
+        {
+          "kind": "spider",
+          "id": "fused:payment/commit+workers/release",
+          "attrs": {
+            "colour": "event",
+            "legs": [
+              "payment/commit",
+              "workers/release"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "view": "spiders",
+      "example": "connect4",
+      "state": "default",
+      "elements": [
+        {
+          "kind": "junction",
+          "id": "history",
+          "attrs": {
+            "legs": [
+              "history"
+            ]
+          }
+        },
+        {
+          "kind": "junction",
+          "id": "tt",
+          "attrs": {
+            "legs": [
+              "memo",
+              "tt_best"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "view": "spiders",
+      "example": "connect4",
+      "state": "payment2-pushout",
+      "elements": [
+        {
+          "kind": "junction",
+          "id": "history",
+          "attrs": {
+            "legs": [
+              "history"
+            ]
+          }
+        },
+        {
+          "kind": "junction",
+          "id": "tt",
+          "attrs": {
+            "legs": [
+              "memo",
+              "tt_best"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "view": "spiders",
+      "example": "connect4",
+      "state": "no-links",
+      "elements": [
+        {
+          "kind": "junction",
+          "id": "history",
+          "attrs": {
+            "legs": [
+              "history"
+            ]
+          }
+        },
+        {
+          "kind": "junction",
+          "id": "tt",
+          "attrs": {
+            "legs": [
+              "memo",
+              "tt_best"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "view": "spiders",
+      "example": "connect4",
+      "state": "release-undo",
+      "elements": [
+        {
+          "kind": "junction",
+          "id": "history",
+          "attrs": {
+            "legs": [
+              "history"
+            ]
+          }
+        },
+        {
+          "kind": "junction",
+          "id": "tt",
+          "attrs": {
+            "legs": [
+              "memo",
+              "tt_best"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "view": "spiders",
+      "example": "connect4",
+      "state": "plan-threats",
+      "elements": [
+        {
+          "kind": "junction",
+          "id": "history",
+          "attrs": {
+            "legs": [
+              "history"
+            ]
+          }
+        },
+        {
+          "kind": "junction",
+          "id": "tt",
+          "attrs": {
+            "legs": [
+              "memo",
+              "tt_best"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "view": "operad",
+      "example": "orders",
+      "state": "default",
+      "elements": [
+        {
+          "kind": "exposed",
+          "id": "orders:depth",
+          "attrs": {}
+        },
+        {
+          "kind": "exposed",
+          "id": "orders:enqueue",
+          "attrs": {}
+        },
+        {
+          "kind": "exposed",
+          "id": "orders:in",
+          "attrs": {}
+        },
+        {
+          "kind": "exposed",
+          "id": "orders:out",
+          "attrs": {}
+        },
+        {
+          "kind": "exposed",
+          "id": "payment:account:customer",
+          "attrs": {}
+        },
+        {
+          "kind": "exposed",
+          "id": "payment:account:merchant",
+          "attrs": {}
+        },
+        {
+          "kind": "exposed",
+          "id": "payment:completed",
+          "attrs": {}
+        },
+        {
+          "kind": "exposed",
+          "id": "payment:do:charge",
+          "attrs": {}
+        },
+        {
+          "kind": "exposed",
+          "id": "payment:fail:charge",
+          "attrs": {}
+        },
+        {
+          "kind": "exposed",
+          "id": "payment:fail:reserve",
+          "attrs": {}
+        },
+        {
+          "kind": "exposed",
+          "id": "payment:fail_commit",
+          "attrs": {}
+        },
+        {
+          "kind": "exposed",
+          "id": "payment:rolled_back",
+          "attrs": {}
+        },
+        {
+          "kind": "exposed",
+          "id": "payment:undo:charge",
+          "attrs": {}
+        },
+        {
+          "kind": "exposed",
+          "id": "payment:undo:reserve",
+          "attrs": {}
+        },
+        {
+          "kind": "exposed",
+          "id": "workers:available",
+          "attrs": {}
+        },
+        {
+          "kind": "exposed",
+          "id": "workers:in_use",
+          "attrs": {}
+        },
+        {
+          "kind": "hole",
+          "id": "orders",
+          "attrs": {}
+        },
+        {
+          "kind": "hole",
+          "id": "payment",
+          "attrs": {}
+        },
+        {
+          "kind": "hole",
+          "id": "workers",
+          "attrs": {}
+        },
+        {
+          "kind": "junction",
+          "id": "event:orders:dequeue->payment:do:reserve",
+          "attrs": {
+            "kind": "event"
+          }
+        },
+        {
+          "kind": "junction",
+          "id": "event:orders:dequeue->workers:acquire",
+          "attrs": {
+            "kind": "event"
+          }
+        },
+        {
+          "kind": "junction",
+          "id": "event:workers:release->payment:commit",
+          "attrs": {
+            "kind": "event"
+          }
+        }
+      ]
+    },
+    {
+      "view": "operad",
+      "example": "orders",
+      "state": "payment2-pushout",
+      "elements": [
+        {
+          "kind": "exposed",
+          "id": "orders:depth",
+          "attrs": {}
+        },
+        {
+          "kind": "exposed",
+          "id": "orders:enqueue",
+          "attrs": {}
+        },
+        {
+          "kind": "exposed",
+          "id": "orders:in",
+          "attrs": {}
+        },
+        {
+          "kind": "exposed",
+          "id": "orders:out",
+          "attrs": {}
+        },
+        {
+          "kind": "exposed",
+          "id": "payment2:account:merchant",
+          "attrs": {}
+        },
+        {
+          "kind": "exposed",
+          "id": "payment2:commit",
+          "attrs": {}
+        },
+        {
+          "kind": "exposed",
+          "id": "payment2:completed",
+          "attrs": {}
+        },
+        {
+          "kind": "exposed",
+          "id": "payment2:do:charge",
+          "attrs": {}
+        },
+        {
+          "kind": "exposed",
+          "id": "payment2:do:reserve",
+          "attrs": {}
+        },
+        {
+          "kind": "exposed",
+          "id": "payment2:fail:charge",
+          "attrs": {}
+        },
+        {
+          "kind": "exposed",
+          "id": "payment2:fail:reserve",
+          "attrs": {}
+        },
+        {
+          "kind": "exposed",
+          "id": "payment2:fail_commit",
+          "attrs": {}
+        },
+        {
+          "kind": "exposed",
+          "id": "payment2:rolled_back",
+          "attrs": {}
+        },
+        {
+          "kind": "exposed",
+          "id": "payment2:undo:charge",
+          "attrs": {}
+        },
+        {
+          "kind": "exposed",
+          "id": "payment2:undo:reserve",
+          "attrs": {}
+        },
+        {
+          "kind": "exposed",
+          "id": "payment:account:merchant",
+          "attrs": {}
+        },
+        {
+          "kind": "exposed",
+          "id": "payment:completed",
+          "attrs": {}
+        },
+        {
+          "kind": "exposed",
+          "id": "payment:do:charge",
+          "attrs": {}
+        },
+        {
+          "kind": "exposed",
+          "id": "payment:fail:charge",
+          "attrs": {}
+        },
+        {
+          "kind": "exposed",
+          "id": "payment:fail:reserve",
+          "attrs": {}
+        },
+        {
+          "kind": "exposed",
+          "id": "payment:fail_commit",
+          "attrs": {}
+        },
+        {
+          "kind": "exposed",
+          "id": "payment:rolled_back",
+          "attrs": {}
+        },
+        {
+          "kind": "exposed",
+          "id": "payment:undo:charge",
+          "attrs": {}
+        },
+        {
+          "kind": "exposed",
+          "id": "payment:undo:reserve",
+          "attrs": {}
+        },
+        {
+          "kind": "exposed",
+          "id": "workers:available",
+          "attrs": {}
+        },
+        {
+          "kind": "exposed",
+          "id": "workers:in_use",
+          "attrs": {}
+        },
+        {
+          "kind": "hole",
+          "id": "orders",
+          "attrs": {}
+        },
+        {
+          "kind": "hole",
+          "id": "payment",
+          "attrs": {}
+        },
+        {
+          "kind": "hole",
+          "id": "payment2",
+          "attrs": {}
+        },
+        {
+          "kind": "hole",
+          "id": "workers",
+          "attrs": {}
+        },
+        {
+          "kind": "junction",
+          "id": "event:orders:dequeue->payment:do:reserve",
+          "attrs": {
+            "kind": "event"
+          }
+        },
+        {
+          "kind": "junction",
+          "id": "event:orders:dequeue->workers:acquire",
+          "attrs": {
+            "kind": "event"
+          }
+        },
+        {
+          "kind": "junction",
+          "id": "event:workers:release->payment:commit",
+          "attrs": {
+            "kind": "event"
+          }
+        },
+        {
+          "kind": "junction",
+          "id": "token:payment:account:customer->payment2:account:customer",
+          "attrs": {
+            "kind": "token"
+          }
+        }
+      ]
+    },
+    {
+      "view": "operad",
+      "example": "orders",
+      "state": "no-links",
+      "elements": [
+        {
+          "kind": "exposed",
+          "id": "orders:depth",
+          "attrs": {}
+        },
+        {
+          "kind": "exposed",
+          "id": "orders:dequeue",
+          "attrs": {}
+        },
+        {
+          "kind": "exposed",
+          "id": "orders:enqueue",
+          "attrs": {}
+        },
+        {
+          "kind": "exposed",
+          "id": "orders:in",
+          "attrs": {}
+        },
+        {
+          "kind": "exposed",
+          "id": "orders:out",
+          "attrs": {}
+        },
+        {
+          "kind": "exposed",
+          "id": "payment:account:customer",
+          "attrs": {}
+        },
+        {
+          "kind": "exposed",
+          "id": "payment:account:merchant",
+          "attrs": {}
+        },
+        {
+          "kind": "exposed",
+          "id": "payment:commit",
+          "attrs": {}
+        },
+        {
+          "kind": "exposed",
+          "id": "payment:completed",
+          "attrs": {}
+        },
+        {
+          "kind": "exposed",
+          "id": "payment:do:charge",
+          "attrs": {}
+        },
+        {
+          "kind": "exposed",
+          "id": "payment:do:reserve",
+          "attrs": {}
+        },
+        {
+          "kind": "exposed",
+          "id": "payment:fail:charge",
+          "attrs": {}
+        },
+        {
+          "kind": "exposed",
+          "id": "payment:fail:reserve",
+          "attrs": {}
+        },
+        {
+          "kind": "exposed",
+          "id": "payment:fail_commit",
+          "attrs": {}
+        },
+        {
+          "kind": "exposed",
+          "id": "payment:rolled_back",
+          "attrs": {}
+        },
+        {
+          "kind": "exposed",
+          "id": "payment:undo:charge",
+          "attrs": {}
+        },
+        {
+          "kind": "exposed",
+          "id": "payment:undo:reserve",
+          "attrs": {}
+        },
+        {
+          "kind": "exposed",
+          "id": "workers:acquire",
+          "attrs": {}
+        },
+        {
+          "kind": "exposed",
+          "id": "workers:available",
+          "attrs": {}
+        },
+        {
+          "kind": "exposed",
+          "id": "workers:in_use",
+          "attrs": {}
+        },
+        {
+          "kind": "exposed",
+          "id": "workers:release",
+          "attrs": {}
+        },
+        {
+          "kind": "hole",
+          "id": "orders",
+          "attrs": {}
+        },
+        {
+          "kind": "hole",
+          "id": "payment",
+          "attrs": {}
+        },
+        {
+          "kind": "hole",
+          "id": "workers",
+          "attrs": {}
+        }
+      ]
+    },
+    {
+      "view": "operad",
+      "example": "orders",
+      "state": "release-undo",
+      "elements": [
+        {
+          "kind": "exposed",
+          "id": "orders:depth",
+          "attrs": {}
+        },
+        {
+          "kind": "exposed",
+          "id": "orders:enqueue",
+          "attrs": {}
+        },
+        {
+          "kind": "exposed",
+          "id": "orders:in",
+          "attrs": {}
+        },
+        {
+          "kind": "exposed",
+          "id": "orders:out",
+          "attrs": {}
+        },
+        {
+          "kind": "exposed",
+          "id": "payment:account:customer",
+          "attrs": {}
+        },
+        {
+          "kind": "exposed",
+          "id": "payment:account:merchant",
+          "attrs": {}
+        },
+        {
+          "kind": "exposed",
+          "id": "payment:completed",
+          "attrs": {}
+        },
+        {
+          "kind": "exposed",
+          "id": "payment:do:charge",
+          "attrs": {}
+        },
+        {
+          "kind": "exposed",
+          "id": "payment:fail:charge",
+          "attrs": {}
+        },
+        {
+          "kind": "exposed",
+          "id": "payment:fail:reserve",
+          "attrs": {}
+        },
+        {
+          "kind": "exposed",
+          "id": "payment:fail_commit",
+          "attrs": {}
+        },
+        {
+          "kind": "exposed",
+          "id": "payment:rolled_back",
+          "attrs": {}
+        },
+        {
+          "kind": "exposed",
+          "id": "payment:undo:charge",
+          "attrs": {}
+        },
+        {
+          "kind": "exposed",
+          "id": "workers:available",
+          "attrs": {}
+        },
+        {
+          "kind": "exposed",
+          "id": "workers:in_use",
+          "attrs": {}
+        },
+        {
+          "kind": "hole",
+          "id": "orders",
+          "attrs": {}
+        },
+        {
+          "kind": "hole",
+          "id": "payment",
+          "attrs": {}
+        },
+        {
+          "kind": "hole",
+          "id": "workers",
+          "attrs": {}
+        },
+        {
+          "kind": "junction",
+          "id": "event:orders:dequeue->payment:do:reserve",
+          "attrs": {
+            "kind": "event"
+          }
+        },
+        {
+          "kind": "junction",
+          "id": "event:orders:dequeue->workers:acquire",
+          "attrs": {
+            "kind": "event"
+          }
+        },
+        {
+          "kind": "junction",
+          "id": "event:payment:undo:reserve->workers:release",
+          "attrs": {
+            "kind": "event"
+          }
+        },
+        {
+          "kind": "junction",
+          "id": "event:workers:release->payment:commit",
+          "attrs": {
+            "kind": "event"
+          }
+        }
+      ]
+    },
+    {
+      "view": "operad",
+      "example": "orders",
+      "state": "plan-threats",
+      "elements": [
+        {
+          "kind": "exposed",
+          "id": "orders:depth",
+          "attrs": {}
+        },
+        {
+          "kind": "exposed",
+          "id": "orders:enqueue",
+          "attrs": {}
+        },
+        {
+          "kind": "exposed",
+          "id": "orders:in",
+          "attrs": {}
+        },
+        {
+          "kind": "exposed",
+          "id": "orders:out",
+          "attrs": {}
+        },
+        {
+          "kind": "exposed",
+          "id": "payment:account:customer",
+          "attrs": {}
+        },
+        {
+          "kind": "exposed",
+          "id": "payment:account:merchant",
+          "attrs": {}
+        },
+        {
+          "kind": "exposed",
+          "id": "payment:completed",
+          "attrs": {}
+        },
+        {
+          "kind": "exposed",
+          "id": "payment:do:charge",
+          "attrs": {}
+        },
+        {
+          "kind": "exposed",
+          "id": "payment:fail:charge",
+          "attrs": {}
+        },
+        {
+          "kind": "exposed",
+          "id": "payment:fail:reserve",
+          "attrs": {}
+        },
+        {
+          "kind": "exposed",
+          "id": "payment:fail_commit",
+          "attrs": {}
+        },
+        {
+          "kind": "exposed",
+          "id": "payment:rolled_back",
+          "attrs": {}
+        },
+        {
+          "kind": "exposed",
+          "id": "payment:undo:charge",
+          "attrs": {}
+        },
+        {
+          "kind": "exposed",
+          "id": "payment:undo:reserve",
+          "attrs": {}
+        },
+        {
+          "kind": "exposed",
+          "id": "workers:available",
+          "attrs": {}
+        },
+        {
+          "kind": "exposed",
+          "id": "workers:in_use",
+          "attrs": {}
+        },
+        {
+          "kind": "hole",
+          "id": "orders",
+          "attrs": {}
+        },
+        {
+          "kind": "hole",
+          "id": "payment",
+          "attrs": {}
+        },
+        {
+          "kind": "hole",
+          "id": "workers",
+          "attrs": {}
+        },
+        {
+          "kind": "junction",
+          "id": "event:orders:dequeue->payment:do:reserve",
+          "attrs": {
+            "kind": "event"
+          }
+        },
+        {
+          "kind": "junction",
+          "id": "event:orders:dequeue->workers:acquire",
+          "attrs": {
+            "kind": "event"
+          }
+        },
+        {
+          "kind": "junction",
+          "id": "event:workers:release->payment:commit",
+          "attrs": {
+            "kind": "event"
+          }
+        }
+      ]
+    },
+    {
+      "view": "operad",
+      "example": "connect4",
+      "state": "default",
+      "elements": [
+        {
+          "kind": "frame",
+          "id": "budget",
+          "attrs": {}
+        },
+        {
+          "kind": "frame",
+          "id": "null_window",
+          "attrs": {}
+        },
+        {
+          "kind": "hole",
+          "id": "bounds",
+          "attrs": {
+            "accepts": "Bound"
+          }
+        },
+        {
+          "kind": "hole",
+          "id": "engine",
+          "attrs": {
+            "accepts": "Engine"
+          }
+        },
+        {
+          "kind": "hole",
+          "id": "filters",
+          "attrs": {
+            "accepts": "Filter"
+          }
+        },
+        {
+          "kind": "hole",
+          "id": "heuristics",
+          "attrs": {
+            "accepts": "Heuristic"
+          }
+        },
+        {
+          "kind": "hole",
+          "id": "memo",
+          "attrs": {
+            "accepts": "Memo"
+          }
+        },
+        {
+          "kind": "hole",
+          "id": "order",
+          "attrs": {
+            "accepts": "Order"
+          }
+        },
+        {
+          "kind": "piece",
+          "id": "filters/must_win",
+          "attrs": {}
+        },
+        {
+          "kind": "piece",
+          "id": "memo/memo",
+          "attrs": {}
+        },
+        {
+          "kind": "piece",
+          "id": "order/centrality",
+          "attrs": {}
+        },
+        {
+          "kind": "piece",
+          "id": "order/history",
+          "attrs": {}
+        },
+        {
+          "kind": "piece",
+          "id": "order/immediate_win",
+          "attrs": {}
+        },
+        {
+          "kind": "piece",
+          "id": "order/tt_best",
+          "attrs": {}
+        }
+      ]
+    },
+    {
+      "view": "operad",
+      "example": "connect4",
+      "state": "payment2-pushout",
+      "elements": [
+        {
+          "kind": "frame",
+          "id": "budget",
+          "attrs": {}
+        },
+        {
+          "kind": "frame",
+          "id": "null_window",
+          "attrs": {}
+        },
+        {
+          "kind": "hole",
+          "id": "bounds",
+          "attrs": {
+            "accepts": "Bound"
+          }
+        },
+        {
+          "kind": "hole",
+          "id": "engine",
+          "attrs": {
+            "accepts": "Engine"
+          }
+        },
+        {
+          "kind": "hole",
+          "id": "filters",
+          "attrs": {
+            "accepts": "Filter"
+          }
+        },
+        {
+          "kind": "hole",
+          "id": "heuristics",
+          "attrs": {
+            "accepts": "Heuristic"
+          }
+        },
+        {
+          "kind": "hole",
+          "id": "memo",
+          "attrs": {
+            "accepts": "Memo"
+          }
+        },
+        {
+          "kind": "hole",
+          "id": "order",
+          "attrs": {
+            "accepts": "Order"
+          }
+        },
+        {
+          "kind": "piece",
+          "id": "filters/must_win",
+          "attrs": {}
+        },
+        {
+          "kind": "piece",
+          "id": "memo/memo",
+          "attrs": {}
+        },
+        {
+          "kind": "piece",
+          "id": "order/centrality",
+          "attrs": {}
+        },
+        {
+          "kind": "piece",
+          "id": "order/history",
+          "attrs": {}
+        },
+        {
+          "kind": "piece",
+          "id": "order/immediate_win",
+          "attrs": {}
+        },
+        {
+          "kind": "piece",
+          "id": "order/tt_best",
+          "attrs": {}
+        }
+      ]
+    },
+    {
+      "view": "operad",
+      "example": "connect4",
+      "state": "no-links",
+      "elements": [
+        {
+          "kind": "frame",
+          "id": "budget",
+          "attrs": {}
+        },
+        {
+          "kind": "frame",
+          "id": "null_window",
+          "attrs": {}
+        },
+        {
+          "kind": "hole",
+          "id": "bounds",
+          "attrs": {
+            "accepts": "Bound"
+          }
+        },
+        {
+          "kind": "hole",
+          "id": "engine",
+          "attrs": {
+            "accepts": "Engine"
+          }
+        },
+        {
+          "kind": "hole",
+          "id": "filters",
+          "attrs": {
+            "accepts": "Filter"
+          }
+        },
+        {
+          "kind": "hole",
+          "id": "heuristics",
+          "attrs": {
+            "accepts": "Heuristic"
+          }
+        },
+        {
+          "kind": "hole",
+          "id": "memo",
+          "attrs": {
+            "accepts": "Memo"
+          }
+        },
+        {
+          "kind": "hole",
+          "id": "order",
+          "attrs": {
+            "accepts": "Order"
+          }
+        },
+        {
+          "kind": "piece",
+          "id": "filters/must_win",
+          "attrs": {}
+        },
+        {
+          "kind": "piece",
+          "id": "memo/memo",
+          "attrs": {}
+        },
+        {
+          "kind": "piece",
+          "id": "order/centrality",
+          "attrs": {}
+        },
+        {
+          "kind": "piece",
+          "id": "order/history",
+          "attrs": {}
+        },
+        {
+          "kind": "piece",
+          "id": "order/immediate_win",
+          "attrs": {}
+        },
+        {
+          "kind": "piece",
+          "id": "order/tt_best",
+          "attrs": {}
+        }
+      ]
+    },
+    {
+      "view": "operad",
+      "example": "connect4",
+      "state": "release-undo",
+      "elements": [
+        {
+          "kind": "frame",
+          "id": "budget",
+          "attrs": {}
+        },
+        {
+          "kind": "frame",
+          "id": "null_window",
+          "attrs": {}
+        },
+        {
+          "kind": "hole",
+          "id": "bounds",
+          "attrs": {
+            "accepts": "Bound"
+          }
+        },
+        {
+          "kind": "hole",
+          "id": "engine",
+          "attrs": {
+            "accepts": "Engine"
+          }
+        },
+        {
+          "kind": "hole",
+          "id": "filters",
+          "attrs": {
+            "accepts": "Filter"
+          }
+        },
+        {
+          "kind": "hole",
+          "id": "heuristics",
+          "attrs": {
+            "accepts": "Heuristic"
+          }
+        },
+        {
+          "kind": "hole",
+          "id": "memo",
+          "attrs": {
+            "accepts": "Memo"
+          }
+        },
+        {
+          "kind": "hole",
+          "id": "order",
+          "attrs": {
+            "accepts": "Order"
+          }
+        },
+        {
+          "kind": "piece",
+          "id": "filters/must_win",
+          "attrs": {}
+        },
+        {
+          "kind": "piece",
+          "id": "memo/memo",
+          "attrs": {}
+        },
+        {
+          "kind": "piece",
+          "id": "order/centrality",
+          "attrs": {}
+        },
+        {
+          "kind": "piece",
+          "id": "order/history",
+          "attrs": {}
+        },
+        {
+          "kind": "piece",
+          "id": "order/immediate_win",
+          "attrs": {}
+        },
+        {
+          "kind": "piece",
+          "id": "order/tt_best",
+          "attrs": {}
+        }
+      ]
+    },
+    {
+      "view": "operad",
+      "example": "connect4",
+      "state": "plan-threats",
+      "elements": [
+        {
+          "kind": "frame",
+          "id": "budget",
+          "attrs": {}
+        },
+        {
+          "kind": "frame",
+          "id": "null_window",
+          "attrs": {}
+        },
+        {
+          "kind": "hole",
+          "id": "bounds",
+          "attrs": {
+            "accepts": "Bound"
+          }
+        },
+        {
+          "kind": "hole",
+          "id": "engine",
+          "attrs": {
+            "accepts": "Engine"
+          }
+        },
+        {
+          "kind": "hole",
+          "id": "filters",
+          "attrs": {
+            "accepts": "Filter"
+          }
+        },
+        {
+          "kind": "hole",
+          "id": "heuristics",
+          "attrs": {
+            "accepts": "Heuristic"
+          }
+        },
+        {
+          "kind": "hole",
+          "id": "memo",
+          "attrs": {
+            "accepts": "Memo"
+          }
+        },
+        {
+          "kind": "hole",
+          "id": "order",
+          "attrs": {
+            "accepts": "Order"
+          }
+        },
+        {
+          "kind": "piece",
+          "id": "filters/must_win",
+          "attrs": {}
+        },
+        {
+          "kind": "piece",
+          "id": "memo/memo",
+          "attrs": {}
+        },
+        {
+          "kind": "piece",
+          "id": "order/centrality",
+          "attrs": {}
+        },
+        {
+          "kind": "piece",
+          "id": "order/history",
+          "attrs": {}
+        },
+        {
+          "kind": "piece",
+          "id": "order/immediate_win",
+          "attrs": {}
+        },
+        {
+          "kind": "piece",
+          "id": "order/threats",
+          "attrs": {}
+        },
+        {
+          "kind": "piece",
+          "id": "order/tt_best",
+          "attrs": {}
+        }
+      ]
+    },
+    {
+      "view": "string",
+      "example": "orders",
+      "state": "default",
+      "elements": [
+        {
+          "kind": "box",
+          "id": "orders",
+          "attrs": {}
+        },
+        {
+          "kind": "box",
+          "id": "payment",
+          "attrs": {}
+        },
+        {
+          "kind": "box",
+          "id": "workers",
+          "attrs": {}
+        },
+        {
+          "kind": "fusion",
+          "id": "event:orders:dequeue->payment:do:reserve",
+          "attrs": {}
+        },
+        {
+          "kind": "fusion",
+          "id": "event:orders:dequeue->workers:acquire",
+          "attrs": {}
+        },
+        {
+          "kind": "fusion",
+          "id": "event:workers:release->payment:commit",
+          "attrs": {}
+        },
+        {
+          "kind": "wire",
+          "id": "orders:depth",
+          "attrs": {
+            "schema": "queue:items"
+          }
+        },
+        {
+          "kind": "wire",
+          "id": "orders:in",
+          "attrs": {
+            "schema": "queue:items"
+          }
+        },
+        {
+          "kind": "wire",
+          "id": "orders:out",
+          "attrs": {
+            "schema": "queue:items"
+          }
+        },
+        {
+          "kind": "wire",
+          "id": "payment:account:customer",
+          "attrs": {
+            "schema": "account"
+          }
+        },
+        {
+          "kind": "wire",
+          "id": "payment:account:merchant",
+          "attrs": {
+            "schema": "account"
+          }
+        },
+        {
+          "kind": "wire",
+          "id": "payment:completed",
+          "attrs": {
+            "schema": "saga:outcome"
+          }
+        },
+        {
+          "kind": "wire",
+          "id": "payment:rolled_back",
+          "attrs": {
+            "schema": "saga:outcome"
+          }
+        },
+        {
+          "kind": "wire",
+          "id": "workers:available",
+          "attrs": {
+            "schema": "resource"
+          }
+        },
+        {
+          "kind": "wire",
+          "id": "workers:in_use",
+          "attrs": {
+            "schema": "resource"
+          }
+        }
+      ]
+    },
+    {
+      "view": "string",
+      "example": "orders",
+      "state": "payment2-pushout",
+      "elements": [
+        {
+          "kind": "box",
+          "id": "orders",
+          "attrs": {}
+        },
+        {
+          "kind": "box",
+          "id": "payment",
+          "attrs": {}
+        },
+        {
+          "kind": "box",
+          "id": "payment2",
+          "attrs": {}
+        },
+        {
+          "kind": "box",
+          "id": "workers",
+          "attrs": {}
+        },
+        {
+          "kind": "fusion",
+          "id": "event:orders:dequeue->payment:do:reserve",
+          "attrs": {}
+        },
+        {
+          "kind": "fusion",
+          "id": "event:orders:dequeue->workers:acquire",
+          "attrs": {}
+        },
+        {
+          "kind": "fusion",
+          "id": "event:workers:release->payment:commit",
+          "attrs": {}
+        },
+        {
+          "kind": "fusion",
+          "id": "token:payment:account:customer->payment2:account:customer",
+          "attrs": {}
+        },
+        {
+          "kind": "wire",
+          "id": "orders:depth",
+          "attrs": {
+            "schema": "queue:items"
+          }
+        },
+        {
+          "kind": "wire",
+          "id": "orders:in",
+          "attrs": {
+            "schema": "queue:items"
+          }
+        },
+        {
+          "kind": "wire",
+          "id": "orders:out",
+          "attrs": {
+            "schema": "queue:items"
+          }
+        },
+        {
+          "kind": "wire",
+          "id": "payment2:account:customer",
+          "attrs": {
+            "schema": "account"
+          }
+        },
+        {
+          "kind": "wire",
+          "id": "payment2:account:merchant",
+          "attrs": {
+            "schema": "account"
+          }
+        },
+        {
+          "kind": "wire",
+          "id": "payment2:completed",
+          "attrs": {
+            "schema": "saga:outcome"
+          }
+        },
+        {
+          "kind": "wire",
+          "id": "payment2:rolled_back",
+          "attrs": {
+            "schema": "saga:outcome"
+          }
+        },
+        {
+          "kind": "wire",
+          "id": "payment:account:customer",
+          "attrs": {
+            "schema": "account"
+          }
+        },
+        {
+          "kind": "wire",
+          "id": "payment:account:merchant",
+          "attrs": {
+            "schema": "account"
+          }
+        },
+        {
+          "kind": "wire",
+          "id": "payment:completed",
+          "attrs": {
+            "schema": "saga:outcome"
+          }
+        },
+        {
+          "kind": "wire",
+          "id": "payment:rolled_back",
+          "attrs": {
+            "schema": "saga:outcome"
+          }
+        },
+        {
+          "kind": "wire",
+          "id": "workers:available",
+          "attrs": {
+            "schema": "resource"
+          }
+        },
+        {
+          "kind": "wire",
+          "id": "workers:in_use",
+          "attrs": {
+            "schema": "resource"
+          }
+        }
+      ]
+    },
+    {
+      "view": "string",
+      "example": "orders",
+      "state": "no-links",
+      "elements": [
+        {
+          "kind": "box",
+          "id": "orders",
+          "attrs": {}
+        },
+        {
+          "kind": "box",
+          "id": "payment",
+          "attrs": {}
+        },
+        {
+          "kind": "box",
+          "id": "workers",
+          "attrs": {}
+        },
+        {
+          "kind": "wire",
+          "id": "orders:depth",
+          "attrs": {
+            "schema": "queue:items"
+          }
+        },
+        {
+          "kind": "wire",
+          "id": "orders:in",
+          "attrs": {
+            "schema": "queue:items"
+          }
+        },
+        {
+          "kind": "wire",
+          "id": "orders:out",
+          "attrs": {
+            "schema": "queue:items"
+          }
+        },
+        {
+          "kind": "wire",
+          "id": "payment:account:customer",
+          "attrs": {
+            "schema": "account"
+          }
+        },
+        {
+          "kind": "wire",
+          "id": "payment:account:merchant",
+          "attrs": {
+            "schema": "account"
+          }
+        },
+        {
+          "kind": "wire",
+          "id": "payment:completed",
+          "attrs": {
+            "schema": "saga:outcome"
+          }
+        },
+        {
+          "kind": "wire",
+          "id": "payment:rolled_back",
+          "attrs": {
+            "schema": "saga:outcome"
+          }
+        },
+        {
+          "kind": "wire",
+          "id": "workers:available",
+          "attrs": {
+            "schema": "resource"
+          }
+        },
+        {
+          "kind": "wire",
+          "id": "workers:in_use",
+          "attrs": {
+            "schema": "resource"
+          }
+        }
+      ]
+    },
+    {
+      "view": "string",
+      "example": "orders",
+      "state": "release-undo",
+      "elements": [
+        {
+          "kind": "box",
+          "id": "orders",
+          "attrs": {}
+        },
+        {
+          "kind": "box",
+          "id": "payment",
+          "attrs": {}
+        },
+        {
+          "kind": "box",
+          "id": "workers",
+          "attrs": {}
+        },
+        {
+          "kind": "fusion",
+          "id": "event:orders:dequeue->payment:do:reserve",
+          "attrs": {}
+        },
+        {
+          "kind": "fusion",
+          "id": "event:orders:dequeue->workers:acquire",
+          "attrs": {}
+        },
+        {
+          "kind": "fusion",
+          "id": "event:payment:undo:reserve->workers:release",
+          "attrs": {}
+        },
+        {
+          "kind": "fusion",
+          "id": "event:workers:release->payment:commit",
+          "attrs": {}
+        },
+        {
+          "kind": "wire",
+          "id": "orders:depth",
+          "attrs": {
+            "schema": "queue:items"
+          }
+        },
+        {
+          "kind": "wire",
+          "id": "orders:in",
+          "attrs": {
+            "schema": "queue:items"
+          }
+        },
+        {
+          "kind": "wire",
+          "id": "orders:out",
+          "attrs": {
+            "schema": "queue:items"
+          }
+        },
+        {
+          "kind": "wire",
+          "id": "payment:account:customer",
+          "attrs": {
+            "schema": "account"
+          }
+        },
+        {
+          "kind": "wire",
+          "id": "payment:account:merchant",
+          "attrs": {
+            "schema": "account"
+          }
+        },
+        {
+          "kind": "wire",
+          "id": "payment:completed",
+          "attrs": {
+            "schema": "saga:outcome"
+          }
+        },
+        {
+          "kind": "wire",
+          "id": "payment:rolled_back",
+          "attrs": {
+            "schema": "saga:outcome"
+          }
+        },
+        {
+          "kind": "wire",
+          "id": "workers:available",
+          "attrs": {
+            "schema": "resource"
+          }
+        },
+        {
+          "kind": "wire",
+          "id": "workers:in_use",
+          "attrs": {
+            "schema": "resource"
+          }
+        }
+      ]
+    },
+    {
+      "view": "string",
+      "example": "orders",
+      "state": "plan-threats",
+      "elements": [
+        {
+          "kind": "box",
+          "id": "orders",
+          "attrs": {}
+        },
+        {
+          "kind": "box",
+          "id": "payment",
+          "attrs": {}
+        },
+        {
+          "kind": "box",
+          "id": "workers",
+          "attrs": {}
+        },
+        {
+          "kind": "fusion",
+          "id": "event:orders:dequeue->payment:do:reserve",
+          "attrs": {}
+        },
+        {
+          "kind": "fusion",
+          "id": "event:orders:dequeue->workers:acquire",
+          "attrs": {}
+        },
+        {
+          "kind": "fusion",
+          "id": "event:workers:release->payment:commit",
+          "attrs": {}
+        },
+        {
+          "kind": "wire",
+          "id": "orders:depth",
+          "attrs": {
+            "schema": "queue:items"
+          }
+        },
+        {
+          "kind": "wire",
+          "id": "orders:in",
+          "attrs": {
+            "schema": "queue:items"
+          }
+        },
+        {
+          "kind": "wire",
+          "id": "orders:out",
+          "attrs": {
+            "schema": "queue:items"
+          }
+        },
+        {
+          "kind": "wire",
+          "id": "payment:account:customer",
+          "attrs": {
+            "schema": "account"
+          }
+        },
+        {
+          "kind": "wire",
+          "id": "payment:account:merchant",
+          "attrs": {
+            "schema": "account"
+          }
+        },
+        {
+          "kind": "wire",
+          "id": "payment:completed",
+          "attrs": {
+            "schema": "saga:outcome"
+          }
+        },
+        {
+          "kind": "wire",
+          "id": "payment:rolled_back",
+          "attrs": {
+            "schema": "saga:outcome"
+          }
+        },
+        {
+          "kind": "wire",
+          "id": "workers:available",
+          "attrs": {
+            "schema": "resource"
+          }
+        },
+        {
+          "kind": "wire",
+          "id": "workers:in_use",
+          "attrs": {
+            "schema": "resource"
+          }
+        }
+      ]
+    },
+    {
+      "view": "string",
+      "example": "connect4",
+      "state": "default",
+      "elements": [
+        {
+          "kind": "backedge",
+          "id": "cutoff",
+          "attrs": {}
+        },
+        {
+          "kind": "backedge",
+          "id": "nullwindow",
+          "attrs": {}
+        },
+        {
+          "kind": "backedge",
+          "id": "recursion",
+          "attrs": {}
+        },
+        {
+          "kind": "backedge",
+          "id": "tt",
+          "attrs": {}
+        },
+        {
+          "kind": "box",
+          "id": "core",
+          "attrs": {}
+        },
+        {
+          "kind": "chain",
+          "id": "centrality",
+          "attrs": {
+            "index": 2
+          }
+        },
+        {
+          "kind": "chain",
+          "id": "history",
+          "attrs": {
+            "index": 3
+          }
+        },
+        {
+          "kind": "chain",
+          "id": "immediate_win",
+          "attrs": {
+            "index": 1
+          }
+        },
+        {
+          "kind": "chain",
+          "id": "tt_best",
+          "attrs": {
+            "index": 0
+          }
+        },
+        {
+          "kind": "frame",
+          "id": "budget",
+          "attrs": {}
+        },
+        {
+          "kind": "frame",
+          "id": "null_window",
+          "attrs": {}
+        }
+      ]
+    },
+    {
+      "view": "string",
+      "example": "connect4",
+      "state": "payment2-pushout",
+      "elements": [
+        {
+          "kind": "backedge",
+          "id": "cutoff",
+          "attrs": {}
+        },
+        {
+          "kind": "backedge",
+          "id": "nullwindow",
+          "attrs": {}
+        },
+        {
+          "kind": "backedge",
+          "id": "recursion",
+          "attrs": {}
+        },
+        {
+          "kind": "backedge",
+          "id": "tt",
+          "attrs": {}
+        },
+        {
+          "kind": "box",
+          "id": "core",
+          "attrs": {}
+        },
+        {
+          "kind": "chain",
+          "id": "centrality",
+          "attrs": {
+            "index": 2
+          }
+        },
+        {
+          "kind": "chain",
+          "id": "history",
+          "attrs": {
+            "index": 3
+          }
+        },
+        {
+          "kind": "chain",
+          "id": "immediate_win",
+          "attrs": {
+            "index": 1
+          }
+        },
+        {
+          "kind": "chain",
+          "id": "tt_best",
+          "attrs": {
+            "index": 0
+          }
+        },
+        {
+          "kind": "frame",
+          "id": "budget",
+          "attrs": {}
+        },
+        {
+          "kind": "frame",
+          "id": "null_window",
+          "attrs": {}
+        }
+      ]
+    },
+    {
+      "view": "string",
+      "example": "connect4",
+      "state": "no-links",
+      "elements": [
+        {
+          "kind": "backedge",
+          "id": "cutoff",
+          "attrs": {}
+        },
+        {
+          "kind": "backedge",
+          "id": "nullwindow",
+          "attrs": {}
+        },
+        {
+          "kind": "backedge",
+          "id": "recursion",
+          "attrs": {}
+        },
+        {
+          "kind": "backedge",
+          "id": "tt",
+          "attrs": {}
+        },
+        {
+          "kind": "box",
+          "id": "core",
+          "attrs": {}
+        },
+        {
+          "kind": "chain",
+          "id": "centrality",
+          "attrs": {
+            "index": 2
+          }
+        },
+        {
+          "kind": "chain",
+          "id": "history",
+          "attrs": {
+            "index": 3
+          }
+        },
+        {
+          "kind": "chain",
+          "id": "immediate_win",
+          "attrs": {
+            "index": 1
+          }
+        },
+        {
+          "kind": "chain",
+          "id": "tt_best",
+          "attrs": {
+            "index": 0
+          }
+        },
+        {
+          "kind": "frame",
+          "id": "budget",
+          "attrs": {}
+        },
+        {
+          "kind": "frame",
+          "id": "null_window",
+          "attrs": {}
+        }
+      ]
+    },
+    {
+      "view": "string",
+      "example": "connect4",
+      "state": "release-undo",
+      "elements": [
+        {
+          "kind": "backedge",
+          "id": "cutoff",
+          "attrs": {}
+        },
+        {
+          "kind": "backedge",
+          "id": "nullwindow",
+          "attrs": {}
+        },
+        {
+          "kind": "backedge",
+          "id": "recursion",
+          "attrs": {}
+        },
+        {
+          "kind": "backedge",
+          "id": "tt",
+          "attrs": {}
+        },
+        {
+          "kind": "box",
+          "id": "core",
+          "attrs": {}
+        },
+        {
+          "kind": "chain",
+          "id": "centrality",
+          "attrs": {
+            "index": 2
+          }
+        },
+        {
+          "kind": "chain",
+          "id": "history",
+          "attrs": {
+            "index": 3
+          }
+        },
+        {
+          "kind": "chain",
+          "id": "immediate_win",
+          "attrs": {
+            "index": 1
+          }
+        },
+        {
+          "kind": "chain",
+          "id": "tt_best",
+          "attrs": {
+            "index": 0
+          }
+        },
+        {
+          "kind": "frame",
+          "id": "budget",
+          "attrs": {}
+        },
+        {
+          "kind": "frame",
+          "id": "null_window",
+          "attrs": {}
+        }
+      ]
+    },
+    {
+      "view": "string",
+      "example": "connect4",
+      "state": "plan-threats",
+      "elements": [
+        {
+          "kind": "backedge",
+          "id": "cutoff",
+          "attrs": {}
+        },
+        {
+          "kind": "backedge",
+          "id": "nullwindow",
+          "attrs": {}
+        },
+        {
+          "kind": "backedge",
+          "id": "recursion",
+          "attrs": {}
+        },
+        {
+          "kind": "backedge",
+          "id": "tt",
+          "attrs": {}
+        },
+        {
+          "kind": "box",
+          "id": "core",
+          "attrs": {}
+        },
+        {
+          "kind": "chain",
+          "id": "centrality",
+          "attrs": {
+            "index": 2
+          }
+        },
+        {
+          "kind": "chain",
+          "id": "history",
+          "attrs": {
+            "index": 3
+          }
+        },
+        {
+          "kind": "chain",
+          "id": "immediate_win",
+          "attrs": {
+            "index": 1
+          }
+        },
+        {
+          "kind": "chain",
+          "id": "threats",
+          "attrs": {
+            "index": 4
+          }
+        },
+        {
+          "kind": "chain",
+          "id": "tt_best",
+          "attrs": {
+            "index": 0
+          }
+        },
+        {
+          "kind": "frame",
+          "id": "budget",
+          "attrs": {}
+        },
+        {
+          "kind": "frame",
+          "id": "null_window",
+          "attrs": {}
+        }
+      ]
+    },
+    {
+      "view": "flat",
+      "example": "orders",
+      "state": "default",
+      "elements": [
+        {
+          "kind": "place",
+          "id": "orders/items",
+          "attrs": {
+            "initial": 2,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "orders/slots",
+          "attrs": {
+            "initial": 1,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "payment/charge_compensated",
+          "attrs": {
+            "initial": 0,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "payment/charge_done",
+          "attrs": {
+            "initial": 0,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "payment/charge_failed",
+          "attrs": {
+            "initial": 0,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "payment/charge_pending",
+          "attrs": {
+            "initial": 1,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "payment/committing",
+          "attrs": {
+            "initial": 0,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "payment/completed",
+          "attrs": {
+            "initial": 0,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "payment/customer",
+          "attrs": {
+            "initial": 1,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "payment/merchant",
+          "attrs": {
+            "initial": 0,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "payment/next_charge",
+          "attrs": {
+            "initial": 0,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "payment/next_reserve",
+          "attrs": {
+            "initial": 1,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "payment/reserve_compensated",
+          "attrs": {
+            "initial": 0,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "payment/reserve_done",
+          "attrs": {
+            "initial": 0,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "payment/reserve_failed",
+          "attrs": {
+            "initial": 0,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "payment/reserve_pending",
+          "attrs": {
+            "initial": 1,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "payment/rolled_back",
+          "attrs": {
+            "initial": 0,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "payment/unwind_charge",
+          "attrs": {
+            "initial": 0,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "payment/unwind_reserve",
+          "attrs": {
+            "initial": 0,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "workers/available",
+          "attrs": {
+            "initial": 2,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "workers/in_use",
+          "attrs": {
+            "initial": 0,
+            "fused": false
+          }
+        },
+        {
+          "kind": "scenario",
+          "id": "charge-fails",
+          "attrs": {
+            "pass": false,
+            "stopped_step": ""
+          }
+        },
+        {
+          "kind": "scenario",
+          "id": "commit",
+          "attrs": {
+            "pass": true,
+            "stopped_step": ""
+          }
+        },
+        {
+          "kind": "scenario",
+          "id": "refund",
+          "attrs": {
+            "pass": false,
+            "stopped_step": ""
+          }
+        },
+        {
+          "kind": "scenario",
+          "id": "second-order",
+          "attrs": {
+            "pass": false,
+            "stopped_step": "orders/dequeue"
+          }
+        },
+        {
+          "kind": "transition",
+          "id": "fused:orders/dequeue+payment/do_reserve+workers/acquire",
+          "attrs": {
+            "fused": true
+          }
+        },
+        {
+          "kind": "transition",
+          "id": "fused:payment/commit+workers/release",
+          "attrs": {
+            "fused": true
+          }
+        },
+        {
+          "kind": "transition",
+          "id": "orders/enqueue",
+          "attrs": {
+            "fused": false
+          }
+        },
+        {
+          "kind": "transition",
+          "id": "payment/do_charge",
+          "attrs": {
+            "fused": false
+          }
+        },
+        {
+          "kind": "transition",
+          "id": "payment/fail_charge",
+          "attrs": {
+            "fused": false
+          }
+        },
+        {
+          "kind": "transition",
+          "id": "payment/fail_commit",
+          "attrs": {
+            "fused": false
+          }
+        },
+        {
+          "kind": "transition",
+          "id": "payment/fail_reserve",
+          "attrs": {
+            "fused": false
+          }
+        },
+        {
+          "kind": "transition",
+          "id": "payment/undo_charge",
+          "attrs": {
+            "fused": false
+          }
+        },
+        {
+          "kind": "transition",
+          "id": "payment/undo_reserve",
+          "attrs": {
+            "fused": false
+          }
+        }
+      ]
+    },
+    {
+      "view": "flat",
+      "example": "orders",
+      "state": "payment2-pushout",
+      "elements": [
+        {
+          "kind": "place",
+          "id": "orders/items",
+          "attrs": {
+            "initial": 2,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "orders/slots",
+          "attrs": {
+            "initial": 1,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "payment/charge_compensated",
+          "attrs": {
+            "initial": 0,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "payment/charge_done",
+          "attrs": {
+            "initial": 0,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "payment/charge_failed",
+          "attrs": {
+            "initial": 0,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "payment/charge_pending",
+          "attrs": {
+            "initial": 1,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "payment/committing",
+          "attrs": {
+            "initial": 0,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "payment/completed",
+          "attrs": {
+            "initial": 0,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "payment/merchant",
+          "attrs": {
+            "initial": 0,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "payment/next_charge",
+          "attrs": {
+            "initial": 0,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "payment/next_reserve",
+          "attrs": {
+            "initial": 1,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "payment/reserve_compensated",
+          "attrs": {
+            "initial": 0,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "payment/reserve_done",
+          "attrs": {
+            "initial": 0,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "payment/reserve_failed",
+          "attrs": {
+            "initial": 0,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "payment/reserve_pending",
+          "attrs": {
+            "initial": 1,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "payment/rolled_back",
+          "attrs": {
+            "initial": 0,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "payment/unwind_charge",
+          "attrs": {
+            "initial": 0,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "payment/unwind_reserve",
+          "attrs": {
+            "initial": 0,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "payment2/charge_compensated",
+          "attrs": {
+            "initial": 0,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "payment2/charge_done",
+          "attrs": {
+            "initial": 0,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "payment2/charge_failed",
+          "attrs": {
+            "initial": 0,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "payment2/charge_pending",
+          "attrs": {
+            "initial": 1,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "payment2/committing",
+          "attrs": {
+            "initial": 0,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "payment2/completed",
+          "attrs": {
+            "initial": 0,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "payment2/merchant",
+          "attrs": {
+            "initial": 0,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "payment2/next_charge",
+          "attrs": {
+            "initial": 0,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "payment2/next_reserve",
+          "attrs": {
+            "initial": 1,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "payment2/reserve_compensated",
+          "attrs": {
+            "initial": 0,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "payment2/reserve_done",
+          "attrs": {
+            "initial": 0,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "payment2/reserve_failed",
+          "attrs": {
+            "initial": 0,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "payment2/reserve_pending",
+          "attrs": {
+            "initial": 1,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "payment2/rolled_back",
+          "attrs": {
+            "initial": 0,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "payment2/unwind_charge",
+          "attrs": {
+            "initial": 0,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "payment2/unwind_reserve",
+          "attrs": {
+            "initial": 0,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "wire:payment/customer",
+          "attrs": {
+            "initial": 1,
+            "fused": true
+          }
+        },
+        {
+          "kind": "place",
+          "id": "workers/available",
+          "attrs": {
+            "initial": 2,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "workers/in_use",
+          "attrs": {
+            "initial": 0,
+            "fused": false
+          }
+        },
+        {
+          "kind": "scenario",
+          "id": "charge-fails",
+          "attrs": {
+            "pass": false,
+            "stopped_step": ""
+          }
+        },
+        {
+          "kind": "scenario",
+          "id": "commit",
+          "attrs": {
+            "pass": true,
+            "stopped_step": ""
+          }
+        },
+        {
+          "kind": "scenario",
+          "id": "refund",
+          "attrs": {
+            "pass": false,
+            "stopped_step": ""
+          }
+        },
+        {
+          "kind": "scenario",
+          "id": "second-order",
+          "attrs": {
+            "pass": false,
+            "stopped_step": "orders/dequeue"
+          }
+        },
+        {
+          "kind": "transition",
+          "id": "fused:orders/dequeue+payment/do_reserve+workers/acquire",
+          "attrs": {
+            "fused": true
+          }
+        },
+        {
+          "kind": "transition",
+          "id": "fused:payment/commit+workers/release",
+          "attrs": {
+            "fused": true
+          }
+        },
+        {
+          "kind": "transition",
+          "id": "orders/enqueue",
+          "attrs": {
+            "fused": false
+          }
+        },
+        {
+          "kind": "transition",
+          "id": "payment/do_charge",
+          "attrs": {
+            "fused": false
+          }
+        },
+        {
+          "kind": "transition",
+          "id": "payment/fail_charge",
+          "attrs": {
+            "fused": false
+          }
+        },
+        {
+          "kind": "transition",
+          "id": "payment/fail_commit",
+          "attrs": {
+            "fused": false
+          }
+        },
+        {
+          "kind": "transition",
+          "id": "payment/fail_reserve",
+          "attrs": {
+            "fused": false
+          }
+        },
+        {
+          "kind": "transition",
+          "id": "payment/undo_charge",
+          "attrs": {
+            "fused": false
+          }
+        },
+        {
+          "kind": "transition",
+          "id": "payment/undo_reserve",
+          "attrs": {
+            "fused": false
+          }
+        },
+        {
+          "kind": "transition",
+          "id": "payment2/commit",
+          "attrs": {
+            "fused": false
+          }
+        },
+        {
+          "kind": "transition",
+          "id": "payment2/do_charge",
+          "attrs": {
+            "fused": false
+          }
+        },
+        {
+          "kind": "transition",
+          "id": "payment2/do_reserve",
+          "attrs": {
+            "fused": false
+          }
+        },
+        {
+          "kind": "transition",
+          "id": "payment2/fail_charge",
+          "attrs": {
+            "fused": false
+          }
+        },
+        {
+          "kind": "transition",
+          "id": "payment2/fail_commit",
+          "attrs": {
+            "fused": false
+          }
+        },
+        {
+          "kind": "transition",
+          "id": "payment2/fail_reserve",
+          "attrs": {
+            "fused": false
+          }
+        },
+        {
+          "kind": "transition",
+          "id": "payment2/undo_charge",
+          "attrs": {
+            "fused": false
+          }
+        },
+        {
+          "kind": "transition",
+          "id": "payment2/undo_reserve",
+          "attrs": {
+            "fused": false
+          }
+        }
+      ]
+    },
+    {
+      "view": "flat",
+      "example": "orders",
+      "state": "no-links",
+      "elements": [
+        {
+          "kind": "place",
+          "id": "orders/items",
+          "attrs": {
+            "initial": 2,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "orders/slots",
+          "attrs": {
+            "initial": 1,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "payment/charge_compensated",
+          "attrs": {
+            "initial": 0,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "payment/charge_done",
+          "attrs": {
+            "initial": 0,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "payment/charge_failed",
+          "attrs": {
+            "initial": 0,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "payment/charge_pending",
+          "attrs": {
+            "initial": 1,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "payment/committing",
+          "attrs": {
+            "initial": 0,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "payment/completed",
+          "attrs": {
+            "initial": 0,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "payment/customer",
+          "attrs": {
+            "initial": 1,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "payment/merchant",
+          "attrs": {
+            "initial": 0,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "payment/next_charge",
+          "attrs": {
+            "initial": 0,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "payment/next_reserve",
+          "attrs": {
+            "initial": 1,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "payment/reserve_compensated",
+          "attrs": {
+            "initial": 0,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "payment/reserve_done",
+          "attrs": {
+            "initial": 0,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "payment/reserve_failed",
+          "attrs": {
+            "initial": 0,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "payment/reserve_pending",
+          "attrs": {
+            "initial": 1,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "payment/rolled_back",
+          "attrs": {
+            "initial": 0,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "payment/unwind_charge",
+          "attrs": {
+            "initial": 0,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "payment/unwind_reserve",
+          "attrs": {
+            "initial": 0,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "workers/available",
+          "attrs": {
+            "initial": 2,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "workers/in_use",
+          "attrs": {
+            "initial": 0,
+            "fused": false
+          }
+        },
+        {
+          "kind": "scenario",
+          "id": "charge-fails",
+          "attrs": {
+            "pass": false,
+            "stopped_step": "payment/fail_charge"
+          }
+        },
+        {
+          "kind": "scenario",
+          "id": "commit",
+          "attrs": {
+            "pass": false,
+            "stopped_step": "payment/do_charge"
+          }
+        },
+        {
+          "kind": "scenario",
+          "id": "refund",
+          "attrs": {
+            "pass": false,
+            "stopped_step": "payment/do_charge"
+          }
+        },
+        {
+          "kind": "scenario",
+          "id": "second-order",
+          "attrs": {
+            "pass": false,
+            "stopped_step": "payment/do_charge"
+          }
+        },
+        {
+          "kind": "transition",
+          "id": "orders/dequeue",
+          "attrs": {
+            "fused": false
+          }
+        },
+        {
+          "kind": "transition",
+          "id": "orders/enqueue",
+          "attrs": {
+            "fused": false
+          }
+        },
+        {
+          "kind": "transition",
+          "id": "payment/commit",
+          "attrs": {
+            "fused": false
+          }
+        },
+        {
+          "kind": "transition",
+          "id": "payment/do_charge",
+          "attrs": {
+            "fused": false
+          }
+        },
+        {
+          "kind": "transition",
+          "id": "payment/do_reserve",
+          "attrs": {
+            "fused": false
+          }
+        },
+        {
+          "kind": "transition",
+          "id": "payment/fail_charge",
+          "attrs": {
+            "fused": false
+          }
+        },
+        {
+          "kind": "transition",
+          "id": "payment/fail_commit",
+          "attrs": {
+            "fused": false
+          }
+        },
+        {
+          "kind": "transition",
+          "id": "payment/fail_reserve",
+          "attrs": {
+            "fused": false
+          }
+        },
+        {
+          "kind": "transition",
+          "id": "payment/undo_charge",
+          "attrs": {
+            "fused": false
+          }
+        },
+        {
+          "kind": "transition",
+          "id": "payment/undo_reserve",
+          "attrs": {
+            "fused": false
+          }
+        },
+        {
+          "kind": "transition",
+          "id": "workers/acquire",
+          "attrs": {
+            "fused": false
+          }
+        },
+        {
+          "kind": "transition",
+          "id": "workers/release",
+          "attrs": {
+            "fused": false
+          }
+        }
+      ]
+    },
+    {
+      "view": "flat",
+      "example": "orders",
+      "state": "release-undo",
+      "elements": [
+        {
+          "kind": "place",
+          "id": "orders/items",
+          "attrs": {
+            "initial": 2,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "orders/slots",
+          "attrs": {
+            "initial": 1,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "payment/charge_compensated",
+          "attrs": {
+            "initial": 0,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "payment/charge_done",
+          "attrs": {
+            "initial": 0,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "payment/charge_failed",
+          "attrs": {
+            "initial": 0,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "payment/charge_pending",
+          "attrs": {
+            "initial": 1,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "payment/committing",
+          "attrs": {
+            "initial": 0,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "payment/completed",
+          "attrs": {
+            "initial": 0,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "payment/customer",
+          "attrs": {
+            "initial": 1,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "payment/merchant",
+          "attrs": {
+            "initial": 0,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "payment/next_charge",
+          "attrs": {
+            "initial": 0,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "payment/next_reserve",
+          "attrs": {
+            "initial": 1,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "payment/reserve_compensated",
+          "attrs": {
+            "initial": 0,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "payment/reserve_done",
+          "attrs": {
+            "initial": 0,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "payment/reserve_failed",
+          "attrs": {
+            "initial": 0,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "payment/reserve_pending",
+          "attrs": {
+            "initial": 1,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "payment/rolled_back",
+          "attrs": {
+            "initial": 0,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "payment/unwind_charge",
+          "attrs": {
+            "initial": 0,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "payment/unwind_reserve",
+          "attrs": {
+            "initial": 0,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "workers/available",
+          "attrs": {
+            "initial": 2,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "workers/in_use",
+          "attrs": {
+            "initial": 0,
+            "fused": false
+          }
+        },
+        {
+          "kind": "scenario",
+          "id": "charge-fails",
+          "attrs": {
+            "pass": false,
+            "stopped_step": "payment/undo_reserve"
+          }
+        },
+        {
+          "kind": "scenario",
+          "id": "commit",
+          "attrs": {
+            "pass": false,
+            "stopped_step": "payment/commit"
+          }
+        },
+        {
+          "kind": "scenario",
+          "id": "refund",
+          "attrs": {
+            "pass": false,
+            "stopped_step": "payment/undo_reserve"
+          }
+        },
+        {
+          "kind": "scenario",
+          "id": "second-order",
+          "attrs": {
+            "pass": false,
+            "stopped_step": "payment/commit"
+          }
+        },
+        {
+          "kind": "transition",
+          "id": "fused:orders/dequeue+payment/do_reserve+workers/acquire",
+          "attrs": {
+            "fused": true
+          }
+        },
+        {
+          "kind": "transition",
+          "id": "fused:payment/commit+payment/undo_reserve+workers/release",
+          "attrs": {
+            "fused": true
+          }
+        },
+        {
+          "kind": "transition",
+          "id": "orders/enqueue",
+          "attrs": {
+            "fused": false
+          }
+        },
+        {
+          "kind": "transition",
+          "id": "payment/do_charge",
+          "attrs": {
+            "fused": false
+          }
+        },
+        {
+          "kind": "transition",
+          "id": "payment/fail_charge",
+          "attrs": {
+            "fused": false
+          }
+        },
+        {
+          "kind": "transition",
+          "id": "payment/fail_commit",
+          "attrs": {
+            "fused": false
+          }
+        },
+        {
+          "kind": "transition",
+          "id": "payment/fail_reserve",
+          "attrs": {
+            "fused": false
+          }
+        },
+        {
+          "kind": "transition",
+          "id": "payment/undo_charge",
+          "attrs": {
+            "fused": false
+          }
+        }
+      ]
+    },
+    {
+      "view": "flat",
+      "example": "orders",
+      "state": "plan-threats",
+      "elements": [
+        {
+          "kind": "place",
+          "id": "orders/items",
+          "attrs": {
+            "initial": 2,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "orders/slots",
+          "attrs": {
+            "initial": 1,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "payment/charge_compensated",
+          "attrs": {
+            "initial": 0,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "payment/charge_done",
+          "attrs": {
+            "initial": 0,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "payment/charge_failed",
+          "attrs": {
+            "initial": 0,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "payment/charge_pending",
+          "attrs": {
+            "initial": 1,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "payment/committing",
+          "attrs": {
+            "initial": 0,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "payment/completed",
+          "attrs": {
+            "initial": 0,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "payment/customer",
+          "attrs": {
+            "initial": 1,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "payment/merchant",
+          "attrs": {
+            "initial": 0,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "payment/next_charge",
+          "attrs": {
+            "initial": 0,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "payment/next_reserve",
+          "attrs": {
+            "initial": 1,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "payment/reserve_compensated",
+          "attrs": {
+            "initial": 0,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "payment/reserve_done",
+          "attrs": {
+            "initial": 0,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "payment/reserve_failed",
+          "attrs": {
+            "initial": 0,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "payment/reserve_pending",
+          "attrs": {
+            "initial": 1,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "payment/rolled_back",
+          "attrs": {
+            "initial": 0,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "payment/unwind_charge",
+          "attrs": {
+            "initial": 0,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "payment/unwind_reserve",
+          "attrs": {
+            "initial": 0,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "workers/available",
+          "attrs": {
+            "initial": 2,
+            "fused": false
+          }
+        },
+        {
+          "kind": "place",
+          "id": "workers/in_use",
+          "attrs": {
+            "initial": 0,
+            "fused": false
+          }
+        },
+        {
+          "kind": "scenario",
+          "id": "charge-fails",
+          "attrs": {
+            "pass": false,
+            "stopped_step": ""
+          }
+        },
+        {
+          "kind": "scenario",
+          "id": "commit",
+          "attrs": {
+            "pass": true,
+            "stopped_step": ""
+          }
+        },
+        {
+          "kind": "scenario",
+          "id": "refund",
+          "attrs": {
+            "pass": false,
+            "stopped_step": ""
+          }
+        },
+        {
+          "kind": "scenario",
+          "id": "second-order",
+          "attrs": {
+            "pass": false,
+            "stopped_step": "orders/dequeue"
+          }
+        },
+        {
+          "kind": "transition",
+          "id": "fused:orders/dequeue+payment/do_reserve+workers/acquire",
+          "attrs": {
+            "fused": true
+          }
+        },
+        {
+          "kind": "transition",
+          "id": "fused:payment/commit+workers/release",
+          "attrs": {
+            "fused": true
+          }
+        },
+        {
+          "kind": "transition",
+          "id": "orders/enqueue",
+          "attrs": {
+            "fused": false
+          }
+        },
+        {
+          "kind": "transition",
+          "id": "payment/do_charge",
+          "attrs": {
+            "fused": false
+          }
+        },
+        {
+          "kind": "transition",
+          "id": "payment/fail_charge",
+          "attrs": {
+            "fused": false
+          }
+        },
+        {
+          "kind": "transition",
+          "id": "payment/fail_commit",
+          "attrs": {
+            "fused": false
+          }
+        },
+        {
+          "kind": "transition",
+          "id": "payment/fail_reserve",
+          "attrs": {
+            "fused": false
+          }
+        },
+        {
+          "kind": "transition",
+          "id": "payment/undo_charge",
+          "attrs": {
+            "fused": false
+          }
+        },
+        {
+          "kind": "transition",
+          "id": "payment/undo_reserve",
+          "attrs": {
+            "fused": false
+          }
+        }
+      ]
+    },
+    {
+      "view": "flat",
+      "example": "connect4",
+      "state": "default",
+      "elements": [
+        {
+          "kind": "net",
+          "id": "connect-4",
+          "attrs": {
+            "places": 131,
+            "transitions": 222,
+            "arcs": 1924
+          }
+        }
+      ]
+    },
+    {
+      "view": "flat",
+      "example": "connect4",
+      "state": "payment2-pushout",
+      "elements": [
+        {
+          "kind": "net",
+          "id": "connect-4",
+          "attrs": {
+            "places": 131,
+            "transitions": 222,
+            "arcs": 1924
+          }
+        }
+      ]
+    },
+    {
+      "view": "flat",
+      "example": "connect4",
+      "state": "no-links",
+      "elements": [
+        {
+          "kind": "net",
+          "id": "connect-4",
+          "attrs": {
+            "places": 131,
+            "transitions": 222,
+            "arcs": 1924
+          }
+        }
+      ]
+    },
+    {
+      "view": "flat",
+      "example": "connect4",
+      "state": "release-undo",
+      "elements": [
+        {
+          "kind": "net",
+          "id": "connect-4",
+          "attrs": {
+            "places": 131,
+            "transitions": 222,
+            "arcs": 1924
+          }
+        }
+      ]
+    },
+    {
+      "view": "flat",
+      "example": "connect4",
+      "state": "plan-threats",
+      "elements": [
+        {
+          "kind": "net",
+          "id": "connect-4",
+          "attrs": {
+            "places": 131,
+            "transitions": 222,
+            "arcs": 1924
+          }
+        }
+      ]
+    },
+    {
+      "view": "boundaries",
+      "example": "orders",
+      "state": "default",
+      "elements": [
+        {
+          "kind": "boundary",
+          "id": "fused:orders/dequeue+payment/do_reserve+workers/acquire",
+          "attrs": {
+            "legs": [
+              "orders/dequeue",
+              "payment/do_reserve",
+              "workers/acquire"
+            ]
+          }
+        },
+        {
+          "kind": "boundary",
+          "id": "fused:payment/commit+workers/release",
+          "attrs": {
+            "legs": [
+              "payment/commit",
+              "workers/release"
+            ]
+          }
+        },
+        {
+          "kind": "composite",
+          "id": "fused:orders/dequeue+payment/do_reserve+workers/acquire",
+          "attrs": {
+            "members": [
+              "orders/dequeue",
+              "payment/do_reserve",
+              "workers/acquire"
+            ]
+          }
+        },
+        {
+          "kind": "composite",
+          "id": "fused:payment/commit+workers/release",
+          "attrs": {
+            "members": [
+              "payment/commit",
+              "workers/release"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "view": "boundaries",
+      "example": "orders",
+      "state": "payment2-pushout",
+      "elements": [
+        {
+          "kind": "boundary",
+          "id": "fused:orders/dequeue+payment/do_reserve+workers/acquire",
+          "attrs": {
+            "legs": [
+              "orders/dequeue",
+              "payment/do_reserve",
+              "workers/acquire"
+            ]
+          }
+        },
+        {
+          "kind": "boundary",
+          "id": "fused:payment/commit+workers/release",
+          "attrs": {
+            "legs": [
+              "payment/commit",
+              "workers/release"
+            ]
+          }
+        },
+        {
+          "kind": "composite",
+          "id": "fused:orders/dequeue+payment/do_reserve+workers/acquire",
+          "attrs": {
+            "members": [
+              "orders/dequeue",
+              "payment/do_reserve",
+              "workers/acquire"
+            ]
+          }
+        },
+        {
+          "kind": "composite",
+          "id": "fused:payment/commit+workers/release",
+          "attrs": {
+            "members": [
+              "payment/commit",
+              "workers/release"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "view": "boundaries",
+      "example": "orders",
+      "state": "no-links",
+      "elements": []
+    },
+    {
+      "view": "boundaries",
+      "example": "orders",
+      "state": "release-undo",
+      "elements": [
+        {
+          "kind": "boundary",
+          "id": "fused:orders/dequeue+payment/do_reserve+workers/acquire",
+          "attrs": {
+            "legs": [
+              "orders/dequeue",
+              "payment/do_reserve",
+              "workers/acquire"
+            ]
+          }
+        },
+        {
+          "kind": "boundary",
+          "id": "fused:payment/commit+payment/undo_reserve+workers/release",
+          "attrs": {
+            "legs": [
+              "payment/commit",
+              "payment/undo_reserve",
+              "workers/release"
+            ]
+          }
+        },
+        {
+          "kind": "composite",
+          "id": "fused:orders/dequeue+payment/do_reserve+workers/acquire",
+          "attrs": {
+            "members": [
+              "orders/dequeue",
+              "payment/do_reserve",
+              "workers/acquire"
+            ]
+          }
+        },
+        {
+          "kind": "composite",
+          "id": "fused:payment/commit+payment/undo_reserve+workers/release",
+          "attrs": {
+            "members": [
+              "payment/commit",
+              "payment/undo_reserve",
+              "workers/release"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "view": "boundaries",
+      "example": "orders",
+      "state": "plan-threats",
+      "elements": [
+        {
+          "kind": "boundary",
+          "id": "fused:orders/dequeue+payment/do_reserve+workers/acquire",
+          "attrs": {
+            "legs": [
+              "orders/dequeue",
+              "payment/do_reserve",
+              "workers/acquire"
+            ]
+          }
+        },
+        {
+          "kind": "boundary",
+          "id": "fused:payment/commit+workers/release",
+          "attrs": {
+            "legs": [
+              "payment/commit",
+              "workers/release"
+            ]
+          }
+        },
+        {
+          "kind": "composite",
+          "id": "fused:orders/dequeue+payment/do_reserve+workers/acquire",
+          "attrs": {
+            "members": [
+              "orders/dequeue",
+              "payment/do_reserve",
+              "workers/acquire"
+            ]
+          }
+        },
+        {
+          "kind": "composite",
+          "id": "fused:payment/commit+workers/release",
+          "attrs": {
+            "members": [
+              "payment/commit",
+              "workers/release"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "view": "boundaries",
+      "example": "connect4",
+      "state": "default",
+      "elements": [
+        {
+          "kind": "na",
+          "id": "boundaries",
+          "attrs": {}
+        }
+      ]
+    },
+    {
+      "view": "boundaries",
+      "example": "connect4",
+      "state": "payment2-pushout",
+      "elements": [
+        {
+          "kind": "na",
+          "id": "boundaries",
+          "attrs": {}
+        }
+      ]
+    },
+    {
+      "view": "boundaries",
+      "example": "connect4",
+      "state": "no-links",
+      "elements": [
+        {
+          "kind": "na",
+          "id": "boundaries",
+          "attrs": {}
+        }
+      ]
+    },
+    {
+      "view": "boundaries",
+      "example": "connect4",
+      "state": "release-undo",
+      "elements": [
+        {
+          "kind": "na",
+          "id": "boundaries",
+          "attrs": {}
+        }
+      ]
+    },
+    {
+      "view": "boundaries",
+      "example": "connect4",
+      "state": "plan-threats",
+      "elements": [
+        {
+          "kind": "na",
+          "id": "boundaries",
+          "attrs": {}
+        }
+      ]
+    },
+    {
+      "view": "lens",
+      "example": "orders",
+      "state": "default",
+      "elements": [
+        {
+          "kind": "fix",
+          "id": "add:orders/enqueue",
+          "attrs": {
+            "holds": false
+          }
+        },
+        {
+          "kind": "fix",
+          "id": "add:workers/release",
+          "attrs": {
+            "holds": false
+          }
+        },
+        {
+          "kind": "fix",
+          "id": "move:workers/release",
+          "attrs": {
+            "holds": false
+          }
+        },
+        {
+          "kind": "pair",
+          "id": "orders/dequeue->enqueue",
+          "attrs": {}
+        },
+        {
+          "kind": "pair",
+          "id": "orders/enqueue->dequeue",
+          "attrs": {}
+        },
+        {
+          "kind": "pair",
+          "id": "payment/do_charge->undo_charge",
+          "attrs": {}
+        },
+        {
+          "kind": "pair",
+          "id": "payment/do_reserve->undo_reserve",
+          "attrs": {}
+        },
+        {
+          "kind": "pair",
+          "id": "payment/undo_charge->do_charge",
+          "attrs": {}
+        },
+        {
+          "kind": "pair",
+          "id": "workers/acquire->release",
+          "attrs": {}
+        },
+        {
+          "kind": "pair",
+          "id": "workers/release->acquire",
+          "attrs": {}
+        },
+        {
+          "kind": "step",
+          "id": "fused:orders/dequeue+payment/do_reserve+workers/acquire",
+          "attrs": {
+            "composes": false,
+            "split": true,
+            "dead_forward": ""
+          }
+        },
+        {
+          "kind": "step",
+          "id": "fused:payment/commit+workers/release",
+          "attrs": {
+            "composes": false,
+            "split": false,
+            "dead_forward": ""
+          }
+        },
+        {
+          "kind": "step",
+          "id": "payment/do_charge",
+          "attrs": {
+            "composes": true,
+            "split": false,
+            "dead_forward": ""
+          }
+        },
+        {
+          "kind": "verdict",
+          "id": "strict",
+          "attrs": {
+            "holds": false,
+            "glued": 0,
+            "legal_token": 0,
+            "legal_data": 0
+          }
+        }
+      ]
+    },
+    {
+      "view": "lens",
+      "example": "orders",
+      "state": "payment2-pushout",
+      "elements": [
+        {
+          "kind": "fix",
+          "id": "add:orders/enqueue",
+          "attrs": {
+            "holds": false
+          }
+        },
+        {
+          "kind": "fix",
+          "id": "add:workers/release",
+          "attrs": {
+            "holds": false
+          }
+        },
+        {
+          "kind": "fix",
+          "id": "move:workers/release",
+          "attrs": {
+            "holds": false
+          }
+        },
+        {
+          "kind": "pair",
+          "id": "orders/dequeue->enqueue",
+          "attrs": {}
+        },
+        {
+          "kind": "pair",
+          "id": "orders/enqueue->dequeue",
+          "attrs": {}
+        },
+        {
+          "kind": "pair",
+          "id": "payment/do_charge->undo_charge",
+          "attrs": {}
+        },
+        {
+          "kind": "pair",
+          "id": "payment/do_reserve->undo_reserve",
+          "attrs": {}
+        },
+        {
+          "kind": "pair",
+          "id": "payment/undo_charge->do_charge",
+          "attrs": {}
+        },
+        {
+          "kind": "pair",
+          "id": "payment2/do_charge->undo_charge",
+          "attrs": {}
+        },
+        {
+          "kind": "pair",
+          "id": "payment2/do_reserve->undo_reserve",
+          "attrs": {}
+        },
+        {
+          "kind": "pair",
+          "id": "payment2/undo_charge->do_charge",
+          "attrs": {}
+        },
+        {
+          "kind": "pair",
+          "id": "workers/acquire->release",
+          "attrs": {}
+        },
+        {
+          "kind": "pair",
+          "id": "workers/release->acquire",
+          "attrs": {}
+        },
+        {
+          "kind": "step",
+          "id": "fused:orders/dequeue+payment/do_reserve+workers/acquire",
+          "attrs": {
+            "composes": false,
+            "split": true,
+            "dead_forward": ""
+          }
+        },
+        {
+          "kind": "step",
+          "id": "fused:payment/commit+workers/release",
+          "attrs": {
+            "composes": false,
+            "split": false,
+            "dead_forward": ""
+          }
+        },
+        {
+          "kind": "step",
+          "id": "payment/do_charge",
+          "attrs": {
+            "composes": true,
+            "split": false,
+            "dead_forward": ""
+          }
+        },
+        {
+          "kind": "verdict",
+          "id": "strict",
+          "attrs": {
+            "holds": false,
+            "glued": 1,
+            "legal_token": 8,
+            "legal_data": 0
+          }
+        }
+      ]
+    },
+    {
+      "view": "lens",
+      "example": "orders",
+      "state": "no-links",
+      "elements": [
+        {
+          "kind": "pair",
+          "id": "orders/dequeue->enqueue",
+          "attrs": {}
+        },
+        {
+          "kind": "pair",
+          "id": "orders/enqueue->dequeue",
+          "attrs": {}
+        },
+        {
+          "kind": "pair",
+          "id": "payment/do_charge->undo_charge",
+          "attrs": {}
+        },
+        {
+          "kind": "pair",
+          "id": "payment/do_reserve->undo_reserve",
+          "attrs": {}
+        },
+        {
+          "kind": "pair",
+          "id": "payment/undo_charge->do_charge",
+          "attrs": {}
+        },
+        {
+          "kind": "pair",
+          "id": "workers/acquire->release",
+          "attrs": {}
+        },
+        {
+          "kind": "pair",
+          "id": "workers/release->acquire",
+          "attrs": {}
+        },
+        {
+          "kind": "step",
+          "id": "orders/dequeue",
+          "attrs": {
+            "composes": true,
+            "split": false,
+            "dead_forward": ""
+          }
+        },
+        {
+          "kind": "step",
+          "id": "payment/commit",
+          "attrs": {
+            "composes": false,
+            "split": false,
+            "dead_forward": ""
+          }
+        },
+        {
+          "kind": "step",
+          "id": "payment/do_charge",
+          "attrs": {
+            "composes": true,
+            "split": false,
+            "dead_forward": ""
+          }
+        },
+        {
+          "kind": "verdict",
+          "id": "strict",
+          "attrs": {
+            "holds": false,
+            "glued": 0,
+            "legal_token": 0,
+            "legal_data": 0
+          }
+        }
+      ]
+    },
+    {
+      "view": "lens",
+      "example": "orders",
+      "state": "release-undo",
+      "elements": [
+        {
+          "kind": "pair",
+          "id": "orders/dequeue->enqueue",
+          "attrs": {}
+        },
+        {
+          "kind": "pair",
+          "id": "orders/enqueue->dequeue",
+          "attrs": {}
+        },
+        {
+          "kind": "pair",
+          "id": "payment/do_charge->undo_charge",
+          "attrs": {}
+        },
+        {
+          "kind": "pair",
+          "id": "payment/do_reserve->undo_reserve",
+          "attrs": {}
+        },
+        {
+          "kind": "pair",
+          "id": "payment/undo_charge->do_charge",
+          "attrs": {}
+        },
+        {
+          "kind": "pair",
+          "id": "workers/acquire->release",
+          "attrs": {}
+        },
+        {
+          "kind": "pair",
+          "id": "workers/release->acquire",
+          "attrs": {}
+        },
+        {
+          "kind": "step",
+          "id": "fused:orders/dequeue+payment/do_reserve+workers/acquire",
+          "attrs": {
+            "composes": true,
+            "split": false,
+            "dead_forward": ""
+          }
+        },
+        {
+          "kind": "step",
+          "id": "fused:payment/commit+payment/undo_reserve+workers/release",
+          "attrs": {
+            "composes": false,
+            "split": false,
+            "dead_forward": "payment/saga_control"
+          }
+        },
+        {
+          "kind": "step",
+          "id": "payment/do_charge",
+          "attrs": {
+            "composes": true,
+            "split": false,
+            "dead_forward": ""
+          }
+        },
+        {
+          "kind": "verdict",
+          "id": "strict",
+          "attrs": {
+            "holds": false,
+            "glued": 0,
+            "legal_token": 0,
+            "legal_data": 0
+          }
+        }
+      ]
+    },
+    {
+      "view": "lens",
+      "example": "orders",
+      "state": "plan-threats",
+      "elements": [
+        {
+          "kind": "fix",
+          "id": "add:orders/enqueue",
+          "attrs": {
+            "holds": false
+          }
+        },
+        {
+          "kind": "fix",
+          "id": "add:workers/release",
+          "attrs": {
+            "holds": false
+          }
+        },
+        {
+          "kind": "fix",
+          "id": "move:workers/release",
+          "attrs": {
+            "holds": false
+          }
+        },
+        {
+          "kind": "pair",
+          "id": "orders/dequeue->enqueue",
+          "attrs": {}
+        },
+        {
+          "kind": "pair",
+          "id": "orders/enqueue->dequeue",
+          "attrs": {}
+        },
+        {
+          "kind": "pair",
+          "id": "payment/do_charge->undo_charge",
+          "attrs": {}
+        },
+        {
+          "kind": "pair",
+          "id": "payment/do_reserve->undo_reserve",
+          "attrs": {}
+        },
+        {
+          "kind": "pair",
+          "id": "payment/undo_charge->do_charge",
+          "attrs": {}
+        },
+        {
+          "kind": "pair",
+          "id": "workers/acquire->release",
+          "attrs": {}
+        },
+        {
+          "kind": "pair",
+          "id": "workers/release->acquire",
+          "attrs": {}
+        },
+        {
+          "kind": "step",
+          "id": "fused:orders/dequeue+payment/do_reserve+workers/acquire",
+          "attrs": {
+            "composes": false,
+            "split": true,
+            "dead_forward": ""
+          }
+        },
+        {
+          "kind": "step",
+          "id": "fused:payment/commit+workers/release",
+          "attrs": {
+            "composes": false,
+            "split": false,
+            "dead_forward": ""
+          }
+        },
+        {
+          "kind": "step",
+          "id": "payment/do_charge",
+          "attrs": {
+            "composes": true,
+            "split": false,
+            "dead_forward": ""
+          }
+        },
+        {
+          "kind": "verdict",
+          "id": "strict",
+          "attrs": {
+            "holds": false,
+            "glued": 0,
+            "legal_token": 0,
+            "legal_data": 0
+          }
+        }
+      ]
+    },
+    {
+      "view": "lens",
+      "example": "connect4",
+      "state": "default",
+      "elements": [
+        {
+          "kind": "frame",
+          "id": "budget",
+          "attrs": {}
+        },
+        {
+          "kind": "frame",
+          "id": "null_window",
+          "attrs": {}
+        },
+        {
+          "kind": "lens",
+          "id": "centrality",
+          "attrs": {}
+        },
+        {
+          "kind": "lens",
+          "id": "history",
+          "attrs": {}
+        },
+        {
+          "kind": "lens",
+          "id": "immediate_win",
+          "attrs": {}
+        },
+        {
+          "kind": "lens",
+          "id": "tt_best",
+          "attrs": {}
+        },
+        {
+          "kind": "memo",
+          "id": "memo",
+          "attrs": {
+            "present": true
+          }
+        }
+      ]
+    },
+    {
+      "view": "lens",
+      "example": "connect4",
+      "state": "payment2-pushout",
+      "elements": [
+        {
+          "kind": "frame",
+          "id": "budget",
+          "attrs": {}
+        },
+        {
+          "kind": "frame",
+          "id": "null_window",
+          "attrs": {}
+        },
+        {
+          "kind": "lens",
+          "id": "centrality",
+          "attrs": {}
+        },
+        {
+          "kind": "lens",
+          "id": "history",
+          "attrs": {}
+        },
+        {
+          "kind": "lens",
+          "id": "immediate_win",
+          "attrs": {}
+        },
+        {
+          "kind": "lens",
+          "id": "tt_best",
+          "attrs": {}
+        },
+        {
+          "kind": "memo",
+          "id": "memo",
+          "attrs": {
+            "present": true
+          }
+        }
+      ]
+    },
+    {
+      "view": "lens",
+      "example": "connect4",
+      "state": "no-links",
+      "elements": [
+        {
+          "kind": "frame",
+          "id": "budget",
+          "attrs": {}
+        },
+        {
+          "kind": "frame",
+          "id": "null_window",
+          "attrs": {}
+        },
+        {
+          "kind": "lens",
+          "id": "centrality",
+          "attrs": {}
+        },
+        {
+          "kind": "lens",
+          "id": "history",
+          "attrs": {}
+        },
+        {
+          "kind": "lens",
+          "id": "immediate_win",
+          "attrs": {}
+        },
+        {
+          "kind": "lens",
+          "id": "tt_best",
+          "attrs": {}
+        },
+        {
+          "kind": "memo",
+          "id": "memo",
+          "attrs": {
+            "present": true
+          }
+        }
+      ]
+    },
+    {
+      "view": "lens",
+      "example": "connect4",
+      "state": "release-undo",
+      "elements": [
+        {
+          "kind": "frame",
+          "id": "budget",
+          "attrs": {}
+        },
+        {
+          "kind": "frame",
+          "id": "null_window",
+          "attrs": {}
+        },
+        {
+          "kind": "lens",
+          "id": "centrality",
+          "attrs": {}
+        },
+        {
+          "kind": "lens",
+          "id": "history",
+          "attrs": {}
+        },
+        {
+          "kind": "lens",
+          "id": "immediate_win",
+          "attrs": {}
+        },
+        {
+          "kind": "lens",
+          "id": "tt_best",
+          "attrs": {}
+        },
+        {
+          "kind": "memo",
+          "id": "memo",
+          "attrs": {
+            "present": true
+          }
+        }
+      ]
+    },
+    {
+      "view": "lens",
+      "example": "connect4",
+      "state": "plan-threats",
+      "elements": [
+        {
+          "kind": "frame",
+          "id": "budget",
+          "attrs": {}
+        },
+        {
+          "kind": "frame",
+          "id": "null_window",
+          "attrs": {}
+        },
+        {
+          "kind": "lens",
+          "id": "centrality",
+          "attrs": {}
+        },
+        {
+          "kind": "lens",
+          "id": "history",
+          "attrs": {}
+        },
+        {
+          "kind": "lens",
+          "id": "immediate_win",
+          "attrs": {}
+        },
+        {
+          "kind": "lens",
+          "id": "threats",
+          "attrs": {}
+        },
+        {
+          "kind": "lens",
+          "id": "tt_best",
+          "attrs": {}
+        },
+        {
+          "kind": "memo",
+          "id": "memo",
+          "attrs": {
+            "present": true
+          }
+        }
+      ]
+    },
+    {
+      "view": "incidence",
+      "example": "orders",
+      "state": "default",
+      "elements": [
+        {
+          "kind": "block",
+          "id": "orders",
+          "attrs": {
+            "rows": 2,
+            "cols": 2
+          }
+        },
+        {
+          "kind": "block",
+          "id": "payment",
+          "attrs": {
+            "rows": 17,
+            "cols": 8
+          }
+        },
+        {
+          "kind": "block",
+          "id": "workers",
+          "attrs": {
+            "rows": 2,
+            "cols": 2
+          }
+        },
+        {
+          "kind": "invariant",
+          "id": "orders/queue_capacity",
+          "attrs": {
+            "holds": true
+          }
+        },
+        {
+          "kind": "invariant",
+          "id": "payment/saga_conservation",
+          "attrs": {
+            "holds": true
+          }
+        },
+        {
+          "kind": "invariant",
+          "id": "payment/saga_control",
+          "attrs": {
+            "holds": true
+          }
+        },
+        {
+          "kind": "invariant",
+          "id": "payment/saga_step_charge",
+          "attrs": {
+            "holds": true
+          }
+        },
+        {
+          "kind": "invariant",
+          "id": "payment/saga_step_reserve",
+          "attrs": {
+            "holds": true
+          }
+        },
+        {
+          "kind": "invariant",
+          "id": "workers/pool_conservation",
+          "attrs": {
+            "holds": true
+          }
+        },
+        {
+          "kind": "matrix",
+          "id": "flat",
+          "attrs": {
+            "rows": 21,
+            "cols": 9
+          }
+        }
+      ]
+    },
+    {
+      "view": "incidence",
+      "example": "orders",
+      "state": "payment2-pushout",
+      "elements": [
+        {
+          "kind": "block",
+          "id": "orders",
+          "attrs": {
+            "rows": 2,
+            "cols": 2
+          }
+        },
+        {
+          "kind": "block",
+          "id": "payment",
+          "attrs": {
+            "rows": 17,
+            "cols": 8
+          }
+        },
+        {
+          "kind": "block",
+          "id": "payment2",
+          "attrs": {
+            "rows": 17,
+            "cols": 8
+          }
+        },
+        {
+          "kind": "block",
+          "id": "workers",
+          "attrs": {
+            "rows": 2,
+            "cols": 2
+          }
+        },
+        {
+          "kind": "invariant",
+          "id": "orders/queue_capacity",
+          "attrs": {
+            "holds": true
+          }
+        },
+        {
+          "kind": "invariant",
+          "id": "payment/saga_conservation",
+          "attrs": {
+            "holds": false
+          }
+        },
+        {
+          "kind": "invariant",
+          "id": "payment/saga_control",
+          "attrs": {
+            "holds": true
+          }
+        },
+        {
+          "kind": "invariant",
+          "id": "payment/saga_step_charge",
+          "attrs": {
+            "holds": true
+          }
+        },
+        {
+          "kind": "invariant",
+          "id": "payment/saga_step_reserve",
+          "attrs": {
+            "holds": true
+          }
+        },
+        {
+          "kind": "invariant",
+          "id": "payment2/saga_control",
+          "attrs": {
+            "holds": true
+          }
+        },
+        {
+          "kind": "invariant",
+          "id": "payment2/saga_step_charge",
+          "attrs": {
+            "holds": true
+          }
+        },
+        {
+          "kind": "invariant",
+          "id": "payment2/saga_step_reserve",
+          "attrs": {
+            "holds": true
+          }
+        },
+        {
+          "kind": "invariant",
+          "id": "workers/pool_conservation",
+          "attrs": {
+            "holds": true
+          }
+        },
+        {
+          "kind": "matrix",
+          "id": "flat",
+          "attrs": {
+            "rows": 37,
+            "cols": 17
+          }
+        }
+      ]
+    },
+    {
+      "view": "incidence",
+      "example": "orders",
+      "state": "no-links",
+      "elements": [
+        {
+          "kind": "block",
+          "id": "orders",
+          "attrs": {
+            "rows": 2,
+            "cols": 2
+          }
+        },
+        {
+          "kind": "block",
+          "id": "payment",
+          "attrs": {
+            "rows": 17,
+            "cols": 8
+          }
+        },
+        {
+          "kind": "block",
+          "id": "workers",
+          "attrs": {
+            "rows": 2,
+            "cols": 2
+          }
+        },
+        {
+          "kind": "invariant",
+          "id": "orders/queue_capacity",
+          "attrs": {
+            "holds": true
+          }
+        },
+        {
+          "kind": "invariant",
+          "id": "payment/saga_conservation",
+          "attrs": {
+            "holds": true
+          }
+        },
+        {
+          "kind": "invariant",
+          "id": "payment/saga_control",
+          "attrs": {
+            "holds": true
+          }
+        },
+        {
+          "kind": "invariant",
+          "id": "payment/saga_step_charge",
+          "attrs": {
+            "holds": true
+          }
+        },
+        {
+          "kind": "invariant",
+          "id": "payment/saga_step_reserve",
+          "attrs": {
+            "holds": true
+          }
+        },
+        {
+          "kind": "invariant",
+          "id": "workers/pool_conservation",
+          "attrs": {
+            "holds": true
+          }
+        },
+        {
+          "kind": "matrix",
+          "id": "flat",
+          "attrs": {
+            "rows": 21,
+            "cols": 12
+          }
+        }
+      ]
+    },
+    {
+      "view": "incidence",
+      "example": "orders",
+      "state": "release-undo",
+      "elements": [
+        {
+          "kind": "block",
+          "id": "orders",
+          "attrs": {
+            "rows": 2,
+            "cols": 2
+          }
+        },
+        {
+          "kind": "block",
+          "id": "payment",
+          "attrs": {
+            "rows": 17,
+            "cols": 8
+          }
+        },
+        {
+          "kind": "block",
+          "id": "workers",
+          "attrs": {
+            "rows": 2,
+            "cols": 2
+          }
+        },
+        {
+          "kind": "invariant",
+          "id": "orders/queue_capacity",
+          "attrs": {
+            "holds": true
+          }
+        },
+        {
+          "kind": "invariant",
+          "id": "payment/saga_conservation",
+          "attrs": {
+            "holds": true
+          }
+        },
+        {
+          "kind": "invariant",
+          "id": "payment/saga_control",
+          "attrs": {
+            "holds": true
+          }
+        },
+        {
+          "kind": "invariant",
+          "id": "payment/saga_step_charge",
+          "attrs": {
+            "holds": true
+          }
+        },
+        {
+          "kind": "invariant",
+          "id": "payment/saga_step_reserve",
+          "attrs": {
+            "holds": true
+          }
+        },
+        {
+          "kind": "invariant",
+          "id": "workers/pool_conservation",
+          "attrs": {
+            "holds": true
+          }
+        },
+        {
+          "kind": "matrix",
+          "id": "flat",
+          "attrs": {
+            "rows": 21,
+            "cols": 8
+          }
+        }
+      ]
+    },
+    {
+      "view": "incidence",
+      "example": "orders",
+      "state": "plan-threats",
+      "elements": [
+        {
+          "kind": "block",
+          "id": "orders",
+          "attrs": {
+            "rows": 2,
+            "cols": 2
+          }
+        },
+        {
+          "kind": "block",
+          "id": "payment",
+          "attrs": {
+            "rows": 17,
+            "cols": 8
+          }
+        },
+        {
+          "kind": "block",
+          "id": "workers",
+          "attrs": {
+            "rows": 2,
+            "cols": 2
+          }
+        },
+        {
+          "kind": "invariant",
+          "id": "orders/queue_capacity",
+          "attrs": {
+            "holds": true
+          }
+        },
+        {
+          "kind": "invariant",
+          "id": "payment/saga_conservation",
+          "attrs": {
+            "holds": true
+          }
+        },
+        {
+          "kind": "invariant",
+          "id": "payment/saga_control",
+          "attrs": {
+            "holds": true
+          }
+        },
+        {
+          "kind": "invariant",
+          "id": "payment/saga_step_charge",
+          "attrs": {
+            "holds": true
+          }
+        },
+        {
+          "kind": "invariant",
+          "id": "payment/saga_step_reserve",
+          "attrs": {
+            "holds": true
+          }
+        },
+        {
+          "kind": "invariant",
+          "id": "workers/pool_conservation",
+          "attrs": {
+            "holds": true
+          }
+        },
+        {
+          "kind": "matrix",
+          "id": "flat",
+          "attrs": {
+            "rows": 21,
+            "cols": 9
+          }
+        }
+      ]
+    },
+    {
+      "view": "incidence",
+      "example": "connect4",
+      "state": "default",
+      "elements": [
+        {
+          "kind": "matrix",
+          "id": "connect-4",
+          "attrs": {
+            "rows": 131,
+            "cols": 222
+          }
+        }
+      ]
+    },
+    {
+      "view": "incidence",
+      "example": "connect4",
+      "state": "payment2-pushout",
+      "elements": [
+        {
+          "kind": "matrix",
+          "id": "connect-4",
+          "attrs": {
+            "rows": 131,
+            "cols": 222
+          }
+        }
+      ]
+    },
+    {
+      "view": "incidence",
+      "example": "connect4",
+      "state": "no-links",
+      "elements": [
+        {
+          "kind": "matrix",
+          "id": "connect-4",
+          "attrs": {
+            "rows": 131,
+            "cols": 222
+          }
+        }
+      ]
+    },
+    {
+      "view": "incidence",
+      "example": "connect4",
+      "state": "release-undo",
+      "elements": [
+        {
+          "kind": "matrix",
+          "id": "connect-4",
+          "attrs": {
+            "rows": 131,
+            "cols": 222
+          }
+        }
+      ]
+    },
+    {
+      "view": "incidence",
+      "example": "connect4",
+      "state": "plan-threats",
+      "elements": [
+        {
+          "kind": "matrix",
+          "id": "connect-4",
+          "attrs": {
+            "rows": 131,
+            "cols": 222
+          }
+        }
+      ]
+    },
+    {
+      "view": "process",
+      "example": "orders",
+      "state": "default",
+      "elements": [
+        {
+          "kind": "run",
+          "id": "charge-fails",
+          "attrs": {
+            "fired": [
+              "fused:orders/dequeue+payment/do_reserve+workers/acquire",
+              "payment/fail_charge",
+              "payment/undo_reserve"
+            ],
+            "stopped_step": ""
+          }
+        },
+        {
+          "kind": "run",
+          "id": "commit",
+          "attrs": {
+            "fired": [
+              "fused:orders/dequeue+payment/do_reserve+workers/acquire",
+              "fused:payment/commit+workers/release",
+              "payment/do_charge"
+            ],
+            "stopped_step": ""
+          }
+        },
+        {
+          "kind": "run",
+          "id": "refund",
+          "attrs": {
+            "fired": [
+              "fused:orders/dequeue+payment/do_reserve+workers/acquire",
+              "payment/do_charge",
+              "payment/fail_commit",
+              "payment/undo_charge",
+              "payment/undo_reserve"
+            ],
+            "stopped_step": ""
+          }
+        },
+        {
+          "kind": "run",
+          "id": "second-order",
+          "attrs": {
+            "fired": [
+              "fused:orders/dequeue+payment/do_reserve+workers/acquire",
+              "fused:payment/commit+workers/release",
+              "payment/do_charge"
+            ],
+            "stopped_step": "orders/dequeue"
+          }
+        }
+      ]
+    },
+    {
+      "view": "process",
+      "example": "orders",
+      "state": "payment2-pushout",
+      "elements": [
+        {
+          "kind": "run",
+          "id": "charge-fails",
+          "attrs": {
+            "fired": [
+              "fused:orders/dequeue+payment/do_reserve+workers/acquire",
+              "payment/fail_charge",
+              "payment/undo_reserve"
+            ],
+            "stopped_step": ""
+          }
+        },
+        {
+          "kind": "run",
+          "id": "commit",
+          "attrs": {
+            "fired": [
+              "fused:orders/dequeue+payment/do_reserve+workers/acquire",
+              "fused:payment/commit+workers/release",
+              "payment/do_charge"
+            ],
+            "stopped_step": ""
+          }
+        },
+        {
+          "kind": "run",
+          "id": "refund",
+          "attrs": {
+            "fired": [
+              "fused:orders/dequeue+payment/do_reserve+workers/acquire",
+              "payment/do_charge",
+              "payment/fail_commit",
+              "payment/undo_charge",
+              "payment/undo_reserve"
+            ],
+            "stopped_step": ""
+          }
+        },
+        {
+          "kind": "run",
+          "id": "second-order",
+          "attrs": {
+            "fired": [
+              "fused:orders/dequeue+payment/do_reserve+workers/acquire",
+              "fused:payment/commit+workers/release",
+              "payment/do_charge"
+            ],
+            "stopped_step": "orders/dequeue"
+          }
+        }
+      ]
+    },
+    {
+      "view": "process",
+      "example": "orders",
+      "state": "no-links",
+      "elements": [
+        {
+          "kind": "run",
+          "id": "charge-fails",
+          "attrs": {
+            "fired": [
+              "orders/dequeue"
+            ],
+            "stopped_step": "payment/fail_charge"
+          }
+        },
+        {
+          "kind": "run",
+          "id": "commit",
+          "attrs": {
+            "fired": [
+              "orders/dequeue"
+            ],
+            "stopped_step": "payment/do_charge"
+          }
+        },
+        {
+          "kind": "run",
+          "id": "refund",
+          "attrs": {
+            "fired": [
+              "orders/dequeue"
+            ],
+            "stopped_step": "payment/do_charge"
+          }
+        },
+        {
+          "kind": "run",
+          "id": "second-order",
+          "attrs": {
+            "fired": [
+              "orders/dequeue"
+            ],
+            "stopped_step": "payment/do_charge"
+          }
+        }
+      ]
+    },
+    {
+      "view": "process",
+      "example": "orders",
+      "state": "release-undo",
+      "elements": [
+        {
+          "kind": "run",
+          "id": "charge-fails",
+          "attrs": {
+            "fired": [
+              "fused:orders/dequeue+payment/do_reserve+workers/acquire",
+              "payment/fail_charge"
+            ],
+            "stopped_step": "payment/undo_reserve"
+          }
+        },
+        {
+          "kind": "run",
+          "id": "commit",
+          "attrs": {
+            "fired": [
+              "fused:orders/dequeue+payment/do_reserve+workers/acquire",
+              "payment/do_charge"
+            ],
+            "stopped_step": "payment/commit"
+          }
+        },
+        {
+          "kind": "run",
+          "id": "refund",
+          "attrs": {
+            "fired": [
+              "fused:orders/dequeue+payment/do_reserve+workers/acquire",
+              "payment/do_charge",
+              "payment/fail_commit",
+              "payment/undo_charge"
+            ],
+            "stopped_step": "payment/undo_reserve"
+          }
+        },
+        {
+          "kind": "run",
+          "id": "second-order",
+          "attrs": {
+            "fired": [
+              "fused:orders/dequeue+payment/do_reserve+workers/acquire",
+              "payment/do_charge"
+            ],
+            "stopped_step": "payment/commit"
+          }
+        }
+      ]
+    },
+    {
+      "view": "process",
+      "example": "orders",
+      "state": "plan-threats",
+      "elements": [
+        {
+          "kind": "run",
+          "id": "charge-fails",
+          "attrs": {
+            "fired": [
+              "fused:orders/dequeue+payment/do_reserve+workers/acquire",
+              "payment/fail_charge",
+              "payment/undo_reserve"
+            ],
+            "stopped_step": ""
+          }
+        },
+        {
+          "kind": "run",
+          "id": "commit",
+          "attrs": {
+            "fired": [
+              "fused:orders/dequeue+payment/do_reserve+workers/acquire",
+              "fused:payment/commit+workers/release",
+              "payment/do_charge"
+            ],
+            "stopped_step": ""
+          }
+        },
+        {
+          "kind": "run",
+          "id": "refund",
+          "attrs": {
+            "fired": [
+              "fused:orders/dequeue+payment/do_reserve+workers/acquire",
+              "payment/do_charge",
+              "payment/fail_commit",
+              "payment/undo_charge",
+              "payment/undo_reserve"
+            ],
+            "stopped_step": ""
+          }
+        },
+        {
+          "kind": "run",
+          "id": "second-order",
+          "attrs": {
+            "fired": [
+              "fused:orders/dequeue+payment/do_reserve+workers/acquire",
+              "fused:payment/commit+workers/release",
+              "payment/do_charge"
+            ],
+            "stopped_step": "orders/dequeue"
+          }
+        }
+      ]
+    },
+    {
+      "view": "process",
+      "example": "connect4",
+      "state": "default",
+      "elements": [
+        {
+          "kind": "run",
+          "id": "opening",
+          "attrs": {
+            "fired": 4
+          }
+        }
+      ]
+    },
+    {
+      "view": "process",
+      "example": "connect4",
+      "state": "payment2-pushout",
+      "elements": [
+        {
+          "kind": "run",
+          "id": "opening",
+          "attrs": {
+            "fired": 4
+          }
+        }
+      ]
+    },
+    {
+      "view": "process",
+      "example": "connect4",
+      "state": "no-links",
+      "elements": [
+        {
+          "kind": "run",
+          "id": "opening",
+          "attrs": {
+            "fired": 4
+          }
+        }
+      ]
+    },
+    {
+      "view": "process",
+      "example": "connect4",
+      "state": "release-undo",
+      "elements": [
+        {
+          "kind": "run",
+          "id": "opening",
+          "attrs": {
+            "fired": 4
+          }
+        }
+      ]
+    },
+    {
+      "view": "process",
+      "example": "connect4",
+      "state": "plan-threats",
+      "elements": [
+        {
+          "kind": "run",
+          "id": "opening",
+          "attrs": {
+            "fired": 4
+          }
+        }
+      ]
+    },
+    {
+      "view": "laws",
+      "example": "orders",
+      "state": "default",
+      "elements": [
+        {
+          "kind": "cover",
+          "id": "L3_position_irrelevant",
+          "attrs": {}
+        },
+        {
+          "kind": "cover",
+          "id": "fuse_L1_L2",
+          "attrs": {}
+        },
+        {
+          "kind": "rewrite",
+          "id": "L3_position_irrelevant",
+          "attrs": {
+            "status": "valid"
+          }
+        },
+        {
+          "kind": "rewrite",
+          "id": "cycle_one_class",
+          "attrs": {
+            "status": "valid"
+          }
+        },
+        {
+          "kind": "rewrite",
+          "id": "frobL",
+          "attrs": {
+            "status": "valid"
+          }
+        },
+        {
+          "kind": "rewrite",
+          "id": "frobR",
+          "attrs": {
+            "status": "valid"
+          }
+        },
+        {
+          "kind": "rewrite",
+          "id": "fuse_L1_L2",
+          "attrs": {
+            "status": "valid"
+          }
+        },
+        {
+          "kind": "rewrite",
+          "id": "fuse_L2_L1",
+          "attrs": {
+            "status": "valid"
+          }
+        },
+        {
+          "kind": "rewrite",
+          "id": "fuse_ab_bc",
+          "attrs": {
+            "status": "valid"
+          }
+        },
+        {
+          "kind": "rewrite",
+          "id": "fuse_bc_ab",
+          "attrs": {
+            "status": "valid"
+          }
+        },
+        {
+          "kind": "rewrite",
+          "id": "fusion_assoc",
+          "attrs": {
+            "status": "valid"
+          }
+        },
+        {
+          "kind": "rewrite",
+          "id": "link_idempotent",
+          "attrs": {
+            "status": "valid"
+          }
+        },
+        {
+          "kind": "rewrite",
+          "id": "link_order_irrelevant",
+          "attrs": {
+            "status": "valid"
+          }
+        },
+        {
+          "kind": "rewrite",
+          "id": "orders_example_fused",
+          "attrs": {
+            "status": "valid"
+          }
+        },
+        {
+          "kind": "theory",
+          "id": "sync-spiders",
+          "attrs": {}
+        }
+      ]
+    },
+    {
+      "view": "laws",
+      "example": "orders",
+      "state": "payment2-pushout",
+      "elements": [
+        {
+          "kind": "cover",
+          "id": "L3_position_irrelevant",
+          "attrs": {}
+        },
+        {
+          "kind": "cover",
+          "id": "fuse_L1_L2",
+          "attrs": {}
+        },
+        {
+          "kind": "rewrite",
+          "id": "L3_position_irrelevant",
+          "attrs": {
+            "status": "valid"
+          }
+        },
+        {
+          "kind": "rewrite",
+          "id": "cycle_one_class",
+          "attrs": {
+            "status": "valid"
+          }
+        },
+        {
+          "kind": "rewrite",
+          "id": "frobL",
+          "attrs": {
+            "status": "valid"
+          }
+        },
+        {
+          "kind": "rewrite",
+          "id": "frobR",
+          "attrs": {
+            "status": "valid"
+          }
+        },
+        {
+          "kind": "rewrite",
+          "id": "fuse_L1_L2",
+          "attrs": {
+            "status": "valid"
+          }
+        },
+        {
+          "kind": "rewrite",
+          "id": "fuse_L2_L1",
+          "attrs": {
+            "status": "valid"
+          }
+        },
+        {
+          "kind": "rewrite",
+          "id": "fuse_ab_bc",
+          "attrs": {
+            "status": "valid"
+          }
+        },
+        {
+          "kind": "rewrite",
+          "id": "fuse_bc_ab",
+          "attrs": {
+            "status": "valid"
+          }
+        },
+        {
+          "kind": "rewrite",
+          "id": "fusion_assoc",
+          "attrs": {
+            "status": "valid"
+          }
+        },
+        {
+          "kind": "rewrite",
+          "id": "link_idempotent",
+          "attrs": {
+            "status": "valid"
+          }
+        },
+        {
+          "kind": "rewrite",
+          "id": "link_order_irrelevant",
+          "attrs": {
+            "status": "valid"
+          }
+        },
+        {
+          "kind": "rewrite",
+          "id": "orders_example_fused",
+          "attrs": {
+            "status": "valid"
+          }
+        },
+        {
+          "kind": "theory",
+          "id": "sync-spiders",
+          "attrs": {}
+        }
+      ]
+    },
+    {
+      "view": "laws",
+      "example": "orders",
+      "state": "no-links",
+      "elements": [
+        {
+          "kind": "rewrite",
+          "id": "L3_position_irrelevant",
+          "attrs": {
+            "status": "valid"
+          }
+        },
+        {
+          "kind": "rewrite",
+          "id": "cycle_one_class",
+          "attrs": {
+            "status": "valid"
+          }
+        },
+        {
+          "kind": "rewrite",
+          "id": "frobL",
+          "attrs": {
+            "status": "valid"
+          }
+        },
+        {
+          "kind": "rewrite",
+          "id": "frobR",
+          "attrs": {
+            "status": "valid"
+          }
+        },
+        {
+          "kind": "rewrite",
+          "id": "fuse_L1_L2",
+          "attrs": {
+            "status": "valid"
+          }
+        },
+        {
+          "kind": "rewrite",
+          "id": "fuse_L2_L1",
+          "attrs": {
+            "status": "valid"
+          }
+        },
+        {
+          "kind": "rewrite",
+          "id": "fuse_ab_bc",
+          "attrs": {
+            "status": "valid"
+          }
+        },
+        {
+          "kind": "rewrite",
+          "id": "fuse_bc_ab",
+          "attrs": {
+            "status": "valid"
+          }
+        },
+        {
+          "kind": "rewrite",
+          "id": "fusion_assoc",
+          "attrs": {
+            "status": "valid"
+          }
+        },
+        {
+          "kind": "rewrite",
+          "id": "link_idempotent",
+          "attrs": {
+            "status": "valid"
+          }
+        },
+        {
+          "kind": "rewrite",
+          "id": "link_order_irrelevant",
+          "attrs": {
+            "status": "valid"
+          }
+        },
+        {
+          "kind": "rewrite",
+          "id": "orders_example_fused",
+          "attrs": {
+            "status": "valid"
+          }
+        },
+        {
+          "kind": "theory",
+          "id": "sync-spiders",
+          "attrs": {}
+        }
+      ]
+    },
+    {
+      "view": "laws",
+      "example": "orders",
+      "state": "release-undo",
+      "elements": [
+        {
+          "kind": "cover",
+          "id": "L3_position_irrelevant",
+          "attrs": {}
+        },
+        {
+          "kind": "cover",
+          "id": "fuse_L1_L2",
+          "attrs": {}
+        },
+        {
+          "kind": "rewrite",
+          "id": "L3_position_irrelevant",
+          "attrs": {
+            "status": "valid"
+          }
+        },
+        {
+          "kind": "rewrite",
+          "id": "cycle_one_class",
+          "attrs": {
+            "status": "valid"
+          }
+        },
+        {
+          "kind": "rewrite",
+          "id": "frobL",
+          "attrs": {
+            "status": "valid"
+          }
+        },
+        {
+          "kind": "rewrite",
+          "id": "frobR",
+          "attrs": {
+            "status": "valid"
+          }
+        },
+        {
+          "kind": "rewrite",
+          "id": "fuse_L1_L2",
+          "attrs": {
+            "status": "valid"
+          }
+        },
+        {
+          "kind": "rewrite",
+          "id": "fuse_L2_L1",
+          "attrs": {
+            "status": "valid"
+          }
+        },
+        {
+          "kind": "rewrite",
+          "id": "fuse_ab_bc",
+          "attrs": {
+            "status": "valid"
+          }
+        },
+        {
+          "kind": "rewrite",
+          "id": "fuse_bc_ab",
+          "attrs": {
+            "status": "valid"
+          }
+        },
+        {
+          "kind": "rewrite",
+          "id": "fusion_assoc",
+          "attrs": {
+            "status": "valid"
+          }
+        },
+        {
+          "kind": "rewrite",
+          "id": "link_idempotent",
+          "attrs": {
+            "status": "valid"
+          }
+        },
+        {
+          "kind": "rewrite",
+          "id": "link_order_irrelevant",
+          "attrs": {
+            "status": "valid"
+          }
+        },
+        {
+          "kind": "rewrite",
+          "id": "orders_example_fused",
+          "attrs": {
+            "status": "valid"
+          }
+        },
+        {
+          "kind": "theory",
+          "id": "sync-spiders",
+          "attrs": {}
+        }
+      ]
+    },
+    {
+      "view": "laws",
+      "example": "orders",
+      "state": "plan-threats",
+      "elements": [
+        {
+          "kind": "cover",
+          "id": "L3_position_irrelevant",
+          "attrs": {}
+        },
+        {
+          "kind": "cover",
+          "id": "fuse_L1_L2",
+          "attrs": {}
+        },
+        {
+          "kind": "rewrite",
+          "id": "L3_position_irrelevant",
+          "attrs": {
+            "status": "valid"
+          }
+        },
+        {
+          "kind": "rewrite",
+          "id": "cycle_one_class",
+          "attrs": {
+            "status": "valid"
+          }
+        },
+        {
+          "kind": "rewrite",
+          "id": "frobL",
+          "attrs": {
+            "status": "valid"
+          }
+        },
+        {
+          "kind": "rewrite",
+          "id": "frobR",
+          "attrs": {
+            "status": "valid"
+          }
+        },
+        {
+          "kind": "rewrite",
+          "id": "fuse_L1_L2",
+          "attrs": {
+            "status": "valid"
+          }
+        },
+        {
+          "kind": "rewrite",
+          "id": "fuse_L2_L1",
+          "attrs": {
+            "status": "valid"
+          }
+        },
+        {
+          "kind": "rewrite",
+          "id": "fuse_ab_bc",
+          "attrs": {
+            "status": "valid"
+          }
+        },
+        {
+          "kind": "rewrite",
+          "id": "fuse_bc_ab",
+          "attrs": {
+            "status": "valid"
+          }
+        },
+        {
+          "kind": "rewrite",
+          "id": "fusion_assoc",
+          "attrs": {
+            "status": "valid"
+          }
+        },
+        {
+          "kind": "rewrite",
+          "id": "link_idempotent",
+          "attrs": {
+            "status": "valid"
+          }
+        },
+        {
+          "kind": "rewrite",
+          "id": "link_order_irrelevant",
+          "attrs": {
+            "status": "valid"
+          }
+        },
+        {
+          "kind": "rewrite",
+          "id": "orders_example_fused",
+          "attrs": {
+            "status": "valid"
+          }
+        },
+        {
+          "kind": "theory",
+          "id": "sync-spiders",
+          "attrs": {}
+        }
+      ]
+    },
+    {
+      "view": "laws",
+      "example": "connect4",
+      "state": "default",
+      "elements": [
+        {
+          "kind": "rewrite",
+          "id": "NOT_chains_commute",
+          "attrs": {
+            "status": "invalid"
+          }
+        },
+        {
+          "kind": "rewrite",
+          "id": "default_append_empty",
+          "attrs": {
+            "status": "valid"
+          }
+        },
+        {
+          "kind": "rewrite",
+          "id": "doc_chain_append_empty",
+          "attrs": {
+            "status": "valid"
+          }
+        },
+        {
+          "kind": "rewrite",
+          "id": "doc_chain_balanced",
+          "attrs": {
+            "status": "valid"
+          }
+        },
+        {
+          "kind": "rewrite",
+          "id": "doc_chain_bracketing",
+          "attrs": {
+            "status": "valid"
+          }
+        },
+        {
+          "kind": "rewrite",
+          "id": "doc_chain_prepend_empty",
+          "attrs": {
+            "status": "valid"
+          }
+        },
+        {
+          "kind": "rewrite",
+          "id": "value_ignores_halves",
+          "attrs": {
+            "status": "valid"
+          }
+        },
+        {
+          "kind": "rewrite",
+          "id": "value_ignores_order",
+          "attrs": {
+            "status": "valid"
+          }
+        },
+        {
+          "kind": "theory",
+          "id": "driver-wrap",
+          "attrs": {}
+        },
+        {
+          "kind": "theory",
+          "id": "filter-meet",
+          "attrs": {}
+        },
+        {
+          "kind": "theory",
+          "id": "orderer-monoid",
+          "attrs": {}
+        }
+      ]
+    },
+    {
+      "view": "laws",
+      "example": "connect4",
+      "state": "payment2-pushout",
+      "elements": [
+        {
+          "kind": "rewrite",
+          "id": "NOT_chains_commute",
+          "attrs": {
+            "status": "invalid"
+          }
+        },
+        {
+          "kind": "rewrite",
+          "id": "default_append_empty",
+          "attrs": {
+            "status": "valid"
+          }
+        },
+        {
+          "kind": "rewrite",
+          "id": "doc_chain_append_empty",
+          "attrs": {
+            "status": "valid"
+          }
+        },
+        {
+          "kind": "rewrite",
+          "id": "doc_chain_balanced",
+          "attrs": {
+            "status": "valid"
+          }
+        },
+        {
+          "kind": "rewrite",
+          "id": "doc_chain_bracketing",
+          "attrs": {
+            "status": "valid"
+          }
+        },
+        {
+          "kind": "rewrite",
+          "id": "doc_chain_prepend_empty",
+          "attrs": {
+            "status": "valid"
+          }
+        },
+        {
+          "kind": "rewrite",
+          "id": "value_ignores_halves",
+          "attrs": {
+            "status": "valid"
+          }
+        },
+        {
+          "kind": "rewrite",
+          "id": "value_ignores_order",
+          "attrs": {
+            "status": "valid"
+          }
+        },
+        {
+          "kind": "theory",
+          "id": "driver-wrap",
+          "attrs": {}
+        },
+        {
+          "kind": "theory",
+          "id": "filter-meet",
+          "attrs": {}
+        },
+        {
+          "kind": "theory",
+          "id": "orderer-monoid",
+          "attrs": {}
+        }
+      ]
+    },
+    {
+      "view": "laws",
+      "example": "connect4",
+      "state": "no-links",
+      "elements": [
+        {
+          "kind": "rewrite",
+          "id": "NOT_chains_commute",
+          "attrs": {
+            "status": "invalid"
+          }
+        },
+        {
+          "kind": "rewrite",
+          "id": "default_append_empty",
+          "attrs": {
+            "status": "valid"
+          }
+        },
+        {
+          "kind": "rewrite",
+          "id": "doc_chain_append_empty",
+          "attrs": {
+            "status": "valid"
+          }
+        },
+        {
+          "kind": "rewrite",
+          "id": "doc_chain_balanced",
+          "attrs": {
+            "status": "valid"
+          }
+        },
+        {
+          "kind": "rewrite",
+          "id": "doc_chain_bracketing",
+          "attrs": {
+            "status": "valid"
+          }
+        },
+        {
+          "kind": "rewrite",
+          "id": "doc_chain_prepend_empty",
+          "attrs": {
+            "status": "valid"
+          }
+        },
+        {
+          "kind": "rewrite",
+          "id": "value_ignores_halves",
+          "attrs": {
+            "status": "valid"
+          }
+        },
+        {
+          "kind": "rewrite",
+          "id": "value_ignores_order",
+          "attrs": {
+            "status": "valid"
+          }
+        },
+        {
+          "kind": "theory",
+          "id": "driver-wrap",
+          "attrs": {}
+        },
+        {
+          "kind": "theory",
+          "id": "filter-meet",
+          "attrs": {}
+        },
+        {
+          "kind": "theory",
+          "id": "orderer-monoid",
+          "attrs": {}
+        }
+      ]
+    },
+    {
+      "view": "laws",
+      "example": "connect4",
+      "state": "release-undo",
+      "elements": [
+        {
+          "kind": "rewrite",
+          "id": "NOT_chains_commute",
+          "attrs": {
+            "status": "invalid"
+          }
+        },
+        {
+          "kind": "rewrite",
+          "id": "default_append_empty",
+          "attrs": {
+            "status": "valid"
+          }
+        },
+        {
+          "kind": "rewrite",
+          "id": "doc_chain_append_empty",
+          "attrs": {
+            "status": "valid"
+          }
+        },
+        {
+          "kind": "rewrite",
+          "id": "doc_chain_balanced",
+          "attrs": {
+            "status": "valid"
+          }
+        },
+        {
+          "kind": "rewrite",
+          "id": "doc_chain_bracketing",
+          "attrs": {
+            "status": "valid"
+          }
+        },
+        {
+          "kind": "rewrite",
+          "id": "doc_chain_prepend_empty",
+          "attrs": {
+            "status": "valid"
+          }
+        },
+        {
+          "kind": "rewrite",
+          "id": "value_ignores_halves",
+          "attrs": {
+            "status": "valid"
+          }
+        },
+        {
+          "kind": "rewrite",
+          "id": "value_ignores_order",
+          "attrs": {
+            "status": "valid"
+          }
+        },
+        {
+          "kind": "theory",
+          "id": "driver-wrap",
+          "attrs": {}
+        },
+        {
+          "kind": "theory",
+          "id": "filter-meet",
+          "attrs": {}
+        },
+        {
+          "kind": "theory",
+          "id": "orderer-monoid",
+          "attrs": {}
+        }
+      ]
+    },
+    {
+      "view": "laws",
+      "example": "connect4",
+      "state": "plan-threats",
+      "elements": [
+        {
+          "kind": "rewrite",
+          "id": "NOT_chains_commute",
+          "attrs": {
+            "status": "invalid"
+          }
+        },
+        {
+          "kind": "rewrite",
+          "id": "default_append_empty",
+          "attrs": {
+            "status": "valid"
+          }
+        },
+        {
+          "kind": "rewrite",
+          "id": "doc_chain_append_empty",
+          "attrs": {
+            "status": "valid"
+          }
+        },
+        {
+          "kind": "rewrite",
+          "id": "doc_chain_balanced",
+          "attrs": {
+            "status": "valid"
+          }
+        },
+        {
+          "kind": "rewrite",
+          "id": "doc_chain_bracketing",
+          "attrs": {
+            "status": "valid"
+          }
+        },
+        {
+          "kind": "rewrite",
+          "id": "doc_chain_prepend_empty",
+          "attrs": {
+            "status": "valid"
+          }
+        },
+        {
+          "kind": "rewrite",
+          "id": "value_ignores_halves",
+          "attrs": {
+            "status": "valid"
+          }
+        },
+        {
+          "kind": "rewrite",
+          "id": "value_ignores_order",
+          "attrs": {
+            "status": "valid"
+          }
+        },
+        {
+          "kind": "theory",
+          "id": "driver-wrap",
+          "attrs": {}
+        },
+        {
+          "kind": "theory",
+          "id": "filter-meet",
+          "attrs": {}
+        },
+        {
+          "kind": "theory",
+          "id": "orderer-monoid",
+          "attrs": {}
+        }
+      ]
+    }
+  ]
+}

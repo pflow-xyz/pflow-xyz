@@ -1,8 +1,8 @@
 {
   "_comment": "pflow-native wasm shim vendored by scripts/sync-native-wasm.mjs; checked by public/petri-wasm_test.ts",
   "version": "0.8.0",
-  "commit": "e24beabf255d601d3fd377b5ebcd4c72dfcb0763",
-  "commands": 205,
+  "commit": "5676bb068e7991f4baaee064f8f10a9ce4b5d9e7",
+  "commands": 209,
   "exposed": [
     "analysis.validate",
     "analysis.incidence",
@@ -93,11 +93,11 @@
   ],
   "files": {
     "pflow_native_wasm.js": "aebfcaf880a4bc48bfa056504a0a6c2cbbe4a5816535faaba6a1d75128a1af5a",
-    "pflow_native_wasm_bg.wasm": "6e0b64acd3cea137047757c9538dcf744b9e3d287a5a71a8018380b07d28a01d",
-    "pflow_native_wasm_bg.wasm.gz": "dd3692c668de331c514e5de8bda4081cf5ccb509c5c28d3a9f79bc727b729fcc"
+    "pflow_native_wasm_bg.wasm": "9649ed29a663f75e1f0b9df54ab1726335e486e60d4f694075ecb33bbdc56f55",
+    "pflow_native_wasm_bg.wasm.gz": "e668fc9ec535852edcf13805fe99dffee1890a3e51a24afe7046b033129eb3b6"
   },
   "bytes": {
-    "wasm": 8718715,
-    "gzip": 2315833
+    "wasm": 8353342,
+    "gzip": 1842524
   }
 }

@@ -617,6 +617,7 @@ function ordersPattern(ctx) {
           glyph(ctx, l.kind, mx, my, 6.5));
         ctx.hover(g, { ...info, facts: [...info.facts, opFact, ['drawn as', l.kind === 'token' ? 'a wire from the out port\'s bottom stub into the in port\'s top stub, labelled by the shared schema (the place is the object it carries)' : 'a dotted read-only tap, RenderDOT\'s ▷']], cites: [...info.cites, DVC.wires] });
       }
+      ctx.emit('fusion', l.key, {}); // spec D10: one fusion entry per link drawn, every kind
       wiresG.append(g);
       continue;
     }
@@ -648,6 +649,7 @@ function ordersPattern(ctx) {
     const info = ctx.info.linkInfo(l, byId);
     const P = posOf(fb, fp.id), Q = attach(posOf(tb, tp.id, tp.kind === 'observe' ? 'right' : 'top'));
     if (!P || !Q) continue;
+    ctx.emit('fusion', l.key, {}); // spec D10: every kind
     let d, samples, runs = null;
     if (sideLink(l)) {
       // Onto an observe tap: routed like an event (lane, channel or across one gutter).

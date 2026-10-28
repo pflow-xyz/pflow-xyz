@@ -89,7 +89,9 @@ if (!goldensText) {
         Deno.test(`web == native: ${g.view} / ${g.example} / ${g.state}`, async () => {
             assert(STATES[g.state as keyof typeof STATES] !== undefined, `unknown state ${g.state}`);
             const { manifest } = await renderManifest(g.view, g.example, g.state);
-            const show = (els: any[]) => els.map((e) => `${e.kind} ${e.id} ${JSON.stringify(e.attrs)}`);
+            // attrs compared by value: the contract fixes their fields, not the order of keys
+            const attrs = (a: any) => JSON.stringify(Object.fromEntries(Object.entries(a).sort(([x], [y]) => (x < y ? -1 : x > y ? 1 : 0))));
+            const show = (els: any[]) => els.map((e) => `${e.kind} ${e.id} ${attrs(e.attrs)}`);
             const web = new Set(show(manifest.elements)), nat = new Set(show(g.elements));
             const onlyWeb = [...web].filter((x) => !nat.has(x)), onlyNative = [...nat].filter((x) => !web.has(x));
             assertEquals({ onlyWeb, onlyNative }, { onlyWeb: [], onlyNative: [] }, `${g.view}/${g.example}/${g.state}: the renderers drew different things`);

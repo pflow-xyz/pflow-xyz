@@ -1,0 +1,6 @@
+{
+  "_comment": "parity/composition-views/goldens.json, copied unmodified from pflow-native at this commit (git show <commit>:parity/composition-views/goldens.json); checked by parity_test.ts. The vendored wasm (pflow-native-wasm.lock) must come from the same commit.",
+  "source": "github.com/pflow-xyz/pflow-native parity/composition-views/goldens.json",
+  "commit": "5676bb068e7991f4baaee064f8f10a9ce4b5d9e7",
+  "sha256": "6adf78ef0a30f621580e4ddb3a959203049a8e1ed79864861cfbfe9e9f4f0300"
+}
