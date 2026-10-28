@@ -7,7 +7,9 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/pflow-xyz/pflow-xyz/internal/seal"
@@ -150,7 +152,14 @@ func TestBackportEveryNet(t *testing.T) {
 	if os.Getenv("MODEL_BACKPORT_FULL") != "" {
 		limit = 1 << 40
 	}
-	var nets, comps, plans, skipped, large, namedByCID int
+	type job struct {
+		rel  string
+		path string
+		raw  []byte
+		kind string
+	}
+	var jobs []job
+	var large int
 	skipDir := map[string]bool{".git": true, "node_modules": true, "static": true, "vendor": true, "target": true}
 	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
@@ -173,8 +182,7 @@ func TestBackportEveryNet(t *testing.T) {
 		if json.Unmarshal(raw, &doc) != nil || doc == nil {
 			return nil
 		}
-		ctx, _ := doc["@context"].(string)
-		if ctx != Context {
+		if ctx, _ := doc["@context"].(string); ctx != Context {
 			return nil
 		}
 		rel, _ := filepath.Rel(root, path)
@@ -182,44 +190,71 @@ func TestBackportEveryNet(t *testing.T) {
 			large++
 			return nil
 		}
-		sealed, _, serr := seal.SealJSONLD(raw)
-		id, ierr := Identify(raw)
-		switch Kind(doc) {
+		jobs = append(jobs, job{rel: rel, path: path, raw: raw, kind: Kind(doc)})
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// json-gold is slow and single-threaded per document: seal them side by side.
+	type result struct {
+		sealed string
+		serr   error
+		id     Identity
+		ierr   error
+	}
+	results := make([]result, len(jobs))
+	sem := make(chan struct{}, runtime.NumCPU())
+	var wg sync.WaitGroup
+	for i := range jobs {
+		wg.Add(1)
+		sem <- struct{}{}
+		go func(i int) {
+			defer wg.Done()
+			defer func() { <-sem }()
+			r := &results[i]
+			r.sealed, _, r.serr = seal.SealJSONLD(jobs[i].raw)
+			r.id, r.ierr = Identify(jobs[i].raw)
+		}(i)
+	}
+	wg.Wait()
+
+	var nets, comps, plans, skipped, namedByCID int
+	for i, j := range jobs {
+		r := results[i]
+		switch j.kind {
 		case KindNet:
-			if (serr == nil) != (ierr == nil) {
-				t.Errorf("%s: seal err=%v, identify err=%v", rel, serr, ierr)
-				return nil
+			if (r.serr == nil) != (r.ierr == nil) {
+				t.Errorf("%s: seal err=%v, identify err=%v", j.rel, r.serr, r.ierr)
+				continue
 			}
-			if serr != nil {
+			if r.serr != nil {
 				skipped++
-				return nil
+				continue
 			}
-			if id.CID != sealed || id.Sealed != sealed || id.Reduced || id.Kind != KindNet {
-				t.Errorf("%s: model CID %s != sealed %s (reduced=%v kind=%s)", rel, id.CID, sealed, id.Reduced, id.Kind)
+			if r.id.CID != r.sealed || r.id.Sealed != r.sealed || r.id.Reduced || r.id.Kind != KindNet {
+				t.Errorf("%s: model CID %s != sealed %s (reduced=%v kind=%s)", j.rel, r.id.CID, r.sealed, r.id.Reduced, r.id.Kind)
 			}
-			if base := strings.TrimSuffix(filepath.Base(path), ".jsonld"); IsCID(base) {
+			if base := strings.TrimSuffix(filepath.Base(j.path), ".jsonld"); IsCID(base) {
 				namedByCID++
-				if base != sealed {
-					t.Errorf("%s: file name claims %s, seals to %s", rel, base, sealed)
+				if base != r.sealed {
+					t.Errorf("%s: file name claims %s, seals to %s", j.rel, base, r.sealed)
 				}
 			}
 			nets++
 		case KindComposition:
-			if ierr != nil {
-				t.Errorf("%s: composition refused: %v", rel, ierr)
-				return nil
+			if r.ierr != nil {
+				t.Errorf("%s: composition refused: %v", j.rel, r.ierr)
+				continue
 			}
-			if id.CID != sealed && !id.Reduced {
-				t.Errorf("%s: composition CID %s != sealed %s", rel, id.CID, sealed)
+			if r.id.CID != r.sealed && !r.id.Reduced {
+				t.Errorf("%s: composition CID %s != sealed %s", j.rel, r.id.CID, r.sealed)
 			}
 			comps++
 		case KindPlan:
 			plans++
 		}
-		return nil
-	})
-	if err != nil {
-		t.Fatal(err)
 	}
 	if nets < 10 {
 		t.Fatalf("corpus too small (%d nets): the walk is not finding the repository's documents", nets)

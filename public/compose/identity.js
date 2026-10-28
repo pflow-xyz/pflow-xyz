@@ -110,7 +110,7 @@ export async function showModel(box, cid, deps = {}) {
   }
   const idLine = el('p', { class: 'small muted' }, 'Checking the CID in your browser…');
   rows.push(idLine);
-  box.replaceChildren(el('h3', {}, 'Model'), ...rows);
+  box.replaceChildren(el('h3', {}, 'Model'), ...rows.filter(Boolean)); // replaceChildren(null) would write the text "null"
   try {
     const id = await check(doc);
     const same = id.cid === cid || id.sealed === cid;
