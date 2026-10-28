@@ -30,8 +30,7 @@
 
 import { cite } from '../sources.js';
 import { NS } from '../model.js';
-import { initialMarking, whyNotEnabled, fire, flatOf, FLATTEN_CITES, runOf as runOfRegistry, c4Model as onC4Engine } from '../model.js';
-import { engines } from '../registry.js';
+import { initialMarking, whyNotEnabled, fire, flatOf, FLATTEN_CITES, runOf as runOfRegistry, liveScenario, c4Model as onC4Engine } from '../model.js';
 
 const W = 1150;
 const PAD = 16;
@@ -784,7 +783,7 @@ function renderOrders(ctx) {
     const steps = s.script.map((member) => ({ member, tid: flatOf(flat.map, member) }));
     const proc = runProcess(flat.model, steps);
     // The predicates, and where the run stops, are bundle.run {scenario}'s.
-    const reg = runOfRegistry(engines.live.call('bundle.run', { scenario: s.id }));
+    const reg = runOfRegistry(liveScenario(s.id));
     const expect = reg.expect.map((e) => ({ ...e, flat: e.flat || null, have: e.actual, pass: e.pass }));
     return { steps, proc, expect, reg };
   };

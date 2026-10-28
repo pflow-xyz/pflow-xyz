@@ -250,6 +250,29 @@ export function flatPlaceOf(map, member) {
   return map.place[member.slice(0, i)]?.[member.slice(i + 1)] ?? null;
 }
 
+/**
+ * bundle.run {scenario} on the live engine, as the registry returns it (runOf
+ * shapes it for the views). Throws the registry's refusal, as the call does.
+ */
+export function liveScenario(id) {
+  return engines.live.call('bundle.run', { scenario: id });
+}
+
+/**
+ * A command on the live engine: what the store (state.js) edits the open
+ * composition and plan with (bundle.add_link, plan.add_piece, ...) and re-reads
+ * them by (bundle.state, plan.state). With liveScenario() and the questions
+ * above, the only way another module reaches an engine (registry_lint_test.ts).
+ */
+export function liveCommand(id, args) {
+  return engines.live.call(id, args);
+}
+
+/** bundle.flatten of the live composition, whose links are `links`. */
+export function flattenLive(links) {
+  return flattenOn(engines.live, links);
+}
+
 /** A scenario run (bundle.run {scenario}) in the prototype's runScenario shape. */
 export function runOf(r) {
   return {

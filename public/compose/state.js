@@ -9,8 +9,7 @@
 // Neither the composition nor the plan is in the engine's saved session state
 // (session.dump_state), so start() opens both by command on every load.
 
-import { engines } from './registry.js';
-import { IDIOMS, pieceByName, linkOf, linkKey, subnetOf, flattenOn, setLiveConfig, portKey, EXTRA_SPECS } from './model.js';
+import { IDIOMS, pieceByName, linkOf, linkKey, subnetOf, flattenLive, liveCommand, setLiveConfig, portKey, EXTRA_SPECS } from './model.js';
 
 const listeners = new Set();
 let bumping = false;
@@ -41,7 +40,7 @@ function notify(event) {
   queueMicrotask(() => { bumping = false; for (const fn of listeners) fn(state.event); });
 }
 
-const L = (id, args) => engines.live.call(id, args);
+const L = liveCommand;
 
 /** Re-read the composition (bundle.state) into the store. */
 function readComposition() {
@@ -89,7 +88,7 @@ export function activeSubnets() { return state.orders.subnets; }
 export function subnetsById() { return Object.fromEntries(state.orders.subnets.map((s) => [s.id, s])); }
 export function orderLinks() { return state.orders.links; }
 /** bundle.flatten of the live composition. */
-export function flatOrders() { return cached('flat', () => flattenOn(engines.live, state.orders.links)); }
+export function flatOrders() { return cached('flat', () => flattenLive(state.orders.links)); }
 
 /** The live plan: {plan, json (canonical object), text, error (pflow-rs's message or null), candidates(name)}. */
 export function planInfo() {
