@@ -72,6 +72,7 @@ const (
 	ErrPlan         = "E_PLAN"            // a plan document that is malformed
 	ErrPartMissing  = "E_PART_MISSING"    // a referenced part is not in the store
 	ErrPartKind     = "E_PART_KIND"       // a referenced part is not a net
+	ErrFlatten      = "E_FLATTEN"         // go-pflow cannot flatten it (an illegal link, an inline part that is not the metamodel shape); raised by the Go server only
 	ErrNotAModelDoc = "E_NOT_JSON_OBJECT" // the document is not a JSON object
 )
 

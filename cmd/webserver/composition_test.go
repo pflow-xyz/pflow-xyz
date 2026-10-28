@@ -241,6 +241,28 @@ func TestSaveBareWrapperReturnsTheNetsCID(t *testing.T) {
 	}
 }
 
+// go-pflow decides link legality: a link to a transition the part does not
+// have is refused at save, not stored to fail when someone draws it.
+func TestSaveRefusesWhatFlattenRefuses(t *testing.T) {
+	s := compositionServer(t)
+	compSaved(t, s)
+	var doc map[string]any
+	if err := json.Unmarshal(compFixture(t, "compose-handoff.jsonld"), &doc); err != nil {
+		t.Fatal(err)
+	}
+	doc["links"].([]any)[0].(map[string]any)["to"].(map[string]any)["transition"] = "NoSuchTransition"
+	raw, _ := json.Marshal(doc)
+	w := compGet(s, "POST", "/api/save", raw)
+	if w.Code != http.StatusUnprocessableEntity || !strings.Contains(w.Body.String(), "E_FLATTEN") {
+		t.Fatalf("illegal link: %d %s", w.Code, w.Body.String())
+	}
+	// And an inline part that is not the metamodel shape (Shape A places are a map).
+	bad := []byte(`{"@context":"https://pflow.xyz/schema","@type":"PetriNetBundle","subnets":[{"id":"a","model":{"places":{"p":{}}}}]}`)
+	if w := compGet(s, "POST", "/api/save", bad); w.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("inline Shape A part: %d %s", w.Code, w.Body.String())
+	}
+}
+
 func TestSaveRefusals(t *testing.T) {
 	s := compositionServer(t)
 	cases := map[string]string{

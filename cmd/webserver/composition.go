@@ -31,8 +31,13 @@ import (
 	"github.com/pflow-xyz/pflow-xyz/internal/svg"
 )
 
-// compositionLayout places the nodes of a net that has no coordinates.
-const compositionLayout = "sugiyama"
+// compositionLayout places the nodes of a net that has no coordinates;
+// above compositionLayoutMax nodes the cheap grid is used instead, because
+// these routes are public and the layered layout is superlinear.
+const (
+	compositionLayout    = "sugiyama"
+	compositionLayoutMax = 300
+)
 
 // compositionNet returns a stored composition as an editor-shape net with
 // coordinates, for the SVG and the share card: its flat net when every part
@@ -51,14 +56,18 @@ func compositionNet(storage Storage, raw []byte) (net []byte, flat bool) {
 			m.Description = named.Description
 		}
 		if js, err := model.FlatNetJSON(m); err == nil {
-			if laid, err := svg.LayoutJSON(js, compositionLayout); err == nil {
+			layout := compositionLayout
+			if len(m.Places)+len(m.Transitions) > compositionLayoutMax {
+				layout = "grid"
+			}
+			if laid, err := svg.LayoutJSON(js, layout); err == nil {
 				return laid, true
 			}
 			return js, true
 		}
 	}
 	js := partsNetJSON(raw)
-	if laid, err := svg.LayoutJSON(js, compositionLayout); err == nil {
+	if laid, err := svg.LayoutJSON(js, "grid"); err == nil {
 		return laid, false
 	}
 	return js, false
@@ -271,6 +280,13 @@ func (s *Server) saveModelDoc(raw []byte, author *auth.GitHubUserInfo) (status i
 	}
 	if id.Reduced {
 		return http.StatusOK, map[string]any{"cid": id.CID, "kind": model.KindNet, "reduced": true}, nil
+	}
+	if id.Kind == model.KindComposition {
+		// go-pflow is the reference for link legality and for the metamodel
+		// shape of an inline part: a composition it cannot flatten is not stored.
+		if _, _, ferr := model.Flatten(raw, s.storage.GetObject); ferr != nil {
+			return http.StatusUnprocessableEntity, nil, &model.Error{Code: model.ErrFlatten, Msg: ferr.Error()}
+		}
 	}
 	cid, canonical, err := seal.SealJSONLD(raw)
 	if err != nil {

@@ -59,7 +59,9 @@ saving a wrapper would put a second object, under a second CID, in the store for
 A by-reference part must be a stored **net**; a composition of compositions is refused
 (`E_PART_KIND`) for now. `POST /api/save` refuses a composition whose parts are not stored
 (`422 E_PART_MISSING`, naming them), like git objects: what a document names exists before
-it does. Reading resolves a part with the one converter from Shape A to the metamodel,
+it does. It also refuses a composition go-pflow cannot flatten (`422 E_FLATTEN`: an illegal
+link, an inline part that is not the metamodel shape), because go-pflow is the reference for
+link legality; that check is the server's, so JS and Rust do not raise `E_FLATTEN`. Reading resolves a part with the one converter from Shape A to the metamodel,
 go-pflow's `parser.ModelFromJSON`, and flattens with `Bundle.FlattenWithMap`.
 
 ## Arrays hash as sets: ordered payloads are text
@@ -173,6 +175,9 @@ found by its key, and nothing here recomputes a key. For those 18 the identity i
 | `/sitemap.xml` | lists `/img/<cid>.svg` | same, and it now draws | same |
 | MCP `pflow_cid` | as now | model CID, with `kind` and `reduced` when they are not the plain case | |
 
+The flat net is laid out with the layered layout up to 300 nodes and the grid beyond, because
+these routes are public and unauthenticated.
+
 Before this change a stored composition did not 500: `/img/<cid>.svg` answered 200 with a
 blank 100×100 SVG and the share card said "0 places · 0 transitions". It now draws the flat net.
 
@@ -204,3 +209,6 @@ Both are deliberate, never a side effect of a test.
 * Terms for `PetriNetBundle` on the public `/schema` page.
 * Plan storage and the plan/model binding record.
 * `pflow_save` of a composition over MCP (it points at `/api/save`).
+* Referential integrity after the fact: an author can delete a net (`DELETE /o/{cid}`) that a
+  composition references; the composition is then drawn as its parts diagram, and its flat
+  net and the page's parts links go dead. Saving is guarded; deleting is not.
