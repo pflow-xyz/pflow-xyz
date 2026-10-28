@@ -4,11 +4,64 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Composition views · pflow.xyz</title>
-  <meta name="description" content="One composition drawn in ten categorical and Petri-net conventions, every link and plan rule decided by pflow-native's registry (wasm).">
+  <meta name="description" content="One composition of three Petri nets (orders, workers, payment) drawn in ten conventions: cospans, spiders, an operad, string diagrams, a flat net and more. Every link rule runs in the page as WebAssembly.">
   <meta name="author" content="Matt York">
+  <meta name="theme-color" content="#ffffff">
   <link rel="me" href="https://github.com/stackdump">
   <link rel="me" href="https://blog.stackdump.com/">
   <link rel="icon" href="/favicon-32x32.png">
+  <link rel="canonical" href="https://pflow.xyz/compose.html">
+  <!-- Share metadata. Absolute URLs: unfurlers do not resolve relative ones, and they drop SVG
+       og:images, hence the PNG. compose-card.png is a 1200x630 screenshot of this page (String
+       view, orders composition) taken in headless Chrome and palette-quantised to 256 colours;
+       retake it if the page's look changes. The server adds Google Analytics to this page the
+       way it does for "/" (cmd/webserver/static_pages.go). -->
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="pflow.xyz">
+  <meta property="og:title" content="Composition views · pflow.xyz">
+  <meta property="og:description" content="One composition of three Petri nets (orders, workers, payment) drawn in ten conventions: cospans, spiders, an operad, string diagrams, a flat net and more. Every link rule runs in the page as WebAssembly.">
+  <meta property="og:url" content="https://pflow.xyz/compose.html">
+  <meta property="og:image" content="https://pflow.xyz/compose-card.png">
+  <meta property="og:image:secure_url" content="https://pflow.xyz/compose-card.png">
+  <meta property="og:image:type" content="image/png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="The composition views page: ten view tabs above a string diagram of the orders, workers and payment nets joined by three event links, with the explanation beside it.">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Composition views · pflow.xyz">
+  <meta name="twitter:description" content="One composition of three Petri nets (orders, workers, payment) drawn in ten conventions: cospans, spiders, an operad, string diagrams, a flat net and more. Every link rule runs in the page as WebAssembly.">
+  <meta name="twitter:image" content="https://pflow.xyz/compose-card.png">
+  <meta name="twitter:image:alt" content="The composition views page: ten view tabs above a string diagram of the orders, workers and payment nets joined by three event links, with the explanation beside it.">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "WebPage",
+        "@id": "https://pflow.xyz/compose.html#page",
+        "url": "https://pflow.xyz/compose.html",
+        "name": "Composition views · pflow.xyz",
+        "description": "Ten views of one composition of three Petri nets (orders, workers, payment), and of one exact Connect-4 search plan, in categorical and Petri-net conventions.",
+        "inLanguage": "en",
+        "isAccessibleForFree": true,
+        "isPartOf": { "@type": "WebSite", "@id": "https://pflow.xyz/#website", "name": "pflow.xyz", "url": "https://pflow.xyz/" },
+        "primaryImageOfPage": { "@type": "ImageObject", "url": "https://pflow.xyz/compose-card.png", "width": 1200, "height": 630 },
+        "mainEntity": { "@id": "https://pflow.xyz/compose.html#app" }
+      },
+      {
+        "@type": "WebApplication",
+        "@id": "https://pflow.xyz/compose.html#app",
+        "name": "pflow.xyz composition views",
+        "url": "https://pflow.xyz/compose.html",
+        "description": "One composition of three Petri nets joined by typed links, drawn as cospans, spiders, an operad, string diagrams, a flat net, boundaries, lenses, an incidence matrix, processes and laws. Link legality, Flatten and runs are decided by pflow-native's command registry, running as WebAssembly in the browser; the Laws view runs the Chyp prover under Pyodide.",
+        "applicationCategory": "DeveloperApplication",
+        "operatingSystem": "Any (a browser with JavaScript and WebAssembly)",
+        "isAccessibleForFree": true,
+        "author": { "@type": "Person", "name": "Matt York", "url": "https://github.com/stackdump" }
+      }
+    ]
+  }
+  </script>
   <link rel="stylesheet" href="compose/compose.css">
   <script type="module" src="compose/app.js"></script>
 </head>

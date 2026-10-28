@@ -39,13 +39,13 @@ func TestSitemapListsOnlyStoredObjects(t *testing.T) {
 	rec := httptest.NewRecorder()
 	srv.handleSitemap(rec, httptest.NewRequest("GET", "/sitemap.xml", nil))
 	body := rec.Body.String()
-	for _, want := range []string{"<loc>https://pflow.xyz/</loc>", "<loc>https://pflow.xyz/schema</loc>", "<loc>https://pflow.xyz/mcp.html</loc>", "/img/" + good + ".svg"} {
+	for _, want := range []string{"<loc>https://pflow.xyz/</loc>", "<loc>https://pflow.xyz/schema</loc>", "<loc>https://pflow.xyz/compose.html</loc>", "<loc>https://pflow.xyz/mcp.html</loc>", "/img/" + good + ".svg"} {
 		if !strings.Contains(body, want) {
 			t.Errorf("missing %q in\n%s", want, body)
 		}
 	}
-	if n := strings.Count(body, "<url>"); n != 4 {
-		t.Errorf("expected 4 urls (/, /schema, /mcp.html, one svg), got %d", n)
+	if n := strings.Count(body, "<url>"); n != 5 {
+		t.Errorf("expected 5 urls (/, /schema, /compose.html, /mcp.html, one svg), got %d", n)
 	}
 }
 
@@ -80,8 +80,8 @@ func TestSitemapOmitsCIDQueryURLs(t *testing.T) {
 		t.Errorf("sitemap lists a ?cid= URL:\n%s", body)
 	}
 	locs := sitemapURLs(t, body)
-	if want := 3 + len(cids); len(locs) != want {
-		t.Errorf("got %d urls, want %d (/, /schema, /mcp.html, one svg per model): %v", len(locs), want, locs)
+	if want := 4 + len(cids); len(locs) != want {
+		t.Errorf("got %d urls, want %d (/, /schema, /compose.html, /mcp.html, one svg per model): %v", len(locs), want, locs)
 	}
 	seen := map[string]bool{}
 	for _, loc := range locs {
@@ -108,7 +108,7 @@ func TestSitemapEmptyStore(t *testing.T) {
 	rec := httptest.NewRecorder()
 	srv.handleSitemap(rec, httptest.NewRequest("GET", "/sitemap.xml", nil))
 	locs := sitemapURLs(t, rec.Body.String())
-	if len(locs) != 3 || locs[0] != "https://pflow.xyz/" || locs[1] != "https://pflow.xyz/schema" || locs[2] != "https://pflow.xyz/mcp.html" {
-		t.Errorf("empty store sitemap = %v, want [/ /schema /mcp.html]", locs)
+	if len(locs) != 4 || locs[0] != "https://pflow.xyz/" || locs[1] != "https://pflow.xyz/schema" || locs[2] != "https://pflow.xyz/compose.html" || locs[3] != "https://pflow.xyz/mcp.html" {
+		t.Errorf("empty store sitemap = %v, want [/ /schema /compose.html /mcp.html]", locs)
 	}
 }

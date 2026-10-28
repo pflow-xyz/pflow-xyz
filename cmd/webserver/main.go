@@ -922,7 +922,8 @@ func (s *Server) getAnalyticsScript() string {
 // injectAnalytics injects Google Analytics script into HTML content
 func (s *Server) injectAnalytics(html []byte) []byte {
 	script := s.getAnalyticsScript()
-	if script == "" {
+	// A page that already carries the tag is left alone: counted once, not twice.
+	if script == "" || bytes.Contains(html, []byte("googletagmanager.com/gtag/js")) {
 		return html
 	}
 	// Inject before </head>
@@ -1106,6 +1107,12 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 			w.WriteHeader(status)
 			w.Write(data)
+			return
+		}
+
+		// /compose.html: a static page with its own share head, counted like "/"
+		// (static_pages.go).
+		if s.serveComposePage(w, r) {
 			return
 		}
 

@@ -19,6 +19,9 @@ weight component means "this color is not involved".
   recipes for solving/plotting/embedding, discrete simulation, related services
 - [JSON-LD schema](https://pflow.xyz/schema): the @context served as JSON-LD
 - [Book](https://book.pflow.xyz): Petri nets as a universal abstraction
+- [Composition views](https://pflow.xyz/compose.html): one composition of three Petri nets
+  drawn in ten conventions (cospans, spiders, operad, string diagrams, flat net, …); every
+  link rule runs in the page as WebAssembly
 
 ## Ontology
 
