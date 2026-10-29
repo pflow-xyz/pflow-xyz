@@ -189,24 +189,29 @@ async function keyboardLinking(p: Page, view: string, ex: string) {
   if (!has) { console.log(`  (no ${group}s in this view: keyboard linking skipped)`); return; }
   ok(await tabTo(p, group), `Tab reaches a ${group}`);
   const origin = await p.eval(ACTIVE);
+  const spoken = (await p.eval(LOG)).length;
   await p.press("Enter");
   await sleep(150);
   const lit = await p.eval(LIT);
   if (!lit) {
-    // a view that draws no targets must say so and light nothing
-    const said = (await p.eval(LOG)).slice(-1)[0] ?? "";
-    ok(/draws no/.test(said) || /No legal/.test(said), "no lit target: the view says why", said);
+    // a view that draws no targets must say so and light nothing. Something else may be spoken meanwhile (the Laws
+    // view's live check finishing says so while Laws is shown), so look at everything said since Enter, not the last line.
+    const said: string[] = (await p.eval(LOG)).slice(spoken);
+    ok(said.some((t) => /draws no/.test(t) || /No legal/.test(t)), "no lit target: the view says why", said.join(" / "));
     return;
   }
   ok(await p.eval(`document.body.classList.contains('snap-dragging')`), "Enter lights targets");
-  ok(/Linking from/.test(await p.eval(LIVE)), "the live region announces link mode", await p.eval(LIVE));
+  // Said through the live region (every announcement is in __a11yLog); in Laws the live check may finish meanwhile and speak after it.
+  const entered: string[] = (await p.eval(LOG)).slice(spoken);
+  ok(entered.some((t) => /Linking from/.test(t)), "the live region announces link mode", entered.join(" / "));
   await p.press("Tab"); await sleep(60);
   ok((await p.eval(ACTIVE))?.legal, "Tab lands on a lit target");
   await p.press("ArrowRight"); await sleep(60);
   ok((await p.eval(ACTIVE))?.legal, "an arrow key stays on lit targets");
   await p.press("r"); await sleep(60);
   const refused = await p.eval(ACTIVE);
-  ok(refused && !refused.legal && /refused/.test(await p.eval(LIVE)), "R walks to a refused target and says why", await p.eval(LIVE));
+  const why: string[] = (await p.eval(LOG)).slice(-4);
+  ok(refused && !refused.legal && why.some((t) => /refused/.test(t)), "R walks to a refused target and says why", why.join(" / "));
   // Esc: cancel, nothing left lit, focus on the origin
   await p.press("Escape"); await sleep(120);
   ok((await p.eval(LIT)) === 0, "Esc leaves nothing lit");
@@ -318,7 +323,7 @@ try {
     if (where === "another view is shown") {
       await p.press("0"); await sleep(1200);
     } else await sleep(1200);
-    ok(/did not run/.test(await p.eval(`(document.querySelector('.lw-livetext') || {}).textContent || ''`)), "Laws shows what its live check came to when it is drawn", where);
+    ok(await p.waitFor(`/did not run/.test((document.querySelector('.lw-livetext') || {}).textContent || '')`, 15000), "Laws shows what its live check came to when it is drawn", where);
     if (where === "another view is shown") ok((await p.eval(LOG)).slice(before).some((t: string) => /^Laws: the live check did not run/.test(t)), "and says so once, on arrival");
     await p.close();
   }
