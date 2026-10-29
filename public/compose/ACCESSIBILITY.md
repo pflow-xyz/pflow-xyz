@@ -45,7 +45,12 @@ stage is redrawn and focus is given back to the origin port, in the same drawing
 when a port is drawn twice (and in its first drawing when the redraw no longer has
 the second: a linked port leaves the outer interface). Where a view draws nothing
 to link to (the Flat net draws the palette's pieces and no slots) link mode is not
-entered, and it says so. A pointer drag is unchanged. The reason a target is
+entered, and it says so. A pointer drag is unchanged. A view's own background work
+(the Laws view's data arriving, its live Pyodide check or layout finishing) never
+cuts a drag or link mode: the redraw waits until the gesture has ended, is dropped
+if another view is shown by then, and the Laws status lines ("Laws: the live layout
+is drawn.") are spoken only while Laws is the view shown (the latest one that
+came while it was away is spoken once, when it is drawn again). The reason a target is
 refused is also written in the status line at the bottom of the window (it stays
 on screen on a short laptop display), since the keyboard path never shows the
 pointer's tip.

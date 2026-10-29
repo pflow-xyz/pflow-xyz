@@ -9,7 +9,7 @@
 // (no network); the inputs are the shapes check() returns, built by hand and
 // from the precomputed assets/chyp/*.json, which are CheckReport.to_dict()s.
 import { assert, assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
-import { compare, compareLayout } from "./laws-live.js";
+import { compare, compareLayout, createShownGate } from "./laws-live.js";
 
 const THEORIES = ["orderer-monoid", "filter-meet", "driver-wrap", "sync-spiders"];
 const asset = async (t: string) => JSON.parse(await Deno.readTextFile(new URL(`./assets/chyp/${t}.json`, import.meta.url)));
@@ -181,4 +181,48 @@ Deno.test("compareLayout: a real export agrees with itself, and a moved box show
     const r = compareLayout(moved, diagrams);
     assertEquals(r.maxDiff, 0.5);
     assertEquals(r.shapeDiffers, false);
+});
+
+// The Laws view's background work must not speak, or redraw, while another view is shown (views/laws.js).
+const gate = () => {
+    const said: string[] = [];
+    const later: Array<() => void> = [];
+    const g = createShownGate({ announce: (t: string) => said.push(t), defer: (f: () => void) => later.push(f) });
+    return { g, said, later, run: () => { while (later.length) later.shift()!(); } };
+};
+
+Deno.test("createShownGate: while Laws is shown it speaks at once", () => {
+    const { g, said } = gate();
+    g.say(true, "Laws: the live layout is drawn.");
+    assertEquals(said, ["Laws: the live layout is drawn."]);
+    assertEquals(g.missed(), null);
+});
+
+Deno.test("createShownGate: away, it says nothing and keeps the latest message only", () => {
+    const { g, said } = gate();
+    g.say(false, "Laws: the live check agrees. Laying the diagrams out live.");
+    g.say(false, "Laws: the live layout is drawn.");
+    assertEquals(said, []);
+    assertEquals(g.missed(), "Laws: the live layout is drawn.");
+});
+
+Deno.test("createShownGate: arrive() gives back what was missed, once, and after the page's own announcement", () => {
+    const { g, said, later, run } = gate();
+    g.say(false, "Laws: the live layout is drawn.");
+    g.arrive();
+    assertEquals(said, [], "deferred: the view's label (announced in the same render) goes first");
+    assertEquals(later.length, 1);
+    run();
+    assertEquals(said, ["Laws: the live layout is drawn."]);
+    g.arrive();
+    assertEquals(later.length, 0, "and only once");
+    assertEquals(g.missed(), null);
+});
+
+Deno.test("createShownGate: arrive() with nothing missed does nothing", () => {
+    const { g, later, said } = gate();
+    g.say(true, "spoken while shown");
+    g.arrive();
+    assertEquals(later.length, 0);
+    assertEquals(said, ["spoken while shown"]);
 });

@@ -6,7 +6,7 @@
 // what it announces must be what the registry said, and a commit must be a link
 // the registry accepts.
 import { assert, assertEquals, assertStringIncludes } from "https://deno.land/std@0.224.0/assert/mod.ts";
-import { begin, beginText, noTargetsText, press, targetText } from "./a11y-link.js";
+import { afterGesture, begin, beginText, noTargetsText, press, targetText } from "./a11y-link.js";
 import { errText, portLegalReason, portRefusal, portTargets, slotLegalReason, slotRefusal, slotTargets } from "./verdicts.js";
 import { setup } from "../../parity/composition-views/render.js";
 import { actions, linkCandidates, slotCandidates, start, subnetsById } from "./state.js";
@@ -319,4 +319,24 @@ Deno.test("ACCESSIBILITY.md quotes what the page says: its samples are built fro
   // and the refusal quoted is the registry's, not an invented code: it names PAGE_SAME_SUBNET and E_SCHEMA_MISMATCH only where they are said
   assertStringIncludes(refused, "PAGE_SAME_SUBNET");
   assert(!refused.includes("E_SCHEMA_MISMATCH"), "from orders:out the first refused port (orders:in) is refused for being on the same subnet");
+});
+
+// --- a redraw nobody asked for waits for the gesture -------------------------------------------------
+
+Deno.test("afterGesture: with no gesture on, it runs at once", () => {
+  let n = 0;
+  afterGesture(() => false, () => n++, () => { throw new Error("no timer needed"); });
+  assertEquals(n, 1);
+});
+
+Deno.test("afterGesture: with a gesture on, it waits, polling, and runs once when the gesture has ended", () => {
+  let on = true, n = 0;
+  const timers: Array<() => void> = [];
+  afterGesture(() => on, () => n++, (f: () => void) => timers.push(f));
+  assertEquals([n, timers.length], [0, 1]);
+  timers.shift()!(); // still on: asks again
+  assertEquals([n, timers.length], [0, 1]);
+  on = false;
+  timers.shift()!();
+  assertEquals([n, timers.length], [1, 0], "ran, and stopped polling");
 });

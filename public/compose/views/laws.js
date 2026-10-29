@@ -94,6 +94,13 @@ const LIVE = freshLive();
 const COMPOSE = new URL('../', import.meta.url); // public/compose/: the index's `source` paths are relative to it
 const headless = (ctx) => !!ctx.headless || typeof Deno !== 'undefined' || typeof document === 'undefined';
 const SEL = { orders: null, connect4: null }; // { theory, rw: {theory: name}, rule: {theory: name|null} }
+// The data fetch and the live check finish whenever they finish, which may be while another view is shown (with a drag
+// or keyboard linking going on there): they redraw and speak only while this view is, and the latest thing they
+// would have said is said once when it is drawn again (laws-live.js createShownGate). The state stays in DATA and LIVE.
+const gate = live.createShownGate({ announce });
+const shown = (ctx) => (typeof ctx.shown === 'function' ? ctx.shown() : true);
+const redraw = (ctx) => { if (shown(ctx)) ctx.rerender(); };
+const say = (ctx, text) => gate.say(shown(ctx), text);
 let lastWritten = null; // law|rw|rule as this view last wrote them into the hash
 
 // --- loading ------------------------------------------------------------------------
@@ -132,7 +139,7 @@ function load(ctx) {
       DATA.err = String(e && e.message ? e.message : e);
     }
   })();
-  DATA.promise.then(() => ctx.rerender());
+  DATA.promise.then(() => redraw(ctx));
 }
 
 /**
@@ -146,7 +153,7 @@ function startLive(ctx) {
   LIVE.state = 'checking';
   LIVE.preCheck = Object.fromEntries(Object.entries(DATA.th).map(([k, th]) => [k, th.check]));
   const status = (t) => { LIVE.status = t; paintLive(); };
-  announce(`Laws: running Chyp's checker live in your browser. This fetches Pyodide from cdn.jsdelivr.net and lark from PyPI (${live.DOWNLOAD_NOTE}) and can take several seconds; the precomputed result is shown meanwhile.`);
+  say(ctx, `Laws: running Chyp's checker live in your browser. This fetches Pyodide from cdn.jsdelivr.net and lark from PyPI (${live.DOWNLOAD_NOTE}) and can take several seconds; the precomputed result is shown meanwhile.`);
   (async () => {
     try {
       const r = await live.check(THEORIES, status);
@@ -154,8 +161,8 @@ function startLive(ctx) {
       LIVE.t.load = r.loadSeconds; LIVE.t.check = r.checkSeconds;
       LIVE.cmp = live.compare(r.results, LIVE.preCheck);
       LIVE.state = 'checked';
-      announce(LIVE.cmp.differences.length ? `Laws: the live check differs from the precomputed one (${LIVE.cmp.differences.length} differences). Laying the diagrams out live.` : `Laws: the live check agrees with the precomputed one (${LIVE.cmp.agree} of ${LIVE.cmp.total} rewrites). Laying the diagrams out live.`);
-      ctx.rerender();
+      say(ctx, LIVE.cmp.differences.length ? `Laws: the live check differs from the precomputed one (${LIVE.cmp.differences.length} differences). Laying the diagrams out live.` : `Laws: the live check agrees with the precomputed one (${LIVE.cmp.agree} of ${LIVE.cmp.total} rewrites). Laying the diagrams out live.`);
+      redraw(ctx);
       LIVE.state = 'laying-out';
       const l = await live.layout(THEORIES, status);
       LIVE.t.layout = l.layoutSeconds;
@@ -175,14 +182,14 @@ function startLive(ctx) {
       LIVE.layoutCmp = { numbers, maxDiff, shapeDiffers };
       LIVE.shown = 'live';
       LIVE.state = 'live';
-      announce('Laws: the live layout is drawn.');
-      ctx.rerender();
+      say(ctx, 'Laws: the live layout is drawn.');
+      redraw(ctx);
     } catch (e) {
       console.warn(e); // the page says one line (explain); the whole error, with a Python traceback, is for the console
       LIVE.err = live.explain(e);
       LIVE.state = LIVE.cmp ? 'layout-error' : 'error';
-      announce(`Laws: the live ${LIVE.cmp ? 'layout' : 'check'} did not run (${LIVE.err}); the precomputed result stays.`);
-      ctx.rerender();
+      say(ctx, `Laws: the live ${LIVE.cmp ? 'layout' : 'check'} did not run (${LIVE.err}); the precomputed result stays.`);
+      redraw(ctx);
     }
   })();
 }
@@ -224,7 +231,7 @@ function paintLive() {
  */
 function retryLive(ctx) {
   Object.assign(LIVE, freshLive(), { focusBar: true });
-  announce('Laws: trying the live check again. This fetches Pyodide, lark and the layout packages again; the precomputed result is shown meanwhile.');
+  say(ctx, 'Laws: trying the live check again. This fetches Pyodide, lark and the layout packages again; the precomputed result is shown meanwhile.');
   ctx.rerender();
 }
 
@@ -1497,6 +1504,7 @@ export default {
     load(ctx);
     if (DATA.state === 'loading' || DATA.state === 'idle') { ctx.root.append(E('p', { class: 'lw-loading' }, 'Loading the Chyp check results (assets/chyp/) and theory files (chyp/*.chyp)…')); return; }
     ctx.lawsDrawn = true;
+    gate.arrive();
     startLive(ctx);
     if (DATA.state === 'error') { ctx.note(`Could not load the Chyp export: ${DATA.err}. Regenerate it with chyp_headless export (chyp_headless/README.md).`, 'warn'); return; }
     const sel = selection(ctx);

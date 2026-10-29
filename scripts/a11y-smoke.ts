@@ -12,7 +12,8 @@
 //   - where a view draws ports (orders) or palette pieces (connect-4): Tab reaches them, Enter lights
 //     targets (or says the view draws none), Tab and the arrows walk lit targets only, Enter links, the
 //     live region says so, Esc cancels and puts focus back;
-//   - regressions found in review: a removed link is announced, the second of two equally titled
+//   - regressions found in review: the Laws view's live check ending mid-link does not redraw or speak in another
+//     view and waits for a link in progress in Laws; a removed link is announced, the second of two equally titled
 //     things moves the inspector pin instead of releasing it, skip links leave the address alone.
 //
 // It is not part of `make test` (it needs Chrome and a running server). Exit status 1 on any failure.
@@ -43,6 +44,7 @@ class Page {
   private waiting = new Map<number, (v: any) => void>();
   private loaded: (() => void) | null = null;
   problems: string[] = [];
+  paused: string[] = []; // requests held by hold() (Fetch.requestPaused)
   close: () => Promise<void> = async () => {};
   constructor(private ws: WebSocket) {
     ws.onmessage = (ev) => {
@@ -50,6 +52,7 @@ class Page {
       if (m.id !== undefined) { this.waiting.get(m.id)?.(m); this.waiting.delete(m.id); return; }
       const p = m.params ?? {};
       if (m.method === "Page.loadEventFired") this.loaded?.();
+      else if (m.method === "Fetch.requestPaused") this.paused.push(p.requestId);
       else if (m.method === "Runtime.exceptionThrown") this.problems.push(`exception: ${p.exceptionDetails?.exception?.description ?? p.exceptionDetails?.text}`);
       else if (m.method === "Runtime.consoleAPICalled" && (p.type === "error" || p.type === "assert")) this.problems.push(`console.${p.type}: ${(p.args ?? []).map((a: any) => a.value ?? a.description).join(" ")}`);
       else if (m.method === "Log.entryAdded" && p.entry?.level === "error") this.problems.push(`log.error: ${p.entry.text} ${p.entry.url ?? ""}`);
@@ -89,6 +92,13 @@ class Page {
   async click(x: number, y: number) {
     for (const type of ["mouseMoved", "mousePressed", "mouseReleased"]) await this.send("Input.dispatchMouseEvent", { type, x, y, button: "left", clickCount: 1, buttons: type === "mousePressed" ? 1 : 0 });
     await sleep(100);
+  }
+  /** Hold the requests whose URL matches (before navigating); fail() ends them as an offline network would. */
+  async hold(patterns: string[]) {
+    await this.send("Fetch.enable", { patterns: patterns.map((urlPattern) => ({ urlPattern, requestStage: "Request" })) });
+  }
+  async fail() {
+    for (const requestId of this.paused.splice(0)) await this.send("Fetch.failRequest", { requestId, errorReason: "InternetDisconnected" }).catch(() => {});
   }
   async waitFor(expr: string, ms = 20000): Promise<boolean> {
     for (let t = 0; t < ms; t += 100) { if (await this.eval(expr)) return true; await sleep(100); }
@@ -273,6 +283,40 @@ try {
     await p.eval(`document.querySelector('[data-piece="threats"]').focus()`); await p.press("Enter"); await sleep(100); await p.press("r"); await sleep(150);
     const r = await p.eval(`(() => { const b = document.querySelector('#snap-status').getBoundingClientRect(); return { top: b.top, bottom: b.bottom, text: document.querySelector('#snap-status').textContent }; })()`);
     ok(r.text.includes("refused") && r.top >= 0 && r.bottom <= 768, "the refusal in the status line is inside a 1366 x 768 window", JSON.stringify(r));
+  }
+  for (const [where, ex] of [["another view is shown", "orders"], ["Laws itself is shown", "connect4"]]) {
+    // the Laws view's live check ends while the person is linking: it must not redraw (and cancel the link) or speak
+    // about Laws in another view, and in Laws it waits for the link to end. Pyodide's CDN requests are held, then failed.
+    const p = await newPage(1280, 900);
+    await p.hold(["*cdn.jsdelivr.net*", "*pypi.org*", "*pythonhosted.org*"]);
+    await p.goto(`${url}#view=laws&ex=${ex}`);
+    await p.waitFor(`document.body.dataset.ready === '1' && !!document.querySelector('.lw-tab')`, 30000);
+    await sleep(500);
+    ok(p.paused.length > 0, `Laws' live check is waiting on the network (${where})`, String(p.paused.length));
+    const group = ex === "orders" ? "port" : "piece";
+    if (where === "another view is shown") {
+      await p.press("1"); await sleep(400);
+      ok(await p.eval(`document.body.dataset.view === 'cospan'`), "the Cospans view is shown");
+    }
+    if (ex === "orders") ok(await tabTo(p, group), `Tab reaches a ${group}`);
+    else await p.eval(`document.querySelector('[data-piece="threats"]').focus()`); // a piece with a legal slot
+    await p.press("Enter"); await sleep(200);
+    const linking = `document.body.classList.contains('snap-dragging')`;
+    ok(await p.eval(linking), "link mode is on");
+    const before = (await p.eval(LOG)).length;
+    await p.fail(); await sleep(2500);
+    const said: string[] = (await p.eval(LOG)).slice(before);
+    ok(await p.eval(linking), `link mode survives Laws' live check ending (${where})`, said.join(" / "));
+    ok(!said.some((t) => /Linking cancelled/.test(t)), "no 'Linking cancelled: the view was redrawn.'");
+    if (where === "another view is shown") ok(!said.some((t) => /^Laws:/.test(t)), "nothing about Laws is spoken in Cospans", said.join(" / "));
+    await p.press("Escape"); await sleep(150);
+    await p.eval(`document.activeElement && document.activeElement.blur()`);
+    if (where === "another view is shown") {
+      await p.press("0"); await sleep(1200);
+    } else await sleep(1200);
+    ok(/did not run/.test(await p.eval(`(document.querySelector('.lw-livetext') || {}).textContent || ''`)), "Laws shows what its live check came to when it is drawn", where);
+    if (where === "another view is shown") ok((await p.eval(LOG)).slice(before).some((t: string) => /^Laws: the live check did not run/.test(t)), "and says so once, on arrival");
+    await p.close();
   }
   {
     // skip links leave the address alone

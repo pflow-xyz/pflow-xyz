@@ -107,6 +107,9 @@ export function registered() { return { ports: reg.ports, slots: reg.slots, piec
 /** Is keyboard link mode on? (the page's own key shortcuts stand aside while it is) */
 export const kbActive = () => kb !== null;
 
+/** Is a link or a drop in progress, by pointer or by keyboard? A redraw would cut it (resetSnap), so a view's background redraw waits (app.js). */
+export const gestureActive = () => drag !== null || kb !== null;
+
 const center = (el) => { const r = el.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; };
 const kindColor = (name) => PIECE_KIND_COLOR[pieceByName[name]?.kind] || '#555';
 

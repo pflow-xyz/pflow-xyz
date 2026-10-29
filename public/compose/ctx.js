@@ -19,7 +19,8 @@ export function connect4Summary(net) {
 
 /**
  * @param {Element} root   where the view draws
- * @param {{snap, hover, manifest, connect4, rerender}} o
+ * @param {{snap, hover, manifest, connect4, rerender, shown}} o  `shown()`: is the view this ctx draws still the one on screen
+ * (a view's background work asks before it redraws or speaks; the page passes it, the headless test has no other view)
  */
 export function makeCtx(root, o) {
   const byId = subnetsById();
@@ -40,6 +41,8 @@ export function makeCtx(root, o) {
     emit: (kind, id, attrs) => o.manifest.emit(kind, id, attrs),
     /** Redraw this view (for its own toggles); the model does not change. */
     rerender: o.rerender || (() => actions.rerender()),
+    /** Is this view still the one shown? Work that outlives the drawing (a fetch, a worker) must not redraw or speak for a view that was left. */
+    shown: o.shown || (() => true),
     svg, el, svgRoot, curve, textWidth,
     /** A banner above the drawing: level 'na' (not applicable), 'honesty', 'warn'. */
     note(text, level = 'honesty') {

@@ -18,7 +18,7 @@
 import * as registry from './registry.js';
 import { loadFacts, LINK_KINDS, LINK_STYLE, EXTRA_SPECS, PARAMS_NOTE, PIECES, PLAN_RS_REV, FACTS } from './model.js';
 import { state, subscribe, actions, subnetsById, orderLinks, flatOrders, planInfo, readHash, writeHash, start } from './state.js';
-import { initSnap, resetSnap, snap, kbActive } from './snap.js';
+import { initSnap, resetSnap, snap, kbActive, gestureActive } from './snap.js';
 import { initInspector, hover, renderInfo } from './inspect.js';
 import { el } from './dom.js';
 import * as theme from './theme.js';
@@ -30,6 +30,7 @@ import { makeManifest } from './manifest.js';
 import { createViewLoader, createStartup } from './loader.js';
 import * as a11y from './a11y.js';
 import { isTypingTarget } from './a11y-nav.js';
+import { afterGesture } from './a11y-link.js';
 import { announce } from './a11y-bus.js';
 import { VIEW_KEYS_OFF } from './a11y-text.js';
 import { renderLegend } from './legend.js';
@@ -259,7 +260,14 @@ function render() {
   resetSnap();
   renderToolbar(); // after resetSnap, so palette pieces register for this render
   const manifest = makeManifest(state.view, state.example, 'live');
-  const ctx = makeCtx(stage, { snap, hover, manifest, connect4 });
+  const shownId = state.view;
+  const ctx = makeCtx(stage, {
+    snap, hover, manifest, connect4,
+    shown: () => state.view === shownId,
+    // A view's own redraw (its background work finishing, a toggle) never cuts a drag or keyboard linking, and is
+    // dropped if the view was left meanwhile: it would redraw the view that is now shown, which has not changed.
+    rerender: () => afterGesture(gestureActive, () => { if (state.view === shownId) actions.rerender(); }),
+  });
   try {
     v.render(ctx);
   } catch (e) {
