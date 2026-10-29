@@ -52,10 +52,74 @@ func (c Config) maxMemo() int {
 	return MaxMemo
 }
 
-// Net is a net and its marking. Only a net with one token colour is run.
+// Net is a net and its marking, by model place id.
+//
+// A net with several token colours is given unfolded, as the parser
+// unfolds it: a model place per colour of each document place, an arc per
+// colour its weight is not 0 for. Colours then says which document place
+// each copy is, and what to call it.
 type Net struct {
 	Model   *metamodel.Model
 	Marking map[string]int64
+	Colours *Colours
+}
+
+// Colours names the token places of a coloured net's model, as
+// pflow-native's Net::base and Net::display_of do.
+type Colours struct {
+	// Base is, per model token place id, the document place it is a copy of.
+	Base map[string]string
+	// Display is, per model token place id, its name as the rules read it:
+	// the document place and the colour, "place.colour".
+	Display map[string]string
+}
+
+// places is what the rules see of the net's token places, by index in
+// ix.Places: pflow-native's Structure (crates/core/src/analysis), which
+// keeps, on a coloured net, only the colour copies something can hold or
+// touch.
+type places struct {
+	base, display []string
+	used          []bool
+	// unused counts the copies left out.
+	unused int
+}
+
+func placesOf(ix *Indexed, net *Net) *places {
+	n := len(ix.Places)
+	pl := &places{base: make([]string, n), display: make([]string, n), used: make([]bool, n)}
+	if net.Colours == nil {
+		for i, id := range ix.Places {
+			pl.base[i], pl.display[i], pl.used[i] = id, id, true
+		}
+		return pl
+	}
+	initial := map[string]int64{}
+	for i := range net.Model.Places {
+		p := &net.Model.Places[i]
+		if _, ok := initial[p.ID]; !ok {
+			initial[p.ID] = int64(p.Initial)
+		}
+	}
+	touched := map[string]bool{}
+	for i := range net.Model.Arcs {
+		touched[net.Model.Arcs[i].From] = true
+		touched[net.Model.Arcs[i].To] = true
+	}
+	for i, id := range ix.Places {
+		pl.base[i], pl.display[i] = id, id
+		if b, ok := net.Colours.Base[id]; ok {
+			pl.base[i] = b
+		}
+		if d, ok := net.Colours.Display[id]; ok {
+			pl.display[i] = d
+		}
+		pl.used[i] = initial[id] > 0 || net.Marking[id] > 0 || touched[id]
+		if !pl.used[i] {
+			pl.unused++
+		}
+	}
+	return pl
 }
 
 // ---- the commands' arguments ----
@@ -233,7 +297,7 @@ func hasPrefixAny(ts []string, p string) bool {
 	return false
 }
 
-func readRules(ix *Indexed, a map[string]any) (*rules, error) {
+func readRules(ix *Indexed, pl *places, a map[string]any) (*rules, error) {
 	ts := ix.Transitions
 	// sides
 	sidesV, ok, err := jsonArg(a, "sides")
@@ -291,8 +355,8 @@ func readRules(ix *Indexed, a map[string]any) (*rules, error) {
 			return nil, badArgs("reward weight for %s must be a number", k)
 		}
 		found := false
-		for i, p := range ix.Places {
-			if p == k {
+		for i := range ix.Places {
+			if pl.used[i] && (pl.display[i] == k || pl.base[i] == k) {
 				reward = append(reward, Reward{i, w})
 				found = true
 			}
@@ -639,7 +703,8 @@ type search struct {
 
 func newSearch(net *Net, a map[string]any, cfg Config) (*search, error) {
 	ix := NewIndexed(net.Model)
-	r, err := readRules(ix, a)
+	pl := placesOf(ix, net)
+	r, err := readRules(ix, pl, a)
 	if err != nil {
 		return nil, err
 	}
@@ -647,10 +712,8 @@ func newSearch(net *Net, a map[string]any, cfg Config) (*search, error) {
 	if err != nil {
 		return nil, err
 	}
-	if what, err := plan.RefusedPieces(); err != nil {
-		return nil, err
-	} else if what != "" {
-		return nil, fmt.Errorf("plan: %s is not ported to this server: use a plan without it (the exact pieces are filters, order, memo, drivers null_window, mtd_f and budget, and root non_losing)", what)
+	if pl.unused > 0 {
+		return nil, fmt.Errorf("the exact search needs every token place and transition of the net (a coloured net with unused colour copies is not supported)")
 	}
 	g := NewGame(ix, r.auto, r.sign, r.reward)
 	x := &search{ix: ix, g: g, plan: plan, budget: budget, cfg: cfg}
@@ -684,6 +747,16 @@ func (x *search) solver() (*Solver, error) {
 		return nil, err
 	}
 	o.Cancel = x.cfg.Cancel
+	if name, ok, err := x.plan.Estimate(); err != nil {
+		return nil, err
+	} else if ok {
+		switch name {
+		case "ode":
+			o.Estimate = NewOdeEstimate(x.g, x.cfg.Cancel)
+		default:
+			return nil, fmt.Errorf("search plan: the root names estimate %q, which is not built into this server", name)
+		}
+	}
 	s, err := NewSolver(x.g, o)
 	if err != nil {
 		return nil, err

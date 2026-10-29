@@ -9,9 +9,10 @@ package main
 // move, the node count (which counts the table's every eviction), the budget
 // and the words of an error.
 //
-// A case whose plan names the root estimate "ode" is the one kind native
-// answers and the tool must refuse (`ported: false` in the golden): the test
-// holds the tool to refusing it, and saying why.
+// That includes the root estimate "ode" and the aspiration driver, whose
+// guesses come from a mass-action ODE solved in floating point (see
+// docs/workbench-progress.md for why the node counts agree to the digit), and
+// coloured nets, whose places the rules name as native does.
 //
 // Two normalisations, on error text: the position serde_json gives a parse
 // error (" at line 1 column 7") is dropped from both sides, and the tool's
@@ -29,12 +30,11 @@ import (
 type gameGolden struct {
 	Name    string         `json:"name"`
 	Fixture string         `json:"fixture"`
-	Marking map[string]int `json:"marking"`
+	Marking map[string]any `json:"marking"`
 	Tool    string         `json:"tool"`
 	Args    map[string]any `json:"args"`
 	Expect  map[string]any `json:"expect"`
 	Error   *string        `json:"error"`
-	Ported  *bool          `json:"ported"`
 }
 
 func loadGameGoldens(t *testing.T) []gameGolden {
@@ -63,7 +63,19 @@ func gameNet(t *testing.T, c gameGolden) map[string]any {
 		}
 	}
 	for id, p := range places {
-		p.(map[string]any)["initial"] = []any{float64(c.Marking[id])}
+		pl := p.(map[string]any)
+		// A count per colour for a coloured place, a number for the first.
+		counts := make([]any, len(pl["initial"].([]any)))
+		for i := range counts {
+			counts[i] = float64(0)
+		}
+		switch v := c.Marking[id].(type) {
+		case []any:
+			copy(counts, v)
+		case float64:
+			counts[0] = v
+		}
+		pl["initial"] = counts
 	}
 	return doc
 }
@@ -95,21 +107,10 @@ func runGameCase(t *testing.T, c gameGolden) (any, error) {
 
 func TestMCPGameMatchesNative(t *testing.T) {
 	seen := map[string]int{}
-	refused := 0
+	var ode, aspiration, coloured int
 	for _, c := range loadGameGoldens(t) {
 		t.Run(c.Name, func(t *testing.T) {
 			out, err := runGameCase(t, c)
-			if c.Ported != nil && !*c.Ported {
-				// Native solves the ODE; the tool refuses, and says what.
-				if err == nil {
-					t.Fatalf("native answered with the ode estimate (%v); the tool answered too: %v", c.Expect, out)
-				}
-				if !strings.Contains(err.Error(), `"ode"`) || !strings.Contains(err.Error(), "not ported") {
-					t.Fatalf("the refusal does not say that the ode estimate is not ported: %v", err)
-				}
-				refused++
-				return
-			}
 			if c.Error != nil {
 				if err == nil {
 					t.Fatalf("native refused (%s); the tool answered: %v", *c.Error, out)
@@ -132,6 +133,19 @@ func TestMCPGameMatchesNative(t *testing.T) {
 				t.Fatalf("differs from native:\n%s", strings.Join(d, "\n"))
 			}
 			seen[c.Tool]++
+			plan, _ := json.Marshal(c.Args["plan"])
+			if strings.Contains(string(plan), `"ode"`) {
+				ode++
+			}
+			if strings.Contains(string(plan), `"aspiration"`) {
+				aspiration++
+			}
+			// A coloured net counts only if a search ran: a position with
+			// no move is answered without one (a marking read wrongly would
+			// make every case such a position).
+			if n, _ := c.Expect["nodes"].(float64); strings.Contains(c.Fixture, "colored") && n > 0 {
+				coloured++
+			}
 		})
 	}
 	for _, tool := range []string{"game.value", "game.move", "error"} {
@@ -139,7 +153,10 @@ func TestMCPGameMatchesNative(t *testing.T) {
 			t.Errorf("no golden case for %s", tool)
 		}
 	}
-	if refused == 0 {
-		t.Error("no golden case for the refused ode estimate")
+	// What this port used to refuse is held to native like the rest.
+	for what, n := range map[string]int{"the ode estimate": ode, "the aspiration driver": aspiration, "a coloured net": coloured} {
+		if n < 100 {
+			t.Errorf("only %d answered golden cases use %s", n, what)
+		}
 	}
 }

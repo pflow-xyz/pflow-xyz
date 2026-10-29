@@ -30,7 +30,7 @@ test: test-js test-parity test-parity-behavior test-publish test-npm-pack test-t
 
 # Run JavaScript tests
 test-js:
-	@deno test --allow-read=parity/ode,parity/editor-shape,parity/fixtures,parity/clipboard,parity/ssa,parity/roles,parity/native,parity/composition-views,examples,testdata,public,pflow-native-wasm.lock public/petri-sim_test.ts public/petri-colors_test.ts public/petri-shape_test.ts public/petri-solver_test.ts public/petri-learn_test.ts public/petri-ssa_test.ts public/petri-sde_test.ts public/petri-validate_test.ts public/petri-commands_test.ts public/petri-files_test.ts public/petri-draft_test.ts public/petri-wasm_test.ts public/petri-chat_test.ts public/petri-goals_test.ts public/petri-refine_test.ts public/petri-roles_test.ts public/petri-clipboard_test.ts parity/ode/ode_expected_test.ts parity/native/native_parity_test.ts parity/native/js_vs_wasm_test.ts parity/composition-views/parity_test.ts
+	@deno test --allow-read=parity/ode,parity/editor-shape,parity/fixtures,parity/clipboard,parity/ssa,parity/roles,parity/native,parity/composition-views,parity/model,examples,testdata,public,pflow-native-wasm.lock public/petri-sim_test.ts public/petri-colors_test.ts public/petri-shape_test.ts public/petri-solver_test.ts public/petri-learn_test.ts public/petri-ssa_test.ts public/petri-sde_test.ts public/petri-validate_test.ts public/petri-commands_test.ts public/petri-files_test.ts public/petri-draft_test.ts public/petri-wasm_test.ts public/petri-chat_test.ts public/petri-goals_test.ts public/petri-refine_test.ts public/petri-roles_test.ts public/petri-clipboard_test.ts parity/ode/ode_expected_test.ts parity/native/native_parity_test.ts parity/native/js_vs_wasm_test.ts parity/composition-views/parity_test.ts public/model-cid_test.ts parity/model/flatten_parity_test.ts public/compose/identity_test.ts
 
 # Regenerate the differentiable-fitting parity goldens (parity/learn/goldens.json)
 # from go-pflow's learn package. Deliberate, never a side effect of another
@@ -54,21 +54,27 @@ native-goldens:
 # Regenerate parity/native/game_goldens.json: pflow-native's game.value and
 # game.move on the positions and plans of parity/native/game_cases.json (the
 # /mcp game tools' parity suite, cmd/webserver/mcp_game_parity_test.go). The
-# search the Go port follows is pflow-rs at PFLOW_RS_REV, which pflow-native
-# (pinned to an older pflow-rs) does not use yet, so the generator is built
-# against a pflow-rs checkout you name:
-#   make game-goldens PFLOW_RS=../pflow-rs     (a checkout at PFLOW_RS_REV)
-# Needs cargo and network access to github.com (for pflow-native). The pflow-native
-# commit is pinned in parity/native/gen-game/Cargo.toml. After editing
-# game_cases.json's source, `python3 parity/native/gen-game/make_cases.py`;
+# generator builds pflow-native at the commit pinned in
+# parity/native/gen-game/Cargo.toml, which pins pflow-rs at PFLOW_RS_REV (the
+# search the Go port follows, with the mtd_f driver and pflow_solver::game's
+# ODE estimate); no patch is needed. To build against a pflow-rs checkout
+# instead (e.g. main), name it:
+#   make game-goldens PFLOW_RS=../pflow-rs
+# The checkout's crates must be the code of PFLOW_RS_REV (a later commit that
+# only touches docs is fine), or the goldens would not be what they record.
+# Needs cargo and network access to github.com (for pflow-native). After
+# editing game_cases.json's source, `python3 parity/native/gen-game/make_cases.py`;
 # fixtures: `python3 parity/native/gen-game/make_fixtures.py <pflow-native checkout>`.
 PFLOW_RS_REV := 35be80745784e9ed0375103bfc035ffcfcfaeb2c
 game-goldens:
-	@test -n "$(PFLOW_RS)" || { echo "usage: make game-goldens PFLOW_RS=<pflow-rs checkout at $(PFLOW_RS_REV)>"; exit 2; }
-	@test "$$(git -C "$(PFLOW_RS)" rev-parse HEAD)" = "$(PFLOW_RS_REV)" || { echo "$(PFLOW_RS) is not at $(PFLOW_RS_REV)"; exit 2; }
 	@mkdir -p parity/native/gen-game/target
-	@{ echo '[patch."https://github.com/pflow-xyz/pflow-rs"]'; for c in compose core eventlog learn metamodel mining parser reachability solver validation verify; do echo "pflow-$$c = { path = \"$$(cd "$(PFLOW_RS)" && pwd)/crates/pflow-$$c\" }"; done; } > parity/native/gen-game/target/patch.toml
-	@CARGO_NET_GIT_FETCH_WITH_CLI=true cargo run --release -q --config parity/native/gen-game/target/patch.toml --manifest-path parity/native/gen-game/Cargo.toml
+	@if [ -n "$(PFLOW_RS)" ]; then \
+	  git -C "$(PFLOW_RS)" diff --quiet $(PFLOW_RS_REV) HEAD -- crates || { echo "$(PFLOW_RS)'s crates differ from pflow-rs $(PFLOW_RS_REV)"; exit 2; }; \
+	  { echo '[patch."https://github.com/pflow-xyz/pflow-rs"]'; for c in compose core eventlog learn metamodel mining parser reachability solver validation verify; do echo "pflow-$$c = { path = \"$$(cd "$(PFLOW_RS)" && pwd)/crates/pflow-$$c\" }"; done; } > parity/native/gen-game/target/patch.toml; \
+	  CARGO_NET_GIT_FETCH_WITH_CLI=true cargo run --release -q --config parity/native/gen-game/target/patch.toml --manifest-path parity/native/gen-game/Cargo.toml; \
+	else \
+	  CARGO_NET_GIT_FETCH_WITH_CLI=true cargo run --release -q --manifest-path parity/native/gen-game/Cargo.toml; \
+	fi
 	@echo "regenerated parity/native/game_goldens.json — run 'go test ./cmd/webserver/ -run TestMCPGameMatchesNative' to verify"
 
 # Re-vendor the wasm shim from a pflow-native build (see scripts/sync-native-wasm.mjs):
@@ -131,6 +137,9 @@ test-parity:
 	@echo "Parity: Go seal vs JS seal-cid.mjs (parity/golden.json)..."
 	@go test ./internal/seal/ -count=1
 	@node parity/parity_check.mjs
+	@echo "Parity: model identity, Go internal/model vs JS model-cid.mjs (parity/model/golden.json)..."
+	@go test ./internal/model/ -count=1
+	@node parity/model_check.mjs
 
 # Build and run with custom port
 run-dev: build

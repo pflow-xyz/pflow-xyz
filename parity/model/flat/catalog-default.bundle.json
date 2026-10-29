@@ -1,0 +1,765 @@
+{
+  "@context": "https://pflow.xyz/schema",
+  "@type": "PetriNetBundle",
+  "name": "catalog-default",
+  "subnets": [
+    {
+      "@type": "PetriNet",
+      "id": "orders",
+      "net_type": "ResourceNet",
+      "model": {
+        "name": "orders",
+        "places": [
+          {
+            "id": "items",
+            "kind": "token",
+            "initial": 2,
+            "capacity": 3,
+            "exported": true,
+            "resource": false,
+            "description": ""
+          },
+          {
+            "id": "slots",
+            "kind": "token",
+            "initial": 1,
+            "capacity": 3,
+            "exported": false,
+            "resource": false,
+            "description": "free capacity; complements items"
+          }
+        ],
+        "transitions": [
+          {
+            "id": "enqueue",
+            "description": "accept one item"
+          },
+          {
+            "id": "dequeue",
+            "description": "release one item"
+          }
+        ],
+        "arcs": [
+          {
+            "from": "slots",
+            "to": "enqueue",
+            "weight": 1,
+            "type": ""
+          },
+          {
+            "from": "enqueue",
+            "to": "items",
+            "weight": 1,
+            "type": ""
+          },
+          {
+            "from": "items",
+            "to": "dequeue",
+            "weight": 1,
+            "type": ""
+          },
+          {
+            "from": "dequeue",
+            "to": "slots",
+            "weight": 1,
+            "type": ""
+          }
+        ],
+        "constraints": [
+          {
+            "id": "queue_capacity",
+            "expr": "tokens(\"items\") + tokens(\"slots\") == 3"
+          }
+        ]
+      },
+      "ports": [
+        {
+          "id": "in",
+          "kind": "in",
+          "target": "place",
+          "place": "items",
+          "transition": "",
+          "schema": "queue:items"
+        },
+        {
+          "id": "out",
+          "kind": "out",
+          "target": "place",
+          "place": "items",
+          "transition": "",
+          "schema": "queue:items"
+        },
+        {
+          "id": "depth",
+          "kind": "observe",
+          "target": "place",
+          "place": "items",
+          "transition": "",
+          "schema": "queue:items"
+        },
+        {
+          "id": "enqueue",
+          "kind": "in",
+          "target": "transition",
+          "place": "",
+          "transition": "enqueue",
+          "schema": ""
+        },
+        {
+          "id": "dequeue",
+          "kind": "out",
+          "target": "transition",
+          "place": "",
+          "transition": "dequeue",
+          "schema": ""
+        }
+      ]
+    },
+    {
+      "@type": "PetriNet",
+      "id": "workers",
+      "net_type": "ResourceNet",
+      "model": {
+        "name": "workers",
+        "places": [
+          {
+            "id": "available",
+            "kind": "token",
+            "initial": 2,
+            "capacity": 2,
+            "exported": true,
+            "resource": false,
+            "description": ""
+          },
+          {
+            "id": "in_use",
+            "kind": "token",
+            "initial": 0,
+            "capacity": 2,
+            "exported": true,
+            "resource": false,
+            "description": ""
+          }
+        ],
+        "transitions": [
+          {
+            "id": "acquire",
+            "description": ""
+          },
+          {
+            "id": "release",
+            "description": ""
+          }
+        ],
+        "arcs": [
+          {
+            "from": "available",
+            "to": "acquire",
+            "weight": 1,
+            "type": ""
+          },
+          {
+            "from": "acquire",
+            "to": "in_use",
+            "weight": 1,
+            "type": ""
+          },
+          {
+            "from": "in_use",
+            "to": "release",
+            "weight": 1,
+            "type": ""
+          },
+          {
+            "from": "release",
+            "to": "available",
+            "weight": 1,
+            "type": ""
+          }
+        ],
+        "constraints": [
+          {
+            "id": "pool_conservation",
+            "expr": "tokens(\"available\") + tokens(\"in_use\") == 2"
+          }
+        ]
+      },
+      "ports": [
+        {
+          "id": "available",
+          "kind": "inout",
+          "target": "place",
+          "place": "available",
+          "transition": "",
+          "schema": "resource"
+        },
+        {
+          "id": "in_use",
+          "kind": "out",
+          "target": "place",
+          "place": "in_use",
+          "transition": "",
+          "schema": "resource"
+        },
+        {
+          "id": "acquire",
+          "kind": "in",
+          "target": "transition",
+          "place": "",
+          "transition": "acquire",
+          "schema": ""
+        },
+        {
+          "id": "release",
+          "kind": "out",
+          "target": "transition",
+          "place": "",
+          "transition": "release",
+          "schema": ""
+        }
+      ]
+    },
+    {
+      "@type": "PetriNet",
+      "id": "payment",
+      "net_type": "ResourceNet",
+      "model": {
+        "name": "payment",
+        "places": [
+          {
+            "id": "next_reserve",
+            "kind": "token",
+            "initial": 1,
+            "capacity": 0,
+            "exported": false,
+            "resource": false,
+            "description": "control: reserve runs next"
+          },
+          {
+            "id": "next_charge",
+            "kind": "token",
+            "initial": 0,
+            "capacity": 0,
+            "exported": false,
+            "resource": false,
+            "description": "control: charge runs next"
+          },
+          {
+            "id": "committing",
+            "kind": "token",
+            "initial": 0,
+            "capacity": 0,
+            "exported": false,
+            "resource": false,
+            "description": "control: every step ran; awaiting final acknowledgement"
+          },
+          {
+            "id": "unwind_charge",
+            "kind": "token",
+            "initial": 0,
+            "capacity": 0,
+            "exported": false,
+            "resource": false,
+            "description": "control: charge is compensated next"
+          },
+          {
+            "id": "unwind_reserve",
+            "kind": "token",
+            "initial": 0,
+            "capacity": 0,
+            "exported": false,
+            "resource": false,
+            "description": "control: reserve is compensated next"
+          },
+          {
+            "id": "completed",
+            "kind": "token",
+            "initial": 0,
+            "capacity": 0,
+            "exported": true,
+            "resource": false,
+            "description": "terminal: the saga ran to the end"
+          },
+          {
+            "id": "rolled_back",
+            "kind": "token",
+            "initial": 0,
+            "capacity": 0,
+            "exported": true,
+            "resource": false,
+            "description": "terminal: every step that ran was compensated"
+          },
+          {
+            "id": "reserve_pending",
+            "kind": "token",
+            "initial": 1,
+            "capacity": 0,
+            "exported": false,
+            "resource": false,
+            "description": "reserve not yet attempted"
+          },
+          {
+            "id": "reserve_done",
+            "kind": "token",
+            "initial": 0,
+            "capacity": 0,
+            "exported": false,
+            "resource": false,
+            "description": "reserve ran and is not compensated"
+          },
+          {
+            "id": "reserve_failed",
+            "kind": "token",
+            "initial": 0,
+            "capacity": 0,
+            "exported": false,
+            "resource": false,
+            "description": "reserve was attempted and failed"
+          },
+          {
+            "id": "reserve_compensated",
+            "kind": "token",
+            "initial": 0,
+            "capacity": 0,
+            "exported": false,
+            "resource": false,
+            "description": "reserve was compensated"
+          },
+          {
+            "id": "charge_pending",
+            "kind": "token",
+            "initial": 1,
+            "capacity": 0,
+            "exported": false,
+            "resource": false,
+            "description": "charge not yet attempted"
+          },
+          {
+            "id": "charge_done",
+            "kind": "token",
+            "initial": 0,
+            "capacity": 0,
+            "exported": false,
+            "resource": false,
+            "description": "charge ran and is not compensated"
+          },
+          {
+            "id": "charge_failed",
+            "kind": "token",
+            "initial": 0,
+            "capacity": 0,
+            "exported": false,
+            "resource": false,
+            "description": "charge was attempted and failed"
+          },
+          {
+            "id": "charge_compensated",
+            "kind": "token",
+            "initial": 0,
+            "capacity": 0,
+            "exported": false,
+            "resource": false,
+            "description": "charge was compensated"
+          },
+          {
+            "id": "customer",
+            "kind": "token",
+            "initial": 1,
+            "capacity": 0,
+            "exported": true,
+            "resource": true,
+            "description": "account"
+          },
+          {
+            "id": "merchant",
+            "kind": "token",
+            "initial": 0,
+            "capacity": 0,
+            "exported": true,
+            "resource": true,
+            "description": "account"
+          }
+        ],
+        "transitions": [
+          {
+            "id": "do_reserve",
+            "description": "reserve stock"
+          },
+          {
+            "id": "fail_reserve",
+            "description": "reserve fails"
+          },
+          {
+            "id": "undo_reserve",
+            "description": "release stock"
+          },
+          {
+            "id": "do_charge",
+            "description": "charge card"
+          },
+          {
+            "id": "fail_charge",
+            "description": "charge fails"
+          },
+          {
+            "id": "undo_charge",
+            "description": "refund"
+          },
+          {
+            "id": "commit",
+            "description": "final acknowledgement succeeds"
+          },
+          {
+            "id": "fail_commit",
+            "description": "final acknowledgement fails; compensate every step"
+          }
+        ],
+        "arcs": [
+          {
+            "from": "next_reserve",
+            "to": "do_reserve",
+            "weight": 1,
+            "type": ""
+          },
+          {
+            "from": "reserve_pending",
+            "to": "do_reserve",
+            "weight": 1,
+            "type": ""
+          },
+          {
+            "from": "do_reserve",
+            "to": "reserve_done",
+            "weight": 1,
+            "type": ""
+          },
+          {
+            "from": "do_reserve",
+            "to": "next_charge",
+            "weight": 1,
+            "type": ""
+          },
+          {
+            "from": "next_reserve",
+            "to": "fail_reserve",
+            "weight": 1,
+            "type": ""
+          },
+          {
+            "from": "reserve_pending",
+            "to": "fail_reserve",
+            "weight": 1,
+            "type": ""
+          },
+          {
+            "from": "fail_reserve",
+            "to": "reserve_failed",
+            "weight": 1,
+            "type": ""
+          },
+          {
+            "from": "fail_reserve",
+            "to": "rolled_back",
+            "weight": 1,
+            "type": ""
+          },
+          {
+            "from": "unwind_reserve",
+            "to": "undo_reserve",
+            "weight": 1,
+            "type": ""
+          },
+          {
+            "from": "reserve_done",
+            "to": "undo_reserve",
+            "weight": 1,
+            "type": ""
+          },
+          {
+            "from": "undo_reserve",
+            "to": "reserve_compensated",
+            "weight": 1,
+            "type": ""
+          },
+          {
+            "from": "undo_reserve",
+            "to": "rolled_back",
+            "weight": 1,
+            "type": ""
+          },
+          {
+            "from": "next_charge",
+            "to": "do_charge",
+            "weight": 1,
+            "type": ""
+          },
+          {
+            "from": "charge_pending",
+            "to": "do_charge",
+            "weight": 1,
+            "type": ""
+          },
+          {
+            "from": "do_charge",
+            "to": "charge_done",
+            "weight": 1,
+            "type": ""
+          },
+          {
+            "from": "do_charge",
+            "to": "committing",
+            "weight": 1,
+            "type": ""
+          },
+          {
+            "from": "next_charge",
+            "to": "fail_charge",
+            "weight": 1,
+            "type": ""
+          },
+          {
+            "from": "charge_pending",
+            "to": "fail_charge",
+            "weight": 1,
+            "type": ""
+          },
+          {
+            "from": "fail_charge",
+            "to": "charge_failed",
+            "weight": 1,
+            "type": ""
+          },
+          {
+            "from": "fail_charge",
+            "to": "unwind_reserve",
+            "weight": 1,
+            "type": ""
+          },
+          {
+            "from": "unwind_charge",
+            "to": "undo_charge",
+            "weight": 1,
+            "type": ""
+          },
+          {
+            "from": "charge_done",
+            "to": "undo_charge",
+            "weight": 1,
+            "type": ""
+          },
+          {
+            "from": "undo_charge",
+            "to": "charge_compensated",
+            "weight": 1,
+            "type": ""
+          },
+          {
+            "from": "undo_charge",
+            "to": "unwind_reserve",
+            "weight": 1,
+            "type": ""
+          },
+          {
+            "from": "customer",
+            "to": "do_charge",
+            "weight": 1,
+            "type": ""
+          },
+          {
+            "from": "undo_charge",
+            "to": "customer",
+            "weight": 1,
+            "type": ""
+          },
+          {
+            "from": "do_charge",
+            "to": "merchant",
+            "weight": 1,
+            "type": ""
+          },
+          {
+            "from": "merchant",
+            "to": "undo_charge",
+            "weight": 1,
+            "type": ""
+          },
+          {
+            "from": "committing",
+            "to": "commit",
+            "weight": 1,
+            "type": ""
+          },
+          {
+            "from": "commit",
+            "to": "completed",
+            "weight": 1,
+            "type": ""
+          },
+          {
+            "from": "committing",
+            "to": "fail_commit",
+            "weight": 1,
+            "type": ""
+          },
+          {
+            "from": "fail_commit",
+            "to": "unwind_charge",
+            "weight": 1,
+            "type": ""
+          }
+        ],
+        "constraints": [
+          {
+            "id": "saga_control",
+            "expr": "tokens(\"next_reserve\") + tokens(\"next_charge\") + tokens(\"committing\") + tokens(\"unwind_charge\") + tokens(\"unwind_reserve\") + tokens(\"completed\") + tokens(\"rolled_back\") == 1"
+          },
+          {
+            "id": "saga_step_reserve",
+            "expr": "tokens(\"reserve_pending\") + tokens(\"reserve_done\") + tokens(\"reserve_failed\") + tokens(\"reserve_compensated\") == 1"
+          },
+          {
+            "id": "saga_step_charge",
+            "expr": "tokens(\"charge_pending\") + tokens(\"charge_done\") + tokens(\"charge_failed\") + tokens(\"charge_compensated\") == 1"
+          },
+          {
+            "id": "saga_conservation",
+            "expr": "tokens(\"customer\") + tokens(\"merchant\") == 1"
+          }
+        ]
+      },
+      "ports": [
+        {
+          "id": "account:customer",
+          "kind": "inout",
+          "target": "place",
+          "place": "customer",
+          "transition": "",
+          "schema": "account"
+        },
+        {
+          "id": "account:merchant",
+          "kind": "inout",
+          "target": "place",
+          "place": "merchant",
+          "transition": "",
+          "schema": "account"
+        },
+        {
+          "id": "completed",
+          "kind": "out",
+          "target": "place",
+          "place": "completed",
+          "transition": "",
+          "schema": "saga:outcome"
+        },
+        {
+          "id": "rolled_back",
+          "kind": "out",
+          "target": "place",
+          "place": "rolled_back",
+          "transition": "",
+          "schema": "saga:outcome"
+        },
+        {
+          "id": "commit",
+          "kind": "in",
+          "target": "transition",
+          "place": "",
+          "transition": "commit",
+          "schema": ""
+        },
+        {
+          "id": "fail_commit",
+          "kind": "in",
+          "target": "transition",
+          "place": "",
+          "transition": "fail_commit",
+          "schema": ""
+        },
+        {
+          "id": "do:reserve",
+          "kind": "in",
+          "target": "transition",
+          "place": "",
+          "transition": "do_reserve",
+          "schema": ""
+        },
+        {
+          "id": "fail:reserve",
+          "kind": "in",
+          "target": "transition",
+          "place": "",
+          "transition": "fail_reserve",
+          "schema": ""
+        },
+        {
+          "id": "undo:reserve",
+          "kind": "out",
+          "target": "transition",
+          "place": "",
+          "transition": "undo_reserve",
+          "schema": ""
+        },
+        {
+          "id": "do:charge",
+          "kind": "in",
+          "target": "transition",
+          "place": "",
+          "transition": "do_charge",
+          "schema": ""
+        },
+        {
+          "id": "fail:charge",
+          "kind": "in",
+          "target": "transition",
+          "place": "",
+          "transition": "fail_charge",
+          "schema": ""
+        },
+        {
+          "id": "undo:charge",
+          "kind": "out",
+          "target": "transition",
+          "place": "",
+          "transition": "undo_charge",
+          "schema": ""
+        }
+      ]
+    }
+  ],
+  "links": [
+    {
+      "kind": "event",
+      "from": {
+        "subnet": "orders",
+        "port": "dequeue"
+      },
+      "to": {
+        "subnet": "workers",
+        "port": "acquire"
+      }
+    },
+    {
+      "kind": "event",
+      "from": {
+        "subnet": "orders",
+        "port": "dequeue"
+      },
+      "to": {
+        "subnet": "payment",
+        "port": "do:reserve"
+      }
+    },
+    {
+      "kind": "event",
+      "from": {
+        "subnet": "workers",
+        "port": "release"
+      },
+      "to": {
+        "subnet": "payment",
+        "port": "commit"
+      }
+    }
+  ]
+}

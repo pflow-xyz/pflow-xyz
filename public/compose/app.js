@@ -15,6 +15,7 @@ import * as info from './info.js';
 import { citeLabel, citeURL, bibLabel, bibURL } from './sources.js';
 import { makeCtx, VIEW_IDS } from './ctx.js';
 import { makeManifest } from './manifest.js';
+import { cidFromLocation, showModel } from './identity.js';
 
 const views = new Map();
 let connect4 = null;
@@ -235,6 +236,14 @@ function render() {
 }
 
 async function main() {
+  // /compose.html?cid=<cid>: the stored model this link names (identity.js).
+  // Shown first and on its own, so it appears even if the registry is slow.
+  const modelCid = cidFromLocation();
+  if (modelCid) {
+    const box = $('#model');
+    box.hidden = false;
+    showModel(box, modelCid);
+  }
   readHash();
   initSnap();
   initInspector($('#inspector-body'));

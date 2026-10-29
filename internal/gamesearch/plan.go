@@ -18,10 +18,10 @@ import (
 //	 "drivers": ["null_window", {"budget": {"nodes": 1000000}}],
 //	 "memo": {"entries": 500000}}
 //
-// Not ported: the estimate "ode" (a root piece), which solves the mass-action
-// ODE; a plan naming it, or the "aspiration" driver that needs an estimate,
-// is refused by RefusedPieces, after the plan is checked as pflow-native
-// checks it.
+// The estimate "ode" (a root piece) solves the mass-action ODE; see ode.go.
+// The solver a plan builds takes the estimate from the caller (Options
+// carries the plan's name for it in Estimate, and the "aspiration" driver
+// in Aspiration), as pflow-rs' SearchPlan::solver_with does.
 
 // SearchPlan is a plan, as the JSON gives it.
 type SearchPlan struct {
@@ -602,20 +602,6 @@ func (p *SearchPlan) Budget() (int, bool, error) {
 	return d.budget, d.hasBudget, err
 }
 
-// RefusedPieces names what the plan asks for that is not ported: the
-// estimate "ode", and the "aspiration" driver that starts from it. It is ""
-// when the plan is something this package runs.
-func (p *SearchPlan) RefusedPieces() (string, error) {
-	r, err := p.roots()
-	if err != nil {
-		return "", err
-	}
-	if r.hasEstimat {
-		return fmt.Sprintf("the root estimate %q (it solves the mass-action ODE)", r.estimate), nil
-	}
-	return "", nil
-}
-
 // Options builds the solver options the plan comes to.
 func (p *SearchPlan) Options() (Options, error) {
 	if err := p.Check(); err != nil {
@@ -643,6 +629,7 @@ func (p *SearchPlan) Options() (Options, error) {
 		NullWindow:    d.nullWindow,
 		MtdF:          d.mtdF,
 		RootNonLosing: r.nonLosing,
+		Aspiration:    d.aspiration,
 		Play:          p.Mode == "play",
 	}
 	if d.hasBudget {
@@ -650,9 +637,6 @@ func (p *SearchPlan) Options() (Options, error) {
 	}
 	if p.Memo != nil {
 		o.Memo = p.Memo.Entries
-	}
-	if r.hasEstimat {
-		return o, planError("the root names estimate %q, which is not ported", r.estimate)
 	}
 	return o, nil
 }

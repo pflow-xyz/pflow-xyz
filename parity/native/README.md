@@ -202,7 +202,8 @@ as passing:
 hosted `/mcp` server, which runs Go on go-pflow and cannot reach the wasm. The
 search is `internal/gamesearch`, a Go port of pflow-rs' `pflow-metamodel` game
 search (transposition table, move-order pieces, filters, `null_window` and
-`mtd_f`, node budget, opening book, root `non_losing`) with pflow-native's
+`mtd_f`, `aspiration`, node budget, opening book, root `non_losing` and the root
+estimate `ode`) with pflow-native's
 command layer (`crates/core/src/commands/game.rs`, `game.rs`): same arguments
 (`sides`, `reward`, `auto`, `plan`, `nodes`, `book`, plus the net in the call),
 same results, same refusals. go-pflow is used unmodified (its model and parser).
@@ -213,44 +214,82 @@ three words), Nim (a pile of more than one token: the counts engine from the
 root), a tic-tac-toe with a counter place (the bit engine spills to counts
 mid-search), one with 230 more places (no bit engine at all), one whose win
 detectors read a cell twice (the bit and counts deficits differ), a bucket with a
-capacity, a weight-2 arc and a read arc, and prize games with 13 and 9 distinct
-rewards (so `null_window` and `mtd_f` take different paths); random positions of
-each, under every exact plan piece alone and in combination, tiny tables (1 to
-100 entries, where which entry a full bucket gives up changes the node count),
-tiny budgets, play mode, books built from native's own values, and 94 refusals (plus 20 calls that name `ode`).
+capacity, a weight-2 arc and a read arc, prize games with 13 and 9 distinct
+rewards (so `null_window` and `mtd_f` take different paths), Nim with a reward of
+one place (two distinct rewards) and tic-tac-toe rewarded by its 18 cells (too many
+rewards to step through), and three games on nets with two and three token colours
+(a place with a count per colour; a reward naming a place or one `place.colour`
+copy); random positions of each, under every exact plan piece alone and in
+combination, tiny tables (1 to 100 entries, where which entry a full bucket gives
+up changes the node count), tiny budgets, play mode, books built from native's own
+values, the root estimate `ode` and the `aspiration` driver in a score of
+combinations (with `non_losing`, each window driver, no window driver, other
+orders and filters, small tables, node budgets and play mode), and the refusals.
 The test replays each through the tool's handler and compares exactly: the value,
-the move, the node count, the budget, and the words of an error. `ported: false`
-marks the cases whose plan names the root estimate `ode`, which native answers
-and the tool must refuse.
+the move, the node count, the budget, and the words of an error.
 
 ```sh
-make game-goldens PFLOW_RS=../pflow-rs     # a pflow-rs checkout at PFLOW_RS_REV (Makefile)
+make game-goldens                          # pflow-native at the commit in gen-game/Cargo.toml
+make game-goldens PFLOW_RS=../pflow-rs     # ... against a pflow-rs checkout (crates of PFLOW_RS_REV)
 go test ./cmd/webserver/ -run TestMCPGameMatchesNative
 ```
 
 `gen-game/Cargo.toml` pins pflow-native at the commit that has the commands
-(`cdd3816`, newer than the wasm in `pflow-native-wasm.lock`, which has neither),
+(`cc2c63b`, newer than the wasm in `pflow-native-wasm.lock`, which has neither),
 so these goldens are generated apart from `goldens.json` and `mcp_goldens.json`;
 the file records both commits and a test checks them against the generator's
-pins. pflow-native pins pflow-rs at `9ce3d43`, which is before `mtd_f`, before
-a repeated driver was refused and before the counts engine's Zobrist key, so the
-generator builds against pflow-rs `35be807` instead (a checkout you name; Cargo
-does not take a patch to another revision of one git URL). Native is run as a
+pins. pflow-native pins pflow-rs at `35be807`: the search this port follows,
+with the `mtd_f` driver, the refusal of a repeated driver, the counts engine's
+Zobrist key and `pflow_solver::game::OdeEstimate`, so the generator needs no
+patch. (An earlier pin of pflow-native, `cdd3816`, pinned the older `9ce3d43`
+and the generator patched `35be807` in; main's `e7fe9a3` differs from `35be807`
+only in a doc, and `PFLOW_RS=` accepts such a checkout.) Native is run as a
 library (`Session::execute`, as `gen/` does), not through `pflow-native-cli`: the
-same code path. Regenerating is deterministic.
+same code path. Regenerating is deterministic, and platform-independent for
+the cases that name `ode`: the file is byte-identical when generated on
+macOS / arm64 and on Linux / x86_64 (see "The root estimate" below).
+
+### The root estimate, and what parity means for it
+
+The `ode` estimate guesses the value after each of the root's moves by solving
+the net's mass-action ODE (every transition at rate 1) and reading the reward off
+the end; the guess orders the root's moves, and `aspiration` starts the run of
+yes/no searches at it. A guess never changes a value, but it decides the order
+in which equally good moves are tried, so the node count and which of several
+best moves comes back. On a symmetric position the guesses of mirror moves
+differ only by rounding noise, so the Go estimate must be bit-identical to
+Rust's: `internal/gamesearch/ode.go` repeats `integrate_vec`'s arithmetic
+operation for operation (no fused multiply-add, Rust's `min`/`max`/`sum`
+semantics), and `pow.go` is the one place it cannot use the language's own
+function: Rust's `powf` is the platform libm's `pow`, Go's `math.Pow` is not
+(it is an ulp off often enough to reorder a tie), so it is computed in
+double-double and rounded once.
+
+- **Required, and held by every golden**: identical values and moves.
+- **Node counts: exact, no tolerance**, on every golden. Among 5,048 calls, 2,734
+  of the answered ones name `ode` (1,272 `aspiration`), and the file is
+  byte-identical whether native generates it on macOS (arm64, Apple's libm) or
+  Linux (x86_64, glibc), and the Go tool on Linux / amd64 matches it.
+- **The risk this does not remove**: a libm's `pow` is not always correctly
+  rounded (measured on 40,000 controller-sized inputs: 0.135% of calls wrong on
+  macOS 15, 0.063% on glibc; Go's is correctly rounded), so on a position where
+  mirror moves tie to within a few ulps, another platform's native build may
+  rank them otherwise than the Go tool does: a different node count, or a
+  different best move, never a different value. Nothing in the goldens shows it;
+  a regenerated file that differs on another libm is the signal, and the
+  tolerance to document then is "values equal; moves equally good; nodes equal
+  unless a tie is broken differently".
+- The browser's wasm build is the worse case (its `powf` is not a libm's, and
+  pflow-native documents that node counts differ there). `/mcp` follows the
+  native build; the wasm goldens (`goldens.json`) have no `ode` case.
 
 Known differences, all deliberate and tested in `mcp_game_test.go`:
 
-- **The root estimate `ode`** (and the `aspiration` driver, which needs an
-  estimate) is refused: native solves the mass-action ODE for it, the Go side
-  has not ported one. The refusal says so. No other piece of a plan is missing.
 - **Tighter caps**: at most 10,000,000 nodes (native 100,000,000) and 2^21 table
   entries (native 2^23), so a call fits the 60 s timeout and the memory of eight
   at once; native's words, with the cap. A call whose context ends stops the
   search and is an error, never a value. The search runs at about two
   microseconds a node here.
-- **One token colour.** Native runs a coloured net whose colour copies are all
-  used; the tool refuses a net with several colours.
 - **Names**: `pflow_game_value` / `pflow_game_move` (the repo's convention, as
   `pflow_sde` is `sim.sde`), and `tools/call` also takes `game.value` and
   `game.move`. A dotted name is not one every MCP client accepts in a tool list.
@@ -261,6 +300,12 @@ Known differences, all deliberate and tested in `mcp_game_test.go`:
   mistakes is reported first, and the order a reward's weights are summed in
   (not their value, for the weights a game has). Places and transitions are in
   id order on both sides (both parsers sort), so moves tie-break the same way.
+- **Coloured nets**: the unfolded places are in id order, a document place's
+  colours in declaration order; native lists them in document order, so a
+  reward naming a place (all its copies) sums its weights in another order, which
+  changes nothing for the weights a game has. A colour copy nothing marks or
+  touches is refused as native refuses it, but the parser drops such copies, so a
+  net cannot reach it (a unit test builds the model by hand).
 - Parse errors of a JSON string argument are worded as serde_json words the
   common ones ("expected value", "EOF while parsing a value"), without its
   " at line 1 column 7".

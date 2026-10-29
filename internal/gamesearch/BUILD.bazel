@@ -6,8 +6,10 @@ go_library(
         "command.go",
         "game.go",
         "model.go",
+        "ode.go",
         "pieces.go",
         "plan.go",
+        "pow.go",
         "solver.go",
         "table.go",
         "walk.go",
@@ -19,9 +21,15 @@ go_library(
 
 go_test(
     name = "gamesearch_test",
-    srcs = ["search_test.go"],
+    srcs = [
+        "pow_test.go",
+        "search_test.go",
+    ],
     # keep: search_test.go reads the game fixtures under parity/native/fixtures.
     data = ["//parity:native_game"],
     embed = [":gamesearch"],
-    deps = ["@com_github_pflow_xyz_go_pflow//parser"],
+    deps = [
+        "@com_github_pflow_xyz_go_pflow//metamodel",
+        "@com_github_pflow_xyz_go_pflow//parser",
+    ],
 )

@@ -138,3 +138,54 @@ def prizes(weights):
 
 save("game-prizes-123.jsonld", prizes([1, 2, 3]))
 save("game-prizes-1111.jsonld", prizes([1, 1, 1, 1]))
+
+
+# ---- coloured games ----
+# A net with several token colours: each place holds a count per colour, an arc
+# a weight per colour (0 for a colour it does not touch). The parser unfolds it
+# to a place per colour copy and drops the copies no arc touches.
+RED, GREEN, BLUE = (f"https://pflow.xyz/tokens/{c}" for c in ("red", "green", "blue"))
+
+
+def cplace(n, x, y, initial=None):
+    return {"@type": "Place", "capacity": [None] * n, "initial": list(initial or [0] * n), "offset": 0, "x": x, "y": y}
+
+
+def carc(s, t, w, inhibit=False):
+    return {"@type": "Arrow", "inhibitTransition": inhibit, "source": s, "target": t, "weight": list(w)}
+
+
+def colored_nim(colours, pile, moves, spare=False):
+    """Nim on piles of stones of several colours, as one place with a count per
+    colour: a player takes the stones one of `moves` names (a weight per
+    colour), and a player who finds the piles empty loses. The turn and win
+    places hold every colour, so each copy has an arc: a turn is a token of
+    each colour. With `spare`, a place whose other copies nothing touches."""
+    n = len(colours)
+    every = [1] * n
+    places = {"pile": cplace(n, 100, 100, pile), "a_turn": cplace(n, 100, 200, every), "b_turn": cplace(n, 300, 200),
+              "win_a": cplace(n, 100, 400), "win_b": cplace(n, 300, 400)}
+    transitions, arcs = {}, []
+    for i, (name, w) in enumerate(moves.items()):
+        for side, me, them in (("a", "a_turn", "b_turn"), ("b", "b_turn", "a_turn")):
+            t = f"{side}_take_{name}"
+            transitions[t] = trans(100 if side == "a" else 300, 150 + 20 * i)
+            arcs += [carc("pile", t, w), carc(me, t, every), carc(t, them, every)]
+    for side, me, other_win in (("a", "a_turn", "win_b"), ("b", "b_turn", "win_a")):
+        t = f"{side}_lose"
+        transitions[t] = trans(100 if side == "a" else 300, 300)
+        arcs += [carc(me, t, every), carc("pile", t, every, True), carc(t, other_win, every)]
+    if spare:
+        places["spare"] = cplace(n, 200, 500, [1] + [0] * (n - 1))
+        first = next(iter(moves))
+        arcs += [carc("spare", f"a_take_{first}", [1] + [0] * (n - 1)), carc(f"a_take_{first}", "spare", [1] + [0] * (n - 1))]
+    d = shell(places, transitions, arcs)
+    d["token"] = colours
+    return d
+
+
+TWO = {"r1": (1, 0), "r2": (2, 0), "b1": (0, 1), "b2": (0, 2), "rb": (1, 1)}
+THREE = {"r1": (1, 0, 0), "g1": (0, 1, 0), "b1": (0, 0, 1), "rg": (1, 1, 0), "gb": (0, 1, 1), "rgb": (1, 1, 1)}
+save("game-colored-nim.jsonld", colored_nim([RED, BLUE], (4, 3), TWO))
+save("game-colored-spare.jsonld", colored_nim([RED, BLUE], (3, 2), TWO, spare=True))
+save("game-colored-nim3.jsonld", colored_nim([RED, GREEN, BLUE], (3, 2, 2), THREE))

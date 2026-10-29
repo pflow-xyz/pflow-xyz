@@ -1,0 +1,89 @@
+{
+  "@context": "https://pflow.xyz/schema",
+  "@type": "PetriNet",
+  "@version": "1.1",
+  "name": "maker",
+  "token": [
+    "https://pflow.xyz/tokens/black"
+  ],
+  "places": {
+    "Idle": {
+      "@type": "Place",
+      "capacity": [
+        0
+      ],
+      "initial": [
+        1
+      ],
+      "offset": 0,
+      "x": 100,
+      "y": 100,
+      "label": "Idle"
+    },
+    "Made": {
+      "@type": "Place",
+      "capacity": [
+        0
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 300,
+      "y": 100,
+      "label": "Made"
+    }
+  },
+  "transitions": {
+    "Make": {
+      "@type": "Transition",
+      "x": 200,
+      "y": 60,
+      "label": "Make"
+    },
+    "Handoff": {
+      "@type": "Transition",
+      "x": 200,
+      "y": 140,
+      "label": "Handoff"
+    }
+  },
+  "arcs": [
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "Idle",
+      "target": "Make",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "Make",
+      "target": "Made",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "Made",
+      "target": "Handoff",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "Handoff",
+      "target": "Idle",
+      "weight": [
+        1
+      ]
+    }
+  ]
+}

@@ -1,0 +1,54 @@
+{
+  "@context": "https://pflow.xyz/schema",
+  "@type": "PetriNetBundle",
+  "name": "workers",
+  "subnets": [
+    {
+      "@type": "PetriNet",
+      "id": "workers",
+      "net_type": "ResourceNet",
+      "model": {
+        "name": "pool",
+        "places": [
+          {
+            "id": "available",
+            "initial": 2,
+            "exported": true
+          },
+          {
+            "id": "in_use",
+            "initial": 0
+          }
+        ],
+        "transitions": [
+          {
+            "id": "acquire"
+          },
+          {
+            "id": "release"
+          }
+        ],
+        "arcs": [
+          {
+            "from": "available",
+            "to": "acquire"
+          },
+          {
+            "from": "acquire",
+            "to": "in_use"
+          },
+          {
+            "from": "in_use",
+            "to": "release"
+          },
+          {
+            "from": "release",
+            "to": "available"
+          }
+        ]
+      },
+      "pattern": "resource-pool",
+      "params": "{\"capacity\":2,\"id\":\"workers\",\"name\":\"workers\"}"
+    }
+  ]
+}

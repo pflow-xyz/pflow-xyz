@@ -91,6 +91,7 @@ internal/
   auth/                  # GitHub OAuth token verification
   canonical/             # JSON-LD canonicalization (URDNA2015)
   seal/                  # CID computation (IPFS CIDv1 with SHA2-256)
+  model/                 # model identity: which CID names a model (net, composition, plan); resolve + flatten (docs/model-identity.md)
   store/                 # Filesystem-based object storage
   svg/                   # SVG generation with layout algorithms
   static/                # Embedded static files
@@ -142,8 +143,9 @@ examples/                # Example Petri nets in JSON-LD
 - `GET /api/llm/status` - whether LLM drafting is on, and (signed in) the caller's quota left today
 - `POST /api/llm/draft` - `{description}` → a draft net from Gemini (GitHub sign-in required; per-user and global daily limits). Same-origin only; the browser gates the draft (`public/petri-draft.js`) before loading it
 - `POST /api/llm/turn` - one model call of the editor's Assistant: `{mode, net, messages}` (`mode` may be `auto`: the server labels the message's intent and sentiment with a small model, `PFLOW_LLM_CLASSIFIER_MODEL`, default `gemini-flash-lite-latest`, not charged to the quota, and replies with the chosen `mode` plus `auto: {mode, sentiment, confidence}`; a failed or unsure label keeps `prev_mode`, else analyse). Each label is counted anonymously in `data/llm/auto-stats.json` (UTC day, mode, sentiment, coarse confidence band, fallback; no user, no text) → the model's message and the tool calls it may make (tools = `public/llm-tools.json`, run in the browser; regenerate with `node scripts/gen-llm-tools.mjs`)
-- `POST /mcp` - pflow.xyz as an MCP server (stateless JSON-RPC): pflow_check, pflow_cid, pflow_get, pflow_simulate, pflow_reachability, pflow_links, pflow_save (GitHub bearer; listed only when the connection sends one) on the server's go-pflow engines (`cmd/webserver/mcp.go`), plus the registry tools pflow_edit, pflow_info, pflow_fire, pflow_validate, pflow_verify, pflow_invariants, pflow_incidence, pflow_ssa, pflow_rate_scan, pflow_export, the workbench tools pflow_sde, pflow_what_if, pflow_optimize (`cmd/webserver/mcp_workbench.go`) and the game tools pflow_game_value, pflow_game_move (`cmd/webserver/mcp_game.go`, a Go port of pflow-native's `game.value` / `game.move` search in `internal/gamesearch`, held to pflow-native by `parity/native/game_goldens.json`; `make game-goldens`) (`cmd/webserver/mcp_registry.go`, which also holds every tool's annotations, the 60s call timeout, the 8-call concurrency cap, protocol-version negotiation and the ~60KB result guard; a new tool needs an `mcpAnnotations` entry or `TestMCPEveryToolIsAnnotated` fails)
-- `GET /?cid={cid}` - SPA shell, decorated with Open Graph / Twitter / JSON-LD `<head>` meta tags pointing at the share card (see `cmd/webserver/share_page.go`)
+- `POST /mcp` - pflow.xyz as an MCP server (stateless JSON-RPC): pflow_check, pflow_cid, pflow_get, pflow_simulate, pflow_reachability, pflow_links, pflow_save (GitHub bearer; listed only when the connection sends one) on the server's go-pflow engines (`cmd/webserver/mcp.go`), plus the registry tools pflow_edit, pflow_info, pflow_fire, pflow_validate, pflow_verify, pflow_invariants, pflow_incidence, pflow_ssa, pflow_rate_scan, pflow_export, the workbench tools pflow_sde, pflow_what_if, pflow_optimize (`cmd/webserver/mcp_workbench.go`) and the game tools pflow_game_value, pflow_game_move (`cmd/webserver/mcp_game.go`, a Go port of pflow-native's `game.value` / `game.move` search in `internal/gamesearch`, including the `ode` root estimate (`ode.go`, `pow.go`), the `aspiration` driver and nets with several token colours, held to pflow-native by `parity/native/game_goldens.json`; `make game-goldens`) (`cmd/webserver/mcp_registry.go`, which also holds every tool's annotations, the 60s call timeout, the 8-call concurrency cap, protocol-version negotiation and the ~60KB result guard; a new tool needs an `mcpAnnotations` entry or `TestMCPEveryToolIsAnnotated` fails)
+- `GET /?cid={cid}` - SPA shell, decorated with Open Graph / Twitter / JSON-LD `<head>` meta tags pointing at the share card (see `cmd/webserver/share_page.go`). A composition or plan CID (`@type` `PetriNetBundle` / `SearchPlan`) answers `302 /compose.html?cid={cid}` instead: the editor reads only nets (`cmd/webserver/composition.go`)
+- `GET /compose.html?cid={cid}` - the composition page with a model panel (parts, links, flat net, the CID recomputed in the browser) and the same share head block
 
 Content negotiation for `/schema` and `/tokens/{color}` is implemented in `cmd/webserver/content_negotiation.go`. Browsers (Accept includes `text/html` ranked above JSON) get a styled dark-theme page; everything else (curl, no Accept, `*/*`) gets JSON-LD.
 
@@ -252,6 +254,18 @@ itself, so it's excluded from its own preimage — this makes CIDs idempotent).
   (`internal/seal/parity_test.go`) and JS (`parity/parity_check.mjs`). Any
   divergence fails the build. Regenerate goldens with
   `go run ./cmd/cidprobe parity/fixtures/*.jsonld`.
+
+**Model identity (enforced).** `internal/model` (Go) and `public/model-cid.mjs` (JS) apply
+one rule on top of the sealing contract above, and pflow-native's `model_id` (Rust) a third:
+a net keeps the CID it has; a composition (`@type: PetriNetBundle`, parts by `cid` or inline
+`model`, typed `links`) seals as written; a bare wrapper around one net *is* that net; a plan
+names its model by `model_cid`. Arrays outside the `@list` terms hash as sets, so ordered
+payloads (a recipe's `params`, a plan's `plan`) are embedded as canonical-JSON text.
+`parity/model/` holds the shared vectors (`golden.json`, `canonical.json`, `fixtures/`) and
+`flat/` (go-pflow's `Flatten` held to the wasm's `bundle.flatten`); `make test-parity` runs
+Go and JS, `make test-js` the deno halves. Full statement and the backport proof:
+`docs/model-identity.md`. `seal-cid.mjs` is untouched on purpose (bitwrap-io and modeldao-org
+lock its hash); the rule lives in its own module.
 
 **JS/Go behavioral parity (enforced).** Beyond CIDs, the browser's simulation
 engines and go-pflow must produce identical *behavior* from identical models —
