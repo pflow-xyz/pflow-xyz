@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"testing/fstest"
@@ -306,5 +307,61 @@ func TestMCPCIDUsesTheModelRule(t *testing.T) {
 	}
 	if out := got.(map[string]any); len(out) != 1 || out["cid"] != "z4EBG9jDsuUdvVN4bUXRHxoDG3p274FfhcJd8BiruRcE1jLCHi8" {
 		t.Errorf("pflow_cid of a net changed: %v", out)
+	}
+}
+
+// The model's own page is counted and described like the page it is a view of
+// (static_pages.go, share_page.go): the analytics tag once, and in the head one
+// description of the model, not the shipped page's own JSON-LD as well.
+func TestComposePageForAModelIsCountedAndDescribedOnce(t *testing.T) {
+	s := composeServer(t, testGAID)
+	_, _, comp := compSaved(t, s)
+
+	ldBlocks := func(body string) []string {
+		return regexp.MustCompile(`(?s)<script type="application/ld\+json">(.*?)</script>`).FindAllString(body, -1)
+	}
+	shipped := servePage(s, "GET", "/compose.html", nil).Body.String()
+	if n := len(ldBlocks(shipped)); n != 1 {
+		t.Fatalf("the shipped page carries %d JSON-LD blocks; this test assumes its one @graph", n)
+	}
+
+	for _, target := range []string{"/compose.html?cid=" + comp, "/compose.html?cid=" + comp + "&title=googletagmanager.com/gtag/js"} {
+		rec := servePage(s, "GET", target, nil)
+		body := rec.Body.String()
+		if rec.Code != http.StatusOK {
+			t.Fatalf("GET %s: %d", target, rec.Code)
+		}
+		if n := strings.Count(body, gtagTagPrefix); n != 1 {
+			t.Errorf("GET %s: %d analytics tags, want 1", target, n)
+		}
+		i, j := strings.Index(body, gtagTagPrefix), strings.Index(body, "</head>")
+		if i < 0 || j < 0 || i > j {
+			t.Errorf("GET %s: the tag is not inside <head> (tag at %d, </head> at %d)", target, i, j)
+		}
+		// The model's two blocks (a CreativeWork, then the stored document), and
+		// none of the shipped page's WebPage / WebApplication.
+		blocks := ldBlocks(body)
+		if len(blocks) != 2 {
+			t.Errorf("GET %s: %d JSON-LD blocks, want 2 (the model's own)", target, len(blocks))
+		}
+		for _, b := range blocks {
+			if strings.Contains(b, "WebApplication") || strings.Contains(b, "https://pflow.xyz/compose.html#") {
+				t.Errorf("GET %s: the shipped page's JSON-LD is still in the head: %.120s", target, b)
+			}
+		}
+		if !strings.Contains(body, `"@type":"CreativeWork"`) || !strings.Contains(body, comp) {
+			t.Errorf("GET %s: the model's own JSON-LD is missing", target)
+		}
+		if n := strings.Count(body, `rel="canonical"`); n != 1 {
+			t.Errorf("GET %s: %d canonical links, want 1", target, n)
+		}
+	}
+
+	// Unset, no tag; and the shipped page, with or without a ?cid= that names
+	// nothing, is still the page.
+	off := composeServer(t, "")
+	_, _, comp = compSaved(t, off)
+	if body := servePage(off, "GET", "/compose.html?cid="+comp, nil).Body.String(); strings.Contains(body, "googletagmanager.com") {
+		t.Error("analytics tag written with GOOGLE_ANALYTICS_ID unset")
 	}
 }

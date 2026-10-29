@@ -17,11 +17,13 @@ package main
 //     storing a second object for the same net.
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io/fs"
 	"net/http"
 	"os"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -178,7 +180,15 @@ func (s *Server) serveComposePage(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Not found", http.StatusNotFound)
 		return
 	}
+	shipped := data
 	data, status := s.decorateComposeForShare(r, data)
+	// Counted like /compose.html itself and like "/" (static_pages.go): the tag
+	// goes in once. Whether the file we ship already carries one is read from
+	// the file, not from the decorated page, which echoes stored text (a name
+	// that mentions the tag's URL must not switch analytics off for its page).
+	if !bytes.Contains(shipped, []byte(gtagTagPrefix)) {
+		data = s.injectAnalytics(data)
+	}
 	w.Header().Set("Content-Type", "text/html")
 	w.Header().Set("Cache-Control", "public, max-age=300")
 	w.WriteHeader(status)
@@ -243,10 +253,18 @@ func (s *Server) decorateComposeForShare(r *http.Request, page []byte) ([]byte, 
 		ProjJSON: string(projJSON), Payload: string(raw),
 	})
 	out := stripExistingShareMeta(page)
+	// The shipped page describes itself in a JSON-LD block (a WebPage and a
+	// WebApplication at /compose.html). For one model that is a second, wrong
+	// description beside the model's own two blocks, so it goes; this runs
+	// before the block is added, so only the file's blocks are removed.
+	out = staticJSONLDRe.ReplaceAll(out, []byte("\n"))
 	out = injectIntoHead(out, []byte(block))
 	out = replaceTitleTag(out, title)
 	return out, http.StatusOK
 }
+
+// staticJSONLDRe matches a whole <script type="application/ld+json"> block.
+var staticJSONLDRe = regexp.MustCompile(`(?is)\s*<script\s+type="application/ld\+json"\s*>.*?</script>\s*\n?`)
 
 // ---- saving ----
 
