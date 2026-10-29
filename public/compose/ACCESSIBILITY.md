@@ -179,9 +179,12 @@ view is a user-started sequence of states, not motion, and still runs.
 `http://127.0.0.1:8080/compose.html`) drives the page in headless Chrome and
 checks, in all ten views of both examples: zero console problems; no focusable
 element is `aria-hidden`; no `role=button` holds a focusable descendant; no
-inspectable is click-only; and, in the views that draw ports, that Tab reaches
-the ports, Enter lights targets, Tab and the arrows walk them, Enter links, Esc
-restores focus and the live region says so. It is not part of `make test` (it
+inspectable is click-only; headings never skip a level; `#a11y-live` is the only
+live region; and, in the views that draw ports, that Tab reaches the ports, Enter
+lights targets, Tab and the arrows walk them, Enter links, Esc restores focus and
+the live region says so. It also holds the regressions found in review: the Laws
+view's live check ending (its network held, then failed) while a link is in progress
+in Cospans or in Laws, Retry and the Lenses button pinning nothing, and the skip links. It is not part of `make test` (it
 needs Chrome and a running server). The unit tests (`make test-js`) cover the pure
 modules; this is what covers the DOM glue.
 

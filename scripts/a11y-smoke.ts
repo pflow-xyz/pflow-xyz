@@ -8,7 +8,7 @@
 //   - zero console errors, exceptions and failed requests on load;
 //   - nothing focusable is aria-hidden; no role=button holds a focusable descendant (nested
 //     interactive); no inspectable thing is click-only; list items keep their role; every thing the
-//     page made reachable has a name; headings never skip a level;
+//     page made reachable has a name; headings never skip a level; #a11y-live is the only live region;
 //   - where a view draws ports (orders) or palette pieces (connect-4): Tab reaches them, Enter lights
 //     targets (or says the view draws none), Tab and the arrows walk lit targets only, Enter links, the
 //     live region says so, Esc cancels and puts focus back;
@@ -153,6 +153,7 @@ const INVARIANTS = `(() => {
     const named = e.getAttribute('aria-label') || (NATIVE.test(e.tagName) && e.textContent.trim());
     if (!named) out.push('reachable but unnamed: ' + d(e));
   }
+  for (const e of document.querySelectorAll('[role=status],[role=alert],[role=log],[aria-live]')) if (e.id !== 'a11y-live') out.push('a second live region: ' + d(e)); // one region carries all speech
   let prev = 0; // headings go down one level at a time (the cards of Flat and Laws were h4 under the h2 "Diagram")
   for (const h of document.querySelectorAll('h1,h2,h3,h4,h5,h6')) { const l = +h.tagName[1]; if (prev && l > prev + 1) out.push('heading level jumps from h' + prev + ' to ' + h.tagName.toLowerCase() + ': ' + h.textContent.trim().slice(0, 40)); prev = l; }
   return out;
