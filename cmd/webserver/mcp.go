@@ -30,6 +30,7 @@ import (
 	"github.com/pflow-xyz/go-pflow/parser"
 	"github.com/pflow-xyz/go-pflow/reachability"
 	"github.com/pflow-xyz/go-pflow/solver"
+	"github.com/pflow-xyz/pflow-xyz/internal/model"
 	"github.com/pflow-xyz/pflow-xyz/internal/seal"
 )
 
@@ -169,11 +170,18 @@ func mcpCID(_ *Server, _ *http.Request, args map[string]any) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	cid, _, err := seal.SealJSONLD(raw)
+	// The model CID: a net's CID as ever; a composition's own, or, for a bare
+	// wrapper around a net, that net's (internal/model).
+	id, err := model.Identify(raw)
 	if err != nil {
 		return nil, fmt.Errorf("does not seal: %v", err)
 	}
-	return map[string]any{"cid": cid}, nil
+	out := map[string]any{"cid": id.CID}
+	if id.Kind != model.KindNet || id.Reduced {
+		out["kind"] = id.Kind
+		out["reduced"] = id.Reduced
+	}
+	return out, nil
 }
 
 func mcpGet(s *Server, _ *http.Request, args map[string]any) (any, error) {
@@ -189,7 +197,11 @@ func mcpGet(s *Server, _ *http.Request, args map[string]any) (any, error) {
 	if err := json.Unmarshal(raw, &doc); err != nil {
 		return nil, fmt.Errorf("stored object is not JSON")
 	}
-	return map[string]any{"cid": cid, "net": doc}, nil
+	out := map[string]any{"cid": cid, "net": doc}
+	if k := model.KindOf(raw); k != model.KindNet {
+		out["kind"] = k // "net" is a net; a composition or plan is returned as stored
+	}
+	return out, nil
 }
 
 // ratesOf reads each transition's `rate` from the editor's format.
@@ -361,6 +373,9 @@ func mcpSave(s *Server, r *http.Request, args map[string]any) (any, error) {
 	}
 	if err := validateJSONLD(doc); err != nil {
 		return nil, fmt.Errorf("invalid JSON-LD: %v", err)
+	}
+	if k := model.KindOf(raw); k != model.KindNet {
+		return nil, fmt.Errorf("pflow_save stores nets; a %s is saved with POST /api/save, which checks that its parts are stored", k)
 	}
 	cid, canonical, err := seal.SealJSONLD(raw)
 	if err != nil {

@@ -30,3 +30,15 @@ filegroup(
     ] + glob(["native/fixtures/*"]),
     visibility = ["//visibility:public"],
 )
+
+# The model-identity corpus (internal/model's tests, cmd/webserver/composition_test.go,
+# parity/model_check.mjs): the shared golden CIDs, the fixtures they name, the
+# flat-net goldens and the net fixtures the wrapper cases point at.
+filegroup(
+    name = "model",
+    srcs = glob([
+        "model/**",
+        "fixtures/*",
+    ]),
+    visibility = ["//visibility:public"],
+)

@@ -178,3 +178,7 @@ kbd { font-family: var(--font-mono); font-size: 10.5px; border: 1px solid var(--
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.001ms !important; animation-delay: 0s !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; transition-delay: 0s !important; scroll-behavior: auto !important; }
 }
+
+/* /compose.html?cid=: the model panel (identity.js) */
+#model .model-flat { display: block; max-width: 100%; max-height: 220px; margin: 8px 0; background: #fff; border: 1px solid var(--line, #d0d7de); border-radius: 4px; }
+#model code { font-size: 11px; }

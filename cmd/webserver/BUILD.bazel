@@ -3,6 +3,7 @@ load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library", "go_test")
 go_library(
     name = "webserver_lib",
     srcs = [
+        "composition.go",
         "content_negotiation.go",
         "deploy.go",
         "deploy_gate.go",
@@ -88,6 +89,7 @@ go_library(
         "//internal/auth",
         "//internal/gamesearch",
         "//internal/llm",
+        "//internal/model",
         "//internal/seal",
         "//internal/static",
         "//internal/store",
@@ -121,6 +123,7 @@ go_test(
     name = "webserver_test",
     srcs = [
         "author_identity_test.go",
+        "composition_test.go",
         "content_negotiation_test.go",
         "deploy_gate_test.go",
         "deploy_git_test.go",
@@ -159,10 +162,12 @@ go_test(
     # keep: mcp_models_parity_test.go replays the pflow_bundle_* cases of the same
     # parity/native/mcp_goldens.json on the bundle fixtures under parity/native/fixtures
     # and on the cafe showcase bundle (//examples/showcase), which mcp_model_test.go reads too.
+    # keep: composition_test.go stores parity/model/fixtures and the coffee-shop net.
     data = [
         "//:pflow-native-wasm.lock",
         "//examples",
         "//examples/showcase",
+        "//parity:model",
         "//parity:native_game",
         "//parity:native_mcp",
         "//public:public_files",
@@ -171,6 +176,7 @@ go_test(
     deps = [
         "//internal/auth",
         "//internal/llm",
+        "//internal/model",
         "//internal/seal",
         "//internal/static",
         "//internal/userfiles",

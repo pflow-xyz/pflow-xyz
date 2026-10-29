@@ -30,7 +30,7 @@ test: test-js test-parity test-parity-behavior test-publish test-npm-pack test-t
 
 # Run JavaScript tests
 test-js:
-	@deno test --allow-read=parity/ode,parity/editor-shape,parity/fixtures,parity/clipboard,parity/ssa,parity/roles,parity/native,parity/composition-views,examples,testdata,public,pflow-native-wasm.lock public/petri-sim_test.ts public/petri-colors_test.ts public/petri-shape_test.ts public/petri-solver_test.ts public/petri-learn_test.ts public/petri-ssa_test.ts public/petri-sde_test.ts public/petri-validate_test.ts public/petri-commands_test.ts public/petri-files_test.ts public/petri-draft_test.ts public/petri-wasm_test.ts public/petri-chat_test.ts public/petri-goals_test.ts public/petri-refine_test.ts public/petri-roles_test.ts public/petri-clipboard_test.ts parity/ode/ode_expected_test.ts parity/native/native_parity_test.ts parity/native/js_vs_wasm_test.ts parity/composition-views/parity_test.ts public/compose/layout/hypergraph_test.ts public/compose/chyp/files_test.ts public/compose/laws-live_test.ts public/compose/engine_access_test.ts parity/composition-views/sources_test.ts parity/composition-views/load_budget_test.ts parity/composition-views/loader_test.ts public/compose/a11y-link_test.ts public/compose/a11y-text_test.ts public/compose/a11y-nav_test.ts public/compose/a11y-inspect_test.ts public/compose/motion_test.ts public/compose/a11y-bus_test.ts
+	@deno test --allow-read=parity/ode,parity/editor-shape,parity/fixtures,parity/clipboard,parity/ssa,parity/roles,parity/native,parity/composition-views,parity/model,examples,testdata,public,pflow-native-wasm.lock public/petri-sim_test.ts public/petri-colors_test.ts public/petri-shape_test.ts public/petri-solver_test.ts public/petri-learn_test.ts public/petri-ssa_test.ts public/petri-sde_test.ts public/petri-validate_test.ts public/petri-commands_test.ts public/petri-files_test.ts public/petri-draft_test.ts public/petri-wasm_test.ts public/petri-chat_test.ts public/petri-goals_test.ts public/petri-refine_test.ts public/petri-roles_test.ts public/petri-clipboard_test.ts parity/ode/ode_expected_test.ts parity/native/native_parity_test.ts parity/native/js_vs_wasm_test.ts parity/composition-views/parity_test.ts public/compose/layout/hypergraph_test.ts public/compose/chyp/files_test.ts public/compose/laws-live_test.ts public/compose/engine_access_test.ts parity/composition-views/sources_test.ts parity/composition-views/load_budget_test.ts parity/composition-views/loader_test.ts public/compose/a11y-link_test.ts public/compose/a11y-text_test.ts public/compose/a11y-nav_test.ts public/compose/a11y-inspect_test.ts public/compose/motion_test.ts public/compose/a11y-bus_test.ts public/model-cid_test.ts parity/model/flatten_parity_test.ts public/compose/identity_test.ts
 
 # Regenerate the differentiable-fitting parity goldens (parity/learn/goldens.json)
 # from go-pflow's learn package. Deliberate, never a side effect of another
@@ -158,6 +158,9 @@ test-parity:
 	@echo "Parity: Go seal vs JS seal-cid.mjs (parity/golden.json)..."
 	@go test ./internal/seal/ -count=1
 	@node parity/parity_check.mjs
+	@echo "Parity: model identity, Go internal/model vs JS model-cid.mjs (parity/model/golden.json)..."
+	@go test ./internal/model/ -count=1
+	@node parity/model_check.mjs
 
 # Build and run with custom port
 run-dev: build

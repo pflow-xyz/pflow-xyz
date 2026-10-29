@@ -1,0 +1,89 @@
+{
+  "@context": "https://pflow.xyz/schema",
+  "@type": "PetriNet",
+  "@version": "1.1",
+  "name": "taker",
+  "token": [
+    "https://pflow.xyz/tokens/black"
+  ],
+  "places": {
+    "Waiting": {
+      "@type": "Place",
+      "capacity": [
+        0
+      ],
+      "initial": [
+        1
+      ],
+      "offset": 0,
+      "x": 100,
+      "y": 100,
+      "label": "Waiting"
+    },
+    "Got": {
+      "@type": "Place",
+      "capacity": [
+        0
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 300,
+      "y": 100,
+      "label": "Got"
+    }
+  },
+  "transitions": {
+    "Take": {
+      "@type": "Transition",
+      "x": 200,
+      "y": 60,
+      "label": "Take"
+    },
+    "Done": {
+      "@type": "Transition",
+      "x": 200,
+      "y": 140,
+      "label": "Done"
+    }
+  },
+  "arcs": [
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "Waiting",
+      "target": "Take",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "Take",
+      "target": "Got",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "Got",
+      "target": "Done",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "Done",
+      "target": "Waiting",
+      "weight": [
+        1
+      ]
+    }
+  ]
+}

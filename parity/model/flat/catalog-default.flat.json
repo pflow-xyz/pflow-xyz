@@ -1,0 +1,410 @@
+{
+  "places": [
+    {
+      "id": "orders/items",
+      "initial": 2,
+      "capacity": 3
+    },
+    {
+      "id": "orders/slots",
+      "initial": 1,
+      "capacity": 3
+    },
+    {
+      "id": "payment/charge_compensated",
+      "initial": 0,
+      "capacity": 0
+    },
+    {
+      "id": "payment/charge_done",
+      "initial": 0,
+      "capacity": 0
+    },
+    {
+      "id": "payment/charge_failed",
+      "initial": 0,
+      "capacity": 0
+    },
+    {
+      "id": "payment/charge_pending",
+      "initial": 1,
+      "capacity": 0
+    },
+    {
+      "id": "payment/committing",
+      "initial": 0,
+      "capacity": 0
+    },
+    {
+      "id": "payment/completed",
+      "initial": 0,
+      "capacity": 0
+    },
+    {
+      "id": "payment/customer",
+      "initial": 1,
+      "capacity": 0
+    },
+    {
+      "id": "payment/merchant",
+      "initial": 0,
+      "capacity": 0
+    },
+    {
+      "id": "payment/next_charge",
+      "initial": 0,
+      "capacity": 0
+    },
+    {
+      "id": "payment/next_reserve",
+      "initial": 1,
+      "capacity": 0
+    },
+    {
+      "id": "payment/reserve_compensated",
+      "initial": 0,
+      "capacity": 0
+    },
+    {
+      "id": "payment/reserve_done",
+      "initial": 0,
+      "capacity": 0
+    },
+    {
+      "id": "payment/reserve_failed",
+      "initial": 0,
+      "capacity": 0
+    },
+    {
+      "id": "payment/reserve_pending",
+      "initial": 1,
+      "capacity": 0
+    },
+    {
+      "id": "payment/rolled_back",
+      "initial": 0,
+      "capacity": 0
+    },
+    {
+      "id": "payment/unwind_charge",
+      "initial": 0,
+      "capacity": 0
+    },
+    {
+      "id": "payment/unwind_reserve",
+      "initial": 0,
+      "capacity": 0
+    },
+    {
+      "id": "workers/available",
+      "initial": 2,
+      "capacity": 2
+    },
+    {
+      "id": "workers/in_use",
+      "initial": 0,
+      "capacity": 2
+    }
+  ],
+  "transitions": [
+    {
+      "id": "fused:orders/dequeue+payment/do_reserve+workers/acquire",
+      "members": [
+        "orders/dequeue",
+        "payment/do_reserve",
+        "workers/acquire"
+      ]
+    },
+    {
+      "id": "fused:payment/commit+workers/release",
+      "members": [
+        "payment/commit",
+        "workers/release"
+      ]
+    },
+    {
+      "id": "orders/enqueue",
+      "members": [
+        "orders/enqueue"
+      ]
+    },
+    {
+      "id": "payment/do_charge",
+      "members": [
+        "payment/do_charge"
+      ]
+    },
+    {
+      "id": "payment/fail_charge",
+      "members": [
+        "payment/fail_charge"
+      ]
+    },
+    {
+      "id": "payment/fail_commit",
+      "members": [
+        "payment/fail_commit"
+      ]
+    },
+    {
+      "id": "payment/fail_reserve",
+      "members": [
+        "payment/fail_reserve"
+      ]
+    },
+    {
+      "id": "payment/undo_charge",
+      "members": [
+        "payment/undo_charge"
+      ]
+    },
+    {
+      "id": "payment/undo_reserve",
+      "members": [
+        "payment/undo_reserve"
+      ]
+    }
+  ],
+  "arcs": [
+    {
+      "from": "fused:orders/dequeue+payment/do_reserve+workers/acquire",
+      "to": "orders/slots",
+      "weight": 1,
+      "type": ""
+    },
+    {
+      "from": "fused:orders/dequeue+payment/do_reserve+workers/acquire",
+      "to": "payment/next_charge",
+      "weight": 1,
+      "type": ""
+    },
+    {
+      "from": "fused:orders/dequeue+payment/do_reserve+workers/acquire",
+      "to": "payment/reserve_done",
+      "weight": 1,
+      "type": ""
+    },
+    {
+      "from": "fused:orders/dequeue+payment/do_reserve+workers/acquire",
+      "to": "workers/in_use",
+      "weight": 1,
+      "type": ""
+    },
+    {
+      "from": "fused:payment/commit+workers/release",
+      "to": "payment/completed",
+      "weight": 1,
+      "type": ""
+    },
+    {
+      "from": "fused:payment/commit+workers/release",
+      "to": "workers/available",
+      "weight": 1,
+      "type": ""
+    },
+    {
+      "from": "orders/enqueue",
+      "to": "orders/items",
+      "weight": 1,
+      "type": ""
+    },
+    {
+      "from": "orders/items",
+      "to": "fused:orders/dequeue+payment/do_reserve+workers/acquire",
+      "weight": 1,
+      "type": ""
+    },
+    {
+      "from": "orders/slots",
+      "to": "orders/enqueue",
+      "weight": 1,
+      "type": ""
+    },
+    {
+      "from": "payment/charge_done",
+      "to": "payment/undo_charge",
+      "weight": 1,
+      "type": ""
+    },
+    {
+      "from": "payment/charge_pending",
+      "to": "payment/do_charge",
+      "weight": 1,
+      "type": ""
+    },
+    {
+      "from": "payment/charge_pending",
+      "to": "payment/fail_charge",
+      "weight": 1,
+      "type": ""
+    },
+    {
+      "from": "payment/committing",
+      "to": "fused:payment/commit+workers/release",
+      "weight": 1,
+      "type": ""
+    },
+    {
+      "from": "payment/committing",
+      "to": "payment/fail_commit",
+      "weight": 1,
+      "type": ""
+    },
+    {
+      "from": "payment/customer",
+      "to": "payment/do_charge",
+      "weight": 1,
+      "type": ""
+    },
+    {
+      "from": "payment/do_charge",
+      "to": "payment/charge_done",
+      "weight": 1,
+      "type": ""
+    },
+    {
+      "from": "payment/do_charge",
+      "to": "payment/committing",
+      "weight": 1,
+      "type": ""
+    },
+    {
+      "from": "payment/do_charge",
+      "to": "payment/merchant",
+      "weight": 1,
+      "type": ""
+    },
+    {
+      "from": "payment/fail_charge",
+      "to": "payment/charge_failed",
+      "weight": 1,
+      "type": ""
+    },
+    {
+      "from": "payment/fail_charge",
+      "to": "payment/unwind_reserve",
+      "weight": 1,
+      "type": ""
+    },
+    {
+      "from": "payment/fail_commit",
+      "to": "payment/unwind_charge",
+      "weight": 1,
+      "type": ""
+    },
+    {
+      "from": "payment/fail_reserve",
+      "to": "payment/reserve_failed",
+      "weight": 1,
+      "type": ""
+    },
+    {
+      "from": "payment/fail_reserve",
+      "to": "payment/rolled_back",
+      "weight": 1,
+      "type": ""
+    },
+    {
+      "from": "payment/merchant",
+      "to": "payment/undo_charge",
+      "weight": 1,
+      "type": ""
+    },
+    {
+      "from": "payment/next_charge",
+      "to": "payment/do_charge",
+      "weight": 1,
+      "type": ""
+    },
+    {
+      "from": "payment/next_charge",
+      "to": "payment/fail_charge",
+      "weight": 1,
+      "type": ""
+    },
+    {
+      "from": "payment/next_reserve",
+      "to": "fused:orders/dequeue+payment/do_reserve+workers/acquire",
+      "weight": 1,
+      "type": ""
+    },
+    {
+      "from": "payment/next_reserve",
+      "to": "payment/fail_reserve",
+      "weight": 1,
+      "type": ""
+    },
+    {
+      "from": "payment/reserve_done",
+      "to": "payment/undo_reserve",
+      "weight": 1,
+      "type": ""
+    },
+    {
+      "from": "payment/reserve_pending",
+      "to": "fused:orders/dequeue+payment/do_reserve+workers/acquire",
+      "weight": 1,
+      "type": ""
+    },
+    {
+      "from": "payment/reserve_pending",
+      "to": "payment/fail_reserve",
+      "weight": 1,
+      "type": ""
+    },
+    {
+      "from": "payment/undo_charge",
+      "to": "payment/charge_compensated",
+      "weight": 1,
+      "type": ""
+    },
+    {
+      "from": "payment/undo_charge",
+      "to": "payment/customer",
+      "weight": 1,
+      "type": ""
+    },
+    {
+      "from": "payment/undo_charge",
+      "to": "payment/unwind_reserve",
+      "weight": 1,
+      "type": ""
+    },
+    {
+      "from": "payment/undo_reserve",
+      "to": "payment/reserve_compensated",
+      "weight": 1,
+      "type": ""
+    },
+    {
+      "from": "payment/undo_reserve",
+      "to": "payment/rolled_back",
+      "weight": 1,
+      "type": ""
+    },
+    {
+      "from": "payment/unwind_charge",
+      "to": "payment/undo_charge",
+      "weight": 1,
+      "type": ""
+    },
+    {
+      "from": "payment/unwind_reserve",
+      "to": "payment/undo_reserve",
+      "weight": 1,
+      "type": ""
+    },
+    {
+      "from": "workers/available",
+      "to": "fused:orders/dequeue+payment/do_reserve+workers/acquire",
+      "weight": 1,
+      "type": ""
+    },
+    {
+      "from": "workers/in_use",
+      "to": "fused:payment/commit+workers/release",
+      "weight": 1,
+      "type": ""
+    }
+  ]
+}

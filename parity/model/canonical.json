@@ -1,0 +1,55 @@
+{
+  "_comment": "Canonical JSON text embedded as a subnet `params` or a plan `plan`: keys sorted by code point, no whitespace, lists in order, numbers as doubles in JSON.stringify's shortest form, strings escaped only for \\\" \\\\ and controls below 0x20. A sealed string is hashed as given and never re-canonicalised.",
+  "vectors": [
+    {
+      "name": "sorted keys, no whitespace",
+      "in": "{ \"b\": 1, \"a\": [ 3, 1, 2 ] }",
+      "out": "{\"a\":[3,1,2],\"b\":1}"
+    },
+    {
+      "name": "lists keep their order",
+      "in": "[\"z\",\"a\",{\"y\":1,\"x\":2}]",
+      "out": "[\"z\",\"a\",{\"x\":2,\"y\":1}]"
+    },
+    {
+      "name": "nested objects",
+      "in": "{\"steps\":[{\"id\":\"reserve\",\"moves\":[]},{\"id\":\"charge\",\"moves\":[{\"to\":\"merchant\",\"from\":\"customer\",\"amount\":1}]}]}",
+      "out": "{\"steps\":[{\"id\":\"reserve\",\"moves\":[]},{\"id\":\"charge\",\"moves\":[{\"amount\":1,\"from\":\"customer\",\"to\":\"merchant\"}]}]}"
+    },
+    {
+      "name": "literals",
+      "in": "{\"t\":true,\"f\":false,\"n\":null}",
+      "out": "{\"f\":false,\"n\":null,\"t\":true}"
+    },
+    {
+      "name": "numbers are doubles in shortest form",
+      "in": "{\"a\":1,\"b\":0.5,\"c\":-3,\"d\":10,\"e\":1.0,\"f\":0.50,\"g\":1e2,\"h\":-0}",
+      "out": "{\"a\":1,\"b\":0.5,\"c\":-3,\"d\":10,\"e\":1,\"f\":0.5,\"g\":100,\"h\":0}"
+    },
+    {
+      "name": "html characters are not escaped",
+      "in": "{\"k\":\"a<b>&c\"}",
+      "out": "{\"k\":\"a<b>&c\"}"
+    },
+    {
+      "name": "quote backslash and controls",
+      "in": "{\"k\":\"q\\\"b\\\\n\\n\\t\\u0001\"}",
+      "out": "{\"k\":\"q\\\"b\\\\n\\n\\t\\u0001\"}"
+    },
+    {
+      "name": "non-ascii is raw",
+      "in": "{\"k\":\"caf\\u00e9 \\u2028 \\ud83d\\ude00\"}",
+      "out": "{\"k\":\"café   😀\"}"
+    },
+    {
+      "name": "key order is by code point",
+      "in": "{\"b\":1,\"B\":2,\"a\":3,\"_\":4}",
+      "out": "{\"B\":2,\"_\":4,\"a\":3,\"b\":1}"
+    },
+    {
+      "name": "empty containers",
+      "in": "{\"a\":{},\"b\":[]}",
+      "out": "{\"a\":{},\"b\":[]}"
+    }
+  ]
+}

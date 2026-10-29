@@ -1,0 +1,33 @@
+{
+  "@context": "https://pflow.xyz/schema",
+  "@type": "PetriNetBundle",
+  "name": "handoff",
+  "namespace": true,
+  "arc_merge": "sum",
+  "subnets": [
+    {
+      "@type": "PetriNet",
+      "id": "maker",
+      "cid": "z4EBG9j68TgJSCy7jvLPdavUwD8cXZ91R6soyhWuZuvmxZYr9t9"
+    },
+    {
+      "@type": "PetriNet",
+      "id": "taker",
+      "cid": "z4EBG9j8KydbA3FTecJ5Y6KP6gSatF8rdYxsRyETmf3VgqbVqcH"
+    }
+  ],
+  "links": [
+    {
+      "id": "handoff",
+      "kind": "event",
+      "from": {
+        "subnet": "maker",
+        "transition": "Handoff"
+      },
+      "to": {
+        "subnet": "taker",
+        "transition": "Take"
+      }
+    }
+  ]
+}
