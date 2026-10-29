@@ -13,7 +13,7 @@
 //     targets (or says the view draws none), Tab and the arrows walk lit targets only, Enter links, the
 //     live region says so, Esc cancels and puts focus back;
 //   - regressions found in review: the Laws view's live check ending mid-link does not redraw or speak in another
-//     view and waits for a link in progress in Laws; a removed link is announced, the second of two equally titled
+//     view and waits for a link in progress in Laws; Retry and other controls inside an inspectable pin nothing; a removed link is announced, the second of two equally titled
 //     things moves the inspector pin instead of releasing it, skip links leave the address alone.
 //
 // It is not part of `make test` (it needs Chrome and a running server). Exit status 1 on any failure.
@@ -45,6 +45,7 @@ class Page {
   private loaded: (() => void) | null = null;
   problems: string[] = [];
   paused: string[] = []; // requests held by hold() (Fetch.requestPaused)
+  failAll = false;       // fail what hold() matches at once (an offline network) instead of holding it
   close: () => Promise<void> = async () => {};
   constructor(private ws: WebSocket) {
     ws.onmessage = (ev) => {
@@ -52,7 +53,7 @@ class Page {
       if (m.id !== undefined) { this.waiting.get(m.id)?.(m); this.waiting.delete(m.id); return; }
       const p = m.params ?? {};
       if (m.method === "Page.loadEventFired") this.loaded?.();
-      else if (m.method === "Fetch.requestPaused") this.paused.push(p.requestId);
+      else if (m.method === "Fetch.requestPaused") { if (this.failAll) this.send("Fetch.failRequest", { requestId: p.requestId, errorReason: "InternetDisconnected" }).catch(() => {}); else this.paused.push(p.requestId); }
       else if (m.method === "Runtime.exceptionThrown") this.problems.push(`exception: ${p.exceptionDetails?.exception?.description ?? p.exceptionDetails?.text}`);
       else if (m.method === "Runtime.consoleAPICalled" && (p.type === "error" || p.type === "assert")) this.problems.push(`console.${p.type}: ${(p.args ?? []).map((a: any) => a.value ?? a.description).join(" ")}`);
       else if (m.method === "Log.entryAdded" && p.entry?.level === "error") this.problems.push(`log.error: ${p.entry.text} ${p.entry.url ?? ""}`);
@@ -317,6 +318,33 @@ try {
     ok(/did not run/.test(await p.eval(`(document.querySelector('.lw-livetext') || {}).textContent || ''`)), "Laws shows what its live check came to when it is drawn", where);
     if (where === "another view is shown") ok((await p.eval(LOG)).slice(before).some((t: string) => /^Laws: the live check did not run/.test(t)), "and says so once, on arrival");
     await p.close();
+  }
+  {
+    // Retry in the Laws status bar, and "Assume a backward pass" in the Lenses card, are controls inside an inspectable:
+    // they do their own work and pin nothing. Retry leaves focus on the status line and one Laws message.
+    const p = await newPage(1280, 900);
+    p.failAll = true;
+    await p.hold(["*cdn.jsdelivr.net*", "*pypi.org*", "*pythonhosted.org*"]);
+    await p.goto(`${url}#view=laws&ex=orders`);
+    ok(await p.waitFor(`!!document.querySelector('.lw-retry')`, 30000), "the live check failed offline and Retry is offered");
+    const pinned = `!!document.querySelector('#inspector-body .pinned')`;
+    for (const how of ["Enter", "click"]) {
+      const before = (await p.eval(LOG)).length;
+      await p.eval(`document.querySelector('.lw-retry').focus()`);
+      if (how === "Enter") await p.press("Enter"); else { const r = await p.eval(`(() => { const r = document.querySelector('.lw-retry').getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; })()`); await p.click(r.x, r.y); }
+      await p.waitFor(`!!document.querySelector('.lw-retry')`, 10000); await sleep(400);
+      const said: string[] = (await p.eval(LOG)).slice(before);
+      ok(!said.some((t) => /Inspector/.test(t)), `Retry (${how}) pins and releases nothing`, said.join(" / "));
+      ok(!(await p.eval(pinned)), `Retry (${how}): no inspector pinned`);
+      if (how === "Enter") ok(await p.eval(`document.activeElement.classList.contains('lw-livetext')`), "Retry leaves focus on the status line, which says the result", await p.eval(`document.activeElement.className || document.activeElement.tagName`));
+    }
+    await p.close();
+    const q = await open("lens", "orders");
+    const before = (await q.eval(LOG)).length;
+    await q.eval(`document.querySelector('.lo-go').focus()`); await q.press("Enter"); await sleep(400);
+    ok(await q.eval(`new URLSearchParams(location.hash.slice(1)).get('lens') === 'assume'`), "Enter on \"Assume a backward pass\" does its work");
+    ok(!(await q.eval(LOG)).slice(before).some((t: string) => /Inspector pinned/.test(t)), "and pins nothing");
+    await q.close();
   }
   {
     // skip links leave the address alone

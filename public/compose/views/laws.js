@@ -89,7 +89,7 @@ const SEPW = 132;
 
 const DATA = { state: 'idle', index: null, th: {}, src: {}, sha: {}, err: null, promise: null };
 // The live run (laws-live.js): idle → checking → checked → laying-out → live, or error.
-const freshLive = () => ({ state: 'idle', status: '', cmp: null, python: null, t: {}, err: null, shown: 'precomputed', preCheck: null, focusBar: false });
+const freshLive = () => ({ state: 'idle', status: '', cmp: null, python: null, t: {}, err: null, shown: 'precomputed', preCheck: null, focusText: false, retried: false });
 const LIVE = freshLive();
 const COMPOSE = new URL('../', import.meta.url); // public/compose/: the index's `source` paths are relative to it
 const headless = (ctx) => !!ctx.headless || typeof Deno !== 'undefined' || typeof document === 'undefined';
@@ -153,7 +153,8 @@ function startLive(ctx) {
   LIVE.state = 'checking';
   LIVE.preCheck = Object.fromEntries(Object.entries(DATA.th).map(([k, th]) => [k, th.check]));
   const status = (t) => { LIVE.status = t; paintLive(); };
-  say(ctx, `Laws: running Chyp's checker live in your browser. This fetches Pyodide from cdn.jsdelivr.net and lark from PyPI (${live.DOWNLOAD_NOTE}) and can take several seconds; the precomputed result is shown meanwhile.`);
+  // After Retry the status line has focus and is read as it is: that is the one message, not a second one beside it.
+  if (!LIVE.retried) say(ctx, `Laws: running Chyp's checker live in your browser. This fetches Pyodide from cdn.jsdelivr.net and lark from PyPI (${live.DOWNLOAD_NOTE}) and can take several seconds; the precomputed result is shown meanwhile.`);
   (async () => {
     try {
       const r = await live.check(THEORIES, status);
@@ -230,19 +231,22 @@ function paintLive() {
  * (laws-live.js), so this fetches again.
  */
 function retryLive(ctx) {
-  Object.assign(LIVE, freshLive(), { focusBar: true });
-  say(ctx, 'Laws: trying the live check again. This fetches Pyodide, lark and the layout packages again; the precomputed result is shown meanwhile.');
+  Object.assign(LIVE, freshLive(), { focusText: true, retried: true });
   ctx.rerender();
 }
 
 function liveBar(ctx) {
   const [text, cls] = liveText();
   const canRetry = LIVE.state === 'error' || LIVE.state === 'layout-error';
-  liveBox = ctx.el('div', { class: `lw-livebar ${cls}`, tabindex: '-1' },
-    ctx.el('span', { class: 'lw-livetext' }, text),
+  // data-a11y-key: the page gives focus back to the element that had it when the stage is redrawn (a11y.js keyOf), and the
+  // status line is redrawn every time the check moves on.
+  const line = ctx.el('span', { class: 'lw-livetext', tabindex: '-1', 'data-a11y-key': 'laws-live-status' }, text);
+  liveBox = ctx.el('div', { class: `lw-livebar ${cls}` },
+    line,
     canRetry ? ctx.el('button', { type: 'button', class: 'btn lw-retry', onclick: () => retryLive(ctx) }, 'Retry the live check') : null);
-  // the button that was pressed is gone with the old bar: keyboard focus goes to the new one
-  if (LIVE.focusBar) { LIVE.focusBar = false; const bar = liveBox; queueMicrotask(() => bar.isConnected && bar.focus?.({ preventScroll: true })); }
+  // The button that was pressed is gone with the old bar: keyboard focus goes to the new status line, which says what is
+  // happening (the bar itself is a group named for the inspector, which reads none of it).
+  if (LIVE.focusText) { LIVE.focusText = false; queueMicrotask(() => line.isConnected && line.focus?.({ preventScroll: true })); }
   ctx.hover(liveBox, { title: 'which Chyp result is shown', definition: 'The page first shows the result chyp_headless exported under CPython (assets/chyp/). In a browser it then runs Chyp 3d28483 itself under Pyodide, compares every rewrite\'s and every step\'s verdict with the exported ones, and lays the diagrams out with Chyp\'s convex_layout (cvxpy, CLARABEL); once that finishes the live layout replaces the exported one.', facts: [['Pyodide', `${live.PYODIDE_VERSION} (${live.PYODIDE_URL})`], ['lark', `${live.LARK} (PyPI)`], ['Chyp', '3d28483, vendored unmodified in chyp/py/chyp (Apache-2.0)']], bib: ['chyp'] });
   return liveBox;
 }

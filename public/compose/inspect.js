@@ -14,7 +14,7 @@
 
 import { el } from './dom.js';
 import { citeLabel, citeURL, bibLabel, bibURL } from './sources.js';
-import { describeInfo, initialInspector, reduceInspector, shortIri } from './a11y-inspect.js';
+import { describeInfo, initialInspector, reduceInspector, shortIri, isNestedControl } from './a11y-inspect.js';
 import { uniqueKeys } from './a11y-text.js';
 import { announce, linkMode } from './a11y-bus.js';
 
@@ -212,6 +212,9 @@ export function hover(node, info) {
   node.addEventListener('blur', () => blurred(node));
   node.addEventListener('click', (e) => {
     if (e.defaultPrevented || handled.has(e)) return;
+    // A button or link inside the thing (Retry in the Laws status bar, "Assume a backward pass") does its own work:
+    // it is not a click on the thing, and the inspector must not pin it as well.
+    if (isNestedControl(chainTo(e.target, node))) return;
     // Nested inspectable things all see the same click as it bubbles: the innermost one (the thing
     // that was clicked, and the one hover showed) takes it.
     handled.add(e);
@@ -220,6 +223,16 @@ export function hover(node, info) {
 }
 
 const handled = new WeakSet();
+
+/** The click's target and its ancestors up to `node`, as a11y-inspect.js isNestedControl reads them. */
+function chainTo(target, node) {
+  const chain = [];
+  for (let n = target; n && n.nodeType === 1; n = n.parentElement) {
+    chain.push({ tag: n.tagName, role: n.getAttribute('role'), href: n.hasAttribute('href'), isNode: n === node });
+    if (n === node) break;
+  }
+  return chain;
+}
 
 /** Is an info pinned? */
 export const isPinned = () => inspector.pinned !== null;

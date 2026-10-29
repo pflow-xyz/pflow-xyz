@@ -110,7 +110,11 @@ first), so the pin survives an edit that leaves its thing drawn and is released,
 and said so, when a redraw drops it. Pressing Dismiss from the keyboard returns
 focus to the pinned thing. A click on a nested inspectable pins the innermost one
 (the one hover shows), not the outermost; no inspectable is nested in another in
-any view today, so this is latent.
+any view today, so this is latent. Controls nested in an inspectable are not that:
+a button or link inside one (Retry in the Laws status bar, "Assume a backward
+pass" in the Lenses card) does its own work and pins nothing (`isNestedControl` in
+`a11y-inspect.js`, checked in the click handler of `inspect.js`); after Retry
+the status line has focus and is read as it is, with no second announcement beside it.
 
 ## Colour is not the only carrier
 
