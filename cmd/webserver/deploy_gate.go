@@ -165,8 +165,9 @@ type checkRun struct {
 
 // ciGate polls one commit's check runs. A gate is single use per deploy; it
 // keeps the ETag of its last 200 so a repeat poll that nothing answered is a
-// 304, which GitHub does not count against the rate limit (the unauthenticated
-// limit is 60 requests an hour, and a 15 minute wait at 15 seconds is 60).
+// 304. With a token GitHub does not count a 304 against the rate limit; without
+// one it still does (the unauthenticated limit is 60 requests an hour), which is
+// why the polling backs off and why DEPLOY_GITHUB_TOKEN is recommended.
 type ciGate struct {
 	client  *http.Client
 	now     func() time.Time

@@ -344,7 +344,7 @@ type deployStatus struct {
 	StartedAt    time.Time  `json:"started_at,omitzero"`
 	FinishedAt   time.Time  `json:"finished_at,omitzero"`
 	Error        string     `json:"error,omitempty"`
-	CIGate       string     `json:"ci_gate,omitempty"` // passed | refused | skipped | disabled
+	CIGate       string     `json:"ci_gate,omitempty"` // passed | refused | skipped | disabled | superseded
 	CIRunURL     string     `json:"ci_run_url,omitempty"`
 	OutputTail   string     `json:"output_tail,omitempty"`
 	Queued       bool       `json:"queued"` // a follow-up deploy is waiting for this one

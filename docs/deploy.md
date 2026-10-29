@@ -12,7 +12,7 @@ Source: `cmd/webserver/deploy.go` (pipeline, handlers, status),
 `cmd/webserver/deploy_gate.go` (the CI gate) and `deploy_proc_unix.go` (process
 groups for the commands it runs). Tests: `deploy_test.go`, `deploy_gate_test.go`
 and `deploy_git_test.go` (the pipeline against real git, a scratch origin and a
-throwaway SSH signing key; it skips itself when `git` or `ssh-keygen` is
+throwaway SSH signing key; it skips itself when `git`, `ssh-keygen` or `go` is
 missing).
 
 ```bash
@@ -59,13 +59,13 @@ worked. The outcome is in `GET /admin/deploy-status`.
 | `POST /admin/deploy` | `X-Deploy-Token` header = `DEPLOY_SECRET` | Manual deploy; streams the output; waits its turn if one is running (503 in the restart window, as above). `?skip_ci=1` skips the CI gate only, and supersedes a deploy that is waiting for CI (see "Queueing"). |
 | `GET /admin/deploy-status` | same token | The last attempt as JSON (below). |
 | `GET /admin/logs?lines=N` | same token | The tmux pane of the service (what `[deploy]` lines went to). |
+| `GET /health` | none | `{"ok":true}`, plus an `X-Build-Revision` response header: the git commit the running binary was built from (Go's `vcs.revision`; absent for a binary not built in a git checkout). |
 
 Send the token in the `X-Deploy-Token` header. A `?token=` query parameter is
 still accepted for old callers, but a query string is written to nginx's access
 log and to shell history, so do not use it. The token is compared in constant
 time, and `DEPLOY_SECRET` and `DEPLOY_GITHUB_TOKEN` are removed from the
 environment of every command the deploy runs (git, bash, go).
-| `GET /health` | none | `{"ok":true}`, plus an `X-Build-Revision` response header: the git commit the running binary was built from (Go's `vcs.revision`; absent for a binary not built in a git checkout). |
 
 ### Environment
 
@@ -265,7 +265,7 @@ so it survives the restart that follows a successful deploy.
   "output_tail": "...",          // last 40 lines of the deploy output
   "queued": false,               // a follow-up is waiting
   "last_success": {"sha": "...", "finished_at": "..."},
-  "running_build": {"revision": "...", "time": "...", "modified": false}
+  "running_build": {"revision": "...", "time": "..."}   // plus "modified": true when the tree was dirty
 }
 ```
 
