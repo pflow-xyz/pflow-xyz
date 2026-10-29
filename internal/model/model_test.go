@@ -136,6 +136,35 @@ func TestCafeBundleKeepsItsCID(t *testing.T) {
 	}
 }
 
+// refusalFixture says whether a document under rel (a slash- or OS-separated
+// path from the repository root) is a deliberately invalid composition: the
+// parity/native/fixtures/bundle-bad-*.json files exist so that the /mcp
+// composition tools can be shown to refuse bad input (cmd/webserver's
+// mcp_model_test.go), which is exactly what this rule would refuse too. The
+// other fixtures there are valid and stay in the proof.
+func refusalFixture(rel string) bool {
+	return filepath.ToSlash(filepath.Dir(rel)) == "parity/native/fixtures" && strings.HasPrefix(filepath.Base(rel), "bundle-bad-")
+}
+
+// The exemption is narrow: it must not hide a bad composition anywhere else,
+// nor the valid fixtures beside the bad ones.
+func TestRefusalFixtureIsNarrow(t *testing.T) {
+	for rel, want := range map[string]bool{
+		"parity/native/fixtures/bundle-bad-links.json":   true,
+		"parity/native/fixtures/bundle-bad-subnets.json": true,
+		"parity/native/fixtures/bundle-cycle.json":       false,
+		"parity/native/fixtures/sir.jsonld":              false,
+		"parity/native/fixtures/sub/bundle-bad-x.json":   false,
+		"parity/model/fixtures/bundle-bad-x.json":        false,
+		"examples/bundle-bad-x.json":                     false,
+		"bundle-bad-x.json":                              false,
+	} {
+		if got := refusalFixture(rel); got != want {
+			t.Errorf("refusalFixture(%q) = %v, want %v", rel, got, want)
+		}
+	}
+}
+
 // TestBackportEveryNet is the backport proof: every pflow.xyz JSON-LD document
 // reachable in this repository that is not a composition or a plan keeps the
 // CID it has always had, under the rule. A net's model CID is
@@ -186,6 +215,9 @@ func TestBackportEveryNet(t *testing.T) {
 			return nil
 		}
 		rel, _ := filepath.Rel(root, path)
+		if refusalFixture(rel) {
+			return nil
+		}
 		if int64(len(raw)) > limit {
 			large++
 			return nil
