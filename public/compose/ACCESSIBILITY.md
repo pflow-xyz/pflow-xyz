@@ -57,8 +57,11 @@ pointer's tip.
 
 ## What is announced
 
-One polite live region (`#a11y-live`, `role=status`) carries all speech; the same
-text of link mode is also written into the visible status line under the diagram.
+One polite live region (`#a11y-live`, `role=status`) carries all speech, while the
+page loads and when something fails too: nothing else on the page is a live region
+(the loading line and the failure messages are plain text in the stage; there is no
+`role=alert`, which would be a second region saying the same words). The same text of
+link mode is also written into the visible status line under the diagram.
 Messages that arrive together (a link removed and, in the same click, an inspector
 released) are all spoken, in order, as one utterance (`createAnnouncer` in
 `a11y-bus.js`); a message after that moment starts the next one, so a fast walk
@@ -79,7 +82,10 @@ the wording fails the test until the quote is updated.
 - the inspector pinned: "Inspector pinned: port orders:in. Press Escape to dismiss."
 - the inspector dismissed: "Inspector dismissed."
 - the pin released because a redraw no longer has its thing (a link removed while its row was pinned): "Inspector released: the pinned thing is no longer in the view."
-- the view changed ("View 3 of 10: ...")
+- the view changed ("View 3 of 10: ..."), and also at the first drawing when the view or example was chosen while the page was still loading (keys, tabs, a changed address); a page that opens on the view in its address says nothing about it
+- loading, once per change of text, not at every repaint: "Loading pflow-native's registry (wasm)…", then "Loading the Laws view…" when a view's module is fetched on first use. While it shows, the stage is labelled by the tab that is selected now
+- the registry did not load: "The registry did not load: Failed to fetch." The stage shows that line first, with the stack behind a "Technical details" disclosure, the tabs and example buttons disabled, and focus on the message (the tab that had it is disabled)
+- a view whose module did not load: "The Lenses view failed to load: TypeError: Failed to fetch dynamically imported module: http://127.0.0.1:8080/compose/views/lens.js." It takes the place of "View 7 of 10: ...", is written into the stage too, and the tab's name says "7. Lenses (failed to load)"
 
 Ports, pieces, slots and every inspectable thing have an accessible name
 (`orders:out, out port on a place, schema queue:items`); the focused thing is
@@ -138,7 +144,7 @@ and `parity/composition-views/` still compares 112 of 112 with pflow-native.
 
 ## Structure
 
-`compose.html` has a skip link, one `h1`, `main`, a `nav` holding the view tablist
+`compose.html` has two skip links (to the diagram and to the inspector), one `h1`, `main`, a `nav` holding the view tablist
 (`role=tab`, `aria-selected`, `aria-controls`, `aria-keyshortcuts` 1-9,0), an
 `aside`, headings and labelled cards, the Keyboard card, and the Legend card. Each
 view's svg is a labelled group (`role=group`, `aria-roledescription=diagram`,

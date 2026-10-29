@@ -195,6 +195,14 @@ Deno.test("view loader: a module is imported once, and what cannot be used is a 
     assert(loader.views.get(id) === v, `${id}: views.get is ${loader.views.get(id)}`);
   }
 
+  // the stage says it (a broken view drew nothing, and the side card is out of the way): ctx.note with level warn
+  {
+    const v = await loader.load(OPERAD);
+    const notes: Array<[string, string]> = [];
+    v.render({ note: (text: string, level: string) => notes.push([text, level]) });
+    assertEquals(notes, [["The Operad view failed to load: its module has no default export.", "warn"]]);
+  }
+
   // a failed import, and an import that throws at once
   for (const [id, why] of [[LAWS, "Failed to fetch"], [VIEW_IDS[3], "synchronous"]]) {
     const v = await loader.load(id);

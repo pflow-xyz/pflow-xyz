@@ -2,9 +2,15 @@
 // the view loader and the start-up sequence, with every effect passed in, so a test
 // can drive them (parity/composition-views/loader_test.ts). app.js wires the real ones.
 
-/** A view that says why it could not be loaded (a failed import, or a module with no default export). */
+import { brokenViewText } from './a11y-text.js';
+
+/**
+ * A view that says why it could not be loaded (a failed import, or a module with no default export): the stage
+ * carries the message (the side card alone is out of the way of a reader who stays on the tab).
+ */
 export function brokenView(id, meta, why) {
-  return { id, ...meta, broken: String(why), convention: { summary: `View ${id} failed to load: ${why}` }, render() {} };
+  const view = { id, ...meta, broken: String(why), convention: { summary: `View ${id} failed to load: ${why}` }, render(ctx) { ctx.note(brokenViewText(view), 'warn'); } };
+  return view;
 }
 
 /**

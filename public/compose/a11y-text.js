@@ -109,3 +109,43 @@ export function firstDrawing(key) {
 
 /** What a number key or E says while link mode is on: the view keys stand aside (app.js), and a key that did nothing, silently, would look like a broken page. */
 export const VIEW_KEYS_OFF = 'Linking is on, so the view keys are off. Escape cancels linking.';
+
+// --- failures, and the shell while a view loads ----------------------------------------------------------
+
+/** The first non-empty line of an error's message (or of a string): what a person is told. The stack is for the console and the details. */
+export function firstLine(e) {
+  const m = e && typeof e === 'object' ? (e.message || e.name) : e;
+  return String(m ?? '').split('\n').map((l) => l.trim()).find(Boolean) || 'unknown error';
+}
+
+const sentence = (t) => (/[.!?]$/.test(t) ? t : `${t}.`);
+
+/** What the page says when the registry (the wasm) did not load: one line, said first; the stack stays available. */
+export function registryFailureText(e) {
+  return sentence(`The registry did not load: ${firstLine(e)}`);
+}
+
+/** What the stage and the live region say when the view shown is a broken one (its module failed to load, loader.js brokenView). */
+export function brokenViewText(view) {
+  return sentence(`The ${view.short || view.title || view.id} view failed to load: ${firstLine(view.broken)}`);
+}
+
+/** A broken view's tab: its visible words, then what is wrong (the tab carries a class only otherwise). */
+export function brokenTabLabel(visible) {
+  return `${visible} (failed to load)`;
+}
+
+/**
+ * Does drawing a view deserve the view's name in speech? `lastKey` is the view|example last drawn (before the first
+ * drawing: the one the page started on), `key` the one drawn now. Yes when the person moved (a tab, a number key,
+ * an example button, also while the page was still loading and the first drawing is the first thing to show it), and
+ * for a broken view the first time, so a page that opens on one is not silent. Not for a redraw of the same view.
+ */
+export function viewNews({ lastKey, drawn, key, broken = false }) {
+  return lastKey !== key || (!drawn && broken);
+}
+
+/** Say a status line once: `said` is the last one said (null at first); returns the text to say, or '' when it is the same again. */
+export function newStatus(said, text) {
+  return text && text !== said ? text : '';
+}

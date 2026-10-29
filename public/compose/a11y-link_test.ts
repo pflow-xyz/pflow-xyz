@@ -10,7 +10,7 @@ import { afterGesture, begin, beginText, noTargetsText, press, targetText } from
 import { errText, portLegalReason, portRefusal, portTargets, slotLegalReason, slotRefusal, slotTargets } from "./verdicts.js";
 import { setup } from "../../parity/composition-views/render.js";
 import { actions, linkCandidates, slotCandidates, start, subnetsById } from "./state.js";
-import { portLabel, VIEW_KEYS_OFF } from "./a11y-text.js";
+import { brokenViewText, portLabel, registryFailureText, VIEW_KEYS_OFF } from "./a11y-text.js";
 import { initialInspector, reduceInspector } from "./a11y-inspect.js";
 
 const T = (key: string, ok: boolean, reason = ok ? "passed" : "refused", kind: string | null = ok ? "token" : null) => ({ key, label: `label ${key}`, ok, kind, reason });
@@ -312,6 +312,8 @@ Deno.test("ACCESSIBILITY.md quotes what the page says: its samples are built fro
     ["the inspector pinned", pinned.announce],
     ["the inspector dismissed", reduceInspector(pinned.state, { type: "escape" }).announce],
     ["the pin released by a redraw", reduceInspector(pinned.state, { type: "gone" }).announce],
+    ["the registry did not load", registryFailureText(new Error("Failed to fetch\n  at fetch (x.js:1:1)"))],
+    ["a view that did not load", brokenViewText({ id: "lens", short: "Lenses", broken: "TypeError: Failed to fetch dynamically imported module: http://127.0.0.1:8080/compose/views/lens.js" })],
   ];
   const doc = await Deno.readTextFile(new URL("./ACCESSIBILITY.md", import.meta.url));
   const stale = samples.filter(([, text]) => !doc.includes(`"${text}"`));
