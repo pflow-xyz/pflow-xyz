@@ -226,7 +226,7 @@ Same server build, same profiles, back to back with the "before" runs.
 | cold, wire KB including the idle import of the other nine views | 3,183 | 1,569 (35) |
 | warm, KB re-fetched | 1,334 (31 of 32 in full) | **0 body bytes**: 34 revalidations (304), 6.3 KB of headers |
 | decoded KB (what the page parses) until the first view | 9,681 | 8,874 |
-| third-party requests at page start, on any view but Laws | 0 | 0 |
+| third-party requests at page start, on any view but Laws | 0 | 0 (the file; with analytics configured the served page adds 2, see above) |
 
 Measured again after the review fixes (start-up sequencing moved to
 `compose/loader.js`, the Accept-Encoding and Range changes), on a machine that
@@ -238,6 +238,41 @@ revalidations (304), 0 body bytes. The timings above were taken back to back
 with the "before" runs on a loaded machine (the reviews, on a quiet one, saw
 11.8 s and 3.7 s for the same two cold cells), so the budget's margins stand;
 the bytes did not move.
+
+### The integrated page (perf + accessibility + head hints, as merged)
+
+Measured on the merged branch, one scratch server, median of 3, the same
+profiles, on a machine at low load (`scripts/measure-compose-load.ts`, local
+HTTP/1.1 server, which is what production speaks too: `curl -sI --http2
+https://pflow.xyz/compose/app.js` answers `HTTP/1.1`).
+
+| | perf branch alone | integrated page |
+|---|---:|---:|
+| cold, Fast 3G + 4x CPU: first view drawn | 12.0 s (no head hints) | **9.0 s** |
+| cold, Fast 3G: shell drawn (tabs + status line) | 3.7 s | **4.8 s** |
+| cold, 4G + 4x CPU: first view drawn | 3.5 s | **2.3 s** |
+| cold, 4G: shell drawn | 1.3 s | 1.6 s |
+| warm, Fast 3G: first view drawn | 5.4 s | 5.3 s |
+| warm, 4G: first view drawn | 2.4 s | 2.4 s |
+| cold, wire KB until the first view | 1,312 (22 requests) | 1,339 (**31**) |
+| cold, wire KB including the idle import of the other nine views | 1,573 (36) | 1,599 (45) |
+| warm | 35 revalidations, 0 body bytes | 44 revalidations (8.1 KB of headers), 0 body bytes |
+| decoded KB until the first view | 8,874 | 8,958 |
+
+The first view is faster (the two head hints start the wasm with the html). The
+**shell is about 1.1 s later on Fast 3G**: the accessibility layer put nine more
+modules into the page's static import graph (`a11y.js`, `a11y-nav.js`,
+`a11y-text.js`, `a11y-link.js`, `a11y-inspect.js`, `verdicts.js`, `motion.js`,
+`legend.js`, `announce.js`), and the tabs are drawn only when all of them have
+arrived: ten more requests, in waves of six connections at 560 ms. The bytes
+hardly moved (+27 KB). `<link rel=modulepreload>` for every module of the graph
+was tried (22 hints, A/B, interleaved, 3 runs each, twice): the shell stayed at
+4.9 s with and without, so the cost is connections times latency, not the
+depth of the graph. Deferring `a11y.js`, `legend.js` and `motion.js` would take
+only 3 requests off the shell, because `snap.js` and `inspect.js` import the
+rest statically. What would help is HTTP/2 on pflow.xyz's nginx (the six
+connections stop mattering) or a static tab bar in `compose.html`; neither is
+in this branch. The budget below is set for the page as merged.
 
 By group, cold, until the first view is drawn (wire KB): wasm 1,225 (was
 1,847; the 1,254,525-byte `.br`), the shown view 29, core modules and glue 43,
@@ -322,14 +357,15 @@ the part that fails a build.
 
 | what | budget | now |
 |---|---|---|
-| cold, first view drawn, 4G + 4x CPU | 5 s | 4.0 s |
-| cold, first view drawn, Fast 3G + 4x CPU | 16 s (10 s with the two head hints) | 14.4 s |
-| cold, shell drawn, Fast 3G | 4 s | 3.6 s |
-| cold, wire bytes until the first view | 1,500 KB | 1,310 KB |
-| cold, wire bytes including the other nine views | 1,800 KB | 1,569 KB |
+| cold, first view drawn, 4G + 4x CPU | 5 s | 2.3 s |
+| cold, first view drawn, Fast 3G + 4x CPU | 10 s (with the two head hints) | 9.0 s |
+| cold, shell drawn, Fast 3G | 5 s (HTTP/1.1; 4 s before the accessibility layer) | 4.8 s |
+| cold, wire bytes until the first view | 1,500 KB | 1,339 KB |
+| cold, wire bytes including the other nine views | 1,800 KB | 1,599 KB |
 | warm, body bytes re-fetched | 0 (304s only) | 0 |
 | warm, first view drawn, 4G + 4x CPU | 3 s | 2.4 s |
-| third-party requests before the Laws view is opened | 0 (the guard test) | 0 |
+| cold, requests until the first view | 35 | 31 |
+| third-party requests before the Laws view is opened | 0 (the guard test reads the file) | 0 from the file; with `GOOGLE_ANALYTICS_ID` set the served page adds Google's `gtag.js` and `g/collect` (2) |
 | the Laws view's live check, bytes | 6,500 KB | 6,324 KB |
 | the Laws view's live layout, bytes | not in the budget: opt in | 17,489 KB |
 | the wasm, wire | 1,300 KB (brotli) | 1,225 KB |
