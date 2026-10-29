@@ -1107,11 +1107,26 @@ func TestANewerPushSupersedesAJobPollingAnObsoleteCommit(t *testing.T) {
 func TestAPushQueuedBeforeTheGateWaitsSupersedesAtTheFirstWait(t *testing.T) {
 	h := newHarness(t)
 	var green atomic.Bool
-	h.gate = pendingUntil(&green)
+	// The follow-up polls the same commit (the harness fetches harnessSHA for
+	// every job) and starts the moment the obsolete job ends, so the total number
+	// of calls cannot say whose they are. A call made while a is still running is
+	// a's; one made after a.done is closed is the follow-up's. a is set before
+	// blockFetch is closed, which orders it before every call.
+	var a *deployJob
+	var looks atomic.Int32
+	pending := pendingUntil(&green)
+	h.gate = func(n int, w http.ResponseWriter, r *http.Request) {
+		select {
+		case <-a.done:
+		default:
+			looks.Add(1)
+		}
+		pending(n, w, r)
+	}
 	h.blockFetch, h.fetchSeen = make(chan struct{}), make(chan struct{})
 	parked, release := h.parkSleeps()
 
-	a, _ := h.d.submit("webhook", harnessSHA, false)
+	a, _ = h.d.submit("webhook", harnessSHA, false)
 	waitFor(t, "the fetch", h.fetchSeen)
 	next := h.d.enqueue("webhook", strings.Repeat("cd", 20), false)
 	if next.superseded != nil {
@@ -1122,8 +1137,8 @@ func TestAPushQueuedBeforeTheGateWaitsSupersedesAtTheFirstWait(t *testing.T) {
 	if isSuperseded(a.err) == nil {
 		t.Fatalf("a.err = %v", a.err)
 	}
-	if n := h.api.hitCount(); n != 1 {
-		t.Errorf("API calls = %d: the obsolete job should stop after its first look", n)
+	if n := looks.Load(); n != 1 {
+		t.Errorf("API calls made by the obsolete job = %d: it should stop after its first look", n)
 	}
 	waitFor(t, "the follow-up to start waiting", parked)
 	green.Store(true)
