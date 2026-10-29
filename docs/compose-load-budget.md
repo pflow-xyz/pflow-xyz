@@ -147,7 +147,7 @@ Recommendation below.
    `<link rel=modulepreload>` (nothing in the html), evaluated by `import()`
    once the facts are in. (A plain `import()` in parallel with the wasm drew a
    `TypeError` in `repoOf(null)`, `sources.js`.)
-3. **A shell is drawn at once**: the ten tabs and a `role=status` line in the
+3. **A shell is drawn at once**: the ten tabs and a plain status line (spoken once per change through the page's one live region, `#a11y-live`) in the
    stage ("Loading pflow-native's registry (wasm)..."). A tab, a key or a link
    during the load moves the selection in the order it happened and fetches that
    view's module; nothing renders before the registry and the view exist. The
