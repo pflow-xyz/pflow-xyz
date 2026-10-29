@@ -1314,7 +1314,7 @@ function cards(ctx, th, src, sel) {
   if (!src) return E('p', { class: 'warn' }, `chyp/${th.name}.chyp did not load, so its comments cannot be shown.`);
   const out = E('div', { class: 'lw-cards' });
   // 1. what the file says is not equational
-  const ne = E('div', { class: 'lw-card' }, E('h4', {}, `What ${th.file} says is NOT in the theory`));
+  const ne = E('div', { class: 'lw-card' }, E('h3', {}, `What ${th.file} says is NOT in the theory`));
   if (src.notEq.length) for (const b of src.notEq) ne.append(verbatim(ctx, src, b.from, b.to));
   else ne.append(E('p', { class: 'lw-muted' }, 'The file has no such comment block.'));
   ne.append(E('p', { class: 'lw-muted' }, 'Verbatim from the file. Chyp checks equations between diagrams; side conditions, data-dependent properties and order relations are outside it (no "<=" rules: state.py:272-273; pflow-views-prototype chyp/RESULTS.md, What did not work, 5).'));
@@ -1329,10 +1329,10 @@ function cards(ctx, th, src, sel) {
     a = c ? c.from : r.line;
     b = Math.max(r.line, ...r.steps.map((s) => s.line));
   }
-  out.append(E('div', { class: 'lw-card' }, E('h4', {}, `As written (${th.file}:${a}-${b})`), verbatim(ctx, src, a, b),
+  out.append(E('div', { class: 'lw-card' }, E('h3', {}, `As written (${th.file}:${a}-${b})`), verbatim(ctx, src, a, b),
     E('p', { class: 'lw-muted' }, rule ? 'A rule is a premise. Chyp matches it in a diagram and replaces it (double pushout, chyp/rewrite.py:23-96); whether it is true of the code is the reading its comment cites.' : 'Each "= T by r" line is one step Chyp checked: rule r (or -r, its converse) applied once, at a match Chyp\'s matcher found, gives a diagram isomorphic to T (chyp/tactic/ruletac.py:32-50). simp(...) rewrites with the listed rules until nothing applies, then compares.')));
   // 3. the sources the file cites
-  const sc = E('div', { class: 'lw-card' }, E('h4', {}, `What the rules are readings of (${th.file}'s Sources block)`));
+  const sc = E('div', { class: 'lw-card' }, E('h3', {}, `What the rules are readings of (${th.file}'s Sources block)`));
   const ul = E('ul', { class: 'lw-cites' });
   for (const s of src.sources) {
     const u = s.cite ? citeURL(s.cite) : null;
@@ -1347,7 +1347,7 @@ function cards(ctx, th, src, sel) {
   sc.append(E('p', { class: 'lw-muted' }, 'Parsed from the file\'s header. Chyp did not read these lines; a person did, and wrote the ASSUMED rules from them.'));
   out.append(sc);
   // 4. generators
-  const gc = E('div', { class: 'lw-card' }, E('h4', {}, `Generators (${th.theory.gens.length})`));
+  const gc = E('div', { class: 'lw-card' }, E('h3', {}, `Generators (${th.theory.gens.length})`));
   const gl = E('ul', { class: 'lw-gens' });
   for (const g of th.theory.gens) {
     const st = th.diagrams.styles[g.name] || {};
@@ -1448,7 +1448,7 @@ const STYLE = `
 .lw-let { font-size: 9.5px; text-anchor: middle; fill: #8a919b; }
 .lw-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 8px; margin-top: 10px; }
 .lw-card { background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font-size: 12px; min-width: 0; }
-.lw-card h4 { margin: 0 0 4px; font-size: 12.5px; }
+.lw-card h3 { margin: 0 0 4px; font-size: 12.5px; }
 .lw-card p { margin: 4px 0; }
 .lw-wide { grid-column: 1 / -1; }
 .lw-wide summary { cursor: pointer; font-weight: 600; }

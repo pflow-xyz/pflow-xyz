@@ -150,7 +150,7 @@ and `parity/composition-views/` still compares 112 of 112 with pflow-native.
 
 `compose.html` has two skip links (to the diagram and to the inspector), one `h1`, `main`, a `nav` holding the view tablist
 (`role=tab`, `aria-selected`, `aria-controls`, `aria-keyshortcuts` 1-9,0), an
-`aside`, headings and labelled cards, the Keyboard card, and the Legend card. Each
+`aside`, headings that go down one level at a time (the cards the Flat and Laws views draw are `h3` under the `h2` "Diagram"; the smoke script checks every view and example), labelled cards, the Keyboard card, and the Legend card. Each
 view's svg is a labelled group (`role=group`, `aria-roledescription=diagram`,
 `aria-label`, a `<desc>` from the view's summary). It is a group, not `role=img`,
 because an image hides its parts from assistive technology and these parts are
