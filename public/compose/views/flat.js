@@ -111,7 +111,7 @@ const STYLE = `
 .fv-arc.fv-read.fv-hi { stroke: ${READ}; }
 .fv-panels { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 8px; margin-top: 8px; }
 .fv-card { background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font-size: 12px; min-width: 0; }
-.fv-card h4 { margin: 0 0 4px; font-size: 12.5px; }
+.fv-card h3 { margin: 0 0 4px; font-size: 12.5px; }
 .fv-card p { margin: 4px 0; }
 .fv-card .fv-muted { color: var(--muted); }
 .fv-card ol, .fv-card ul { margin: 4px 0; padding-left: 18px; }
@@ -1049,7 +1049,7 @@ function paintScenario(ctx, box, model, map) {
   const el = ctx.el;
   const run = S.run;
   if (!run) {
-    box.replaceChildren(el('h4', {}, 'Scenario checks'),
+    box.replaceChildren(el('h3', {}, 'Scenario checks'),
       el('p', {}, 'A scenario starts from the initial marking, fires its script one step at a time (each member transition resolved to the flat transition that contains it), stops at the first step that is not enabled, then checks its expected marking predicates.'),
       el('p', { class: 'fv-muted' }, 'The scripts and predicates are judgment, written from the description and then frozen (bundle.scenarios, ROADMAP 4.4). Whether a step is enabled, and what the marking becomes, is the registry\'s run (bundle.run: pflow-metamodel\'s enabled/fire, the firing rule of go-pflow\'s firing.go).'));
     return;
@@ -1060,7 +1060,7 @@ function paintScenario(ctx, box, model, map) {
     st.enabled ? el('span', { class: 'fv-pass' }, 'FIRED') : el('span', { class: 'fv-stop' }, 'STOP'),
     el('code', {}, st.member), st.flat && st.flat !== st.member ? [' → ', codeId(ctx, st.flat)] : '',
     st.enabled ? '' : el('div', { class: 'fv-muted' }, `not enabled: ${st.why}`))));
-  const kids = [el('h4', {}, `${sc.id}: ${sc.title}`), list];
+  const kids = [el('h3', {}, `${sc.id}: ${sc.title}`), list];
   if (run.done) {
     kids.push(el('p', { class: 'fv-muted' }, r.completed ? `All ${r.steps.length} steps fired.` : `Stopped at step ${r.stoppedAt + 1} of ${sc.script.length}.`));
     kids.push(el('ul', { class: 'fv-cons' }, r.expect.map((e) => {
@@ -1124,7 +1124,7 @@ function paintConstraints(ctx, box, model, map, mk, byId) {
   const inUse = flatPlaceOf(map, 'workers/in_use'), rolled = flatPlaceOf(map, 'payment/rolled_back');
   const leaking = inUse && rolled && (mk[inUse] || 0) > 0 && (mk[rolled] || 0) > 0;
   const pool = model.constraints.find((c) => c.id === 'workers/pool_conservation');
-  const kids = [el('h4', {}, 'Declared constraints, at this marking'), el('ul', { class: 'fv-cons' }, rows)];
+  const kids = [el('h3', {}, 'Declared constraints, at this marking'), el('ul', { class: 'fv-cons' }, rows)];
   if (leaking && pool) {
     const v = evalConstraint(pool.expr, mk);
     const why = el('div', { class: 'fv-why' },
@@ -1141,7 +1141,7 @@ function paintConstraints(ctx, box, model, map, mk, byId) {
 
 function paintGo(ctx, box) {
   const el = ctx.el;
-  box.replaceChildren(el('h4', {}, 'Who fires these runs'),
+  box.replaceChildren(el('h3', {}, 'Who fires these runs'),
     el('p', {}, 'Every step above, the token game and the scenario verdicts are the registry\'s (pflow-native\'s bundle.run, in the vendored wasm): pflow-metamodel\'s enabled/fire on pflow-compose\'s flat net. The page fires nothing itself.'),
     el('p', { class: 'fv-muted' }, 'No go-pflow run is shown beside them: the engine here is the registry, and pflow-native checks the same four scenario runs against go-pflow c802f34 in its own tests (crates/core/tests/views_compose.rs).'));
 }

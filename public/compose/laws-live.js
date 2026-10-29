@@ -190,3 +190,30 @@ export function compareLayout(a, b) {
   walk(a, b);
   return { numbers, maxDiff, shapeDiffers };
 }
+
+/**
+ * What the Laws view's background work (the data arriving, Pyodide finishing, the layout finishing) may do to the
+ * page. It outlives the view's drawing: the person may be in another view by then, with a drag or keyboard linking
+ * in progress there. A redraw would cut that (a redraw is the current view's, not Laws'), and a "Laws: ..." line
+ * spoken in the middle of it would be about something that is not on screen. So it speaks, and redraws, only
+ * while Laws is the view shown. What it would have said away is kept (the latest only: the bar says the rest) and
+ * given back once by arrive(), when Laws is drawn again; `defer` puts it after the view's own label, which the
+ * page announces in the same render.
+ * @param {{announce: (text: string) => void, defer?: (f: () => void) => void}} o
+ */
+export function createShownGate({ announce, defer = (f) => queueMicrotask(f) }) {
+  let missed = null;
+  return {
+    /** Speak `text` if Laws is shown (`shown`), else keep it for arrive(). */
+    say(shown, text) { if (shown) announce(text); else missed = text; },
+    /** Laws has just been drawn: say what happened while it was away, once. */
+    arrive() {
+      if (missed === null) return;
+      const text = missed;
+      missed = null;
+      defer(() => announce(text));
+    },
+    /** What is waiting (a test hook). */
+    missed: () => missed,
+  };
+}

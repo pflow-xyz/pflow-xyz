@@ -18,7 +18,7 @@
 import * as registry from './registry.js';
 import { loadFacts, LINK_KINDS, LINK_STYLE, EXTRA_SPECS, PARAMS_NOTE, PIECES, PLAN_RS_REV, FACTS } from './model.js';
 import { state, subscribe, actions, subnetsById, orderLinks, flatOrders, planInfo, readHash, writeHash, start } from './state.js';
-import { initSnap, resetSnap, snap, kbActive } from './snap.js';
+import { initSnap, resetSnap, snap, kbActive, gestureActive } from './snap.js';
 import { initInspector, hover, renderInfo } from './inspect.js';
 import { el } from './dom.js';
 import * as theme from './theme.js';
@@ -30,8 +30,9 @@ import { makeManifest } from './manifest.js';
 import { createViewLoader, createStartup } from './loader.js';
 import * as a11y from './a11y.js';
 import { isTypingTarget } from './a11y-nav.js';
+import { afterGesture } from './a11y-link.js';
 import { announce } from './a11y-bus.js';
-import { VIEW_KEYS_OFF } from './a11y-text.js';
+import { VIEW_KEYS_OFF, registryFailureText, brokenTabLabel, newStatus } from './a11y-text.js';
 import { renderLegend } from './legend.js';
 
 let connect4 = null;
@@ -69,7 +70,9 @@ function renderTabs(disabled = false) {
   const at = [...box.children].indexOf(document.activeElement);
   fill(box, ...VIEW_IDS.map((id, i) => {
     const m = VIEW_META[id];
-    return el('button', { class: `tab${state.view === id ? ' active' : ''}${views.get(id)?.broken ? ' broken' : ''}`, title: m.title, disabled: disabled ? true : null, onclick: () => actions.setView(id) }, `${i + 1}. ${m.short}`);
+    const label = `${i + 1}. ${m.short}`;
+    const broken = !!views.get(id)?.broken; // the strike-through says it to the eye; the label says it to everyone else
+    return el('button', { class: `tab${state.view === id ? ' active' : ''}${broken ? ' broken' : ''}`, title: m.title, 'aria-label': broken ? brokenTabLabel(label) : null, disabled: disabled ? true : null, onclick: () => actions.setView(id) }, label);
   }));
   $('#ex-orders').classList.toggle('active', state.example === 'orders');
   $('#ex-connect4').classList.toggle('active', state.example === 'connect4');
@@ -232,10 +235,18 @@ function flash(event) {
   flashTimer = setTimeout(() => f.classList.remove('show'), 4200);
 }
 
-/** What the page shows before the registry is ready, and while a view's module loads: the tabs and a status line. */
+/**
+ * What the page shows before the registry is ready, and while a view's module loads: the tabs and a status line.
+ * The line is plain text; it is spoken through the page's one live region (announce), once per change of text, so the
+ * repaints a selection made meanwhile causes do not repeat it. The stage is labelled by the tab that is selected now.
+ */
+let shellSaid = null;
 function renderShell(what) {
   renderTabs();
-  fill($('#stage'), el('p', { class: 'muted', role: 'status' }, what));
+  a11y.labelStage();
+  fill($('#stage'), el('p', { class: 'muted' }, what));
+  const say = newStatus(shellSaid, what);
+  if (say) { shellSaid = say; announce(say); }
 }
 
 function render() {
@@ -259,7 +270,14 @@ function render() {
   resetSnap();
   renderToolbar(); // after resetSnap, so palette pieces register for this render
   const manifest = makeManifest(state.view, state.example, 'live');
-  const ctx = makeCtx(stage, { snap, hover, manifest, connect4 });
+  const shownId = state.view;
+  const ctx = makeCtx(stage, {
+    snap, hover, manifest, connect4,
+    shown: () => state.view === shownId,
+    // A view's own redraw (its background work finishing, a toggle) never cuts a drag or keyboard linking, and is
+    // dropped if the view was left meanwhile: it would redraw the view that is now shown, which has not changed.
+    rerender: () => afterGesture(gestureActive, () => { if (state.view === shownId) actions.rerender(); }),
+  });
   try {
     v.render(ctx);
   } catch (e) {
@@ -267,6 +285,7 @@ function render() {
     fill(stage, el('pre', { class: 'warn' }, `render failed: ${e.stack || e}`));
   }
   lastManifest = manifest;
+  shellSaid = null; // a later shell (another view's first use) is news again
   [stage.scrollLeft, stage.scrollTop] = scroll;
   a11y.afterRender({ view: v, event: state.event });
   flash(state.event);
@@ -277,12 +296,23 @@ function render() {
   document.body.dataset.ready = '1';
 }
 
-/** The registry did not load: say why, and leave nothing that looks like it works (the tabs and example buttons are drawn, disabled). */
+/**
+ * The registry did not load: say why, and leave nothing that looks like it works (the tabs and example buttons are drawn,
+ * disabled). The one-line message comes first, is spoken through the live region and is where focus goes (the disabled
+ * tab that had it cannot keep it); the stack is behind "Technical details", not the first thing read. No role=alert: that
+ * would be a second region speaking the same words.
+ */
 function renderFailure(e) {
   console.error(e);
   renderTabs(true);
   $('#ex-orders').disabled = $('#ex-connect4').disabled = true;
-  $('#stage').replaceChildren(el('pre', { class: 'warn' }, `The registry did not load: ${e.stack || e}`));
+  const text = registryFailureText(e);
+  const box = el('div', { class: 'stage-note warn', id: 'stage-failure', tabindex: '-1', role: 'group', 'aria-label': 'The page did not load' },
+    el('p', {}, text),
+    el('details', {}, el('summary', {}, 'Technical details'), el('pre', {}, String((e && e.stack) || e))));
+  $('#stage').replaceChildren(box);
+  announce(text);
+  box.focus();
 }
 
 /** Is the key typed at someone who is typing (a field, a select, a contenteditable, an ARIA text box)? */
@@ -294,6 +324,7 @@ function typingAt(target) {
 
 async function main() {
   readHash();
+  a11y.startedOn(state.view, state.example); // a different view at the first drawing was chosen while loading: say which
   initSnap();
   initInspector($('#inspector-body'));
   a11y.initA11y();

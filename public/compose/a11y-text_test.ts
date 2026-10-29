@@ -1,6 +1,6 @@
 // The words of the composition page: accessible names, announcements, schema codes, dashes.
 import { assert, assertEquals, assertNotEquals, assertStringIncludes } from "https://deno.land/std@0.224.0/assert/mod.ts";
-import { distinctDashes, eventText, firstDrawing, pieceLabel, portLabel, schemaCode, SCHEMA_CODE, slotLabel, uniqueKeys, viewLabel } from "./a11y-text.js";
+import { brokenTabLabel, brokenViewText, distinctDashes, eventText, firstDrawing, firstLine, newStatus, pieceLabel, portLabel, registryFailureText, schemaCode, SCHEMA_CODE, slotLabel, uniqueKeys, viewLabel, viewNews } from "./a11y-text.js";
 
 Deno.test("schema codes: one letter each, all distinct, never empty for a schema", () => {
   const codes = Object.values(SCHEMA_CODE);
@@ -77,4 +77,53 @@ Deno.test("firstDrawing: the key of a thing's first drawing, for when a redraw d
   assertEquals(firstDrawing("item:junction #3: x"), "item:junction #3: x", "only a trailing counter counts");
   // and it undoes uniqueKeys
   assertEquals(uniqueKeys(["p", "p", "p"]).map(firstDrawing), ["p", "p", "p"]);
+});
+
+// --- failures are said, not only shown ------------------------------------------------------------------------
+
+Deno.test("firstLine: the message's first line, never the stack", () => {
+  const e = new Error("wasm streaming compile failed\n  at instantiate (pflow_native_wasm.js:1:1)\n  at init");
+  assertEquals(firstLine(e), "wasm streaming compile failed");
+  assertEquals(firstLine("  \n\nsecond line is the first non-empty  \nthird"), "second line is the first non-empty");
+  assertEquals(firstLine(new Error("")), "Error", "no message: the name");
+  assertEquals(firstLine(undefined), "unknown error");
+  assertEquals(firstLine(null), "unknown error");
+  assertEquals(firstLine(404), "404");
+});
+
+Deno.test("registryFailureText: one sentence, the reason first, no stack", () => {
+  const e = new Error("Failed to fetch\n  at fetch (x.js:1:1)");
+  assertEquals(registryFailureText(e), "The registry did not load: Failed to fetch.");
+  assertEquals(registryFailureText(new Error("bad magic number.")), "The registry did not load: bad magic number.");
+  assert(!registryFailureText(e).includes("\n"));
+});
+
+Deno.test("brokenViewText and brokenTabLabel: what is wrong where a working view would say its name", () => {
+  const v = { id: "lens", short: "Lenses", title: "Open games / lenses (analogy)", broken: "TypeError: Failed to fetch dynamically imported module: http://x/views/lens.js" };
+  assertEquals(brokenViewText(v), "The Lenses view failed to load: TypeError: Failed to fetch dynamically imported module: http://x/views/lens.js.");
+  assertEquals(brokenViewText({ id: "x", broken: "its module has no default export" }), "The x view failed to load: its module has no default export.");
+  assertEquals(brokenTabLabel("7. Lenses"), "7. Lenses (failed to load)");
+  assert(brokenTabLabel("7. Lenses").startsWith("7. Lenses"), "the visible words come first (label in name)");
+});
+
+Deno.test("viewNews: the person moving is news, also while loading; a redraw of the same view is not; a broken first view is", () => {
+  const start = "cospan|orders";
+  // the first drawing, on the view the page started on: silent (the page load says itself)
+  assertEquals(viewNews({ lastKey: start, drawn: false, key: start }), false);
+  // keys 3, 7, e, 5 during the load, or Right Right Enter on the tabs: the first drawing is a different view and example
+  assertEquals(viewNews({ lastKey: start, drawn: false, key: "flat|connect4" }), true);
+  // later: a move is news, a redraw of the same view and example is not
+  assertEquals(viewNews({ lastKey: "flat|connect4", drawn: true, key: "lens|connect4" }), true);
+  assertEquals(viewNews({ lastKey: "flat|connect4", drawn: true, key: "flat|orders" }), true);
+  assertEquals(viewNews({ lastKey: "flat|connect4", drawn: true, key: "flat|connect4" }), false);
+  // a page that opens on a broken view must not be silent about it; once told, a redraw is not news again
+  assertEquals(viewNews({ lastKey: "lens|orders", drawn: false, key: "lens|orders", broken: true }), true);
+  assertEquals(viewNews({ lastKey: "lens|orders", drawn: true, key: "lens|orders", broken: true }), false);
+});
+
+Deno.test("newStatus: a status line is said once, not at every repaint", () => {
+  assertEquals(newStatus(null, "Loading the Laws view…"), "Loading the Laws view…");
+  assertEquals(newStatus("Loading the Laws view…", "Loading the Laws view…"), "");
+  assertEquals(newStatus("Loading the Laws view…", "Loading the Lenses view…"), "Loading the Lenses view…");
+  assertEquals(newStatus(null, ""), "");
 });

@@ -1,6 +1,6 @@
 // The inspector without hover: what is pinned, and the plain-text description.
 import { assertEquals, assertStringIncludes } from "https://deno.land/std@0.224.0/assert/mod.ts";
-import { describeInfo, initialInspector, reduceInspector, shortIri } from "./a11y-inspect.js";
+import { describeInfo, initialInspector, isNestedControl, reduceInspector, shortIri } from "./a11y-inspect.js";
 
 Deno.test("hover and focus show an info while nothing is pinned", () => {
   const r = reduceInspector(initialInspector(), { type: "show", id: "a" });
@@ -100,4 +100,35 @@ Deno.test("shortIri", () => {
   assertEquals(shortIri("https://ontology.pflow.xyz/pattern/queue"), "pat:queue");
   assertEquals(shortIri("https://ontology.pflow.xyz/linkkind/token"), "lk:token");
   assertEquals(shortIri("https://elsewhere/x"), "https://elsewhere/x");
+});
+
+// A control inside an inspectable does its own work and does not pin the thing around it (Retry in the Laws status
+// bar; "Assume a backward pass" in the Lenses card). `chain`: the click's target up to the inspectable, nearest first.
+const link = (tag: string, extra: Record<string, unknown> = {}) => ({ tag, role: null, href: false, isNode: false, ...extra });
+const node = (tag: string, extra: Record<string, unknown> = {}) => link(tag, { isNode: true, ...extra });
+
+Deno.test("isNestedControl: a button, field or link inside the thing is a control of its own", () => {
+  assertEquals(isNestedControl([link("BUTTON"), node("DIV")]), true, "Retry");
+  assertEquals(isNestedControl([link("SPAN"), link("BUTTON"), node("DIV")]), true, "text inside the button");
+  assertEquals(isNestedControl([link("INPUT"), node("LABEL")]), true);
+  assertEquals(isNestedControl([link("SELECT"), node("DIV")]), true);
+  assertEquals(isNestedControl([link("TEXTAREA"), node("DIV")]), true);
+  assertEquals(isNestedControl([link("A", { href: true }), node("DIV")]), true, "a link with an href");
+  assertEquals(isNestedControl([link("g", { role: "button" }), node("g")]), true, "an svg thing with role=button (the page gives its click-only buttons one)");
+});
+
+Deno.test("isNestedControl: the thing itself, plain content and an anchor without href are not", () => {
+  assertEquals(isNestedControl([node("BUTTON")]), false, "the inspectable is itself a button (a chip): the click is on the thing");
+  assertEquals(isNestedControl([node("g", { role: "button" })]), false, "or has role=button (a port)");
+  assertEquals(isNestedControl([link("SPAN"), node("DIV")]), false, "text in the bar");
+  assertEquals(isNestedControl([link("rect"), link("g"), node("g")]), false);
+  assertEquals(isNestedControl([link("A"), node("DIV")]), false, "an anchor with no href is not a link");
+  assertEquals(isNestedControl([]), false);
+  assertEquals(isNestedControl(undefined), false);
+});
+
+Deno.test("isNestedControl: a control ABOVE the thing does not count (the chain stops at the thing)", () => {
+  // chainTo (inspect.js) stops at the node, so ancestors beyond it are never in the chain; a chain that ends at the
+  // thing whose own handler runs is what the predicate is given
+  assertEquals(isNestedControl([link("SPAN"), node("DIV"), link("BUTTON")]), false, "the node comes first: nothing nested before it");
 });

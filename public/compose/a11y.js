@@ -21,7 +21,7 @@
 import { registered, startKeyboard, kbActive } from './snap.js';
 import { infoOf, activate, dismissPinned, isPinned, revealPanel, syncPin } from './inspect.js';
 import { rovingTarget, tabTarget, tabStop, roleFor, keepsOwnName, clicksItself } from './a11y-nav.js';
-import { portLabel, slotLabel, pieceLabel, viewLabel, eventText, schemaCode, uniqueKeys, distinctDashes, firstDrawing } from './a11y-text.js';
+import { portLabel, slotLabel, pieceLabel, viewLabel, eventText, schemaCode, uniqueKeys, distinctDashes, firstDrawing, brokenViewText, viewNews } from './a11y-text.js';
 import { state, subnetsById } from './state.js';
 import { SLOTS, pieceByName, LINK_STYLE } from './model.js';
 import { schemaColor } from './theme.js';
@@ -45,7 +45,8 @@ const SHAPES = 'path,line,circle,ellipse,rect,polygon,polyline,image,defs,marker
 let ring = null;
 let keyboardMode = false;       // was the last thing the person did a key press?
 let lastFocusKey = null;        // focus before the render, to give back after
-let lastView = null, lastExample = null;
+let lastKey = null;             // view|example last drawn (before the first drawing: the one the page started on)
+let drawn = false;              // has a view been drawn yet?
 const stops = { port: null, piece: null, action: null, item: null, panel: null }; // each roving group's remembered Tab stop
 
 // --- setup ------------------------------------------------------------------------------------
@@ -79,6 +80,9 @@ export function initA11y() {
   document.addEventListener('scroll', () => place(), true);
   window.addEventListener('resize', () => place());
 }
+
+/** The view and example the page starts on (the hash, read before anything loads): a different one at the first drawing was chosen while loading, and is said. */
+export function startedOn(view, example) { lastKey = `${view}|${example}`; }
 
 /** The registry's dash for a guard link is token's; make the four kinds four patterns (after loadFacts). */
 export function applyStyles() { distinctDashes(LINK_STYLE); }
@@ -212,15 +216,24 @@ export function afterRender({ view, event }) {
   syncPin(); // a pin on a thing this redraw dropped (a link removed) is released, and said so
   restoreFocus(stage);
   const idx = VIEW_IDS.indexOf(state.view) + 1;
-  if (lastView !== null && (lastView !== state.view || lastExample !== state.example)) announce(viewLabel(view, state.example, idx, VIEW_IDS.length));
-  lastView = state.view; lastExample = state.example;
+  const key = `${state.view}|${state.example}`;
+  // A broken view says what is wrong where a working one would say its name: "View 7 of 10: ..." would be a lie.
+  if (viewNews({ lastKey, drawn, key, broken: !!view.broken })) announce(view.broken ? brokenViewText(view) : viewLabel(view, state.example, idx, VIEW_IDS.length));
+  lastKey = key; drawn = true;
   announce(eventText(event));
+}
+
+/** The stage is the panel of the selected tab: also while the shell stands in for a view that is still loading. */
+export function labelStage() {
+  const stage = $('#stage');
+  if (!stage) return;
+  stage.setAttribute('role', 'tabpanel');
+  stage.setAttribute('aria-labelledby', `tab-${state.view}`);
 }
 
 function semantics(stage, view) {
   const idx = VIEW_IDS.indexOf(state.view);
-  stage.setAttribute('role', 'tabpanel');
-  stage.setAttribute('aria-labelledby', `tab-${state.view}`);
+  labelStage();
   const svgs = [...stage.querySelectorAll('svg.view-svg')];
   svgs.forEach((root, i) => {
     const own = root.getAttribute('aria-label');

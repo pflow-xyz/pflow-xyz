@@ -45,15 +45,23 @@ stage is redrawn and focus is given back to the origin port, in the same drawing
 when a port is drawn twice (and in its first drawing when the redraw no longer has
 the second: a linked port leaves the outer interface). Where a view draws nothing
 to link to (the Flat net draws the palette's pieces and no slots) link mode is not
-entered, and it says so. A pointer drag is unchanged. The reason a target is
+entered, and it says so. A pointer drag is unchanged. A view's own background work
+(the Laws view's data arriving, its live Pyodide check or layout finishing) never
+cuts a drag or link mode: the redraw waits until the gesture has ended, is dropped
+if another view is shown by then, and the Laws status lines ("Laws: the live layout
+is drawn.") are spoken only while Laws is the view shown (the latest one that
+came while it was away is spoken once, when it is drawn again). The reason a target is
 refused is also written in the status line at the bottom of the window (it stays
 on screen on a short laptop display), since the keyboard path never shows the
 pointer's tip.
 
 ## What is announced
 
-One polite live region (`#a11y-live`, `role=status`) carries all speech; the same
-text of link mode is also written into the visible status line under the diagram.
+One polite live region (`#a11y-live`, `role=status`) carries all speech, while the
+page loads and when something fails too: nothing else on the page is a live region
+(the loading line and the failure messages are plain text in the stage; there is no
+`role=alert`, which would be a second region saying the same words). The same text of
+link mode is also written into the visible status line under the diagram.
 Messages that arrive together (a link removed and, in the same click, an inspector
 released) are all spoken, in order, as one utterance (`createAnnouncer` in
 `a11y-bus.js`); a message after that moment starts the next one, so a fast walk
@@ -74,7 +82,10 @@ the wording fails the test until the quote is updated.
 - the inspector pinned: "Inspector pinned: port orders:in. Press Escape to dismiss."
 - the inspector dismissed: "Inspector dismissed."
 - the pin released because a redraw no longer has its thing (a link removed while its row was pinned): "Inspector released: the pinned thing is no longer in the view."
-- the view changed ("View 3 of 10: ...")
+- the view changed ("View 3 of 10: ..."), and also at the first drawing when the view or example was chosen while the page was still loading (keys, tabs, a changed address); a page that opens on the view in its address says nothing about it
+- loading, once per change of text, not at every repaint: "Loading pflow-native's registry (wasm)…", then "Loading the Laws view…" when a view's module is fetched on first use. While it shows, the stage is labelled by the tab that is selected now
+- the registry did not load: "The registry did not load: Failed to fetch." The stage shows that line first, with the stack behind a "Technical details" disclosure, the tabs and example buttons disabled, and focus on the message (the tab that had it is disabled)
+- a view whose module did not load: "The Lenses view failed to load: TypeError: Failed to fetch dynamically imported module: http://127.0.0.1:8080/compose/views/lens.js." It takes the place of "View 7 of 10: ...", is written into the stage too, and the tab's name says "7. Lenses (failed to load)"
 
 Ports, pieces, slots and every inspectable thing have an accessible name
 (`orders:out, out port on a place, schema queue:items`); the focused thing is
@@ -99,7 +110,11 @@ first), so the pin survives an edit that leaves its thing drawn and is released,
 and said so, when a redraw drops it. Pressing Dismiss from the keyboard returns
 focus to the pinned thing. A click on a nested inspectable pins the innermost one
 (the one hover shows), not the outermost; no inspectable is nested in another in
-any view today, so this is latent.
+any view today, so this is latent. Controls nested in an inspectable are not that:
+a button or link inside one (Retry in the Laws status bar, "Assume a backward
+pass" in the Lenses card) does its own work and pins nothing (`isNestedControl` in
+`a11y-inspect.js`, checked in the click handler of `inspect.js`); after Retry
+the status line has focus and is read as it is, with no second announcement beside it.
 
 ## Colour is not the only carrier
 
@@ -133,9 +148,9 @@ and `parity/composition-views/` still compares 112 of 112 with pflow-native.
 
 ## Structure
 
-`compose.html` has a skip link, one `h1`, `main`, a `nav` holding the view tablist
+`compose.html` has two skip links (to the diagram and to the inspector), one `h1`, `main`, a `nav` holding the view tablist
 (`role=tab`, `aria-selected`, `aria-controls`, `aria-keyshortcuts` 1-9,0), an
-`aside`, headings and labelled cards, the Keyboard card, and the Legend card. Each
+`aside`, headings that go down one level at a time (the cards the Flat and Laws views draw are `h3` under the `h2` "Diagram"; the smoke script checks every view and example), labelled cards, the Keyboard card, and the Legend card. Each
 view's svg is a labelled group (`role=group`, `aria-roledescription=diagram`,
 `aria-label`, a `<desc>` from the view's summary). It is a group, not `role=img`,
 because an image hides its parts from assistive technology and these parts are
@@ -164,9 +179,12 @@ view is a user-started sequence of states, not motion, and still runs.
 `http://127.0.0.1:8080/compose.html`) drives the page in headless Chrome and
 checks, in all ten views of both examples: zero console problems; no focusable
 element is `aria-hidden`; no `role=button` holds a focusable descendant; no
-inspectable is click-only; and, in the views that draw ports, that Tab reaches
-the ports, Enter lights targets, Tab and the arrows walk them, Enter links, Esc
-restores focus and the live region says so. It is not part of `make test` (it
+inspectable is click-only; headings never skip a level; `#a11y-live` is the only
+live region; and, in the views that draw ports, that Tab reaches the ports, Enter
+lights targets, Tab and the arrows walk them, Enter links, Esc restores focus and
+the live region says so. It also holds the regressions found in review: the Laws
+view's live check ending (its network held, then failed) while a link is in progress
+in Cospans or in Laws, Retry and the Lenses button pinning nothing, and the skip links. It is not part of `make test` (it
 needs Chrome and a running server). The unit tests (`make test-js`) cover the pure
 modules; this is what covers the DOM glue.
 

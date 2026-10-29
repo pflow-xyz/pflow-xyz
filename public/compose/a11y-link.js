@@ -148,3 +148,17 @@ export function press(state, ev) {
 
   return { state, announce: '', effects: [], handled: false };
 }
+
+/**
+ * Run `f` once no gesture is going on: at once, or when the drag or keyboard link mode has ended. A redraw cancels
+ * both (the elements they hold are replaced), so a redraw nobody asked for (a view's background work finishing)
+ * waits for the person to finish. `active()` says whether a gesture is on; the timer is injectable.
+ * @param {() => boolean} active
+ * @param {() => void} f
+ * @param {(f: () => void, ms: number) => unknown} [setTimer]
+ * @param {number} [pollMs]
+ */
+export function afterGesture(active, f, setTimer = (g, ms) => setTimeout(g, ms), pollMs = 150) {
+  if (!active()) { f(); return; }
+  setTimer(() => afterGesture(active, f, setTimer, pollMs), pollMs);
+}

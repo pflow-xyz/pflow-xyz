@@ -67,3 +67,21 @@ export function reduceInspector(state, ev) {
       return { state, effect: 'none', announce: '', handled: false };
   }
 }
+
+/**
+ * Is a click on a control that sits INSIDE an inspectable thing (the Retry button of the Laws status bar, the Lenses
+ * view's "Assume a backward pass" button)? Such a click does what the control does and must not also pin the
+ * inspector on the thing around it. `chain` is the click's target and its ancestors, nearest first, up to and
+ * including the inspectable itself: each {tag, role, href, isNode}. A control is a button, a field, a link with an
+ * href, or anything with role=button; the inspectable being one itself (a chip that is a button) does not count.
+ */
+export function isNestedControl(chain) {
+  for (const n of chain || []) {
+    if (!n) continue;
+    if (n.isNode) return false;
+    if (/^(button|input|select|textarea)$/i.test(n.tag || '')) return true;
+    if (/^a$/i.test(n.tag || '') && n.href) return true;
+    if (/^button$/i.test(n.role || '')) return true;
+  }
+  return false;
+}
