@@ -1303,6 +1303,7 @@ export default {
   id: 'cospan',
   title: 'Open Petri nets as cospans',
   short: 'Cospans',
+  consumes: ['assets/connect-4.json', 'bundle.flatten', 'bundle.state', 'plan.open', 'plan.state'],
   convention: {
     summary: 'Baez and Master: an open Petri net is a cospan X → S ← Y of finite sets into its set of places S. The feet X (left) and Y (right) are columns of boundary points; the legs (grey dashed) send each point to the place it names. Two open nets compose by gluing the right foot of one to the left foot of the next: a pushout along boundary places, so the glued places become one place. In go-pflow that is exactly lk:token and lk:data (Flatten fuses the two places into one wire: place). Instances that are not glued sit side by side: the monoidal product ⊗, a disjoint union.',
     examples: {

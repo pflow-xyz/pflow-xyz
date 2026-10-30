@@ -238,6 +238,7 @@ export default {
   id: 'spiders',
   title: 'Sync points as spiders (ZX-style)',
   short: 'Spiders',
+  consumes: ['assets/connect-4.json', 'bundle.flatten', 'bundle.state', 'plan.state'],
   convention: {
     summary: 'In ZX-calculus, spiders are dots of two colours whose legs are wires, and two spiders of one colour that share a leg fuse into one (spider fusion). Here a green spider is one transition class of Flatten (go-pflow\'s, run by the registry as bundle.flatten) with two or more members (event links: its member transitions fire as one), and a red spider is one place class with two or more members (token and data links: its members become one place); a transition or place no link touches is a class of one and is not drawn. Instances are opaque boxes, stacked (⊗ runs down the page). Their ports are legs: transition ports are squares on the right edge, place ports are smaller circles on the left, coloured by schema. Links that share a member are drawn first as separate spiders joined through the shared leg, then slide together into the one spider Flatten makes, labelled with its flat name.',
     examples: {

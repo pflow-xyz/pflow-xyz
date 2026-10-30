@@ -8,7 +8,8 @@ import { installDom } from './vdom.js';
 import * as registry from '../../public/compose/registry.js';
 import { loadFacts } from '../../public/compose/model.js';
 import { state, start } from '../../public/compose/state.js';
-import { makeCtx, VIEW_IDS } from '../../public/compose/ctx.js';
+import { makeCtx } from '../../public/compose/ctx.js';
+import { VIEWS } from '../../public/compose/views-meta.js';
 import { makeManifest } from '../../public/compose/manifest.js';
 
 // The contract's states: commands after `bundle.open {}` and `plan.open {}`.
@@ -23,7 +24,8 @@ export const STATES = {
   'plan-threats': [['plan.add_piece', { piece: 'threats', slot: 'order' }]],
 };
 export const EXAMPLES = ['orders', 'connect4'];
-export { VIEW_IDS };
+// The views under the parity contract (their registry entries say so); a view added without it has no golden to meet.
+export const VIEW_IDS = VIEWS.filter((v) => v.parity).map((v) => v.id);
 
 let views = null;
 let connect4 = null;
@@ -48,7 +50,8 @@ export async function setup() {
  * Reach `stateId` by commands on the live engine, render `view` for `example`,
  * and return {manifest, conflicts, root}. `opts.hover(node, info)` stands in
  * for the page's hover handler (default: none), so a test can read the
- * inspector info every drawn element carries (sources_test.ts).
+ * inspector info every drawn element carries (sources_test.ts). `opts.watch(ctx)`
+ * returns the ctx to draw with, once the state is reached (views_registry_test.ts).
  */
 export async function renderManifest(view, example, stateId, opts = {}) {
   await setup();
@@ -59,14 +62,15 @@ export async function renderManifest(view, example, stateId, opts = {}) {
   globalThis.document.body.appendChild(root);
   const manifest = makeManifest(view, example, stateId);
   const noop = () => {};
-  const ctx = makeCtx(root, {
+  const made = makeCtx(root, {
     snap: { port: noop, slot: noop, piece: noop },
     hover: opts.hover || noop,
     manifest,
     connect4,
     rerender: noop,
   });
-  ctx.headless = true;
+  made.headless = true;
+  const ctx = opts.watch ? opts.watch(made) : made; // views_registry_test.ts: what the view reads
   views[view].render(ctx);
   // A view that loads something first (laws: the Chyp results) draws once it has it.
   if (views[view].ready) { await views[view].ready(ctx); }

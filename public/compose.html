@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Composition views · pflow.xyz</title>
-  <meta name="description" content="One composition of three Petri nets (orders, workers, payment) drawn in ten conventions: cospans, spiders, an operad, string diagrams and more.">
+  <meta name="description" content="One composition of three Petri nets (orders, workers, payment) drawn in many conventions: cospans, spiders, an operad, string diagrams and more.">
   <meta name="author" content="Matt York">
   <meta name="theme-color" content="#ffffff">
   <link rel="me" href="https://github.com/stackdump">
@@ -19,7 +19,7 @@
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="pflow.xyz">
   <meta property="og:title" content="Composition views · pflow.xyz">
-  <meta property="og:description" content="One composition of three Petri nets (orders, workers, payment) drawn in ten conventions: cospans, spiders, an operad, string diagrams, a flat net and more. Every link rule runs in the page as WebAssembly.">
+  <meta property="og:description" content="One composition of three Petri nets (orders, workers, payment) drawn in many conventions: cospans, spiders, an operad, string diagrams, a flat net and more. Every link rule runs in the page as WebAssembly.">
   <meta property="og:url" content="https://pflow.xyz/compose.html">
   <meta property="og:image" content="https://pflow.xyz/compose-card.png">
   <meta property="og:image:secure_url" content="https://pflow.xyz/compose-card.png">
@@ -29,7 +29,7 @@
   <meta property="og:image:alt" content="The composition views page: ten view tabs above a string diagram of the orders, workers and payment nets joined by three event links, with the explanation beside it.">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Composition views · pflow.xyz">
-  <meta name="twitter:description" content="One composition of three Petri nets (orders, workers, payment) drawn in ten conventions: cospans, spiders, an operad, string diagrams, a flat net and more. Every link rule runs in the page as WebAssembly.">
+  <meta name="twitter:description" content="One composition of three Petri nets (orders, workers, payment) drawn in many conventions: cospans, spiders, an operad, string diagrams, a flat net and more. Every link rule runs in the page as WebAssembly.">
   <meta name="twitter:image" content="https://pflow.xyz/compose-card.png">
   <meta name="twitter:image:alt" content="The composition views page: ten view tabs above a string diagram of the orders, workers and payment nets joined by three event links, with the explanation beside it.">
   <script type="application/ld+json">
@@ -41,7 +41,7 @@
         "@id": "https://pflow.xyz/compose.html#page",
         "url": "https://pflow.xyz/compose.html",
         "name": "Composition views · pflow.xyz",
-        "description": "Ten views of one composition of three Petri nets (orders, workers, payment), and of one exact Connect-4 search plan, in categorical and Petri-net conventions.",
+        "description": "Many views of one composition of three Petri nets (orders, workers, payment), and of one exact Connect-4 search plan, in categorical and Petri-net conventions.",
         "inLanguage": "en",
         "isAccessibleForFree": true,
         "isPartOf": { "@type": "WebSite", "@id": "https://pflow.xyz/#website", "name": "pflow.xyz", "url": "https://pflow.xyz/" },
@@ -89,6 +89,13 @@
   <main class="layout" id="main">
     <section class="stage-wrap" aria-label="Diagram">
       <h2 class="sr-only">Diagram</h2>
+      <div class="view-bar" role="group" aria-label="Link to this view">
+        <label class="tb-label" for="view-link">Link to this view</label>
+        <input id="view-link" class="view-link" type="text" readonly spellcheck="false" autocomplete="off" data-lpignore="true">
+        <button id="view-link-copy" class="btn" type="button">Copy link</button>
+        <button id="view-index" class="btn" type="button">All views</button>
+        <p id="view-link-warning" class="warn small" hidden></p>
+      </div>
       <div id="toolbar" class="toolbar" role="group" aria-label="Linking and plan tools"></div>
       <div id="flash" class="flash-banner" aria-hidden="true"></div>
       <div id="stage" class="stage" tabindex="-1"></div>
@@ -104,7 +111,7 @@
       <section id="keys" class="card" aria-labelledby="keys-h">
         <h3 id="keys-h">Keyboard</h3>
         <ul class="keys-list">
-          <li><kbd>1</kbd>–<kbd>9</kbd>, <kbd>0</kbd> switch view (1 Cospans … 0 Laws); <kbd>E</kbd> switches the example. In the view tabs, <kbd>←</kbd> <kbd>→</kbd> move and <kbd>Enter</kbd> opens.</li>
+          <li id="keys-views"></li>
           <li><kbd>Tab</kbd> reaches the toolbar, then one stop each for the ports, the palette pieces and the rest of the diagram; the arrow keys move within a stop by position, <kbd>Home</kbd>/<kbd>End</kbd> to its ends.</li>
           <li>Linking: <kbd>Enter</kbd> or <kbd>Space</kbd> on a port or piece lights the legal targets; <kbd>Tab</kbd> or the arrows walk the lit ones; <kbd>R</kbd> walks the refused ones and says why; <kbd>Enter</kbd> links; <kbd>Esc</kbd> cancels.</li>
           <li>Inspector: focus shows it; <kbd>Enter</kbd> or <kbd>I</kbd> on a thing pins it (a click or tap does too); <kbd>Esc</kbd>, a second tap or Dismiss lets go.</li>

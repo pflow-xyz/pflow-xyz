@@ -9,7 +9,8 @@
 // Neither the composition nor the plan is in the engine's saved session state
 // (session.dump_state), so start() opens both by command on every load.
 
-import { VIEW_IDS } from './views-meta.js';
+import { resolveView } from './views-meta.js';
+import { readLink, writeLink, encodeLinks, decodeLinks, encodePlan, decodePlan } from './links.js';
 import { IDIOMS, pieceByName, linkOf, linkKey, subnetOf, flattenLive, liveCommand, setLiveConfig, portKey, EXTRA_SPECS } from './model.js';
 
 const listeners = new Set();
@@ -31,6 +32,7 @@ export const state = {
   version: 0,        // bumped after every edit; derived values are cached per version
   event: null,       // what just changed, for a view's merge animation; cleared after one render
   error: null,       // the last refusal, for the page to show
+  linkWarning: null, // what a link asked for that the registry would not open, until the next link or edit
 };
 
 export function subscribe(fn) { listeners.add(fn); return () => listeners.delete(fn); }
@@ -191,18 +193,86 @@ export const actions = {
 export function extraSpecs() { return EXTRA_SPECS; }
 export { linkKey, portKey };
 
-// URL hash: #view=<id>&ex=<orders|connect4>
+// URL hash (links.js has the format). Back and forward land here too: a hash that names another composition
+// or plan opens it on the live engine, and whatever the registry refuses is said and not drawn.
+let linked = {};      // the inst, links and plan the hash last asked for
+let defaults = null;  // what bundle.open {} and plan.open {} hold; set by startFromLink, when there is an engine
+
 export function readHash() {
-  const h = new URLSearchParams(location.hash.slice(1));
-  if (h.get('ex') === 'orders' || h.get('ex') === 'connect4') state.example = h.get('ex');
+  const l = readLink(location.hash);
+  if (l.ex === 'orders' || l.ex === 'connect4') state.example = l.ex;
   // An id no view has (a stale or mistyped link) leaves the view as it is: the next write puts the real one back.
-  if (VIEW_IDS.includes(h.get('view'))) state.view = h.get('view');
+  const view = resolveView(l.view);
+  if (view) state.view = view;
+  linked = l;
+  if (defaults) openLinked();
 }
-export function writeHash() {
-  // Keep parameters a view reads for itself (e.g. &level=transition).
-  const h0 = new URLSearchParams(location.hash.slice(1));
-  h0.set('view', state.view);
-  h0.set('ex', state.example);
-  const h = `#${h0.toString()}`;
-  if (location.hash !== h) history.replaceState(null, '', h);
+
+/** Open what the page has on load, then what its link asks for. The link is read first (readHash). */
+export function startFromLink() {
+  start();
+  defaults = { instances: state.orders.instances.join(','), links: encodeLinks(state.orders.links), plan: state.plan.json };
+  openLinked();
+}
+
+function linkRefused(what, e) {
+  state.linkWarning = `This link's ${what} was not opened: ${e.message || e}`;
+  state.error = { message: state.linkWarning, errors: e.errors || [] };
+  state.event = { type: 'refused', error: state.error };
+}
+
+function openLinked() {
+  state.linkWarning = null;
+  const instances = linked.inst ?? defaults.instances, links = linked.links ?? defaults.links;
+  if (instances !== state.orders.instances.join(',') || links !== encodeLinks(state.orders.links)) {
+    try {
+      L('bundle.open', { instances: instances.split(','), links: decodeLinks(links) });
+      const dropped = L('bundle.state').dropped_links;
+      if (dropped.length) throw new Error(dropped.map((d) => d.reason).join('; '));
+      readComposition();
+    } catch (e) {
+      linkRefused('composition', e);
+      L('bundle.open', {});
+      readComposition();
+    }
+  }
+  const plan = linked.plan ?? encodePlan(defaults.plan);
+  if (plan !== encodePlan(state.plan.json)) {
+    try {
+      L('plan.open', { plan: decodePlan(plan) });
+      const check = L('plan.state').check;
+      if (!check.ok) throw new Error(check.error);
+      readPlan();
+    } catch (e) {
+      linkRefused('plan', e);
+      L('plan.open', {});
+      readPlan();
+    }
+  }
+}
+
+/** The composition and plan as a link says them: nothing, where they are the default ones. */
+function linkedState() {
+  if (!defaults) return { inst: linked.inst, links: linked.links, plan: linked.plan };
+  const inst = state.orders.instances.join(','), links = encodeLinks(state.orders.links), plan = state.plan.json;
+  return {
+    inst: inst === defaults.instances ? undefined : inst,
+    links: links === defaults.links ? undefined : links,
+    plan: plan === defaults.plan ? undefined : encodePlan(plan),
+  };
+}
+
+/** The hash that opens a view on an example with this composition and plan. */
+export function linkTo(view, ex) { return writeLink({ view, ex, ...linkedState() }); }
+
+/** The hash of what is shown, with the parameters a view keeps there. */
+export function currentLink() { return writeLink({ view: state.view, ex: state.example, ...linkedState(), own: readLink(location.hash).own }); }
+
+/** Put what is shown in the address: as a new history entry when asked, so back returns to what was there. */
+export function writeHash({ push = false } = {}) {
+  if (push) state.linkWarning = null; // the person has moved on from the link that said it
+  const h = currentLink();
+  linked = readLink(h);
+  if (location.hash === h) return;
+  if (push) history.pushState(null, '', h); else history.replaceState(null, '', h);
 }

@@ -826,6 +826,7 @@ export default {
   id: 'boundaries',
   title: 'Nets with boundaries',
   short: 'Boundaries',
+  consumes: ['assets/connect-4.json', 'bundle.flatten', 'bundle.open', 'bundle.run', 'bundle.state', 'plan.open', 'plan.state'],
   convention: {
     summary: 'Nets with boundaries (Sobociński 2010; Bruni, Melgratti, Montanari and Sobociński 2013): a net N : m → n wires each transition to ports on a left and a right boundary. Two nets that share a boundary compose by synchronisation: the composite\'s transitions are the minimal sets of transitions that agree on the shared ports, and their pre- and postsets are the members\' together. That is the semantics of go-pflow\'s event links, which a cospan of places does not express (ROADMAP Phase 6). Read left to right: an instance\'s left edge is its outer boundary (transition ports no event link uses), its right edge faces the shared boundary; each ⊗ on the shared boundary is one event class, and the card beyond it is the composite transition Flatten builds for that class.',
     examples: {

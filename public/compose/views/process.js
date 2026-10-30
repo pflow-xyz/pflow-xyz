@@ -1410,6 +1410,7 @@ export default {
   id: 'process',
   title: 'Runs as processes',
   short: 'Processes',
+  consumes: ['assets/connect-4.json', 'bundle.flatten', 'bundle.run', 'bundle.state', 'sim.enabled', 'sim.fire', 'sim.marking', 'sim.reset'],
   convention: {
     summary: 'A run of a Petri net is a morphism, a process, in the monoidal category the net generates. Each token is a wire labelled by its place; each firing is a box from its preset to its postset; time runs left to right. The left edge (the domain) is the initial marking and the right edge (the codomain) the final one. Boxes in sequence compose (∘); wires side by side are the tensor (⊗).',
     examples: {

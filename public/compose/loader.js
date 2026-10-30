@@ -15,18 +15,29 @@ export function brokenView(id, meta, why) {
 
 /**
  * The views by id, each imported on first use. `importModule(id)` does the loading and stays in
- * app.js, relative to it. A failed import, and a module whose default export is missing, are kept as
- * a broken view: a view is never undefined once it is in `views`, so a render that waits for it
- * cannot wait for ever.
+ * app.js, relative to it. A failed import, a module whose default export is missing, and a view that
+ * `entryProblems(entry)` or `problems(view)` finds something wrong with (no provenance, no judgment
+ * marked) are kept as a broken view: a view is never undefined once it is in `views`, so a render that
+ * waits for it cannot wait for ever.
  */
-export function createViewLoader({ importModule, meta }) {
+export function createViewLoader({ importModule, meta, problems = () => [], entryProblems = () => [] }) {
   const views = new Map();   // id -> the view, once its module is loaded
   const loading = new Map(); // id -> the import in flight
   function load(id) {
     if (views.has(id)) return Promise.resolve(views.get(id));
     if (!loading.has(id)) {
-      loading.set(id, new Promise((resolve) => resolve(importModule(id))).then(
-        (m) => m?.default ?? brokenView(id, meta[id], 'its module has no default export'),
+      const refused = (m, why) => brokenView(id, m, why.join('; '));
+      loading.set(id, new Promise((resolve) => {
+        const bad = entryProblems(meta[id]);
+        if (bad.length) throw new Error(bad.join('; '));
+        resolve(importModule(id));
+      }).then(
+        (m) => {
+          const v = m?.default;
+          if (!v) return brokenView(id, meta[id], 'its module has no default export');
+          const bad = problems(v);
+          return bad.length ? refused(meta[id], bad) : v;
+        },
         (e) => brokenView(id, meta[id], e),
       ).then((v) => { views.set(id, v); loading.delete(id); return v; }));
     }
@@ -42,6 +53,14 @@ export function keyView(key, viewIds) {
   return n <= viewIds.length ? viewIds[n - 1] : null;
 }
 
+/** The view `[` or `]` selects: the one before or after `current`, wrapping; from anywhere else, the last or the first. No view is out of reach, however many there are. */
+export function stepView(key, viewIds, current) {
+  if ((key !== '[' && key !== ']') || !viewIds.length) return null;
+  const at = viewIds.indexOf(current), n = viewIds.length;
+  if (at < 0) return viewIds[key === ']' ? 0 : n - 1];
+  return viewIds[(at + (key === ']' ? 1 : -1) + n) % n];
+}
+
 /**
  * The page's start-up. Until the registry (the wasm) is ready, a tab, a key or a link only moves the
  * selection, in the order it happened: the tabs are repainted and the selected view's module is fetched
@@ -52,7 +71,7 @@ export function keyView(key, viewIds) {
  * `d` holds the effects: state, subscribe, actions, readHash, viewIds (the page's store), initRegistry,
  * loadFacts, start (the registry), loadView, preloadView(id, priority), fetchAlongside() (a promise for
  * what is fetched together with the wasm), renderShell(text), render, ready, failed(error), mark(name),
- * and optionally preloadDelay (ms, default 300).
+ * and optionally preloadDelay (ms, default 300) and indexView (the view V selects).
  *
  * Phases: loading -> ready, or failed (the registry did not load: the page shows why and stays still).
  */
@@ -80,8 +99,9 @@ export function createStartup(d) {
     },
     onKey(e) {
       if (phase === 'failed' || e.target?.closest?.('input, textarea')) return;
-      const view = keyView(e.key, d.viewIds);
+      const view = keyView(e.key, d.viewIds) ?? stepView(e.key, d.viewIds, d.state.view);
       if (view) d.actions.setView(view);
+      if (e.key === 'v' && d.indexView) d.actions.setView(d.indexView);
       if (e.key === 'e') d.actions.setExample(d.state.example === 'orders' ? 'connect4' : 'orders');
     },
     /** Resolves true when the first view is drawn, false when the registry failed. */

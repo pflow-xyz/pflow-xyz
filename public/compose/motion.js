@@ -2,7 +2,7 @@
 // off by the media query in compose.css; the views' own animations run through the
 // Web Animations API (element.animate), which that query does not reach. Under
 // reduced motion every such animation here jumps to its end at once, so one
-// guard covers all ten views and any later one. A view that draws its own timing
+// guard covers every view. A view that draws its own timing
 // (an rAF loop, SMIL) asks reducedMotion() itself.
 
 export const REDUCED_QUERY = '(prefers-reduced-motion: reduce)';

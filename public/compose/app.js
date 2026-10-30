@@ -1,12 +1,13 @@
 // The composition views page (public/compose.html): example switch, view tabs,
-// toolbar, side panels and the render loop. Views live in views/<id>.js and get
-// a ctx (ctx.js). Every rule they show is the registry's (registry.js): the
+// toolbar, side panels and the render loop. The views are the view registry's
+// (views-meta.js, compose/VIEWS.md: tabs, keys and links come from it) and get a
+// ctx (ctx.js). Every rule they show is the registry's (registry.js): the
 // page loads pflow-native's wasm, opens the composition and the plan by command
 // (bundle.open, plan.open) and re-reads them after every edit.
 //
 // Load order (docs/compose-load-budget.md): the shell (tabs, a status line) is
 // drawn at once; the wasm and the module of the view being shown are fetched
-// together; the other nine views are imported when the page is idle, or at once
+// together; the other views are imported when the page is idle, or at once
 // if their tab is pressed first (loadView), and the Laws view's Pyodide is
 // fetched only when that view is drawn (laws-live.js). A view reads
 // the ontology facts (model.js, filled by loadFacts from the registry) when its
@@ -17,7 +18,7 @@
 
 import * as registry from './registry.js';
 import { loadFacts, LINK_KINDS, LINK_STYLE, EXTRA_SPECS, PARAMS_NOTE, PIECES, PLAN_RS_REV, FACTS } from './model.js';
-import { state, subscribe, actions, subnetsById, orderLinks, flatOrders, planInfo, readHash, writeHash, start } from './state.js';
+import { state, subscribe, actions, subnetsById, orderLinks, flatOrders, planInfo, readHash, writeHash, linkTo, currentLink, startFromLink } from './state.js';
 import { initSnap, resetSnap, snap, kbActive, gestureActive } from './snap.js';
 import { initInspector, hover, renderInfo } from './inspect.js';
 import { el } from './dom.js';
@@ -25,7 +26,9 @@ import * as theme from './theme.js';
 import * as info from './info.js';
 import { citeLabel, citeURL, bibLabel, bibURL } from './sources.js';
 import { makeCtx } from './ctx.js';
-import { VIEW_IDS, VIEW_META } from './views-meta.js';
+import { VIEWS, VIEW_IDS, VIEW_META, INDEX_VIEW, viewKey, entryProblems, viewProblems } from './views-meta.js';
+import { storedView } from './stored-view.js';
+import { makeIndexView } from './index-view.js';
 import { makeManifest } from './manifest.js';
 import { createViewLoader, createStartup } from './loader.js';
 import * as a11y from './a11y.js';
@@ -39,19 +42,21 @@ import { cidFromLocation, showModel } from './identity.js';
 let connect4 = null;
 let lastManifest = null;
 
-// The one dynamic import of a view module (a test holds it to this line); loader.js keeps what came of it.
-const { views, load: loadView } = createViewLoader({ importModule: (id) => import(`./views/${id}.js`), meta: VIEW_META });
+// The one dynamic import of a view module, at the path its registry entry gives (a test holds it to this line); loader.js keeps what came of it.
+const importView = (id) => (VIEW_META[id].kind === 'module' ? import(`./${VIEW_META[id].src}`) : { default: storedView(VIEW_META[id]) });
+const { views, load: loadView } = createViewLoader({ importModule: importView, meta: VIEW_META, entryProblems, problems: viewProblems });
+views.set(INDEX_VIEW.id, makeIndexView({ views, load: loadView, linkTo, copy: (hash, button) => copyLink(fullLink(hash), button) }));
 
 const preloaded = new Set();
 
 /** Start fetching a view's module (modulepreload fetches that file, not what it imports) without evaluating it. */
 function preloadView(id, priority = 'auto') {
-  if (views.has(id) || preloaded.has(id)) return;
+  if (views.has(id) || preloaded.has(id) || VIEW_META[id].kind !== 'module') return;
   preloaded.add(id);
   const link = document.createElement('link');
   link.rel = 'modulepreload';
   link.fetchPriority = priority;
-  link.href = new URL(`./views/${id}.js`, import.meta.url).href;
+  link.href = new URL(`./${VIEW_META[id].src}`, import.meta.url).href;
   document.head.append(link);
 }
 
@@ -69,20 +74,21 @@ function renderTabs(disabled = false) {
   // The shell repaints the tabs while a view's module loads, and a tab may have focus (a key pressed on it):
   // keep focus on the tab at the same place, with its tab semantics, so a keyboard user is not dropped to the page.
   const at = [...box.children].indexOf(document.activeElement);
-  fill(box, ...VIEW_IDS.map((id, i) => {
-    const m = VIEW_META[id];
-    const label = `${i + 1}. ${m.short}`;
-    const broken = !!views.get(id)?.broken; // the strike-through says it to the eye; the label says it to everyone else
-    return el('button', { class: `tab${state.view === id ? ' active' : ''}${broken ? ' broken' : ''}`, title: m.title, 'aria-label': broken ? brokenTabLabel(label) : null, disabled: disabled ? true : null, onclick: () => actions.setView(id) }, label);
-  }));
+  const tab = (m, label) => {
+    const broken = !!views.get(m.id)?.broken; // the strike-through says it to the eye; the label says it to everyone else
+    return el('button', { class: `tab${state.view === m.id ? ' active' : ''}${broken ? ' broken' : ''}`, 'data-view': m.id, title: m.title, 'aria-label': broken ? brokenTabLabel(label) : null, disabled: disabled ? true : null, onclick: () => actions.setView(m.id) }, label);
+  };
+  fill(box, ...VIEWS.map((m, i) => tab(m, `${i + 1}. ${m.short}`)), tab(INDEX_VIEW, INDEX_VIEW.short));
   $('#ex-orders').classList.toggle('active', state.example === 'orders');
   $('#ex-connect4').classList.toggle('active', state.example === 'connect4');
   a11y.tabsAndToggles();
   if (at >= 0) box.children[at]?.focus();
 }
 
-function renderToolbar() {
+function renderToolbar(v) {
   const tb = $('#toolbar');
+  tb.hidden = !!v.noToolbar;
+  if (v.noToolbar) { fill(tb); return; }
   if (state.example === 'orders') {
     const kinds = ['auto', 'token', 'data', 'event', 'guard'];
     fill(tb,
@@ -114,6 +120,40 @@ function renderToolbar() {
       })),
     );
   }
+}
+
+const fullLink = (hash) => `${location.origin}${location.pathname}${location.search}${hash}`;
+
+/** Copy a link, and say so. If the browser refuses, the link is left selected in the bar for the person to copy. */
+async function copyLink(url, button) {
+  let copied = false;
+  try { await navigator.clipboard.writeText(url); copied = true; } catch { /* not allowed here: the bar below */ }
+  const field = $('#view-link');
+  if (!copied) { field.value = url; field.focus(); field.select(); }
+  button.dataset.word ??= button.textContent; // a second press within the two seconds finds "Copied" there
+  button.textContent = copied ? 'Copied' : 'Select and copy';
+  setTimeout(() => { button.textContent = button.dataset.word; }, 2000);
+  announce(copied ? 'Link copied.' : 'The browser did not allow copying. The link is selected in the link field.');
+}
+
+/** The bar above the stage: this view's link, always current, and the way to the index. It is updated in place, so it keeps focus. */
+function renderLinkBar() {
+  const field = $('#view-link');
+  field.value = fullLink(currentLink());
+  const warn = $('#view-link-warning');
+  warn.hidden = !state.linkWarning;
+  warn.textContent = state.linkWarning || '';
+}
+
+/** The view keys, in words: the numbered ones and the rest come from the registry. */
+function renderKeyHelp() {
+  const named = (i) => `${viewKey(i)} ${VIEWS[i].short}`;
+  const last = Math.min(VIEWS.length, 10) - 1;
+  fill($('#keys-views'), el('kbd', {}, '1'), last > 0 ? ['–', el('kbd', {}, viewKey(Math.min(last, 8)))] : null, last === 9 ? [', ', el('kbd', {}, '0')] : null,
+    ` switch view (${named(0)}${last > 0 ? ` … ${named(last)}` : ''})${VIEWS.length > 10 ? '; later views have no number' : ''}. `,
+    el('kbd', {}, '['), ' ', el('kbd', {}, ']'), ' go to the previous or next view, whichever it is. ',
+    el('kbd', {}, 'V'), ' lists all views with their links. ',
+    el('kbd', {}, 'E'), ' switches the example. In the view tabs, ', el('kbd', {}, '←'), ' ', el('kbd', {}, '→'), ' move and ', el('kbd', {}, 'Enter'), ' opens.');
 }
 
 function renderConvention(v) {
@@ -244,15 +284,20 @@ function flash(event) {
 let shellSaid = null;
 function renderShell(what) {
   renderTabs();
+  renderLinkBar();
   a11y.labelStage();
   fill($('#stage'), el('p', { class: 'muted' }, what));
   const say = newStatus(shellSaid, what);
   if (say) { shellSaid = say; announce(say); }
 }
 
+const NOT_A_PLACE = new Set(['view-local', 'prefer', 'refused']);
+
 function render() {
   a11y.beforeRender();
-  writeHash();
+  // A view, example or composition the person chose is a place to come back to; a redraw is not, and neither is
+  // arriving by a link or by back and forward (the hash already says it).
+  writeHash({ push: !!state.event && !NOT_A_PLACE.has(state.event.type) });
   const v = views.get(state.view);
   if (!v) { // first use of this view: import it, then draw whatever view is current by then
     const id = state.view;
@@ -269,7 +314,7 @@ function render() {
   const scroll = [stage.scrollLeft, stage.scrollTop];
   fill(stage);
   resetSnap();
-  renderToolbar(); // after resetSnap, so palette pieces register for this render
+  renderToolbar(v); // after resetSnap, so palette pieces register for this render
   const manifest = makeManifest(state.view, state.example, 'live');
   const shownId = state.view;
   const ctx = makeCtx(stage, {
@@ -288,6 +333,7 @@ function render() {
   lastManifest = manifest;
   shellSaid = null; // a later shell (another view's first use) is news again
   [stage.scrollLeft, stage.scrollTop] = scroll;
+  renderLinkBar(); // after the view, which may have written its own parameters into the hash
   a11y.afterRender({ view: v, event: state.event });
   flash(state.event);
   state.event = null;
@@ -339,6 +385,10 @@ async function main() {
   a11y.initA11y();
   $('#ex-orders').onclick = () => actions.setExample('orders');
   $('#ex-connect4').onclick = () => actions.setExample('connect4');
+  $('#view-link-copy').onclick = (e) => copyLink(fullLink(currentLink()), e.currentTarget);
+  $('#view-link').onfocus = (e) => e.target.select();
+  $('#view-index').onclick = () => actions.setView(INDEX_VIEW.id);
+  renderKeyHelp();
   // The start-up sequence (loader.js): until the registry is ready a tab, a key or a link only moves the
   // selection; nothing renders before the registry and the view exist.
   const startup = createStartup({
@@ -346,20 +396,20 @@ async function main() {
     initRegistry: () => registry.init(),
     // the facts are in: the a11y styles (distinct dashes) and the legend read them
     loadFacts: () => { loadFacts(); a11y.applyStyles(); renderLegend($('#legend')); },
-    start, loadView, preloadView,
+    start: startFromLink, loadView, preloadView, indexView: INDEX_VIEW.id,
     // The wasm, the shown view's module (fetched, not yet evaluated) and the Connect-4 data are fetched together, not one after another.
     fetchAlongside: loadConnect4,
     renderShell: (what) => renderShell(what),
     render, failed: renderFailure,
     mark: (name) => performance.mark(name),
     // Test hook for screenshots: the same actions the UI calls, and what the last render drew.
-    ready: () => { window.__pv = { state, actions, render, views, loadView, VIEW_IDS, registry, manifest: () => lastManifest?.result() }; },
+    ready: () => { window.__pv = { state, actions, render, views, loadView, VIEW_IDS, VIEWS, registry, manifest: () => lastManifest?.result() }; },
   });
   window.addEventListener('keydown', (e) => {
     if (typingAt(e.target) || e.ctrlKey || e.metaKey || e.altKey) return; // not the browser's shortcuts, not someone typing
     if (kbActive()) {
       // link mode owns the keys; say so rather than ignore them in silence
-      if (/^[0-9e]$/.test(e.key)) announce(VIEW_KEYS_OFF);
+      if (/^[0-9ev[\]]$/.test(e.key)) announce(VIEW_KEYS_OFF);
       return;
     }
     startup.onKey(e);

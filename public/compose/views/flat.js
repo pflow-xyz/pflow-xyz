@@ -1396,6 +1396,7 @@ export default {
   id: 'flat',
   title: 'The flattened net',
   short: 'Flat net',
+  consumes: ['assets/connect-4.json', 'bundle.flatten', 'bundle.run', 'bundle.state', 'plan.open', 'plan.state', 'sim.enabled', 'sim.fire', 'sim.marking', 'sim.reset'],
   convention: {
     summary: 'The single place/transition net Flatten produces from the composition (go-pflow\'s FlattenWithMap, run here by the registry as pflow-compose\'s port, bundle.flatten): every subnet\'s places and transitions under namespaced IDs, places joined by token or data links fused into one wire:… place, transitions joined by event links fused into one fused:… transition, duplicate arcs merged (MergeSum: weights add), guard links with the default condition "> 0" lowered to read arcs. The shapes are RenderFlatDOT\'s: places are circles, transitions rounded boxes, fused elements double-bordered (peripheries=2), an arc weight above 1 written on the arc, a read arc dashed and undirected. The tokens are drawn as dots in the place (RenderFlatDOT writes the initial count in the label instead). A green transition is enabled at the current marking; click it to fire.',
     examples: {

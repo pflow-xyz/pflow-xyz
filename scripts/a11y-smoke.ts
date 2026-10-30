@@ -2,8 +2,8 @@
 //
 //   deno run -A scripts/a11y-smoke.ts http://127.0.0.1:8080/compose.html [--chrome /path/to/chrome]
 //
-// Drives the page in headless Chrome over the DevTools protocol (a small helper is inlined below, so
-// there is nothing to install) and checks, in all ten views of both examples:
+// Drives the page in headless Chrome over the DevTools protocol (scripts/cdp.ts, a small helper, so
+// there is nothing to install) and checks, in every view module of both examples:
 //
 //   - zero console errors, exceptions and failed requests on load;
 //   - nothing focusable is aria-hidden; no role=button holds a focusable descendant (nested
@@ -18,6 +18,9 @@
 //
 // It is not part of `make test` (it needs Chrome and a running server). Exit status 1 on any failure.
 
+import { sleep, startChrome } from "./cdp.ts";
+import { VIEWS as ALL_VIEWS } from "../public/compose/views-meta.js";
+
 const args = Deno.args;
 const url = args.find((a) => a.startsWith("http"));
 if (!url) {
@@ -27,111 +30,11 @@ if (!url) {
 const chromeArg = args.indexOf("--chrome");
 const CHROME = chromeArg >= 0 ? args[chromeArg + 1] : Deno.env.get("CHROME") ?? "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 
-// --- a minimal CDP driver ---------------------------------------------------------------------------
-
-const KEYS: Record<string, { code: string; vk: number; text?: string }> = {
-  Enter: { code: "Enter", vk: 13, text: "\r" },
-  Escape: { code: "Escape", vk: 27 },
-  Tab: { code: "Tab", vk: 9 },
-  ArrowLeft: { code: "ArrowLeft", vk: 37 },
-  ArrowUp: { code: "ArrowUp", vk: 38 },
-  ArrowRight: { code: "ArrowRight", vk: 39 },
-  ArrowDown: { code: "ArrowDown", vk: 40 },
-};
-
-class Page {
-  private n = 0;
-  private waiting = new Map<number, (v: any) => void>();
-  private loaded: (() => void) | null = null;
-  problems: string[] = [];
-  paused: string[] = []; // requests held by hold() (Fetch.requestPaused)
-  failAll = false;       // fail what hold() matches at once (an offline network) instead of holding it
-  close: () => Promise<void> = async () => {};
-  constructor(private ws: WebSocket) {
-    ws.onmessage = (ev) => {
-      const m = JSON.parse(ev.data as string);
-      if (m.id !== undefined) { this.waiting.get(m.id)?.(m); this.waiting.delete(m.id); return; }
-      const p = m.params ?? {};
-      if (m.method === "Page.loadEventFired") this.loaded?.();
-      else if (m.method === "Fetch.requestPaused") { if (this.failAll) this.send("Fetch.failRequest", { requestId: p.requestId, errorReason: "InternetDisconnected" }).catch(() => {}); else this.paused.push(p.requestId); }
-      else if (m.method === "Runtime.exceptionThrown") this.problems.push(`exception: ${p.exceptionDetails?.exception?.description ?? p.exceptionDetails?.text}`);
-      else if (m.method === "Runtime.consoleAPICalled" && (p.type === "error" || p.type === "assert")) this.problems.push(`console.${p.type}: ${(p.args ?? []).map((a: any) => a.value ?? a.description).join(" ")}`);
-      else if (m.method === "Log.entryAdded" && p.entry?.level === "error") this.problems.push(`log.error: ${p.entry.text} ${p.entry.url ?? ""}`);
-      else if (m.method === "Network.loadingFailed" && !p.canceled) this.problems.push(`request failed: ${p.errorText}`);
-      else if (m.method === "Network.responseReceived" && p.response?.status >= 400) this.problems.push(`HTTP ${p.response.status}: ${p.response.url}`);
-    };
-  }
-  send(method: string, params: Record<string, unknown> = {}): Promise<any> {
-    const id = ++this.n;
-    return new Promise((res, rej) => {
-      this.waiting.set(id, (m) => (m.error ? rej(new Error(m.error.message)) : res(m.result)));
-      this.ws.send(JSON.stringify({ id, method, params }));
-    });
-  }
-  async init(width = 1280, height = 900) {
-    for (const d of ["Page", "Runtime", "Log", "Network"]) await this.send(`${d}.enable`);
-    await this.send("Emulation.setDeviceMetricsOverride", { width, height, deviceScaleFactor: 1, mobile: false });
-  }
-  async goto(u: string) {
-    const loaded = new Promise<void>((r) => { this.loaded = r; });
-    await this.send("Page.navigate", { url: u });
-    await loaded;
-  }
-  // deno-lint-ignore no-explicit-any
-  async eval(expr: string): Promise<any> {
-    const r = await this.send("Runtime.evaluate", { expression: expr, awaitPromise: true, returnByValue: true, userGesture: true });
-    if (r.exceptionDetails) throw new Error(r.exceptionDetails.exception?.description ?? r.exceptionDetails.text);
-    return r.result.value;
-  }
-  async press(key: string, shift = false) {
-    const k = KEYS[key] ?? { code: `Key${key.toUpperCase()}`, vk: key.toUpperCase().charCodeAt(0), text: key };
-    const modifiers = shift ? 8 : 0;
-    await this.send("Input.dispatchKeyEvent", { type: k.text ? "keyDown" : "rawKeyDown", key, code: k.code, windowsVirtualKeyCode: k.vk, text: k.text, modifiers });
-    await this.send("Input.dispatchKeyEvent", { type: "keyUp", key, code: k.code, windowsVirtualKeyCode: k.vk, modifiers });
-    await sleep(40);
-  }
-  async click(x: number, y: number) {
-    for (const type of ["mouseMoved", "mousePressed", "mouseReleased"]) await this.send("Input.dispatchMouseEvent", { type, x, y, button: "left", clickCount: 1, buttons: type === "mousePressed" ? 1 : 0 });
-    await sleep(100);
-  }
-  /** Hold the requests whose URL matches (before navigating); fail() ends them as an offline network would. */
-  async hold(patterns: string[]) {
-    await this.send("Fetch.enable", { patterns: patterns.map((urlPattern) => ({ urlPattern, requestStage: "Request" })) });
-  }
-  async fail() {
-    for (const requestId of this.paused.splice(0)) await this.send("Fetch.failRequest", { requestId, errorReason: "InternetDisconnected" }).catch(() => {});
-  }
-  async waitFor(expr: string, ms = 20000): Promise<boolean> {
-    for (let t = 0; t < ms; t += 100) { if (await this.eval(expr)) return true; await sleep(100); }
-    return false;
-  }
-}
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-
-const port = 9300 + Math.floor(Math.random() * 600);
-const profile = await Deno.makeTempDir({ prefix: "a11y-smoke-" });
-const chrome = new Deno.Command(CHROME, {
-  args: ["--headless=new", `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`, "--no-first-run", "--disable-gpu", "--disable-extensions", "about:blank"],
-  stdout: "null", stderr: "null",
-}).spawn();
-// Chrome takes a moment to listen.
-for (let i = 0; i < 100; i++) {
-  try { const r = await fetch(`http://127.0.0.1:${port}/json/version`); await r.body?.cancel(); if (r.ok) break; } catch { /* not up yet */ }
-  await sleep(100);
-}
-async function newPage(width = 1280, height = 900): Promise<Page> {
-  const t = await (await fetch(`http://127.0.0.1:${port}/json/new?about:blank`, { method: "PUT" })).json();
-  const ws = new WebSocket(t.webSocketDebuggerUrl);
-  await new Promise((res, rej) => { ws.onopen = res; ws.onerror = rej; });
-  const p = new Page(ws);
-  p.close = async () => { ws.close(); try { const r = await fetch(`http://127.0.0.1:${port}/json/close/${t.id}`); await r.body?.cancel(); } catch { /* gone */ } };
-  await p.init(width, height);
-  return p;
-}
+const { newPage, stop } = await startChrome(CHROME, "a11y-smoke-");
 
 // --- the checks -------------------------------------------------------------------------------------
 
-const VIEWS = ["cospan", "spiders", "operad", "string", "flat", "boundaries", "lens", "incidence", "process", "laws"];
+const VIEWS = ALL_VIEWS.filter((v) => v.kind === "module").map((v) => v.id); // a stored file draws nothing to link
 const EXAMPLES = ["orders", "connect4"];
 let failures = 0, checks = 0;
 const ok = (cond: unknown, what: string, detail = "") => {
@@ -365,9 +268,7 @@ try {
     ok((await p.eval(`document.activeElement.id`)) === "stage", "and moves focus to the diagram");
   }
 } finally {
-  try { chrome.kill("SIGTERM"); } catch { /* gone */ }
-  try { await chrome.status; } catch { /* ignore */ }
-  try { await Deno.remove(profile, { recursive: true }); } catch { /* ignore */ }
+  await stop();
 }
 console.log(`\n${checks - failures}/${checks} checks passed${failures ? `, ${failures} FAILED` : ""}`);
 Deno.exit(failures ? 1 : 0);

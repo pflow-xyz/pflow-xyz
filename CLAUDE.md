@@ -31,6 +31,14 @@ go test ./...               # Run all tests
 ./bin/webserver -port 8080  # Run server with custom port
 ```
 
+## Composition views
+
+`public/compose.html`'s views are listed in the view registry,
+`public/compose/views-meta.js`: adding one is an entry there and a stored file, with
+no edit to the page. Registry format, link scheme (`#view=&ex=` plus `inst`, `links`,
+`plan` when not the default) and keys: `public/compose/VIEWS.md`. Browser checks,
+not in `make test`: `scripts/views-smoke.ts`, `scripts/a11y-smoke.ts`.
+
 ## Build systems
 
 pflow-xyz builds two ways. **Go tooling and Bazel coexist** — `go.mod` stays the
