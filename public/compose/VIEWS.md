@@ -43,6 +43,13 @@ file by rewriting `views-meta.js` alone, in flight, and drives them in Chrome.
 An html file runs in an iframe sandboxed with `allow-scripts` only, so it cannot
 reach the page. A `text` or `json` file on the CDN must be served with CORS.
 
+**Which file types reach a visitor.** On pflow.xyz, nginx passes a static file to the
+app only if its extension is on the list in `/etc/nginx/sites-available/pflow.xyz`;
+anything else is a 404 there, though it works against `make run`. Checked 2026-10-30:
+`html css js mjs json svg png ico xml webmanifest txt webm mp4 wasm`. Store any other
+type on `cdn.stackdump.com/ipfs/`, or add its extension to that list.
+`scripts/views-smoke.ts` against the live URL reports the 404.
+
 ## A module
 
 ```js

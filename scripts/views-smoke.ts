@@ -62,6 +62,7 @@ try {
       ok((await p.eval(`document.body.dataset.example`)) === ex, `#view=${id}&ex=${ex} is on ${ex}`);
       ok((await p.eval(`document.querySelector('#tab-${id}').getAttribute('aria-selected')`)) === "true", `${id}: its tab is selected`);
       ok((await p.eval(STAGE)) > 0, `${id}/${ex}: the stage has a drawing`);
+      await sleep(1500); // what a view fetches after it first draws (Laws: its .chyp sources) can fail after this point
       ok(!(await p.eval(`/render failed|failed to load/.test(document.querySelector('#stage').textContent)`)), `${id}/${ex}: it drew`, (await p.eval(`document.querySelector('#stage').textContent`)).slice(0, 200));
       ok(params(await p.eval(`document.querySelector('#view-link').value.split('#')[1]`)).view === id, `${id}/${ex}: the link bar names it`);
       ok(p.problems.length === 0, `${id}/${ex}: no console problems`, p.problems.join(" | "));
