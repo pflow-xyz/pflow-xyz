@@ -10,7 +10,7 @@
 // It does not load the composition into the registry. pflow-native's registry
 // opens compositions of catalog pattern instances (bundle.open); a stored
 // Bundle needs bundle.load, which the vendored wasm does not have yet, so the
-// ten views keep drawing the built-in example and the panel says so.
+// views keep drawing the built-in example and the panel says so.
 
 import { el } from './dom.js';
 
@@ -98,7 +98,7 @@ export async function showModel(box, cid, deps = {}) {
       m.links.length ? el('ul', { class: 'small' }, m.links.map((l) => el('li', {}, el('b', {}, l.kind), ` ${l.from} → ${l.to}`))) : null,
       el('img', { src: `/img/${cid}.svg`, alt: `${m.name || 'composition'}: the flat net`, class: 'model-flat', loading: 'lazy' }),
       el('p', { class: 'small muted' },
-        'The ten views below still draw the built-in orders / workers / payment example. Loading a stored composition into the registry needs bundle.load in pflow-native, which the vendored wasm does not have yet.'),
+        'The views below still draw the built-in orders / workers / payment example. Loading a stored composition into the registry needs bundle.load in pflow-native, which the vendored wasm does not have yet.'),
     );
   } else if (m.kind === 'plan') {
     rows.push(el('p', { class: 'small' }, 'A search plan for the model ', el('a', { href: `/compose.html?cid=${m.modelCid}` }, short(m.modelCid)), '.'));

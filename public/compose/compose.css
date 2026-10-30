@@ -34,7 +34,7 @@ a { color: var(--accent); }
 .seg:first-child { border-radius: 6px 0 0 6px; }
 .seg:last-child { border-radius: 0 6px 6px 0; border-left: 0; }
 .seg.active { background: var(--ink); color: #fff; border-color: var(--ink); }
-.tabs { display: flex; flex-wrap: wrap; gap: 4px; }
+.tabs { display: flex; flex-wrap: wrap; gap: 4px; max-height: 30vh; overflow-y: auto; padding: 2px; margin: -2px; } /* many views scroll here, not over the diagram */
 .tab { border: 1px solid var(--line); background: #fff; border-radius: 6px; padding: 5px 9px; cursor: pointer; font: inherit; }
 .tab.active { background: var(--accent); color: #fff; border-color: var(--accent); }
 .tab.broken { text-decoration: line-through; color: var(--bad); }
@@ -42,6 +42,22 @@ a { color: var(--accent); }
 /* layout */
 .layout { display: grid; grid-template-columns: minmax(0, 1fr) var(--side-w); gap: 10px; padding: 10px; height: calc(100vh - 64px); }
 .stage-wrap { display: flex; flex-direction: column; min-width: 0; min-height: 0; position: relative; }
+.view-bar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 4px 8px; margin-bottom: 6px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; }
+.view-link { flex: 1 1 14em; min-width: 0; font: 12px ui-monospace, monospace; color: var(--muted); padding: 2px 6px; border: 1px solid var(--line); border-radius: 4px; background: #fff; }
+.view-bar .warn { flex-basis: 100%; margin: 0; }
+.stored { display: block; max-width: 100%; }
+iframe.stored { width: 100%; height: 70vh; border: 1px solid var(--line); }
+.stored-text { white-space: pre-wrap; overflow-wrap: anywhere; }
+.view-index table { border-collapse: collapse; width: 100%; font-size: 12px; }
+.view-index th, .view-index td { text-align: left; vertical-align: top; border-bottom: 1px solid var(--line); padding: 6px 8px; }
+.view-index tbody th { font-weight: 600; min-width: 14em; }
+.view-index tbody th p { margin: 2px 0 0; font-weight: 400; }
+.view-index .num kbd { display: block; margin-top: 2px; }
+.view-index .links div { white-space: nowrap; margin-bottom: 3px; }
+.view-index ul { margin: 2px 0; padding-left: 16px; }
+.view-index .reads ul { list-style: none; padding: 0; }
+.view-index tr.broken th { color: var(--bad); }
+.toolbar[hidden] { display: none; }
 .toolbar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 6px 8px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px 8px 0 0; }
 .tb-label { color: var(--muted); }
 .tb-sep { width: 1px; height: 18px; background: var(--line); margin: 0 4px; }

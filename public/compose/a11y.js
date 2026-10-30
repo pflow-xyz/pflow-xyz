@@ -25,7 +25,7 @@ import { portLabel, slotLabel, pieceLabel, viewLabel, eventText, schemaCode, uni
 import { state, subnetsById } from './state.js';
 import { SLOTS, pieceByName, LINK_STYLE } from './model.js';
 import { schemaColor } from './theme.js';
-import { VIEW_IDS } from './ctx.js';
+import { VIEW_IDS, INDEX_VIEW, viewKey } from './views-meta.js';
 import { announce, initLive, takeFocusRequest } from './a11y-bus.js';
 import { installMotionGuard } from './motion.js';
 
@@ -370,14 +370,15 @@ export function tabsAndToggles() {
   const tabs = [...document.querySelectorAll('#tabs .tab')];
   const tl = $('#tabs');
   if (tl) { tl.setAttribute('role', 'tablist'); tl.setAttribute('aria-label', 'Composition views'); }
-  tabs.forEach((b, i) => {
-    const id = VIEW_IDS[i];
+  tabs.forEach((b) => {
+    const id = b.dataset.view;
     const on = id === state.view;
     b.setAttribute('role', 'tab');
     b.id = `tab-${id}`;
     b.setAttribute('aria-selected', String(on));
     b.setAttribute('aria-controls', 'stage');
-    b.setAttribute('aria-keyshortcuts', i === 9 ? '0' : String(i + 1));
+    const key = id === INDEX_VIEW.id ? 'v' : viewKey(VIEW_IDS.indexOf(id));
+    if (key) b.setAttribute('aria-keyshortcuts', key); else b.removeAttribute('aria-keyshortcuts');
     b.setAttribute('tabindex', on ? '0' : '-1');
   });
   // The Laws view's own buttons mark the one shown by a class only: the tabs (theories) and chips (rules, rewrites).

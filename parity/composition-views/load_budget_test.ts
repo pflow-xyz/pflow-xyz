@@ -226,9 +226,9 @@ Deno.test("no view module is in the page's static graph (each is imported on fir
   const app = new URL("compose/app.js", PUBLIC);
   const files = [...staticGraph(app).keys()].map((k) => k.slice(PUBLIC.href.length));
   assertEquals(files.filter((f) => f.startsWith("compose/views/")), []);
-  // app.js's only dynamic import is the view module of a validated id
+  // app.js's only dynamic import is the module a registry entry names, and an entry names a path under views/ (entryProblems)
   const dyn = [...read(app).matchAll(/\bimport\(([^)]*)\)/g)].map((m) => m[1]);
-  assertEquals(dyn, ["`./views/${id}.js`"]);
+  assertEquals(dyn, ["`./${VIEW_META[id].src}`"]);
 });
 
 Deno.test("only views/laws.js reaches laws-live.js, and only laws-live.js names Pyodide's hosts", () => {
@@ -260,9 +260,11 @@ Deno.test("views-meta.js: the tab labels are what each view module exports", asy
   assertEquals(CTX_VIEW_IDS, VIEW_IDS);
   assertEquals(Object.keys(VIEW_META), VIEW_IDS);
   for (const id of VIEW_IDS) {
-    const v = (await import(`../../public/compose/views/${id}.js`)).default;
+    const m = VIEW_META[id as keyof typeof VIEW_META];
+    if (m.kind !== "module") continue;
+    const v = (await import(`../../public/compose/${m.src}`)).default;
     assertEquals(v.id, id);
-    assertEquals({ title: v.title, short: v.short }, VIEW_META[id as keyof typeof VIEW_META], `views-meta.js is out of step with views/${id}.js`);
+    assertEquals({ title: v.title, short: v.short }, { title: m.title, short: m.short }, `views-meta.js is out of step with ${m.src}`);
   }
 });
 
@@ -373,6 +375,14 @@ Deno.test("hash: every view id is accepted", () => {
     readHash();
     assertEquals(state.view, id);
   }
+});
+
+Deno.test("hash: an old or informal name for a view opens it, and is written back as its id", () => {
+  G.location.hash = "#view=wiring&ex=orders";
+  readHash();
+  assertEquals(state.view, "operad");
+  writeHash();
+  assertEquals(params(G.location.hash), { view: "operad", ex: "orders" });
 });
 
 Deno.test("hash: an unknown view or example changes nothing, and is written back as the real one", () => {

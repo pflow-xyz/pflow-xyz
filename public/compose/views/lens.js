@@ -252,6 +252,7 @@ export default {
   id: 'lens',
   title: 'Open games / lenses (analogy)',
   short: 'Lenses',
+  consumes: ['bundle.flatten', 'bundle.lens', 'bundle.state', 'plan.state'],
   convention: {
     summary: 'In compositional game theory (Ghani, Hedges, Winschel, Zahn) an open game has the shape of a lens: a box with a forward lane (play goes in on the left and out on the right) and a backward lane (utility comes in on the right and out on the left); boxes compose by plugging one box\'s forward output into the next and the next\'s backward output back into the first. This view borrows that shape, and only the shape, for the Connect-4 search plan: positions and move lists go forward, down the tree, on the top lanes; values and bounds come back, up the tree, on the bottom lanes. Read a box by its two lanes; read nesting as "runs around".',
     examples: {

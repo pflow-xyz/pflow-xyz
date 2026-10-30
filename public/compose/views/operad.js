@@ -1178,6 +1178,7 @@ export default {
   id: 'operad',
   title: 'Wiring diagrams (operad nesting)',
   short: 'Operad',
+  consumes: ['bundle.flatten', 'bundle.state', 'plan.state'],
   convention: {
     summary: 'Spivak\'s operad of wiring diagrams: an outer box with typed holes, each hole filled by a box whose interface matches. Filling a hole is operadic composition, and nesting is composition again, so a drawing is read from the outside in: the outer box is one operation, its holes are its arguments, and whatever fills them is the operand. In Spivak\'s operad a wiring diagram is a cospan of ports onto cables (no inputs or outputs); in the typed version, ports soldered to one cable must carry the same type.',
     examples: {

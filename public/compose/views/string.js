@@ -169,6 +169,7 @@ export default {
   id: 'string',
   title: 'String diagram',
   short: 'String',
+  consumes: ['bundle.flatten', 'bundle.state', 'plan.state'],
   convention: {
     summary: 'String diagrams in a symmetric monoidal category: boxes are morphisms, wires are objects, side by side is the tensor ⊗ and stacking (top to bottom) is composition ∘. Drawn in the conventions of pflow-xyz diagram-viewer.js: flow runs top to bottom, inputs sit on a box\'s top edge and outputs on its bottom, wires are grey cubics labelled by their type, back edges are dashed red and go round the right side. The toggle switches between the pattern level (this view\'s drawing of the instances and their links) and the transition level (the flat net, drawn by diagram-viewer.js itself, unmodified).',
     examples: {

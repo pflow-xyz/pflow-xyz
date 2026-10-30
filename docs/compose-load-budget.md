@@ -130,8 +130,8 @@ Recommendation below.
 
 1. **View modules are imported on first use** (`compose/app.js`
    `loadView`), the shown view first. The tab labels come from
-   `compose/views-meta.js` (no imports; a test holds it equal to each module's
-   `title` and `short`). A tab pressed while its module loads shows "Loading
+   `compose/views-meta.js`, the view registry (`compose/VIEWS.md`; no imports; a
+   test holds it equal to each module's `title` and `short`). A tab pressed while its module loads shows "Loading
    the X view..." and draws when the module arrives. The other nine are
    fetched together at low priority and imported one at a time when the
    browser is idle after the first view is drawn, so switching is instant and

@@ -1472,6 +1472,7 @@ export default {
   id: 'laws',
   title: 'Composition laws (checked by Chyp)',
   short: 'Laws',
+  consumes: ['assets/chyp/index.json', 'bundle.flatten', 'bundle.state', 'plan.state'],
   convention: {
     summary: 'Each file in chyp/ states some composition laws as Chyp rules (ASSUMED: a person\'s reading of the source lines the file cites) and then rewrites built only from those rules (PROVED: Chyp\'s own checker checked every step, headless). A rewrite is drawn as Chyp\'s editor shows one: one string diagram per term, left to right, inputs on the left and outputs on the right; boxes are generators, wires are vertices, coloured by wire type. Each "=" names the rule that justifies the step (−r is the rule read right to left) and Chyp\'s verdict: ✓ VALID green, ✗ INVALID red. Where Chyp\'s matcher found the rule, the matched part of the diagram before the step is marked in yellow (matched boxes get Chyp\'s bold pen); hover an "=" to see, in violet, what it inserted. Coordinates are Chyp\'s own layout. Rules are dashed chips; click one to see its two sides.',
     examples: {

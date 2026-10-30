@@ -140,6 +140,7 @@ export default {
   id: 'incidence',
   title: 'Incidence matrices',
   short: 'Incidence',
+  consumes: ['analysis.incidence', 'assets/connect-4.json', 'bundle.flatten', 'bundle.state'],
   convention: {
     summary: 'A P/T net as its incidence matrix C = post − pre: one row per place, one column per transition, and C[p, t] is what one firing of t does to p (−w consumed, +w produced, blank for 0). Firing a sequence with count vector σ takes M to M + C·σ, so a row vector y with y·C = 0 is a P-invariant: y·M never changes. Composition acts on C directly. The monoidal product ⊗ (disjoint union) is the block-diagonal direct sum. An event link fuses transitions, and go-pflow Flatten adds the fused columns (MergeSum: weights add). A token or data link fuses places, and Flatten adds the fused rows. A guard link lowers to a read arc, which moves nothing, so C does not change.',
     examples: {
