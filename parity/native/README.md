@@ -69,6 +69,16 @@ run; the rest is deterministic.
 3. Set the `rev` in `gen/Cargo.toml` and the `pflow_native` string in
    `gen/src/main.rs` to `COMMIT`, then `make native-goldens`.
 4. `node scripts/gen-llm-tools.mjs` (the chat's tool manifest) and `make test-js`.
+5. Pin the CDN copy of the same build: in pflow-native `make wasm-publish`
+   (publishes `target/wasm-shim` to cdn.stackdump.com under the .wasm's content
+   address and prints the URL), then
+   `node scripts/sync-native-wasm.mjs --cdn https://cdn.stackdump.com/ipfs/<cid>/`.
+   It refuses a URL whose .wasm or glue is not the vendored build, and writes
+   `public/vendor/pflow-native-wasm/cdn.js` and the lock's `cdn` entry. The page
+   then loads the engine from the CDN, keeps it only if it hashes to the pinned
+   sha256, and otherwise uses the vendored copy (`engineState.source`). A
+   re-vendor without `--cdn` deletes the old pin, so a page never fetches
+   another build than the one it vendors.
 
 ## JS vs wasm (`js_vs_wasm_test.ts`)
 

@@ -185,6 +185,9 @@ Recommendation below.
    (browsers do over https; the `.gz` stays for the rest and is the fallback).
    The lock records the `.br`'s sha256 and size, and `petri-wasm_test.ts`
    checks that it decodes to the wasm the lock names.
+   The engine now normally comes from cdn.stackdump.com in the same coding
+   (`Accept-Encoding` picks the published `.br` or `.gz`), so the wire size is
+   unchanged; this handler serves the fallback copy.
 6. **Laws**: still lazy (nothing changed in what is fetched or when). Its
    status line now tells what is coming ("about 6.5 MB for Pyodide and lark,
    then about 18 MB more for the live layout"), the stages are announced in a

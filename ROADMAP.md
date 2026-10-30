@@ -177,8 +177,9 @@ Wasm adds what JS lacks and is loaded only when one of those commands runs.
   `execute(id, argsJson)` and `load(jsonld)`.
 - **How it ships.** It is published to cdn.stackdump.com as a versioned
   artifact and vendored into `public/vendor/` with a hash lock, the same
-  pattern as `docs.lock`. It is served same-origin as `application/wasm`
-  and listed in `files.bzl`.
+  pattern as `docs.lock`, and listed in `files.bzl`. The page fetches the
+  pinned build from the CDN, checks its sha256, and falls back to the
+  vendored copy, served same-origin as `application/wasm`.
 - **Upstreaming.** The ports FEATURES.md §D marks "worth upstreaming"
   (siphons, symmetry, systems, layout, CID) can move to pflow-rs later
   without changing the browser contract.

@@ -1,5 +1,6 @@
 import { assert, assertEquals, assertRejects, assertThrows } from "https://deno.land/std@0.224.0/assert/mod.ts";
-import { dropEngine, engineState, loadEngine, localStorageStorage, memoryStorage } from "./petri-wasm.js";
+import { dropEngine, engineState, fetchPinned, loadEngine, localStorageStorage, memoryStorage } from "./petri-wasm.js";
+import { CDN } from "./vendor/pflow-native-wasm/cdn.js";
 import { COMMANDS, CommandError, Registry, createHeadlessHost, nativeCommands } from "./petri-commands.js";
 import { NATIVE_COMMANDS, NATIVE_VERSION } from "./vendor/pflow-native-wasm/commands.js";
 import { EDITS, EDITS_ON_CURRENT, EXPOSED, REPLACES, STRIP_ARGS, WRITES_STATE, checkExposure } from "../scripts/sync-native-wasm.mjs";
@@ -12,6 +13,40 @@ await loadEngine({ bytes: wasm });
 
 const hex = async (b: Uint8Array<ArrayBuffer> | Uint8Array) =>
     [...new Uint8Array(await crypto.subtle.digest("SHA-256", b as BufferSource))].map((x) => x.toString(16).padStart(2, "0")).join("");
+
+// The CDN pin (scripts/sync-native-wasm.mjs --cdn) names the vendored build:
+// petri-wasm.js loads that URL and keeps only bytes that hash to the vendored
+// .wasm's sha256, falling back to the vendored copy otherwise.
+Deno.test("vendor: the CDN pin is the vendored build", async () => {
+    const lock = JSON.parse(await Deno.readTextFile(new URL("../pflow-native-wasm.lock", import.meta.url)));
+    assertEquals(CDN, { url: lock.cdn.url, file: lock.cdn.file, sha256: lock.cdn.sha256 });
+    assertEquals(CDN.sha256, lock.files["pflow_native_wasm_bg.wasm"]);
+    assertEquals(CDN.sha256, await hex(wasm));
+    assert(/^https:\/\/cdn\.stackdump\.com\/ipfs\/bafyrei[0-9a-f]{32}\/$/.test(CDN.url), CDN.url);
+    // The content address is the .wasm's own hash.
+    assertEquals(CDN.url.slice(-33, -1), CDN.sha256.slice(0, 32));
+    // The composition page preloads the same URL, or it would be fetched twice.
+    const compose = await Deno.readTextFile(new URL("./compose.html", import.meta.url));
+    assert(compose.includes(`<link rel="preload" href="${CDN.url}${CDN.file}" as="fetch" crossorigin>`), "compose.html preloads the pin");
+});
+
+Deno.test("fetchPinned: only the pinned bytes, from the pinned file", async () => {
+    const asked: string[] = [];
+    const serve = (body: Uint8Array | null, status = 200) => (u: string | URL | Request) => {
+        asked.push(String(u));
+        return Promise.resolve(new Response(body as BodyInit | null, { status }));
+    };
+    const got = new Uint8Array(await fetchPinned(CDN, serve(wasm) as typeof fetch));
+    assertEquals(await hex(got), CDN.sha256);
+    assertEquals(asked, [CDN.url + CDN.file]);
+    const tampered = wasm.slice();
+    tampered[100] ^= 1;
+    const good = serve(wasm) as typeof fetch, bad = serve(tampered) as typeof fetch;
+    await assertRejects(() => fetchPinned(CDN, bad), Error, "not the pinned");
+    await assertRejects(() => fetchPinned(CDN, serve(null, 404) as typeof fetch), Error, "HTTP 404");
+    await assertRejects(() => fetchPinned(null, good), Error, "no CDN pin");
+    await assertRejects(() => fetchPinned({ ...CDN, sha256: "x" }, good), Error, "no CDN pin");
+});
 
 Deno.test("vendor: the bundle matches pflow-native-wasm.lock", async () => {
     const lock = JSON.parse(await Deno.readTextFile(new URL("../pflow-native-wasm.lock", import.meta.url)));

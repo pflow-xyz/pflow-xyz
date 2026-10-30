@@ -103,5 +103,10 @@
     "wasm": 8544501,
     "gzip": 1891277,
     "brotli": 1254525
+  },
+  "cdn": {
+    "url": "https://cdn.stackdump.com/ipfs/bafyrei82a93548fc318a6d832fa5c3b165730a/",
+    "file": "pflow_native_wasm_bg.wasm",
+    "sha256": "82a93548fc318a6d832fa5c3b165730aaac40b4e39ddab95d5d3b21a7ece540f"
   }
 }

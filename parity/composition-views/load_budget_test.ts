@@ -17,6 +17,7 @@ import { installDom } from "./vdom.js";
 import { VIEW_IDS, VIEW_META } from "../../public/compose/views-meta.js";
 import { VIEW_IDS as CTX_VIEW_IDS } from "../../public/compose/ctx.js";
 import { readHash, state, writeHash } from "../../public/compose/state.js";
+import { CDN } from "../../public/vendor/pflow-native-wasm/cdn.js";
 
 const PUBLIC = new URL("../../public/", import.meta.url);
 const read = (u: URL) => Deno.readTextFileSync(u);
@@ -67,6 +68,8 @@ function isFirstParty(u: string): boolean {
   let url: URL;
   try { url = new URL(u.trim(), `${FIRST_PARTY}/`); } catch { return false; }
   if (["data:", "about:", "mailto:", "tel:"].includes(url.protocol)) return true;
+  // The pinned engine (vendor/pflow-native-wasm/cdn.js): this one file, not its host.
+  if (url.href === CDN.url + CDN.file) return true;
   return url.origin === FIRST_PARTY;
 }
 
