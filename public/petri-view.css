@@ -3287,6 +3287,66 @@ canvas.pv-canvas {
     resize: vertical;
 }
 
+/* On a phone the panel's frame comes from what can be seen (chatFrame in
+   petri-chat-ui.js): above the run bar, the keyboard and the browser's toolbars.
+   These rules are gated so a desktop window keeps the docked panel above. */
+@media (max-width: 760px), (max-height: 520px) {
+    .pv-chat {
+        /* chatFrame's answer overrides these inline. */
+        --pv-chat-top: 64px;
+        --pv-chat-height: calc(100% - 80px);
+        top: var(--pv-chat-top);
+        bottom: auto;
+        height: var(--pv-chat-height);
+        /* The base width is content-box: the padding pushed it 8px off the left. */
+        box-sizing: border-box;
+        width: min(444px, calc(100vw - 32px));
+    }
+    /* Short, its top is over the hamburger (1300) and the sign-in button. */
+    .pv-chat-short {
+        z-index: 1305;
+    }
+    .pv-chat-short .pv-chat-quota,
+    .pv-chat-short .pv-chat-steps {
+        display: none;
+    }
+    .pv-chat [hidden] {
+        display: none;
+    }
+    .pv-chat-head {
+        flex-wrap: wrap;
+    }
+    .pv-chat-head .pv-btn {
+        padding: 4px 8px;
+        min-height: 36px;
+        font-size: 13px;
+    }
+    .pv-chat-modes {
+        margin-left: 0;
+    }
+    .pv-chat-head [data-act="new"] {
+        margin-left: auto;
+    }
+    .pv-chat-log {
+        min-height: 0;
+        overscroll-behavior: contain;
+    }
+    .pv-chat-form {
+        flex: none;
+    }
+    /* Under 16px, iOS zooms the page in on focus and leaves it zoomed, which
+       crops whatever is at the edges. */
+    .pv-chat-input {
+        font-size: 16px;
+        resize: none;
+    }
+}
+@media (max-width: 480px) {
+    .pv-chat-head strong {
+        display: none;
+    }
+}
+
 /* Bars (tornado), heatmap and scatter results */
 .pv-result-bars,
 .pv-result-heatmap,

@@ -48,3 +48,13 @@ not reach them, and `file.*` stays out of its tools.
 `public/petri-landing_test.ts` (`make test-js`) holds the states, the routes and the kept words as pure functions.
 `scripts/landing-smoke.ts` drives the page in Chrome. It cannot sign in to GitHub, so a signed-in session is answered
 in the page: it proves the route, the mode and the words reach the Assistant's request, not Gemini.
+
+On a phone it uses Chrome's mobile layout with touch at 390x664, 375x553, 430x739, 412x732 and 390x380, and asks
+`elementFromPoint` rather than only comparing rectangles, because the Assistant's input row was inside the viewport and
+still hidden: the run bar (z-index 1200) painted over the panel (1000). The frame comes from `chatFrame` in
+`petri-chat-ui.js`: above the run bar and whatever `visualViewport` says is covered, and a desktop window keeps the
+docked rules. No `interactive-widget=resizes-content`, which iOS ignores and which would resize the editor under every
+field on Android. No `viewport-fit=cover`, which would put the rest of the page under the notch for no gain here.
+
+A keyboard cannot be raised in headless Chrome, so that case fakes `window.visualViewport`. Neither iOS Safari nor a
+real keyboard is exercised by the smoke.

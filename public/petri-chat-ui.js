@@ -12,6 +12,11 @@
 
 const MODES = [['auto', 'Auto'], ['build', 'Build'], ['analyse', 'Analyse'], ['explain', 'Explain']];
 
+// The panel's frame on a phone (chatFrame), in CSS pixels. CHAT_TOP is .pv-chat's top: below the editor's top chrome.
+const CHAT_TOP = 64;
+const CHAT_GAP = 8;
+const CHAT_SHORT_BELOW = 480;
+
 function esc(s) {
     return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
@@ -39,6 +44,56 @@ function turnPoster(view) {
         }
         return out;
     };
+}
+
+/**
+ * Where the panel goes on a phone, in the coordinates of position:fixed (the layout viewport). A software keyboard
+ * and a browser's toolbars shrink only what can be seen, not the layout viewport, so `bottom: 16px` lands behind
+ * them; and the editor's run bar sits at the bottom of the screen above the panel's stacking level. The input row has
+ * to be above all of those. Short (the keyboard is up, or a landscape phone): the panel gives up the room it leaves
+ * for the editor's top chrome. Pure, so it can be tested without a browser.
+ *
+ * @param {{ visibleTop: number, visibleHeight: number, barTop?: number|null }} seen what is on screen; barTop is the
+ *   top of the run bar when there is one showing
+ * @returns {{ top: number, height: number, short: boolean }}
+ */
+export function chatFrame({ visibleTop, visibleHeight, barTop = null }) {
+    const visibleBottom = visibleTop + visibleHeight;
+    const short = visibleHeight < CHAT_SHORT_BELOW;
+    const top = visibleTop + (short ? CHAT_GAP : CHAT_TOP);
+    const floor = barTop !== null && barTop > visibleTop && barTop < visibleBottom ? barTop : visibleBottom;
+    return { top, height: Math.max(0, floor - CHAT_GAP - top), short };
+}
+
+/** Keep the panel on chatFrame while it is open; ends itself when the panel leaves the page. */
+function fitChatPanel(view, panel) {
+    const stops = new AbortController();
+    const { signal } = stops;
+    const log = panel.querySelector('.pv-chat-log');
+    let resized = null;
+    const stop = () => { stops.abort(); resized?.disconnect(); };
+    const fit = () => {
+        if (!panel.isConnected) { stop(); return; }
+        const vv = window.visualViewport;
+        // A pinch zoom is the reader's: the panel stays laid out for the page, and they pan to it.
+        const seen = vv && vv.scale < 1.01 ? { visibleTop: vv.offsetTop, visibleHeight: vv.height } : { visibleTop: 0, visibleHeight: window.innerHeight };
+        const bar = view.querySelector('.pv-run-bar')?.getBoundingClientRect();
+        const { top, height, short } = chatFrame({ ...seen, barTop: bar?.height ? bar.top : null });
+        const pinned = log.scrollTop + log.clientHeight >= log.scrollHeight - 8;
+        panel.style.setProperty('--pv-chat-top', `${top}px`);
+        panel.style.setProperty('--pv-chat-height', `${height}px`);
+        panel.classList.toggle('pv-chat-short', short);
+        if (pinned) log.scrollTop = log.scrollHeight; // the newest message stays in sight as the panel shrinks
+    };
+    window.visualViewport?.addEventListener('resize', fit, { signal });
+    window.visualViewport?.addEventListener('scroll', fit, { signal });
+    window.addEventListener('resize', fit, { signal });
+    if (window.ResizeObserver) {
+        resized = new ResizeObserver(fit); // the run bar grows a row in edit mode
+        const bar = view.querySelector('.pv-run-bar');
+        if (bar) resized.observe(bar);
+    }
+    fit();
 }
 
 /**
@@ -82,6 +137,7 @@ export async function openChat(view, { mode, message } = {}) {
         </form>`;
     document.body.appendChild(panel);
     view._chatPanel = panel;
+    fitChatPanel(view, panel);
     const $ = (s) => panel.querySelector(s);
     const log = $('.pv-chat-log');
 

@@ -41,7 +41,7 @@ const SIGNED_IN = (seed = "", statusDelay = 0) => `
       if (!bearer) return new Response('{"error":"sign in"}', { status: 401 });
       const body = JSON.parse(opts.body);
       window.__turns.push(body);
-      return json({ reply: 'smoke reply', tool_calls: [], message: { role: 'model', parts: [{ text: 'smoke reply' }] }, remaining_today: 6, mode: body.mode === 'auto' ? 'analyse' : body.mode });
+      return json({ reply: window.__reply || 'smoke reply', tool_calls: [], message: { role: 'model', parts: [{ text: 'smoke reply' }] }, remaining_today: 6, mode: body.mode === 'auto' ? 'analyse' : body.mode });
     }
     return real(u, opts);
   };`;
@@ -51,13 +51,45 @@ const CLEAN = `try { localStorage.clear(); sessionStorage.clear(); } catch {}`;
 // The example cards' thumbnails are stored nets: a scratch server's empty store answers 404 for them.
 const problemsOf = (p: any) => p.problems.filter((x: string) => !/\/img\/z\w+\.svg/.test(x));
 
-async function open(path: string, before?: string, width = 1280, height = 900) {
+async function open(path: string, before?: string, width = 1280, height = 900, phone = false) {
   const p = await newPage(width, height);
+  if (phone) {
+    // cdp.ts opens a desktop page; this is the layout a phone's browser gives, with touch.
+    await p.send("Emulation.setDeviceMetricsOverride", { width, height, deviceScaleFactor: 2, mobile: true });
+    await p.send("Emulation.setTouchEmulationEnabled", { enabled: true });
+  }
   await p.send("Page.addScriptToEvaluateOnNewDocument", { source: CLEAN + (before ?? "") });
   await p.goto(new URL(path, url).href);
   return p;
 }
 const routed = (p: any) => p.waitFor(`document.querySelector('#landing-chat-hint')?.textContent.length > 0`, 20000);
+
+// iPhone-ish and Android sizes, with the browser's chrome taken off the screen.
+const PHONES = [[390, 664], [375, 553], [430, 739], [412, 732]];
+// Before any script, a keyboard: only the visual viewport shrinks, as on iOS and by default on Android. A real keyboard
+// cannot be raised in headless Chrome, so the panel's input (window.visualViewport) is what is faked here.
+const FAKE_KEYBOARD = `
+  window.__vv = { covered: 0, offsetTop: 0, scale: 1, targets: new Set(),
+    get width() { return innerWidth; }, get height() { return innerHeight - this.covered; },
+    addEventListener(_t, f) { this.targets.add(f); }, removeEventListener(_t, f) { this.targets.delete(f); } };
+  Object.defineProperty(window, 'visualViewport', { get: () => window.__vv });
+  window.__cover = (covered, offsetTop = 0) => { Object.assign(window.__vv, { covered, offsetTop }); for (const f of window.__vv.targets) f(); };`;
+// Inside what can be seen (the fake visual viewport, when there is one), and actually the top thing there: a rect in
+// the viewport can still be painted over, which is how the run bar hid the input row.
+const REACHABLE = (sel: string) => `(() => {
+  const e = document.querySelector(${q(sel)}); if (!e) return 'missing';
+  const r = e.getBoundingClientRect();
+  const vv = window.visualViewport, top = vv.offsetTop, bottom = vv.offsetTop + vv.height;
+  if (r.left < 0 || r.right > innerWidth || r.top < top || r.bottom > bottom) return 'off screen: ' + [r.left, r.top, r.right, r.bottom].map(Math.round) + ' of ' + innerWidth + ' visible ' + top + '..' + bottom;
+  const at = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+  return at === e || e.contains(at) ? 'ok' : 'covered by ' + (at?.className || at?.tagName);
+})()`;
+const panelIs = async (p: any, label: string) => {
+  for (const sel of [".pv-chat-input", ".pv-chat-form button", '.pv-chat [data-act="close"]']) {
+    const got = await p.eval(REACHABLE(sel));
+    ok(got === "ok", `${label}: ${sel} is reachable`, got);
+  }
+};
 
 try {
   console.log(`landing smoke: ${url}`);
@@ -169,6 +201,97 @@ try {
     ok(await p.eval(`document.querySelector('#landing-chat-send').getBoundingClientRect().bottom <= document.documentElement.scrollHeight`), "the button is on the page");
     ok(await p.eval(`document.querySelector('#landing-chat-q').getBoundingClientRect().top >= document.querySelector('.landing-nav').getBoundingClientRect().bottom`), "the heading clears the nav");
     ok(await p.eval(`document.querySelector('.landing-hero-buttons').getBoundingClientRect().bottom <= document.querySelector('.landing-hero').getBoundingClientRect().bottom`), "the hero holds its buttons");
+    await p.close();
+  }
+
+  console.log("the Assistant on a phone");
+  const LONG = `window.__reply = 'a long reply '.repeat(120);`;
+  for (const [w, h] of [...PHONES, [390, 380]]) {
+    const label = `${w}x${h}`;
+    const p = await open("/", SIGNED_IN(FAKE_KEYBOARD + LONG), w, h, true);
+    await routed(p);
+    ok(await p.eval(`document.documentElement.scrollWidth <= innerWidth`), `${label}: the landing has no sideways scroll`);
+    ok((await p.eval(`parseFloat(getComputedStyle(document.querySelector('#landing-chat-input')).fontSize)`)) >= 16, `${label}: the prompt is 16px or more (iOS zooms in on a smaller one)`);
+    for (const s of ["#landing-chat-input", "#landing-chat-send"]) {
+      await p.eval(`document.querySelector(${q(s)}).scrollIntoView({ block: 'center' })`);
+      ok((await p.eval(`(() => { const r = document.querySelector(${q(s)}).getBoundingClientRect(); return r.top >= 0 && r.bottom <= innerHeight && r.left >= 0 && r.right <= innerWidth; })()`)), `${label}: ${s} scrolls into view`);
+    }
+    await p.eval(`document.querySelector('input[value="design"]').click()`);
+    await p.eval(`document.querySelector('#landing-chat-input').value = 'a coffee shop'`);
+    await p.eval(`document.querySelector('#landing-chat-send').click()`);
+    ok(await p.waitFor(`!!document.querySelector('.pv-chat-assistant')`, 20000), `${label}: the session opens`, problemsOf(p).join(" | "));
+    await sleep(300);
+
+    await panelIs(p, label);
+    ok((await p.eval(`document.documentElement.scrollWidth <= innerWidth && scrollY === 0`)), `${label}: the page itself does not scroll`);
+    ok((await p.eval(`parseFloat(getComputedStyle(document.querySelector('.pv-chat-input')).fontSize)`)) >= 16, `${label}: the box is 16px or more`);
+    ok(await p.eval(`(() => { const b = document.querySelector('.pv-run-bar').getBoundingClientRect(), c = document.querySelector('.pv-chat').getBoundingClientRect(); return !b.height || c.bottom <= b.top; })()`), `${label}: the panel stops above the run bar`);
+    ok(await p.eval(`(() => { const c = document.querySelector('.pv-chat').getBoundingClientRect(); return [...document.querySelectorAll('.pv-chat-head button')].every((b) => { const r = b.getBoundingClientRect(); return r.left >= c.left && r.right <= c.right; }); })()`), `${label}: the head's buttons are inside the panel`);
+
+    // The message list scrolls by itself, by touch; the input row does not move with it.
+    const scrolls = await p.eval(`(() => { const l = document.querySelector('.pv-chat-log'); return l.scrollHeight > l.clientHeight; })()`);
+    ok(scrolls, `${label}: a long reply is taller than the list`);
+    ok(await p.eval(`(() => { const l = document.querySelector('.pv-chat-log'); return l.scrollTop + l.clientHeight >= l.scrollHeight - 2; })()`), `${label}: it opens on the newest message`);
+    const box = await p.eval(`(() => { const r = document.querySelector('.pv-chat-log').getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()`);
+    const inputAt = await p.eval(`document.querySelector('.pv-chat-input').getBoundingClientRect().top`);
+    const before = await p.eval(`document.querySelector('.pv-chat-log').scrollTop`);
+    // A finger, event by event: Input.synthesizeScrollGesture does nothing in headless Chrome.
+    await p.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: box.x, y: box.y }] });
+    for (let i = 1; i <= 6; i++) { await p.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: box.x, y: box.y + i * 12 }] }); await sleep(16); }
+    await p.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+    await sleep(500);
+    ok((await p.eval(`document.querySelector('.pv-chat-log').scrollTop`)) < before, `${label}: touch scrolls the list`);
+    ok((await p.eval(`document.querySelector('.pv-chat-input').getBoundingClientRect().top`)) === inputAt, `${label}: the input row stays put`);
+    await p.eval(`(() => { const l = document.querySelector('.pv-chat-log'); l.scrollTop = l.scrollHeight; })()`);
+
+    // The browser's toolbars showing over a layout viewport that does not shrink for them.
+    await p.eval(`window.__cover(56)`);
+    await panelIs(p, `${label} toolbars`);
+
+    // A keyboard over the bottom of the screen, then the browser panning to the box, as iOS does.
+    const keyboard = Math.max(100, h - 380);
+    await p.eval(`window.__cover(${keyboard})`);
+    await panelIs(p, `${label} keyboard`);
+    ok(await p.eval(`(() => { const l = document.querySelector('.pv-chat-log'); return l.clientHeight > 40 && l.scrollTop + l.clientHeight >= l.scrollHeight - 2; })()`), `${label} keyboard: the newest message stays in sight`);
+    await p.eval(`window.__cover(${keyboard + 60}, 60)`);
+    await panelIs(p, `${label} keyboard, panned`);
+
+    // Everything that takes room at once, on a keyboard: the input row keeps its place, the rest scrolls.
+    await p.eval(`(() => { const t = document.querySelector('.pv-chat-tools'); t.open = true; t.querySelector('ol').innerHTML = '<li>call</li>'.repeat(60); const e = document.querySelector('.pv-chat-pending'); e.hidden = false; e.innerHTML = '<p>pending</p>'.repeat(40); window.__cover(${keyboard}); })()`);
+    await panelIs(p, `${label} keyboard, tools and pending open`);
+
+    await p.eval(`window.__cover(0)`);
+    await panelIs(p, `${label} keyboard gone`);
+    ok(problemsOf(p).length === 0, `${label}: no console problems`, problemsOf(p).join(" | "));
+    await p.close();
+  }
+  {
+    // A pinch zoom is the reader's: the frame does not follow it, whatever the real viewport does (no fake here).
+    const p = await open("/?route=design", SIGNED_IN(), 390, 664, true);
+    ok(await p.waitFor(`!!document.querySelector('.pv-chat')`, 20000), "pinch: the panel opens");
+    const frame = `JSON.stringify(document.querySelector('.pv-chat').getBoundingClientRect())`;
+    await sleep(200);
+    const at1 = await p.eval(frame);
+    await p.send("Emulation.setPageScaleFactor", { pageScaleFactor: 2 });
+    await sleep(300);
+    ok((await p.eval(`visualViewport.scale`)) > 1.5, "pinch: the page is zoomed");
+    ok((await p.eval(frame)) === at1, "pinch: the panel keeps its frame", await p.eval(frame));
+    await p.close();
+  }
+  {
+    const p = await open("/?route=design", undefined, 375, 553, true);
+    ok(await p.waitFor(`document.querySelector('.pv-chat-log')?.textContent.includes('GitHub sign-in')`, 20000), "signed out on a phone: the panel asks for the sign-in");
+    ok((await p.eval(REACHABLE('.pv-chat-log [data-act="login"]'))) === "ok", "and the button can be reached", await p.eval(REACHABLE('.pv-chat-log [data-act="login"]')));
+    ok(await p.eval(`document.querySelector('.pv-chat-form').getBoundingClientRect().height === 0`), "and there is no box to type in yet");
+    await p.close();
+  }
+  {
+    // A desktop window keeps the docked panel it had.
+    const p = await open("/?route=design", SIGNED_IN());
+    ok(await p.waitFor(`!!document.querySelector('.pv-chat-input')`, 20000), "desktop: the panel opens");
+    const r = JSON.parse(await p.eval(`JSON.stringify(document.querySelector('.pv-chat').getBoundingClientRect())`));
+    ok(r.top === 64 && r.right === 1264 && r.bottom === 884 && r.width === 444, "desktop: the frame is unchanged", JSON.stringify(r));
+    ok((await p.eval(`getComputedStyle(document.querySelector('.pv-chat-input')).fontSize`)) === "14.4px", "desktop: the box's size is unchanged");
     await p.close();
   }
 } finally {
