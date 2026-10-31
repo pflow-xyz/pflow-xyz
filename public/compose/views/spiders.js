@@ -238,13 +238,9 @@ export default {
   id: 'spiders',
   title: 'Sync points as spiders (ZX-style)',
   short: 'Spiders',
-  consumes: ['assets/connect-4.json', 'bundle.flatten', 'bundle.state', 'plan.state'],
+  consumes: ['assets/connect-4.json', 'bundle.flatten', 'bundle.state', 'content.get', 'plan.state'],
   convention: {
     summary: 'In ZX-calculus, spiders are dots of two colours whose legs are wires, and two spiders of one colour that share a leg fuse into one (spider fusion). Here a green spider is one transition class of Flatten (go-pflow\'s, run by the registry as bundle.flatten) with two or more members (event links: its member transitions fire as one), and a red spider is one place class with two or more members (token and data links: its members become one place); a transition or place no link touches is a class of one and is not drawn. Instances are opaque boxes, stacked (⊗ runs down the page). Their ports are legs: transition ports are squares on the right edge, place ports are smaller circles on the left, coloured by schema. Links that share a member are drawn first as separate spiders joined through the shared leg, then slide together into the one spider Flatten makes, labelled with its flat name.',
-    examples: {
-      orders: 'Three boxes (orders, workers, payment). The three idioms are three event links, but Flatten makes two classes: dequeue⊗acquire and dequeue⊗do:reserve share orders/dequeue, so they fuse into fused:orders/dequeue+payment/do_reserve+workers/acquire; release⊗commit stays a two-legged spider and carries the pool-leak caveat in red. The ROADMAP sketch draws three sync spiders, one per idiom; after fusion two remain. There is no red spider: the three default links are event links. cq/13 expects no token candidates among these three, because their place ports\' schemas all differ (compose.go:667-674); what may be linked is the registry\'s answer (bundle.candidates). Add a second instance to make one.',
-      connect4: 'A plan has no event links, so nothing fuses and no spider is drawn. The nearest honest picture: the two pieces of shared state the search keeps, the transposition table and the history table, as junctions (hollow dots, not spiders) with a leg to each part of the plan that reads, writes or caps them. A piece\'s leg is drawn only when that piece is in the plan.',
-    },
     honesty: [
       'ZX spiders carry phases and denote linear maps (a quantum semantics). None of that is used: a spider here has no phase and stands for one equivalence class of Flatten (bundle.flatten), nothing more.',
       'No colour-change, copy, π-commutation, bialgebra or Hopf rule applies. The only law used is fusion of same-colour spiders that share a leg, because that is what Flatten\'s union-find does (unionfind.go:5-14, compose_fuse.go:9-20).',
@@ -254,7 +250,6 @@ export default {
       'What an event spider means is a rendezvous (Bruni et al.): one transition whose pre- and postset is the union of its members\', enabled only when every member is. That is the semantics; the dot is only its picture.',
       'A red spider is red for its union-find, not its link kind: token and data links share one union-find, so each leg keeps its own RenderDOT style (data: dotted blue).',
       'Guard links are not spiders: with the default condition "> 0" they lower to a read arc, and they sit outside the free-SMC fragment (ROADMAP Phase 6). They are drawn as an ochre ⊘ wire and nothing fuses.',
-      'Connect-4: the junctions are shared state, not spiders. A plan has no event links, so no spider law applies to it at all.',
     ],
     bib: BIB,
     cites: [C.ufDoc, C.ufUnion, C.fuseDoc, C.placeClasses, C.transClasses, C.flatNames, C.dot, C.tokenDir, C.leak, C.roadSpider, C.roadLeak, C.roadScenario,
@@ -578,7 +573,7 @@ function renderOrders(ctx, wrap) {
     lb.lines.forEach((ln, i) => g.append(s('text', { x: lb.x + 7, y: lb.y + 16 + i * 14, 'font-size': 11, fill: T.LEAK, 'font-weight': i === 0 ? 600 : null }, ln)));
     ctx.emit('leak', leakLink.key, {});
     const base = ctx.info.linkInfo(leakLink, byId);
-    ctx.hover(g, { ...base, title: 'pool-leak caveat on release ⊗ commit', note: 'Fusion only says release and commit fire as one. Nothing fires release on the rollback path, so a worker taken by acquire stays in in_use: the expected failure ROADMAP 4.4 records.', cites: [C.leak, C.roadLeak, C.roadScenario, ...base.cites] });
+    ctx.hover(g, { ...base, title: 'pool-leak caveat on release ⊗ commit', note: ctx.content.text('spiders-pool-leak'), cites: [C.leak, C.roadLeak, C.roadScenario, ...base.cites] });
     gNotes.append(g);
   }
 

@@ -33,12 +33,20 @@ async function walk(dir: URL, prefix = ""): Promise<string[]> {
     return out.sort();
 }
 
-Deno.test("chyp/files.json: 25 Python files at Chyp 3d28483, no path listed twice", () => {
+Deno.test("chyp/files.json: 24 Python files at Chyp 3d28483, no path listed twice", () => {
     assertEquals(files.chyp_commit, "3d2848361e261b07a86daaacf70b2b4b018affcf");
-    assertEquals(files.python.length, 25);
+    assertEquals(files.python.length, 24);
     const paths = files.python.map((f: any) => f.path);
     assertEquals(new Set(paths).size, paths.length, "a path is listed twice");
     for (const f of files.python) assert(/^[0-9a-f]{64}$/.test(f.sha256), `${f.path}: sha256 is not 64 hex digits`);
+});
+
+// laws-live.js stops at the first file it cannot fetch, and production's nginx serves a static file only
+// for the extensions VIEWS.md lists: chyp/py.typed, listed here until 2026-10-31, was a 404 that stopped
+// the live check on pflow.xyz while it worked against make run.
+Deno.test("chyp/files.json: production serves every listed file's type", () => {
+    for (const f of files.python) assert(f.path.endsWith(".py"), `${f.path}: not a type nginx serves`);
+    for (const t of files.theories) assert(t.endsWith(".chyp"), `${t}: not a type nginx serves`);
 });
 
 Deno.test("chyp/files.json: every listed Python file exists and its sha256 is the file's", async () => {

@@ -989,7 +989,7 @@ function renderOrders(ctx) {
       g.append(glyph);
       let deepest = my;
       const caption = l.kind === 'guard' ? ['⊘ guard link: contextual, outside the free SMC', theme.LINK_STYLE.guard.color, 8.5]
-        : l.leak ? ['pool leaks a worker on rollback (idiom caveat)', theme.LEAK, 8] : null;
+        : l.leak ? [ctx.content.text('cospan-pool-leak-ghost'), theme.LEAK, 8] : null;
       if (caption) {
         const [str, fill, size] = caption;
         // Below the glyph if that is clear, else above it, else further down (deterministic order).
@@ -1229,7 +1229,7 @@ function renderConnect4(ctx) {
   );
   const isExample = JSON.stringify(ctx.plan.json) === JSON.stringify(toJSON(CONNECT4_EXACT));
   const box = S('rect', { x: px0, y: py, width: pw, height: ph, rx: 9, fill: '#fff', stroke: '#9fb6d3', 'stroke-width': 1.2 });
-  ctx.hover(box, { title: 'the search plan', definition: 'A SearchPlan: the pieces of the game search, picked by name. Its slots are filled by pieces; pflow-rs\'s check decides what fits (plan.slot_candidates, through the registry). It composes by chaining, wrapping and filling, which is the operad view\'s subject.', facts: [['plan JSON', JSON.stringify(ctx.plan.json)], ['is plan:connect4-exact', isExample ? 'yes (the plan.rs module-doc example)' : 'no: changed on this page'], ['check', ctx.plan.error ? `refused: ${ctx.plan.error}` : `passes (pflow-rs @${PLAN_RS_REV} SearchPlan::check and solver, by plan.state)`]], note: 'The laws named in the caption (a partial monoid of order pieces, drivers composed around the core) are the ontology ROADMAP\'s reading of plan.rs, not a theorem checked here.', cites: [C.solver, ctx.plan.exampleCite, C.laws] });
+  ctx.hover(box, { title: 'the search plan', definition: 'A SearchPlan: the pieces of the game search, picked by name. Its slots are filled by pieces; pflow-rs\'s check decides what fits (plan.slot_candidates, through the registry). It composes by chaining, wrapping and filling, which is the operad view\'s subject.', facts: [['plan JSON', JSON.stringify(ctx.plan.json)], ['is plan:connect4-exact', isExample ? 'yes (the plan.rs module-doc example)' : 'no: changed on this page'], ['check', ctx.plan.error ? `refused: ${ctx.plan.error}` : `passes (pflow-rs @${PLAN_RS_REV} SearchPlan::check and solver, by plan.state)`]], note: ctx.content.text('c4-caveat-cospan-laws'), cites: [C.solver, ctx.plan.exampleCite, C.laws] });
   svg.append(box, text(px0 + 12, py + 17, `Solver for ${isExample ? 'plan:connect4-exact' : 'a changed plan (not plan:connect4-exact)'}${ctx.plan.error ? ' (refused)' : ''} · mode: ${plan.mode || 'exact'}`, { 'font-size': 10.5, 'font-weight': 700, fill: theme.INK, style: '--halo: #fff' }),
     text(px0 + pw - 12, py + 17, 'drag a piece from the toolbar into a slot', { 'font-size': 9, fill: theme.MUTED, 'text-anchor': 'end', style: '--halo: #fff' }));
   // Slots.
@@ -1286,7 +1286,7 @@ function renderConnect4(ctx) {
     c.x = cx;
     cx += c.w + 8;
   }
-  svg.append(text(px0 + 12, py + ph - 9, 'Slots take pieces by kind: the order chain is a partial monoid under chaining, drivers wrap the search, the memo fills one slot (ROADMAP). Bounds and engine are designed, not built.', { 'font-size': 8.5, fill: theme.MUTED, style: '--halo: #fff' }));
+  svg.append(text(px0 + 12, py + ph - 9, ctx.content.text('c4-note-cospan-slots'), { 'font-size': 8.5, fill: theme.MUTED, style: '--halo: #fff' }));
 
   // Footer.
   const fy2 = H - 52;
@@ -1303,21 +1303,15 @@ export default {
   id: 'cospan',
   title: 'Open Petri nets as cospans',
   short: 'Cospans',
-  consumes: ['assets/connect-4.json', 'bundle.flatten', 'bundle.state', 'plan.open', 'plan.state'],
+  consumes: ['assets/connect-4.json', 'bundle.flatten', 'bundle.state', 'content.get', 'plan.open', 'plan.state'],
   convention: {
     summary: 'Baez and Master: an open Petri net is a cospan X → S ← Y of finite sets into its set of places S. The feet X (left) and Y (right) are columns of boundary points; the legs (grey dashed) send each point to the place it names. Two open nets compose by gluing the right foot of one to the left foot of the next: a pushout along boundary places, so the glued places become one place. In go-pflow that is exactly lk:token and lk:data (Flatten fuses the two places into one wire: place). Instances that are not glued sit side by side: the monoidal product ⊗, a disjoint union.',
-    examples: {
-      orders: 'Each instance (orders: Queue, workers: ResourcePool, payment: Saga) is drawn with its real places (initial marking as dots), transitions and arcs. in ports are on the left foot, out ports on the right, inout ports on both, the queue\'s depth (observe) as a dotted tap on top. Transition ports sit on the bottom edge, outside the cospan. With the default links the cospan composite is only orders ⊗ workers ⊗ payment; the three event idioms fuse transitions on top of it (go-pflow\'s composite is not a disjoint union) and are drawn as ghosts. Add a second instance and token-link two same-schema place ports to see the pushout: the instances meet at a seam and the two places become one, named as Flatten names it.',
-      connect4: 'Does not apply: a search plan is not an open net. The Connect-4 game net is drawn as the closed net ∅ → N ← ∅ (no ports, so both feet are empty), as a miniature at the fixture\'s own coordinates, with the plan beside it as a strip of slots. The plan runs over N (SearchPlan::solver takes the game); it does not compose with it. The plan\'s composition is the operad view.',
-    },
     honesty: [
       'Only lk:token and lk:data are drawn as cospan composites (pushouts). Event links are transition fusion (Bruni et al., nets with boundaries) and are drawn as faint ghosts; guard links are contextual, outside the free SMC, flagged and drawn as ghosts too.',
       'The glued place\'s name and marking are Flatten\'s (bundle.flatten: pflow-compose, the Rust port of go-pflow\'s FlattenWithMap; wire:<smallest member>, initial markings summed), not this view\'s.',
-      'A Baez–Master open net has places, transitions and arcs with multiplicities, and no capacities or markings. go-pflow places carry both (the queue\'s and the pool\'s places are bounded). The cospan reading covers the structure only: summing the markings and keeping the tighter capacity of a glued pair are Flatten\'s choices (compose_flatten.go:291-292), not part of the pushout.',
       'go-pflow keeps every port after a link, and a link may glue any compatible pair of ports, not only a whole foot onto a whole foot as in Baez–Master. The view draws each link as one glued pair of points; the unglued points stay on the composite\'s feet.',
       'Observe ports are drawn as taps in neither foot (the ROADMAP\'s reading). validateLink (go-pflow\'s rule; the registry runs pflow-compose\'s port of it) checks only in/out for a token link, so a token link through an observe port is allowed; the view draws it and says so.',
       'Layout is this view\'s: the positions of places and transitions inside a frame, and which instance goes left of which in a glued pair (the first link\'s from side), are drawing choices.',
-      'Connect-4: no cospan applies to the plan. The closed net and the "runs over" arrow are the honest nearest picture.',
     ],
     bib: BIB_ORDERS,
     cites: [C.cospanRow, C.boundariesRow, C.model, C.placeClasses, C.wireName, C.smallest, C.initialSum, C.direction, C.schema, C.cq13, C.linkStyle, C.solver, C.fixture, C.autoWin, C.laws],

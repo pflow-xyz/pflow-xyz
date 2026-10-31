@@ -45,8 +45,9 @@ reach the page. A `text` or `json` file on the CDN must be served with CORS.
 
 **Which file types reach a visitor.** On pflow.xyz, nginx passes a static file to the
 app only if its extension is on the list in `/etc/nginx/sites-available/pflow.xyz`;
-anything else is a 404 there, though it works against `make run`. Checked 2026-10-30:
-`html css js mjs json svg png ico xml webmanifest txt webm mp4 wasm`. Store any other
+anything else is a 404 there, though it works against `make run`. Checked 2026-10-31:
+`html css js mjs json svg png ico xml webmanifest txt webm mp4 wasm chyp py md ttl jpg jpeg
+gif webp avif pdf`. Store any other
 type on `cdn.stackdump.com/ipfs/`, or add its extension to that list.
 `scripts/views-smoke.ts` against the live URL reports the 404.
 
@@ -58,7 +59,7 @@ export default {
   title: 'Open Petri nets as cospans',
   short: 'Cospans',
   consumes: ['bundle.flatten', 'bundle.state', 'plan.state'],
-  convention: { summary, honesty, bib, cites, examples },
+  convention: { summary, honesty, bib, cites },
   render(ctx) { /* draw into ctx.root; ctx.js has the rest */ },
 };
 ```
@@ -72,6 +73,35 @@ examples and fails if the list is not exactly what was read. It says nothing abo
 what a click does: an edit goes through `ctx.actions`.
 
 A view added without `parity: true` has no goldens to meet, but is still measured.
+
+## What a view says about the model comes from the model
+
+A view's prose about the convention (`convention.summary`, `convention.honesty`, and the
+page will not show a module without them: see below) stays in the module, because it is
+true of the drawing whatever is open. Prose about the open model is the model's content
+(pflow-native `docs/composition-documents.md` §3), so another model draws its own, or none:
+
+```js
+ctx.content.text('spiders-pool-leak')   // '' when the open model has no such entry, or it is dormant
+ctx.content.entry('flat-conservation-not-liveness')   // {id, kind, title, text, about, views, cites, check}
+```
+
+`ctx.content` reads `content.get` when a view first asks, so a view that reads it lists
+`content.get` in `consumes`. Add the entry in pflow-native's library and read it by id;
+`parity/composition-views/content_test.ts` fails on an id the library does not have. The
+page shows a view's `convention-example` for the model in its text, and everything else for the
+view in the Model content panel under it: what the model lacks, then findings, caveats,
+judgments and notes (`content-panel.js`). `content.js` holds the honesty rules: a judgment reads
+"Judgment:" wherever it is shown, a check's claim is labelled as not yet a result, and only
+`content.check`'s answer marks one.
+
+**Not moved yet, at the 2026-10-31 count.** Prose a view computes from the model stays (the
+Flat view's "Why the worker does not return" is read off the run). 87 hover and caption
+fragments still repeat part of a longer entry: lens 31, operad 14, lens-orders 11, spiders 9,
+boundaries 5, cospan 4, flat 4, laws 4, incidence 2, string 2, process 1. Each
+is one fact of a hover's `facts` list against one paragraph of an entry, so moving it means
+splitting the entry in pflow-native, not a find and replace. The egui views in pflow-native read
+their own prose too (its §3.6).
 
 ## What the page will not show
 

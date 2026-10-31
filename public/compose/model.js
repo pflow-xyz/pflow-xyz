@@ -21,6 +21,7 @@
 
 import { engines, Refusal, parseRefusal } from './registry.js';
 import { cite, setSources } from './sources.js';
+import { contentReader } from './content.js';
 
 // ---- facts (filled by loadFacts) ----------------------------------------------------
 
@@ -328,6 +329,33 @@ export function lens({ fixes = true } = {}) {
     analysis: lensAnalysisOf(r.analysis),
     fixes: (r.fixes || []).map((f) => ({ ...camelize(f), link: linkOf(f.link), removed: (f.removed || []).map(linkOf), result: f.result ? lensAnalysisOf(f.result) : null })),
   };
+}
+
+// ---- model content --------------------------------------------------------------------------
+
+/**
+ * content.get on the engine holding the example's model: what a view reads instead of hard-coding it
+ * (content.js). Dormant entries are left out, so an edit that removes what an entry names removes the
+ * entry. A build without the command, or a bare model, reads as no content.
+ */
+export function readContent(example) {
+  const r = example === 'connect4'
+    ? engines.c4.try('content.get', { subject: 'plan' })
+    : engines.live.try('content.get', {});
+  return contentReader(r.ok ? r.value : null);
+}
+
+/** content.check on one entry: {ok, claim, steps}, the registry's verdict; a scratch session, so nothing moves. */
+export function checkContentEntry(example, id) {
+  const r = (example === 'connect4' ? engines.c4 : engines.live).call('content.check', { entry: id, ...(example === 'connect4' ? { subject: 'plan' } : {}) });
+  return r.checks?.[0] ?? null;
+}
+
+/** What the open model lacks, in the registry's words (bundle.state `missing`); a plan has none to report. */
+export function modelLacks(example) {
+  if (example === 'connect4') return [];
+  const r = engines.live.try('bundle.state', {});
+  return r.ok ? (r.value.missing || []) : [];
 }
 
 // ---- plans ---------------------------------------------------------------------------------

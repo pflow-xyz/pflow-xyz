@@ -35,10 +35,6 @@
    "sha256": "f17ce64b153ed9505589173abd5fe4f10c08c7630ad36673bec309496a0c9e44"
   },
   {
-   "path": "chyp/py.typed",
-   "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
-  },
-  {
    "path": "chyp/rewrite.py",
    "sha256": "fb2a162e5f6a0faea4245ef9c22541af807b960fbc26dc5eb0dead0657298c4f"
   },

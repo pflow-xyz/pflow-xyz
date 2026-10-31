@@ -947,8 +947,8 @@ function renderOrders(ctx) {
             ['from', fromBox ? `step ${fromBox.k}: ${fromBox.tid}` : 'the domain (initial marking)'],
             ['to', toBox ? `step ${toBox.k}: ${toBox.tid}` : idle.has(t.id) ? 'the codomain: an identity wire, the run never touches this place' : 'the codomain (still there when the run ends)'],
           ],
-          note: leak ? `${mark.idiom ? 'The leak is a wire that never comes back' : 'A wire that never comes back'}: the worker taken here is still on in_use at the codomain (${outcomes}), because ${mark.why}. Which unit counts as "the worker" is this view's pairing (first taken, first given back); the pool itself only counts (patterns.ttl:251).`
-            : mark ? 'Highlighted: the worker\'s path, available → in_use → available. Which unit counts as "the worker" is this view\'s pairing; the pool itself only counts (patterns.ttl:251).' : (base.note || null),
+          note: leak ? `${mark.idiom ? 'The leak is a wire that never comes back' : 'A wire that never comes back'}: the worker taken here is still on in_use at the codomain (${outcomes}), because ${mark.why}. ${ctx.content.text('process-worker-pairing')}`
+            : mark ? ctx.content.text('process-worker-pairing') : (base.note || null),
           caveats: leak ? [mark.idiom ? ctx.orders.idioms.find((i) => i.leak)?.caveat : null, ctx.orders.patterns['resource-pool'].caveats[0]].filter(Boolean) : base.caveats,
           cites: [...(base.cites || []), ...(leak ? [...(mark.idiom ? [CITES.leak, CITES.noEither] : []), CITES.anon] : []), ...(t.place.endsWith('/items') ? [CITES.fifoNot] : [])],
         };
@@ -1394,7 +1394,7 @@ function renderConnect4(ctx) {
   ctx.root.append(ctx.el('style', {}, STYLE), bar, root);
 
   const autosSeen = enabledAt.some((x) => x.autos.length);
-  notes.push(['na', 'No search is run and the search plan is not drawn here, so the toolbar\'s plan pieces have no slot to snap into in this view. The plan (plan.rs) computes one value over all plays from a position; one play is one process. This is a fixed four-drop opening, each drop checked enabled by the firing rule.']);
+  notes.push(['na', ctx.content.text('c4-note-process-search')]);
   const indep = independentSteps(proc);
   if (indep.length) notes.push(['honesty', `Step${indep.length > 1 ? 's' : ''} ${indep.join(', ')} take${indep.length > 1 ? '' : 's'} nothing the step before produced: as boxes, each could be drawn before its left neighbour (interchange law). The columns follow the play.`]);
   notes.push([autosSeen ? 'warn' : 'honesty', `Automatic transitions: the tests read every transition whose name contains "win" as automatic (${autoCount} here; tests/common/mod.rs:23) and pflow-rs fires them as soon as they are enabled, lowest index first (game.rs settle). ${autosSeen ? 'One is enabled on this play: the drawing omits it and is incomplete.' : 'None is enabled after any of the four drops (checked on every transition), so the play has no automatic boxes.'} Token identities are first-in first-out per place, this view's choice.`]);
@@ -1410,13 +1410,9 @@ export default {
   id: 'process',
   title: 'Runs as processes',
   short: 'Processes',
-  consumes: ['assets/connect-4.json', 'bundle.flatten', 'bundle.run', 'bundle.state', 'sim.enabled', 'sim.fire', 'sim.marking', 'sim.reset'],
+  consumes: ['assets/connect-4.json', 'bundle.flatten', 'bundle.run', 'bundle.state', 'content.get', 'sim.enabled', 'sim.fire', 'sim.marking', 'sim.reset'],
   convention: {
     summary: 'A run of a Petri net is a morphism, a process, in the monoidal category the net generates. Each token is a wire labelled by its place; each firing is a box from its preset to its postset; time runs left to right. The left edge (the domain) is the initial marking and the right edge (the codomain) the final one. Boxes in sequence compose (∘); wires side by side are the tensor (⊗).',
-    examples: {
-      orders: 'A scenario\'s firing script (bundle.scenarios) fired on the flat net by the registry (bundle.run), stopping at the first step it refuses. Fused transitions are double-bordered boxes, fused places double wires, wires colored by subnet. In refund and charge-fails the worker taken at step 1 is still on in_use at the codomain: the leak is a wire that never comes back. The strip below holds every port; a new link replays the run.',
-      connect4: 'One play is one process: a fixed four-drop opening fired on the fixture net. The search plan computes a value over all plays; no search is run here and the plan is not drawn.',
-    },
     honesty: [
       'Individual tokens are a choice: tokens on one place are told apart first-in first-out (#1, #2). The net does not order them (queue caveat, patterns.ttl:201; in_use is an anonymous count, :251). Under the collective-token reading (Petri nets generate commutative monoidal categories), runs that differ only in which token was used are one morphism; Baez, Genovese, Master and Shulman relate both readings through Σ-nets.',
       'Crossings and the order of wires on the boundaries are layout: symmetries of the symmetric monoidal category, and identities under the collective reading. The layout keeps the ordering with the fewest crossings.',
@@ -1424,7 +1420,6 @@ export default {
       'Only places the run touches get wires; the other tokens are identity wires tensored on (toggle). A refused next step is drawn past the codomain, outside the morphism. Either its domain is not in the codomain, so it does not compose, or the registry refuses it on a side condition no wire shows (a capacity bound, a read or inhibitor arc), and the box and the note say which.',
       'A guard link lowers to a read arc; a read token is drawn passing the box (◇). Read arcs are outside the free-SMC fragment (ROADMAP Phase 6): drawn, with no functorial semantics claimed.',
       'Scenario scripts and predicates are judgment, frozen from the prototype (bundle.scenarios); whether a step fires, where a run stops and whether a predicate holds are the registry\'s (bundle.run: pflow-metamodel\'s enabled/fire, go-pflow\'s firing rule). The preset/postset rows under a refused step are this page\'s reading of the arcs; the reason quoted is the registry\'s.',
-      'Connect-4: the drops are read by the fixture\'s naming convention, as the pflow-rs tests do (x_ moves are +1, names containing "win" are automatic). The board is a reading of the codomain.',
     ],
     bib: BIB,
     cites: [CITES.arcs, CITES.enabled, CITES.whyNot, CITES.capacity, CITES.fire, FLATTEN_CITES[0], CITES.fifoNot, CITES.anon, CITES.oneCase, CITES.noEither, CITES.leak, CITES.auto, CITES.settle, CITES.byName, CITES.game, CITES.inhibit, CITES.fixture],

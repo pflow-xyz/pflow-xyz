@@ -25,7 +25,7 @@
 
 import { newEngine } from '../petri-wasm.js';
 
-const STORES_ARTIFACT = new Set(['bundle.flatten', 'bundle.run', 'bundle.lens', 'bundle.validate', 'bundle.verdicts', 'analysis.incidence']);
+const STORES_ARTIFACT = new Set(['bundle.flatten', 'bundle.run', 'bundle.lens', 'bundle.validate', 'bundle.verdicts', 'analysis.incidence', 'content.check']);
 
 /** A refusal from the registry, with "[CODE] message; …" split into errors. */
 export class Refusal extends Error {

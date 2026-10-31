@@ -91,6 +91,16 @@ iframe.stored { width: 100%; height: 70vh; border: 1px solid var(--line); }
 .honesty { margin: 4px 0; padding-left: 18px; font-size: 12px; }
 .honesty li { margin: 2px 0; }
 .bib, .insp-cites, .insp-bib { margin: 4px 0; padding-left: 16px; font-size: 11px; }
+.content-entry { margin: 2px 0; font-size: 12px; }
+.content-entry summary { cursor: pointer; }
+.content-entry p { margin: 4px 0; }
+.content-kind { font-size: 10px; text-transform: uppercase; letter-spacing: .03em; padding: 0 4px; border-radius: 3px; background: #eceef1; }
+.content-judgment .content-kind { background: #fdf0d8; }
+.content-caveat .content-kind { background: #fbe9e7; }
+.content-finding .content-kind { background: #e7f3ec; }
+.content-kind-h { margin: 8px 0 2px; font-size: 12px; }
+.content-pass { color: #1e7a3c; font-weight: 600; }
+.content-fail { color: #b3261e; font-weight: 600; }
 .conv-ex { font-size: 12px; background: #f6f7f9; padding: 4px 6px; border-radius: 4px; }
 .rule-row { border-left: 4px solid var(--rc); padding: 3px 6px; margin: 3px 0; font-size: 11.5px; border-radius: 3px; }
 .rule-row b { color: var(--rc); }

@@ -169,19 +169,14 @@ export default {
   id: 'string',
   title: 'String diagram',
   short: 'String',
-  consumes: ['bundle.flatten', 'bundle.state', 'plan.state'],
+  consumes: ['bundle.flatten', 'bundle.state', 'content.get', 'plan.state'],
   convention: {
     summary: 'String diagrams in a symmetric monoidal category: boxes are morphisms, wires are objects, side by side is the tensor ⊗ and stacking (top to bottom) is composition ∘. Drawn in the conventions of pflow-xyz diagram-viewer.js: flow runs top to bottom, inputs sit on a box\'s top edge and outputs on its bottom, wires are grey cubics labelled by their type, back edges are dashed red and go round the right side. The toggle switches between the pattern level (this view\'s drawing of the instances and their links) and the transition level (the flat net, drawn by diagram-viewer.js itself, unmodified).',
-    examples: {
-      orders: 'Pattern level: orders (Queue), workers (ResourcePool) and payment (Saga) side by side (⊗). Place ports are wires typed by their schema (in and inout on top, out and inout below, observe as a tap on the right edge); transition ports are squares on the left (in) and right (out) edges. The three event idioms are green connectors with RenderDOT\'s ⊗ glyph, and the pool-leak caveat is the red note on release ⊗ commit. Transition level: Flatten\'s net (the registry\'s bundle.flatten) through diagram-viewer.js, where each fused transition is one box.',
-      connect4: 'Pattern level (ROADMAP Slice B): the alpha-beta core Position → Value⊥, the order chain as MoveList → MoveList boxes on its parameter wire, the memo as a side wire (Table), and the drivers as nested frames budget ⊃ null_window. Back edges, each read from game.rs: the null-window loop, the recursion, the transposition-table feedback and cutoff → history. Transition level: the Connect-4 net through diagram-viewer.js, which is too large to read on one stage, so it is shown as a scaled overview with a 1:1 lens.',
-    },
     honesty: [
       'Reading a pattern instance as a box dom → cod is the ROADMAP Phase 6 proposal (wire types are port schemas, port direction gives the domain and codomain). It is not a theorem: an inout port is in both, and an observe port is a tap outside both.',
       'Only the unlinked product is exactly ⊗ (disjoint union). A token link is a pushout along the shared place (Baez–Master), drawn as a wire from an out port into an in port. An event link is transition fusion (Bruni et al.), drawn as a connector between transition ports, not as a wire. The green ⊗ is RenderDOT\'s event glyph, not the tensor.',
       'Guard links are outside the free-SMC fragment. They are drawn dashed with ⊘ and flagged, and no functorial meaning is claimed for them.',
       'Putting transition ports on the left (in) and right (out) edges is this view\'s choice, after the left and right boundaries of nets with boundaries. diagram-viewer.js has no transition ports, and this view\'s pattern-level boxes are taller than its BOX_HEIGHT 40 so they can hold the ports.',
-      'Connect-4: the core box, the chain as MoveList → MoveList boxes, the drivers as frames and the memo as a side wire are the ROADMAP design. In code the chain is one comparator over a key per piece (order.rs:249-265), and the drivers are flags (plan.rs:146-194). The nesting budget(null_window(core)) is fixed by game.rs, whatever order the JSON lists them in.',
       'A back edge is feedback, which a symmetric monoidal category does not have on its own (it needs a trace). Each one is drawn because game.rs does it, and each is cited to its lines.',
       'Transition level: the drawing is diagram-viewer.js\'s output. Read arcs (lowered guard links) have no counterpart there and are left out, and the port squares on top of its boxes are this view\'s addition.',
     ],
@@ -749,7 +744,7 @@ function ordersPattern(ctx) {
       obstacles.push(pick.rects[0]);
     }
     const info = ctx.info.linkInfo(l, byId);
-    ctx.hover(g, { ...info, title: `caveat on ${info.title}`, note: 'The refund scenario (bundle.scenarios, judgment) expects this: the worker never returns to the pool. ROADMAP Phase 4 names it as the expected failure of the rollback scenario.', cites: [ttl(493, 498, 'pat:idiom-pool-release-saga-commit and its caveat'), ROAD.orders41, ROAD.worked, ...info.cites] });
+    ctx.hover(g, { ...info, title: `caveat on ${info.title}`, note: ctx.content.text('string-leak-expected'), cites: [ttl(493, 498, 'pat:idiom-pool-release-saga-commit and its caveat'), ROAD.orders41, ROAD.worked, ...info.cites] });
     notesG.append(g);
     leakN++;
   }
@@ -1330,7 +1325,7 @@ function c4Pattern(ctx) {
   // the null-window loop: the value of each yes/no search moves i or j, and the next window is (vals[k], vals[k+1]).
   if (nullWindow) {
     back(ortho([[vTap[0], vTap[1]], [850, vTap[1]], [850, P.window[1]], [P.window[0] + 2, P.window[1]]], 14), ['null-window loop: each yes/no search', 'narrows the window (game.rs:561-588)'], vTap[0] + 14, vTap[1] + 16, 'start',
-      { title: 'back edge: the null-window loop', definition: 'The value as a run of yes/no searches, one per gap between adjacent rewards: if v > (a + b) / 2 then i = k + 1 else j = k, and the next search gets the window (vals[k], vals[k+1]) (game.rs:573-587).', facts: [['driver', 'null_window'], ['carries', 'Window (a, b), from this search\'s v']], cites: [GR.solve] }, 'window');
+      { title: 'back edge: the null-window loop', definition: ctx.content.text('c4-edge-null-window'), facts: [['driver', 'null_window'], ['carries', 'Window (a, b), from this search\'s v']], cites: [GR.solve] }, 'window');
   } else {
     labG.append(svg('text', { x: cr + 12, y: P.window[1] - 2, 'font-size': 9.5, fill: '#888' }, svg('tspan', { x: cr + 12 }, 'window: the whole reward range,'), svg('tspan', { x: cr + 12, dy: 12 }, 'once (game.rs:564-565)')));
   }
@@ -1339,13 +1334,13 @@ function c4Pattern(ctx) {
     { title: 'back edge: alpha-beta recursion', definition: 'For each child, best first: v = search(next, a, b); the mover\'s bound moves to v, and a ≥ b is a cutoff (game.rs:653-669).', facts: [['carries', 'Value⊥ of a child position']], cites: [GR.search, rs('game.rs', 653, 669, 'the child loop')] }, 'recursion');
   // TT feedback: store (game.rs:515-519, called at 616-623 and 691) → the table → tt.get (601-611).
   back(`M${P.store[0]},${P.store[1]} C${P.store[0]},${cy - 110} ${mm.x + mm.w - 40},${mm.y + mm.h + 70} ${mm.x + mm.w - 40},${mm.y + mm.h + 3}`, ['store (game.rs:515-519)'], P.store[0] + 50, cy - 60, 'start',
-    { title: 'back edge: the transposition-table feedback', definition: 'What a search finds is stored (space allowing) and read back by tt.get at the next visit of the position, in this search or a later one (store: game.rs:515-519, called at 616-623 and 691; read: 601-611).', facts: [['carries', 'Entry {lo, hi, best}']], cites: [SEARCH_CITES.store, GR.ttRead, rs('game.rs', 678, 691, 'merge with what was known, then store')] }, 'tt');
+    { title: 'back edge: the transposition-table feedback', definition: ctx.content.text('c4-edge-tt'), facts: [['carries', 'Entry {lo, hi, best}']], cites: [SEARCH_CITES.store, GR.ttRead, rs('game.rs', 678, 691, 'merge with what was known, then store')] }, 'tt');
   // cutoff → history: chain.cutoff reports every cutoff to the pieces; only History records it.
   const hi = pieces.indexOf('history');
   if (hi >= 0) {
     const hy = tops[hi] + col.bh / 2;
     back(`M${P.cutoff[0]},${P.cutoff[1]} C${cx - 50},${P.cutoff[1]} ${col.x + col.w + 44},${hy} ${col.x + col.w + 3},${hy}`, ['game.rs:666'], cx - 6, P.cutoff[1] - 7, 'end',
-      { title: 'back edge: cutoff → history', definition: 'A ≥ b: chain.cutoff(history, t) tells every piece; History adds one to the move\'s count (order.rs:73-75), which its key reads next time (order.rs:69-71).', facts: [['carries', 'the move that caused the cutoff']], cites: [SEARCH_CITES.cutoff, rs('order.rs', 267, 271, 'Chain::cutoff'), rs('order.rs', 68, 76, 'History')] }, 'cutoff');
+      { title: 'back edge: cutoff → history', definition: ctx.content.text('c4-edge-cutoff'), facts: [['carries', 'the move that caused the cutoff']], cites: [SEARCH_CITES.cutoff, rs('order.rs', 267, 271, 'Chain::cutoff'), rs('order.rs', 68, 76, 'History')] }, 'cutoff');
   } else {
     labG.append(svg('text', { x: cx - 8, y: P.cutoff[1] - 8, 'font-size': 9, fill: '#888', 'text-anchor': 'end' }, 'cutoffs: no piece records them'));
   }

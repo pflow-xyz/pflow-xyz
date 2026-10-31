@@ -252,18 +252,11 @@ export default {
   id: 'lens',
   title: 'Open games / lenses (analogy)',
   short: 'Lenses',
-  consumes: ['bundle.flatten', 'bundle.lens', 'bundle.state', 'plan.state'],
+  consumes: ['bundle.flatten', 'bundle.lens', 'bundle.state', 'content.get', 'plan.state'],
   convention: {
     summary: 'In compositional game theory (Ghani, Hedges, Winschel, Zahn) an open game has the shape of a lens: a box with a forward lane (play goes in on the left and out on the right) and a backward lane (utility comes in on the right and out on the left); boxes compose by plugging one box\'s forward output into the next and the next\'s backward output back into the first. This view borrows that shape, and only the shape, for the Connect-4 search plan: positions and move lists go forward, down the tree, on the top lanes; values and bounds come back, up the tree, on the bottom lanes. Read a box by its two lanes; read nesting as "runs around".',
-    examples: {
-      orders: 'Strict test first: is queue ⊗ pool ⊗ saga, as the registry composes it, a lens composite? No: no place boundary is glued (the composition uses no token or data link among the three), and the parts\' backward maps do not fire together the way their forward maps do. The fallback ("assume a backward pass") finds every transition pair with a backward pass mechanically, draws the saga\'s steps as a chain of lenses with the pool and queue pairs above the step they fire with, and marks in red where the flat net stops being lens composition. Links dragged here re-run the check.',
-      connect4: 'For plan:connect4-exact, budget ∘ null_window ∘ core, as game.rs nests them (the drawing follows the current plan as pieces are dropped or removed): each driver is a frame whose left band carries its two lanes; inside, the alpha-beta core turns a position into children, ranks them with the order chain (small lenses on the move-list lane) and turns child values back into a max/min with cutoffs. The memo is a lens inside the core: its get feeds the forward pass, its store is fed by the backward pass. Dashed loops are state a backward pass leaves for a later forward pass (the table for tt_best, history for history). The recursion and the leaf, where values come from, close the right end.',
-    },
     honesty: [
-      'Analogy of shape only. Open games characterise equilibria: a best-response condition on strategy profiles. This plan computes a value: minimax with alpha-beta under a node budget (game.rs:526-693). No equilibrium is computed or checked here, and no game-theoretic claim is made.',
       'Not a lens in the strict sense: alpha-beta interleaves the passes (each child\'s value comes back before the next child is tried, and a cutoff stops the forward pass, game.rs:653-668), and the table and history carry state from backward passes into later forward passes (dashed loops). The drawing shows the shape of one round trip, not a schedule.',
-      'The nesting is game.rs\'s, not the JSON\'s: drivers are read into flags (plan.rs:146-193). budget counts nodes across every yes/no search of one solve() run (nodes is reset only in value(), before each engine run: game.rs:541, 548), so it is outermost; null_window wraps the root search. The ROADMAP\'s "Solver = drivers ∘ core[...]" is a PROPOSED reading, and it types the core Position → Value⊥ (ROADMAP:428-430): here ⊥ is drawn on the budget frame and passes through the inner lanes unchanged (game.rs:578-580, 654-656).',
-      'Lane labels paraphrase the cited lines. Position, Value, Value⊥ and MoveList are the ROADMAP\'s PROPOSED wire types; Window, Table and Cutoff are this page\'s labels. The play dot is illustrative: no search runs in the page.',
       'Orders example: the strict test and the fallback are the registry\'s (bundle.lens: pflow-native crates/core/src/lens.rs, a port of the prototype\'s lensfind.js), on pflow-compose\'s link rules and Flatten (pflow-rs\'s port of go-pflow\'s); each one-link repair is re-validated, flattened and re-run there. In the prototype the probe wirings (release fused with undo_reserve, with and without commit) were also run through go-pflow itself and agreed. Assumed in the fallback: the pair rule (a residual only t produces and only u consumes, resource places returned) and the forward pass (the commit scenario, judgment). The saga is a lens only on runs where no step fails: fail_ steps turn the forward lane back, which no lens map does.',
       'The CyberCat Institute is linked for context only; no claim on this page is attributed to it.',
     ],
@@ -660,7 +653,7 @@ function renderPlan(ctx) {
     const mm = S('g', {},
       S('rect', { class: 'lens-box', x: G.xMM - 24, y: YB - 11, width: 48, height: 22, rx: 11, fill: '#fff', stroke: VAL, 'stroke-width': 1.4 }),
       T(G.xMM, YB + 4, 'max/min', { 'text-anchor': 'middle', 'font-size': 9.5, 'font-weight': 600, fill: VAL, style: { fill: VAL } }));
-    ctx.hover(mm, info('max / min over the children', { definition: 'The mover maximizes (s > 0) or minimizes; a = max(a, v) or b = min(b, v) (game.rs:657-664).', cites: [C.loop] }));
+    ctx.hover(mm, info('max / min over the children', { definition: ctx.content.text('c4-lens-max-min'), cites: [C.loop] }));
     const dia = S('g', {},
       S('path', { class: 'lens-box', d: `M${G.xCut},${YB - 10} l10,10 l-10,10 l-10,-10 z`, fill: '#fff', stroke: CUT, 'stroke-width': 1.4 }),
       T(G.xCut, YB + 3.5, '≥', { 'text-anchor': 'middle', 'font-size': 10, 'font-weight': 700, fill: CUT, style: { fill: CUT } }));
@@ -711,7 +704,7 @@ function renderPlan(ctx) {
     const hg = S('g', {}, r, T(gx + gw / 2, hy + 16, 'heuristics', { 'text-anchor': 'middle', 'font-size': 9.5, class: 'muted', 'font-weight': 600 }), T(gx + gw / 2, hy + 29, G.heuristics.length ? G.heuristics.join(', ') : 'none', { 'text-anchor': 'middle', 'font-size': 8.5, class: 'muted' }));
     ctx.snap.slot(r, 'heuristics');
     const hb = ctx.info.slotInfo('heuristics');
-    ctx.hover(hg, { ...hb, facts: [['plan.rs', 'names of pieces that can change the value; the reserved name static_eval is refused (plan.rs:21-23, 70-71)'], ['placement', 'by the recursion, where a static evaluation would stand in for searching further down: this page\'s judgment'], ['now', G.heuristics.length ? G.heuristics.join(', ') : 'none'], ['pflow-rs', `@${PLAN_RS_REV}: exact mode refuses a heuristic that can change the value; the verdict on any drop is plan.slot_candidates`]], cites: uniqCites([...fixCites(hb.cites), C.modeCheck, rs('plan.rs', 21, 23, 'filters, heuristics: names of pieces that can change the value; none built'), rs('plan.rs', 70, 71, 'UNSOUND: beam, static_eval')]), note: ANALOGY });
+    ctx.hover(hg, { ...hb, facts: [['plan.rs', 'names of pieces that can change the value; the reserved name static_eval is refused (plan.rs:21-23, 70-71)'], ['placement', ctx.content.text('c4-judgment-lens-heuristics')], ['now', G.heuristics.length ? G.heuristics.join(', ') : 'none'], ['pflow-rs', `@${PLAN_RS_REV}: exact mode refuses a heuristic that can change the value; the verdict on any drop is plan.slot_candidates`]], cites: uniqCites([...fixCites(hb.cites), C.modeCheck, rs('plan.rs', 21, 23, 'filters, heuristics: names of pieces that can change the value; none built'), rs('plan.rs', 70, 71, 'UNSOUND: beam, static_eval')]), note: ANALOGY });
     layers.pieces.append(hg);
   }
 

@@ -7,7 +7,7 @@ import { state, actions, activeSubnets, subnetsById, orderLinks, flatOrders, pla
 import { el, svg, svgRoot, curve, textWidth } from './dom.js';
 import * as theme from './theme.js';
 import * as info from './info.js';
-import { PATTERNS, LINK_KINDS, IDIOMS, SCENARIOS, portKey, SLOTS, PIECES, pieceByName, CONNECT4_EXACT_CITE } from './model.js';
+import { PATTERNS, LINK_KINDS, IDIOMS, SCENARIOS, portKey, SLOTS, PIECES, pieceByName, CONNECT4_EXACT_CITE, readContent } from './model.js';
 
 export function connect4Summary(net) {
   if (!net) return null;
@@ -24,8 +24,15 @@ export function connect4Summary(net) {
  */
 export function makeCtx(root, o) {
   const byId = subnetsById();
+  let read = null;
+  const content = () => (read ??= readContent(state.example));
   return {
     root,
+    /** The open model's content (content.js), read when a view first asks: its prose, or none for a bare model. */
+    content: {
+      entry: (id) => content().entry(id),
+      text: (id) => content().text(id),
+    },
     example: state.example,
     event: state.event,
     orders: {

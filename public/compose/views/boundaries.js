@@ -608,7 +608,7 @@ function renderOrders(ctx) {
       lk.append(S('rect', { x: cx + 10, y: yy, width: CARD_W - 20, height: hh, rx: 4, fill: '#fdf0ee', stroke: LEAK, 'stroke-width': 0.9 }),
         S('text', { x: cx + 18, y: yy + 13, 'font-size': 10, fill: LEAK, 'font-weight': 700 }, '⚠ pool leak: release fires only with commit', S('tspan', { 'font-weight': 400, fill: MUTED, 'font-size': 9.5 }, '  (idiom caveat, patterns.ttl:496)')));
       c.leakLines.forEach((t, i) => lk.append(S('text', { x: cx + 18, y: yy + 26 + i * 12, 'font-size': 9.5, fill: '#8a2d22' }, t)));
-      ctx.hover(lk, ext(info.linkInfo(c.leakLink, byId), { title: 'the pool-leak caveat (idiom, assistant judgment)', note: 'A rendezvous with commit only: on the rollback path no port fires, so workers/in_use keeps the unit. The page\'s refund scenario (orders.js SCENARIOS) is expected to fail on exactly this.', cites: [C.leak] }));
+      ctx.hover(lk, ext(info.linkInfo(c.leakLink, byId), { title: 'the pool-leak caveat (idiom, assistant judgment)', note: ctx.content.text('boundaries-pool-leak-link-note'), cites: [C.leak] }));
       card.append(lk);
     }
     reg.set(`card:${c.name}`, card);
@@ -826,13 +826,9 @@ export default {
   id: 'boundaries',
   title: 'Nets with boundaries',
   short: 'Boundaries',
-  consumes: ['assets/connect-4.json', 'bundle.flatten', 'bundle.open', 'bundle.run', 'bundle.state', 'plan.open', 'plan.state'],
+  consumes: ['assets/connect-4.json', 'bundle.flatten', 'bundle.open', 'bundle.run', 'bundle.state', 'content.get', 'plan.open', 'plan.state'],
   convention: {
     summary: 'Nets with boundaries (Sobociński 2010; Bruni, Melgratti, Montanari and Sobociński 2013): a net N : m → n wires each transition to ports on a left and a right boundary. Two nets that share a boundary compose by synchronisation: the composite\'s transitions are the minimal sets of transitions that agree on the shared ports, and their pre- and postsets are the members\' together. That is the semantics of go-pflow\'s event links, which a cospan of places does not express (ROADMAP Phase 6). Read left to right: an instance\'s left edge is its outer boundary (transition ports no event link uses), its right edge faces the shared boundary; each ⊗ on the shared boundary is one event class, and the card beyond it is the composite transition Flatten builds for that class.',
-    examples: {
-      orders: 'orders, workers and payment, each a net with boundaries. With the three idioms there are two event classes: A = {orders/dequeue, workers/acquire, payment/do_reserve} and B = {payment/commit, workers/release}, each one boundary port and one composite transition (fused:… is Flatten\'s name). B carries the pool-leak caveat. Drag between transition ports to add an event link: the transition moves to the shared edge and its wire runs to a boundary port, or two classes\' ports fuse.',
-      connect4: 'Does not apply. A search plan has no transition synchronisation, and the Connect-4 net is closed (no ports): as a net with boundaries it is N : 0 → 0 (Def. 4.1 with m = n = 0; Remark 3.6 for C/E nets). It is drawn as that closed box with the fixture\'s counts, with pointers to the Operad and Lens views.',
-    },
     honesty: [
       'The paper composes two nets, one on each side of a shared boundary (M : l → m ; N : m → n). go-pflow fuses n subnets at once, by union-find over binary event links. Here every instance faces one shared boundary from the same side, each n-ary class is drawn as one boundary port, and the card beyond it is the composite transition (exactly Flatten\'s fused group), not a second net.',
       'In the paper, two transitions wired to one port from the same side are alternatives, not partners: in contention for C/E nets (Def. 3.1 (iii)-(iv)), and a P/T synchronisation needs U• = •V (Def. 4.3). So the single port per class is go-pflow\'s rendezvous written in the paper\'s notation, not the paper\'s port semantics. Read by Def. 4.3 (the page\'s reading), with the default links the paper would give orders/dequeue one port per partner (workers/acquire, payment/do_reserve on the other side); the minimal synchronisation would again be the whole class.',

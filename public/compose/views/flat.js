@@ -1031,10 +1031,11 @@ function leakWhy(ctx, map, r) {
   if (partners.length) kids.push('but workers/release fires only as part of ', codeId(ctx, rel), ` (fused with ${partners.join(', ')} by event links), and this run never fires it`);
   else kids.push('but workers/release is fused with nothing (no event link reaches workers:release here), and the script never fires it');
   kids.push(', so the token stays in workers/in_use: the pool leaks a unit.');
-  if (idiomCase) kids.push(' That is the idiom\'s own caveat: "Fires only on commit. If the saga rolls back, no port fires, the worker stays in in_use and the pool leaks a unit." (patterns.ttl:496). ROADMAP Phase 4 expects exactly this failure (ROADMAP.md:276-280, 289-291).');
+  const idiomCaveat = ctx.content.text('cav-idiom-pool-release-saga-commit');
+  if (idiomCase && idiomCaveat) kids.push(` That is the idiom's own caveat: "${idiomCaveat}" (patterns.ttl:496). ROADMAP Phase 4 expects exactly this failure (ROADMAP.md:276-280, 289-291).`);
   const why = el('div', { class: 'fv-why' }, ...kids);
   ctx.hover(why, idiomCase
-    ? { title: 'the pool-leak caveat', concept: { iri: 'https://ontology.pflow.xyz/pattern/idiom-pool-release-saga-commit', types: ['ns:CompositionIdiom'] }, definition: 'Release the worker when the saga commits.', facts: [['workers/release is in', rel], ['fired in this run', 'no']], caveats: ['Fires only on commit. If the saga rolls back, no port fires, the worker stays in in_use and the pool leaks a unit. Releasing on both outcomes is not expressible with the declared ports.'], cites: [C.leak, C.worked, C.d44] }
+    ? { title: 'the pool-leak caveat', concept: { iri: 'https://ontology.pflow.xyz/pattern/idiom-pool-release-saga-commit', types: ['ns:CompositionIdiom'] }, definition: 'Release the worker when the saga commits.', facts: [['workers/release is in', rel], ['fired in this run', 'no']], caveats: [ctx.content.text('cav-idiom-pool-release-saga-commit')], cites: [C.leak, C.worked, C.d44] }
     : { title: 'why the worker does not return', definition: 'Read off this flat net: the flat transition that holds workers/release never fired in this run.', facts: [['workers/acquire is in', acq], ['workers/release is in', rel], ['fired in this run', 'acquire yes, release no']], note: 'The idiom caveat (patterns.ttl:496) is quoted only when workers/release is fused with payment/commit alone and the saga rolled back; that is not the situation in this run.', cites: [C.whyNot, C.fire] });
   return why;
 }
@@ -1125,11 +1126,10 @@ function paintConstraints(ctx, box, model, map, mk, byId) {
   const leaking = inUse && rolled && (mk[inUse] || 0) > 0 && (mk[rolled] || 0) > 0;
   const pool = model.constraints.find((c) => c.id === 'workers/pool_conservation');
   const kids = [el('h3', {}, 'Declared constraints, at this marking'), el('ul', { class: 'fv-cons' }, rows)];
-  if (leaking && pool) {
+  const said = ctx.content.entry('flat-conservation-not-liveness'); // static prose; the live value is in the hover
+  if (leaking && pool && said) {
     const v = evalConstraint(pool.expr, mk);
-    const why = el('div', { class: 'fv-why' },
-      el('b', {}, 'Conservation is not liveness. '),
-      `The saga has rolled back with a worker still in workers/in_use, and pool_conservation still holds (${v ? `${v.lhs} == ${v.rhs}` : pool.expr}): a stuck token keeps the sum. That is the gap ROADMAP Phase 4's faithfulness checks are for: Validate and verify say what a net satisfies, not whether it is the system described, so frozen scenarios are run as well (ROADMAP.md:247-295). Its 4.1 exit expects the leak to show as "a failed conservation check on the rollback path" (lines 240-242); on this net the declared conservation constraint holds, and what fails is the scenario predicate.`);
+    const why = el('div', { class: 'fv-why' }, el('b', {}, `${said.title}. `), ctx.content.text(said.id));
     ctx.hover(why, { title: 'conservation is not liveness', concept: { iri: 'https://ontology.pflow.xyz/pattern/resource-pool-inv-conservation', types: ['ns:PatternInvariant'] }, definition: 'tokens("available") + tokens("in_use") == capacity', facts: [['at this marking', v ? `${v.lhs} == ${v.rhs}: holds` : '?'], ['what fails instead', 'the scenario predicate "the worker returns to the pool"']], cites: [C.poolInv, C.faith, C.exit41, C.worked] });
     kids.push(why);
   }
@@ -1396,20 +1396,15 @@ export default {
   id: 'flat',
   title: 'The flattened net',
   short: 'Flat net',
-  consumes: ['assets/connect-4.json', 'bundle.flatten', 'bundle.run', 'bundle.state', 'plan.open', 'plan.state', 'sim.enabled', 'sim.fire', 'sim.marking', 'sim.reset'],
+  consumes: ['assets/connect-4.json', 'bundle.flatten', 'bundle.run', 'bundle.state', 'content.get', 'plan.open', 'plan.state', 'sim.enabled', 'sim.fire', 'sim.marking', 'sim.reset'],
   convention: {
     summary: 'The single place/transition net Flatten produces from the composition (go-pflow\'s FlattenWithMap, run here by the registry as pflow-compose\'s port, bundle.flatten): every subnet\'s places and transitions under namespaced IDs, places joined by token or data links fused into one wire:… place, transitions joined by event links fused into one fused:… transition, duplicate arcs merged (MergeSum: weights add), guard links with the default condition "> 0" lowered to read arcs. The shapes are RenderFlatDOT\'s: places are circles, transitions rounded boxes, fused elements double-bordered (peripheries=2), an arc weight above 1 written on the arc, a read arc dashed and undirected. The tokens are drawn as dots in the place (RenderFlatDOT writes the initial count in the label instead). A green transition is enabled at the current marking; click it to fire.',
-    examples: {
-      orders: 'queue ⊗ pool ⊗ saga with the three event idioms flattens to 21 places and 9 transitions. fused:orders/dequeue+payment/do_reserve+workers/acquire and fused:payment/commit+workers/release sit between the clusters they join. Play the token game or run a ROADMAP 4.4 scenario: the refund run ends with the worker still in workers/in_use, so "the worker returns to the pool" fails, while pool_conservation still holds.',
-      connect4: 'A search plan is not a net, so there is nothing to flatten. Drawn instead is the net the plan searches: the pflow-rs Connect-4 fixture (131 places, 222 transitions, 1,924 arcs) at its own coordinates. Click a green drop to play; the automatic win detectors then settle, as pflow-rs\'s Game does.',
-    },
     honesty: [
       'The flat IDs, arcs, weights, initial markings and constraints are Flatten\'s (the registry\'s bundle.flatten: pflow-compose, pflow-rs\'s port of go-pflow\'s FlattenWithMap). The positions and the clusters are this page\'s layout: RenderFlatDOT draws no clusters, and in the flat net an element belongs to a subnet only through its ID.',
       'No ports are drawn: Flatten removes the boundary. Links are made in the pattern-level views.',
       'A read arc (a guard link, lowered) is dashed and undirected, as RenderFlatDOT draws it; the small dot that marks its transition end is this page\'s. A hollow circle head would be an inhibitor arc.',
       'The scenario scripts and their expected predicates are judgment, written from the description and frozen (bundle.scenarios). Whether a step is enabled, and the marking it leaves, is the registry\'s bundle.run (pflow-metamodel\'s enabled/fire, go-pflow\'s firing rule from firing.go); the page fires nothing itself.',
       'Constraints are evaluated at the current marking only. Holding at one marking proves no invariant, and an invariant that holds is not liveness: pool_conservation holds while the refund run leaks a worker.',
-      'Connect-4: the sides, the automatic transitions and the rewards are what pflow-rs tests/common/mod.rs declares for this fixture; nothing else is claimed. Automatic transitions settle as Game::settle does, lowest index first, and pflow-rs\'s index order is the sorted transition IDs (pflow-parser model_from_json), so the page asks for the same detector pflow-rs would fire; each firing is the registry\'s (sim.fire on the fixture).',
     ],
     bib: ['meseguer-montanari', 'baez-master', 'bruni-et-al', 'mei-douglas'],
     cites: [C.flatDot, C.dotDoc, C.wirePeri, C.fusedPeri, C.arcAttrs, ...FLATTEN_CITES, C.guardLower, C.constraints, C.initial, C.whyNot, C.fire, C.leak, C.faith, C.exit41, C.worked, C.d44, C.c4fixture, C.c4names, C.c4decl, C.gameDoc, C.settle, C.idOrder, C.score],

@@ -17,7 +17,7 @@
 // 'compose:shell', 'compose:registry-ready' and 'compose:ready'.
 
 import * as registry from './registry.js';
-import { loadFacts, LINK_KINDS, LINK_STYLE, EXTRA_SPECS, PARAMS_NOTE, PIECES, PLAN_RS_REV, FACTS } from './model.js';
+import { loadFacts, LINK_KINDS, LINK_STYLE, EXTRA_SPECS, PARAMS_NOTE, PIECES, PLAN_RS_REV, FACTS, readContent, modelLacks, checkContentEntry } from './model.js';
 import { state, subscribe, actions, subnetsById, orderLinks, flatOrders, planInfo, readHash, writeHash, linkTo, currentLink, startFromLink } from './state.js';
 import { initSnap, resetSnap, snap, kbActive, gestureActive } from './snap.js';
 import { initInspector, hover, renderInfo } from './inspect.js';
@@ -38,6 +38,7 @@ import { announce } from './a11y-bus.js';
 import { VIEW_KEYS_OFF, registryFailureText, brokenTabLabel, newStatus } from './a11y-text.js';
 import { renderLegend } from './legend.js';
 import { startModelPanel } from './identity.js';
+import { renderContentPanel } from './content-panel.js';
 
 let connect4 = null;
 let lastManifest = null;
@@ -156,9 +157,21 @@ function renderKeyHelp() {
     el('kbd', {}, 'E'), ' switches the example. In the view tabs, ', el('kbd', {}, '←'), ' ', el('kbd', {}, '→'), ' move and ', el('kbd', {}, 'Enter'), ' opens.');
 }
 
+// Entry id -> the registry's verdict, for the model that was checked. An edit clears them: a verdict is about one
+// state of the model.
+const contentMarks = new Map();
+let contentMarksOf = '';
+function marksForThisModel() {
+  const of = JSON.stringify(state.example === 'orders' ? [state.example, state.orders.instances, state.orders.extras, orderLinks()] : [state.example, planInfo().plan]);
+  if (of !== contentMarksOf) { contentMarks.clear(); contentMarksOf = of; }
+  return contentMarks;
+}
+
 function renderConvention(v) {
   const c = v.convention || {};
-  const ex = c.examples && c.examples[state.example];
+  const reader = readContent(state.example);
+  // A view's text for this model is the model's content (a stored view may carry its own).
+  const ex = reader.example(v.id) || (c.examples && c.examples[state.example]);
   fill($('#convention'),
     el('h3', {}, v.title),
     c.summary ? el('p', {}, c.summary) : null,
@@ -167,6 +180,7 @@ function renderConvention(v) {
     c.bib && c.bib.length ? el('ul', { class: 'bib' }, c.bib.map((k) => { const u = bibURL(k); return el('li', {}, u ? el('a', { href: u, target: '_blank', rel: 'noopener' }, bibLabel(k)) : bibLabel(k)); })) : null,
     c.cites && c.cites.length ? el('ul', { class: 'insp-cites' }, c.cites.map((ct) => { const u = citeURL(ct); return el('li', {}, u ? el('a', { href: u, target: '_blank', rel: 'noopener' }, citeLabel(ct)) : citeLabel(ct), ct.note ? ` — ${ct.note}` : ''); })) : null,
   );
+  renderContentPanel($('#content'), { reader, lacks: modelLacks(state.example), view: v.id, marks: marksForThisModel(), runCheck: (id) => checkContentEntry(state.example, id), rerender: actions.rerender });
 }
 
 function ruleRow(kind) {

@@ -214,7 +214,7 @@ function renderAssumed(ctx, a, common) {
   const label = (x, y, text, color, anchor = 'middle') => S('text', { x, y, 'font-size': 10.5, 'text-anchor': anchor, fill: color, class: 'mono halo' }, text);
 
   // --- the saga chain: one lens box per step, then the turnaround ---
-  layer.boxes.append(S('text', { x: X0 - 40, y: FY - 78, 'font-size': 12.5, 'font-weight': 600 }, `${saga.id} (Saga): each step as a lens, chained by the saga's own control places`));
+  layer.boxes.append(S('text', { x: X0 - 40, y: FY - 78, 'font-size': 12.5, 'font-weight': 600 }, `${saga.id} (Saga): ${ctx.content.text('lens-note-saga-chain')}`));
   const pairOf = (tid) => a.pairs.find((p) => p.subnet === saga.id && p.t === tid);
   for (const [i, st] of steps.entries()) {
     const bx = X0 + i * (SW + GAP);
@@ -253,8 +253,8 @@ function renderAssumed(ctx, a, common) {
   layer.lanes.append(S('path', { d: `M${capX + 40},${FY} H${tx - 10}`, stroke: FWD, 'stroke-width': 2.2, fill: 'none' }),
     S('path', { d: `M${capX + 40},${FY} C${capX + 60},${FY} ${tx - 20},${MY} ${tx - 10},${MY}`, stroke: FAIL, 'stroke-width': 1.6, 'stroke-dasharray': '5 4', fill: 'none' }),
     S('path', { d: `M${tx},${MY + 10} C${tx},${BY} ${capX + 60},${BY} ${capX + 40},${BY}`, stroke: BWD, 'stroke-width': 2.2, fill: 'none' }));
-  layer.top.append(square(saga, 'commit', tx, FY, FWD, 'the forward pass ends: final acknowledgement'),
-    square(saga, 'fail_commit', tx, MY, FAIL, 'turnaround: the forward pass is sent back (the refund begins)'),
+  layer.top.append(square(saga, 'commit', tx, FY, FWD, ctx.content.text('lens-note-commit')),
+    square(saga, 'fail_commit', tx, MY, FAIL, ctx.content.text('lens-note-fail-commit')),
     circle(saga, 'completed', tx + 70, FY, T.schemaColor('saga:outcome'), 'the forward lane\'s output'));
   layer.lanes.append(S('path', { d: `M${tx + 10},${FY} H${tx + 60}`, stroke: FWD, 'stroke-width': 2.2, fill: 'none', 'marker-end': 'url(#lo-f)' }));
 

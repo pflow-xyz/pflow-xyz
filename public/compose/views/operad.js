@@ -392,10 +392,10 @@ function renderPlan(ctx) {
   const wireInfo = (t) => ({
     title: `wire type ${t}`,
     concept: { iri: 'https://ontology.pflow.xyz/ns#WireType', types: ['ns:WireType (PROPOSED, ROADMAP Phase 6)'] },
-    definition: t === 'Position' ? 'A marking of the net: what the search is asked about. Every box on the way in has the same input.' : 'The exact value of the position, or ⊥ (None) when the budget runs out. Every box on the way out has the same output.',
+    definition: t === 'Position' ? 'A marking of the net: what the search is asked about. Every box on the way in has the same input.' : ctx.content.text('c4-wire-value'),
     facts: t === 'Position' ? [['enters', 'budget → null_window → core (each boundary passes it inward)']] : [
       ['leaves', 'core → null_window → budget'],
-      ['⊥', 'Solver::value returns None past the budget; with no budget plan.rs passes usize::MAX, so ⊥ is out of reach in practice but stays in the type'],
+      ['⊥', ctx.content.text('c4-caveat-value-bottom')],
     ],
     cites: t === 'Position' ? [C.composite] : [C.composite, C.value, C.noBudget],
   });
@@ -984,7 +984,7 @@ function renderOrders(ctx) {
     const jInfo = {
       title: `junction: ${members.join(' = ')}`,
       concept: { iri: 'https://ontology.pflow.xyz/linkkind/event', types: ['ns:EventPatternLink class', 'op:sync (PROPOSED, ROADMAP Phase 6)'] },
-      definition: 'One cable soldered to every transition port in a fused class: when one fires, all fire, atomically (a rendezvous). Drawn as an undirected junction, not as a wire from an output to an input.',
+      definition: ctx.content.text('operad-junction-rendezvous'),
       facts: [
         ['links', j.cl.links.map((l) => `${l.from.subnet}:${l.from.port} — ${l.to.subnet}:${l.to.port}${l.idiom ? ` (pat:${l.idiom})` : ''}`).join('; ')],
         ['members', `${members.length} ports, one junction (fusion is over equivalence classes)`],
@@ -1168,7 +1168,7 @@ function renderOrders(ctx) {
   for (const a of anims) a();
 
   // notes, top to bottom (each prepends)
-  ctx.note('Exposed ports: the outer box\'s own ports are every port no link uses, drawn faintly on its boundary. That choice of interface is this view\'s reading; a go-pflow Bundle declares subnets, links and constraints but no ports of its own (compose.go:207-227).', 'honesty');
+  ctx.note(ctx.content.text('operad-outer-interface'), 'honesty');
   if (nGuard) ctx.note('Guard links are not cables: a guard restricts one subnet on another\'s place (W_RESTRICTIVE_LINK) and sits outside the free-SMC fragment (ROADMAP Phase 6). It is drawn and flagged; no operadic composite is claimed for it.', 'warn');
   ctx.note('Spivak\'s operad of wiring diagrams (arXiv:1305.0297, Ex. 2.1.7) is undirected: a wiring diagram is a cospan, every port is soldered onto a cable, and filling a hole is a pushout. A directed version appears there only in §6.3 (Future work), as the subject of a paper then in preparation (Spivak-Stapleton). So an event link is drawn as a junction (⊗) on one cable, not as a wire from an output to an input: it is a synchronisation (Bruni et al.), as in the cospan operad of Fong-Spivak §6.5 (Ex. 6.94), whose wiring diagrams have ports but no left and right. In / out sides are go-pflow port kinds, kept for reading; the operad does not see them.', 'na');
 }
@@ -1179,23 +1179,15 @@ export default {
   id: 'operad',
   title: 'Wiring diagrams (operad nesting)',
   short: 'Operad',
-  consumes: ['bundle.flatten', 'bundle.state', 'plan.state'],
+  consumes: ['bundle.flatten', 'bundle.state', 'content.get', 'plan.state'],
   convention: {
     summary: 'Spivak\'s operad of wiring diagrams: an outer box with typed holes, each hole filled by a box whose interface matches. Filling a hole is operadic composition, and nesting is composition again, so a drawing is read from the outside in: the outer box is one operation, its holes are its arguments, and whatever fills them is the operand. In Spivak\'s operad a wiring diagram is a cospan of ports onto cables (no inputs or outputs); in the typed version, ports soldered to one cable must carry the same type.',
-    examples: {
-      orders: 'The bundle orders ⊗ workers ⊗ payment is one outer box with a hole per instance. Each hole is typed by its pattern\'s ports (in on the left, out on the right, inout on both sides, observe as a tap), and the instance box fills it. Event links are cable junctions (⊗), one per fused class; token and data links are cables between place ports; guard links are flagged taps. Ports no link uses are exposed faintly on the outer boundary: the composite\'s interface.',
-      connect4: 'The Connect-4 exact plan is one composite, Solver = budget ∘ null_window ∘ core[order, filters, heuristics, memo] (ROADMAP Phase 6). Each driver is a one-hole box around the search it wraps, nested in the fixed order the code runs them; the core\'s holes are the SearchPlan fields, filled by the chain (its pieces as sub-boxes) and the memo, plus bounds and engine, which the design has and plan.rs does not: dashed, never fillable.',
-    },
     honesty: [
       'Spivak\'s operad (arXiv:1305.0297) is undirected: a wiring diagram is a cospan of ports onto cables. A directed version appears there only in §6.3 (Future work), as the subject of a paper then in preparation. The in / out sides drawn here are go-pflow port kinds (ns:portKind), kept for reading.',
-      'Typed cables: in the typed operad (1305.0297 §4) ports soldered together carry one type; here a place port\'s type is its schema, which validateLink also requires to agree (compose.go:667-674). Transition ports carry no schema, so event cables are untyped.',
       'One junction per fused class: event links are binary, but fusion is over equivalence classes (compose_fuse.go:9-20), so links a—b and b—c draw one junction with three legs.',
       'A token cable and an event cable look alike here and mean different things: place gluing (Baez-Master) versus synchronisation (Bruni et al.). The operad records connectivity; the link kind is the registry\'s (bundle.state).',
       'The outer box\'s interface (the faint exposed ports) is this view\'s reading: a go-pflow Bundle declares no ports of its own (compose.go:207-227). Guard links are not cables; they are drawn and flagged, with no operadic composite claimed.',
-      'The plan\'s holes are typed by piece kind, and SearchPlan::check is the typing (plan.rs:216-238). It is partial: check also refuses some fillings of the right kind (a name listed twice; in exact mode every piece that can change the value), so the plan is read as a partial operad, not proved to be one. Pieces have no wires of their own, so only the search\'s interface, Position → Value⊥ (ROADMAP:428-430), is drawn as wires; every driver has the interface of what it wraps.',
-      'The nesting order of the drivers is fixed by the code: plan.rs reads them into two flags (plan.rs:134-138, 146-194) and game.rs counts nodes across the whole null-window run (game.rs:526-597). ROADMAP Phase 6 says driver order matters in general (ROADMAP:426-427); for these two pieces (plan.rs read at c396d46) it cannot be chosen.',
       'bounds and engine are designed holes (ROADMAP:307), drawn dashed; every drop on them is refused. Proposed pieces (status "proposed" in plan.pieces: mtd_f, forced_moves, …) are unknown to pflow-rs and fill nothing.',
-      'Value⊥: Solver::value returns None past the budget (game.rs:526-528). With no budget, plan.rs passes usize::MAX (plan.rs:245), so ⊥ is out of reach in practice but stays in the type.',
     ],
     bib: ['spivak-wd', 'fong-spivak', 'baez-master', 'bruni-et-al'],
     cites: [
