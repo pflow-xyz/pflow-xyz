@@ -243,6 +243,12 @@ Deno.test("the page's static import graph reaches no Pyodide, no jsdelivr, no Py
   }
 });
 
+Deno.test("a link to a stored model pays for jsonld only when there is one: identity.js imports it dynamically", () => {
+  const files = [...staticGraph(new URL("compose/app.js", PUBLIC)).keys()].map((k) => k.slice(PUBLIC.href.length));
+  assert(files.includes("compose/identity.js"), "the panel is in the page");
+  for (const f of files) assert(!/model-cid|seal-cid|jsonld/.test(f), `${f} is in the static graph`);
+});
+
 Deno.test("no view module is in the page's static graph (each is imported on first use)", () => {
   const app = new URL("compose/app.js", PUBLIC);
   const files = [...staticGraph(app).keys()].map((k) => k.slice(PUBLIC.href.length));

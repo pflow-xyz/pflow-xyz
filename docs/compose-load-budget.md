@@ -395,6 +395,29 @@ each time here is measured from the html's arrival, plus the html's own warm
 time). The 4G figure is the one to re-take on a quiet machine before reading
 anything into it.
 
+### What the Model content panel adds
+
+`compose/content.js` and `compose/content-panel.js` (7.0 KB, 3.1 KB gzip) are in the static
+graph: two more requests on the shell, so 38 until the first view against the budget's 40, and
+about 3 KB more of the 1,650 KB. Not re-measured under the profiles. Its `content.get` runs on the
+page's engines once per drawing (about 10 ms unthrottled; 121 entries for the orders example).
+
+### What a link to a stored model adds (`compose/identity.js`)
+
+`/compose.html?cid=<cid>` shows the model panel. `identity.js` (7.0 KB, 2.8 KB gzip) is in
+the page's static import graph, so every visit fetches it, with or without a cid; it does
+nothing without one. With a cid, before the first view and whether or not the wasm ever
+loads (`startModelPanel`, held by `compose/identity_test.ts`):
+
+| what | when | wire |
+|---|---|---|
+| `/o/<cid>` | at once | the stored document |
+| `/img/<cid>.svg` | a composition only; `loading=lazy` | the flat net, drawn by the server |
+| `model-cid.mjs`, `seal-cid.mjs`, `vendor/jsonld.bundle.mjs` | to recompute the CID, by dynamic `import()`, so a plain visit never loads them | 3.7 + 1.5 + 49 KB gzip |
+
+The guard test holds that last line: `model-cid.mjs` and the jsonld bundle are not in the
+static graph. None of this is in the tables above, which measure the page with no cid.
+
 ## Budget
 
 For `compose.html` on a mid-range phone (profile `4g`: 9 Mbps, 170 ms, 4x CPU;
