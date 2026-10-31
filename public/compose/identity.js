@@ -12,6 +12,7 @@
 // the views keep drawing the built-in example and the panel says so.
 
 import { el } from './dom.js';
+import { announce } from './a11y-bus.js';
 
 /** The cid in ?cid=, or null. */
 export function cidFromLocation(loc = globalThis.location) {
@@ -71,15 +72,21 @@ export async function verify(doc) {
 
 const short = (c) => (c.length > 22 ? `${c.slice(0, 12)}…${c.slice(-8)}` : c);
 
-/** Fill `box` with the model panel for `cid`. Never throws: a failure is said in the panel. */
+/**
+ * Fill `box` with the model panel for `cid`. Never throws: a failure is said in the panel, and through the
+ * page's one live region (#a11y-live), because a panel that changes on its own is silent to a screen reader.
+ */
 export async function showModel(box, cid, deps = {}) {
   const get = deps.fetchModel || fetchModel;
   const check = deps.verify || verify;
+  const say = deps.announce || announce;
   box.replaceChildren(el('h3', {}, 'Model'), el('p', { class: 'muted' }, `Loading ${short(cid)}…`));
   let doc;
   try { doc = await get(cid); } catch (e) {
-    box.replaceChildren(el('h3', {}, 'Model'), el('p', { class: 'warn' }, String(e.message || e)),
+    const why = String(e.message || e);
+    box.replaceChildren(el('h3', {}, 'Model'), el('p', { class: 'warn' }, why),
       el('p', { class: 'small' }, el('a', { href: '/' }, 'Back to the editor')));
+    say(`Model panel: ${why}`);
     return null;
   }
   const m = summarize(doc);
@@ -117,9 +124,22 @@ export async function showModel(box, cid, deps = {}) {
       ? `✓ The CID recomputes in this browser${id.reduced ? ` (a bare wrapper: it is the net ${short(id.cid)})` : ''}.`
       : `✗ This browser computes ${short(id.cid)}, not ${short(cid)}: the stored object does not match its CID.`;
     idLine.className = same ? 'small muted' : 'small warn';
+    if (!same) say(`Model panel: ${idLine.textContent}`);
   } catch (e) {
     idLine.textContent = `Could not check the CID here: ${e.message || e}`;
     idLine.className = 'small warn';
+    say(`Model panel: ${idLine.textContent}`);
   }
   return doc;
+}
+
+/**
+ * The panel for /compose.html?cid=<cid>: shown at once and on its own, before the registry (the wasm) is
+ * ready and whether or not it ever is. Returns the promise of showModel, or null without a cid in the URL.
+ */
+export function startModelPanel(box, loc, deps) {
+  const cid = cidFromLocation(loc);
+  if (!cid) return null;
+  box.hidden = false;
+  return showModel(box, cid, deps);
 }

@@ -37,7 +37,7 @@ import { afterGesture } from './a11y-link.js';
 import { announce } from './a11y-bus.js';
 import { VIEW_KEYS_OFF, registryFailureText, brokenTabLabel, newStatus } from './a11y-text.js';
 import { renderLegend } from './legend.js';
-import { cidFromLocation, showModel } from './identity.js';
+import { startModelPanel } from './identity.js';
 
 let connect4 = null;
 let lastManifest = null;
@@ -372,12 +372,7 @@ function typingAt(target) {
 async function main() {
   // /compose.html?cid=<cid>: the stored model this link names (identity.js).
   // Shown first and on its own, so it appears even if the registry is slow.
-  const modelCid = cidFromLocation();
-  if (modelCid) {
-    const box = $('#model');
-    box.hidden = false;
-    showModel(box, modelCid);
-  }
+  startModelPanel($('#model'));
   readHash();
   a11y.startedOn(state.view, state.example); // a different view at the first drawing was chosen while loading: say which
   initSnap();

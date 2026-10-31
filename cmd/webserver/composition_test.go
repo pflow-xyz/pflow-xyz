@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -14,6 +15,7 @@ import (
 
 	"github.com/pflow-xyz/pflow-xyz/internal/model"
 	"github.com/pflow-xyz/pflow-xyz/internal/seal"
+	"github.com/pflow-xyz/pflow-xyz/internal/svg"
 )
 
 const modelFixtures = "../../parity/model/fixtures"
@@ -363,5 +365,78 @@ func TestComposePageForAModelIsCountedAndDescribedOnce(t *testing.T) {
 	_, _, comp = compSaved(t, off)
 	if body := servePage(off, "GET", "/compose.html?cid="+comp, nil).Body.String(); strings.Contains(body, "googletagmanager.com") {
 		t.Error("analytics tag written with GOOGLE_ANALYTICS_ID unset")
+	}
+}
+
+// compositionLayoutMax: the routes are public and the layered layout is
+// superlinear, so a flat net over the cap gets the cheap grid. nodes is the count
+// of flat places and transitions (a chain, half and half; an odd count has one
+// more place).
+func TestCompositionLayoutCap(t *testing.T) {
+	chain := func(nodes int) []byte {
+		places, trans, arcs := []map[string]any{}, []map[string]any{}, []map[string]any{}
+		for i := 0; i < (nodes+1)/2; i++ {
+			places = append(places, map[string]any{"id": fmt.Sprintf("p%d", i), "initial": 1})
+		}
+		for i := 0; i < nodes/2; i++ {
+			id := fmt.Sprintf("t%d", i)
+			trans = append(trans, map[string]any{"id": id})
+			arcs = append(arcs, map[string]any{"from": fmt.Sprintf("p%d", i), "to": id, "weight": 1})
+			if i+1 < (nodes+1)/2 {
+				arcs = append(arcs, map[string]any{"from": id, "to": fmt.Sprintf("p%d", i+1), "weight": 1})
+			}
+		}
+		raw, err := json.Marshal(map[string]any{
+			"@type": "PetriNetBundle", "name": "chain",
+			"subnets": []any{map[string]any{
+				"id": "a", "net_type": "WorkflowNet",
+				"model": map[string]any{"name": "a", "places": places, "transitions": trans, "arcs": arcs},
+			}},
+			"links": []any{},
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return raw
+	}
+	s := compositionServer(t)
+	for _, c := range []struct {
+		nodes  int
+		layout string
+	}{{compositionLayoutMax, compositionLayout}, {compositionLayoutMax + 1, "grid"}} {
+		raw := chain(c.nodes)
+		m, _, err := model.Flatten(raw, s.storage.GetObject)
+		if err != nil {
+			t.Fatalf("%d nodes: %v", c.nodes, err)
+		}
+		if n := len(m.Places) + len(m.Transitions); n != c.nodes {
+			t.Fatalf("the fixture has %d nodes, not %d", n, c.nodes)
+		}
+		js, err := model.FlatNetJSON(m)
+		if err != nil {
+			t.Fatal(err)
+		}
+		want, err := svg.LayoutJSON(js, c.layout)
+		if err != nil {
+			t.Fatal(err)
+		}
+		other := "grid"
+		if c.layout == "grid" {
+			other = compositionLayout
+		}
+		notThis, err := svg.LayoutJSON(js, other)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if bytes.Equal(want, notThis) {
+			t.Fatalf("%d nodes: %s and %s draw the same, so the test proves nothing", c.nodes, c.layout, other)
+		}
+		got, flat := compositionNet(s.storage, raw)
+		if !flat {
+			t.Fatalf("%d nodes: the flat net did not resolve", c.nodes)
+		}
+		if !bytes.Equal(got, want) {
+			t.Fatalf("%d nodes: not laid out by %s", c.nodes, c.layout)
+		}
 	}
 }

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"sort"
 	"strings"
 )
 
@@ -1061,6 +1062,8 @@ func applyGridLayout(net *PetriNet) error {
 	for id := range net.Transitions {
 		nodeList = append(nodeList, nodeInfo{id: id, isPlace: false, degree: degree[id]})
 	}
+	// Map order is random: without this, one stored net drew differently on every request.
+	sort.Slice(nodeList, func(i, j int) bool { return nodeList[i].id < nodeList[j].id })
 
 	// Sort by degree descending (most connected first)
 	for i := 1; i < len(nodeList); i++ {
