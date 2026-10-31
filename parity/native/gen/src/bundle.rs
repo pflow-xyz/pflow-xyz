@@ -196,10 +196,12 @@ fn run_on(b: &Bundle, a: &Value) -> Result<Value, String> {
 /// bundle.candidates (commands/bundle.rs candidates), on a document.
 fn candidates_on(b: &Bundle, a: &Value) -> Result<Value, String> {
     let c = Composition {
+        doc: Default::default(),
         specs: vec![],
         bundle: b.clone(),
         unavailable: vec![],
         dropped_links: vec![],
+        game: Default::default(),
     };
     let from: Endpoint = comp::parse_endpoint(&a["from"])?;
     let prefer = a.get("prefer").and_then(Value::as_str).unwrap_or("auto");
@@ -217,10 +219,12 @@ fn candidates_on(b: &Bundle, a: &Value) -> Result<Value, String> {
 fn add_link_on(b: &Bundle, a: &Value) -> Result<Value, String> {
     let l = link_arg(a)?;
     let mut c = Composition {
+        doc: Default::default(),
         specs: vec![],
         bundle: b.clone(),
         unavailable: vec![],
         dropped_links: vec![],
+        game: Default::default(),
     };
     let v = c.add_link(l.clone()).map_err(|v| v.refusal())?;
     Ok(json!({

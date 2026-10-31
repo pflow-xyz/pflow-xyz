@@ -380,8 +380,8 @@ function renderPlan(ctx) {
     concept: { iri: 'https://ontology.pflow.xyz/ns#Box', types: ['ns:Box (PROPOSED vocabulary, ROADMAP Phase 6)'] },
     definition: 'The search is fixed (alpha-beta over Game); a plan chooses what swaps in. As a box it is Position → Value⊥, and it has one typed hole per SearchPlan field.',
     facts: [
-      ['holes', 'order, filters, heuristics, memo (SearchPlan fields); bounds, engine (designed, never fillable)'],
-      ['operad reading', 'an operation core(order, filters, heuristics, memo) → Search; filling the holes is composition'],
+      ['holes', 'order, filters, heuristics, root, memo (SearchPlan fields); bounds, engine (designed, never fillable)'],
+      ['operad reading', 'an operation core(order, filters, heuristics, root, memo) → Search; filling the holes is composition'],
       ['wires', 'Position in, Value⊥ out; the holes are parameters, not wires (no piece has wires of its own)'],
     ],
     cites: [C.core, C.composite, rs('plan.rs', 1, 4, 'the search is fixed; a plan chooses what swaps in')],
@@ -519,15 +519,16 @@ function renderPlan(ctx) {
   ctx.hover(og.firstChild, extend(I.slotInfo('order'), { facts: [['type', 'Order pieces, chained (≤ 8, none twice)'], ['filled by', ch.err ? 'refused' : ch.isDefault ? 'Chain::default (order absent)' : `[${ch.pieces.join(', ')}]`]], cites: [C.chain, C.chainNew], bib: ['spivak-wd'] }));
   L.holes.appendChild(og);
 
-  // row 2: filters, heuristics, memo
-  const R2Y = OY + OH + 14, R2H = 88, R2W = (IW - 28) / 3;
-  [['filters', 'Filter'], ['heuristics', 'Heuristic']].forEach(([slot, kind], k) => {
+  // row 2: filters, heuristics, root, memo. `root` is pflow-rs's plan field {"order": [...]}, a hole of
+  // the solver template (pflow-native spec D19, D31): run once at the position searched.
+  const R2Y = OY + OH + 14, R2H = 88, R2W = (IW - 42) / 4;
+  [['filters', 'Filter'], ['heuristics', 'Heuristic'], ['root', 'Root']].forEach(([slot, kind], k) => {
     const x = IX0 + k * (R2W + 14);
     const hg = S('g', { 'data-hole': slot });
     holeFrame(hg, slot, x, R2Y, R2W, R2H, KC[kind], `${slot} : ${kind}*`);
     // The list the solver reads: explicit, or the default pflow-rs reads for an
     // absent field (model.js PLAN_DEFAULTS, from plan.slot_candidates).
-    const explicit = Array.isArray(plan[slot]);
+    const explicit = Array.isArray(slot === 'root' ? plan.root?.order : plan[slot]);
     const list = fieldOrDefault(plan, slot);
     // check() stops at the first error, which may be in another hole: this hole
     // shows what pflow-rs (plan.check) says about its own field alone.
@@ -548,7 +549,7 @@ function renderPlan(ctx) {
     if (ev && ev.type === 'piece-removed' && ev.slot === slot) anims.push(() => hg.animate([{ opacity: 0.4 }, { opacity: 1 }], { duration: 600 }));
   });
   {
-    const x = IX0 + 2 * (R2W + 14);
+    const x = IX0 + 3 * (R2W + 14);
     const hg = S('g', { 'data-hole': 'memo' });
     holeFrame(hg, 'memo', x, R2Y, R2W, R2H, KC.Memo, 'memo : Memo');
     if (plan.memo) {

@@ -48,6 +48,27 @@ function fetchedByHtml(html: string): { scripts: string[]; links: string[] } {
   return { scripts, links };
 }
 
+// --- the wasm's size, against docs/compose-load-budget.md's Budget -----------------------------------
+//
+// The timings are noise on a shared machine; the bytes are exact, and a re-vendoring moves them. Raising
+// these means saying why in the doc's table.
+const WASM_BUDGET = { brotli: 1500 * 1024, gzip: 2300 * 1024, raw: 10_500_000 };
+
+Deno.test("the vendored engine is within the budget the doc states", () => {
+  const lock = JSON.parse(Deno.readTextFileSync(new URL("../../pflow-native-wasm.lock", import.meta.url)));
+  assert(lock.bytes.brotli <= WASM_BUDGET.brotli, `brotli ${lock.bytes.brotli} B is over the budget (${WASM_BUDGET.brotli} B)`);
+  assert(lock.bytes.gzip <= WASM_BUDGET.gzip, `gzip ${lock.bytes.gzip} B is over the budget (${WASM_BUDGET.gzip} B)`);
+  assert(lock.bytes.wasm <= WASM_BUDGET.raw, `raw ${lock.bytes.wasm} B is over the budget (${WASM_BUDGET.raw} B)`);
+  // A vendored build and its CDN pin are one build.
+  assertEquals(lock.cdn.sha256, lock.files["pflow_native_wasm_bg.wasm"]);
+  assertEquals(lock.cdn.url, CDN.url);
+  // The doc says the numbers the lock says.
+  const doc = Deno.readTextFileSync(new URL("../../docs/compose-load-budget.md", import.meta.url));
+  for (const n of [lock.bytes.wasm, lock.bytes.gzip, lock.bytes.brotli]) {
+    assert(doc.includes(n.toLocaleString("en-US")), `docs/compose-load-budget.md does not state ${n}`);
+  }
+});
+
 // --- what the html may name ----------------------------------------------------------------------
 //
 // The page's own origin is the only host compose.html may name where the browser could fetch or run

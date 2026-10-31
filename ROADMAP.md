@@ -17,9 +17,9 @@ goal, and the "newcomer" exit of phase 6). Phases 0-8 stay as built. Phases 1, 5
 frozen, not removed (their question-shaped surfaces; shared code such as `goals.json` and
 `petri-roles.js` is still maintained); "start from a question", sensible defaults and
 plain-language results are sim's. First work is a decision on the model's format (a bare
-Bundle cannot carry the pattern and port data the views draw) and two commands in
-pflow-native (`bundle.load`, `bundle.export`), because the registry cannot open a Bundle
-today; the first pflow.xyz slice is copy and navigation only. The decisions only Matt can
+Bundle cannot carry the pattern and port data the views draw); pflow-native's two commands
+for it (`bundle.load`, `bundle.export`) are vendored since d0f4a47 and the page does not call
+them yet; the first pflow.xyz slice is copy and navigation only. The decisions only Matt can
 make are D1-D14 in the design's section 5.3. The design was revised after an adversarial
 review; it says how its cites are numbered (this section shifts the ROADMAP's line numbers).
 Pending item 17 below ("a push to `main` is a deploy") holds only for a commit signed

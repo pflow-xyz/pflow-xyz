@@ -53,6 +53,8 @@ export const PIECE_KIND_COLOR = {
   Memo: '#178f7f',
   Filter: '#b0413e',
   Heuristic: '#a8457f',
+  Root: '#5b5fb5', // pflow-rs's plan `root` hole
+  Estimate: '#5b5fb5', // what fills it first (ode)
   Bound: '#888',
   Engine: '#888',
 };

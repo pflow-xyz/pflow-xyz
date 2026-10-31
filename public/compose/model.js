@@ -359,7 +359,8 @@ function readPlanDefaults() {
 
 /** A list field as the solver reads it: explicit, or the default an absent field stands for. */
 export function fieldOrDefault(plan, field) {
-  if (Array.isArray(plan[field])) return clone(plan[field]);
+  const value = field === 'root' ? plan.root?.order : plan[field]; // pflow-rs's `root` is {"order": [...]}
+  if (Array.isArray(value)) return clone(value);
   return clone(PLAN_DEFAULTS[field] || []);
 }
 

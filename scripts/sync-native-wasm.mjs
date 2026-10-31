@@ -12,9 +12,9 @@
 // --from, the one just vendored.
 //
 // Build the shim first in pflow-native: `make wasm-shim` (cargo's wasm-release
-// profile at 1a13459: opt-level "s", lto, codegen-units 1; then wasm-bindgen
-// --target web, with no wasm-opt step and the `name` section kept: it is 3.2 MB of
-// the 8.5 MB, see docs/compose-load-budget.md). This script:
+// profile: opt-level "s", lto, codegen-units 1; then wasm-bindgen
+// --target web, with no wasm-opt step and the `name` section kept, see
+// docs/compose-load-budget.md). This script:
 //
 //   - copies the wasm-bindgen glue (pflow_native_wasm.js) as is;
 //   - stores the .wasm compressed only, twice: pflow_native_wasm_bg.wasm.gz
@@ -41,7 +41,7 @@
 // want @types/node to type-check the test).
 
 // The native commands the editor's registry exposes: the browser-safe subset
-// of pflow-native's registry (211 commands at 0.8.0, commit 1a13459: main's 179 at cdd3816 plus the composition views' bundle.* and plan.*). A
+// of pflow-native's registry (232 commands at 0.8.0, commit d0f4a47: 211 at 1a13459 plus the composition documents' bundle.load, .export, .receipt and content.*). A
 // command is exposed when it runs from inline arguments (each call reloads the
 // editor's document into the engine), needs no OS access, and its result is
 // something the page can show: a JSON result or an artifact in the Results
@@ -160,6 +160,8 @@ export const NOT_EXPOSED = [
     ids: ['file.open', 'file.save', 'file.open_url', 'export.png', 'view.screenshot'], prefixes: ['zk.'] },
   { why: 'UI-only: the page has its own view, tool and panels',
     ids: ['tool.set', 'view.string_diagram'], prefixes: ['view.'] },
+  { why: 'the native app\'s port of the String view\'s transition-level layout: the page lays that view out itself, and the result is a drawing\'s geometry with nothing to show in the Results dialog',
+    ids: ['diagram.transition_layout'] },
   { why: 'needs the editor\'s selection or clipboard, which a per-call engine cannot see',
     ids: ['edit.select', 'edit.select_all', 'edit.select_none', 'edit.copy', 'edit.cut', 'edit.paste', 'edit.duplicate', 'net.move_by'] },
   { why: 'the engine\'s state API: the bridge saves and restores the session itself, through Engine.dumpState/restoreState (session.*); system.dump_state/restore_state are the native app\'s autosave of the systems part of the same state',
@@ -173,9 +175,9 @@ export const NOT_EXPOSED = [
   { why: 'the engine\'s own registry, journal and batch, not the page\'s: command.list would list commands the page does not expose, command.journal misses the page\'s JS commands, and command.batch would run native ids the page routes to its JS engines (Registry.list, .journal and .batch are the page\'s)',
     prefixes: ['command.'] },
   { why: 'the browser has no data directory, so the receipt key is ephemeral and receipts would not verify later (provenance.verify_receipt is exposed, for receipts made elsewhere)',
-    ids: ['sim.receipt', 'provenance.key'] },
-  { why: 'the composition views\' commands: they act on an open composition or search plan, not on the editor\'s document, and the composition views page (public/compose.html) drives them on an engine of its own (petri-wasm.js newEngine)',
-    prefixes: ['bundle.', 'plan.'] },
+    ids: ['sim.receipt', 'provenance.key', 'bundle.receipt', 'content.receipt'] },
+  { why: 'the composition views\' commands (bundle.load and bundle.export among them) and the model content they read (content.library, .get, .load, .export, .clear, .validate, .check): they act on an open composition or search plan, not on the editor\'s document, and the composition views page (public/compose.html) drives them on an engine of its own (petri-wasm.js newEngine)',
+    prefixes: ['bundle.', 'plan.', 'content.'] },
 ];
 
 // The guard, as a function the sync below and public/petri-wasm_test.ts both

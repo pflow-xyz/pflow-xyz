@@ -182,8 +182,8 @@ Before this change a stored composition did not 500: `/img/<cid>.svg` answered 2
 blank 100×100 SVG and the share card said "0 places · 0 transitions". It now draws the flat net.
 
 The composition page loads the stored model and shows it, but the ten views still draw the
-built-in orders/workers/payment example: loading a stored Bundle into the registry needs
-`bundle.load` in pflow-native, which the vendored wasm does not have.
+built-in orders/workers/payment example: the vendored wasm has `bundle.load` since
+pflow-native d0f4a47, but the page does not call it yet.
 
 ## Parity
 
@@ -202,8 +202,8 @@ Both are deliberate, never a side effect of a test.
 
 ## Not done
 
-* The registry cannot load a stored Bundle (`bundle.load`/`bundle.export` are another change
-  in pflow-native); the composition page shows the model but the views keep the built-in example.
+* The composition page does not open a stored Bundle in its views (`bundle.load`/`bundle.export`
+  are vendored since pflow-native d0f4a47 and not called yet): it shows the model, but the views keep the built-in example.
 * A composition of compositions, and a by-reference part that is not a net.
 * The `cid`, `pattern` and `params` fields in go-pflow's and pflow-rs's `Subnet`.
 * Terms for `PetriNetBundle` on the public `/schema` page.

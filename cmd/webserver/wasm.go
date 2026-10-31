@@ -14,7 +14,7 @@ import (
 // or X.wasm.gz.
 //
 // public/vendor/pflow-native-wasm/ keeps pflow-native's wasm shim only
-// compressed (8,544,501 bytes raw, 1,891,277 gzip, pflow-native-wasm.lock;
+// compressed (9,990,653 bytes raw, 2,160,884 gzip, pflow-native-wasm.lock;
 // brotli is a third smaller than gzip, docs/compose-load-budget.md), and
 // nginx on pflow.dev compresses only text/html. A client that accepts br gets
 // the .br bytes with Content-Encoding: br (browsers ask for br over https and

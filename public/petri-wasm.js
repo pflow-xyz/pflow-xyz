@@ -54,7 +54,7 @@
 const VENDOR = new URL('./vendor/pflow-native-wasm/', import.meta.url);
 
 // How long the CDN gets before the vendored copy is used instead. Slow networks
-// still finish: the engine is 1.25 MB, about 7 s on Fast 3G.
+// still finish: the engine is 1.43 MB, about 8 s on Fast 3G.
 const CDN_TIMEOUT_MS = 30000;
 
 let enginePromise = null;

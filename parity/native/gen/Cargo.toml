@@ -17,10 +17,10 @@ publish = false
 
 [dependencies]
 # default features: the same set as the wasm build (no services, http, zk, rnn, png).
-pflow-native-core = { git = "https://github.com/pflow-xyz/pflow-native", rev = "1a13459afc5f780f549df10f5ee4d91046b2c5e0" }
+pflow-native-core = { git = "https://github.com/pflow-xyz/pflow-native", rev = "d0f4a477c0e0e2c861363b7b4c53bc9388b82d84" }
 # The bundle cases (pflow_bundle_* tools) read a PetriNetBundle document and
 # serialise the compositions native builds, so the generator needs pflow-compose's
-# own Bundle: the rev pflow-native 1a13459 pins (its Cargo.toml), so the lock
+# own Bundle: the rev pflow-native d0f4a47 pins (its Cargo.toml), so the lock
 # resolves the one crate.
 pflow-compose = { git = "https://github.com/pflow-xyz/pflow-rs", rev = "aacb7eb0aa70c93d3d091c0f7809f0000a9d34b4" }
 serde_json = { version = "1", features = ["preserve_order", "float_roundtrip"] }

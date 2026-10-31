@@ -330,7 +330,7 @@ dependencies = [
 [[package]]
 name = "pflow-native-core"
 version = "0.8.0"
-source = "git+https://github.com/pflow-xyz/pflow-native?rev=1a13459afc5f780f549df10f5ee4d91046b2c5e0#1a13459afc5f780f549df10f5ee4d91046b2c5e0"
+source = "git+https://github.com/pflow-xyz/pflow-native?rev=d0f4a477c0e0e2c861363b7b4c53bc9388b82d84#d0f4a477c0e0e2c861363b7b4c53bc9388b82d84"
 dependencies = [
  "base64",
  "ed25519-dalek",

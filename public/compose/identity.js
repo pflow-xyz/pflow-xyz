@@ -7,10 +7,9 @@
 // recomputes with public/model-cid.mjs: the same rule as Go's internal/model,
 // held to it by parity/model/golden.json.
 //
-// It does not load the composition into the registry. pflow-native's registry
-// opens compositions of catalog pattern instances (bundle.open); a stored
-// Bundle needs bundle.load, which the vendored wasm does not have yet, so the
-// views keep drawing the built-in example and the panel says so.
+// It does not load the composition into the registry. The vendored wasm has
+// bundle.load since pflow-native d0f4a47, but this page does not call it yet:
+// the views keep drawing the built-in example and the panel says so.
 
 import { el } from './dom.js';
 
@@ -98,7 +97,7 @@ export async function showModel(box, cid, deps = {}) {
       m.links.length ? el('ul', { class: 'small' }, m.links.map((l) => el('li', {}, el('b', {}, l.kind), ` ${l.from} → ${l.to}`))) : null,
       el('img', { src: `/img/${cid}.svg`, alt: `${m.name || 'composition'}: the flat net`, class: 'model-flat', loading: 'lazy' }),
       el('p', { class: 'small muted' },
-        'The views below still draw the built-in orders / workers / payment example. Loading a stored composition into the registry needs bundle.load in pflow-native, which the vendored wasm does not have yet.'),
+        'The views below still draw the built-in orders / workers / payment example: this page does not open a stored composition in its views yet.'),
     );
   } else if (m.kind === 'plan') {
     rows.push(el('p', { class: 'small' }, 'A search plan for the model ', el('a', { href: `/compose.html?cid=${m.modelCid}` }, short(m.modelCid)), '.'));

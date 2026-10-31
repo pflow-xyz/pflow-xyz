@@ -1,7 +1,7 @@
 {
   "format": "composition-views-scene/1",
   "spec": "docs/composition-views-scene.md",
-  "generated_by": "pflow-native crates/app/src/compviews.rs (egui renderers, headless)",
+  "generated_by": "pflow-native crates/app/src/compviews (egui renderers, headless)",
   "pflow_rs": "aacb7eb0aa70c93d3d091c0f7809f0000a9d34b4",
   "manifests": [
     {
@@ -2363,6 +2363,13 @@
           }
         },
         {
+          "kind": "hole",
+          "id": "root",
+          "attrs": {
+            "accepts": "Root"
+          }
+        },
+        {
           "kind": "piece",
           "id": "filters/must_win",
           "attrs": {}
@@ -2449,6 +2456,13 @@
           "id": "order",
           "attrs": {
             "accepts": "Order"
+          }
+        },
+        {
+          "kind": "hole",
+          "id": "root",
+          "attrs": {
+            "accepts": "Root"
           }
         },
         {
@@ -2541,6 +2555,13 @@
           }
         },
         {
+          "kind": "hole",
+          "id": "root",
+          "attrs": {
+            "accepts": "Root"
+          }
+        },
+        {
           "kind": "piece",
           "id": "filters/must_win",
           "attrs": {}
@@ -2630,6 +2651,13 @@
           }
         },
         {
+          "kind": "hole",
+          "id": "root",
+          "attrs": {
+            "accepts": "Root"
+          }
+        },
+        {
           "kind": "piece",
           "id": "filters/must_win",
           "attrs": {}
@@ -2716,6 +2744,13 @@
           "id": "order",
           "attrs": {
             "accepts": "Order"
+          }
+        },
+        {
+          "kind": "hole",
+          "id": "root",
+          "attrs": {
+            "accepts": "Root"
           }
         },
         {
@@ -7989,6 +8024,1958 @@
           "attrs": {}
         }
       ]
+    }
+  ],
+  "transition_manifests": [
+    {
+      "view": "string",
+      "example": "orders",
+      "state": "default",
+      "elements": [
+        {
+          "kind": "tback",
+          "id": "fused:orders/dequeue+payment/do_reserve+workers/acquire->orders/enqueue",
+          "attrs": {}
+        },
+        {
+          "kind": "tback",
+          "id": "fused:payment/commit+workers/release->fused:orders/dequeue+payment/do_reserve+workers/acquire",
+          "attrs": {}
+        },
+        {
+          "kind": "tback",
+          "id": "payment/undo_charge->payment/do_charge",
+          "attrs": {}
+        },
+        {
+          "kind": "tboundary",
+          "id": "payment/charge_compensated",
+          "attrs": {
+            "side": "out"
+          }
+        },
+        {
+          "kind": "tboundary",
+          "id": "payment/charge_failed",
+          "attrs": {
+            "side": "out"
+          }
+        },
+        {
+          "kind": "tboundary",
+          "id": "payment/charge_pending",
+          "attrs": {
+            "side": "in"
+          }
+        },
+        {
+          "kind": "tboundary",
+          "id": "payment/completed",
+          "attrs": {
+            "side": "out"
+          }
+        },
+        {
+          "kind": "tboundary",
+          "id": "payment/next_reserve",
+          "attrs": {
+            "side": "in"
+          }
+        },
+        {
+          "kind": "tboundary",
+          "id": "payment/reserve_compensated",
+          "attrs": {
+            "side": "out"
+          }
+        },
+        {
+          "kind": "tboundary",
+          "id": "payment/reserve_failed",
+          "attrs": {
+            "side": "out"
+          }
+        },
+        {
+          "kind": "tboundary",
+          "id": "payment/reserve_pending",
+          "attrs": {
+            "side": "in"
+          }
+        },
+        {
+          "kind": "tboundary",
+          "id": "payment/rolled_back",
+          "attrs": {
+            "side": "out"
+          }
+        },
+        {
+          "kind": "tbox",
+          "id": "fused:orders/dequeue+payment/do_reserve+workers/acquire",
+          "attrs": {
+            "layer": 1,
+            "fused": true,
+            "inputs": 4,
+            "outputs": 4
+          }
+        },
+        {
+          "kind": "tbox",
+          "id": "fused:payment/commit+workers/release",
+          "attrs": {
+            "layer": 3,
+            "fused": true,
+            "inputs": 2,
+            "outputs": 2
+          }
+        },
+        {
+          "kind": "tbox",
+          "id": "orders/enqueue",
+          "attrs": {
+            "layer": 0,
+            "fused": false,
+            "inputs": 1,
+            "outputs": 1
+          }
+        },
+        {
+          "kind": "tbox",
+          "id": "payment/do_charge",
+          "attrs": {
+            "layer": 2,
+            "fused": false,
+            "inputs": 3,
+            "outputs": 3
+          }
+        },
+        {
+          "kind": "tbox",
+          "id": "payment/fail_charge",
+          "attrs": {
+            "layer": 2,
+            "fused": false,
+            "inputs": 2,
+            "outputs": 2
+          }
+        },
+        {
+          "kind": "tbox",
+          "id": "payment/fail_commit",
+          "attrs": {
+            "layer": 3,
+            "fused": false,
+            "inputs": 1,
+            "outputs": 1
+          }
+        },
+        {
+          "kind": "tbox",
+          "id": "payment/fail_reserve",
+          "attrs": {
+            "layer": 0,
+            "fused": false,
+            "inputs": 2,
+            "outputs": 2
+          }
+        },
+        {
+          "kind": "tbox",
+          "id": "payment/undo_charge",
+          "attrs": {
+            "layer": 4,
+            "fused": false,
+            "inputs": 3,
+            "outputs": 3
+          }
+        },
+        {
+          "kind": "tbox",
+          "id": "payment/undo_reserve",
+          "attrs": {
+            "layer": 5,
+            "fused": false,
+            "inputs": 2,
+            "outputs": 2
+          }
+        },
+        {
+          "kind": "twire",
+          "id": "fused:orders/dequeue+payment/do_reserve+workers/acquire->fused:payment/commit+workers/release:workers/in_use",
+          "attrs": {
+            "back": false,
+            "inhibit": false,
+            "weight": 1
+          }
+        },
+        {
+          "kind": "twire",
+          "id": "fused:orders/dequeue+payment/do_reserve+workers/acquire->orders/enqueue:orders/slots",
+          "attrs": {
+            "back": true,
+            "inhibit": false,
+            "weight": 1
+          }
+        },
+        {
+          "kind": "twire",
+          "id": "fused:orders/dequeue+payment/do_reserve+workers/acquire->payment/do_charge:payment/next_charge",
+          "attrs": {
+            "back": false,
+            "inhibit": false,
+            "weight": 1
+          }
+        },
+        {
+          "kind": "twire",
+          "id": "fused:orders/dequeue+payment/do_reserve+workers/acquire->payment/fail_charge:payment/next_charge",
+          "attrs": {
+            "back": false,
+            "inhibit": false,
+            "weight": 1
+          }
+        },
+        {
+          "kind": "twire",
+          "id": "fused:orders/dequeue+payment/do_reserve+workers/acquire->payment/undo_reserve:payment/reserve_done",
+          "attrs": {
+            "back": false,
+            "inhibit": false,
+            "weight": 1
+          }
+        },
+        {
+          "kind": "twire",
+          "id": "fused:payment/commit+workers/release->fused:orders/dequeue+payment/do_reserve+workers/acquire:workers/available",
+          "attrs": {
+            "back": true,
+            "inhibit": false,
+            "weight": 1
+          }
+        },
+        {
+          "kind": "twire",
+          "id": "orders/enqueue->fused:orders/dequeue+payment/do_reserve+workers/acquire:orders/items",
+          "attrs": {
+            "back": false,
+            "inhibit": false,
+            "weight": 1
+          }
+        },
+        {
+          "kind": "twire",
+          "id": "payment/do_charge->fused:payment/commit+workers/release:payment/committing",
+          "attrs": {
+            "back": false,
+            "inhibit": false,
+            "weight": 1
+          }
+        },
+        {
+          "kind": "twire",
+          "id": "payment/do_charge->payment/fail_commit:payment/committing",
+          "attrs": {
+            "back": false,
+            "inhibit": false,
+            "weight": 1
+          }
+        },
+        {
+          "kind": "twire",
+          "id": "payment/do_charge->payment/undo_charge:payment/charge_done",
+          "attrs": {
+            "back": false,
+            "inhibit": false,
+            "weight": 1
+          }
+        },
+        {
+          "kind": "twire",
+          "id": "payment/do_charge->payment/undo_charge:payment/merchant",
+          "attrs": {
+            "back": false,
+            "inhibit": false,
+            "weight": 1
+          }
+        },
+        {
+          "kind": "twire",
+          "id": "payment/fail_charge->payment/undo_reserve:payment/unwind_reserve",
+          "attrs": {
+            "back": false,
+            "inhibit": false,
+            "weight": 1
+          }
+        },
+        {
+          "kind": "twire",
+          "id": "payment/fail_commit->payment/undo_charge:payment/unwind_charge",
+          "attrs": {
+            "back": false,
+            "inhibit": false,
+            "weight": 1
+          }
+        },
+        {
+          "kind": "twire",
+          "id": "payment/undo_charge->payment/do_charge:payment/customer",
+          "attrs": {
+            "back": true,
+            "inhibit": false,
+            "weight": 1
+          }
+        },
+        {
+          "kind": "twire",
+          "id": "payment/undo_charge->payment/undo_reserve:payment/unwind_reserve",
+          "attrs": {
+            "back": false,
+            "inhibit": false,
+            "weight": 1
+          }
+        }
+      ],
+      "level": "transition"
+    },
+    {
+      "view": "string",
+      "example": "orders",
+      "state": "payment2-pushout",
+      "elements": [
+        {
+          "kind": "tback",
+          "id": "fused:orders/dequeue+payment/do_reserve+workers/acquire->orders/enqueue",
+          "attrs": {}
+        },
+        {
+          "kind": "tback",
+          "id": "fused:payment/commit+workers/release->fused:orders/dequeue+payment/do_reserve+workers/acquire",
+          "attrs": {}
+        },
+        {
+          "kind": "tback",
+          "id": "payment/undo_charge->payment/do_charge",
+          "attrs": {}
+        },
+        {
+          "kind": "tback",
+          "id": "payment2/undo_charge->payment/do_charge",
+          "attrs": {}
+        },
+        {
+          "kind": "tback",
+          "id": "payment2/undo_charge->payment2/do_charge",
+          "attrs": {}
+        },
+        {
+          "kind": "tboundary",
+          "id": "payment/charge_compensated",
+          "attrs": {
+            "side": "out"
+          }
+        },
+        {
+          "kind": "tboundary",
+          "id": "payment/charge_failed",
+          "attrs": {
+            "side": "out"
+          }
+        },
+        {
+          "kind": "tboundary",
+          "id": "payment/charge_pending",
+          "attrs": {
+            "side": "in"
+          }
+        },
+        {
+          "kind": "tboundary",
+          "id": "payment/completed",
+          "attrs": {
+            "side": "out"
+          }
+        },
+        {
+          "kind": "tboundary",
+          "id": "payment/next_reserve",
+          "attrs": {
+            "side": "in"
+          }
+        },
+        {
+          "kind": "tboundary",
+          "id": "payment/reserve_compensated",
+          "attrs": {
+            "side": "out"
+          }
+        },
+        {
+          "kind": "tboundary",
+          "id": "payment/reserve_failed",
+          "attrs": {
+            "side": "out"
+          }
+        },
+        {
+          "kind": "tboundary",
+          "id": "payment/reserve_pending",
+          "attrs": {
+            "side": "in"
+          }
+        },
+        {
+          "kind": "tboundary",
+          "id": "payment/rolled_back",
+          "attrs": {
+            "side": "out"
+          }
+        },
+        {
+          "kind": "tboundary",
+          "id": "payment2/charge_compensated",
+          "attrs": {
+            "side": "out"
+          }
+        },
+        {
+          "kind": "tboundary",
+          "id": "payment2/charge_failed",
+          "attrs": {
+            "side": "out"
+          }
+        },
+        {
+          "kind": "tboundary",
+          "id": "payment2/charge_pending",
+          "attrs": {
+            "side": "in"
+          }
+        },
+        {
+          "kind": "tboundary",
+          "id": "payment2/completed",
+          "attrs": {
+            "side": "out"
+          }
+        },
+        {
+          "kind": "tboundary",
+          "id": "payment2/next_reserve",
+          "attrs": {
+            "side": "in"
+          }
+        },
+        {
+          "kind": "tboundary",
+          "id": "payment2/reserve_compensated",
+          "attrs": {
+            "side": "out"
+          }
+        },
+        {
+          "kind": "tboundary",
+          "id": "payment2/reserve_failed",
+          "attrs": {
+            "side": "out"
+          }
+        },
+        {
+          "kind": "tboundary",
+          "id": "payment2/reserve_pending",
+          "attrs": {
+            "side": "in"
+          }
+        },
+        {
+          "kind": "tboundary",
+          "id": "payment2/rolled_back",
+          "attrs": {
+            "side": "out"
+          }
+        },
+        {
+          "kind": "tbox",
+          "id": "fused:orders/dequeue+payment/do_reserve+workers/acquire",
+          "attrs": {
+            "layer": 1,
+            "fused": true,
+            "inputs": 4,
+            "outputs": 4
+          }
+        },
+        {
+          "kind": "tbox",
+          "id": "fused:payment/commit+workers/release",
+          "attrs": {
+            "layer": 3,
+            "fused": true,
+            "inputs": 2,
+            "outputs": 2
+          }
+        },
+        {
+          "kind": "tbox",
+          "id": "orders/enqueue",
+          "attrs": {
+            "layer": 0,
+            "fused": false,
+            "inputs": 1,
+            "outputs": 1
+          }
+        },
+        {
+          "kind": "tbox",
+          "id": "payment/do_charge",
+          "attrs": {
+            "layer": 2,
+            "fused": false,
+            "inputs": 3,
+            "outputs": 3
+          }
+        },
+        {
+          "kind": "tbox",
+          "id": "payment/fail_charge",
+          "attrs": {
+            "layer": 2,
+            "fused": false,
+            "inputs": 2,
+            "outputs": 2
+          }
+        },
+        {
+          "kind": "tbox",
+          "id": "payment/fail_commit",
+          "attrs": {
+            "layer": 3,
+            "fused": false,
+            "inputs": 1,
+            "outputs": 1
+          }
+        },
+        {
+          "kind": "tbox",
+          "id": "payment/fail_reserve",
+          "attrs": {
+            "layer": 0,
+            "fused": false,
+            "inputs": 2,
+            "outputs": 2
+          }
+        },
+        {
+          "kind": "tbox",
+          "id": "payment/undo_charge",
+          "attrs": {
+            "layer": 4,
+            "fused": false,
+            "inputs": 3,
+            "outputs": 3
+          }
+        },
+        {
+          "kind": "tbox",
+          "id": "payment/undo_reserve",
+          "attrs": {
+            "layer": 5,
+            "fused": false,
+            "inputs": 2,
+            "outputs": 2
+          }
+        },
+        {
+          "kind": "tbox",
+          "id": "payment2/commit",
+          "attrs": {
+            "layer": 6,
+            "fused": false,
+            "inputs": 1,
+            "outputs": 1
+          }
+        },
+        {
+          "kind": "tbox",
+          "id": "payment2/do_charge",
+          "attrs": {
+            "layer": 5,
+            "fused": false,
+            "inputs": 3,
+            "outputs": 3
+          }
+        },
+        {
+          "kind": "tbox",
+          "id": "payment2/do_reserve",
+          "attrs": {
+            "layer": 0,
+            "fused": false,
+            "inputs": 2,
+            "outputs": 2
+          }
+        },
+        {
+          "kind": "tbox",
+          "id": "payment2/fail_charge",
+          "attrs": {
+            "layer": 1,
+            "fused": false,
+            "inputs": 2,
+            "outputs": 2
+          }
+        },
+        {
+          "kind": "tbox",
+          "id": "payment2/fail_commit",
+          "attrs": {
+            "layer": 6,
+            "fused": false,
+            "inputs": 1,
+            "outputs": 1
+          }
+        },
+        {
+          "kind": "tbox",
+          "id": "payment2/fail_reserve",
+          "attrs": {
+            "layer": 0,
+            "fused": false,
+            "inputs": 2,
+            "outputs": 2
+          }
+        },
+        {
+          "kind": "tbox",
+          "id": "payment2/undo_charge",
+          "attrs": {
+            "layer": 7,
+            "fused": false,
+            "inputs": 3,
+            "outputs": 3
+          }
+        },
+        {
+          "kind": "tbox",
+          "id": "payment2/undo_reserve",
+          "attrs": {
+            "layer": 8,
+            "fused": false,
+            "inputs": 2,
+            "outputs": 2
+          }
+        },
+        {
+          "kind": "twire",
+          "id": "fused:orders/dequeue+payment/do_reserve+workers/acquire->fused:payment/commit+workers/release:workers/in_use",
+          "attrs": {
+            "back": false,
+            "inhibit": false,
+            "weight": 1
+          }
+        },
+        {
+          "kind": "twire",
+          "id": "fused:orders/dequeue+payment/do_reserve+workers/acquire->orders/enqueue:orders/slots",
+          "attrs": {
+            "back": true,
+            "inhibit": false,
+            "weight": 1
+          }
+        },
+        {
+          "kind": "twire",
+          "id": "fused:orders/dequeue+payment/do_reserve+workers/acquire->payment/do_charge:payment/next_charge",
+          "attrs": {
+            "back": false,
+            "inhibit": false,
+            "weight": 1
+          }
+        },
+        {
+          "kind": "twire",
+          "id": "fused:orders/dequeue+payment/do_reserve+workers/acquire->payment/fail_charge:payment/next_charge",
+          "attrs": {
+            "back": false,
+            "inhibit": false,
+            "weight": 1
+          }
+        },
+        {
+          "kind": "twire",
+          "id": "fused:orders/dequeue+payment/do_reserve+workers/acquire->payment/undo_reserve:payment/reserve_done",
+          "attrs": {
+            "back": false,
+            "inhibit": false,
+            "weight": 1
+          }
+        },
+        {
+          "kind": "twire",
+          "id": "fused:payment/commit+workers/release->fused:orders/dequeue+payment/do_reserve+workers/acquire:workers/available",
+          "attrs": {
+            "back": true,
+            "inhibit": false,
+            "weight": 1
+          }
+        },
+        {
+          "kind": "twire",
+          "id": "orders/enqueue->fused:orders/dequeue+payment/do_reserve+workers/acquire:orders/items",
+          "attrs": {
+            "back": false,
+            "inhibit": false,
+            "weight": 1
+          }
+        },
+        {
+          "kind": "twire",
+          "id": "payment/do_charge->fused:payment/commit+workers/release:payment/committing",
+          "attrs": {
+            "back": false,
+            "inhibit": false,
+            "weight": 1
+          }
+        },
+        {
+          "kind": "twire",
+          "id": "payment/do_charge->payment/fail_commit:payment/committing",
+          "attrs": {
+            "back": false,
+            "inhibit": false,
+            "weight": 1
+          }
+        },
+        {
+          "kind": "twire",
+          "id": "payment/do_charge->payment/undo_charge:payment/charge_done",
+          "attrs": {
+            "back": false,
+            "inhibit": false,
+            "weight": 1
+          }
+        },
+        {
+          "kind": "twire",
+          "id": "payment/do_charge->payment/undo_charge:payment/merchant",
+          "attrs": {
+            "back": false,
+            "inhibit": false,
+            "weight": 1
+          }
+        },
+        {
+          "kind": "twire",
+          "id": "payment/fail_charge->payment/undo_reserve:payment/unwind_reserve",
+          "attrs": {
+            "back": false,
+            "inhibit": false,
+            "weight": 1
+          }
+        },
+        {
+          "kind": "twire",
+          "id": "payment/fail_commit->payment/undo_charge:payment/unwind_charge",
+          "attrs": {
+            "back": false,
+            "inhibit": false,
+            "weight": 1
+          }
+        },
+        {
+          "kind": "twire",
+          "id": "payment/undo_charge->payment/do_charge:wire:payment/customer",
+          "attrs": {
+            "back": true,
+            "inhibit": false,
+            "weight": 1
+          }
+        },
+        {
+          "kind": "twire",
+          "id": "payment/undo_charge->payment/undo_reserve:payment/unwind_reserve",
+          "attrs": {
+            "back": false,
+            "inhibit": false,
+            "weight": 1
+          }
+        },
+        {
+          "kind": "twire",
+          "id": "payment/undo_charge->payment2/do_charge:wire:payment/customer",
+          "attrs": {
+            "back": false,
+            "inhibit": false,
+            "weight": 1
+          }
+        },
+        {
+          "kind": "twire",
+          "id": "payment2/do_charge->payment2/commit:payment2/committing",
+          "attrs": {
+            "back": false,
+            "inhibit": false,
+            "weight": 1
+          }
+        },
+        {
+          "kind": "twire",
+          "id": "payment2/do_charge->payment2/fail_commit:payment2/committing",
+          "attrs": {
+            "back": false,
+            "inhibit": false,
+            "weight": 1
+          }
+        },
+        {
+          "kind": "twire",
+          "id": "payment2/do_charge->payment2/undo_charge:payment2/charge_done",
+          "attrs": {
+            "back": false,
+            "inhibit": false,
+            "weight": 1
+          }
+        },
+        {
+          "kind": "twire",
+          "id": "payment2/do_charge->payment2/undo_charge:payment2/merchant",
+          "attrs": {
+            "back": false,
+            "inhibit": false,
+            "weight": 1
+          }
+        },
+        {
+          "kind": "twire",
+          "id": "payment2/do_reserve->payment2/do_charge:payment2/next_charge",
+          "attrs": {
+            "back": false,
+            "inhibit": false,
+            "weight": 1
+          }
+        },
+        {
+          "kind": "twire",
+          "id": "payment2/do_reserve->payment2/fail_charge:payment2/next_charge",
+          "attrs": {
+            "back": false,
+            "inhibit": false,
+            "weight": 1
+          }
+        },
+        {
+          "kind": "twire",
+          "id": "payment2/do_reserve->payment2/undo_reserve:payment2/reserve_done",
+          "attrs": {
+            "back": false,
+            "inhibit": false,
+            "weight": 1
+          }
+        },
+        {
+          "kind": "twire",
+          "id": "payment2/fail_charge->payment2/undo_reserve:payment2/unwind_reserve",
+          "attrs": {
+            "back": false,
+            "inhibit": false,
+            "weight": 1
+          }
+        },
+        {
+          "kind": "twire",
+          "id": "payment2/fail_commit->payment2/undo_charge:payment2/unwind_charge",
+          "attrs": {
+            "back": false,
+            "inhibit": false,
+            "weight": 1
+          }
+        },
+        {
+          "kind": "twire",
+          "id": "payment2/undo_charge->payment/do_charge:wire:payment/customer",
+          "attrs": {
+            "back": true,
+            "inhibit": false,
+            "weight": 1
+          }
+        },
+        {
+          "kind": "twire",
+          "id": "payment2/undo_charge->payment2/do_charge:wire:payment/customer",
+          "attrs": {
+            "back": true,
+            "inhibit": false,
+            "weight": 1
+          }
+        },
+        {
+          "kind": "twire",
+          "id": "payment2/undo_charge->payment2/undo_reserve:payment2/unwind_reserve",
+          "attrs": {
+            "back": false,
+            "inhibit": false,
+            "weight": 1
+          }
+        }
+      ],
+      "level": "transition"
+    },
+    {
+      "view": "string",
+      "example": "orders",
+      "state": "no-links",
+      "elements": [
+        {
+          "kind": "tback",
+          "id": "orders/dequeue->orders/enqueue",
+          "attrs": {}
+        },
+        {
+          "kind": "tback",
+          "id": "payment/undo_charge->payment/do_charge",
+          "attrs": {}
+        },
+        {
+          "kind": "tback",
+          "id": "workers/release->workers/acquire",
+          "attrs": {}
+        },
+        {
+          "kind": "tboundary",
+          "id": "payment/charge_compensated",
+          "attrs": {
+            "side": "out"
+          }
+        },
+        {
+          "kind": "tboundary",
+          "id": "payment/charge_failed",
+          "attrs": {
+            "side": "out"
+          }
+        },
+        {
+          "kind": "tboundary",
+          "id": "payment/charge_pending",
+          "attrs": {
+            "side": "in"
+          }
+        },
+        {
+          "kind": "tboundary",
+          "id": "payment/completed",
+          "attrs": {
+            "side": "out"
+          }
+        },
+        {
+          "kind": "tboundary",
+          "id": "payment/next_reserve",
+          "attrs": {
+            "side": "in"
+          }
+        },
+        {
+          "kind": "tboundary",
+          "id": "payment/reserve_compensated",
+          "attrs": {
+            "side": "out"
+          }
+        },
+        {
+          "kind": "tboundary",
+          "id": "payment/reserve_failed",
+          "attrs": {
+            "side": "out"
+          }
+        },
+        {
+          "kind": "tboundary",
+          "id": "payment/reserve_pending",
+          "attrs": {
+            "side": "in"
+          }
+        },
+        {
+          "kind": "tboundary",
+          "id": "payment/rolled_back",
+          "attrs": {
+            "side": "out"
+          }
+        },
+        {
+          "kind": "tbox",
+          "id": "orders/dequeue",
+          "attrs": {
+            "layer": 1,
+            "fused": false,
+            "inputs": 1,
+            "outputs": 1
+          }
+        },
+        {
+          "kind": "tbox",
+          "id": "orders/enqueue",
+          "attrs": {
+            "layer": 0,
+            "fused": false,
+            "inputs": 1,
+            "outputs": 1
+          }
+        },
+        {
+          "kind": "tbox",
+          "id": "payment/commit",
+          "attrs": {
+            "layer": 2,
+            "fused": false,
+            "inputs": 1,
+            "outputs": 1
+          }
+        },
+        {
+          "kind": "tbox",
+          "id": "payment/do_charge",
+          "attrs": {
+            "layer": 1,
+            "fused": false,
+            "inputs": 3,
+            "outputs": 3
+          }
+        },
+        {
+          "kind": "tbox",
+          "id": "payment/do_reserve",
+          "attrs": {
+            "layer": 0,
+            "fused": false,
+            "inputs": 2,
+            "outputs": 2
+          }
+        },
+        {
+          "kind": "tbox",
+          "id": "payment/fail_charge",
+          "attrs": {
+            "layer": 1,
+            "fused": false,
+            "inputs": 2,
+            "outputs": 2
+          }
+        },
+        {
+          "kind": "tbox",
+          "id": "payment/fail_commit",
+          "attrs": {
+            "layer": 2,
+            "fused": false,
+            "inputs": 1,
+            "outputs": 1
+          }
+        },
+        {
+          "kind": "tbox",
+          "id": "payment/fail_reserve",
+          "attrs": {
+            "layer": 0,
+            "fused": false,
+            "inputs": 2,
+            "outputs": 2
+          }
+        },
+        {
+          "kind": "tbox",
+          "id": "payment/undo_charge",
+          "attrs": {
+            "layer": 3,
+            "fused": false,
+            "inputs": 3,
+            "outputs": 3
+          }
+        },
+        {
+          "kind": "tbox",
+          "id": "payment/undo_reserve",
+          "attrs": {
+            "layer": 4,
+            "fused": false,
+            "inputs": 2,
+            "outputs": 2
+          }
+        },
+        {
+          "kind": "tbox",
+          "id": "workers/acquire",
+          "attrs": {
+            "layer": 0,
+            "fused": false,
+            "inputs": 1,
+            "outputs": 1
+          }
+        },
+        {
+          "kind": "tbox",
+          "id": "workers/release",
+          "attrs": {
+            "layer": 1,
+            "fused": false,
+            "inputs": 1,
+            "outputs": 1
+          }
+        },
+        {
+          "kind": "twire",
+          "id": "orders/dequeue->orders/enqueue:orders/slots",
+          "attrs": {
+            "back": true,
+            "inhibit": false,
+            "weight": 1
+          }
+        },
+        {
+          "kind": "twire",
+          "id": "orders/enqueue->orders/dequeue:orders/items",
+          "attrs": {
+            "back": false,
+            "inhibit": false,
+            "weight": 1
+          }
+        },
+        {
+          "kind": "twire",
+          "id": "payment/do_charge->payment/commit:payment/committing",
+          "attrs": {
+            "back": false,
+            "inhibit": false,
+            "weight": 1
+          }
+        },
+        {
+          "kind": "twire",
+          "id": "payment/do_charge->payment/fail_commit:payment/committing",
+          "attrs": {
+            "back": false,
+            "inhibit": false,
+            "weight": 1
+          }
+        },
+        {
+          "kind": "twire",
+          "id": "payment/do_charge->payment/undo_charge:payment/charge_done",
+          "attrs": {
+            "back": false,
+            "inhibit": false,
+            "weight": 1
+          }
+        },
+        {
+          "kind": "twire",
+          "id": "payment/do_charge->payment/undo_charge:payment/merchant",
+          "attrs": {
+            "back": false,
+            "inhibit": false,
+            "weight": 1
+          }
+        },
+        {
+          "kind": "twire",
+          "id": "payment/do_reserve->payment/do_charge:payment/next_charge",
+          "attrs": {
+            "back": false,
+            "inhibit": false,
+            "weight": 1
+          }
+        },
+        {
+          "kind": "twire",
+          "id": "payment/do_reserve->payment/fail_charge:payment/next_charge",
+          "attrs": {
+            "back": false,
+            "inhibit": false,
+            "weight": 1
+          }
+        },
+        {
+          "kind": "twire",
+          "id": "payment/do_reserve->payment/undo_reserve:payment/reserve_done",
+          "attrs": {
+            "back": false,
+            "inhibit": false,
+            "weight": 1
+          }
+        },
+        {
+          "kind": "twire",
+          "id": "payment/fail_charge->payment/undo_reserve:payment/unwind_reserve",
+          "attrs": {
+            "back": false,
+            "inhibit": false,
+            "weight": 1
+          }
+        },
+        {
+          "kind": "twire",
+          "id": "payment/fail_commit->payment/undo_charge:payment/unwind_charge",
+          "attrs": {
+            "back": false,
+            "inhibit": false,
+            "weight": 1
+          }
+        },
+        {
+          "kind": "twire",
+          "id": "payment/undo_charge->payment/do_charge:payment/customer",
+          "attrs": {
+            "back": true,
+            "inhibit": false,
+            "weight": 1
+          }
+        },
+        {
+          "kind": "twire",
+          "id": "payment/undo_charge->payment/undo_reserve:payment/unwind_reserve",
+          "attrs": {
+            "back": false,
+            "inhibit": false,
+            "weight": 1
+          }
+        },
+        {
+          "kind": "twire",
+          "id": "workers/acquire->workers/release:workers/in_use",
+          "attrs": {
+            "back": false,
+            "inhibit": false,
+            "weight": 1
+          }
+        },
+        {
+          "kind": "twire",
+          "id": "workers/release->workers/acquire:workers/available",
+          "attrs": {
+            "back": true,
+            "inhibit": false,
+            "weight": 1
+          }
+        }
+      ],
+      "level": "transition"
+    },
+    {
+      "view": "string",
+      "example": "orders",
+      "state": "release-undo",
+      "elements": [
+        {
+          "kind": "tback",
+          "id": "fused:orders/dequeue+payment/do_reserve+workers/acquire->orders/enqueue",
+          "attrs": {}
+        },
+        {
+          "kind": "tback",
+          "id": "fused:payment/commit+payment/undo_reserve+workers/release->fused:orders/dequeue+payment/do_reserve+workers/acquire",
+          "attrs": {}
+        },
+        {
+          "kind": "tback",
+          "id": "payment/undo_charge->payment/do_charge",
+          "attrs": {}
+        },
+        {
+          "kind": "tboundary",
+          "id": "payment/charge_compensated",
+          "attrs": {
+            "side": "out"
+          }
+        },
+        {
+          "kind": "tboundary",
+          "id": "payment/charge_failed",
+          "attrs": {
+            "side": "out"
+          }
+        },
+        {
+          "kind": "tboundary",
+          "id": "payment/charge_pending",
+          "attrs": {
+            "side": "in"
+          }
+        },
+        {
+          "kind": "tboundary",
+          "id": "payment/completed",
+          "attrs": {
+            "side": "out"
+          }
+        },
+        {
+          "kind": "tboundary",
+          "id": "payment/next_reserve",
+          "attrs": {
+            "side": "in"
+          }
+        },
+        {
+          "kind": "tboundary",
+          "id": "payment/reserve_compensated",
+          "attrs": {
+            "side": "out"
+          }
+        },
+        {
+          "kind": "tboundary",
+          "id": "payment/reserve_failed",
+          "attrs": {
+            "side": "out"
+          }
+        },
+        {
+          "kind": "tboundary",
+          "id": "payment/reserve_pending",
+          "attrs": {
+            "side": "in"
+          }
+        },
+        {
+          "kind": "tboundary",
+          "id": "payment/rolled_back",
+          "attrs": {
+            "side": "out"
+          }
+        },
+        {
+          "kind": "tbox",
+          "id": "fused:orders/dequeue+payment/do_reserve+workers/acquire",
+          "attrs": {
+            "layer": 1,
+            "fused": true,
+            "inputs": 4,
+            "outputs": 4
+          }
+        },
+        {
+          "kind": "tbox",
+          "id": "fused:payment/commit+payment/undo_reserve+workers/release",
+          "attrs": {
+            "layer": 5,
+            "fused": true,
+            "inputs": 4,
+            "outputs": 4
+          }
+        },
+        {
+          "kind": "tbox",
+          "id": "orders/enqueue",
+          "attrs": {
+            "layer": 0,
+            "fused": false,
+            "inputs": 1,
+            "outputs": 1
+          }
+        },
+        {
+          "kind": "tbox",
+          "id": "payment/do_charge",
+          "attrs": {
+            "layer": 2,
+            "fused": false,
+            "inputs": 3,
+            "outputs": 3
+          }
+        },
+        {
+          "kind": "tbox",
+          "id": "payment/fail_charge",
+          "attrs": {
+            "layer": 2,
+            "fused": false,
+            "inputs": 2,
+            "outputs": 2
+          }
+        },
+        {
+          "kind": "tbox",
+          "id": "payment/fail_commit",
+          "attrs": {
+            "layer": 3,
+            "fused": false,
+            "inputs": 1,
+            "outputs": 1
+          }
+        },
+        {
+          "kind": "tbox",
+          "id": "payment/fail_reserve",
+          "attrs": {
+            "layer": 0,
+            "fused": false,
+            "inputs": 2,
+            "outputs": 2
+          }
+        },
+        {
+          "kind": "tbox",
+          "id": "payment/undo_charge",
+          "attrs": {
+            "layer": 4,
+            "fused": false,
+            "inputs": 3,
+            "outputs": 3
+          }
+        },
+        {
+          "kind": "twire",
+          "id": "fused:orders/dequeue+payment/do_reserve+workers/acquire->fused:payment/commit+payment/undo_reserve+workers/release:payment/reserve_done",
+          "attrs": {
+            "back": false,
+            "inhibit": false,
+            "weight": 1
+          }
+        },
+        {
+          "kind": "twire",
+          "id": "fused:orders/dequeue+payment/do_reserve+workers/acquire->fused:payment/commit+payment/undo_reserve+workers/release:workers/in_use",
+          "attrs": {
+            "back": false,
+            "inhibit": false,
+            "weight": 1
+          }
+        },
+        {
+          "kind": "twire",
+          "id": "fused:orders/dequeue+payment/do_reserve+workers/acquire->orders/enqueue:orders/slots",
+          "attrs": {
+            "back": true,
+            "inhibit": false,
+            "weight": 1
+          }
+        },
+        {
+          "kind": "twire",
+          "id": "fused:orders/dequeue+payment/do_reserve+workers/acquire->payment/do_charge:payment/next_charge",
+          "attrs": {
+            "back": false,
+            "inhibit": false,
+            "weight": 1
+          }
+        },
+        {
+          "kind": "twire",
+          "id": "fused:orders/dequeue+payment/do_reserve+workers/acquire->payment/fail_charge:payment/next_charge",
+          "attrs": {
+            "back": false,
+            "inhibit": false,
+            "weight": 1
+          }
+        },
+        {
+          "kind": "twire",
+          "id": "fused:payment/commit+payment/undo_reserve+workers/release->fused:orders/dequeue+payment/do_reserve+workers/acquire:workers/available",
+          "attrs": {
+            "back": true,
+            "inhibit": false,
+            "weight": 1
+          }
+        },
+        {
+          "kind": "twire",
+          "id": "orders/enqueue->fused:orders/dequeue+payment/do_reserve+workers/acquire:orders/items",
+          "attrs": {
+            "back": false,
+            "inhibit": false,
+            "weight": 1
+          }
+        },
+        {
+          "kind": "twire",
+          "id": "payment/do_charge->fused:payment/commit+payment/undo_reserve+workers/release:payment/committing",
+          "attrs": {
+            "back": false,
+            "inhibit": false,
+            "weight": 1
+          }
+        },
+        {
+          "kind": "twire",
+          "id": "payment/do_charge->payment/fail_commit:payment/committing",
+          "attrs": {
+            "back": false,
+            "inhibit": false,
+            "weight": 1
+          }
+        },
+        {
+          "kind": "twire",
+          "id": "payment/do_charge->payment/undo_charge:payment/charge_done",
+          "attrs": {
+            "back": false,
+            "inhibit": false,
+            "weight": 1
+          }
+        },
+        {
+          "kind": "twire",
+          "id": "payment/do_charge->payment/undo_charge:payment/merchant",
+          "attrs": {
+            "back": false,
+            "inhibit": false,
+            "weight": 1
+          }
+        },
+        {
+          "kind": "twire",
+          "id": "payment/fail_charge->fused:payment/commit+payment/undo_reserve+workers/release:payment/unwind_reserve",
+          "attrs": {
+            "back": false,
+            "inhibit": false,
+            "weight": 1
+          }
+        },
+        {
+          "kind": "twire",
+          "id": "payment/fail_commit->payment/undo_charge:payment/unwind_charge",
+          "attrs": {
+            "back": false,
+            "inhibit": false,
+            "weight": 1
+          }
+        },
+        {
+          "kind": "twire",
+          "id": "payment/undo_charge->fused:payment/commit+payment/undo_reserve+workers/release:payment/unwind_reserve",
+          "attrs": {
+            "back": false,
+            "inhibit": false,
+            "weight": 1
+          }
+        },
+        {
+          "kind": "twire",
+          "id": "payment/undo_charge->payment/do_charge:payment/customer",
+          "attrs": {
+            "back": true,
+            "inhibit": false,
+            "weight": 1
+          }
+        }
+      ],
+      "level": "transition"
+    },
+    {
+      "view": "string",
+      "example": "orders",
+      "state": "plan-threats",
+      "elements": [
+        {
+          "kind": "tback",
+          "id": "fused:orders/dequeue+payment/do_reserve+workers/acquire->orders/enqueue",
+          "attrs": {}
+        },
+        {
+          "kind": "tback",
+          "id": "fused:payment/commit+workers/release->fused:orders/dequeue+payment/do_reserve+workers/acquire",
+          "attrs": {}
+        },
+        {
+          "kind": "tback",
+          "id": "payment/undo_charge->payment/do_charge",
+          "attrs": {}
+        },
+        {
+          "kind": "tboundary",
+          "id": "payment/charge_compensated",
+          "attrs": {
+            "side": "out"
+          }
+        },
+        {
+          "kind": "tboundary",
+          "id": "payment/charge_failed",
+          "attrs": {
+            "side": "out"
+          }
+        },
+        {
+          "kind": "tboundary",
+          "id": "payment/charge_pending",
+          "attrs": {
+            "side": "in"
+          }
+        },
+        {
+          "kind": "tboundary",
+          "id": "payment/completed",
+          "attrs": {
+            "side": "out"
+          }
+        },
+        {
+          "kind": "tboundary",
+          "id": "payment/next_reserve",
+          "attrs": {
+            "side": "in"
+          }
+        },
+        {
+          "kind": "tboundary",
+          "id": "payment/reserve_compensated",
+          "attrs": {
+            "side": "out"
+          }
+        },
+        {
+          "kind": "tboundary",
+          "id": "payment/reserve_failed",
+          "attrs": {
+            "side": "out"
+          }
+        },
+        {
+          "kind": "tboundary",
+          "id": "payment/reserve_pending",
+          "attrs": {
+            "side": "in"
+          }
+        },
+        {
+          "kind": "tboundary",
+          "id": "payment/rolled_back",
+          "attrs": {
+            "side": "out"
+          }
+        },
+        {
+          "kind": "tbox",
+          "id": "fused:orders/dequeue+payment/do_reserve+workers/acquire",
+          "attrs": {
+            "layer": 1,
+            "fused": true,
+            "inputs": 4,
+            "outputs": 4
+          }
+        },
+        {
+          "kind": "tbox",
+          "id": "fused:payment/commit+workers/release",
+          "attrs": {
+            "layer": 3,
+            "fused": true,
+            "inputs": 2,
+            "outputs": 2
+          }
+        },
+        {
+          "kind": "tbox",
+          "id": "orders/enqueue",
+          "attrs": {
+            "layer": 0,
+            "fused": false,
+            "inputs": 1,
+            "outputs": 1
+          }
+        },
+        {
+          "kind": "tbox",
+          "id": "payment/do_charge",
+          "attrs": {
+            "layer": 2,
+            "fused": false,
+            "inputs": 3,
+            "outputs": 3
+          }
+        },
+        {
+          "kind": "tbox",
+          "id": "payment/fail_charge",
+          "attrs": {
+            "layer": 2,
+            "fused": false,
+            "inputs": 2,
+            "outputs": 2
+          }
+        },
+        {
+          "kind": "tbox",
+          "id": "payment/fail_commit",
+          "attrs": {
+            "layer": 3,
+            "fused": false,
+            "inputs": 1,
+            "outputs": 1
+          }
+        },
+        {
+          "kind": "tbox",
+          "id": "payment/fail_reserve",
+          "attrs": {
+            "layer": 0,
+            "fused": false,
+            "inputs": 2,
+            "outputs": 2
+          }
+        },
+        {
+          "kind": "tbox",
+          "id": "payment/undo_charge",
+          "attrs": {
+            "layer": 4,
+            "fused": false,
+            "inputs": 3,
+            "outputs": 3
+          }
+        },
+        {
+          "kind": "tbox",
+          "id": "payment/undo_reserve",
+          "attrs": {
+            "layer": 5,
+            "fused": false,
+            "inputs": 2,
+            "outputs": 2
+          }
+        },
+        {
+          "kind": "twire",
+          "id": "fused:orders/dequeue+payment/do_reserve+workers/acquire->fused:payment/commit+workers/release:workers/in_use",
+          "attrs": {
+            "back": false,
+            "inhibit": false,
+            "weight": 1
+          }
+        },
+        {
+          "kind": "twire",
+          "id": "fused:orders/dequeue+payment/do_reserve+workers/acquire->orders/enqueue:orders/slots",
+          "attrs": {
+            "back": true,
+            "inhibit": false,
+            "weight": 1
+          }
+        },
+        {
+          "kind": "twire",
+          "id": "fused:orders/dequeue+payment/do_reserve+workers/acquire->payment/do_charge:payment/next_charge",
+          "attrs": {
+            "back": false,
+            "inhibit": false,
+            "weight": 1
+          }
+        },
+        {
+          "kind": "twire",
+          "id": "fused:orders/dequeue+payment/do_reserve+workers/acquire->payment/fail_charge:payment/next_charge",
+          "attrs": {
+            "back": false,
+            "inhibit": false,
+            "weight": 1
+          }
+        },
+        {
+          "kind": "twire",
+          "id": "fused:orders/dequeue+payment/do_reserve+workers/acquire->payment/undo_reserve:payment/reserve_done",
+          "attrs": {
+            "back": false,
+            "inhibit": false,
+            "weight": 1
+          }
+        },
+        {
+          "kind": "twire",
+          "id": "fused:payment/commit+workers/release->fused:orders/dequeue+payment/do_reserve+workers/acquire:workers/available",
+          "attrs": {
+            "back": true,
+            "inhibit": false,
+            "weight": 1
+          }
+        },
+        {
+          "kind": "twire",
+          "id": "orders/enqueue->fused:orders/dequeue+payment/do_reserve+workers/acquire:orders/items",
+          "attrs": {
+            "back": false,
+            "inhibit": false,
+            "weight": 1
+          }
+        },
+        {
+          "kind": "twire",
+          "id": "payment/do_charge->fused:payment/commit+workers/release:payment/committing",
+          "attrs": {
+            "back": false,
+            "inhibit": false,
+            "weight": 1
+          }
+        },
+        {
+          "kind": "twire",
+          "id": "payment/do_charge->payment/fail_commit:payment/committing",
+          "attrs": {
+            "back": false,
+            "inhibit": false,
+            "weight": 1
+          }
+        },
+        {
+          "kind": "twire",
+          "id": "payment/do_charge->payment/undo_charge:payment/charge_done",
+          "attrs": {
+            "back": false,
+            "inhibit": false,
+            "weight": 1
+          }
+        },
+        {
+          "kind": "twire",
+          "id": "payment/do_charge->payment/undo_charge:payment/merchant",
+          "attrs": {
+            "back": false,
+            "inhibit": false,
+            "weight": 1
+          }
+        },
+        {
+          "kind": "twire",
+          "id": "payment/fail_charge->payment/undo_reserve:payment/unwind_reserve",
+          "attrs": {
+            "back": false,
+            "inhibit": false,
+            "weight": 1
+          }
+        },
+        {
+          "kind": "twire",
+          "id": "payment/fail_commit->payment/undo_charge:payment/unwind_charge",
+          "attrs": {
+            "back": false,
+            "inhibit": false,
+            "weight": 1
+          }
+        },
+        {
+          "kind": "twire",
+          "id": "payment/undo_charge->payment/do_charge:payment/customer",
+          "attrs": {
+            "back": true,
+            "inhibit": false,
+            "weight": 1
+          }
+        },
+        {
+          "kind": "twire",
+          "id": "payment/undo_charge->payment/undo_reserve:payment/unwind_reserve",
+          "attrs": {
+            "back": false,
+            "inhibit": false,
+            "weight": 1
+          }
+        }
+      ],
+      "level": "transition"
+    },
+    {
+      "view": "string",
+      "example": "connect4",
+      "state": "default",
+      "elements": [
+        {
+          "kind": "tnet",
+          "id": "connect-4",
+          "attrs": {
+            "boxes": 222,
+            "layers": 150,
+            "wires": 14296,
+            "back_wires": 3663,
+            "crossing_wires": 10519,
+            "boundary_in": 8,
+            "boundary_out": 2
+          }
+        }
+      ],
+      "level": "transition"
+    },
+    {
+      "view": "string",
+      "example": "connect4",
+      "state": "payment2-pushout",
+      "elements": [
+        {
+          "kind": "tnet",
+          "id": "connect-4",
+          "attrs": {
+            "boxes": 222,
+            "layers": 150,
+            "wires": 14296,
+            "back_wires": 3663,
+            "crossing_wires": 10519,
+            "boundary_in": 8,
+            "boundary_out": 2
+          }
+        }
+      ],
+      "level": "transition"
+    },
+    {
+      "view": "string",
+      "example": "connect4",
+      "state": "no-links",
+      "elements": [
+        {
+          "kind": "tnet",
+          "id": "connect-4",
+          "attrs": {
+            "boxes": 222,
+            "layers": 150,
+            "wires": 14296,
+            "back_wires": 3663,
+            "crossing_wires": 10519,
+            "boundary_in": 8,
+            "boundary_out": 2
+          }
+        }
+      ],
+      "level": "transition"
+    },
+    {
+      "view": "string",
+      "example": "connect4",
+      "state": "release-undo",
+      "elements": [
+        {
+          "kind": "tnet",
+          "id": "connect-4",
+          "attrs": {
+            "boxes": 222,
+            "layers": 150,
+            "wires": 14296,
+            "back_wires": 3663,
+            "crossing_wires": 10519,
+            "boundary_in": 8,
+            "boundary_out": 2
+          }
+        }
+      ],
+      "level": "transition"
+    },
+    {
+      "view": "string",
+      "example": "connect4",
+      "state": "plan-threats",
+      "elements": [
+        {
+          "kind": "tnet",
+          "id": "connect-4",
+          "attrs": {
+            "boxes": 222,
+            "layers": 150,
+            "wires": 14296,
+            "back_wires": 3663,
+            "crossing_wires": 10519,
+            "boundary_in": 8,
+            "boundary_out": 2
+          }
+        }
+      ],
+      "level": "transition"
     }
   ]
 }

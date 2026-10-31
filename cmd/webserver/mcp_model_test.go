@@ -260,7 +260,7 @@ func TestMCPBundleRefusesBadArguments(t *testing.T) {
 		{"unknown subnet in a link", "pflow_bundle_add_link", map[string]any{"bundle": cafe, "kind": "data", "from": "bank:out", "to": "pantry:beans"}, "E_BAD_ENDPOINT"},
 		{"neither script nor scenario", "pflow_bundle_run", map[string]any{"bundle": cafe}, "pass `scenario` or `script`"},
 		{"both script and scenario", "pflow_bundle_run", map[string]any{"bundle": cafe, "scenario": "commit", "script": []any{"counter/order"}}, "pass `scenario` or `script`"},
-		{"unknown scenario", "pflow_bundle_run", map[string]any{"bundle": cafe, "scenario": "brunch"}, `no scenario "brunch"; there are ["commit", "refund", "charge-fails", "second-order"]`},
+		{"unknown scenario", "pflow_bundle_run", map[string]any{"bundle": cafe, "scenario": "brunch"}, `no scenario "brunch" is declared for this model; there are ["commit", "refund", "charge-fails", "second-order"]`},
 		{"script of numbers", "pflow_bundle_run", map[string]any{"bundle": cafe, "script": []any{1, 2}}, `argument "script" should be a list of strings`},
 		{"expect with a scenario", "pflow_bundle_run", map[string]any{"bundle": cafe, "scenario": "commit", "expect": []any{}}, "goes with `script`"},
 		{"expect is not a list", "pflow_bundle_run", map[string]any{"bundle": cafe, "script": []any{}, "expect": "all"}, "expect should be a list"},

@@ -102,7 +102,7 @@ function renderToolbar(v) {
       ...Object.entries(EXTRA_SPECS).map(([id, spec]) => el('button', { class: `chip${state.orders.extras.includes(id) ? ' active' : ''}`, title: `${spec.why}${spec.available ? '' : ` (unavailable: ${spec.reason})`}`, disabled: spec.available ? null : true, onclick: () => actions.toggleExtra(id) }, `${state.orders.extras.includes(id) ? '−' : '+'} ${id}`)),
     );
   } else {
-    const groups = [['Order', 'order pieces'], ['Driver', 'drivers'], ['Memo', 'memo'], ['Filter', 'filters'], ['Heuristic', 'heuristics']];
+    const groups = [['Order', 'order pieces'], ['Driver', 'drivers'], ['Memo', 'memo'], ['Filter', 'filters'], ['Heuristic', 'heuristics'], ['Estimate', 'root estimates']];
     fill(tb,
       el('span', { class: 'tb-label' }, 'Drag a piece into a slot. Mode:'),
       ...['exact', 'play'].map((m) => el('button', { class: `chip${(planInfo().plan.mode || 'exact') === m ? ' active' : ''}`, onclick: () => actions.setMode(m), title: 'plan.set_mode' }, m)),

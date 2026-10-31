@@ -329,7 +329,7 @@ func mcpBundleRun(_ *Server, _ *http.Request, args map[string]any) (any, error) 
 	if hasScenario {
 		sc := mbScenarioByID(scenario)
 		if sc == nil {
-			return nil, mbRefuse(tool, fmt.Errorf("no scenario %q; there are %s", scenario, mbQuote(mbScenarioIDs())))
+			return nil, mbRefuse(tool, fmt.Errorf("no scenario %q is declared for this model; there are %s", scenario, mbQuote(mbScenarioIDs())))
 		}
 		id, title, script, expect = sc.ID, sc.Title, sc.Script, sc.Expect
 		if args["expect"] != nil {
@@ -515,13 +515,19 @@ func mcpBundleExample(_ *Server, _ *http.Request, args map[string]any) (any, err
 	for _, l := range mbDefaultLinks() {
 		defaultLinks = append(defaultLinks, mbLinkView(l))
 	}
-	scenarios := make([]any, len(mbScenarios))
-	for i := range mbScenarios {
-		scenarios[i] = mbScenarios[i].view()
-	}
 	ids := make([]any, len(o.specs))
+	have := map[string]bool{}
 	for i, s := range o.specs {
 		ids[i] = s.ID
+		have[s.ID] = true
+	}
+	// The scenarios are the orders content's, which attaches to a composition that
+	// includes its three anchors (native's content.library, "anchors").
+	scenarios := []any{}
+	if have["orders"] && have["workers"] && have["payment"] {
+		for i := range mbScenarios {
+			scenarios = append(scenarios, mbScenarios[i].view())
+		}
 	}
 	return map[string]any{
 		"bundle": bundle, "instances": ids, "unavailable": o.unavailable, "dropped_links": o.dropped,

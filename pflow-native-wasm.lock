@@ -1,8 +1,8 @@
 {
   "_comment": "pflow-native wasm shim vendored by scripts/sync-native-wasm.mjs; checked by public/petri-wasm_test.ts",
   "version": "0.8.0",
-  "commit": "1a13459afc5f780f549df10f5ee4d91046b2c5e0",
-  "commands": 211,
+  "commit": "d0f4a477c0e0e2c861363b7b4c53bc9388b82d84",
+  "commands": 232,
   "exposed": [
     "analysis.validate",
     "analysis.incidence",
@@ -95,18 +95,18 @@
   ],
   "files": {
     "pflow_native_wasm.js": "aebfcaf880a4bc48bfa056504a0a6c2cbbe4a5816535faaba6a1d75128a1af5a",
-    "pflow_native_wasm_bg.wasm": "82a93548fc318a6d832fa5c3b165730aaac40b4e39ddab95d5d3b21a7ece540f",
-    "pflow_native_wasm_bg.wasm.gz": "e654c768fe0c3e6b181ee5f3dfef6b11825e530b365ef8d548024bc5e47f7cf4",
-    "pflow_native_wasm_bg.wasm.br": "6714d4a68e30320978d47d0f8aa948e9705867021c774064e67ed7c86cd2729f"
+    "pflow_native_wasm_bg.wasm": "89bce66bf4eca1c5773a6dadad2fc9ff59c04cd0e89ee06ee576e1760c506ed3",
+    "pflow_native_wasm_bg.wasm.gz": "2dede54d0db404dec42e9903092a150f6a64e67f148a83d32f228e50abfa9898",
+    "pflow_native_wasm_bg.wasm.br": "6e6d96383e5a916e4afcdee21a38f1aa65dd9d1103ba66de221f83ae9526ac64"
   },
   "bytes": {
-    "wasm": 8544501,
-    "gzip": 1891277,
-    "brotli": 1254525
+    "wasm": 9990653,
+    "gzip": 2160884,
+    "brotli": 1426260
   },
   "cdn": {
-    "url": "https://cdn.stackdump.com/ipfs/bafyrei82a93548fc318a6d832fa5c3b165730a/",
+    "url": "https://cdn.stackdump.com/ipfs/bafyrei89bce66bf4eca1c5773a6dadad2fc9ff/",
     "file": "pflow_native_wasm_bg.wasm",
-    "sha256": "82a93548fc318a6d832fa5c3b165730aaac40b4e39ddab95d5d3b21a7ece540f"
+    "sha256": "89bce66bf4eca1c5773a6dadad2fc9ff59c04cd0e89ee06ee576e1760c506ed3"
   }
 }

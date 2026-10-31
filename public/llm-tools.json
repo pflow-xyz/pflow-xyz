@@ -1724,7 +1724,7 @@
     {
       "name": "provenance_verify_receipt",
       "command": "provenance.verify_receipt",
-      "description": "Verify Receipt. Check a run receipt two ways, as sim's /api/receipts/verify: the Ed25519 signature against the key it embeds (trustedKey says whether that is this machine's key), and a replay of its certified scenario on the model it names (the open net, or a library model with that CID; also once their rates have changed, rebuilt under the receipt's modelRates), which must reproduce resultHash. A receipt without modelRates that was issued with session rates names the net under those rates; they are rebuilt from the rates its scenario ran with, unless the scenario overrode one, and then it is found only where they are again (set them back, or a library copy saved under them).",
+      "description": "Verify Receipt. Check a run receipt two ways, as sim's /api/receipts/verify: the Ed25519 signature against the key it embeds (trustedKey says whether that is this machine's key), and a replay of its certified scenario on the model it names (the open net, or a library model with that CID; also once their rates have changed, rebuilt under the receipt's modelRates), which must reproduce resultHash. A receipt without modelRates that was issued with session rates names the net under those rates; they are rebuilt from the rates its scenario ran with, unless the scenario overrode one, and then it is found only where they are again (set them back, or a library copy saved under them). A composition receipt (scenario.kind composition-run, composition-check or composition-content, from bundle.receipt and content.receipt) is replayed on the composition document its model CID names (the open one, or the stored one) and, for a check or content, on the content document it pins; the check or script it",
       "parameters": {
         "type": "object",
         "properties": {
@@ -2209,13 +2209,17 @@
     {
       "name": "store_open",
       "command": "store.open",
-      "description": "Open from Store…. Make a stored model the open net (undoable; the net has no file path).",
+      "description": "Open from Store…. Open a stored document by its kind (undoable). A net becomes the open net (it has no file path); a composition or bundle becomes the open composition, as bundle.load {cid} does; content attaches to the open composition (refused when none is open, or when an element id does not resolve). `bundle_cid: true` also gives a composition's `bundle_cid`, as bundle.load does.",
       "parameters": {
         "type": "object",
         "properties": {
           "cid": {
             "description": "model CID",
             "type": "string"
+          },
+          "bundle_cid": {
+            "description": "also give bundle_cid, the seal of the plain Bundle a PatternComposition flattens to (costly: quadratic in its flattened arcs; default false)",
+            "type": "boolean"
           }
         },
         "required": [
@@ -2226,12 +2230,20 @@
     {
       "name": "store_list",
       "command": "store.list",
-      "description": "List Stored Models. Stored models, newest first, with title, size, created (ms), collections, license and successor. `query` filters by title or CID substring. Stores a table artifact.",
+      "description": "List Stored Models. Stored models, newest first, with title, kind (net, bundle, composition or content), size, created (ms), collections, license, successor and, for content, the composition it is about. `query` filters by title or CID substring, `kind` by kind, `about` to the content stored about that composition CID. Stores a table artifact.",
       "parameters": {
         "type": "object",
         "properties": {
           "query": {
             "description": "case-insensitive substring of the title or CID",
+            "type": "string"
+          },
+          "kind": {
+            "description": "only this kind: net, bundle, composition or content",
+            "type": "string"
+          },
+          "about": {
+            "description": "only content about this composition CID",
             "type": "string"
           },
           "limit": {
@@ -2402,7 +2414,7 @@
           },
           "plan": {
             "type": "string",
-            "description": "a SearchPlan (pflow-metamodel), or a JSON string of one: {mode, order, filters, root, drivers, memo}; default {}. A time budget (budget.ms) is refused. Root estimate \"ode\" solves the mass-action ODE with every transition at rate 1, not the session's rates (pass a JSON value as a string)"
+            "description": "a SearchPlan (pflow-metamodel), or a JSON string of one: {mode, order, filters, root, drivers, memo}; default {}. drivers: \"null_window\" (default), \"mtd_f\" (not together with null_window), {\"budget\": {\"nodes\": n}}. A time budget (budget.ms) is refused. Root estimate \"ode\" solves the mass-action ODE with every transition at rate 1, not the session's rates (pass a JSON value as a string)"
           },
           "nodes": {
             "description": "the node budget when the plan's drivers set none (default 1,000,000; at most 100,000,000)",
@@ -2448,7 +2460,7 @@
           },
           "plan": {
             "type": "string",
-            "description": "a SearchPlan (pflow-metamodel), or a JSON string of one: {mode, order, filters, root, drivers, memo}; default {}. A time budget (budget.ms) is refused. Root estimate \"ode\" solves the mass-action ODE with every transition at rate 1, not the session's rates (pass a JSON value as a string)"
+            "description": "a SearchPlan (pflow-metamodel), or a JSON string of one: {mode, order, filters, root, drivers, memo}; default {}. drivers: \"null_window\" (default), \"mtd_f\" (not together with null_window), {\"budget\": {\"nodes\": n}}. A time budget (budget.ms) is refused. Root estimate \"ode\" solves the mass-action ODE with every transition at rate 1, not the session's rates (pass a JSON value as a string)"
           },
           "nodes": {
             "description": "the node budget when the plan's drivers set none (default 1,000,000; at most 100,000,000)",

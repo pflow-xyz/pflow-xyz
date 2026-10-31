@@ -90,8 +90,15 @@ func mbParseEndpoint(v any) (metamodel.Endpoint, error) {
 	case map[string]any:
 		a, _ := x["subnet"].(string)
 		b, _ := x["port"].(string)
+		place, _ := x["place"].(string)
+		trans, _ := x["transition"].(string)
+		// native also reads an end on a place or a transition (a Bundle's link); these
+		// tools link ports, so they say that rather than treat one as missing.
+		if a != "" && b == "" && (place != "" || trans != "") {
+			return metamodel.Endpoint{}, fmt.Errorf("endpoint %s names a place or a transition: these tools link ports", mbJSONText(x))
+		}
 		if a == "" || b == "" {
-			return metamodel.Endpoint{}, fmt.Errorf("endpoint %s needs \"subnet\" and \"port\"", mbJSONText(x))
+			return metamodel.Endpoint{}, fmt.Errorf("endpoint %s needs \"subnet\" and one of \"port\", \"place\", \"transition\"", mbJSONText(x))
 		}
 		return metamodel.Endpoint{Subnet: a, Port: b}, nil
 	}
@@ -559,11 +566,16 @@ func mbRun(f *mbFlat, id, title string, script []string, expect []mbExpect) (map
 	steps := []any{}
 	stoppedAt := -1
 	// what the answer weighs: a step names its member, the flat transition it
-	// fired and why not, and the final marking names every flat place
-	size := 0
+	// fired and why not, and the final marking and each marking of the run name
+	// every flat place
+	markingSize := 0
 	for _, p := range f.model.Places {
-		size += 24 + len(p.ID)
+		markingSize += 24 + len(p.ID)
 	}
+	size := 2 * markingSize
+	// The marking before the first step, then after each step that fired, as
+	// native's bundle.run lists them.
+	markings := []any{mbMarkingView(mk)}
 	for i, member := range script {
 		flat, found := f.transitionOf(member)
 		var why string
@@ -577,14 +589,15 @@ func mbRun(f *mbFlat, id, title string, script []string, expect []mbExpect) (map
 			flatName = flat
 		}
 		steps = append(steps, map[string]any{"member": member, "flat": flatName, "enabled": why == "", "why": why})
-		if size += 80 + len(member) + len(flat) + len(why); size > mbMaxAnswerBytes {
-			return nil, fmt.Errorf("pflow_bundle_run: the answer would be over %d bytes (the steps name long fused transitions); use a shorter script or shorter ids", mbMaxAnswerBytes)
+		if size += 80 + len(member) + len(flat) + len(why) + markingSize; size > mbMaxAnswerBytes {
+			return nil, fmt.Errorf("pflow_bundle_run: the answer would be over %d bytes (the steps name long fused transitions, and each step lists the marking it reached); use a shorter script or shorter ids", mbMaxAnswerBytes)
 		}
 		if why != "" {
 			stoppedAt = i
 			break
 		}
 		mk = mbFire(f.model, flat, mk)
+		markings = append(markings, mbMarkingView(mk))
 	}
 	results := make([]any, len(expect))
 	for i, e := range expect {
@@ -600,18 +613,24 @@ func mbRun(f *mbFlat, id, title string, script []string, expect []mbExpect) (map
 			"actual": actual, "pass": actual == e.N,
 		}
 	}
-	final := make(map[string]any, len(mk))
-	for p, n := range mk {
-		final[p] = n
-	}
+	final := mbMarkingView(mk)
 	var stoppedStep any
 	if stoppedAt >= 0 {
 		stoppedStep = script[stoppedAt]
 	}
 	return map[string]any{
 		"id": id, "title": title, "steps": steps, "completed": stoppedAt < 0, "stopped_at": stoppedAt,
-		"stopped_step": stoppedStep, "final_marking": final, "expect": results,
+		"stopped_step": stoppedStep, "final_marking": final, "markings": markings, "expect": results,
 	}, nil
+}
+
+// mbMarkingView copies a marking into the answer (the run goes on changing mk).
+func mbMarkingView(mk map[string]int) map[string]any {
+	out := make(map[string]any, len(mk))
+	for p, n := range mk {
+		out[p] = n
+	}
+	return out
 }
 
 // ---- incidence
@@ -666,29 +685,40 @@ func mbMatrixView(c [][]int) []any {
 	return out
 }
 
-// mbInvariantHolds reads a declared constraint as a P-invariant: `tokens("a") +
-// … == n` gives y (1 on each place named); it holds when y·C = 0 and y·M₀ = n
-// (together they prove it for every reachable marking). ok is false when the
-// expression is not a plain sum of tokens(…) equal to an integer.
-func mbInvariantHolds(m *metamodel.Model, c [][]int, expr string) (holds, ok bool) {
+// mbInvariantCheck is a declared constraint read as a P-invariant, with the
+// numbers behind its check: y (the coefficient of each named place, a place named
+// twice counting twice), the declared n, (y·C)[t] for every transition and y·M₀.
+type mbInvariantCheck struct {
+	y    []any // [place, coefficient], in the order the expression first names them
+	n    int64
+	yC   []any
+	yM0  int64
+	held bool
+}
+
+// mbCheckInvariant reads `tokens("a") + … == n`. ok is false when the expression
+// is not a plain sum of tokens(…) equal to an integer, or names a place the net
+// lacks. It holds when y·C = 0 and y·M₀ = n (native's invariant_check).
+func mbCheckInvariant(m *metamodel.Model, c [][]int, expr string) (check mbInvariantCheck, ok bool) {
 	i := strings.LastIndex(expr, " == ")
 	if i < 0 {
-		return false, false
+		return check, false
 	}
 	lhs, rhs := expr[:i], expr[i+len(" == "):]
 	n, err := strconv.ParseInt(strings.TrimSpace(rhs), 10, 64)
 	if err != nil {
-		return false, false
+		return check, false
 	}
 	y := make([]int, len(m.Places))
+	var order []string
 	for _, term := range strings.Split(lhs, " + ") {
 		p, found := strings.CutPrefix(strings.TrimSpace(term), `tokens("`)
 		if !found {
-			return false, false
+			return check, false
 		}
 		p, found = strings.CutSuffix(p, `")`)
 		if !found {
-			return false, false
+			return check, false
 		}
 		pos := -1
 		for j := range m.Places {
@@ -698,26 +728,39 @@ func mbInvariantHolds(m *metamodel.Model, c [][]int, expr string) (holds, ok boo
 			}
 		}
 		if pos < 0 {
-			return false, false
+			return check, false
+		}
+		if y[pos] == 0 {
+			order = append(order, p)
 		}
 		y[pos]++
+	}
+	named := make([]any, len(order))
+	for i, p := range order {
+		for j := range m.Places {
+			if m.Places[j].ID == p {
+				named[i] = []any{p, y[j]}
+				break
+			}
+		}
 	}
 	var yM0 int64
 	for j := range m.Places {
 		yM0 += int64(y[j]) * int64(m.Places[j].Initial)
 	}
-	yC := true
+	yC := make([]any, len(m.Transitions))
+	balanced := true
 	for t := range m.Transitions {
 		sum := 0
 		for p := range y {
 			sum += y[p] * c[p][t]
 		}
+		yC[t] = sum
 		if sum != 0 {
-			yC = false
-			break
+			balanced = false
 		}
 	}
-	return yC && yM0 == n, true
+	return mbInvariantCheck{y: named, n: n, yC: yC, yM0: yM0, held: balanced && yM0 == n}, true
 }
 
 // mbIncidenceView is the flat net's matrix, each subnet's own block and each
@@ -737,6 +780,8 @@ func mbIncidenceView(b *metamodel.Bundle) (map[string]any, error) {
 			cells += len(m.Places) * len(m.Transitions)
 		}
 	}
+	// each declared constraint carries its y·C, one number per flat transition
+	cells += len(f.model.Constraints) * len(f.model.Transitions)
 	if cells > mbMaxMatrixCells {
 		return nil, fmt.Errorf("pflow_bundle_incidence: the matrices would have %d cells (%d flat places x %d flat transitions, and each subnet's own); at most %d, and the answer limit is %d KB. pflow_bundle_flatten lists the arcs, which are the matrix's non-zero cells",
 			cells, len(f.model.Places), len(f.model.Transitions), mbMaxMatrixCells, mcpMaxResultBytes>>10)
@@ -765,11 +810,11 @@ func mbIncidenceView(b *metamodel.Bundle) (map[string]any, error) {
 	}
 	invariants := make([]any, len(f.model.Constraints))
 	for i, k := range f.model.Constraints {
-		var holds any
-		if h, ok := mbInvariantHolds(f.model, c, k.Expr); ok {
-			holds = h
+		entry := map[string]any{"id": k.ID, "expr": k.Expr, "holds": nil}
+		if v, ok := mbCheckInvariant(f.model, c, k.Expr); ok {
+			entry["holds"], entry["y"], entry["n"], entry["y_c"], entry["y_m0"] = v.held, v.y, v.n, v.yC, v.yM0
 		}
-		invariants[i] = map[string]any{"id": k.ID, "expr": k.Expr, "holds": holds}
+		invariants[i] = entry
 	}
 	view := map[string]any{"ok": true, "rows": rows, "cols": cols, "matrix": mbMatrixView(c), "blocks": blocks, "invariants": invariants}
 	// the flat net's arcs read as 1 once several subnets are flattened; the blocks
