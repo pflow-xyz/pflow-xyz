@@ -25,6 +25,7 @@
     <meta name="twitter:image" content="https://pflow.xyz/banner.png"/>
     <link href="petri-view.css" rel="stylesheet"/>
     <script src="petri-view.js" type="module"></script>
+    <script src="petri-landing.js" type="module"></script>
     <style>
         :root {
             /* Aliases onto the shared brand palette in petri-view.css. The
@@ -155,6 +156,25 @@
             line-height: 1.6;
         }
 
+        .landing-chat { display: flex; flex-direction: column; align-items: center; gap: 10px; margin-bottom: 18px; }
+        .landing-chat h1 { margin-bottom: 4px; }
+        .landing-chat p { margin: 0; font-size: 1rem; color: var(--pf-text); }
+        .landing-chat .landing-chat-small { font-size: 0.875rem; }
+        .landing-chat textarea {
+            width: 100%;
+            box-sizing: border-box;
+            font: inherit;
+            color: var(--pf-text);
+            background: var(--pf-bg-card);
+            border: 1px solid var(--pf-border);
+            border-radius: var(--pf-radius);
+            padding: 10px 12px;
+            resize: vertical;
+        }
+        .landing-chat-routes { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 14px; border: 0; margin: 0; padding: 0; }
+        .landing-chat-routes label { cursor: pointer; font-size: 0.95rem; }
+        .landing-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+        .landing-chat a { color: var(--pf-accent); }
         .landing-hero-buttons {
             display: flex;
             gap: 16px;
@@ -476,6 +496,8 @@
                 grid-template-columns: 1fr;
             }
         }
+        /* The prompt, its routes and its words are taller than the old hero: grow with them, below the nav. */
+        .landing-hero { height: auto; max-height: none; min-height: 80vh; padding: 76px 0 32px; box-sizing: border-box; }
     </style>
 </head>
 <body>
@@ -499,10 +521,25 @@
         </video>
         <div class="landing-hero-overlay"></div>
         <div class="landing-hero-content">
-            <h1>Visual Editor for Petri Nets</h1>
-            <p>Draw a process as places, transitions and arcs, then run it and see what it does. Prefer to start from a description? <a href="https://sim.pflow.xyz" style="color:var(--pf-accent)">sim.pflow.xyz</a> turns one into a model you can run and check.</p>
+            <form id="landing-chat" class="landing-chat">
+                <h1 id="landing-chat-q">What are you working on?</h1>
+                <p>pflow is a visual editor for Petri nets: draw a process as places, transitions and arcs, then run it and see what it does. Say what you are after, and an assistant starts the session beside the canvas.</p>
+                <textarea id="landing-chat-input" rows="2" aria-labelledby="landing-chat-q" placeholder="A coffee shop with one barista and a queue. Where does it jam?"></textarea>
+                <fieldset class="landing-chat-routes">
+                    <legend class="landing-sr">What kind of session</legend>
+                    <label><input type="radio" name="route" value="auto" checked/> Let it decide</label>
+                    <label><input type="radio" name="route" value="design"/> Design</label>
+                    <label><input type="radio" name="route" value="analyse"/> Analyse</label>
+                    <label><input type="radio" name="route" value="explore"/> Explore</label>
+                    <label><input type="radio" name="route" value="explain"/> Explain</label>
+                </fieldset>
+                <p id="landing-chat-hint" class="landing-chat-small"></p>
+                <button type="submit" id="landing-chat-send" class="btn-primary">Start</button>
+                <p id="landing-chat-state" class="landing-chat-small" role="status"></p>
+                <p id="landing-chat-connector" class="landing-chat-small" hidden>Using Claude or another MCP client? <a href="/mcp.html">Add pflow as a connector</a> and chat there.</p>
+            </form>
             <div class="landing-hero-buttons">
-                <a class="btn-primary" href="#" id="open-editor-btn">Open Editor</a>
+                <a class="btn-secondary" href="#" id="open-editor-btn">Open the editor</a>
                 <a class="btn-secondary" href="https://sim.pflow.xyz">Describe it instead (sim)</a>
             </div>
         </div>
@@ -789,6 +826,8 @@
         document.documentElement.classList.add('landing-active');
     }
 
+    window.pflowShowEditor = showEditor; // petri-landing.js
+
     // Editor logo -> back to landing (must bind before early returns)
     var homeBtn = document.getElementById('editor-home-btn');
     if (homeBtn) {
@@ -799,11 +838,19 @@
         });
     }
 
-    // Deep link: skip landing if ?cid= or ?data= present
-    if (params.has('cid') || params.has('data')) {
+    // Deep link: skip landing if ?cid= or ?data= present, or the URL names a chat session (petri-landing.js)
+    if (params.has('cid') || params.has('data') || ['auto', 'design', 'analyse', 'explain'].includes(params.get('route'))) {
         showEditor();
         return;
     }
+
+    // Back from GitHub with something typed on this page: petri-landing.js sends it.
+    try {
+        if (sessionStorage.getItem('pflow_landing_pending') !== null) {
+            showEditor();
+            return;
+        }
+    } catch (e) { /* no storage: nothing can be pending */ }
 
     // Returning user preference
     if (localStorage.getItem('pflow_skip_landing') === '1') {

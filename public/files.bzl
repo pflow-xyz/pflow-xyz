@@ -147,6 +147,8 @@ PUBLIC_FILES = [
     "petri-goals-ui.js",
     "petri-goals.js",
     "petri-goals_test.ts",
+    "petri-landing.js",
+    "petri-landing_test.ts",
     "petri-learn.js",
     "petri-learn_test.ts",
     "petri-refine_test.ts",

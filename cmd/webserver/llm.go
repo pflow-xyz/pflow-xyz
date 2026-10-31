@@ -190,6 +190,7 @@ func (s *Server) handleLLMStatus(w http.ResponseWriter, r *http.Request) {
 		if u, err := svc.verifier.Verify(r.Context(), token); err == nil {
 			left, reset := svc.limiter.Remaining(u.ID)
 			out["signed_in"] = true
+			out["allowed"] = svc.allow == nil || svc.allow[strings.ToLower(u.UserName)]
 			out["remaining_today"] = left
 			out["daily_limit"] = svc.limiter.L.Daily
 			out["reset"] = reset.Format(time.RFC3339)

@@ -41,11 +41,16 @@ function turnPoster(view) {
     };
 }
 
-/** Open (or focus) the Assistant panel. */
-export async function openChat(view, { mode } = {}) {
+/**
+ * Open (or focus) the Assistant panel. `message` is sent as the first turn (the landing page's prompt); it waits in
+ * the box for someone who cannot send it yet.
+ */
+export async function openChat(view, { mode, message } = {}) {
     if (view._chatPanel?.isConnected) {
         if (mode) view._chatPanel._setMode(mode);
-        view._chatPanel.querySelector('.pv-chat-input').focus();
+        const box = view._chatPanel.querySelector('.pv-chat-input');
+        if (message) box.value = message;
+        box.focus();
         return view._chatPanel;
     }
     const [stepsMod, R, manifest, reg, status] = await Promise.all([
@@ -233,5 +238,9 @@ export async function openChat(view, { mode } = {}) {
         }
     });
     input.focus();
+    if (message) {
+        input.value = message;
+        if (status.signed_in) $('.pv-chat-form').requestSubmit();
+    }
     return panel;
 }

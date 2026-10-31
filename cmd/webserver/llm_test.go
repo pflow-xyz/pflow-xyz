@@ -183,6 +183,13 @@ func TestLLMAllowlistAndVerifierDown(t *testing.T) {
 	c := &stubClient{reply: goodDraft}
 	s := testLLMServer(t, c, llm.DefaultLimits)
 	s.llm.allow = map[string]bool{"octo": true}
+	// The status tells the page first, so it does not offer a chat that would answer 403.
+	var other, good map[string]any
+	json.Unmarshal(do(t, s, "GET", "/api/llm/status", "other", "").Body.Bytes(), &other)
+	json.Unmarshal(do(t, s, "GET", "/api/llm/status", "good", "").Body.Bytes(), &good)
+	if other["signed_in"] != true || other["allowed"] != false || good["allowed"] != true {
+		t.Fatalf("status for the allowlist: %v, %v", other, good)
+	}
 	if rec := do(t, s, "POST", "/api/llm/draft", "other", `{"description":"x"}`); rec.Code != 403 {
 		t.Fatalf("not allowlisted: %d", rec.Code)
 	}
@@ -202,6 +209,9 @@ func TestLLMStatusQuota(t *testing.T) {
 	json.Unmarshal(do(t, s, "GET", "/api/llm/status", "good", "").Body.Bytes(), &signed)
 	if anon["enabled"] != true || anon["signed_in"] != false || anon["remaining_today"] != nil {
 		t.Fatalf("anonymous status %v", anon)
+	}
+	if signed["allowed"] != true {
+		t.Fatalf("no allowlist means everyone is allowed: %v", signed)
 	}
 	if signed["signed_in"] != true || signed["remaining_today"] != float64(llm.DefaultLimits.Daily) || signed["reset"] == nil {
 		t.Fatalf("signed-in status %v", signed)
