@@ -25,7 +25,7 @@ const q = (s: string) => JSON.stringify(s);
 const text = (sel: string) => `(document.querySelector(${q(sel)})?.textContent || '')`;
 
 /** Before any script: a signed-in session, with the model's route answered here and the requests kept. */
-const SIGNED_IN = (seed = "") => `
+const SIGNED_IN = (seed = "", statusDelay = 0) => `
   window.__turns = [];
   try { localStorage.setItem('pflow_auth_token', 'smoke-token'); ${seed} } catch {}
   const real = window.fetch;
@@ -34,6 +34,7 @@ const SIGNED_IN = (seed = "") => `
     const path = new URL(String(u?.url ?? u), location.href).pathname;
     // As the server: signed in only with the token, so the page must have it by the time it asks.
     const bearer = new Headers(opts?.headers).get('Authorization') === 'Bearer smoke-token';
+    if (path === '/api/llm/status' && ${statusDelay}) await new Promise((r) => setTimeout(r, ${statusDelay}));
     if (path === '/api/llm/status') return json(bearer ? { enabled: true, chat: true, signed_in: true, allowed: true, model: 'smoke', remaining_today: 7 } : { enabled: true, chat: true, signed_in: false });
     if (path === '/auth/user') return bearer ? json({ user: { id: '1', email: '', user_name: 'smoke', full_name: 'Smoke' } }) : new Response('{}', { status: 401 });
     if (path === '/api/llm/turn') {
@@ -115,6 +116,19 @@ try {
     ok(await p.waitFor(`document.querySelector('.pv-chat-assistant')?.textContent === 'smoke reply'`, 10000), `${route}: the reply shows beside the canvas`);
     ok(await p.eval(`document.getElementById('editor-wrapper').style.display === 'block' && document.getElementById('landing').style.display === 'none'`), `${route}: the canvas is there`);
     ok(problemsOf(p).length === 0, `${route}: no console problems`, problemsOf(p).join(" | "));
+    await p.close();
+  }
+
+  console.log("a submit before the status answers");
+  {
+    const p = await open("/", SIGNED_IN("", 2500));
+    await p.waitFor(`document.querySelector('#landing-chat-hint')?.textContent.length > 0`, 20000);
+    await p.eval(`document.querySelector('#landing-chat-input').value = 'too quick'`);
+    await p.eval(`document.querySelector('input[value="design"]').click()`);
+    await p.eval(`document.querySelector('#landing-chat-send').click()`);
+    ok(await p.waitFor(`document.querySelector('.pv-chat-user')?.textContent === 'too quick'`, 20000), "it waits, and then opens the session");
+    ok((await p.eval(`window.__turns[0]?.mode`)) === "build", "in the route chosen");
+    ok((await p.eval(`location.search`)) === "", "and what was typed never reaches the URL", await p.eval(`location.search`));
     await p.close();
   }
 

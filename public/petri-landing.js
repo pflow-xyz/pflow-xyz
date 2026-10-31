@@ -136,15 +136,18 @@ export async function initLanding({ doc = document, win = window } = {}) {
   };
   form.addEventListener('change', paint);
   paint();
-  status = await readStatus(view);
-  paint();
 
   input.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); form.requestSubmit(); }
   });
+  // Bound before the status is asked for: a submit never falls through to the browser's own, and one made
+  // before the status answers waits for it.
+  const asked = readStatus(view).then((s) => { status = s; paint(); return s; });
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const plan = planSubmit(chosen(), input.value, status);
+    const route = routeById(chosen());
+    const known = route.href ? status : await asked; // Explore needs no answer
+    const plan = planSubmit(route.id, input.value, known);
     if (plan.do === 'navigate') { win.location.href = plan.href; return; }
     if (plan.do === 'login') {
       keepPending(win.sessionStorage, plan.pending);

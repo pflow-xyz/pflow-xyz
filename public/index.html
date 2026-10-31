@@ -521,7 +521,7 @@
         </video>
         <div class="landing-hero-overlay"></div>
         <div class="landing-hero-content">
-            <form id="landing-chat" class="landing-chat">
+            <form id="landing-chat" class="landing-chat" onsubmit="event.preventDefault()">
                 <h1 id="landing-chat-q">What are you working on?</h1>
                 <p>pflow is a visual editor for Petri nets: draw a process as places, transitions and arcs, then run it and see what it does. Say what you are after, and an assistant starts the session beside the canvas.</p>
                 <textarea id="landing-chat-input" rows="2" aria-labelledby="landing-chat-q" placeholder="A coffee shop with one barista and a queue. Where does it jam?"></textarea>
