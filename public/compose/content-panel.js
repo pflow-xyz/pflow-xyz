@@ -45,7 +45,7 @@ export function renderContentPanel(box, d) {
   if (missing.length) kids.push(el('details', { class: 'content-lacks' }, el('summary', {}, `What this model lacks (${missing.length})`), el('ul', { class: 'small' }, missing.map((m) => el('li', {}, m.text)))));
   for (const g of groups) kids.push(el('h4', { class: 'content-kind-h' }, `${g.label} (${g.entries.length})`), ...g.entries.map((e) => entryRow(e, marks)));
   if (checkable.length) {
-    const status = el('span', { class: 'small muted', role: 'status' }, '');
+    const status = el('span', { class: 'small muted' }, ''); // spoken at the end through the page's one live region
     const run = el('button', { class: 'btn', type: 'button', onclick: () => runChecks(checkable, d, run, status) }, `Run checks (${checkable.length})`);
     kids.push(el('p', {}, run, ' ', status));
   }
