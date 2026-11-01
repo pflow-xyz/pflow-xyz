@@ -1512,6 +1512,9 @@ export class Registry {
 
     artifacts() { return [...this._store.items]; }
 
+    /** When an artifact was made (ms since the epoch), or null for one from before times were kept. */
+    artifactTime(id) { return (this._store.times && this._store.times[id]) || null; }
+
     artifact(id) {
         const a = this._store.items.find((x) => x.id === id);
         if (!a) throw new CommandError(`no artifact "${id}"${this._store.items.length ? ` (have ${this._store.items.map((x) => x.id).join(', ')})` : ''}`, 'not_found');
@@ -1580,6 +1583,7 @@ export class Registry {
                 // extension; pflow-native's Artifact has no such field.
                 if (meta) art.meta = meta;
                 this._store.items.push(art);
+                (this._store.times ||= {})[art.id] = Date.now();
                 if (this._store.items.length > MAX_ARTIFACTS) this._store.items.shift();
                 return art;
             },

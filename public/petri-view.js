@@ -3980,6 +3980,14 @@ PetriView = class PetriView extends HTMLElement {
         }
     }
 
+    // The canvas container clips its stage; a focus() or scrollIntoView() on a node or the toolbar can still scroll it,
+    // which moved the node layer by 50-65px while the arcs stayed. Put it back and redraw the arcs from the same view.
+    _pinCanvasScroll() {
+        const c = this._canvasContainer;
+        if (c) { c.scrollLeft = 0; c.scrollTop = 0; }
+        this._draw();
+    }
+
     _setSimulation(running) {
         if (running === !!this._simRunning) return;
         if (running) {
@@ -4001,6 +4009,7 @@ PetriView = class PetriView extends HTMLElement {
             }
             (this._menu || this._runBar)?.querySelectorAll('.pv-tool').forEach(btn => { btn.disabled = true; });
             this._root.classList.add('pv-simulating');
+            this._pinCanvasScroll();
             this.dispatchEvent(new CustomEvent('simulation-started'));
         } else {
             this._simRunning = false;
@@ -4010,9 +4019,17 @@ PetriView = class PetriView extends HTMLElement {
             }
             (this._menu || this._runBar)?.querySelectorAll('.pv-tool').forEach(btn => { btn.disabled = false; });
             this._root.classList.remove('pv-simulating');
+            this._pinCanvasScroll();
             this._setMode(this._prevMode || 'select');
             this._prevMode = null;
             this.dispatchEvent(new CustomEvent('simulation-stopped'));
+            // Firing writes into the model's initial marking (the ?data= link and the JSON pane carry it). Say so,
+            // and offer the way back, unless this stop is only the editing drawer pausing the run.
+            if (!this._drawerPausedSim && (this._stepCount || 0) > 0) {
+                const t = this._toast('Play changed the starting marking. Click here to reset it.', 'info', 9000);
+                t.style.cursor = 'pointer';
+                t.addEventListener('click', () => this._resetMarking());
+            }
         }
         this._refreshRunUI?.();
     }
@@ -4525,8 +4542,18 @@ PetriView = class PetriView extends HTMLElement {
         const w = Math.max(1, bounds.maxX - bounds.minX);
         const h = Math.max(1, bounds.maxY - bounds.minY);
         const availW = Math.max(1, rect.width - padding * 2);
-        const availH = Math.max(1, rect.height - padding * 2);
-        return {fit: Math.min(availW / w, availH / h), bounds, rect};
+        // The tool pill floats over the bottom of the canvas: frame the diagram in what is above it,
+        // so bottom-row labels are never under the toolbar.
+        const reserve = this._toolbarReserve();
+        const availH = Math.max(1, rect.height - padding * 2 - reserve);
+        return {fit: Math.min(availW / w, availH / h), bounds, rect, reserve};
+    }
+
+    // Height the floating tool pill takes from the bottom of the canvas (0 when it is not shown).
+    _toolbarReserve() {
+        const m = this._menu;
+        if (!m || !m.isConnected || !m.offsetHeight) return 0;
+        return m.offsetHeight + 20;
     }
 
     // Lower the zoom floor to whatever this model actually needs. Only ever
@@ -4561,7 +4588,7 @@ PetriView = class PetriView extends HTMLElement {
             const cy = (bounds.minY + bounds.maxY) / 2 + off.y;
             this._view.scale = scale;
             this._view.tx = rect.width / 2 - cx * scale;
-            this._view.ty = rect.height / 2 - cy * scale;
+            this._view.ty = (rect.height - (m.reserve || 0)) / 2 - cy * scale;
             this._applyViewTransform();
             this._draw();
             this._didInitialFit = true;
@@ -5584,10 +5611,23 @@ PetriView = class PetriView extends HTMLElement {
                 <h2 class="pv-dialog-header-title">Results</h2>
                 <button type="button" class="pv-dialog-close-icon" data-act="close" title="Close (Esc)">×</button>
             </div>
-            ${arts.length ? `<div class="pv-results-list">${arts.map(a => `
-                <button type="button" class="pv-btn pv-results-item" data-id="${esc(a.id)}">
-                    ${esc(a.title)} <span class="pv-results-meta">${esc(a.data.kind)} · ${esc(a.source.command)} · ${esc(a.id)}</span>
-                </button>`).join('')}</div>`
+            ${arts.length ? `<div class="pv-results-list">${(() => {
+                // Group by the command that made each result (newest group first, newest result first inside it),
+                // with the time it was made; the open one is marked.
+                const groups = new Map();
+                for (const a of arts) {
+                    const key = a.source.command;
+                    if (!groups.has(key)) groups.set(key, []);
+                    groups.get(key).push(a);
+                }
+                const nice = (c) => String(c).replace(/^[a-z]+\./, '').replace(/_/g, ' ');
+                const when = (a) => { const t = reg.artifactTime(a.id); return t ? new Date(t).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'}) : ''; };
+                return [...groups.entries()].map(([cmd, list]) => `
+                <section class="pv-results-group"><h3 class="pv-results-group-title">${esc(nice(cmd))} <span class="pv-results-meta">${list.length}</span></h3>
+                ${list.map(a => `<button type="button" class="pv-btn pv-results-item" data-id="${esc(a.id)}" aria-pressed="false">
+                    <span class="pv-results-name">${esc(a.title)}</span> <span class="pv-results-meta">${esc(a.data.kind)} · ${esc(when(a))}</span>
+                </button>`).join('')}</section>`).join('');
+            })()}</div>`
                 : '<p>No results yet. Run an analysis (🧮) or a check (✅), or call a command with el.execute().</p>'}
             <div class="pv-results-view"></div>
             <div class="pv-btn-container">
@@ -5603,6 +5643,11 @@ PetriView = class PetriView extends HTMLElement {
         let current = null;
         const show = (id) => {
             current = reg.artifact(id);
+            dialog.querySelectorAll('.pv-results-item').forEach(b => {
+                const on = b.dataset.id === id;
+                b.classList.toggle('pv-active', on);
+                b.setAttribute('aria-pressed', on ? 'true' : 'false');
+            });
             const out = R.renderArtifact(this._solverModule, current);
             view.innerHTML = (out.svg || '') + out.html;
             if (out.plotData) this._solverModule.SVGPlotter.setupInteractivity(out.plotData);
@@ -5663,6 +5708,7 @@ PetriView = class PetriView extends HTMLElement {
             el.classList.add('pv-toast-out');
             setTimeout(() => el.remove(), 300);
         }, ms);
+        return el;
     }
 
     _downloadFile(filename, text, mime = 'text/plain') {
@@ -5738,7 +5784,13 @@ PetriView = class PetriView extends HTMLElement {
         // Rates live in the document (each transition's `rate`, default 1.0),
         // so they survive a reload, undo with the net and travel with a share.
         st.rates = Sim.transitionRates(this._model);
-        if (!st.selected) st.selected = placeIds.slice(0, 8);
+        // A place nothing leaves only accumulates (served reaches 426 and flattens every other curve to zero),
+        // so the default plot leaves pure sinks out; they stay in the list, tagged, one click away.
+        const sinkIds = new Set(placeIds.filter(pid => !(this._model.arcs || []).some(a => a.source === pid)));
+        if (!st.selected) {
+            const live = placeIds.filter(pid => !sinkIds.has(pid));
+            st.selected = (live.length ? live : placeIds).slice(0, 8);
+        }
         st.selected = st.selected.filter(p => placeIds.includes(p));
         if (!placeIds.includes(st.phaseX)) st.phaseX = placeIds[0];
         if (!placeIds.includes(st.phaseY)) st.phaseY = placeIds[1] || placeIds[0];
@@ -5757,7 +5809,7 @@ PetriView = class PetriView extends HTMLElement {
         ];
 
         const dialog = document.createElement('div');
-        dialog.className = 'pv-modal-dialog pv-analysis-dialog';
+        dialog.className = 'pv-modal-dialog pv-modal-dialog-xl pv-analysis-dialog';
         dialog.setAttribute('role', 'dialog');
         dialog.setAttribute('aria-label', 'Analysis');
         dialog.innerHTML = `
@@ -5769,6 +5821,7 @@ PetriView = class PetriView extends HTMLElement {
                 ${TABS.map(t => `<button type="button" role="tab" class="pv-analysis-tab" data-tab="${t.id}">${t.label}</button>`).join('')}
             </div>
             <p class="pv-analysis-hint"></p>
+            <p class="pv-workbench-rec pv-analysis-rec" hidden></p>
             <div class="pv-analysis-body">
                 <div class="pv-analysis-controls">
                     <div class="pv-analysis-section" data-show="simulate scan sweep phase">
@@ -5810,7 +5863,7 @@ PetriView = class PetriView extends HTMLElement {
                     <div class="pv-analysis-section" data-show="simulate scan">
                         <h3>Places to plot</h3>
                         <div class="pv-analysis-checklist">
-                            ${placeIds.map(p => `<label><input type="checkbox" data-place="${esc(p)}"${st.selected.includes(p) ? ' checked' : ''}> ${esc(p)}</label>`).join('')}
+                            ${placeIds.map(p => `<label><input type="checkbox" data-place="${esc(p)}"${st.selected.includes(p) ? ' checked' : ''}> ${esc(p)}${sinkIds.has(p) ? ' <span class="pv-result-dim">(sink)</span>' : ''}</label>`).join('')}
                         </div>
                     </div>
                     <div class="pv-analysis-section" data-show="simulate scan sweep phase">
@@ -5848,6 +5901,14 @@ PetriView = class PetriView extends HTMLElement {
 
         const $ = (sel) => dialog.querySelector(sel);
         const $$ = (sel) => Array.from(dialog.querySelectorAll(sel));
+        // The same engine advice Simulate shows: the ODE here cannot see capacities, inhibitors or read arcs.
+        this.commands().then(reg => reg.execute('sim.recommend')).then(rec => {
+            const el = $('.pv-analysis-rec');
+            if (el && rec && rec.engine && rec.engine !== 'ode') {
+                el.innerHTML = `<strong>Suggested engine: ${esc(String(rec.engine).toUpperCase())}.</strong> ${esc(rec.why || '')} This tab runs the ODE; use Simulate (stochastic) for a faithful answer.`;
+                el.hidden = false;
+            }
+        }).catch(() => {});
         const plotEl = $('.pv-analysis-plot');
         const resultsEl = $('.pv-analysis-results');
         const runBtn = $('[data-act="run"]');
@@ -5887,7 +5948,17 @@ PetriView = class PetriView extends HTMLElement {
             this._setRates(st.rates);
         };
 
+        let shownTab = null;
         const showTab = (tabId) => {
+            // A chart or table belongs to the tab that ran it: leaving the tab clears it, so Phase Plot never shows
+            // the Simulate chart under its own controls until Run.
+            if (shownTab !== null && shownTab !== tabId) {
+                plotEl.innerHTML = '<p class="pv-analysis-placeholder">Press Run — results render here</p>';
+                resultsEl.innerHTML = '';
+                lastResult = null;
+                for (const b of [csvBtn, jsonBtn, gistBtn, mcpBtn]) b.disabled = true;
+            }
+            shownTab = tabId;
             st.tab = tabId;
             $$('.pv-analysis-tab').forEach(b => {
                 const on = b.dataset.tab === tabId;
@@ -7391,7 +7462,7 @@ PetriView = class PetriView extends HTMLElement {
         });
         menuContainer._menuContent.appendChild(toggleEditorItem);
 
-        const displaySettingsItem = makeMenuItem('⚙ Display Settings', () => {
+        const displaySettingsItem = makeMenuItem('⚙️ Display Settings', () => {
             this._showDisplaySettingsDialog();
         });
         menuContainer._menuContent.appendChild(displaySettingsItem);
@@ -7411,12 +7482,12 @@ PetriView = class PetriView extends HTMLElement {
         });
         menuContainer._menuContent.appendChild(simItem);
 
-        const bookItem = makeMenuItem('📖 Book', () => {
+        const bookItem = makeMenuItem('📖 Book ↗', () => {
             window.open('https://book.pflow.xyz', '_blank', 'noopener,noreferrer');
         });
         menuContainer._menuContent.appendChild(bookItem);
 
-        const nativeItem = makeMenuItem('🖥 Native App', () => {
+        const nativeItem = makeMenuItem('🖥 Native App ↗', () => {
             window.open('https://github.com/pflow-xyz/pflow-native', '_blank', 'noopener,noreferrer');
         });
         menuContainer._menuContent.appendChild(nativeItem);
@@ -7424,10 +7495,10 @@ PetriView = class PetriView extends HTMLElement {
         // The composition views page ships with the pflow.xyz server only
         // (public/compose.html), not with the pages that vendor this file.
         if (isBackendMode) {
-            const composeItem = makeMenuItem('🧩 Composition Views', () => {
+            const composeItem = makeMenuItem('🧩 Composition Views ↗', () => {
                 window.open('/compose.html', '_blank', 'noopener');
             });
-            composeItem.title = 'One composition drawn in ten conventions; every rule decided by pflow-native\'s registry';
+            composeItem.title = 'Opens in a new tab: one composition drawn in ten conventions; every rule decided by pflow-native\'s registry';
             menuContainer._menuContent.appendChild(composeItem);
         }
 

@@ -607,6 +607,9 @@ canvas.pv-canvas {
     min-height: 150px;
     position: relative;
     overflow: hidden;
+    /* clip cannot be scrolled even programmatically: a focused node or button must not shift the node layer
+       out from under the arc canvas (play mode detached the arrows this way). */
+    overflow: clip;
     /* Prevent default touch behaviors like scroll/zoom during pan/drag */
     touch-action: none;
 }
@@ -3658,3 +3661,78 @@ canvas.pv-canvas {
         font-size: 16px;
     }
 }
+
+
+/* ============================================================
+   Visual pass (2026-11-01): menu, play state, dialog consistency
+   ============================================================ */
+
+/* Menu: items are width:100% plus padding, so without border-box every row overflowed by 32px and the drawer
+   grew a horizontal scrollbar. Long labels wrap instead of being cut ("what-i"). */
+.pv-menu-content { overflow-x: hidden; }
+.pv-menu-item { box-sizing: border-box; align-items: flex-start; line-height: 1.3; }
+.pv-menu-item > span:last-child { min-width: 0; overflow-wrap: anywhere; white-space: normal; }
+.pv-menu-item-icon { flex: 0 0 24px; }
+
+/* Play: the pill is opaque (bottom-row labels showed through it), Select stops looking like the live tool, and
+   the running state reads without relying on the blue border alone. */
+.pv-mode-menu { background: var(--pv-surface); }
+.pv-simulating .pv-tool.pv-active { background: none; box-shadow: none; }
+.pv-simulating .pv-play {
+    background: var(--pv-accent);
+    color: #fff;
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--pv-accent) 35%, transparent);
+}
+
+/* Analysis joins the shared dialog treatment (header edge to edge, body inset by the xl rule). */
+.pv-analysis-dialog.pv-modal-dialog-xl { padding: 0; max-width: none; }
+.pv-analysis-dialog.pv-modal-dialog-xl > .pv-analysis-body { max-width: calc(100% - 48px); }
+.pv-analysis-dialog .pv-workbench-rec { margin-top: 8px; }
+
+/* Simulate (workbench): a label column and aligned inputs, like Display Settings. */
+.pv-workbench-form { display: grid; gap: 10px; margin-top: 8px; }
+.pv-workbench-field {
+    display: grid;
+    grid-template-columns: minmax(110px, 160px) minmax(0, 1fr);
+    gap: 4px 16px;
+    align-items: center;
+}
+.pv-workbench-field > label { font-size: 13px; font-weight: 600; color: var(--pv-ink-secondary); text-transform: capitalize; }
+.pv-workbench-field > fieldset { grid-column: 1 / -1; }
+.pv-workbench-dialog input[type="number"],
+.pv-workbench-dialog input[type="text"],
+.pv-workbench-dialog select,
+.pv-modal-dialog-xl select,
+.pv-modal-dialog-xl input[type="number"],
+.pv-modal-dialog-xl input[type="text"] {
+    font: inherit;
+    font-size: 14px;
+    padding: 6px 10px;
+    border: 1px solid var(--pv-border);
+    border-radius: 6px;
+    background: var(--pv-surface);
+    color: var(--pv-ink);
+    min-width: 0;
+    box-sizing: border-box;
+}
+.pv-workbench-field input[type="number"], .pv-workbench-field select { width: 100%; max-width: 260px; }
+.pv-workbench-rec { font-size: 14px; line-height: 1.45; }
+/* tabs wrap between tabs, never inside a word */
+.pv-analysis-tabs { flex-wrap: wrap; }
+.pv-analysis-tab { white-space: nowrap; line-height: 1.2; }
+.pv-modal-dialog-xl .pv-btn-container { gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+
+/* Results: grouped by command, newest first, the open one marked */
+.pv-results-list { display: grid; gap: 14px; max-height: 32vh; overflow: auto; }
+.pv-results-group { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.pv-results-group-title { flex: 0 0 100%; margin: 0; font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--pv-ink-secondary); }
+.pv-results-item { text-align: left; }
+.pv-results-item.pv-active { background: color-mix(in srgb, var(--pv-accent) 14%, var(--pv-surface)); box-shadow: inset 0 0 0 1.5px var(--pv-accent); }
+.pv-results-name { font-weight: 600; }
+.pv-result-list { margin: 0; padding-left: 18px; }
+
+.pv-goals-list .pv-btn.pv-active, .pv-components-dialog [data-comp].pv-active {
+    background: color-mix(in srgb, var(--pv-accent) 14%, var(--pv-surface));
+    box-shadow: inset 0 0 0 1.5px var(--pv-accent);
+}
+.pv-components-detail .pv-goals-inputs > div { display: grid; grid-template-columns: minmax(180px, 1fr) minmax(0, 1.4fr); gap: 4px 16px; align-items: center; margin: 8px 0; }
