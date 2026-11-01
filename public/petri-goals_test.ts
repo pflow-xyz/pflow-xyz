@@ -1,5 +1,5 @@
 import { assert, assertEquals, assertRejects } from "https://deno.land/std@0.224.0/assert/mod.ts";
-import { matchGoals, missingInputs, resolveArgs, runGoal } from "./petri-goals.js";
+import { inferPlace, matchGoals, missingInputs, resolveArgs, runGoal } from "./petri-goals.js";
 import { Registry, createHeadlessHost } from "./petri-commands.js";
 import { loadEngine } from "./petri-wasm.js";
 
@@ -109,3 +109,57 @@ for (const [text, want] of paraphrases) {
         assertEquals(matchGoals(catalog, text)[0]?.id, want);
     });
 }
+
+// ---- the coffee-shop feedback: the outcome, the engine, the sink ----
+
+const coffee = () => {
+    const P = (n: number) => ({ initial: [n], capacity: [0], x: 0, y: 0 });
+    return {
+        "@context": "https://pflow.xyz/schema", "@type": "PetriNet", token: ["https://pflow.xyz/tokens/black"],
+        places: { queue: P(0), baristas_free: P(2), in_service: P(0), served: P(0), abandoned: P(0) },
+        transitions: { customer_arrives: { x: 0, y: 0, rate: 1 }, start_service: { x: 0, y: 0, rate: 1 }, finish_service: { x: 0, y: 0, rate: 0.5 }, walk_out: { x: 0, y: 0, rate: 0.1 } },
+        arcs: [
+            { source: "customer_arrives", target: "queue", weight: [1] }, { source: "queue", target: "start_service", weight: [1] },
+            { source: "baristas_free", target: "start_service", weight: [1] }, { source: "start_service", target: "in_service", weight: [1] },
+            { source: "in_service", target: "finish_service", weight: [1] }, { source: "finish_service", target: "served", weight: [1] },
+            { source: "finish_service", target: "baristas_free", weight: [1] }, { source: "queue", target: "walk_out", weight: [1] },
+            { source: "walk_out", target: "abandoned", weight: [1] },
+        ],
+    };
+};
+
+Deno.test("inferPlace: 'walkouts' names the walk_out transition, so the outcome is abandoned", () => {
+    const m: any = coffee();
+    assertEquals(inferPlace(m, "which knob matters most for walkouts?"), "abandoned");
+    assertEquals(inferPlace(m, "how long is the queue"), "queue");
+    assertEquals(inferPlace(m, "what if I had one more barista"), "baristas_free");
+    assertEquals(inferPlace(m, "which knob matters?"), "");
+});
+
+Deno.test("knob goal: sim.recommend says ssa, so the SSA diagnosis runs and the ODE one is skipped", async () => {
+    const goal = catalog.goals.find((g: any) => g.id === "knob");
+    const r: any = new Registry(createHeadlessHost(coffee()));
+    const seen: string[] = [];
+    const out = await runGoal(r, goal, { observable: "abandoned" }, (s: any) => seen.push(`${s.command}${s.skipped ? " (skipped)" : ""}`));
+    assert(out.ok, JSON.stringify(out.steps.find((s: any) => s.error)));
+    assertEquals(seen, ["sim.recommend", "analysis.diagnose (skipped)", "analysis.diagnose_ssa"]);
+    assertEquals(out.steps[0].result.engine, "ssa");
+    const d = out.steps[2].result;
+    assertEquals(d.engine, "ssa");
+    // a sink cannot move another place: +1 served is exactly 0
+    assertEquals(d.knobs.find((k: any) => k.name === "+1 served").influence, 0);
+    // one more barista lowers walkouts by more than the noise floor allows to call inert
+    const b = d.knobs.find((k: any) => k.name === "+1 baristas_free");
+    assert(b.influence < 0, JSON.stringify(b));
+});
+
+Deno.test("knob goal: a large unconstrained net still gets the ODE diagnosis", async () => {
+    const goal = catalog.goals.find((g: any) => g.id === "knob");
+    const net: any = sir();
+    net.places.S.initial = [900];
+    const r: any = new Registry(createHeadlessHost(net));
+    const seen: string[] = [];
+    const out = await runGoal(r, goal, { observable: "R" }, (s: any) => seen.push(`${s.command}${s.skipped ? " (skipped)" : ""}`));
+    assert(out.ok, JSON.stringify(out.steps.find((s: any) => s.error)));
+    assertEquals(seen, ["sim.recommend", "analysis.diagnose", "analysis.diagnose_ssa (skipped)"]);
+});

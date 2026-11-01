@@ -174,23 +174,52 @@ function graphHtml(d) {
     return `<svg class="pv-result-graph" viewBox="0 0 ${width} ${height}" width="${Math.min(width, 860)}" role="img" aria-label="reachability graph">${edges}${circles}</svg>` + list;
 }
 
-// A ranked bar chart; a tornado when bars carry lo/hi (diagnose's influence).
+// A ranked bar chart; a tornado when bars carry hi (diagnose's influence).
+//
+// A tornado bar's `value` is the outcome's BASELINE (the same on every row),
+// `lo`/`hi` the outcome with the knob down/up (a "+1 token" knob has only
+// `hi`). So the axis is centred on the baseline, each bar spans lo..hi around
+// it, and the label is that knob's own influence (hi − lo, or hi − baseline),
+// printed in a column right of the plot so it can never sit on a bar. A knob
+// with no effect (a sink) has an influence of exactly 0 and an empty bar.
+// Plain bars (no hi) are drawn from 0 to their value, labelled with it.
+export function barsModel(d) {
+    const bars = d.bars || [];
+    const tornado = bars.some((b) => b.hi !== undefined && b.hi !== null);
+    return bars.map((b) => {
+        if (!tornado) {
+            const v = b.value;
+            return { name: b.name, from: Math.min(0, v), to: Math.max(0, v), label: fmt(v), title: `${b.name}: ${fmt(v)}` };
+        }
+        const base = b.value;
+        const hi = b.hi ?? base, lo = b.lo ?? base;
+        const influence = hi - lo;
+        return {
+            name: b.name, from: Math.min(lo, hi, base) - base, to: Math.max(lo, hi, base) - base,
+            // an influence of 0 stays 0 (not "+0")
+            label: Math.abs(influence) < 1e-12 ? '0' : `${influence > 0 ? '+' : ''}${fmt(influence)}`,
+            title: `${b.name}: influence ${fmt(influence)} (baseline ${fmt(base)}${b.lo != null ? `, ${fmt(lo)} … ${fmt(hi)}` : `, with it ${fmt(hi)}`})`,
+        };
+    });
+}
+
 function barsHtml(d) {
     const bars = d.bars || [];
     if (!bars.length) return '<p>No bars.</p>';
-    const ext = Math.max(1e-12, ...bars.flatMap((b) => [Math.abs(b.value), Math.abs(b.lo ?? 0), Math.abs(b.hi ?? 0)]));
-    const W = 560, rowH = 22, labelW = 200, mid = labelW + (W - labelW) / 2, half = (W - labelW) / 2 - 10;
+    const rowsM = barsModel(d);
+    const ext = Math.max(1e-12, ...rowsM.flatMap((r) => [Math.abs(r.from), Math.abs(r.to)]));
+    const labelW = 200, plotW = 320, valW = 72, rowH = 22, W = labelW + plotW + valW;
+    const mid = rowsM.some((r) => r.from < 0) ? labelW + plotW / 2 : labelW + 8, half = rowsM.some((r) => r.from < 0) ? plotW / 2 - 10 : plotW - 18;
     const x = (v) => mid + (v / ext) * half;
-    const rows = bars.map((b, i) => {
+    const rows = rowsM.map((r, i) => {
         const y = i * rowH + 6;
-        const lo = b.lo ?? Math.min(0, b.value), hi = b.hi ?? Math.max(0, b.value);
-        const x0 = x(Math.min(lo, hi)), x1 = x(Math.max(lo, hi));
-        return `<text x="${labelW - 6}" y="${y + 12}" text-anchor="end" class="pv-bars-label">${escHtml(b.name)}</text>`
-            + `<rect x="${x0.toFixed(1)}" y="${y}" width="${Math.max(1, x1 - x0).toFixed(1)}" height="${rowH - 8}" class="pv-bars-bar"><title>${escHtml(`${b.name}: ${fmt(b.value)}${b.lo !== undefined ? ` (${fmt(b.lo)} … ${fmt(b.hi)})` : ''}`)}</title></rect>`
-            + `<text x="${W - 4}" y="${y + 12}" text-anchor="end" class="pv-bars-value">${escHtml(fmt(b.value))}</text>`;
+        const x0 = x(r.from), x1 = x(r.to);
+        return `<text x="${labelW - 6}" y="${y + 12}" text-anchor="end" class="pv-bars-label">${escHtml(r.name)}</text>`
+            + `<rect x="${x0.toFixed(1)}" y="${y}" width="${Math.max(1, x1 - x0).toFixed(1)}" height="${rowH - 8}" class="pv-bars-bar"><title>${escHtml(r.title)}</title></rect>`
+            + `<text x="${W - 4}" y="${y + 12}" text-anchor="end" class="pv-bars-value">${escHtml(r.label)}</text>`;
     }).join('');
-    const h = bars.length * rowH + 24;
-    return `<svg class="pv-result-bars" viewBox="0 0 ${W + 50} ${h}" width="${W + 50}" role="img" aria-label="${escHtml(d.value_label || 'bars')}">`
+    const h = rowsM.length * rowH + 24;
+    return `<svg class="pv-result-bars" viewBox="0 0 ${W} ${h}" width="${W}" role="img" aria-label="${escHtml(d.value_label || 'bars')}">`
         + `<line x1="${mid}" y1="0" x2="${mid}" y2="${h - 18}" class="pv-bars-axis"/>${rows}`
         + `<text x="${mid}" y="${h - 4}" text-anchor="middle" class="pv-bars-label">${escHtml(d.value_label || '')}</text></svg>`;
 }

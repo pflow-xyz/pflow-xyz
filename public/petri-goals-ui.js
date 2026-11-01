@@ -81,6 +81,17 @@ export async function openGoals(view) {
                 <details><summary>The plan (${g.plan.length} command${g.plan.length === 1 ? '' : 's'})</summary><ol>${plan}</ol></details>
                 <button type="button" class="pv-btn pv-btn-primary" data-act="run">Run</button>`}`;
         $('[data-act="run"]')?.addEventListener('click', () => run(g));
+        // Read the outcome off the question: "walkouts" → abandoned
+        const typed = $('.pv-goals-search').value.trim();
+        if (typed) {
+            const found = goalsMod.inferPlace(m, typed);
+            for (const sel of dialog.querySelectorAll('select[data-in]')) {
+                if (found && places.includes(found) && [...sel.options].some((o) => o.value === found || o.textContent === found) && (g.inputs || []).find((i) => i.name === sel.dataset.in)?.kind === 'place') {
+                    sel.value = found;
+                    sel.insertAdjacentHTML('afterend', ' <span class="pv-result-dim">from your question</span>');
+                }
+            }
+        }
     };
 
     const run = async (g) => {
@@ -98,6 +109,7 @@ export async function openGoals(view) {
         $('.pv-structure-status').textContent = 'Running…';
         try {
             const out = await goalsMod.runGoal(reg, g, inputs, (step) => {
+                if (step.skipped) return; // a step the plan chose not to run (the other engine's diagnosis)
                 const sec = document.createElement('section');
                 if (step.error) {
                     sec.innerHTML = `<h4><code>${esc(step.command)}</code> failed</h4><p>${esc(step.error)}</p>`;

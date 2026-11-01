@@ -18,6 +18,10 @@ func TestGoalCatalogReachesAnalyseMode(t *testing.T) {
 	if n < 10 || !strings.Contains(text, "stuck") || !strings.Contains(text, "analysis.verify") || !strings.Contains(text, "NOT available") {
 		t.Fatalf("%d goals; brief:\n%s", n, text)
 	}
+	// the knob goal picks the ODE or the SSA diagnosis by sim.recommend's engine
+	if !strings.Contains(text, "analysis.diagnose_ssa") || !strings.Contains(text, "[only if $step0.engine = ssa]") {
+		t.Fatalf("conditional diagnose steps missing from the brief:\n%s", text)
+	}
 	c := &turnClient{resp: &llm.Response{Text: "ok", Parts: []llm.Part{{Text: "ok"}}}}
 	s := turnServer(t, c)
 	s.llm.modeExtra = map[string]string{"analyse": text}

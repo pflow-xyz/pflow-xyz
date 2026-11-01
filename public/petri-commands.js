@@ -1044,6 +1044,68 @@ export const COMMANDS = [
     },
 
     {
+        id: 'analysis.diagnose_ssa', label: 'Diagnose (Influence, SSA)',
+        help: 'Which knobs move the outcome, measured on the SSA (the stochastic engine) instead of the ODE: each transition\'s rate at rate·(1 ± delta) and +1 initial token on each place, against the observable\'s mean at t_end over `runs` seeded runs that share one seed, so the difference measures the knob, not the dice. Use this, not analysis.diagnose, when sim.recommend says ssa: a net with a resource pool (a token count of 2) or constraints only makes sense at firing instants, which the ODE does not have, so analysis.diagnose can rank a knob that matters (+1 baristas_free) as irrelevant. Stores a tornado chart (bars centred on the baseline) and reports the SSA noise floor (spread of the baseline across three seeds).',
+        args: args({
+            observable: str('place; default: the first sink (produced, never consumed)'), t_end: num('horizon (default 10)', { minimum: 1e-9 }),
+            delta: num('relative rate perturbation in (0, 1] (default 0.5)', { minimum: 1e-6, maximum: 1 }),
+            runs: int('realizations per probe (default 40, ≤ 200)', { minimum: 1, maximum: 200 }), seed: int('shared seed (default 1)', { minimum: 0 }),
+            noise: bool('estimate the noise floor (default true)'),
+        }),
+        journal: true,
+        run: async (c, a) => {
+            const m = c.model();
+            const ssa = await import('./petri-ssa.js');
+            const consumed = new Set(), produced = new Set();
+            for (const arc of m.arcs) {
+                if (own(m.places, arc.source) && !arc.inhibitTransition) consumed.add(arc.source);
+                if (own(m.places, arc.target)) produced.add(arc.target);
+            }
+            const sinks = Object.keys(m.places).filter((p) => produced.has(p) && !consumed.has(p));
+            const obs = a.observable ?? sinks[0];
+            if (obs === undefined) throw new CommandError('no sink to watch: give an observable place');
+            needNode(m, obs, 'place');
+            const tEnd = a.t_end ?? 10, delta = a.delta ?? 0.5, runs = a.runs ?? 40, seed = a.seed ?? 1;
+            const mean = (model, sd = seed) => ssa.simulate(model, { horizon: tEnd, samples: 2, realizations: runs, seed: sd }).final[obs];
+            const clone = () => JSON.parse(JSON.stringify(m));
+            const baseline = mean(clone());
+            const knobs = [];
+            for (const t of Object.keys(m.transitions)) {
+                const r = Sim.rateOf(m, t);
+                const probe = (k) => { const x = clone(); x.transitions[t].rate = r * k; return mean(x); };
+                const lo = probe(1 - delta), hi = probe(1 + delta);
+                knobs.push({ name: `rate ${t}`, kind: 'rate', id: t, base: r, lo, hi, influence: hi - lo });
+            }
+            for (const p of Object.keys(m.places)) {
+                const x = clone();
+                const init = Array.isArray(x.places[p].initial) ? x.places[p].initial : [x.places[p].initial || 0];
+                x.places[p].initial = [(init[0] || 0) + 1, ...init.slice(1)];
+                const hi = mean(x);
+                knobs.push({ name: `+1 ${p}`, kind: 'token', id: p, base: init.reduce((u, v) => u + v, 0), lo: null, hi, influence: hi - baseline });
+            }
+            knobs.sort((u, v) => Math.abs(v.influence) - Math.abs(u.influence));
+            let noise = null;
+            if (a.noise !== false) {
+                const vals = [seed, seed + 1000, seed + 2000].map((sd) => mean(clone(), sd));
+                noise = { seeds: 3, floor: Math.max(...vals) - Math.min(...vals), values: vals };
+            }
+            const inert = (k) => noise !== null && Math.abs(k.influence) <= noise.floor;
+            const art = c.store(`Influence on ${obs} (SSA, t=${tEnd})`, {
+                kind: 'bars', value_label: `${obs} at t=${tEnd} (SSA mean of ${runs})`,
+                bars: knobs.map((k) => ({ name: k.name, value: baseline, ...(k.lo === null ? {} : { lo: k.lo }), hi: k.hi })),
+            }, { engine: 'ssa', observable: obs, t_end: tEnd, delta, runs, seed });
+            const top = knobs.filter((k) => !inert(k)).slice(0, 3).map((k) => `${k.name} (${k.influence > 0 ? '+' : ''}${+k.influence.toPrecision(3)})`);
+            const summary = `SSA influence on ${obs} at t=${tEnd}: ${top.length ? `biggest: ${top.join(', ')}` : 'no knob rises above the noise floor'}.`
+                + (noise ? ` Noise floor ${+noise.floor.toPrecision(3)} (spread of the baseline over 3 seeds).` : '');
+            return {
+                artifact: art.id, engine: 'ssa', observable: obs, t_end: tEnd, delta, runs, seed, baseline, noise, summary,
+                knobs: knobs.map((k) => ({ ...k, inert: inert(k) })),
+                reads: 'influence is a difference of the observable\'s SSA mean at t_end, over runs that share a seed: hi − lo for a rate probed at rate·(1 ± delta), hi − baseline for one more initial token; knobs are ranked by |influence|, and one within the noise floor is inert',
+            };
+        },
+    },
+
+    {
         id: 'net.set_goals', label: 'Set goals',
         help: 'Declare the net\'s reachability goals: markings it should be able to reach, e.g. [{"label": "everyone served", "to": {"served": 10}}]. "to" constrains only the places it names. The refinement gate (analysis.defects) counts a goal analysis.reach answers "no" to. An empty list removes them.',
         args: args({ goals: { type: 'array', items: { type: 'object' }, description: '[{label?, to: {place: count}}]' } }, ['goals']),

@@ -23,8 +23,27 @@ type Limits struct {
 	GlobalDaily int           // all users per UTC day
 }
 
-// DefaultLimits are the slice-1 design's proposal (open decision 3).
-var DefaultLimits = Limits{Burst: 3, Refill: 20 * time.Second, Daily: 30, GlobalDaily: 500}
+// DefaultLimits — THE POLICY (changed 2026-11-01).
+//
+// Limits exist only so that, if a problem appears (a loop, a leaked sign-in,
+// a bill that climbs), we can clamp down once we notice it, and we notice
+// within a day: billing alarms fire on the day's spend. So nothing here may
+// bite ordinary interactive use. One Assistant message is a tool loop of up
+// to six model calls back to back (petri-chat.js maxRounds), and a person
+// sends several in a row; the old burst of 3 refilling every 20 s 429'd
+// every multi-step turn.
+//
+//   Burst/Refill  a short-term guard against a stuck client hammering us, not
+//                 a pacing tool: 30 calls at once, 1 more every 2 s (30/min
+//                 sustained). A person cannot trip it; a runaway loop does.
+//   Daily         per user per UTC day: generous (several hundred turns'
+//                 worth), sized so one user running away for a whole day is
+//                 tolerable until the billing alarm fires.
+//   GlobalDaily   all users per UTC day: the cost ceiling, sized the same way.
+//
+// To tighten, set the environment, no code change: PFLOW_LLM_BURST,
+// PFLOW_LLM_REFILL_S, PFLOW_LLM_DAILY_LIMIT, PFLOW_LLM_GLOBAL_DAILY_LIMIT.
+var DefaultLimits = Limits{Burst: 30, Refill: 2 * time.Second, Daily: 500, GlobalDaily: 5000}
 
 // LimitsFromEnv reads PFLOW_LLM_BURST, PFLOW_LLM_REFILL_S, PFLOW_LLM_DAILY_LIMIT
 // and PFLOW_LLM_GLOBAL_DAILY_LIMIT. A malformed value logs once and keeps the

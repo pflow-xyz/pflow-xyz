@@ -75,10 +75,11 @@
       "inputs": [{ "name": "observable", "kind": "place", "label": "the outcome to watch", "optional": true }],
       "plan": [
         { "command": "sim.recommend", "args": {} },
-        { "command": "analysis.diagnose", "args": { "observable": "$input.observable", "t_end": "$step0.t_end" } }
+        { "command": "analysis.diagnose", "when": { "ref": "$step0.engine", "equals": "ode" }, "args": { "observable": "$input.observable", "t_end": "$step0.t_end" } },
+        { "command": "analysis.diagnose_ssa", "when": { "ref": "$step0.engine", "equals": "ssa" }, "args": { "observable": "$input.observable", "t_end": "$step0.t_end", "runs": 40, "seed": "$step0.seed" } }
       ],
-      "answer": "Every rate and every place's initial count ranked by its effect on the outcome, against a measured noise floor.",
-      "caveat": "A knob under the noise floor has no measured effect, which is not the same as no effect."
+      "answer": "Every rate and every place's initial count ranked by its effect on the outcome, against a measured noise floor. Measured on the engine sim.recommend picks: the ODE for a large unconstrained net, the SSA for a small or constrained one (a pool of two baristas is only visible to the SSA).",
+      "caveat": "A knob under the noise floor has no measured effect, which is not the same as no effect. Name the outcome (a place) or it watches the sinks; the question's own words are used when they name a place or its transition."
     },
     {
       "id": "one_more",
