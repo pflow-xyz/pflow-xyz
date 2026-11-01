@@ -8,7 +8,7 @@
 // Load order (docs/compose-load-budget.md): the shell (tabs, a status line) is
 // drawn at once; the wasm and the module of the view being shown are fetched
 // together; the other views are imported when the page is idle, or at once
-// if their tab is pressed first (loadView), and the Laws view's Pyodide is
+// if their tab is pressed first (loadView), and the Laws view's chyp-rs is
 // fetched only when that view is drawn (laws-live.js). A view reads
 // the ontology facts (model.js, filled by loadFacts from the registry) when its
 // module is evaluated, so a view is evaluated only after loadFacts(); until then
@@ -258,7 +258,7 @@ function renderSources() {
       el('li', {}, `pflow-native-wasm ${registry.engines.version} (vendored in public/vendor/pflow-native-wasm/, lock pflow-native-wasm.lock): every link verdict, drag candidate, Flatten, scenario run and the lens test (bundle.*), and every plan verdict (plan.*).`),
       el('li', {}, `pflow-rs @${PLAN_RS_REV}: SearchPlan::from_json / check / solver, through the registry.`),
       prov ? el('li', {}, `Ontology facts: ${prov.source}; ${prov.judgment}`) : null,
-      el('li', {}, 'Composition laws: Chyp 3d28483 (the Laws view runs its checker live under Pyodide, see there).'),
+      el('li', {}, 'Composition laws: Chyp 3d28483 by Aleks Kissinger, Apache-2.0 (the results shown), and chyp-rs, its Rust port, which the Laws view runs live as WebAssembly (vendor/chyp-rs-wasm/NOTICE.txt).'),
     ));
 }
 

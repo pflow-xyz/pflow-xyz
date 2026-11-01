@@ -283,10 +283,10 @@ async function viewsReport(chrome: Chrome, url: string, prof: Profile, acceptBr:
     for (let i = 0; i < 2400; i++) { if (await p.eval<boolean>(`document.body.dataset.view === '${v}' && document.body.dataset.ready === '1'`)) break; await sleep(25); }
     const drawn = Date.now() - t0;
     if (v === "laws") {
-      // the live check runs under Pyodide: wait for its terminal state (live, layout failed, or did not run)
+      // wait for the live check's terminal state (agrees, differs, or did not run)
       for (let i = 0; i < 2400; i++) {
         const txt = await p.eval<string>(`(document.querySelector('.lw-livebar')||{}).textContent||''`);
-        if (/Shown: the live result|did not run|live layout failed/.test(txt)) break;
+        if (/live check (agrees|DIFFERS)|did not run/.test(txt)) break;
         await sleep(50);
       }
     }

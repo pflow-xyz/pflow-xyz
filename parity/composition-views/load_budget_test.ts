@@ -2,9 +2,10 @@
 // statically (docs/compose-load-budget.md has the measured side).
 //
 //  - The page's entry (compose.html and the static import graph of its
-//    scripts) reaches no third-party host and no Pyodide: nothing from
-//    cdn.jsdelivr.net or PyPI is requested until the Laws view is drawn
-//    (views/laws.js -> laws-live.js, behind a dynamic import). The html itself
+//    scripts) reaches no third-party host. The Laws view's checker is first-party and
+//    loads only when that view is drawn (views/laws.js -> laws-live.js -> chyp-rs,
+//    behind a dynamic import), and no module names Pyodide, PyPI or jsDelivr, which it
+//    used to load. The html itself
 //    names no other host anywhere it could fetch or run something: attributes,
 //    inline scripts and styles, not only <script src> and <link>; its own
 //    origin, https://pflow.xyz, is allowed.
@@ -23,9 +24,10 @@ const PUBLIC = new URL("../../public/", import.meta.url);
 const read = (u: URL) => Deno.readTextFileSync(u);
 const rel = (u: URL) => u.href.slice(PUBLIC.href.length);
 
-// Things only the Laws view's loader may name: where Pyodide and its packages come from.
-const THIRD_PARTY_LOADERS = [/jsdelivr/i, /pypi/i, /pythonhosted/i, /micropip/i, /loadPyodide/, /pyodide\.(m?js|asm)/i];
-const LAWS_ONLY = new Set(["compose/views/laws.js", "compose/laws-live.js"]);
+// Where the Laws view's Python runtime used to come from: no module may name these now.
+const THIRD_PARTY_LOADERS = [/jsdelivr/i, /pypi/i, /pythonhosted/i, /micropip/i, /loadPyodide/, /pyodide/i];
+// The checker and what only it needs: not to be fetched at page start.
+const LAWS_ONLY = new Set(["compose/views/laws.js", "compose/laws-live.js", "vendor/chyp-rs-wasm/chyp_rs.js"]);
 
 /** The specifiers a module imports STATICALLY (import ... from, import "x", export ... from). */
 function staticImports(src: string): string[] {
@@ -78,7 +80,7 @@ Deno.test("the vendored engine is within the budget the doc states", () => {
 // the href of an <a> and of a <link> whose rel is only me, canonical, author, license, alternate...
 // (the page links to the author's profiles), and the text of a data block (<script
 // type="application/ld+json">, which may name schema.org or sameAs profiles); a data block still
-// may not name Pyodide's hosts.
+// may not name those hosts.
 const FIRST_PARTY = "https://pflow.xyz";
 const NO_FETCH_REL = new Set(["me", "canonical", "author", "license", "alternate", "bookmark", "help", "next", "prev", "search", "tag", "nofollow", "noopener", "noreferrer", "external"]);
 const URL_ATTRS = new Set(["src", "srcset", "imagesrcset", "href", "poster", "data", "action", "formaction", "ping", "content", "background", "manifest", "codebase", "cite", "longdesc", "xlink:href"]);
@@ -227,7 +229,7 @@ Deno.test("the page's stylesheet imports nothing from another host", () => {
   }
 });
 
-Deno.test("the page's static import graph reaches no Pyodide, no jsdelivr, no PyPI", () => {
+Deno.test("the page's static import graph reaches no third-party loader, and not the Laws view's checker", () => {
   const entries = scripts.filter((s) => s.endsWith(".js") || s.endsWith(".mjs")).map((s) => onDisk(s));
   assert(entries.some((u) => rel(u) === "compose/app.js"), "compose.html no longer loads compose/app.js");
   const graph = new Map<string, string>();
@@ -237,7 +239,7 @@ Deno.test("the page's static import graph reaches no Pyodide, no jsdelivr, no Py
   for (const f of ["compose/app.js", "compose/registry.js", "petri-wasm.js", "compose/state.js", "compose/views-meta.js"]) assert(files.includes(f), `the walk never reached ${f}: ${files.join(", ")}`);
   for (const [k, src] of graph) {
     const f = k.slice(PUBLIC.href.length);
-    assert(!LAWS_ONLY.has(f), `${f} is in the page's static graph: Pyodide would load at page start`);
+    assert(!LAWS_ONLY.has(f), `${f} is in the page's static graph: it would load at page start`);
     for (const re of THIRD_PARTY_LOADERS) assert(!re.test(src), `${f} (static graph) matches ${re}`);
     assert(!/\b(?:import|fetch)\(\s*['"`]https?:/.test(src), `${f} fetches or imports an absolute URL`);
   }
@@ -258,7 +260,7 @@ Deno.test("no view module is in the page's static graph (each is imported on fir
   assertEquals(dyn, ["`./${VIEW_META[id].src}`"]);
 });
 
-Deno.test("only views/laws.js reaches laws-live.js, and only laws-live.js names Pyodide's hosts", () => {
+Deno.test("only views/laws.js reaches laws-live.js, and no module names Pyodide's hosts", () => {
   const dir = new URL("compose/", PUBLIC);
   const all: URL[] = [];
   const walk = (d: URL) => {
@@ -273,13 +275,17 @@ Deno.test("only views/laws.js reaches laws-live.js, and only laws-live.js names 
     const f = rel(u), src = read(u);
     const importsLive = staticImports(src).some((s) => s.endsWith("laws-live.js")) || /import\([^)]*laws-live/.test(src);
     if (f !== "compose/views/laws.js") assert(!importsLive, `${f} imports laws-live.js`);
-    if (!LAWS_ONLY.has(f)) for (const re of THIRD_PARTY_LOADERS) assert(!re.test(src), `${f} matches ${re}: Pyodide's hosts belong in laws-live.js`);
+    for (const re of THIRD_PARTY_LOADERS) assert(!re.test(src), `${f} matches ${re}: the Laws view no longer loads anything from there`);
   }
-  // the lazy boundary exists: laws.js is what reaches the loader, and the loader imports Pyodide dynamically
+  // the lazy boundary exists: laws.js is what reaches the loader, and the loader imports the engine dynamically
   assert(staticImports(read(new URL("compose/views/laws.js", PUBLIC))).includes("../laws-live.js"));
   const live = read(new URL("compose/laws-live.js", PUBLIC));
-  assert(/await import\([^)]*PYODIDE_URL\)/.test(live), "laws-live.js no longer imports Pyodide dynamically, inside pyodide()");
-  assert(!staticImports(live).some((s) => /^https?:/.test(s)), "laws-live.js imports Pyodide statically");
+  assert(/await import\('\.\.\/vendor\/chyp-rs-wasm\/chyp_rs\.js'\)/.test(live), "laws-live.js no longer imports the engine dynamically, inside engine()");
+  assertEquals(staticImports(live), [], "laws-live.js imports something statically");
+  // nothing it reaches comes from another host
+  assert(!/\bimport\(\s*['"`]https?:|\bfetch\(\s*['"`]https?:/.test(live), "laws-live.js fetches an absolute URL");
+  const glue = read(new URL("vendor/chyp-rs-wasm/chyp_rs.js", PUBLIC));
+  assert(!/https?:\/\//.test(glue), "the chyp-rs glue names a host");
 });
 
 Deno.test("views-meta.js: the tab labels are what each view module exports", async () => {
@@ -303,76 +309,6 @@ Deno.test("laws-live: a failure is one readable line, not a traceback", async ()
   assertEquals(explain("plain"), "plain");
   assertEquals(explain(""), "unknown error");
   assert(explain(new Error("x".repeat(1000))).length <= 240);
-});
-
-// --- the Laws view's live layout: a package that does not load is not a layout ---------------------------
-//
-// Pyodide's loadPackage does not throw when a wheel is blocked: it logs a warning per package and resolves.
-// Without a check, Chyp falls back to topology only and the page announced "the live layout is drawn".
-
-Deno.test("laws-live: which of the layout's packages Pyodide did not load", async () => {
-  const { missingPackages, LAYOUT_PACKAGES } = await import("../../public/compose/laws-live.js");
-  assertEquals(LAYOUT_PACKAGES, ["cvxpy-base", "clarabel"]);
-  assertEquals(missingPackages({ numpy: "default", scipy: "default", clarabel: "default", "cvxpy-base": "default" }), []);
-  assertEquals(missingPackages({ numpy: "default", scipy: "default" }), ["cvxpy-base", "clarabel"]);
-  assertEquals(missingPackages({ "cvxpy-base": "default" }), ["clarabel"]);
-  assertEquals(missingPackages({ clarabel: "default" }), ["cvxpy-base"]);
-  assertEquals(missingPackages({ cvxpy_base: "default", Clarabel: "default" }), [], "names are compared as PEP 503 does");
-  assertEquals(missingPackages(undefined), ["cvxpy-base", "clarabel"]);
-  assertEquals(missingPackages({}, ["lark"]), ["lark"]);
-});
-
-Deno.test("laws-live: what the page says when the layout cannot be the live one (a pure function)", async () => {
-  const { layoutProblem } = await import("../../public/compose/laws-live.js");
-  const both = { "cvxpy-base": "default", clarabel: "default" };
-  const chyp = (used: string, reason?: string) => ({ diagrams: { layout: { requested: "chyp", used, ...(reason ? { reason } : {}) } } });
-  assertEquals(layoutProblem({ loadedPackages: both }), null);
-  assertEquals(layoutProblem({ loadedPackages: both, docs: { a: chyp("chyp"), b: chyp("chyp") } }), null);
-  assertEquals(layoutProblem({ loadedPackages: { numpy: "default" } }), "cvxpy-base and clarabel did not load: their files could not be fetched from cdn.jsdelivr.net");
-  assertEquals(layoutProblem({ loadedPackages: { "cvxpy-base": "default" } }), "clarabel did not load: its file could not be fetched from cdn.jsdelivr.net");
-  // the packages loaded but Chyp still exported topology only (could not import cvxpy)
-  assertEquals(layoutProblem({ loadedPackages: both, docs: { a: chyp("chyp"), b: chyp("none", "ImportError: no cvxpy") } }), "Chyp drew no coordinates: b ImportError: no cvxpy");
-  assertEquals(layoutProblem({ loadedPackages: both, docs: { a: chyp("none") } }), "Chyp drew no coordinates: a (layout used: none)");
-  assertEquals(layoutProblem({ loadedPackages: both, docs: { a: {} } }), "Chyp drew no coordinates: a (layout used: unknown)");
-  // a missing package is reported before any layout is looked at
-  assert(layoutProblem({ loadedPackages: {}, docs: { a: chyp("none") } })!.startsWith("cvxpy-base and clarabel did not load"));
-});
-
-Deno.test("laws-live: the layout step fails, and says why, when its packages did not load or Chyp fell back", async () => {
-  const { layoutOn } = await import("../../public/compose/laws-live.js");
-  const docs = { "orderer-monoid": { diagrams: { layout: { used: "chyp" } } } };
-  const fakePy = (loaded: Record<string, string>, exported: unknown) => {
-    const ran: string[] = [];
-    return {
-      ran,
-      loadedPackages: loaded,
-      loadPackage: async (names: string[]) => { ran.push(`loadPackage ${names.join(",")}`); }, // resolves, as Pyodide does for a blocked wheel
-      runPythonAsync: async () => { ran.push("run"); return JSON.stringify(exported); },
-    };
-  };
-  const status: string[] = [];
-
-  // a blocked wheel: loadPackage resolved, the package is not loaded: no layout is run, nothing says "drawn"
-  const blocked = fakePy({ numpy: "default", scipy: "default" }, docs);
-  let err: Error | null = null;
-  try { await layoutOn(blocked, ["orderer-monoid"], (t: string) => status.push(t)); } catch (e) { err = e as Error; }
-  assert(err, "a layout whose packages did not load must fail");
-  assertEquals(err!.message, "cvxpy-base and clarabel did not load: their files could not be fetched from cdn.jsdelivr.net");
-  assertEquals(blocked.ran, ["loadPackage cvxpy-base,clarabel"], "Chyp's layout must not run without its packages");
-  assert(!status.some((t) => /laying the diagrams out/.test(t)));
-
-  // everything loaded but Chyp exported topology only
-  const fellBack = fakePy({ "cvxpy-base": "default", clarabel: "default" }, { "orderer-monoid": { diagrams: { layout: { used: "none", reason: "ImportError: cvxpy" } } } });
-  err = null;
-  try { await layoutOn(fellBack, ["orderer-monoid"]); } catch (e) { err = e as Error; }
-  assertEquals(err?.message, "Chyp drew no coordinates: orderer-monoid ImportError: cvxpy");
-
-  // the good run
-  const good = fakePy({ "cvxpy-base": "default", clarabel: "default" }, docs);
-  const r = await layoutOn(good, ["orderer-monoid"], (t: string) => status.push(t));
-  assertEquals(r.docs, docs);
-  assertEquals(good.ran, ["loadPackage cvxpy-base,clarabel", "run"]);
-  assert(typeof r.layoutSeconds === "number");
 });
 
 // --- the URL hash -----------------------------------------------------------------------------------
