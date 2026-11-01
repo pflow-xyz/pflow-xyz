@@ -76,6 +76,48 @@ different rate laws, not a continuous vs. discrete version of the same one.
 Full rules: `docs/engine-selection.md` (vendored from go-pflow,
 `scripts/docs-sync.sh check`).
 
+## MCP server
+
+`https://pflow.xyz/mcp` runs these tools on the server, on the net or
+composition passed in the call. It is stateless Streamable HTTP: POST JSON-RPC,
+no event stream. `claude mcp add --transport http pflow https://pflow.xyz/mcp`.
+Only `pflow_save` needs a sign-in. [Setup and every tool](https://pflow.xyz/mcp.html).
+
+- Nets: pflow_edit, pflow_info, pflow_check, pflow_validate, pflow_verify,
+  pflow_fire, pflow_reachability, pflow_invariants, pflow_incidence,
+  pflow_simulate, pflow_ssa, pflow_sde, pflow_what_if, pflow_rate_scan,
+  pflow_optimize, pflow_cid, pflow_get, pflow_export, pflow_links, pflow_save
+- Two-sided games, solved exactly by alpha-beta search over the firing rule. The
+  net's marking is the position. Both tools need `net`, `sides` (transition-id
+  prefix to sign, `{"x_": 1, "o_": -1}`) and `reward` (place to weight, read from
+  the final marking from the +1 side's view, `{"win_x": 1, "win_o": -1}`); `auto`,
+  `plan`, `nodes` and `book` are optional. Past the node budget the answer is
+  `exact: false` with a null value.
+  - pflow_game_value: the position's value with both sides playing perfectly
+  - pflow_game_move: a best move and the value; the move is not played
+- Compositions (`PetriNetBundle`): subnets, the ports on their boundaries and
+  typed links between them (token, data, event, guard). The bundle travels in the
+  call and nothing is stored.
+  - pflow_bundle_example: a composition to start from (an order queue, a worker
+    pool and a payment saga), with its catalog and four scenarios
+  - pflow_bundle_validate: check the subnets, then every link
+  - pflow_bundle_candidates: the links a port could take, each with its verdict;
+    only declared ports count here
+  - pflow_bundle_add_link: add a link if it is legal; a refusal gives the reasons
+  - pflow_bundle_flatten: one flat net, with maps back to the subnets
+  - pflow_bundle_run: fire a script of members (`payment/do_charge`, the
+    transition's own id, not the port id `do:charge`) or a scenario, and check
+    what it expects
+  - pflow_bundle_incidence: the flat net's incidence matrix, and whether each
+    declared constraint is a conservation law of the composition
+
+The flat net is not a pflow.xyz net: pflow_simulate, pflow_fire and the other
+net tools cannot read it, so fire it with pflow_bundle_run. Give every arc an
+explicit weight. A failed `expect` in a run's answer is a finding about the
+composition, not a tool error: the example's `refund` and `charge-fails` both
+leave a worker out of the pool, and its `second-order` stops at a transition
+that cannot fire.
+
 ## Services
 
 - [Sim MCP server](https://sim.pflow.xyz/mcp): JSON-RPC tools to build,
