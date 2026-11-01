@@ -250,7 +250,7 @@ Policy as set: limits are a safety valve, tightened only if billing alarms fire 
 - Token cost per call falls with the manifest (about 5k tokens to roughly 1.5k if the 25-entry manifest holds; estimate, measure in Step 2). The usage log already records tokens per call, so no new telemetry is needed to see this.
 - The usage log (`data/llm/usage-YYYY-MM.jsonl`) is the billing-alarm input. Add one field to the `done` line: `goal_id` (or `none`), so cost per goal is visible. It carries no text.
 - **Tripwire, written down:** if the global count exceeds a set fraction of its limit in a day, or an individual user hits the daily cap on three consecutive days, the response is to lower the env value; nothing in the UI has to change because the degraded mode above is already the quota-exhausted path.
-- Open: a lower daily limit hurts the Ask flow more than the old one, since every question now routes through the model. If tightening is needed, prefer a cheaper model for `run_goal` turns (the small classifier model class) over a lower cap. Decision for Matt.
+- **Decided (Matt):** goal turns use the cheaper model. A lower daily limit would hurt the Ask flow more than the old one, since every question now routes through the model, so if billing alarms fire the first response is a cheaper model for `run_goal` turns (the small classifier model class, set by an env var like `PFLOW_LLM_CLASSIFIER_MODEL`), not a lower cap. Build and free-form turns keep the main model. Step 2's eval must show goal-selection accuracy holds on the cheaper model before it becomes the default.
 
 ## 11. Migration plan: small, shippable steps
 
@@ -327,7 +327,7 @@ The other run's landing chat already routes the hero into the Assistant by mode 
 5. **Does the model choose the engine?** No. `sim.recommend` does; the model may pass an explicit user override. This is the main change from the starting proposal, which said "the model picks goal, engine, outcome".
 6. **Keep Auto/Build/Analyse/Explain tabs?** No; show the intent as a correctable chip. Keeps the safety property (explain does not edit) without asking people to classify themselves.
 7. **Should Describe a process keep its own dialog?** No for the entry point; yes for its gate and its notes, which move into the pending-diff card.
-8. **Decision for Matt:** cheaper model for goal turns versus a lower daily cap, if billing alarms fire (section 10).
+8. **Decided (Matt):** goal turns use the cheaper model rather than a lower daily cap (section 10).
 
 ## 14. Linkable model views
 
