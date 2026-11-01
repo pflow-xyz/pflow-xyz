@@ -131,7 +131,7 @@ examples/                # Example Petri nets in JSON-LD
 - **public/petri-analysis-ui.js** - the Structure dialog (invariants, siphons, verify, reach, reachability graph, …)
 - **public/petri-landing.js** - the landing chat: `/` opens on a prompt that routes into a session (Design, Analyse, Explain: the Assistant's modes; Explore: `/compose.html`), or sign-in first with the words kept; `/?route=` names a session. `docs/landing-chat.md`; browser check `scripts/landing-smoke.ts`
 - **public/petri-panel-frame.js** - where a docked panel goes on a phone (the Assistant, the App view): from `window.visualViewport`, above the run bar. Browser check `scripts/landing-smoke.ts`; run the smokes before a push with `scripts/smoke-gate.sh`, which reports a smoke's real exit status
-- **public/petri-chat.js** / **petri-chat-ui.js** - the Assistant: the tool loop (sandbox edits, Apply as one undo step) and its docked panel; **petri-tools.js** maps registry commands to LLM tools
+- **public/petri-chat.js** / **petri-chat-ui.js** - the Assistant: the tool loop (sandbox edits, Apply as one undo step) and its docked panel; **petri-tools.js** maps registry commands to LLM tools. The panel's Tools section counts the tools it can use (`toolsFor`: the manifest, without the edits in explain mode) and the calls it has made, and lists both
 - **public/petri-results.js** - renders artifacts by kind (Analysis dialog, Results dialog)
 - **docs/workbench-progress.md** - progress and decisions-to-review log for the ROADMAP's LLM workbench phases
 - **docs/engine-selection.md** - which engine (ODE/SSA/SDE) for which

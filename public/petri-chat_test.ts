@@ -1,5 +1,5 @@
 import { assert, assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
-import { ChatSession, diffNets } from "./petri-chat.js";
+import { ChatSession, diffNets, toolsFor } from "./petri-chat.js";
 import { panelFrame } from "./petri-panel-frame.js";
 import { Registry, createHeadlessHost } from "./petri-commands.js";
 import { buildManifest, commandId, decodeCall, summarizeResult, toolName } from "./petri-tools.js";
@@ -224,4 +224,14 @@ Deno.test("panel frame: follows the browser panning the page to the box", () => 
 
 Deno.test("panel frame: never a negative height", () => {
     assertEquals(panelFrame({ visibleTop: 0, visibleHeight: 10 }).height, 0);
+});
+
+Deno.test("chat: the tools a mode can use, as the panel counts them", async () => {
+    const manifest = JSON.parse(await Deno.readTextFile(new URL("./llm-tools.json", import.meta.url)));
+    const commands = (mode: string) => toolsFor(manifest, mode).map((t: any) => t.command);
+    for (const mode of ["auto", "build", "analyse"]) assertEquals(commands(mode).length, manifest.tools.length, mode);
+    const explain = commands("explain");
+    assert(explain.length > 0 && explain.length < manifest.tools.length);
+    for (const edit of ["net.add_place", "sim.fire", "edit.undo", "file.new"]) assert(!explain.includes(edit), edit);
+    for (const read of ["net.info", "analysis.check", "sim.ode", "view.highlight"]) assert(explain.includes(read), read);
 });

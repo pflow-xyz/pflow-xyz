@@ -2,10 +2,11 @@
 //
 // The loop is petri-chat.js; this file is its view. The panel is not modal,
 // so the net stays on screen (ROADMAP: "the guided flow should end with a net
-// they can see, read and edit"). Every tool call is listed in the Tools
-// section with its arguments and result, and can be rerun or copied as an MCP
-// call; pending edits show as a diff with Apply / Discard. <petri-view> loads
-// this only when /api/llm/status reports the chat available.
+// they can see, read and edit"). The Tools section says what the assistant can
+// use and what it has used: every call is listed with its arguments and result,
+// and can be rerun or copied as an MCP call. Pending edits show as a diff with
+// Apply / Discard. <petri-view> loads this only when /api/llm/status reports the
+// chat available.
 //
 // Wording rule (as for drafting): replies are the assistant's; results are
 // the engines'. The panel never restyles a reply as a result.
@@ -13,6 +14,9 @@
 import { fitPanel } from './petri-panel-frame.js';
 
 const MODES = [['auto', 'Auto'], ['build', 'Build'], ['analyse', 'Analyse'], ['explain', 'Explain']];
+
+// The Tools section's groups, by the command's prefix. One that is not named here is listed under its prefix.
+const TOOL_GROUPS = { file: 'File', edit: 'Edit', net: 'Net', sim: 'Simulate', opt: 'Optimize', analysis: 'Analysis', view: 'Canvas', artifact: 'Results' };
 
 function esc(s) {
     return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -76,7 +80,17 @@ export async function openChat(view, { mode, message } = {}) {
         <div class="pv-chat-detected pv-result-dim" hidden></div>
         <div class="pv-chat-log" aria-live="polite"></div>
         <div class="pv-chat-pending" hidden></div>
-        <details class="pv-chat-tools"><summary>Tools <span class="pv-chat-tools-count">(0)</span></summary><ol class="pv-chat-calls"></ol></details>
+        <details class="pv-chat-tools">
+            <summary>Tools <span class="pv-chat-tools-count pv-result-dim"></span></summary>
+            <div class="pv-chat-tools-runs">
+                <div class="pv-chat-tools-head">Run in this conversation</div>
+                <p class="pv-chat-calls-empty pv-result-dim">None yet. Each tool the assistant runs is listed here with its arguments and result, to rerun or copy as an MCP call.</p>
+                <ol class="pv-chat-calls"></ol>
+            </div>
+            <div class="pv-chat-tools-head">What it can use</div>
+            <p class="pv-chat-tools-note pv-result-dim" hidden></p>
+            <div class="pv-chat-avail"></div>
+        </details>
         <div class="pv-chat-status pv-result-dim"></div>
         <form class="pv-chat-form">
             <textarea class="pv-chat-input" rows="2" placeholder="Ask about the net, or say what to build…"></textarea>
@@ -103,6 +117,32 @@ export async function openChat(view, { mode, message } = {}) {
     if (status.remaining_today !== undefined) $('.pv-chat-quota').textContent = `${status.remaining_today} model calls left today`;
 
     let chat = new ChatSession({ live: reg, manifest, post: turnPoster(view), mode: mode || 'auto' });
+    // The count is of the tools there are, then of the calls made: a bare count of calls read 0 on every new conversation,
+    // as if there were no tools at all.
+    let listed = null;
+    const renderTools = () => {
+        const tools = chat.tools;
+        const runs = chat.calls.length;
+        $('.pv-chat-tools-count').textContent = status.signed_in
+            ? `${tools.length} available, ${runs ? `${runs} run` : 'none run yet'}`
+            : `${tools.length} after sign-in`;
+        $('.pv-chat-tools-runs').hidden = !status.signed_in;
+        $('.pv-chat-calls-empty').hidden = runs > 0;
+        const left = manifest.tools.length - tools.length;
+        const note = $('.pv-chat-tools-note');
+        note.hidden = status.signed_in && !left;
+        note.textContent = !status.signed_in ? 'Sign in and the assistant can use these on your net.' : left ? `Explain mode does not edit, so the ${left} tools that do are left out.` : '';
+        if (listed === tools.length) return; // the list changes with the mode, and redrawing it would close what is open
+        listed = tools.length;
+        const groups = new Map();
+        for (const t of tools) {
+            const prefix = t.command.split('.')[0];
+            const name = TOOL_GROUPS[prefix] || prefix[0].toUpperCase() + prefix.slice(1);
+            groups.set(name, [...(groups.get(name) || []), t]);
+        }
+        $('.pv-chat-avail').innerHTML = [...groups].map(([name, ts]) => `<details class="pv-chat-avail-group"><summary>${esc(name)} <span class="pv-result-dim">(${ts.length})</span></summary>
+            <ul>${ts.map((t) => `<li><code>${esc(t.command)}</code> ${esc(t.description)}</li>`).join('')}</ul></details>`).join('');
+    };
     const renderSteps = () => {
         const box = $('.pv-chat-steps');
         box.hidden = chat.effectiveMode !== 'build';
@@ -119,6 +159,7 @@ export async function openChat(view, { mode, message } = {}) {
             b.setAttribute('aria-selected', on ? 'true' : 'false');
         });
         renderSteps(); // after chat.setMode: the row is shown or hidden by the mode just chosen
+        renderTools();
     };
     panel._setMode = setMode;
     setMode(chat.mode);
@@ -199,7 +240,7 @@ export async function openChat(view, { mode, message } = {}) {
         li.querySelector('[data-act="mcp"]').addEventListener('click', () =>
             view._copyMcpCall({ source: { command: entry.command || entry.name, args: entry.args } }));
         $('.pv-chat-calls').appendChild(li);
-        $('.pv-chat-tools-count').textContent = `(${chat.calls.length})`;
+        renderTools();
     };
 
     $('[data-act="new"]').addEventListener('click', () => {
@@ -208,8 +249,8 @@ export async function openChat(view, { mode, message } = {}) {
         $('.pv-chat-detected').hidden = true;
         log.innerHTML = '';
         $('.pv-chat-calls').innerHTML = '';
-        $('.pv-chat-tools-count').textContent = '(0)';
         renderSteps(); // a new session has no auto label yet
+        renderTools();
         renderPending();
     });
     $('[data-act="close"]').addEventListener('click', () => panel.remove());
@@ -223,6 +264,8 @@ export async function openChat(view, { mode, message } = {}) {
         const text = input.value.trim();
         if (!text) return;
         input.value = '';
+        // On a phone an open Tools section stands in for the log (petri-view.css): the answer has to be in sight.
+        if (!log.clientHeight) $('.pv-chat-tools').open = false;
         say('user', text);
         const send = $('.pv-chat-form button');
         send.disabled = true;
@@ -231,7 +274,7 @@ export async function openChat(view, { mode, message } = {}) {
                 if (ev.type === 'round') $('.pv-chat-status').textContent = ev.round === 1 ? 'Thinking…' : `Thinking… (step ${ev.round})`;
                 if (ev.type === 'reply') say('assistant', ev.text);
                 if (ev.type === 'call') { renderCall(ev.entry); $('.pv-chat-status').textContent = `ran ${ev.entry.command || ev.entry.name}`; }
-                if (ev.type === 'auto') { showDetected(ev); renderSteps(); }
+                if (ev.type === 'auto') { showDetected(ev); renderSteps(); renderTools(); }
                 if (ev.type === 'quota') $('.pv-chat-quota').textContent = `${ev.remaining} model calls left today`;
                 if (ev.type === 'step') { renderSteps(); say('note', `Interview step: ${ev.step}`); }
                 if (ev.type === 'checks' && ev.report.findings.length) say('note', `Checks: ${ev.report.findings.map((f) => f.category).join(', ')}`);

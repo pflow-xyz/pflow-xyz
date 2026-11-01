@@ -59,6 +59,15 @@ function checksText(report) {
         + (report.exhaustive ? '' : `\n(${report.note})`);
 }
 
+/**
+ * The manifest's tools a mode can run: all of them, but for explain, which refuses an edit (runCall). A tool that edits
+ * only when asked to (opt.fit with apply) stays, since it runs without edits there.
+ * @returns {Array<{name: string, command: string, description: string}>}
+ */
+export function toolsFor(manifest, mode) {
+    return mode === 'explain' ? manifest.tools.filter((t) => !isEdit(t.command, {})) : manifest.tools;
+}
+
 export class ChatSession {
     /**
      * @param {Object} o
@@ -103,6 +112,11 @@ export class ChatSession {
     /** The mode the tools run under: the chosen one, or auto's latest label. */
     get effectiveMode() {
         return this.mode === 'auto' ? (this.resolved || 'analyse') : this.mode;
+    }
+
+    /** What the assistant can use right now; `calls` is what it has used. */
+    get tools() {
+        return toolsFor(this.manifest, this.effectiveMode);
     }
 
     async _netSummary() {

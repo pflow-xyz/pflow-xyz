@@ -3258,11 +3258,43 @@ canvas.pv-canvas {
     max-height: 30vh;
     overflow: auto;
 }
-.pv-chat-calls {
+/* Stays in sight as what is under it scrolls: it is how the section closes. */
+.pv-chat-tools > summary {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: var(--pv-surface);
+    cursor: pointer;
+}
+.pv-chat-tools-head {
+    margin-top: 6px;
+    font-weight: 600;
+}
+.pv-chat-tools p {
+    margin: 2px 0;
+}
+.pv-chat-avail-group > summary {
+    cursor: pointer;
+}
+.pv-chat-avail-group ul {
+    margin: 2px 0 6px;
     padding-left: 18px;
 }
+.pv-chat-avail-group li {
+    margin: 4px 0;
+    overflow-wrap: anywhere;
+}
+.pv-chat-calls {
+    margin: 2px 0;
+    padding-left: 18px;
+}
+/* An argument with no spaces in it (a long id, a JSON blob) wraps rather than widening the section. */
 .pv-chat-call {
     margin: 4px 0;
+    overflow-wrap: anywhere;
+}
+.pv-chat-art {
+    overflow-x: auto;
 }
 .pv-chat-err {
     color: var(--pv-danger);
@@ -3333,6 +3365,29 @@ canvas.pv-canvas {
     .pv-chat-log {
         min-height: 0;
         overscroll-behavior: contain;
+    }
+    /* 30vh of a phone is a row or two. Open, Tools stands in for the log, whose place in
+       its scroll it keeps (sending a message closes Tools); closed, its row is never crushed. */
+    .pv-chat-tools {
+        flex: none;
+        max-height: none;
+        overscroll-behavior: contain;
+    }
+    .pv-chat-tools[open] {
+        flex: 1 1 0;
+        min-height: 44px;
+    }
+    .pv-chat:has(.pv-chat-tools[open]) .pv-chat-log {
+        flex: 0 0 0;
+        visibility: hidden;
+    }
+    /* Big enough to tap. */
+    .pv-chat-tools > summary,
+    .pv-chat-avail-group > summary {
+        padding: 10px 0;
+    }
+    .pv-chat-pending {
+        min-height: 0;
     }
     .pv-chat-form {
         flex: none;

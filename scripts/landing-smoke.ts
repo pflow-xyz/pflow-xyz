@@ -8,7 +8,7 @@
 // request, and says nothing about Gemini or the real sign-in.
 //
 // Also the editor's other docked panel, the App view, whose frame on a phone comes from the same place
-// (public/petri-panel-frame.js).
+// (public/petri-panel-frame.js), and the Assistant's Tools section: what it counts, what it lists, where it sits.
 //
 // Not part of `make test` (it needs Chrome and a running server). Exit status 1 on any failure; scripts/smoke-gate.sh
 // is the way to run it before a push, because it keeps the log and reads that status.
@@ -45,7 +45,7 @@ const SIGNED_IN = (seed = "", statusDelay = 0) => `
       if (!bearer) return new Response('{"error":"sign in"}', { status: 401 });
       const body = JSON.parse(opts.body);
       window.__turns.push(body);
-      return json({ reply: window.__reply || 'smoke reply', tool_calls: [], message: { role: 'model', parts: [{ text: 'smoke reply' }] }, remaining_today: 6, mode: body.mode === 'auto' ? 'analyse' : body.mode });
+      return json({ reply: window.__reply || 'smoke reply', tool_calls: window.__toolCalls?.splice(0) ?? [], message: { role: 'model', parts: [{ text: 'smoke reply' }] }, remaining_today: 6, mode: body.mode === 'auto' ? 'analyse' : body.mode });
     }
     return real(u, opts);
   };`;
@@ -113,6 +113,61 @@ const appViewIs = async (p: any, label: string) => {
   const close = await p.eval(REACHABLE('.pv-appview [data-act="close"]'));
   ok(close === "ok", `${label}: its close button is reachable`, close);
 };
+// The Assistant's Tools section, open: inside the panel, wide enough for what it holds, with its summary (how it closes)
+// and the panel's own controls on top where they are.
+const TOOLS_FIT = `(() => {
+  const t = document.querySelector('.pv-chat-tools'), r = t.getBoundingClientRect(), c = document.querySelector('.pv-chat').getBoundingClientRect();
+  const b = document.querySelector('.pv-run-bar')?.getBoundingClientRect();
+  const vv = window.visualViewport, top = vv.offsetTop, bottom = vv.offsetTop + vv.height;
+  const at = [r.left, r.top, r.right, r.bottom].map(Math.round).join() + ' panel ' + [c.left, c.top, c.right, c.bottom].map(Math.round).join() + ' visible ' + top + '..' + bottom + ' of ' + innerWidth;
+  if (r.left < c.left || r.right > c.right || r.top < c.top || r.bottom > c.bottom) return 'out of the panel: ' + at;
+  if (c.left < 0 || c.right > innerWidth || c.top < top || c.bottom > bottom) return 'panel off what can be seen: ' + at;
+  if (b?.height && c.bottom > b.top) return 'panel behind the run bar at ' + Math.round(b.top) + ': ' + at;
+  if (t.scrollWidth > t.clientWidth) return 'scrolls sideways: ' + t.scrollWidth + ' of ' + t.clientWidth;
+  return 'ok';
+})()`;
+const toolsAre = async (p: any, label: string) => {
+  const fits = await p.eval(TOOLS_FIT);
+  ok(fits === "ok", `${label}: Tools is inside the panel, inside what can be seen`, fits);
+  for (const sel of [".pv-chat-tools > summary", ".pv-chat-input", '.pv-chat [data-act="close"]']) {
+    const got = await p.eval(REACHABLE(sel));
+    ok(got === "ok", `${label}: ${sel} is reachable`, got);
+  }
+};
+const toolCount = (p: any) => p.eval(`document.querySelector('.pv-chat-tools-count').textContent`);
+const TOOLS_IN_MANIFEST = `fetch('/llm-tools.json').then((r) => r.json()).then((m) => m.tools.length)`;
+const LISTED = `[...document.querySelectorAll('.pv-chat-avail li code')].map((c) => c.textContent)`;
+/** The section's contents against the manifest: the number on it, the groups, and the tools in them. */
+const toolsListed = async (p: any, label: string, wants: RegExp) => {
+  const n = await p.eval(TOOLS_IN_MANIFEST);
+  ok(n > 0, `${label}: the manifest has tools`, String(n));
+  const count = await toolCount(p);
+  ok(wants.test(count) && parseInt(count) === n, `${label}: the count is of the tools there are`, `${count}, manifest ${n}`);
+  ok(!/^\(?0\b/.test(count), `${label}: it does not read 0`, count);
+  const listed = await p.eval(LISTED);
+  ok(listed.length === n, `${label}: every tool is listed`, `${listed.length} of ${n}`);
+  ok(listed.includes("net.add_place") && listed.includes("analysis.check") && listed.includes("sim.ode"), `${label}: by the names they have`, listed.slice(0, 5).join());
+  ok((await p.eval(`document.querySelectorAll('.pv-chat-avail-group').length`)) > 3, `${label}: in groups`);
+  ok(await p.eval(`[...document.querySelectorAll('.pv-chat-avail li')].every((li) => li.textContent.length > li.querySelector('code').textContent.length + 3)`), `${label}: each says what it does`);
+};
+/** One finger up the element by a distance, event by event. */
+const swipe = async (p: any, sel: string, dy: number) => {
+  const box = await p.eval(`(() => { const r = document.querySelector(${q(sel)}).getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()`);
+  await p.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: box.x, y: box.y }] });
+  for (let i = 1; i <= 6; i++) { await p.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: box.x, y: box.y + i * dy / 6 }] }); await sleep(16); }
+  await p.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+  await sleep(500);
+};
+/** A finger on the element's centre, which has to be what is there. */
+const tap = async (p: any, sel: string) => {
+  const box = await p.eval(`(() => { const r = document.querySelector(${q(sel)}).getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()`);
+  await p.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [box] });
+  await p.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+  await sleep(300);
+};
+// What a model asks for in one reply: no arguments, one that fails and has an unbroken 300 characters in it, one that makes a plot.
+const THREE_CALLS = `window.__toolCalls = [{ name: 'net_info', args: {} }, { name: 'view_highlight', args: { nodes: ['${"a".repeat(300)}'] } }, { name: 'sim_ode', args: { t_end: 5 } }];`;
+
 // Enough of a net to have every kind of control the panel draws, so that it is taller than a phone.
 const APP_NET = {
   "@context": "https://pflow.xyz/schema", "@type": "PetriNet",
@@ -309,6 +364,136 @@ try {
     await p.eval(`window.__cover(0)`);
     await panelIs(p, `${label} keyboard gone`);
     ok(problemsOf(p).length === 0, `${label}: no console problems`, problemsOf(p).join(" | "));
+    await p.close();
+  }
+  console.log("the Assistant's Tools section");
+  for (const [w, h] of [...PHONES, [390, 380]]) {
+    const label = `tools ${w}x${h}`;
+    const p = await open("/?route=analyse", SIGNED_IN(FAKE_KEYBOARD), w, h, true);
+    ok(await p.waitFor(`!!document.querySelector('.pv-chat-input')`, 20000), `${label}: the panel opens`, problemsOf(p).join(" | "));
+    await sleep(300);
+    await toolsListed(p, label, /^\d+ available, none run yet$/);
+    const sum = await p.eval(`document.querySelector('.pv-chat-tools > summary').getBoundingClientRect().height`);
+    ok(sum >= 36, `${label}: the summary is big enough to tap`, String(sum));
+    const closed = await p.eval(REACHABLE(".pv-chat-tools > summary"));
+    ok(closed === "ok", `${label}: closed, the summary is reachable`, closed);
+    const logHeight = await p.eval(`document.querySelector('.pv-chat-log').clientHeight`);
+    ok(logHeight > 40, `${label}: closed, the log has the room`, String(logHeight));
+
+    // A finger opens it, and what it holds has the panel's room rather than a sliver of it.
+    await tap(p, ".pv-chat-tools > summary");
+    ok(await p.eval(`document.querySelector('.pv-chat-tools').open`), `${label}: a tap opens it`);
+    await toolsAre(p, label);
+    ok(await p.eval(`(() => { const e = document.querySelector('.pv-chat-calls-empty'); return e.getBoundingClientRect().height > 0 && e.textContent.includes('None yet'); })()`), `${label}: it says why none have run`);
+    const room = await p.eval(`document.querySelector('.pv-chat-tools').clientHeight`);
+    ok(room >= logHeight, `${label}: it takes the log's room`, `${room} of ${logHeight}`);
+
+    // It scrolls by itself, by touch, and the way to close it stays on top.
+    await p.eval(`document.querySelectorAll('.pv-chat-avail-group').forEach((g) => { g.open = true; })`);
+    ok(await p.eval(`(() => { const t = document.querySelector('.pv-chat-tools'); return t.scrollHeight > t.clientHeight; })()`), `${label}: the list is taller than the section`);
+    const inputAt = await p.eval(`document.querySelector('.pv-chat-input').getBoundingClientRect().top`);
+    await swipe(p, ".pv-chat-tools", -72);
+    ok((await p.eval(`document.querySelector('.pv-chat-tools').scrollTop`)) > 0, `${label}: touch scrolls the section`);
+    ok((await p.eval(`scrollY`)) === 0, `${label}: and not the page`);
+    ok((await p.eval(`document.querySelector('.pv-chat-input').getBoundingClientRect().top`)) === inputAt, `${label}: the input row stays put`);
+    await toolsAre(p, `${label} scrolled`);
+    await p.eval(`document.querySelector('.pv-chat-tools').scrollTop = 1e6`);
+    await toolsAre(p, `${label} at the end of the list`);
+    await p.eval(`document.querySelectorAll('.pv-chat-avail-group').forEach((g) => { g.open = false; })`);
+
+    // Explain does not edit, so the section does not offer it.
+    const all = await p.eval(`parseInt(document.querySelector('.pv-chat-tools-count').textContent)`);
+    await p.eval(`document.querySelector('.pv-chat-mode[data-mode="explain"]').click()`);
+    const fewer = await p.eval(`parseInt(document.querySelector('.pv-chat-tools-count').textContent)`);
+    ok(fewer > 0 && fewer < all, `${label}: explain has fewer`, `${fewer} of ${all}`);
+    ok(!(await p.eval(`${LISTED}.includes('net.add_place')`)) && await p.eval(`${LISTED}.includes('net.info')`), `${label}: explain lists the ones that read`);
+    ok(await p.eval(`${text(".pv-chat-tools-note")}.includes('Explain mode does not edit')`), `${label}: and says why the rest are not there`);
+    await p.eval(`document.querySelector('.pv-chat-mode[data-mode="analyse"]').click()`);
+    ok((await p.eval(`parseInt(document.querySelector('.pv-chat-tools-count').textContent)`)) === all, `${label}: leaving explain brings them back`);
+    ok(await p.eval(`getComputedStyle(document.querySelector('.pv-chat-tools-note')).display === 'none'`), `${label}: and the note goes`);
+
+    // Sending with it open closes it, or the answer would be out of sight.
+    await p.eval(`document.querySelector('petri-view').setModel(${JSON.stringify(APP_NET)})`);
+    await p.eval(THREE_CALLS);
+    await p.eval(`(() => { document.querySelector('.pv-chat-input').value = 'what is it doing?'; document.querySelector('.pv-chat-form').requestSubmit(); })()`);
+    ok(await p.waitFor(`document.querySelectorAll('.pv-chat-call').length === 3 && !!document.querySelector('.pv-chat-assistant')`, 20000), `${label}: the calls run`, problemsOf(p).join(" | "));
+    await sleep(300);
+    ok(!(await p.eval(`document.querySelector('.pv-chat-tools').open`)), `${label}: sending closes it`);
+    ok((await p.eval(`document.querySelector('.pv-chat-log').clientHeight`)) > 40, `${label}: the answer is in sight`);
+    ok(/^\d+ available, 3 run$/.test(await toolCount(p)), `${label}: the count has the calls`, await toolCount(p));
+
+    // The calls: a long argument wraps, an artifact fits.
+    await tap(p, ".pv-chat-tools > summary");
+    ok((await p.eval(`[...document.querySelectorAll('.pv-chat-call > code')].map((c) => c.textContent).join()`)) === "net.info,view.highlight,sim.ode", `${label}: the calls are listed`, await p.eval(`document.querySelector('.pv-chat-calls').textContent`));
+    ok(await p.eval(`document.querySelector('.pv-chat-calls-empty').getBoundingClientRect().height === 0`), `${label}: no "none yet" beside them`);
+    ok(await p.eval(`document.querySelector('.pv-chat-call-err .pv-chat-err').textContent.length > 300`), `${label}: the failure is shown`);
+    await toolsAre(p, `${label} with calls`);
+    await p.eval(`document.querySelector('.pv-chat-call [data-show]').click()`);
+    ok(await p.waitFor(`!!document.querySelector('.pv-chat-art svg')`, 5000), `${label}: an artifact opens`, problemsOf(p).join(" | "));
+    await toolsAre(p, `${label} with an artifact`);
+    const rerun = '.pv-chat-call [data-act="rerun"]';
+    await p.eval(`document.querySelector(${q(rerun)}).scrollIntoView({ block: 'center' })`);
+    await sleep(100);
+    const rerunAt = await p.eval(REACHABLE(rerun));
+    ok(rerunAt === "ok", `${label}: Rerun can be reached`, rerunAt);
+
+    // Toolbars, a keyboard, the browser panning to the box: as for the rest of the panel.
+    await p.eval(`window.__cover(56)`);
+    await toolsAre(p, `${label} toolbars`);
+    const keyboard = Math.max(100, h - 380);
+    await p.eval(`window.__cover(${keyboard})`);
+    await toolsAre(p, `${label} keyboard`);
+    await p.eval(`window.__cover(${keyboard + 60}, 60)`);
+    await toolsAre(p, `${label} keyboard, panned`);
+    await p.eval(`(() => { const e = document.querySelector('.pv-chat-pending'); e.hidden = false; e.innerHTML = '<p>pending</p>'.repeat(40); })()`);
+    await toolsAre(p, `${label} keyboard, pending edits too`);
+    await p.eval(`(() => { const e = document.querySelector('.pv-chat-pending'); e.hidden = true; e.innerHTML = ''; })()`);
+    await p.eval(`window.__cover(0)`);
+    await toolsAre(p, `${label} keyboard gone`);
+
+    // A finger closes it again, with the summary kept in sight however far the list had gone.
+    await p.eval(`document.querySelector('.pv-chat-tools').scrollTop = 1e6`);
+    await tap(p, ".pv-chat-tools > summary");
+    ok(!(await p.eval(`document.querySelector('.pv-chat-tools').open`)), `${label}: a tap closes it`);
+    ok((await p.eval(`document.querySelector('.pv-chat-log').clientHeight`)) > 40, `${label}: the log comes back`);
+    await p.eval(`document.querySelector('[data-act="new"]').click()`);
+    ok(/^\d+ available, none run yet$/.test(await toolCount(p)), `${label}: New clears the runs and not the tools`, await toolCount(p));
+    ok((await p.eval(`document.querySelectorAll('.pv-chat-call').length`)) === 0, `${label}: and the list of them`);
+    ok(problemsOf(p).length === 0, `${label}: no console problems`, problemsOf(p).join(" | "));
+    await p.close();
+  }
+  for (const [w, h, phone] of [[1280, 900, false], [390, 664, true], [390, 380, true]] as const) {
+    // Signed out the tools exist and cannot run yet, so that is what it says.
+    const label = `tools signed out ${w}x${h}`;
+    const p = await open("/?route=design", undefined, w, h, phone);
+    ok(await p.waitFor(`document.querySelector('.pv-chat-log')?.textContent.includes('GitHub sign-in')`, 20000), `${label}: the panel asks for the sign-in`);
+    await toolsListed(p, label, /^\d+ after sign-in$/);
+    ok(await p.eval(`${text(".pv-chat-tools-note")}.includes('Sign in')`), `${label}: it says what they wait for`);
+    await p.eval(`document.querySelector('.pv-chat-tools > summary').click()`);
+    await sleep(200);
+    ok(await p.eval(`document.querySelector('.pv-chat-tools-note').getBoundingClientRect().height > 0`), `${label}: and that shows`);
+    ok(await p.eval(`document.querySelector('.pv-chat-tools-runs').getBoundingClientRect().height === 0`), `${label}: with no list of runs that cannot happen`);
+    ok(await p.eval(`(() => { const t = document.querySelector('.pv-chat-tools'); return t.scrollWidth <= t.clientWidth; })()`), `${label}: it does not scroll sideways`);
+    const got = await p.eval(REACHABLE(".pv-chat-tools > summary"));
+    ok(got === "ok", `${label}: its summary is reachable`, got);
+    // Phones only: at 1280 the close button is past the panel's edge, open or closed Tools alike, and that is a desktop head's problem.
+    if (phone) {
+      const close = await p.eval(REACHABLE('.pv-chat [data-act="close"]'));
+      ok(close === "ok", `${label}: the panel's close is reachable`, close);
+    }
+    ok(problemsOf(p).length === 0, `${label}: no console problems`, problemsOf(p).join(" | "));
+    await p.close();
+  }
+  {
+    // A desktop window keeps the small section beside the log, which keeps its room and its answer.
+    const p = await open("/?route=analyse", SIGNED_IN());
+    ok(await p.waitFor(`!!document.querySelector('.pv-chat-input')`, 20000), "tools desktop: the panel opens");
+    await toolsListed(p, "tools desktop", /^\d+ available, none run yet$/);
+    await p.eval(`document.querySelector('.pv-chat-tools > summary').click()`);
+    await sleep(200);
+    const r = await p.eval(`document.querySelector('.pv-chat-tools').getBoundingClientRect().height`);
+    ok(r > 0 && r <= 270, "tools desktop: it is at most 30vh", String(r));
+    ok((await p.eval(`document.querySelector('.pv-chat-log').clientHeight`)) > 200, "tools desktop: the log keeps the rest");
     await p.close();
   }
   {
