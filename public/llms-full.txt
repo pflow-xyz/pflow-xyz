@@ -184,6 +184,107 @@ const marks = sim.fire(model, "brew"); // -> {"water":[9],"coffee":[1]} or null
 `fire` is pure: pass the returned marking back as the third argument to step
 again.
 
+## MCP server
+
+`https://pflow.xyz/mcp` runs these tools on the server, on the net or
+composition passed in the call. Setup and every tool: https://pflow.xyz/mcp.html
+
+```bash
+claude mcp add --transport http pflow https://pflow.xyz/mcp
+```
+
+Any other client: it is stateless Streamable HTTP, so POST JSON-RPC to the URL;
+there is no event stream. Only `pflow_save` needs a sign-in, and saved nets are
+public.
+
+```bash
+curl -s https://pflow.xyz/mcp -H 'Content-Type: application/json' \
+  -H 'Accept: application/json, text/event-stream' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
+```
+
+**Nets:** pflow_edit, pflow_info, pflow_check, pflow_validate, pflow_verify,
+pflow_fire, pflow_reachability, pflow_invariants, pflow_incidence,
+pflow_simulate, pflow_ssa, pflow_sde, pflow_what_if, pflow_rate_scan,
+pflow_optimize, pflow_cid, pflow_get, pflow_export, pflow_links, pflow_save.
+
+**Two-sided games:** exact alpha-beta search over the firing rule, on a net whose
+moves belong to two sides. The net's marking is the position.
+
+- pflow_game_value: the position's value with both sides playing perfectly, from
+  the +1 side's view.
+- pflow_game_move: a best move and the value. The move is not played.
+
+Both need `net`, `sides` (transition-id prefix to sign) and `reward` (place to
+weight, read from the final marking). `auto` names transition-id prefixes that
+fire before anyone chooses; `plan`, `nodes` and `book` tune the search. Past the
+node budget the answer is `exact: false` with a null value.
+
+Nim with a pile of 3, where each side takes 1 or 2 and a side left with no move
+has lost. The side that moves first loses, so the value is -1:
+
+```json
+{"name": "pflow_game_value", "arguments": {
+  "sides": {"a_": 1, "b_": -1},
+  "reward": {"b_turn": 1, "a_turn": -1},
+  "net": {
+    "@context": "https://pflow.xyz/schema", "@type": "PetriNet",
+    "places": {
+      "pile": {"initial": [3], "capacity": [0]},
+      "a_turn": {"initial": [1], "capacity": [0]},
+      "b_turn": {"initial": [0], "capacity": [0]}
+    },
+    "transitions": {"a_take1": {}, "a_take2": {}, "b_take1": {}, "b_take2": {}},
+    "arcs": [
+      {"source": "pile", "target": "a_take1", "weight": [1]},
+      {"source": "a_turn", "target": "a_take1", "weight": [1]},
+      {"source": "a_take1", "target": "b_turn", "weight": [1]},
+      {"source": "pile", "target": "a_take2", "weight": [2]},
+      {"source": "a_turn", "target": "a_take2", "weight": [1]},
+      {"source": "a_take2", "target": "b_turn", "weight": [1]},
+      {"source": "pile", "target": "b_take1", "weight": [1]},
+      {"source": "b_turn", "target": "b_take1", "weight": [1]},
+      {"source": "b_take1", "target": "a_turn", "weight": [1]},
+      {"source": "pile", "target": "b_take2", "weight": [2]},
+      {"source": "b_turn", "target": "b_take2", "weight": [1]},
+      {"source": "b_take2", "target": "a_turn", "weight": [1]}
+    ]
+  }
+}}
+```
+
+**Compositions:** a `PetriNetBundle` is subnets, the ports on their boundaries
+and typed links between them (token, data, event, guard). The bundle travels in
+the call and nothing is stored.
+
+- pflow_bundle_example: a composition to start from (an order queue, a worker
+  pool and a payment saga), with its catalog and four scenarios.
+- pflow_bundle_validate: check the subnets, then every link. Errors name the link
+  as `links[i]`.
+- pflow_bundle_candidates: the links a port could take, each with its verdict.
+  Only declared ports count here; a subnet with no `ports` array offers none.
+- pflow_bundle_add_link: add a link if it is legal; a refusal gives the reasons.
+  It takes `kind`, `from` and `to` only, as `"subnet:port"`.
+- pflow_bundle_flatten: one flat net, with maps back to the subnets.
+- pflow_bundle_run: fire a `script` or one of the example's `scenario`s, and check
+  what it expects. A script member is the transition's own id in its subnet
+  (`payment/do_charge`), not the port id a link names (`do:charge`).
+- pflow_bundle_incidence: the flat net's incidence matrix, and whether each
+  declared constraint is a conservation law of the composition.
+
+A usual order: pflow_bundle_example, then pflow_bundle_candidates with
+`{"bundle": ..., "from": "orders:dequeue", "only_ok": true}`, then
+pflow_bundle_add_link, pflow_bundle_validate and
+`pflow_bundle_run` with `{"bundle": ..., "scenario": "refund"}`.
+
+The flat net is not a pflow.xyz net: pflow_simulate, pflow_fire and the other net
+tools cannot read it, so fire it with pflow_bundle_run. Give every arc an explicit
+weight: an arc with none fires as 1 but counts as 0 in a subnet's incidence block.
+
+A failed `expect` in a run's answer is a finding about the composition, not a tool
+error. The example's `refund` and `charge-fails` both leave a worker out of the
+pool, and its `second-order` stops at a transition that cannot fire.
+
 ## Related services
 
 - POST https://pflow.xyz/api/svg — render a model to SVG server-side.
