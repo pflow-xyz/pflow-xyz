@@ -1,6 +1,6 @@
 # The landing chat
 
-pflow.xyz opens on a question, "What are you working on?", and routes the answer into a session.
+pflow.xyz opens on the mission, "Explanations you can run.", and a question, "What are you working on?", and routes the answer into a session.
 This is Phase 0 of the design in val run 1c202365 ("pflow.xyz landing chat: design exploration"):
 no new server state and no pairing, only what was already shipped put at the front door.
 

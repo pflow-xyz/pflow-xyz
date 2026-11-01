@@ -1,6 +1,16 @@
-# pflow.xyz — Petri net editor, simulator, and browser math library
+# pflow.xyz — Explanations you can run
 
-pflow.xyz is a visual Petri net editor with an embeddable, dependency-free ES
+LLM-written code got good in the last year, and understanding it didn't get
+faster. You can only move as fast as you comprehend what you've built. pflow
+turns each model into something you can see, run and check, with proofs and
+provenance attached. Under the hood every model is a Petri net, so runs replay
+and proofs check.
+
+A comprehension, in the programmer's sense, builds a thing from its description.
+pflow does that for systems: describe it, and get a model you can run, check and
+understand.
+
+pflow.xyz is a visual editor and simulator with an embeddable, dependency-free ES
 module library for discrete simulation and continuous (ODE) analysis. All
 modules are served from this origin with `Access-Control-Allow-Origin: *`, so
 they can be imported directly from any ad-hoc HTML page — no build step, no
