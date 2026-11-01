@@ -15,6 +15,8 @@
 // (the "trust" screen). A net that declares views gets one tab per view,
 // each showing only its places and transitions.
 
+import { fitPanel } from './petri-panel-frame.js';
+
 function esc(s) {
     return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
@@ -40,6 +42,7 @@ export async function openAppView(view) {
     panel.className = 'pv-appview';
     panel.setAttribute('aria-label', 'App view');
     document.body.appendChild(panel);
+    fitPanel(view, panel);
     let current = null; // a view id, or null for everything
     const overrides = { marking: {}, rates: {} };
 

@@ -7,7 +7,11 @@
 // /auth/user answered in the page: this proves the route, the mode and the message reach the Assistant's
 // request, and says nothing about Gemini or the real sign-in.
 //
-// Not part of `make test` (it needs Chrome and a running server). Exit status 1 on any failure.
+// Also the editor's other docked panel, the App view, whose frame on a phone comes from the same place
+// (public/petri-panel-frame.js).
+//
+// Not part of `make test` (it needs Chrome and a running server). Exit status 1 on any failure; scripts/smoke-gate.sh
+// is the way to run it before a push, because it keeps the log and reads that status.
 import { sleep, startChrome } from "./cdp.ts";
 
 const url = Deno.args.find((a) => a.startsWith("http"));
@@ -89,6 +93,48 @@ const panelIs = async (p: any, label: string) => {
     const got = await p.eval(REACHABLE(sel));
     ok(got === "ok", `${label}: ${sel} is reachable`, got);
   }
+};
+
+// The App view's frame, against what can be seen and the run bar. A rect check first (the panel has to fit), then the
+// close button through REACHABLE (the panel can fit and still be painted over).
+const APP_FITS = `(() => {
+  const a = document.querySelector('.pv-appview').getBoundingClientRect();
+  const b = document.querySelector('.pv-run-bar')?.getBoundingClientRect();
+  const vv = window.visualViewport, top = vv.offsetTop, bottom = vv.offsetTop + vv.height;
+  const at = [a.left, a.top, a.right, a.bottom].map(Math.round).join() + ' visible ' + top + '..' + bottom + ' of ' + innerWidth;
+  if (a.left < 0 || a.right > innerWidth) return 'off the sides: ' + at;
+  if (a.top < top || a.bottom > bottom) return 'off the visible area: ' + at;
+  if (b?.height && a.bottom > b.top) return 'behind the run bar at ' + Math.round(b.top) + ': ' + at;
+  return a.height > 0 ? 'ok' : 'no height: ' + at;
+})()`;
+const appViewIs = async (p: any, label: string) => {
+  const fits = await p.eval(APP_FITS);
+  ok(fits === "ok", `${label}: the App view is inside what can be seen, above the run bar`, fits);
+  const close = await p.eval(REACHABLE('.pv-appview [data-act="close"]'));
+  ok(close === "ok", `${label}: its close button is reachable`, close);
+};
+// Enough of a net to have every kind of control the panel draws, so that it is taller than a phone.
+const APP_NET = {
+  "@context": "https://pflow.xyz/schema", "@type": "PetriNet",
+  places: {
+    queue: { "@type": "Place", initial: [0], x: 200, y: 100 }, baristas: { "@type": "Place", initial: [2], x: 300, y: 200 },
+    serving: { "@type": "Place", initial: [0], x: 400, y: 100 }, served: { "@type": "Place", initial: [0], x: 600, y: 100 },
+    gone: { "@type": "Place", initial: [0], x: 300, y: 300 },
+  },
+  transitions: {
+    arrive: { "@type": "Transition", rate: 2, x: 100, y: 100 }, start: { "@type": "Transition", rate: 4, x: 300, y: 100 },
+    finish: { "@type": "Transition", rate: 1, x: 500, y: 100 }, give_up: { "@type": "Transition", rate: 0.2, x: 200, y: 200 },
+  },
+  arcs: [["arrive", "queue"], ["queue", "start"], ["baristas", "start"], ["start", "serving"], ["serving", "finish"], ["finish", "served"], ["finish", "baristas"], ["queue", "give_up"], ["give_up", "gone"]]
+    .map(([source, target]) => ({ "@type": "Arrow", source, target, weight: [1] })),
+};
+const SKIP_LANDING = `try { localStorage.setItem('pflow_skip_landing', '1'); } catch {}`;
+/** The editor with APP_NET, and the App view opened the way a visitor does: the menu's item. */
+const openAppView = async (p: any) => {
+  await p.waitFor(`!!document.querySelector('petri-view .pv-menu-item')`, 20000);
+  await p.eval(`document.querySelector('petri-view').setModel(${JSON.stringify(APP_NET)})`);
+  await p.eval(`[...document.querySelectorAll('.pv-menu-item')].find((m) => m.textContent.includes('App view')).click()`);
+  return p.waitFor(`!!document.querySelector('.pv-appview [data-act="run"]')`, 20000);
 };
 
 try {
@@ -286,12 +332,106 @@ try {
     await p.close();
   }
   {
+    // [hidden] wins over the form's display:flex on a desktop too: nothing to type into until there is a sign-in.
+    const p = await open("/?route=design");
+    ok(await p.waitFor(`document.querySelector('.pv-chat-log')?.textContent.includes('GitHub sign-in')`, 20000), "signed out on a desktop: the panel asks for the sign-in");
+    ok(await p.eval(`(() => { const f = document.querySelector('.pv-chat-form'), i = document.querySelector('.pv-chat-input'); return f.hidden && getComputedStyle(f).display === 'none' && i.getBoundingClientRect().height === 0; })()`), "and there is no box to type in yet", await p.eval(`getComputedStyle(document.querySelector('.pv-chat-form')).display`));
+    ok((await p.eval(REACHABLE('.pv-chat-log [data-act="login"]'))) === "ok", "and the button can be reached", await p.eval(REACHABLE('.pv-chat-log [data-act="login"]')));
+    await p.close();
+  }
+  // The steps row is build mode's, now that [hidden] means it everywhere: it has to follow the mode as soon as it changes.
+  for (const [w, h, phone] of [[1280, 900, false], [390, 664, true]] as const) {
+    const label = phone ? "phone" : "desktop";
+    const p = await open("/?route=analyse", SIGNED_IN(), w, h, phone);
+    ok(await p.waitFor(`!!document.querySelector('.pv-chat-input')`, 20000), `${label} steps: the panel opens`);
+    const steps = `getComputedStyle(document.querySelector('.pv-chat-steps')).display`;
+    ok((await p.eval(steps)) === "none", `${label} steps: not in Analyse`, await p.eval(steps));
+    await p.eval(`document.querySelector('.pv-chat-mode[data-mode="build"]').click()`);
+    ok((await p.eval(steps)) === "flex", `${label} steps: choosing Build shows them`, await p.eval(steps));
+    await p.eval(`document.querySelector('.pv-chat-mode[data-mode="explain"]').click()`);
+    ok((await p.eval(steps)) === "none", `${label} steps: leaving Build hides them`, await p.eval(steps));
+    await p.close();
+  }
+  {
     // A desktop window keeps the docked panel it had.
     const p = await open("/?route=design", SIGNED_IN());
     ok(await p.waitFor(`!!document.querySelector('.pv-chat-input')`, 20000), "desktop: the panel opens");
     const r = JSON.parse(await p.eval(`JSON.stringify(document.querySelector('.pv-chat').getBoundingClientRect())`));
     ok(r.top === 64 && r.right === 1264 && r.bottom === 884 && r.width === 444, "desktop: the frame is unchanged", JSON.stringify(r));
     ok((await p.eval(`getComputedStyle(document.querySelector('.pv-chat-input')).fontSize`)) === "14.4px", "desktop: the box's size is unchanged");
+    await p.close();
+  }
+
+  console.log("the App view on a phone");
+  for (const [w, h] of [...PHONES, [390, 380]]) {
+    const label = `app ${w}x${h}`;
+    const p = await open("/", SKIP_LANDING + FAKE_KEYBOARD, w, h, true);
+    ok(await openAppView(p), `${label}: it opens`, problemsOf(p).join(" | "));
+    await sleep(300);
+    await appViewIs(p, label);
+    ok((await p.eval(`document.documentElement.scrollWidth <= ${w} && scrollY === 0`)), `${label}: the page itself does not scroll`);
+    ok(await p.eval(`(() => { const a = document.querySelector('.pv-appview').getBoundingClientRect(); return [...document.querySelectorAll('.pv-appview .pv-chat-head button')].every((b) => { const r = b.getBoundingClientRect(); return r.left >= a.left && r.right <= a.right; }); })()`), `${label}: the head's buttons are inside the panel`);
+    ok((await p.eval(`document.querySelector('.pv-appview .pv-chat-head strong').getBoundingClientRect().width`)) > 0, `${label}: it says what it is`);
+    ok(await p.eval(`[...document.querySelectorAll('.pv-appview input[type="number"]')].every((i) => parseFloat(getComputedStyle(i).fontSize) >= 16)`), `${label}: its number boxes are 16px or more (iOS zooms in on a smaller one)`);
+
+    // The panel is its own scroller, by touch, and everything in it can be brought into view.
+    ok(await p.eval(`(() => { const a = document.querySelector('.pv-appview'); return a.scrollHeight > a.clientHeight; })()`), `${label}: the controls are taller than the panel`);
+    await p.eval(`document.querySelector('.pv-appview [data-act="run"]').scrollIntoView({ block: 'center' })`);
+    await sleep(100);
+    const run = await p.eval(REACHABLE('.pv-appview [data-act="run"]'));
+    ok(run === "ok", `${label}: the Run button scrolls into view and is reachable`, run);
+    ok((await p.eval(`scrollY`)) === 0, `${label}: the panel scrolled, not the page`);
+    const box = await p.eval(`(() => { const r = document.querySelector('.pv-appview').getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()`);
+    const before = await p.eval(`document.querySelector('.pv-appview').scrollTop`);
+    await p.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: box.x, y: box.y }] });
+    for (let i = 1; i <= 6; i++) { await p.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: box.x, y: box.y + i * 12 }] }); await sleep(16); }
+    await p.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+    await sleep(500);
+    ok((await p.eval(`document.querySelector('.pv-appview').scrollTop`)) < before, `${label}: touch scrolls the panel`);
+    await p.eval(`document.querySelector('.pv-appview').scrollTop = 0`);
+
+    // Toolbars, a keyboard, the browser panning to a focused box: as for the Assistant.
+    await p.eval(`window.__cover(56)`);
+    await appViewIs(p, `${label} toolbars`);
+    const keyboard = Math.max(100, h - 380);
+    await p.eval(`window.__cover(${keyboard})`);
+    await appViewIs(p, `${label} keyboard`);
+    await p.eval(`window.__cover(${keyboard + 60}, 60)`);
+    await appViewIs(p, `${label} keyboard, panned`);
+    await p.eval(`window.__cover(0)`);
+    await appViewIs(p, `${label} keyboard gone`);
+
+    // What a run draws stays inside the panel's width: the plot is asked for at 380, wider than a phone's panel (the solver's SVG scales down).
+    await p.eval(`document.querySelector('.pv-appview [data-act="run"]').click()`);
+    ok(await p.waitFor(`!document.querySelector('.pv-appview [data-act="run"]').disabled && document.querySelector('.pv-appview-results').textContent.length > 0`, 30000), `${label}: Run the day answers`, await p.eval(`document.querySelector('.pv-appview .pv-structure-status').textContent`));
+    ok(await p.eval(`(() => { const a = document.querySelector('.pv-appview'); return a.scrollWidth <= a.clientWidth; })()`), `${label}: its results fit the panel's width`, await p.eval(`document.querySelector('.pv-appview').scrollWidth + ' of ' + document.querySelector('.pv-appview').clientWidth`));
+    await appViewIs(p, `${label} after a run`);
+    ok(problemsOf(p).length === 0, `${label}: no console problems`, problemsOf(p).join(" | "));
+    await p.close();
+  }
+  {
+    // A desktop window keeps the docked panel it had.
+    const p = await open("/", SKIP_LANDING);
+    ok(await openAppView(p), "app desktop: it opens", problemsOf(p).join(" | "));
+    const r = JSON.parse(await p.eval(`JSON.stringify(document.querySelector('.pv-appview').getBoundingClientRect())`));
+    ok(r.top === 64 && r.left === 16 && r.bottom === 884 && r.width === 424, "app desktop: the frame is unchanged", JSON.stringify(r));
+    await p.close();
+  }
+
+  // The narrowest phones still sold. Against the literal 320: on a mobile layout an overflowing page can widen innerWidth with it.
+  console.log("320 wide");
+  for (const phone of [false, true]) {
+    const label = `320x568${phone ? " mobile" : ""}`;
+    const p = await open("/", undefined, 320, 568, phone);
+    await routed(p);
+    const widest = `Math.max(document.documentElement.scrollWidth, document.body.scrollWidth)`;
+    ok((await p.eval(widest)) <= 320, `${label}: no sideways scroll`, String(await p.eval(widest)));
+    await p.eval(`window.scrollTo(100, 0)`);
+    ok((await p.eval(`window.scrollX`)) === 0, `${label}: the page will not pan sideways`, String(await p.eval(`window.scrollX`)));
+    ok((await p.eval(`document.querySelector('.landing-nav-links').getBoundingClientRect().right`)) <= 320, `${label}: the nav's links fit`, String(await p.eval(`document.querySelector('.landing-nav-links').getBoundingClientRect().right`)));
+    ok(await p.eval(`[...document.querySelectorAll('.landing-nav-links a')].every((a) => { const r = a.getBoundingClientRect(); return r.left >= 0 && r.right <= 320; })`), `${label}: every link is on the screen`);
+    ok(await p.eval(`document.querySelector('.landing-nav img').getBoundingClientRect().right <= document.querySelector('.landing-nav-links').getBoundingClientRect().left || document.querySelector('.landing-nav img').getBoundingClientRect().bottom <= document.querySelector('.landing-nav-links').getBoundingClientRect().top`), `${label}: the logo and the links do not overlap`);
+    ok(await p.eval(`document.querySelector('#landing-chat-q').getBoundingClientRect().top >= document.querySelector('.landing-nav').getBoundingClientRect().bottom`), `${label}: the heading clears the nav`);
     await p.close();
   }
 } finally {

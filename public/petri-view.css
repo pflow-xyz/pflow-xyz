@@ -3287,30 +3287,33 @@ canvas.pv-canvas {
     resize: vertical;
 }
 
-/* On a phone the panel's frame comes from what can be seen (chatFrame in
-   petri-chat-ui.js): above the run bar, the keyboard and the browser's toolbars.
+/* [hidden] has to win over the display:flex of the form and the steps row, on any
+   screen: signed out there is nothing to type into, and the steps are build mode's. */
+.pv-chat [hidden] {
+    display: none;
+}
+
+/* On a phone the panel's frame comes from what can be seen (panelFrame in
+   petri-panel-frame.js): above the run bar, the keyboard and the browser's toolbars.
    These rules are gated so a desktop window keeps the docked panel above. */
 @media (max-width: 760px), (max-height: 520px) {
     .pv-chat {
-        /* chatFrame's answer overrides these inline. */
-        --pv-chat-top: 64px;
-        --pv-chat-height: calc(100% - 80px);
-        top: var(--pv-chat-top);
+        /* panelFrame's answer overrides these inline. */
+        --pv-panel-top: 64px;
+        --pv-panel-height: calc(100% - 80px);
+        top: var(--pv-panel-top);
         bottom: auto;
-        height: var(--pv-chat-height);
+        height: var(--pv-panel-height);
         /* The base width is content-box: the padding pushed it 8px off the left. */
         box-sizing: border-box;
         width: min(444px, calc(100vw - 32px));
     }
     /* Short, its top is over the hamburger (1300) and the sign-in button. */
-    .pv-chat-short {
+    .pv-chat.pv-panel-short {
         z-index: 1305;
     }
-    .pv-chat-short .pv-chat-quota,
-    .pv-chat-short .pv-chat-steps {
-        display: none;
-    }
-    .pv-chat [hidden] {
+    .pv-panel-short .pv-chat-quota,
+    .pv-panel-short .pv-chat-steps {
         display: none;
     }
     .pv-chat-head {
@@ -3342,7 +3345,8 @@ canvas.pv-canvas {
     }
 }
 @media (max-width: 480px) {
-    .pv-chat-head strong {
+    /* The Assistant's head has its modes to fit; the App view's has room for its title. */
+    .pv-chat .pv-chat-head strong {
         display: none;
     }
 }
@@ -3462,4 +3466,28 @@ canvas.pv-canvas {
     display: flex;
     flex-wrap: wrap;
     gap: 3px;
+}
+/* On a phone: the frame the Assistant has (panelFrame in petri-panel-frame.js). After
+   the rules above, which these override; a desktop window keeps those. */
+@media (max-width: 760px), (max-height: 520px) {
+    .pv-appview {
+        /* panelFrame's answer overrides these inline. */
+        --pv-panel-top: 64px;
+        --pv-panel-height: calc(100% - 80px);
+        top: var(--pv-panel-top);
+        bottom: auto;
+        height: var(--pv-panel-height);
+        /* The base width is content-box: the padding pushed it 8px off the right. */
+        box-sizing: border-box;
+        width: min(424px, calc(100vw - 32px));
+        overscroll-behavior: contain;
+    }
+    /* Short, its top is over the hamburger (1300); the Assistant stays above it. */
+    .pv-appview.pv-panel-short {
+        z-index: 1304;
+    }
+    /* Under 16px, iOS zooms the page in on focus (as for .pv-chat-input). */
+    .pv-appview input[type="number"] {
+        font-size: 16px;
+    }
 }

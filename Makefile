@@ -1,4 +1,4 @@
-.PHONY: all llm-eval build run clean test test-js test-parity ode-expected learn-goldens native-goldens game-goldens sync-native-wasm sync-composition-goldens test-publish test-npm-pack test-theme test-version publish
+.PHONY: all llm-eval build run clean test test-js test-parity ode-expected learn-goldens native-goldens game-goldens sync-native-wasm sync-composition-goldens test-publish test-npm-pack test-theme test-version test-smoke-gate smoke-gate publish
 
 # Build the webserver
 build:
@@ -25,7 +25,7 @@ clean:
 	@echo "Clean complete"
 
 # Run tests
-test: test-js test-parity test-parity-behavior test-publish test-npm-pack test-theme test-version
+test: test-js test-parity test-parity-behavior test-publish test-npm-pack test-theme test-version test-smoke-gate
 	@go test ./...
 
 # Run JavaScript tests
@@ -118,6 +118,16 @@ ode-expected:
 # graph ships and site media doesn't, smoke-test the solver from the extracted
 # package, and resolve the exports map from a scratch install. Skips if npm is
 # not installed (same policy as the node edge in the parity tests).
+# The browser smokes as a gate (needs Chrome, so not in `make test`): serves this checkout, or URL if given.
+#   make smoke-gate
+#   make smoke-gate URL=https://pflow.xyz/
+smoke-gate:
+	@scripts/smoke-gate.sh $(URL)
+
+# smoke-gate.sh has to report a smoke's own exit status; a stand-in smoke holds it to that.
+test-smoke-gate:
+	@scripts/smoke-gate_test.sh
+
 # Guard the design-token contract (see scripts/check-theme-tokens.py)
 test-theme:
 	@python3 scripts/check-theme-tokens.py

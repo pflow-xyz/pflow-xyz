@@ -12,6 +12,8 @@ const KEYS: Record<string, { code: string; vk: number; text?: string }> = {
   ArrowDown: { code: "ArrowDown", vk: 40 },
 };
 
+const NAVIGATED = /Inspected target navigated or closed|Execution context was destroyed|Cannot find context with specified id/;
+
 export class Page {
   private n = 0;
   private waiting = new Map<number, (v: any) => void>();
@@ -77,7 +79,16 @@ export class Page {
     for (const requestId of this.paused.splice(0)) await this.send("Fetch.failRequest", { requestId, errorReason: "InternetDisconnected" }).catch(() => {});
   }
   async waitFor(expr: string, ms = 20000): Promise<boolean> {
-    for (let t = 0; t < ms; t += 100) { if (await this.eval(expr)) return true; await sleep(100); }
+    for (let t = 0; t < ms; t += 100) {
+      try {
+        if (await this.eval(expr)) return true;
+      } catch (e) {
+        // A poll in flight when the page navigates has its context taken away: the answer is "not yet". Waiting for a
+        // navigation is what this is for (Explore -> /compose.html), and it lost that race now and then, crashing the smoke.
+        if (!NAVIGATED.test((e as Error).message)) throw e;
+      }
+      await sleep(100);
+    }
     return false;
   }
 }

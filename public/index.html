@@ -496,6 +496,23 @@
                 grid-template-columns: 1fr;
             }
         }
+        /* The narrowest phones: the logo and four links are 331px of 288. Shrunk, they fit on a line; any narrower, they
+           wrap, and two lines still clear the hero's 76px. */
+        @media (max-width: 380px) {
+            .landing-nav {
+                flex-wrap: wrap;
+                row-gap: 4px;
+            }
+            .landing-nav img {
+                height: 22px;
+            }
+            .landing-nav-links {
+                gap: 10px;
+            }
+            .landing-nav-links a {
+                font-size: 13px;
+            }
+        }
         /* The prompt, its routes and its words are taller than the old hero: grow with them, below the nav. */
         .landing-hero { height: auto; max-height: none; min-height: 80vh; padding: 76px 0 32px; box-sizing: border-box; }
     </style>

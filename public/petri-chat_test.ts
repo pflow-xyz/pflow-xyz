@@ -1,6 +1,6 @@
 import { assert, assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { ChatSession, diffNets } from "./petri-chat.js";
-import { chatFrame } from "./petri-chat-ui.js";
+import { panelFrame } from "./petri-panel-frame.js";
 import { Registry, createHeadlessHost } from "./petri-commands.js";
 import { buildManifest, commandId, decodeCall, summarizeResult, toolName } from "./petri-tools.js";
 
@@ -205,23 +205,23 @@ Deno.test("chat: auto stays read-only until the server has labelled a message", 
 });
 
 Deno.test("panel frame: stops above the run bar, below the editor's top chrome", () => {
-    assertEquals(chatFrame({ visibleTop: 0, visibleHeight: 664, barTop: 606 }), { top: 64, height: 534, short: false });
+    assertEquals(panelFrame({ visibleTop: 0, visibleHeight: 664, barTop: 606 }), { top: 64, height: 534, short: false });
 });
 
 Deno.test("panel frame: with no run bar showing, stops at the bottom of what can be seen", () => {
-    assertEquals(chatFrame({ visibleTop: 0, visibleHeight: 664 }), { top: 64, height: 592, short: false });
+    assertEquals(panelFrame({ visibleTop: 0, visibleHeight: 664 }), { top: 64, height: 592, short: false });
 });
 
 Deno.test("panel frame: a keyboard takes the bottom; the run bar under it no longer matters, and the top chrome gives way", () => {
-    assertEquals(chatFrame({ visibleTop: 0, visibleHeight: 300, barTop: 606 }), { top: 8, height: 284, short: true });
+    assertEquals(panelFrame({ visibleTop: 0, visibleHeight: 300, barTop: 606 }), { top: 8, height: 284, short: true });
 });
 
 Deno.test("panel frame: follows the browser panning the page to the box", () => {
-    assertEquals(chatFrame({ visibleTop: 90, visibleHeight: 300, barTop: 606 }), { top: 98, height: 284, short: true });
+    assertEquals(panelFrame({ visibleTop: 90, visibleHeight: 300, barTop: 606 }), { top: 98, height: 284, short: true });
     // the bar scrolled off above what can be seen does not count either
-    assertEquals(chatFrame({ visibleTop: 90, visibleHeight: 300, barTop: 40 }), { top: 98, height: 284, short: true });
+    assertEquals(panelFrame({ visibleTop: 90, visibleHeight: 300, barTop: 40 }), { top: 98, height: 284, short: true });
 });
 
 Deno.test("panel frame: never a negative height", () => {
-    assertEquals(chatFrame({ visibleTop: 0, visibleHeight: 10 }).height, 0);
+    assertEquals(panelFrame({ visibleTop: 0, visibleHeight: 10 }).height, 0);
 });
