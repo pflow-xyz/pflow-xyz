@@ -562,3 +562,26 @@ wants an owner's decision.
     `main` deploys only when the tip's signature verifies on the box (a
     merge-button commit needs GitHub's web-flow key imported there) and its
     `test` check run is green; see `docs/deploy.md`.
+
+## Claude connectors directory
+
+Written 2026-11-01.
+
+**What pflow.xyz is.** The snap-together composition interface is pflow.xyz's core offering: it is what the site provides. The connector listings are that one offering, reached from inside Claude, so neither listing is a side project or a later add-on to the other.
+
+**The main pflow connector has two faces, in two directory categories.**
+
+| Category | What it is | Gate for listing |
+|----------|------------|------------------|
+| **Designs & media** | **The canvas itself**: the snap-together composition interface, rendered inline in Claude as an interactive MCP App | The canvas renders inline as a working MCP App |
+| **Reference docs** (the Context7 lane) | **The library of verified parts you snap together**: verified models served as reference | The ontology is queryable by concept and returns model, invariants and theorem/arXiv links, with stable CID citations |
+
+The two are designed as one thing: you look up a verified part, and you snap it into the canvas. Each listing goes in when its own gate is met, and whichever passes first says nothing about which matters more.
+
+**[mine.pflow.xyz](https://mine.pflow.xyz) is a separate listing,** aimed at **Automation & workflows** and **Logs & errors**. It answers a different question (what did this process actually do?) for a different reader, and it ships on [its own roadmap](https://github.com/pflow-xyz/mine-pflow-xyz/blob/main/ROADMAP.md). Its gate is that roadmap's M5.
+
+**Where the gates stand (2026-11-01).**
+
+- **Canvas:** `/compose.html` draws one composition in many views, and the remote `/mcp` serves stateless tools. Nothing renders as an MCP App yet.
+- **Library:** [ontology.pflow.xyz](https://ontology.pflow.xyz) is live with read-only MCP tools (`search_terms`, `describe_term`, `get_claim`, `sparql_query`). Its roadmap has one worked claim and marks the theorem layer as proposed, so returning a model with its invariants and theorem links for a concept is still to build.
+- **Listing paperwork:** `public/mcp.html`, `terms.html` and `privacy.html` are on `main`.
