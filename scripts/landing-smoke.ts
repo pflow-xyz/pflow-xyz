@@ -9,6 +9,7 @@
 //
 // Also the editor's other docked panel, the App view, whose frame on a phone comes from the same place
 // (public/petri-panel-frame.js), and the Assistant's Tools section: what it counts, what it lists, where it sits.
+// On a desktop: the panels' heads, and the Assistant on top of the editor's slider and toolbar, which stand clear of it.
 //
 // Not part of `make test` (it needs Chrome and a running server). Exit status 1 on any failure; scripts/smoke-gate.sh
 // is the way to run it before a push, because it keeps the log and reads that status.
@@ -70,6 +71,7 @@ const routed = (p: any) => p.waitFor(`document.querySelector('#landing-chat-hint
 
 // iPhone-ish and Android sizes, with the browser's chrome taken off the screen.
 const PHONES = [[390, 664], [375, 553], [430, 739], [412, 732]];
+const DESKTOPS = [[1024, 768], [1280, 900], [1440, 900], [1920, 1080]];
 // Before any script, a keyboard: only the visual viewport shrinks, as on iOS and by default on Android. A real keyboard
 // cannot be raised in headless Chrome, so the panel's input (window.visualViewport) is what is faked here.
 const FAKE_KEYBOARD = `
@@ -94,6 +96,62 @@ const panelIs = async (p: any, label: string) => {
     ok(got === "ok", `${label}: ${sel} is reachable`, got);
   }
 };
+
+// A panel's head on a desktop: every control in its row, inside the panel, and on top at its centre. Close keeps its size.
+const HEAD_FITS = (panel: string) => `(() => {
+  const P = document.querySelector(${q(panel)}), c = P.getBoundingClientRect();
+  if (c.left < 0 || c.right > innerWidth) return 'panel off the screen: ' + c.left + '..' + c.right + ' of ' + innerWidth;
+  const close = P.querySelector('[data-act="close"]'), x = close.getBoundingClientRect();
+  if (x.width < 32 || x.height < 32) return 'close squeezed to ' + x.width + 'x' + x.height;
+  const at = document.elementFromPoint(x.left + x.width / 2, x.top + x.height / 2);
+  if (!close.contains(at)) return 'close covered by ' + (at?.className || at?.tagName);
+  for (const b of P.querySelectorAll('.pv-chat-head button')) {
+    const r = b.getBoundingClientRect();
+    if (r.left < c.left || r.right > c.right) return (b.dataset.act || b.textContent) + ' at ' + r.left + '..' + r.right + ' of panel ' + c.left + '..' + c.right;
+  }
+  const head = P.querySelector('.pv-chat-head');
+  return head.scrollWidth > head.clientWidth ? 'head overflows: ' + head.scrollWidth + ' of ' + head.clientWidth : 'ok';
+})()`;
+const headFits = async (p: any, label: string, panel: string) => {
+  const got = await p.eval(HEAD_FITS(panel));
+  ok(got === "ok", `${label}: the head fits, close is inside and on top`, got);
+};
+// The panel on top of the editor: four corners (inset past the 8px radius, which hit-testing honours), the middle of each
+// edge, where the slider and the toolbar would reach in, and the centre and ends of the controls named.
+const ON_TOP_OF_THE_EDITOR = (panel: string, controls: string[]) => `(() => {
+  const P = document.querySelector(${q(panel)}), c = P.getBoundingClientRect(), i = 9, bad = [];
+  const mid = (a, b) => (a + b) / 2;
+  const points = [[c.left + i, c.top + i], [c.right - i, c.top + i], [c.left + i, c.bottom - i], [c.right - i, c.bottom - i],
+    [c.left + i, mid(c.top, c.bottom)], [c.right - i, mid(c.top, c.bottom)], [mid(c.left, c.right), c.top + i], [mid(c.left, c.right), c.bottom - i]];
+  for (const s of ${JSON.stringify(controls)}) {
+    const e = document.querySelector(s); if (!e) { bad.push(s + ' missing'); continue; }
+    const r = e.getBoundingClientRect(), y = mid(r.top, r.bottom);
+    points.push([r.left + 4, y], [mid(r.left, r.right), y], [r.right - 4, y]);
+  }
+  for (const [x, y] of points) {
+    const at = document.elementFromPoint(x, y);
+    if (!at || !P.contains(at)) bad.push(Math.round(x) + ',' + Math.round(y) + ' is ' + (at?.className || at?.tagName));
+  }
+  // And anywhere in between: the slider and the toolbar each have their own rect to compare.
+  for (const s of ['.pv-scale-meter', '.pv-mode-menu', '.pv-top-right-btn', '.pv-hamburger-btn']) {
+    const e = document.querySelector(s); if (!e) continue;
+    const r = e.getBoundingClientRect();
+    const [x0, x1, y0, y1] = [Math.max(r.left, c.left + i), Math.min(r.right, c.right - i), Math.max(r.top, c.top + i), Math.min(r.bottom, c.bottom - i)];
+    for (let x = x0; x < x1; x += 8) for (let y = y0; y < y1; y += 8) if (e.contains(document.elementFromPoint(x, y))) { bad.push(s + ' over the panel at ' + Math.round(x) + ',' + Math.round(y)); x = x1; break; }
+  }
+  return bad.length ? bad.join('; ') : 'ok';
+})()`;
+// On the screen and on top at its centre, for one of the editor's own controls.
+const USABLE = (sel: string) => `(() => {
+  const e = document.querySelector(${q(sel)}); if (!e) return 'missing';
+  const r = e.getBoundingClientRect();
+  if (r.width === 0 || r.left < 0 || r.right > innerWidth || r.top < 0 || r.bottom > innerHeight) return 'off screen: ' + [r.left, r.top, r.right, r.bottom].map(Math.round);
+  for (const x of [r.left + 6, r.left + r.width / 2, r.right - 6]) {
+    const at = document.elementFromPoint(x, r.top + r.height / 2);
+    if (!e.contains(at)) return 'covered at ' + Math.round(x) + ' by ' + (at?.className || at?.tagName);
+  }
+  return 'ok';
+})()`;
 
 // The App view's frame, against what can be seen and the run bar. A rect check first (the panel has to fit), then the
 // close button through REACHABLE (the panel can fit and still be painted over).
@@ -476,11 +534,8 @@ try {
     ok(await p.eval(`(() => { const t = document.querySelector('.pv-chat-tools'); return t.scrollWidth <= t.clientWidth; })()`), `${label}: it does not scroll sideways`);
     const got = await p.eval(REACHABLE(".pv-chat-tools > summary"));
     ok(got === "ok", `${label}: its summary is reachable`, got);
-    // Phones only: at 1280 the close button is past the panel's edge, open or closed Tools alike, and that is a desktop head's problem.
-    if (phone) {
-      const close = await p.eval(REACHABLE('.pv-chat [data-act="close"]'));
-      ok(close === "ok", `${label}: the panel's close is reachable`, close);
-    }
+    const close = await p.eval(REACHABLE('.pv-chat [data-act="close"]'));
+    ok(close === "ok", `${label}: the panel's close is reachable`, close);
     ok(problemsOf(p).length === 0, `${label}: no console problems`, problemsOf(p).join(" | "));
     await p.close();
   }
@@ -544,6 +599,66 @@ try {
     const r = JSON.parse(await p.eval(`JSON.stringify(document.querySelector('.pv-chat').getBoundingClientRect())`));
     ok(r.top === 64 && r.right === 1264 && r.bottom === 884 && r.width === 444, "desktop: the frame is unchanged", JSON.stringify(r));
     ok((await p.eval(`getComputedStyle(document.querySelector('.pv-chat-input')).fontSize`)) === "14.4px", "desktop: the box's size is unchanged");
+    await p.close();
+  }
+
+  console.log("the panels on a desktop");
+  for (const [w, h] of DESKTOPS) {
+    const label = `desktop ${w}x${h}`;
+    const p = await open("/?route=design", undefined, w, h);
+    ok(await p.waitFor(`!!document.querySelector('.pv-chat-log [data-act="login"]')`, 20000), `${label}: the panel opens`, problemsOf(p).join(" | "));
+    await sleep(300);
+    await headFits(p, label, ".pv-chat");
+    const clear = await p.eval(ON_TOP_OF_THE_EDITOR(".pv-chat", ['.pv-chat-log [data-act="login"]']));
+    ok(clear === "ok", `${label}: nothing from the editor is over the panel`, clear);
+    ok(await p.eval(`document.querySelector('.pv-chat-head strong').scrollWidth <= document.querySelector('.pv-chat-head strong').clientWidth`), `${label}: the title has its room`);
+
+    // Whatever the font: a much wider one takes it out of the labels, and close stays.
+    await p.eval(`document.querySelector('.pv-chat-head').style.letterSpacing = '3px'`);
+    await headFits(p, `${label} wide font`, ".pv-chat");
+    await p.eval(`document.querySelector('.pv-chat-head').style.letterSpacing = ''`);
+
+    // The slider and the toolbar stand clear of the panel, and are still there to use.
+    for (const sel of [".pv-scale-meter", ".pv-mode-menu"]) {
+      const usable = await p.eval(USABLE(sel));
+      ok(usable === "ok", `${label}, open: ${sel} is on screen and on top`, usable);
+    }
+    await p.eval(`document.querySelector('.pv-chat [data-act="close"]').click()`);
+    ok(await p.waitFor(`!document.querySelector('.pv-chat')`, 5000), `${label}: close closes it`);
+    for (const sel of [".pv-scale-meter", ".pv-mode-menu"]) {
+      const usable = await p.eval(USABLE(sel));
+      ok(usable === "ok", `${label}, closed: ${sel} is on screen and on top`, usable);
+    }
+    const right = await p.eval(`innerWidth - document.querySelector('.pv-scale-meter').getBoundingClientRect().right`);
+    ok(Math.abs(right - 11) <= 1, `${label}, closed: the slider is back at the edge`, String(right));
+    ok(problemsOf(p).length === 0, `${label}: no console problems`, problemsOf(p).join(" | "));
+    await p.close();
+
+    // Signed in, the same head with the form and the quota below it.
+    const q2 = await open("/?route=design", SIGNED_IN(), w, h);
+    ok(await q2.waitFor(`!!document.querySelector('.pv-chat-input')`, 20000), `${label} signed in: the panel opens`);
+    await sleep(300);
+    await headFits(q2, `${label} signed in`, ".pv-chat");
+    const clear2 = await q2.eval(ON_TOP_OF_THE_EDITOR(".pv-chat", [".pv-chat-input", ".pv-chat-form button"]));
+    ok(clear2 === "ok", `${label} signed in: nothing from the editor is over the panel`, clear2);
+    await q2.close();
+
+    // The App view shares the head.
+    const a = await open("/", SKIP_LANDING, w, h);
+    ok(await openAppView(a), `${label}: the App view opens`, problemsOf(a).join(" | "));
+    await sleep(300);
+    await headFits(a, `${label} App view`, ".pv-appview");
+    await a.eval(`document.querySelector('.pv-appview .pv-chat-head').style.letterSpacing = '3px'`);
+    await headFits(a, `${label} App view wide font`, ".pv-appview");
+    await a.close();
+  }
+  {
+    // A window this wide has room for all of it, so the toolbar and the slider's height do not move for the panel.
+    const p = await open("/?route=design", undefined, 1920, 1080);
+    await p.waitFor(`!!document.querySelector('.pv-chat-log [data-act="login"]')`, 20000);
+    await sleep(300);
+    const at = await p.eval(`(() => { const r = document.querySelector('.pv-mode-menu').getBoundingClientRect(); return r.left + r.width / 2; })()`);
+    ok(Math.abs(at - 960) <= 1, "desktop 1920x1080: the toolbar stays centred", String(at));
     await p.close();
   }
 

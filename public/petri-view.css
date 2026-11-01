@@ -3076,7 +3076,8 @@ canvas.pv-canvas {
     width: min(360px, calc(100vw - 32px));
     max-height: calc(100vh - 96px);
     overflow: auto;
-    z-index: 1000;
+    /* As .pv-chat: the later of the two opened goes on top, as it did when both were 1000. */
+    z-index: 1250;
     padding: 12px 16px;
     border-radius: 8px;
     background: var(--pv-surface);
@@ -3194,11 +3195,14 @@ canvas.pv-canvas {
     top: 64px;
     right: 16px;
     bottom: 16px;
-    width: min(420px, calc(100vw - 32px));
+    box-sizing: border-box;
+    width: min(444px, calc(100vw - 32px));
     display: flex;
     flex-direction: column;
     gap: 6px;
-    z-index: 1000;
+    /* Over the editor's zoom slider (1100) and toolbar (1200), which drew on top of
+       the panel's contents. Under the hamburger's overlay and menu (1299, 1300). */
+    z-index: 1250;
     padding: 10px 12px;
     border-radius: 8px;
     background: var(--pv-surface);
@@ -3206,13 +3210,39 @@ canvas.pv-canvas {
     box-shadow: 0 4px 24px var(--pv-shadow-lg);
     font-size: 0.9em;
 }
+/* The head holds its row whatever the font: the title gives way first, then the
+   buttons' labels, and close never does. Without this the row ran 46px wider than the
+   panel, which squeezed close to 22px and pushed it past the panel's edge. */
 .pv-chat-head {
     display: flex;
     align-items: center;
     gap: 6px;
 }
+.pv-chat-head strong {
+    flex: 0 100 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.pv-chat-head .pv-btn {
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.pv-chat .pv-chat-head .pv-btn {
+    padding-left: 8px;
+    padding-right: 8px;
+}
+.pv-chat-head .pv-dialog-close-icon {
+    flex: none;
+}
 .pv-chat-modes {
     display: flex;
+    flex: 0 1 auto;
+    min-width: 0;
     gap: 2px;
     margin-left: auto;
 }
@@ -3336,9 +3366,11 @@ canvas.pv-canvas {
         top: var(--pv-panel-top);
         bottom: auto;
         height: var(--pv-panel-height);
-        /* The base width is content-box: the padding pushed it 8px off the left. */
-        box-sizing: border-box;
-        width: min(444px, calc(100vw - 32px));
+    }
+    /* The frame already keeps these above the run bar, which needs its own place in the stack. */
+    .pv-chat,
+    .pv-draft-notes {
+        z-index: 1000;
     }
     /* Short, its top is over the hamburger (1300) and the sign-in button. */
     .pv-chat.pv-panel-short {
@@ -3403,6 +3435,21 @@ canvas.pv-canvas {
     /* The Assistant's head has its modes to fit; the App view's has room for its title. */
     .pv-chat .pv-chat-head strong {
         display: none;
+    }
+}
+
+/* With the Assistant open on a desktop, the editor's slider and toolbar stand clear of it
+   rather than go under it: Play is on that toolbar. Only as far as the panel's 460px
+   (its width and margin) needs, so a wide window moves nothing, and the slider measures
+   from the viewport because a side-by-side layout's canvas may not reach the panel at all. */
+@media (min-width: 761px) and (min-height: 521px) {
+    body:has(> .pv-chat) .pv-scale-meter {
+        right: calc(10px + max(0px, 460px - (100vw - 100%)));
+    }
+    /* 194px and 652px: half the toolbar's 368px, plus a 10px gap on the left, and a
+       panel's width and an 8px gap on the right. Inline left: 50% is _createMenu's. */
+    body:has(> .pv-chat) .pv-mode-menu {
+        left: max(194px, min(50%, calc(100% - 652px))) !important;
     }
 }
 
