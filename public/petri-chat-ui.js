@@ -59,7 +59,10 @@ export async function openChat(view, { mode, message } = {}) {
     if (view._chatPanel?.isConnected) {
         if (mode) view._chatPanel._setMode(mode);
         const box = view._chatPanel.querySelector('.pv-chat-input');
-        if (message) box.value = message;
+        if (message) {
+            box.value = message;
+            if (!box.form.hidden) box.form.requestSubmit(); // the person asked: send it
+        }
         box.focus();
         return view._chatPanel;
     }
@@ -120,7 +123,13 @@ export async function openChat(view, { mode, message } = {}) {
     }
     if (status.remaining_today !== undefined) $('.pv-chat-quota').textContent = `${status.remaining_today} model calls left today`;
 
-    let chat = new ChatSession({ live: reg, manifest, post: turnPoster(view), mode: mode || 'auto' });
+    // The conversation outlives the panel: closing it, or reopening it from the goals dialog's "Ask the
+    // Assistant instead", keeps the messages (and the tools run) for this page's session. New starts afresh.
+    const kept = view._chatKeep;
+    let chat = kept?.chat || new ChatSession({ live: reg, manifest, post: turnPoster(view), mode: mode || 'auto' });
+    if (kept?.chat && mode) chat.setMode(mode);
+    view._chatKeep = { chat, logHtml: kept?.logHtml || '' };
+    if (kept?.logHtml && status.signed_in) log.innerHTML = kept.logHtml;
     // The count is of the tools there are, then of the calls made: a bare count of calls read 0 on every new conversation,
     // as if there were no tools at all.
     let listed = null;
@@ -190,6 +199,7 @@ export async function openChat(view, { mode, message } = {}) {
         else p.textContent = text;
         log.appendChild(p);
         log.scrollTop = log.scrollHeight;
+        view._chatKeep.logHtml = log.innerHTML;
     };
 
     const renderPending = async () => {
@@ -251,6 +261,7 @@ export async function openChat(view, { mode, message } = {}) {
     $('[data-act="new"]').addEventListener('click', () => {
         const m = chat.mode;
         chat = new ChatSession({ live: reg, manifest, post: turnPoster(view), mode: m });
+        view._chatKeep = { chat, logHtml: '' };
         $('.pv-chat-detected').hidden = true;
         log.innerHTML = '';
         $('.pv-chat-calls').innerHTML = '';
@@ -258,6 +269,7 @@ export async function openChat(view, { mode, message } = {}) {
         renderTools();
         renderPending();
     });
+    for (const e of chat.calls) renderCall(e); // a kept conversation's tools
     $('[data-act="close"]').addEventListener('click', () => panel.remove());
 
     const input = $('.pv-chat-input');

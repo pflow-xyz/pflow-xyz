@@ -163,3 +163,14 @@ Deno.test("knob goal: a large unconstrained net still gets the ODE diagnosis", a
     assert(out.ok, JSON.stringify(out.steps.find((s: any) => s.error)));
     assertEquals(seen, ["sim.recommend", "analysis.diagnose", "analysis.diagnose_ssa (skipped)"]);
 });
+
+Deno.test("what-if: the table gains a Δ row (the card promises the difference in every place's final mean)", async () => {
+    const r: any = new Registry(createHeadlessHost(coffee()));
+    const out = await r.execute("sim.what_if", { place: "baristas_free" });
+    const rows = r.artifact(out.table).data.rows;
+    assertEquals(rows.length, 3);
+    assert(String(rows[2][0]).startsWith("Δ"), rows[2][0]);
+    const cols = r.artifact(out.table).data.columns;
+    const i = cols.indexOf("baristas_free");
+    assert(Math.abs(rows[2][i] - (rows[1][i] - rows[0][i])) < 1e-4, JSON.stringify(rows));
+});

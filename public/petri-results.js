@@ -74,10 +74,10 @@ export function plotTimeSeries(solver, art, o = {}) {
         const label = s.group ? (names.size > 1 ? `${s.name} (${s.group})` : s.group) : s.name;
         plotter.addSeries(d.x, s.values, label, null, mode === 'markers' ? { markers: true } : {});
         if (Array.isArray(s.band)) {
-            // mean ± 1 sd, drawn as dashed bounds in the series' colour
+            // mean ± 1 sd, drawn as dashed bounds in the series' colour; unlabeled, so the legend lists the series once, not three times
             const color = plotter.series[plotter.series.length - 1].color;
-            plotter.addSeries(d.x, s.values.map((v, i) => v + s.band[i]), `${label} +1 sd`, color, { dash: '3,3' });
-            plotter.addSeries(d.x, s.values.map((v, i) => Math.max(0, v - s.band[i])), `${label} −1 sd`, color, { dash: '3,3' });
+            plotter.addSeries(d.x, s.values.map((v, i) => v + s.band[i]), '', color, { dash: '3,3' });
+            plotter.addSeries(d.x, s.values.map((v, i) => Math.max(0, v - s.band[i])), '', color, { dash: '3,3' });
         }
     });
     return { svg: plotter.render(), plotData: plotter.lastPlotData };

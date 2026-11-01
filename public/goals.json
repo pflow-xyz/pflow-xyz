@@ -84,7 +84,7 @@
     {
       "id": "one_more",
       "question": "What if I had one more …?",
-      "phrases": ["one more", "another", "extra", "add a", "hire", "if I had"],
+      "phrases": ["one more", "another", "extra", "add a", "hire", "if I had", "how many", "do I need", "need to keep", "enough", "staff"],
       "inputs": [{ "name": "place", "kind": "place", "label": "one more token in" }],
       "plan": [
         { "command": "sim.recommend", "args": {} },

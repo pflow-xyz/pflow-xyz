@@ -47,10 +47,8 @@ export async function openGoals(view) {
     $('[data-act="ask"]')?.addEventListener('click', async () => {
         const q = $('.pv-goals-search').value.trim();
         close();
-        const panel = await view._openChat({ mode: 'analyse' });
-        const input = document.querySelector('.pv-chat-input');
-        if (input && q) input.value = q;
-        return panel;
+        // The question goes straight in: the person already chose to ask. The conversation they had stays.
+        return view._openChat({ mode: 'analyse', message: q || undefined });
     });
 
     const inputHtml = (i) => {
@@ -139,7 +137,7 @@ export async function openGoals(view) {
 
     const list = (goals) => {
         $('.pv-goals-list').innerHTML = goals.map((g) => `<button type="button" class="pv-btn pv-goals-item${g.available === false ? ' pv-goals-off' : ''}" data-goal="${esc(g.id)}">${esc(g.question)}</button>`).join('')
-            || '<p class="pv-result-dim">No goal matches those words; try fewer, or pick from the full list (clear the box).</p>';
+            || `<p class="pv-result-dim">No goal matches those words; try fewer, or pick from the full list (clear the box).${status.enabled && status.chat ? ' Or use “Ask the Assistant instead”, which reads the question in full.' : ''}</p>`;
         dialog.querySelectorAll('[data-goal]').forEach((b) => b.addEventListener('click', () => showGoal(catalog.goals.find((g) => g.id === b.dataset.goal))));
     };
     list(catalog.goals);

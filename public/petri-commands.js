@@ -999,6 +999,12 @@ export const COMMANDS = [
                 seed: base.seed,
                 scenarios: [{ name: 'as is', ...base }, { name: label, ...base, marking: { [a.place]: now + delta } }],
             });
+            // The card promises the difference in every place's final mean: add it as a row.
+            const table = out.table && c.registry.artifact(out.table);
+            if (table?.data?.rows?.length === 2) {
+                const [a0, a1] = table.data.rows;
+                table.data.rows.push([`Δ (${label})`, ...a1.slice(1).map((v, i) => (typeof v === 'number' && typeof a0[i + 1] === 'number' ? +(v - a0[i + 1]).toPrecision(6) : ''))]);
+            }
             return { ...out, place: a.place, from: now, to: now + delta };
         },
     },
