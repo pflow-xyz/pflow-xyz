@@ -12,6 +12,8 @@ its flat-net view. The audience is people who want to get technical with models.
 [sim.pflow.xyz](https://sim.pflow.xyz) is the utility that answers questions, and the two
 hand a model to each other.
 
+*Update, 2026-11-01:* sim's role is changing. Matt intends to deprecate it at some point and move what is worth keeping here; see [MCP lineup](#mcp-lineup-matt-2026-11-01).
+
 If approved, this **supersedes the newcomer framing** of the next section (its problem and
 goal, and the "newcomer" exit of phase 6). Phases 0-8 stay as built. Phases 1, 5 and 7 are
 frozen, not removed (their question-shaped surfaces; shared code such as `goals.json` and
@@ -585,3 +587,69 @@ The two are designed as one thing: you look up a verified part, and you snap it 
 - **Canvas:** `/compose.html` draws one composition in many views, and the remote `/mcp` serves stateless tools. Nothing renders as an MCP App yet.
 - **Library:** [ontology.pflow.xyz](https://ontology.pflow.xyz) is live with read-only MCP tools (`search_terms`, `describe_term`, `get_claim`, `sparql_query`). Its roadmap has one worked claim and marks the theorem layer as proposed, so returning a model with its invariants and theorem links for a concept is still to build.
 - **Listing paperwork:** `public/mcp.html`, `terms.html` and `privacy.html` are on `main`. The portal copy and the remaining gates are in [docs/connector-directory/](docs/connector-directory/checklist.md).
+
+### MCP lineup (Matt, 2026-11-01)
+
+pflow ships one flagship server. Every other server folds into it, stays a separate product with its own gate, or goes away.
+
+| Server | What it gives you | Directory categories | Status and gate |
+|--------|-------------------|----------------------|-----------------|
+| **[pflow.xyz/mcp](https://pflow.xyz/mcp)** (flagship, the focus) | Snap verified parts together on a canvas inside Claude, and look those parts up by concept | Designs & media (the canvas, an inline MCP App); Reference docs (the library, concept query) | Live with stateless tools, not listed. Gates 1 and 2 in the [submission checklist](docs/connector-directory/checklist.md) are closed. Concept query ships as tools on this endpoint, because a listing connects one URL |
+| **[mine.pflow.xyz](https://mine.pflow.xyz)** | Give it an event log and see what the process actually did, and where it departed from the plan | Automation & workflows; Logs & errors | Landing page only. Gate: XES and CSV ingest, discovery and conformance. A listing also needs the `/mcp` endpoint and published pages, so see the note below |
+| **[sim.pflow.xyz](https://sim.pflow.xyz)** | What-if answers from calibrated models; today it is also where the daily jobs add new models | None: no directory listing | Live. To be deprecated at some point, no date set. Plan below |
+
+**The mine gate, in that roadmap's numbers.** [mine's roadmap](https://github.com/pflow-xyz/mine-pflow-xyz/blob/main/ROADMAP.md) splits this gate into M1 (ingest), M2 (discover) and M3 (conformance). The `/mcp` endpoint is its M4 and the listing is its M5. Reading the gate as M1 alone would leave discovery and conformance unbuilt, so the numbers need reconciling there.
+
+**Other MCP servers found in the workspace.**
+
+| Server | Disposition |
+|--------|-------------|
+| [ontology.pflow.xyz](https://ontology.pflow.xyz) (read-only concept tools) | **Fold into pflow.xyz.** Concept query becomes tools on `/mcp`. The ontology stays as the source those tools read, and its own endpoint gets no listing |
+| The earlier code-generation server (private) | **Retire.** It is already retired publicly: its old address forwards to sim's `/mcp`, so that forward has to go or be repointed when sim retires |
+| [pflow-rs](https://github.com/pflow-xyz/pflow-rs) `pflow-mcp` (local, runs on your machine) | **Keep,** unlisted. It is the open-source way to run the engine locally, and mine's parity check |
+| [pflow-native](https://github.com/pflow-xyz/pflow-native) `pflow-native-cli mcp` (local, drives the desktop app) | **Keep,** unlisted. Its `remote.sim.*` commands need a new target before sim retires |
+
+The ontology's engine and the operations servers on Matt's own machine stay internal. The beats and Void Log servers belong to separate products and are not part of this lineup.
+
+### Winding down sim.pflow.xyz
+
+This is intent with an order of steps, not a schedule. Nothing here changes sim yet.
+
+1. **No directory listing for sim.** The directory effort goes to pflow.xyz and mine.
+2. **Move the tools worth keeping into `pflow.xyz/mcp`,** starting with the ones the daily jobs call (table below).
+3. **Point the daily jobs at the pflow.xyz library.** `sim-daily-experiment` and the arXiv job keep accumulating models, but those models land in the library. A new model is a candidate until it passes the check gate 2 defines for "verified"; arriving from a job does not make it verified. The jobs need a sign-in of their own, since `pflow_save` requires one.
+4. **Bring the catalog across.** sim lists 155 models to an anonymous caller (2026-11-01): 4 curated and 151 under a commons license. Each needs a CID, a record of its old sim id, and a redirect from its old page. Models people created for themselves need a way out too.
+5. **Move what points at sim.** That means the pflow.xyz landing page and `llms.txt`, the Assistant's goals, `parity/roles/`, pflow-native's remote commands, and the hand-off in mine's roadmap.
+6. **Retire the public endpoint,** archive first, following the ecosystem's retire procedure.
+
+**Tools to migrate.** Compared with pflow.xyz's tools on 2026-11-01. This is a proposed triage of the 60 tools in sim's code; 59 are listed to an anonymous caller.
+
+| Proposal | sim tools | Why |
+|----------|-----------|-----|
+| **Migrate first:** the daily jobs call these | `sim_list_models`, `sim_get_model`, `sim_create_model`, `sim_scenario`, `sim_compare`, `sim_diagnose`, `sim_verify`, `sim_license_model` | `pflow_get`, `pflow_save`, `pflow_verify` and `pflow_what_if` already cover part of this. Listing the library, seeded scenario runs, side-by-side comparison, ranked diagnosis and commons dedication have no equivalent yet |
+| **Migrate next:** they make the parts library checkable | `sim_components`, `sim_compose`, `sim_crosscheck`, `sim_canonical`, `sim_prove`, `sim_check_witness`, `sim_distinguish`, `sim_query`, `sim_link`, `sim_edges`, `sim_neighbors`, `sim_diff`, `sim_extend`, `sim_supersede_model`, `sim_reach`, `sim_invariants`, `sim_sequences`, `sim_param_heatmap`, `sim_receipt` | Find a part, tell whether two parts are the same, prove how they relate, and cite the result. Where pflow.xyz has a near match (`pflow_invariants`, `pflow_reachability`, `pflow_rate_scan`), the task is to compare them and keep the better answer |
+| **Send to mine, not pflow.xyz** | `sim_conformance`, `sim_conformance_stream`, `sim_calibrate`, `sim_dataset` | These compare a model with an event log, which is mine's job. This departs from "everything into pflow.xyz", and it is a recommendation |
+| **Probably covered; check first** | `sim_optimize`, `sim_evaluate`, `sim_distill`, `sim_create_system`, `sim_system`, `sim_bind`, `sim_get_binding`, `sim_list_bindings`, `sim_run_pipeline`, `sim_create_collection` | `pflow_optimize`, `pflow_game_*` and compositions overlap these. Delayed links between models may be the exception |
+| **Leave behind** | `sim_publish`, `sim_publish_compare`, `sim_my_sheets`, `sim_publish_app`, `sim_prompt`, `sim_reroll`, `sim_get_artifact`, `sim_generate`, `sim_code_to_flow`, `sim_map_put`, `sim_map_get`, `sim_map_list`, `sim_classify`, `sim_propose_types`, `sim_refine`, `sim_migration_offers`, `sim_accept_migration`, `sim_delete_model`, `sim_fidelity_verdict` | Sheets export, hosted LLM calls and sim's own store upkeep. Leaving them means giving up Google Sheets export and generated apps, and that needs a deliberate yes. The fidelity verdict stays out unless what the engine decided and what a model judged can be told apart |
+
+### Embedding the engine in Claude artifacts
+
+**The goal:** someone asks Claude to build an artifact that simulates a net, and the page runs the real engine rather than a look-alike written on the spot.
+
+**The finding (2026-11-01).** An artifact can load a script from cdnjs, `cdn.jsdelivr.net/npm`, unpkg, `cdn.tailwindcss.com` or `code.jquery.com`, but `connect-src` reaches only the artifact's own origin. So the engine's JavaScript loads from a CDN, and then wasm-bindgen's default `fetch` of the `.wasm` from that CDN is blocked.
+
+**Routes that fit those rules:**
+
+1. **`@pflow-xyz/pflow-wasm` with the `.wasm` inlined as base64, as the default entry.** One import and no fetch. The packaging run is in progress, and the package is not on npm yet.
+2. **Inline base64 in the page itself,** for when the CDN route is unavailable. An artifact page may be up to 16 MB, and base64 adds about a third to the binary's size.
+3. **The `.wasm` as a supporting file on the artifact's own origin,** which `connect-src 'self'` allows.
+
+**Open: can the sandbox compile WebAssembly at all?** All three routes depend on it. Whether the artifact policy permits it (`'wasm-unsafe-eval'`) has not been tested, so nothing above is proven until a real artifact runs a net.
+
+**The canvas is a different sandbox.** An MCP App declares its own domains in `_meta.ui.csp`, and the plan is to load the WASM through `connectDomains`, because `frameDomains` is not an option on claude.ai and `resourceDomains` is reported ignored ([claude-ai-mcp#40](https://github.com/anthropics/claude-ai-mcp/issues/40)). Reports on `connectDomains` itself conflict: an April reply in that thread says it works and one developer confirmed it, while reports from July and August capture a policy with `connect-src 'self'` and no declared domain. So test this first by reading `securitypolicyviolation`, because a blocked load fails quietly. The fallback is the one reported working in that thread: inline the engine in the `ui://` resource's HTML. Those captured policies also show `'unsafe-eval'` in `script-src`, which would allow compiling WASM in an MCP App but says nothing about artifacts.
+
+**Sources:** [claude-code#99606](https://github.com/anthropics/claude-code/issues/99606) (open; the artifact policy, tested route by route), [claude-code#49182](https://github.com/anthropics/claude-code/issues/49182) (closed as not planned; in Cowork artifacts CDN scripts load but runtime fetches are blocked), [claude-ai-mcp#40](https://github.com/anthropics/claude-ai-mcp/issues/40) (open). These are user reports, and the policy can change without notice.
+
+### To do: hand Claude the artifact import
+
+Add an MCP tool or skill that gives Claude the exact import snippet, so "build an artifact that simulates this net" uses the real engine. It needs the published package and a passing compile test, so it follows both. It should pin an exact package version, because artifact scripts have to name one.
