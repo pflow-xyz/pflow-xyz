@@ -258,7 +258,7 @@ try {
     const p = await open("/");
     ok(await routed(p), "the page opens on the prompt", problemsOf(p).join(" | "));
     ok(await p.eval(`document.getElementById('landing').style.display !== 'none' && document.getElementById('editor-wrapper').style.display === 'none'`), "the landing is shown, the editor is not");
-    ok(await p.eval(`document.getElementById('landing-chat-q').tagName === 'H1' && document.querySelector('#landing-chat-input').getAttribute('aria-labelledby') === 'landing-chat-q'`), "the prompt is the page's heading and names the box");
+    ok(await p.eval(`document.getElementById('landing-chat-q').tagName === 'H1' && document.querySelector('#landing-chat-input').getAttribute('aria-labelledby') === 'landing-chat-ask' && ${text("#landing-chat-ask")} === 'What are you working on?'`), "the mission is the page's heading and the prompt names the box");
     ok(await p.waitFor(`${text("#landing-chat-state")}.includes('GitHub sign-in')`, 15000), "it says the chat needs a sign-in, before anyone types");
     ok(await p.eval(`${text("#landing-chat-send")} === 'Sign in with GitHub and start'`), "the button says what it does");
     ok(await p.eval(`!document.getElementById('landing-chat-connector').hidden && !!document.querySelector('#landing-chat-connector a[href="/mcp.html"]')`), "the connector is offered");

@@ -6,13 +6,13 @@
          first gesture people try on a diagram. The canvas sets touch-action:none
          so its own pan/zoom gestures are unaffected. -->
     <meta content="width=device-width, initial-scale=1" name="viewport"/>
-    <title>pflow - Visual Editor for Petri Nets</title>
-    <meta name="description" content="Draw a Petri net, run it, and check it. A visual editor for state machines, resource flows and token standards, with the same models available to check at sim.pflow.xyz."/>
+    <title>pflow - Explanations you can run</title>
+    <meta name="description" content="LLM-written code got good. Understanding it didn't get faster. pflow turns each model into something you can see, run and check."/>
     <meta name="author" content="Matt York">
     <link rel="me" href="https://github.com/stackdump">
     <link rel="me" href="https://blog.stackdump.com/">
-    <meta property="og:title" content="pflow - Visual Editor for Petri Nets"/>
-    <meta property="og:description" content="Draw a Petri net, run it, and check it. A visual editor with simulation and a front door at sim.pflow.xyz."/>
+    <meta property="og:title" content="pflow - Explanations you can run"/>
+    <meta property="og:description" content="LLM-written code got good. Understanding it didn't get faster. pflow turns each model into something you can see, run and check."/>
     <meta property="og:type" content="website"/>
     <link rel="canonical" href="https://pflow.xyz/"/>
     <meta property="og:url" content="https://pflow.xyz/"/>
@@ -20,8 +20,8 @@
     <meta property="og:image:width" content="1280"/>
     <meta property="og:image:height" content="640"/>
     <meta name="twitter:card" content="summary_large_image"/>
-    <meta name="twitter:title" content="pflow - Visual Editor for Petri Nets"/>
-    <meta name="twitter:description" content="Draw a Petri net, run it, and check it. A visual editor with simulation and a front door at sim.pflow.xyz."/>
+    <meta name="twitter:title" content="pflow - Explanations you can run"/>
+    <meta name="twitter:description" content="LLM-written code got good. Understanding it didn't get faster. pflow turns each model into something you can see, run and check."/>
     <meta name="twitter:image" content="https://pflow.xyz/banner.png"/>
     <link href="petri-view.css" rel="stylesheet"/>
     <script src="petri-view.js" type="module"></script>
@@ -539,9 +539,9 @@
         <div class="landing-hero-overlay"></div>
         <div class="landing-hero-content">
             <form id="landing-chat" class="landing-chat" onsubmit="event.preventDefault()">
-                <h1 id="landing-chat-q">What are you working on?</h1>
-                <p>pflow is a visual editor for Petri nets: draw a process as places, transitions and arcs, then run it and see what it does. Say what you are after, and an assistant starts the session beside the canvas.</p>
-                <textarea id="landing-chat-input" rows="2" aria-labelledby="landing-chat-q" placeholder="A coffee shop with one barista and a queue. Where does it jam?"></textarea>
+                <h1 id="landing-chat-q">Explanations you can run.</h1>
+                <p>LLM-written code got good in the last year. Understanding it didn't get faster. You can only move as fast as you comprehend what you've built. pflow turns each model into something you can see, run and check. <span id="landing-chat-ask">What are you working on?</span></p>
+                <textarea id="landing-chat-input" rows="2" aria-labelledby="landing-chat-ask" placeholder="A coffee shop with one barista and a queue. Where does it jam?"></textarea>
                 <fieldset class="landing-chat-routes">
                     <legend class="landing-sr">What kind of session</legend>
                     <label><input type="radio" name="route" value="auto" checked/> Let it decide</label>
@@ -707,9 +707,12 @@
 
     <div class="landing-about">
         <p>
-            Places hold tokens. Transitions move them. Arcs define the rules.
-            From coffee shops to poker games to blockchain bridges, it is the
-            same structure, so the same tools apply.
+            Like a list comprehension, pflow starts from a description: say what
+            the system is, and get a model you can run. Then ask it how it is
+            put together, what happens over time, what
+            can't change, what an agent should do, whether reality matches, and
+            whether it is provably right. Under the hood, every model is a Petri
+            net, so runs replay and proofs check.
         </p>
         <a href="https://sim.pflow.xyz">Try a model on sim.pflow.xyz &rarr;</a>
     </div>
