@@ -64,6 +64,19 @@ About 25 entries; 8 of them open an analysis surface, and 3 of those start an ag
 
 Removed as menu items: Analysis, Simulate, Structure, Check net, Results, Components, What do you want to know?, Describe a process, Draft notes, Assistant. Each survives as a view or an automatic behaviour; see [Inventory](#7-inventory-kept-merged-hidden-deleted).
 
+### Landing page: before and after
+
+The landing page is part of the IA because it is the first Ask a new person sees and the first place two AI doors appear. Detail and reasoning in [section 16](#16-the-landing-page-one-door-one-vocabulary-examples-that-open-into-views).
+
+| | Before (landing hero as Matt reviewed it) | After |
+|---|---|---|
+| Ask | Text box with five radio modes (Let it decide / Design / Analyse / Explore / Explain), **Start** | Text box and **Ask**. No mode radios. The server labels intent; the reply shows the chip |
+| Second door | "Open the editor" and "Describe it instead (sim)" beside Start | "Open the editor" only. Sim is a named destination in the nav and in one gallery, not a rival button |
+| Below the hero | "Or start from a description" cards (3, all to sim.pflow.xyz) | "Calibrated what-ifs" gallery, labelled as sim, under the examples |
+| Examples | 6 cards open the raw canvas | Each card opens a curated view of the model (a saved ViewSpec); "Open the canvas" is the secondary link |
+| Check card | Sends to sim.pflow.xyz | Says what sim is for; the pflow Check is the in-editor problems chip |
+| Vocabulary | Landing: Design / Explore. Assistant: Build. Menu: Describe, Assistant | One set everywhere: **Build, Analyse, Explain** (labels of the intent chip). "Auto" and "Let it decide" are the absence of an override, not a mode |
+
 ## 4. The Ask flow end to end
 
 ```
@@ -75,7 +88,7 @@ Removed as menu items: Analysis, Simulate, Structure, Check net, Results, Compon
 
 ### 4.1 Intent (build / analyse / explain)
 
-Today the server labels intent with a small classifier model that is not charged to the quota. Keep that. Drop the Auto/Build/Analyse/Explain tabs from the UI; show the label as a small chip on the reply ("Analysing") with "Not what I meant" which resends the message with the intent forced. The intent still gates side effects as today: explain never edits (enforced in the browser), build edits go to a sandbox and wait for Apply.
+Today the server labels intent with a small classifier model that is not charged to the quota. Keep that. Drop the Auto/Build/Analyse/Explain tabs from the UI, and the landing hero's radios with them (one vocabulary, [16.1](#161-one-vocabulary-and-no-mode-picker)); show the label as a small chip on the reply ("Analysing") with "Not what I meant" which resends the message with the intent forced. The intent still gates side effects as today: explain never edits (enforced in the browser), build edits go to a sandbox and wait for Apply.
 
 ### 4.2 Goal and inputs: the model gets goals, not 109 tools
 
@@ -269,10 +282,20 @@ Two further tracks come from Matt's added requirements and are specified in [sec
 | C5 | Agent: "connect my queue to this payment net" as a proposed link set with Apply/Discard | Step 2, C3 | Agent role |
 | C6 | Retire the fixed examples to a "Gallery" and delete the Components dialog when C5 covers it | C4, C5 | Cleanup |
 
+The landing track (section 16) is numbered H. H0 to H2 are copy and markup only and ship before anything above; H3 to H4 need L1.
+
+| # | Step | Depends on | Ships |
+|---|---|---|---|
+| H0 | One vocabulary: Design becomes Build, Explore leaves the radios (becomes a link), "Let it decide" copy removed from the hero; Assistant and menu labels aligned | landing-chat merged | Copy only, no behaviour change |
+| H1 | Hide the mode radios: one input + Ask; intent comes from the server label; `?route=` deep links keep working | H0 | Simpler first contact |
+| H2 | One AI door: drop "Describe it instead (sim)" from the hero; reframe "Or start from a description" and the Check card as the sim gallery | H0 | No more two competing boxes |
+| H3 | `public/examples.json`: per example, net CID and a curated ViewSpec (recorded by running the plan, no model); CI replays each and checks `expect` hashes | L1, Step 0 | Examples that cannot rot |
+| H4 | Cards open into the view (`/?cid=...#view=...`), show an "Opens to: ..." chip, keep "Open the canvas" as the second link; thumbnails from the da9c433a regeneration | H3 | The first-contact payoff |
+| H5 | sim to pflow handoff ("Open in the editor" on a sim model) and a sim-list import in `petri-validate.js` | H2, sim-side change | Two surfaces, one model |
 
 ### Sequencing with the landing chat
 
-The other run's landing chat already routes the hero into the Assistant by mode (Let it decide / Design / Analyse / Explain / Explore). Under this design those routes collapse into the one Ask input: the hero input is the Ask input, "Let it decide" is the default, and Design/Analyse/Explain become the intent chip. Nothing in the landing work conflicts with Steps 0 to 2. Steps 3 and 5 touch `petri-chat-ui.js`, the panel frame and the menu code that branch is editing, so start them after it merges to avoid rebasing a moving panel. Its panel-frame helper (`petri-panel-frame.js`, the phone layout work) should be reused for the results pane.
+The other run's landing chat already routes the hero into the Assistant by mode (Let it decide / Design / Analyse / Explain / Explore). Under this design those routes collapse into the one Ask input: the hero input is the Ask input, "Let it decide" stops being a visible option (it is simply what happens), and Build/Analyse/Explain become the intent chip. The hero work is the H track below ([16.5](#165-concrete-steps-shippable)); it edits `index.html` and `petri-landing.js`, which that branch also owns, so H steps start after it merges. Nothing in the landing work conflicts with Steps 0 to 2. Steps 3 and 5 touch `petri-chat-ui.js`, the panel frame and the menu code that branch is editing, so start them after it merges to avoid rebasing a moving panel. Its panel-frame helper (`petri-panel-frame.js`, the phone layout work) should be reused for the results pane.
 
 ## 12. Risks
 
@@ -290,6 +313,9 @@ The other run's landing chat already routes the hero into the Assistant by mode 
 | R11 | **A link runs commands from untrusted input.** | Link replay is an allowlist of read-only analysis and view commands, with the same bounds as `/mcp` (runs, horizon, 60 s); edit, store and file commands are refused on open (section 14.6) |
 | R12 | **A saved view silently changes meaning** after an engine update. | Pinned engine version plus the artifact hash; a mismatch is shown, never hidden (14.4) |
 | R13 | **Composition work is large** and is the likeliest to stay demo-grade if only partly done. | Steps C1 to C4 are each shippable and each fix a named demo-grade defect (15.2) |
+| R14 | **Hiding the modes surprises people who used them.** | The chip is correctable ("Not what I meant", with Build/Analyse/Explain forced), `?route=` links keep forcing a mode, and the server's auto-stats (`data/llm/auto-stats.json`) say how often the label was wrong before H1 ships |
+| R15 | **A curated example view goes stale** when the engine changes. | Each is a ViewSpec with `expect` hashes replayed in CI (H3); a mismatch fails the build, not the visitor |
+| R16 | **Removing the sim button costs sim traffic.** | Sim stays in the nav and gets its own gallery; the cards say what sim does that the editor does not (16.2) |
 | R10 | **Merge conflict with the landing-chat run** in the panel and menu code. | Sequencing above |
 
 ## 13. Open questions and recommended answers
@@ -478,3 +504,93 @@ Order against the main plan: C1 after L1 (it needs the view-spec machinery); C2 
 1. Should the compose page and the editor be one page with a "Compose" view, or stay two pages joined by "Open composed net"? Recommended: stay two until C4 works, then decide on evidence.
 2. Is a composition an object users name and keep (like a net), or a transient step towards a flattened net? Recommended: keep (C1), because a composition is the more reusable thing.
 3. Which views stay in the first usable release? Recommended: cospan (wiring), flat (the result), laws (checks), and process; leave the rest under "More views" until a goal uses them.
+
+## 16. The landing page: one door, one vocabulary, examples that open into views
+
+Input: Matt's landing-page notes (val inbox 00b2cad3). Read against this branch's code: this worktree's `public/index.html` still has the older hero (Open Editor and "Describe it instead (sim)"). The Ask hero with the radios lives on `fix/gemini-agentic-feedback` (`docs/landing-chat.md`, `public/petri-landing.js`), so what follows about the radios is from that doc and Matt's description, not from code in this tree.
+
+### 16.1 One vocabulary, and no mode picker
+
+Today three names for the same four things:
+
+| Where | Names |
+|---|---|
+| Landing hero (radios) | Let it decide, Design, Analyse, Explore, Explain |
+| Assistant (`MODES` in `petri-chat-ui.js`) | Auto, Build, Analyse, Explain |
+| Server label (`/api/llm/turn`) | build, analyse, explain (plus `auto`, meaning "label it") |
+| Menu | Describe a process, Assistant, What do you want to know? |
+
+Decision, for Matt to overrule:
+
+1. **The user-facing set is Build, Analyse, Explain.** They match the server's labels, so there is nothing to translate. "Design" becomes Build.
+2. **"Let it decide" and "Auto" are not modes.** They are what happens when the person forces nothing. A default that is also a radio button asks people to understand the other four before they can trust it.
+3. **Modes are not shown before the answer.** The hero is one input and one button. After the reply, the intent chip says which was used ("Analysing"), and its menu offers the other two ("Build instead", "Explain instead"). This is [4.1](#41-intent-build--analyse--explain) applied to the landing page.
+4. **Explore is not an intent.** It is a destination (the composition page, [section 15](#15-composition-that-is-usable-not-a-demo)). Two ways in: the Ask classifies "connect these two nets" as a Build that opens Compose, and a plain "Compose" link in the nav and the View menu. A radio that navigates away from the chat, among radios that do not, was the odd one out.
+5. **What stays for deep links.** `/?route=build|analyse|explain` (and the old `design` as an alias) keep forcing the intent, since links exist in the wild. They are the one place a mode is stated by the user, and nothing in the UI advertises them.
+6. **Signed out or not allowed:** no input that would answer 401 (the landing-chat rule, unchanged). The hero offers the editor, the example cards and the palette; the Ask appears when it can work.
+
+Evidence to collect before H1: the anonymous label counts in `data/llm/auto-stats.json` say how often the classifier would have been wrong for a hero message. If "Not what I meant" would be needed often, keep a small "Build / Analyse / Explain" row under the input (not radios, off by default) rather than ship H1 as is.
+
+### 16.2 pflow and sim: one product with two surfaces
+
+What the code and docs say (facts, then the recommendation):
+
+- **sim.pflow.xyz** is a separate, private repo (`sim-pflow-xyz`) on Cloud Run: calibrated what-if models (a catalogue such as the vet clinic and cafes), seeded scenarios, knob-by-knob diagnosis, Google Sheets, and an MCP server with `sim_*` tools. It has no canvas editor; its unit is a *model you turn knobs on*.
+- **pflow.xyz** is this repo: the canvas, the engines in the browser (ODE, SSA, SDE, wasm registry), `/mcp` with `pflow_*` tools, and the Assistant.
+- **They already share ideas, not accounts.** `petri-roles.js` is derived from sim's `sim-derive.js` and held to it by `parity/roles/`; the App view presents a net the way sim does; "Copy for sim" / `file.export_sim` writes sim's model shape; `petri-validate.js` rejects sim's list-shaped models with a message. The flow is **pflow to sim only**: nothing opens a sim model in the editor. Old pilot URLs on pflow redirect to sim (`docs/pilot-redirects.md`).
+- **Two AI doors.** The pflow Assistant (Gemini, GitHub sign-in, daily cap) and sim's own describe flow are separate backends with separate quotas. I did not verify sim's auth or limits from this repo; treat that as unknown.
+
+Recommendation: **one product, two surfaces, and the landing page shows one door.**
+
+| A person who... | Takes | Because |
+|---|---|---|
+| Wants to build, check or understand a net, or has words and no model yet | **Ask on pflow.xyz** | It has the canvas, the engines and the views. The model it makes is theirs and editable |
+| Wants a calibrated what-if on a known kind of system (a clinic, a café, a household decision) and a shareable console | **sim.pflow.xyz**, reached from a gallery and the nav | Its models are tuned and its console is built for non-modelers. It does not need the canvas |
+| Has a net and wants the sim treatment | "Copy for sim" today; "Open in sim" later | The export exists; the reverse does not (H5) |
+
+Consequences for the page:
+
+- Remove "Describe it instead (sim)" from the hero. Two text-to-model entries side by side make the visitor pick between backends before they know what either is.
+- "Or start from a description" duplicates the Ask, so rename the section to **Calibrated what-ifs (sim.pflow.xyz)** and say what is different: models already tuned, no sign-up for the first ones, open the console and turn knobs.
+- The **Check** card in Draw / Check / Prove says "Describe a decision... start from words". That is the Ask's job on pflow. Reword it to what sim is: "Run a calibrated what-if and see which knob binds", and keep the link. In the editor, "Check" means the problems chip ([section 3](#3-menu-before-and-after)), so the same word should not name two products.
+- Nav keeps **Sim** as a link, not a competitor to the hero.
+
+Not decided here: whether the two share a sign-in or quota (that is a decision across two repos and two owners), and whether sim's describe flow should eventually call pflow's `/api/llm/turn`. Do not promise either on the page.
+
+### 16.3 Examples that open into views
+
+The six cards (Coffee Shop, Tic-Tac-Toe, Enzyme Kinetics, Predator-Prey, Producer-Consumer, USDC Bridge) are many people's first contact, and each opens the raw canvas. The linkable-view scheme ([section 14](#14-linkable-model-views)) gives them something better to open into.
+
+- **Each example gets a curated ViewSpec** naming a goal from `goals.json` and the resolved calls. The card links to `/?cid=<net>#view=<calls>` (or `?v=<specCID>` once saved), so a click lands on the net *and* the answer to one good question about it.
+- **Suggested pairing** (an editorial proposal, to be checked when each spec is recorded):
+
+| Example | Opens to | Goal / view |
+|---|---|---|
+| Coffee Shop | Conservation: the quantities that cannot change, so you cannot oversell | `conserved` |
+| Tic-Tac-Toe | Optimal-play heatmap (the card already promises it) | `best_play` |
+| Enzyme Kinetics | Michaelis-Menten curve: ODE trajectory | `average` |
+| Predator-Prey | Phase portrait | the Analysis phase view; no goal yet, so the spec names the command directly |
+| Producer-Consumer | Bounded: the buffer never overflows, with the proof | `unbounded` |
+| USDC Bridge | Can funds get stuck? | `stuck` |
+
+- **Recorded, not generated at visit time.** An author runs the plan once (no model), saves the spec, and the page lists it in `public/examples.json` (net CID, spec, title, one-line "Opens to"). No quota is spent when a visitor clicks, because opening a link runs no model ([14.3](#143-opening-a-link-no-model-call)).
+- **They cannot rot silently.** CI replays every curated spec and compares `expect` hashes, so an engine change that alters an example's view fails the build and is reviewed ([14.4](#144-stability-across-app-versions)). That is what R15 relies on.
+- **The card shows what it opens to** ("Opens to: optimal-play heatmap") and keeps "Open the canvas" as a second, quieter link, so the old behaviour is one click away.
+- **A card is also an Ask suggestion.** Each example's goal feeds the suggested prompts for that net, so the first thing a visitor asks after opening is one click.
+- **Thumbnails.** Run da9c433a is regenerating the net thumbnails with improved layouts; this design does not touch that work and uses its output for the card image. A later slice could use the *view's* artifact as the thumbnail (14.7 notes a view-specific share card as a later slice).
+- The 6-card grid orphaning two cards on a 4-column layout is a layout bug tracked in the visual-audit job, not here.
+
+### 16.4 What this does not change
+
+The Ask flow, guards, provenance and link replay are unchanged. The landing hero reuses the Ask input and the existing `petri-chat-ui.js` panel; nothing here adds a model call.
+
+### 16.5 Concrete steps (shippable)
+
+H0 to H5 in the [migration plan](#11-migration-plan-small-shippable-steps). H0 to H2 are copy and markup, tested by the existing `petri-landing_test.ts` (states and routes as pure functions) and `scripts/landing-smoke.ts`; they must also keep the landing's static content crawlable. H3 and H4 are tested by the replay check. H5 needs a change in the sim repo and is the only step that is not pflow-xyz's alone.
+
+### 16.6 Open questions for Matt
+
+1. Ship H1 (hide the radios) straight away, or keep a collapsed "Build / Analyse / Explain" row until the auto-stats are read? Recommend: read the stats first.
+2. Is "Open in sim" (pflow to sim) wanted, and is a sim to pflow import worth a sim-side change (H5)?
+3. Should the sim gallery stay on the landing page at all, or live only behind the nav link? Recommend: keep it, below the examples, clearly labelled.
+4. Who records and reviews the six curated views? They are editorial claims about each model.

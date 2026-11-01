@@ -54,7 +54,8 @@ svg{max-width:100%;height:auto}
 <p class="lead">Static. Nothing here calls a server or a model. Companion to <code>agent-first-analysis.md</code>; the numbers in the charts are invented for layout only.</p>
 
 <div class="tabs" role="tablist" id="tabs">
-  <button role="tab" data-s="menu" aria-selected="true">1 Menu</button>
+  <button role="tab" data-s="land" aria-selected="true">0 Landing</button>
+  <button role="tab" data-s="menu" aria-selected="false">1 Menu</button>
   <button role="tab" data-s="ask" aria-selected="false">2 Ask and result</button>
   <button role="tab" data-s="clar" aria-selected="false">3 Clarifying question</button>
   <button role="tab" data-s="guard" aria-selected="false">4 Guard</button>
@@ -64,8 +65,46 @@ svg{max-width:100%;height:auto}
   <button role="tab" data-s="comp" aria-selected="false">8 Compose</button>
 </div>
 
+<!-- 0 LANDING -->
+<section class="screen on" id="s-land">
+<div class="cols">
+ <div class="box"><h3>Before: two AI doors, five modes</h3>
+  <div class="pane">
+   <b>Visual Editor for Petri Nets</b>
+   <div class="top" style="margin-top:6px"><input class="ask" placeholder="What are you working on?" aria-label="Ask (before)"><span class="pill">Start</span></div>
+   <p class="note gone" style="text-decoration:none">&#9675; Let it decide &nbsp;&#9675; Design &nbsp;&#9675; Analyse &nbsp;&#9675; Explore &nbsp;&#9675; Explain</p>
+   <div class="btns"><button>Open the editor</button><button>Describe it instead (sim)</button></div>
+   <hr style="border:0;border-top:1px solid var(--line);margin:10px 0">
+   <b>Or start from a description</b> <span class="note">three cards, all to sim.pflow.xyz</span>
+   <hr style="border:0;border-top:1px solid var(--line);margin:10px 0">
+   <b>Example models</b> <span class="note">6 cards &rarr; raw canvas</span>
+  </div>
+  <p class="note">Design/Explore on the page, Build in the Assistant. Explore leaves the chat for the composition page. Two text-to-model boxes side by side.</p></div>
+ <div class="box"><h3>After: one door, examples open into views</h3>
+  <div class="pane">
+   <b>Visual Editor for Petri Nets</b>
+   <div class="top" style="margin-top:6px"><input class="ask" placeholder="What do you want to know, build or understand?" aria-label="Ask (after)"><span class="pill" style="background:var(--acc);color:var(--accfg)">Ask</span></div>
+   <p class="note">No mode radios. After the reply: <span class="chip">Analysing</span> with &ldquo;Build instead&rdquo; / &ldquo;Explain instead&rdquo;.</p>
+   <div class="btns"><button>Open the editor</button><button>Compose</button></div>
+   <b style="display:block;margin-top:10px">Examples</b>
+   <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:6px">
+    <div class="box" style="padding:8px"><div class="canvas" style="min-height:48px;font-size:.75rem">thumbnail (run da9c433a)</div><b>Tic-Tac-Toe</b><br><span class="chip eng">Opens to: optimal-play heatmap</span><br><span class="note"><a href="#" onclick="return false">Open the canvas</a></span></div>
+    <div class="box" style="padding:8px"><div class="canvas" style="min-height:48px;font-size:.75rem">thumbnail</div><b>Coffee Shop</b><br><span class="chip eng">Opens to: what is conserved</span><br><span class="note"><a href="#" onclick="return false">Open the canvas</a></span></div>
+    <div class="box" style="padding:8px"><div class="canvas" style="min-height:48px;font-size:.75rem">thumbnail</div><b>Producer-Consumer</b><br><span class="chip eng">Opens to: buffer never overflows</span><br><span class="note"><a href="#" onclick="return false">Open the canvas</a></span></div>
+   </div>
+   <span class="link">/?cid=z4EBG9j1YQFZ…#view=eJxVj0EOgz…</span>
+   <b style="display:block;margin-top:10px">Calibrated what-ifs <span class="note">(sim.pflow.xyz)</span></b>
+   <p class="note" style="margin:2px 0">Models already tuned; turn the knobs, no editor needed. Second car &middot; Cold-chain &middot; Baggage hall &rarr;</p>
+  </div>
+  <table style="margin-top:8px"><tr><th>You have&hellip;</th><th>Take</th></tr>
+   <tr><td>words, or a net to check</td><td>Ask on pflow.xyz</td></tr>
+   <tr><td>a known kind of system, want a calibrated what-if</td><td>sim.pflow.xyz (gallery, nav)</td></tr>
+   <tr><td>a net, want the sim treatment</td><td>&ldquo;Copy for sim&rdquo; now; &ldquo;Open in sim&rdquo; later</td></tr></table>
+  <p class="note">Signed out: no Ask box that would answer 401; editor, examples and palette only. Click a card: replayed with no model call.</p></div>
+</div></section>
+
 <!-- 1 MENU -->
-<section class="screen on" id="s-menu">
+<section class="screen" id="s-menu">
 <div class="cols">
  <div class="box"><h3>Before: hamburger menu, about 25 entries</h3>
   <ul class="menu">
