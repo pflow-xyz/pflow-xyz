@@ -14,6 +14,7 @@ go_library(
         "llm_turn.go",
         "main.go",
         "mcp.go",
+        "mcp_canvas.go",
         "mcp_game.go",
         "mcp_model.go",
         "mcp_model_catalog.go",
@@ -81,6 +82,7 @@ go_library(
         "//conditions:default": [],
     }),
     embedsrcs = [
+        "mcpapp/canvas.html",
         "prompts/classify-v1.md",
         "prompts/draft-net-v1.md",
         "prompts/turn-v1.md",
@@ -136,6 +138,7 @@ go_test(
         "llm_goals_test.go",
         "llm_test.go",
         "llm_turn_test.go",
+        "mcp_canvas_test.go",
         "mcp_directory_test.go",
         "mcp_game_parity_test.go",
         "mcp_game_test.go",

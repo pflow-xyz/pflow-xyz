@@ -115,7 +115,7 @@ func toolDescriptor(t mcpTool) map[string]any {
 	if !ok {
 		a = mcpAnnotation{title: t.Name, destructive: true}
 	}
-	return map[string]any{
+	d := map[string]any{
 		"name":        t.Name,
 		"title":       a.title,
 		"description": t.Description,
@@ -131,12 +131,16 @@ func toolDescriptor(t mcpTool) map[string]any {
 			"openWorldHint": false,
 		},
 	}
+	if t.meta != nil {
+		d["_meta"] = t.meta
+	}
+	return d
 }
 
-// allMCPTools is the original seven plus the registry, workbench, game and
-// composition tools.
+// allMCPTools is the original seven plus the registry, workbench, game,
+// composition and canvas tools.
 func allMCPTools() []mcpTool {
-	return append(append(append(append(mcpTools(), registryTools()...), workbenchTools()...), gameTools()...), modelTools()...)
+	return append(append(append(append(append(mcpTools(), registryTools()...), workbenchTools()...), gameTools()...), modelTools()...), canvasTools()...)
 }
 
 // ---- protocol version and the tools a connection is offered ----

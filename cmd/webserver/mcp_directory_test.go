@@ -169,9 +169,10 @@ func TestDirectoryListingSegmentation(t *testing.T) {
 }
 
 // A category is gated on something that has not shipped, and the listing and
-// the docs page may claim it only once the server does it. Opening a gate means
-// naming the tool that does it, and for the canvas that tool must carry the
-// MCP App's UI link; shipping the canvas with the gate still closed fails too.
+// the docs page may claim it only once the gate is open. A gate that is building
+// or open names the tool that does it, and for the canvas that tool must carry
+// the MCP App's UI link. Open is a person's call, after seeing it work in Claude,
+// so no test can set it; a test can only refuse what the server contradicts.
 func TestDirectoryGatesMatchTheServer(t *testing.T) {
 	l := readDirectoryListing(t)
 	gates := map[string]directoryGate{}
@@ -194,7 +195,7 @@ func TestDirectoryGatesMatchTheServer(t *testing.T) {
 	}
 
 	if g := gates["canvas"]; g.Status == "closed" && len(uiTools) > 0 {
-		t.Errorf("%v carry an MCP App link but the canvas gate is closed: open it in listing.json", uiTools)
+		t.Errorf("%v carry an MCP App link but the canvas gate says closed: it is at least building", uiTools)
 	}
 
 	page := readPublicPage(t, "mcp.html")
@@ -207,25 +208,27 @@ func TestDirectoryGatesMatchTheServer(t *testing.T) {
 		"public/mcp.html": strings.ToLower(section.ReplaceAllString(page, "")),
 	}
 	for id, g := range gates {
+		if g.Status != "open" {
+			for where, text := range claims {
+				for _, marker := range g.ClaimMarkers {
+					if strings.Contains(text, marker) {
+						t.Errorf("%s says %q, but gate %s is %s", where, marker, id, g.Status)
+					}
+				}
+			}
+		}
 		switch g.Status {
 		case "closed":
 			if g.EvidenceTool != "" {
 				t.Errorf("gate %s is closed but names %s", id, g.EvidenceTool)
 			}
-			for where, text := range claims {
-				for _, marker := range g.ClaimMarkers {
-					if strings.Contains(text, marker) {
-						t.Errorf("%s says %q, but gate %s is closed", where, marker, id)
-					}
-				}
-			}
-		case "open":
+		case "building", "open": // building: the tool exists, and has not been seen working where it counts
 			tool, ok := tools[g.EvidenceTool]
 			if !ok {
-				t.Errorf("gate %s is open but %q is not a tool", id, g.EvidenceTool)
+				t.Errorf("gate %s is %s but %q is not a tool", id, g.Status, g.EvidenceTool)
 			}
 			if id == "canvas" && (!ok || !hasUIResource(toolDescriptor(tool))) {
-				t.Errorf("the canvas gate is open but %q carries no _meta.ui.resourceUri", g.EvidenceTool)
+				t.Errorf("the canvas gate is %s but %q carries no _meta.ui.resourceUri", g.Status, g.EvidenceTool)
 			}
 		default:
 			t.Errorf("gate %s has status %q", id, g.Status)

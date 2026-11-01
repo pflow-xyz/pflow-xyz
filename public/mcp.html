@@ -58,6 +58,7 @@ td:first-child{white-space:nowrap}nav a{margin-right:1rem}.lede{font-size:1.1rem
 
 <h2>Tools</h2>
 <table>
+<tr><td><code>pflow_canvas</code></td><td>Open a composition for a person to join parts by hand: each part's ports, the links a port could legally take, and scenario runs. A client that cannot show it reads the same result as text.</td></tr>
 <tr><td><code>pflow_bundle_example</code></td><td>The catalog of parts and a composition of them to start from: an order queue, a worker pool and a payment saga as one bundle of subnets, joined by the three idioms or by links you give, with the page's four scenarios. A composition is a PetriNetBundle: independently authored subnets, the ports on their boundaries and the typed links between them (token, data, event, guard).</td></tr>
 <tr><td><code>pflow_bundle_validate</code></td><td>Check a composition: its subnets, then every link (endpoints, net types, port schemas, direction), with errors and warnings that name the link. A subnet that declares no ports has one per exported place.</td></tr>
 <tr><td><code>pflow_bundle_candidates</code></td><td>The links a port could take: every other port (of the ports a subnet declares) judged as the far end, the first legal kind winning, each with its verdict; <code>only_ok</code> lists just the legal ones.</td></tr>

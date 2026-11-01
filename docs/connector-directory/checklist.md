@@ -1,7 +1,7 @@
 # Directory submission checklist
 
 Status at 2026-11-01: **not submitted, and not ready to be.** Neither target category's gate is
-open. Matt submits from the developer portal himself; nothing in this repo touches claude.ai.
+open (the canvas is building, the library closed). Matt submits from the developer portal himself; nothing in this repo touches claude.ai.
 
 The portal's fields are in [`listing.json`](listing.json). Its copy claims only what ships today.
 `cmd/webserver/mcp_directory_test.go` holds it to the portal's limits, to the segmentation below and
@@ -11,7 +11,7 @@ to the server, so a claim that outruns a closed gate fails `make test`.
 
 | Listing | Category | What it is | Gate |
 |---------|----------|------------|------|
-| pflow (`pflow.xyz/mcp`) | **Designs & media** | The canvas: the snap-together composition interface, inline in Claude as an MCP App | 1, closed |
+| pflow (`pflow.xyz/mcp`) | **Designs & media** | The canvas: the snap-together composition interface, inline in Claude as an MCP App | 1, building |
 | pflow (`pflow.xyz/mcp`) | **Reference docs** | The library: verified parts, queryable by concept | 2, closed |
 | mine (`mine.pflow.xyz`) | Automation & workflows, Logs & errors | Process mining, a separate listing | that repo's roadmap, M5 |
 
@@ -20,29 +20,40 @@ and keeps Petri nets as the engine. Process mining stays out of the main listing
 
 ## Gate 1: the canvas (Designs & media)
 
-- [ ] `/mcp` serves an MCP App. Today `initialize` advertises tools only, no tool has `_meta`, and
-      `resources/list` answers `-32601`. Needed: a `resources` capability, `resources/list` and
-      `resources/read`, a `ui://` resource with MIME `text/html;profile=mcp-app`, and
-      `_meta.ui.resourceUri` on the tool that opens it.
-- [ ] The page loads inside Claude's sandbox. By default the frame runs only inline and own-origin
-      scripts, so `_meta.ui.csp` must list what the page fetches: pflow.xyz and the engine on
-      cdn.stackdump.com. The Laws view's checker comes from pflow.xyz, so it adds no host. Those hosts
-      must also answer an
-      `Origin` of `*.claudemcpcontent.com`. Untested.
-- [ ] Only if the app runs its own OAuth: `_meta.ui.domain` =
-      `f5caa4a1a9331ad9303f13d65c17a72a.claudemcpcontent.com` (the hash of `https://pflow.xyz/mcp`).
-- [ ] A composition can reach the canvas from a conversation. Today it cannot: `pflow_save` refuses a
-      composition, the `pflow_bundle_*` tools return no CID to open, and `pflow_links` refuses one
-      inline. The result that carries it must stay under about 150,000 characters.
-- [ ] The canvas works on the person's own parts, not only the built-in catalog. Today eight of the
-      ten views throw on a model with no pattern, and a place port on a part loaded by reference is
-      refused. Plan: [compose-user-nets](../plans/compose-user-nets.md).
-- [ ] Seen rendering in real Claude, added as a custom connector. Claude Code is text-only and cannot
-      show this.
+Status: **building**. `pflow_canvas` opens `cmd/webserver/mcpapp/canvas.html` as an MCP App.
+`scripts/canvas-smoke.ts` plays the host in Chrome, under the sandbox and CSP the spec gives as the
+default, against the real `/mcp`. It has not been seen in Claude, and that is what decides this gate.
+
+The page is one self-contained file with no engine in it. Every rule comes from calling the
+`pflow_bundle_*` tools back through the host, so it needs no WebAssembly (not in the default CSP) and
+declares no CSP exceptions. It is a new, smaller canvas: `/compose.html`'s ten views stay a web page.
+
+- [x] `/mcp` serves an MCP App: the `resources` capability and the UI extension in `initialize`,
+      `resources/list` and `resources/read`, `ui://pflow/canvas` with MIME
+      `text/html;profile=mcp-app`, and `_meta.ui.resourceUri` on the tool.
+- [x] The page loads under the default sandbox and CSP, in Chrome. `TestCanvasPageIsSelfContained`
+      refuses any other origin, WebAssembly or markup injection.
+- [x] A composition reaches the canvas from a conversation: `pflow_canvas` takes it in the call, and
+      edits go back to Claude through `ui/update-model-context`.
+- [ ] **Seen rendering in real Claude, added as a custom connector.** This needs the branch deployed.
+      Claude Code is text-only and cannot show it. Known risks, all from open or closed public reports,
+      none confirmed: [frames that never mount](https://github.com/anthropics/claude-ai-mcp/issues/165),
+      including a question whether rendering is gated to directory connectors (if so, this box cannot be
+      ticked before listing; ask mcp-apps@anthropic.com). `tools/list` is reported cached per connector,
+      so remove and re-add the connector after a change. Claude has been reported negotiating protocol
+      `2026-07-28`, which `/mcp` answers with `2025-06-18`; look there if it connects and does not draw.
+- [ ] Inline height in Claude. The host caps inline height and clips the rest, and the default
+      composition is tall (payment alone has 12 ports). The full screen button is at the top so it stays
+      reachable. Check it, and if clipping hurts, start inline with a shorter summary.
+- [ ] Host-specific bridge behaviour the smoke only imitates: style variables, fonts, safe areas, and
+      whether Claude offers `updateModelContext` and full screen.
+- [ ] The person's own parts by reference. A composition with inline subnets and declared ports draws
+      and links today. A place port on a part loaded by reference is still refused (plan:
+      [compose-user-nets](../plans/compose-user-nets.md)), and a part with no declared ports can take no
+      links, so the canvas says so.
 - [ ] 3 to 5 PNG screenshots: at least 1000px wide, cropped to the app with no prompt in the image,
-      each with its prompt given separately. No video or GIF.
-- [ ] If the app calls `ui/open-link`: list `https://pflow.xyz` as an allowed link URI.
-- [ ] To open it: add the tool as `evidence_tool` in `listing.json`, set `status` to `open`, work
+      each with its prompt given separately. No video or GIF. They must come from Claude, not the smoke.
+- [ ] To open it, once the first box is ticked: set `status` to `open` in `listing.json`, work
       `copy_when_open` into the description, and take the canvas line out of `#on-the-way` in
       `public/mcp.html`.
 
@@ -81,7 +92,7 @@ and keeps Petri nets as the engine. Process mining stays out of the main listing
 ## Already met
 
 - Remote HTTPS, Streamable HTTP, stateless: `https://pflow.xyz/mcp`.
-- 29 tools, each with a `title` and read-only and destructive hints; only `pflow_save` is destructive;
+- 30 tools, each with a `title` and read-only and destructive hints; only `pflow_save` is destructive;
   longest name 23 characters (`TestDirectoryToolRules`).
 - Sign-in on demand: OAuth 2.0 with dynamic client registration, which accepts any https redirect, so
   `https://claude.ai/api/mcp/auth_callback` registers. Both discovery documents answer 200 live. A real
@@ -99,4 +110,6 @@ Read 2026-11-01:
 [MCP Apps](https://claude.com/docs/connectors/building/mcp-apps/getting-started),
 [MCP Apps quickstart](https://claude.com/docs/connectors/building/mcp-apps/quickstart),
 [MCP Apps troubleshooting](https://claude.com/docs/connectors/building/mcp-apps/troubleshooting),
+[MCP Apps design guidelines](https://claude.com/docs/connectors/building/mcp-apps/design-guidelines),
+[MCP Apps spec](https://github.com/modelcontextprotocol/ext-apps/blob/main/specification/2026-01-26/apps.mdx),
 [directory policy](https://support.claude.com/en/articles/13145358-anthropic-software-directory-policy).

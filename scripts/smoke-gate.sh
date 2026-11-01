@@ -4,7 +4,7 @@
 #   scripts/smoke-gate.sh                       build this checkout, serve it on a scratch port and data dir, smoke it
 #   scripts/smoke-gate.sh https://pflow.xyz/    smoke a server that is already running
 #
-# SMOKES (default "landing views") picks which. CHROME overrides the browser.
+# SMOKES (default "landing views canvas") picks which. CHROME overrides the browser.
 #
 # Why this exists: a hand-written `deno run ... | tail -3 || exit 1` tests tail, which always succeeds, so a smoke
 # that crashed let a push through. Here nothing stands between a smoke and the line that reads its status, the full
@@ -30,10 +30,11 @@ if [ -z "$base" ]; then
 fi
 
 status=0
-for smoke in ${SMOKES:-landing views}; do
+for smoke in ${SMOKES:-landing views canvas}; do
   case "$smoke" in
     landing) target="$base" ;;
     views) target="${base}compose.html" ;;
+    canvas) target="$base" ;;
     *) echo "smoke-gate: no smoke called $smoke"; exit 2 ;;
   esac
   log="$logs/$smoke.log"

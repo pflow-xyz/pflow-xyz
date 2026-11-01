@@ -65,6 +65,7 @@ type mcpTool struct {
 	Name        string         `json:"name"`
 	Description string         `json:"description"`
 	InputSchema map[string]any `json:"inputSchema"`
+	meta        map[string]any // the descriptor's _meta (an MCP App's ui link); most tools have none
 	run         func(s *Server, r *http.Request, args map[string]any) (any, error)
 }
 
@@ -486,18 +487,42 @@ func (s *Server) mcpDispatch(r *http.Request, req rpcRequest) (rpcResponse, bool
 		json.Unmarshal(req.Params, &p)
 		resp.Result = map[string]any{
 			"protocolVersion": negotiateProtocolVersion(p.ProtocolVersion),
-			"capabilities":    map[string]any{"tools": map[string]any{}},
-			"serverInfo":      map[string]any{"name": "pflow.xyz", "version": "workbench-1"},
+			"capabilities": map[string]any{
+				"tools":     map[string]any{},
+				"resources": map[string]any{},
+				// The MCP Apps spec asks only the client to declare this; hosts have been
+				// reported not to mount a server's UI unless the server declares it too.
+				"extensions": map[string]any{mcpUIExtension: map[string]any{"mimeTypes": []string{mcpAppMIMEType}}},
+			},
+			"serverInfo": map[string]any{"name": "pflow.xyz", "version": "workbench-1"},
 			"instructions": "pflow.xyz: snap parts together into a system you can run and check. Compositions (a PetriNetBundle: subnets, " +
 				"the ports on their boundaries and the typed links between them): pflow_bundle_example gives the catalog of parts and a " +
 				"composition of them; pflow_bundle_validate, _candidates and _add_link check and extend it, _flatten makes one net of it, " +
 				"_run fires a script on that net and _incidence gives its matrix (that net is not a pflow.xyz net: pflow_simulate and the " +
-				"other net tools cannot read it). A single model is a Petri net in the pflow.xyz JSON-LD format: check, simulate and explore " +
+				"other net tools cannot read it). pflow_canvas opens a composition for the person to join parts by hand. A single model is a Petri net in the pflow.xyz JSON-LD format: check, simulate and explore " +
 				"one on the server's go-pflow engines, and pflow_links opens it in the editor. pflow_cid gives a model's stable content ID " +
 				"and pflow_get the stored model. pflow_save needs the person signed in to pflow.xyz.",
 		}
 	case "ping":
 		resp.Result = map[string]any{}
+	case "resources/list":
+		resp.Result = map[string]any{"resources": []map[string]any{canvasResource()}}
+	case "resources/templates/list":
+		resp.Result = map[string]any{"resourceTemplates": []any{}}
+	case "resources/read":
+		var p struct {
+			URI string `json:"uri"`
+		}
+		if err := json.Unmarshal(req.Params, &p); err != nil {
+			resp.Error = &rpcError{-32602, "params: {uri}"}
+			break
+		}
+		result, rerr := mcpReadResource(p.URI)
+		if rerr != nil {
+			resp.Error = rerr
+			break
+		}
+		resp.Result = result
 	case "tools/list":
 		tools := listedMCPTools(s, r)
 		list := make([]map[string]any, 0, len(tools))
