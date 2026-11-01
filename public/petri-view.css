@@ -3736,3 +3736,10 @@ canvas.pv-canvas {
     box-shadow: inset 0 0 0 1.5px var(--pv-accent);
 }
 .pv-components-detail .pv-goals-inputs > div { display: grid; grid-template-columns: minmax(180px, 1fr) minmax(0, 1.4fr); gap: 4px 16px; align-items: center; margin: 8px 0; }
+
+/* App view: the app font (it inherited the browser's serif) and above the tool pill (z-index 1200), which drew
+   over result text. */
+.pv-appview { z-index: 1300; font-family: var(--pv-font); line-height: 1.4; }
+.pv-appview button, .pv-appview input, .pv-appview select, .pv-appview textarea { font: inherit; }
+.pv-workbench-form[hidden] { display: none; }
+.pv-workbench-field input[type="checkbox"] { justify-self: start; width: 18px; height: 18px; }

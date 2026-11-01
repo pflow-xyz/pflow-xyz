@@ -91,10 +91,15 @@
         }
 
         .landing-nav-links a {
-            color: var(--pf-text-muted);
+            color: var(--pf-text);
             text-decoration: none;
-            font-size: 14px;
-            transition: color 0.2s;
+            font-size: 15px;
+            font-weight: 500;
+            padding: 6px 10px;
+            border-radius: 6px;
+            background: rgba(0, 0, 0, 0.45);
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+            transition: color 0.2s, background 0.2s;
         }
 
         .landing-nav-links a:hover {
@@ -133,6 +138,18 @@
             background: var(--pv-brand-scrim);
             z-index: 2;
         }
+
+        /* A dark gradient behind the hero's words: the dithered video is high-contrast, and body copy, radio labels and
+           the quota line sat straight on it. Strongest where the text is (the middle), clear at the edges. */
+        .landing-hero-overlay::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background:
+                radial-gradient(ellipse 70% 60% at 50% 50%, rgba(0, 0, 0, 0.72) 0%, rgba(0, 0, 0, 0.55) 55%, rgba(0, 0, 0, 0) 100%),
+                linear-gradient(to bottom, rgba(0, 0, 0, 0.55) 0%, rgba(0, 0, 0, 0) 22%);
+        }
+        .landing-hero-content p, .landing-hero-content label, .landing-hero-content small { text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7); }
 
         .landing-hero-content {
             position: relative;
@@ -235,9 +252,12 @@
 
         .model-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            /* three across: six examples fill two rows (four across left two orphans) */
+            grid-template-columns: repeat(3, minmax(0, 1fr));
             gap: 24px;
         }
+        @media (max-width: 900px) { .model-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+        @media (max-width: 560px) { .model-grid { grid-template-columns: 1fr; } }
 
         .model-card {
             background: var(--pf-bg-card);
@@ -267,11 +287,15 @@
             border-bottom: 1px solid var(--pf-border);
         }
 
+        .model-card-img { padding: 10px; background: color-mix(in srgb, var(--pf-bg-card) 88%, #fff); }
         .model-card-img img {
             width: 100%;
             height: 100%;
             object-fit: contain;
-            padding: 12px;
+            padding: 10px;
+            background: var(--pv-paper);
+            border-radius: 8px;
+            box-shadow: 0 0 0 1px var(--pf-border);
         }
 
         .model-card-body {
@@ -651,7 +675,7 @@
                 </div>
                 <h3>Draw</h3>
                 <p>Build state machines visually. Places, transitions, arcs: the model is a directed graph stored as JSON-LD with content-addressed identity.</p>
-                <span class="pipeline-link">pflow.xyz</span>
+                <span class="pipeline-link">Open the editor &rarr;</span>
             </a>
             <a href="https://sim.pflow.xyz" class="pipeline-card">
                 <div class="pipeline-icon">

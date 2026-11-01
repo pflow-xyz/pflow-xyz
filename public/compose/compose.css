@@ -16,10 +16,10 @@
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; }
 body { font: 13px/1.45 var(--font-sans); color: var(--ink); background: #eef0f3; }
-code, pre { font-family: var(--font-mono); font-size: 11.5px; }
+code, pre { font-family: var(--font-mono); font-size: 13px; }
 a { color: var(--accent); }
 .muted { color: var(--muted); }
-.small { font-size: 11.5px; }
+.small { font-size: 13px; }
 .ok { color: var(--ok); }
 .warn { color: var(--bad); }
 
@@ -28,7 +28,7 @@ a { color: var(--accent); }
 .brand { display: flex; flex-direction: column; min-width: 260px; }
 .brand b { font-size: 15px; }
 .brand h1 { margin: 0; font-size: inherit; font-weight: inherit; }
-.brand .muted { font-size: 11px; }
+.brand .muted { font-size: 13px; }
 .examples { display: flex; }
 .seg { border: 1px solid var(--line); background: #f6f7f9; padding: 6px 10px; cursor: pointer; font: inherit; }
 .seg:first-child { border-radius: 6px 0 0 6px; }
@@ -48,7 +48,7 @@ a { color: var(--accent); }
 .stored { display: block; max-width: 100%; }
 iframe.stored { width: 100%; height: 70vh; border: 1px solid var(--line); }
 .stored-text { white-space: pre-wrap; overflow-wrap: anywhere; }
-.view-index table { border-collapse: collapse; width: 100%; font-size: 12px; }
+.view-index table { border-collapse: collapse; width: 100%; font-size: 13px; }
 .view-index th, .view-index td { text-align: left; vertical-align: top; border-bottom: 1px solid var(--line); padding: 6px 8px; }
 .view-index tbody th { font-weight: 600; min-width: 14em; }
 .view-index tbody th p { margin: 2px 0 0; font-weight: 400; }
@@ -66,19 +66,19 @@ iframe.stored { width: 100%; height: 70vh; border: 1px solid var(--line); }
 .chip.active { background: var(--chip, var(--ink)); color: #fff; border-color: var(--chip, var(--ink)); }
 .stage { flex: 1; overflow: auto; background: var(--paper); border: 1px solid var(--line); border-top: 0; border-radius: 0 0 8px 8px; padding: 10px; }
 .view-svg { display: block; max-width: 100%; height: auto; user-select: none; }
-.stage-note { margin: 0 0 8px; padding: 6px 10px; border-radius: 6px; font-size: 12px; border-left: 4px solid; }
+.stage-note { margin: 0 0 8px; padding: 6px 10px; border-radius: 6px; font-size: 13px; border-left: 4px solid; }
 .stage-note.honesty { background: #f3f6fb; border-color: var(--accent); }
 .stage-note.na { background: #fbf4e6; border-color: #c47a12; }
 .stage-note.warn { background: #fbecea; border-color: var(--bad); }
 /* fixed to the viewport, not the stage: the stage can be taller than the screen, and the reason a target is refused is read here (the keyboard path never shows the pointer's tip) */
-.snap-status { position: fixed; bottom: 10px; left: 14px; max-width: min(760px, calc(100vw - 28px)); z-index: 30; font-size: 11.5px; color: var(--ink); pointer-events: none; }
+.snap-status { position: fixed; bottom: 10px; left: 14px; max-width: min(760px, calc(100vw - 28px)); z-index: 30; font-size: 13px; color: var(--ink); pointer-events: none; }
 .snap-status:not(:empty) { background: rgba(255, 255, 255, 0.94); border: 1px solid var(--line); border-radius: 6px; padding: 3px 8px; }
 
 /* palette (connect-4) */
 .palette { display: flex; flex-wrap: wrap; gap: 4px 12px; width: 100%; }
 .pal-group { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
-.pal-label { color: var(--muted); font-size: 11px; }
-.pal-piece { border: 1.5px solid var(--kc); color: var(--kc); background: #fff; border-radius: 4px; padding: 2px 7px; cursor: grab; font-family: var(--font-mono); font-size: 11.5px; }
+.pal-label { color: var(--muted); font-size: 13px; }
+.pal-piece { border: 1.5px solid var(--kc); color: var(--kc); background: #fff; border-radius: 4px; padding: 2px 7px; cursor: grab; font-family: var(--font-mono); font-size: 13px; }
 .pal-piece.reserved { border-style: dashed; }
 .pal-piece.proposed { border-style: dotted; opacity: 0.75; }
 .pal-piece sup { font-size: 8px; margin-left: 2px; }
@@ -88,10 +88,10 @@ iframe.stored { width: 100%; height: 70vh; border: 1px solid var(--line); }
 .card { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
 .card h3 { margin: 0 0 6px; font-size: 13px; }
 .card p { margin: 4px 0; }
-.honesty { margin: 4px 0; padding-left: 18px; font-size: 12px; }
+.honesty { margin: 4px 0; padding-left: 18px; font-size: 13px; }
 .honesty li { margin: 2px 0; }
-.bib, .insp-cites, .insp-bib { margin: 4px 0; padding-left: 16px; font-size: 11px; }
-.content-entry { margin: 2px 0; font-size: 12px; }
+.bib, .insp-cites, .insp-bib { margin: 4px 0; padding-left: 16px; font-size: 13px; }
+.content-entry { margin: 2px 0; font-size: 13px; }
 .content-entry summary { cursor: pointer; }
 .content-entry p { margin: 4px 0; }
 .content-kind { font-size: 10px; text-transform: uppercase; letter-spacing: .03em; padding: 0 4px; border-radius: 3px; background: #eceef1; }
@@ -101,14 +101,14 @@ iframe.stored { width: 100%; height: 70vh; border: 1px solid var(--line); }
 .content-kind-h { margin: 8px 0 2px; font-size: 12px; }
 .content-pass { color: #1e7a3c; font-weight: 600; }
 .content-fail { color: #b3261e; font-weight: 600; }
-.conv-ex { font-size: 12px; background: #f6f7f9; padding: 4px 6px; border-radius: 4px; }
-.rule-row { border-left: 4px solid var(--rc); padding: 3px 6px; margin: 3px 0; font-size: 11.5px; border-radius: 3px; }
+.conv-ex { font-size: 13px; background: #f6f7f9; padding: 4px 6px; border-radius: 4px; }
+.rule-row { border-left: 4px solid var(--rc); padding: 3px 6px; margin: 3px 0; font-size: 13px; border-radius: 3px; }
 .rule-row b { color: var(--rc); }
 .rule-glyph { color: var(--rc); font-weight: bold; margin-right: 4px; }
 .rule-row.flash { animation: rule-flash 1.6s ease-out 2; }
 @keyframes rule-flash { 0% { background: color-mix(in srgb, var(--rc) 35%, white); } 100% { background: transparent; } }
 .links { list-style: none; padding: 0; margin: 0; }
-.links li { position: relative; padding: 3px 18px 3px 4px; border-bottom: 1px dashed var(--line); font-family: var(--font-mono); font-size: 11px; }
+.links li { position: relative; padding: 3px 18px 3px 4px; border-bottom: 1px dashed var(--line); font-family: var(--font-mono); font-size: 13px; }
 .links li.leak { background: #fdf0ee; }
 .links .idiom { color: var(--muted); }
 .links .leak-note { color: var(--bad); font-family: var(--font-sans); }
@@ -118,24 +118,24 @@ iframe.stored { width: 100%; height: 70vh; border: 1px solid var(--line); }
 /* inspector */
 .insp-title { font-weight: 600; }
 .insp-concept code { background: #f0f2f5; padding: 1px 4px; border-radius: 3px; }
-.insp-types { color: var(--muted); font-size: 11.5px; }
-.insp-unserved { color: var(--muted); font-size: 10.5px; }
+.insp-types { color: var(--muted); font-size: 13px; }
+.insp-unserved { color: var(--muted); font-size: 13px; }
 .insp-def { font-style: italic; }
-.insp-facts { display: grid; grid-template-columns: max-content 1fr; gap: 1px 8px; margin: 4px 0; font-size: 11.5px; }
+.insp-facts { display: grid; grid-template-columns: max-content 1fr; gap: 1px 8px; margin: 4px 0; font-size: 13px; }
 .insp-facts dt { color: var(--muted); }
 .insp-facts dd { margin: 0; }
-.insp-note { background: #fbf4e6; padding: 3px 6px; border-radius: 4px; font-size: 11.5px; }
-.insp-caveats { font-size: 11.5px; }
+.insp-note { background: #fbf4e6; padding: 3px 6px; border-radius: 4px; font-size: 13px; }
+.insp-caveats { font-size: 13px; }
 .insp-cite-note { color: var(--muted); }
 .insp.pinned { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 4px; }
-.hover-tip { position: fixed; z-index: 30; pointer-events: none; background: rgba(30, 33, 38, 0.92); color: #fff; padding: 4px 8px; border-radius: 4px; font-size: 11.5px; opacity: 0; transition: opacity 0.1s; max-width: 320px; overflow-wrap: anywhere; }
+.hover-tip { position: fixed; z-index: 30; pointer-events: none; background: rgba(30, 33, 38, 0.92); color: #fff; padding: 4px 8px; border-radius: 4px; font-size: 13px; opacity: 0; transition: opacity 0.1s; max-width: 320px; overflow-wrap: anywhere; }
 .snap-tip { overflow-wrap: anywhere; }
 .hover-tip.show { opacity: 1; }
 .hover-tip code { color: #cfe3ff; }
 .inspectable { cursor: help; }
 
 /* flash banner: the rule that allowed it */
-.flash-banner { position: absolute; top: 48px; left: 50%; transform: translate(-50%, -8px); z-index: 10; background: #fff; border: 2px solid var(--fc, var(--event)); border-radius: 8px; padding: 6px 12px; box-shadow: 0 6px 20px rgba(0,0,0,0.15); max-width: 92%; font-size: 12px; opacity: 0; pointer-events: none; transition: opacity 0.25s, transform 0.25s; }
+.flash-banner { position: absolute; top: 48px; left: 50%; transform: translate(-50%, -8px); z-index: 10; background: #fff; border: 2px solid var(--fc, var(--event)); border-radius: 8px; padding: 6px 12px; box-shadow: 0 6px 20px rgba(0,0,0,0.15); max-width: 92%; font-size: 13px; opacity: 0; pointer-events: none; transition: opacity 0.25s, transform 0.25s; }
 .flash-banner.show { opacity: 1; transform: translate(-50%, 0); }
 .flash-banner .idiom { color: var(--muted); }
 
@@ -149,7 +149,7 @@ iframe.stored { width: 100%; height: 70vh; border: 1px solid var(--line); }
 .snap-legal { filter: drop-shadow(0 0 3px var(--snap-color)) drop-shadow(0 0 6px var(--snap-color)); animation: snap-pulse 0.8s ease-in-out infinite alternate; }
 .snap-source { filter: drop-shadow(0 0 5px #000); }
 @keyframes snap-pulse { from { filter: drop-shadow(0 0 2px var(--snap-color)) drop-shadow(0 0 4px var(--snap-color)); } to { filter: drop-shadow(0 0 5px var(--snap-color)) drop-shadow(0 0 12px var(--snap-color)); } }
-.snap-tip { position: fixed; z-index: 31; pointer-events: none; background: #fff; border: 1.5px solid var(--line); border-radius: 6px; padding: 4px 8px; font-size: 11.5px; max-width: 380px; opacity: 0; }
+.snap-tip { position: fixed; z-index: 31; pointer-events: none; background: #fff; border: 1.5px solid var(--line); border-radius: 6px; padding: 4px 8px; font-size: 13px; max-width: 380px; opacity: 0; }
 .snap-tip.show { opacity: 1; }
 .snap-tip.ok { border-color: var(--ok); }
 .snap-tip.bad { border-color: var(--bad); color: var(--bad); }
@@ -177,10 +177,10 @@ svg *:focus, svg *:focus-visible { outline: none; }
 .a11y-ring.show { display: block; }
 .a11y-badge { font-family: var(--font-sans); font-weight: 700; user-select: none; }
 kbd { font-family: var(--font-mono); font-size: 10.5px; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 3px; padding: 0 4px; background: #fff; }
-.keys-list { margin: 4px 0; padding-left: 16px; font-size: 11.5px; }
+.keys-list { margin: 4px 0; padding-left: 16px; font-size: 13px; }
 .keys-list li { margin: 3px 0; }
-.card h4 { margin: 8px 0 2px; font-size: 12px; }
-.lg-list { list-style: none; padding: 0; margin: 2px 0 6px; font-size: 11.5px; }
+.card h4 { margin: 8px 0 2px; font-size: 13px; }
+.lg-list { list-style: none; padding: 0; margin: 2px 0 6px; font-size: 13px; }
 .lg-list li { display: flex; align-items: center; gap: 6px; margin: 3px 0; }
 .lg-sample { flex: none; }
 .lg-glyph { width: 1.2em; text-align: center; font-weight: 700; }
@@ -190,7 +190,7 @@ kbd { font-family: var(--font-mono); font-size: 10.5px; border: 1px solid var(--
 .lg-dim { opacity: 0.2; }
 .lg-ring { background: #fff; border: 3px solid var(--focus); box-shadow: 0 0 0 2px #fff; }
 /* at least 24 x 24 px (WCAG 2.2 target size, 2.5.8), also on a narrow screen where the pinned inspector is a sheet */
-.insp-close { float: right; margin: 0 0 4px 8px; font: inherit; font-size: 11.5px; border: 1px solid var(--line); background: #fff; border-radius: 6px; padding: 4px 10px; min-width: 28px; min-height: 28px; cursor: pointer; }
+.insp-close { float: right; margin: 0 0 4px 8px; font: inherit; font-size: 13px; border: 1px solid var(--line); background: #fff; border-radius: 6px; padding: 4px 10px; min-width: 28px; min-height: 28px; cursor: pointer; }
 /* On a narrow screen the inspector is below the stage, out of sight from a tap: a pinned one is a sheet. */
 @media (max-width: 1000px) {
   #inspector.has-pin { position: fixed; left: 8px; right: 8px; bottom: 8px; max-height: 45vh; overflow: auto; z-index: 25; border: 2px solid var(--accent); box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.25); }
@@ -207,4 +207,11 @@ kbd { font-family: var(--font-mono); font-size: 10.5px; border: 1px solid var(--
 
 /* /compose.html?cid=: the model panel (identity.js) */
 #model .model-flat { display: block; max-width: 100%; max-height: 220px; margin: 8px 0; background: #fff; border: 1px solid var(--line, #d0d7de); border-radius: 4px; }
-#model code { font-size: 11px; }
+#model code { font-size: 13px; }
+
+
+/* Legibility (2026-11-01): body text was 10-12px; it is 13px now, and explanatory text stops at a readable line length
+   instead of running the width of the panel. The larger redesign of this page is separate. */
+.card p, .card li, .stage-note, .content-entry, .honesty li, .insp-note, .insp-caveats, .rule-row, .conv-ex { max-width: 68ch; line-height: 1.5; }
+.card h3 { font-size: 14px; }
+.small, .muted { line-height: 1.45; }
