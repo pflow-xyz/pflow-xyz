@@ -50,7 +50,7 @@ const (
 
 func init() {
 	for name, a := range map[string]mcpAnnotation{
-		"pflow_bundle_example":    {"Example composition", true, false, true},
+		"pflow_bundle_example":    {"Parts catalog and example composition", true, false, true},
 		"pflow_bundle_validate":   {"Validate a composition", true, false, true},
 		"pflow_bundle_add_link":   {"Add a link to a composition", true, false, true},
 		"pflow_bundle_candidates": {"Links a port could take", true, false, true},
@@ -99,7 +99,7 @@ func modelTools() []mcpTool {
 	return []mcpTool{
 		{
 			Name: "pflow_bundle_example",
-			Description: "A composition to start from: a PetriNetBundle of pattern instances (orders, a bounded queue; workers, a resource pool; payment, a two-step saga with compensation; and the extras payment2, orders2, workers2), " +
+			Description: "The catalog of parts to snap together and a composition of them to start from: a PetriNetBundle of pattern instances (orders, a bounded queue; workers, a resource pool; payment, a two-step saga with compensation; and the extras payment2, orders2, workers2), " +
 				"built by go-pflow's constructors, joined by the three idioms (an event link each from orders' dequeue to workers' acquire and payment's do:reserve, and from workers' release to payment's commit) or by `links` you give. " +
 				"`instances` picks from the catalog (default orders, workers, payment); a link whose end is not in the composition is dropped and listed; a link Validate refuses fails the call, as pflow_bundle_add_link would. " +
 				"Returns `bundle` (pass it to the other pflow_bundle_* tools), the `catalog` with the parameters and the reason for each, and the four `scenarios` (scripts for pflow_bundle_run with the predicates they expect: commit, refund, charge-fails, second-order). " +
@@ -119,7 +119,7 @@ func modelTools() []mcpTool {
 		},
 		{
 			Name: "pflow_bundle_add_link",
-			Description: "Add a link to a composition: judge it as Validate does on the two subnets it joins and the page's two rules (a link joins two different subnets; the same link is not added twice, an event link either way round), and if legal return the composition's links with it appended. " +
+			Description: "Snap two parts together by adding a link to a composition: judge it as Validate does on the two subnets it joins and the page's two rules (a link joins two different subnets; the same link is not added twice, an event link either way round), and if legal return the composition's links with it appended. " +
 				"A refused link is an error (isError) listing each reason as \"[CODE] message\", and for a port that is not there the ports its subnet has. Ends are ports: \"subnet:port\" or {subnet, port} (a subnet that declares no ports has one per exported place; to link a transition, declare a port for it in the bundle). " +
 				"Returns the new link's index, key, verdict (ok, errors, warnings: a guard link warns that it restricts) and `links`. It takes kind, from and to only: a link's id, a guard link's condition and its lowering cannot be set here, add them to the returned link before passing the links back in the bundle. Stores nothing.",
 			InputSchema: obj(map[string]any{"bundle": bundleArg, "kind": linkKindArg, "from": endpointArg("the link's from end (an event link either way round; a guard's from is the gated transition)"), "to": endpointArg("the link's to end (a guard's to is the observed place)")}, "bundle", "kind", "from", "to"),

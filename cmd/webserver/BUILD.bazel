@@ -9,6 +9,7 @@ go_library(
         "deploy_gate.go",
         "files.go",
         "llm.go",
+        "llm_classify.go",
         "llm_goals.go",
         "llm_turn.go",
         "main.go",
@@ -80,6 +81,7 @@ go_library(
         "//conditions:default": [],
     }),
     embedsrcs = [
+        "prompts/classify-v1.md",
         "prompts/draft-net-v1.md",
         "prompts/turn-v1.md",
     ],
@@ -129,10 +131,12 @@ go_test(
         "deploy_git_test.go",
         "deploy_test.go",
         "files_test.go",
+        "llm_classify_test.go",
         "llm_eval_test.go",
         "llm_goals_test.go",
         "llm_test.go",
         "llm_turn_test.go",
+        "mcp_directory_test.go",
         "mcp_game_parity_test.go",
         "mcp_game_test.go",
         "mcp_model_limits_test.go",
@@ -149,6 +153,7 @@ go_test(
         "sample_card_test.go",
         "schema_bundle_test.go",
         "share_card_test.go",
+        "share_status_test.go",
         "sitemap_test.go",
         "static_assets_test.go",
         "static_pages_test.go",
@@ -163,8 +168,10 @@ go_test(
     # parity/native/mcp_goldens.json on the bundle fixtures under parity/native/fixtures
     # and on the cafe showcase bundle (//examples/showcase), which mcp_model_test.go reads too.
     # keep: composition_test.go stores parity/model/fixtures and the coffee-shop net.
+    # keep: mcp_directory_test.go holds docs/connector-directory/listing.json to the server.
     data = [
         "//:pflow-native-wasm.lock",
+        "//docs/connector-directory:listing.json",
         "//examples",
         "//examples/showcase",
         "//parity:model",

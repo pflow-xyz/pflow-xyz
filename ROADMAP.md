@@ -584,4 +584,4 @@ The two are designed as one thing: you look up a verified part, and you snap it 
 
 - **Canvas:** `/compose.html` draws one composition in many views, and the remote `/mcp` serves stateless tools. Nothing renders as an MCP App yet.
 - **Library:** [ontology.pflow.xyz](https://ontology.pflow.xyz) is live with read-only MCP tools (`search_terms`, `describe_term`, `get_claim`, `sparql_query`). Its roadmap has one worked claim and marks the theorem layer as proposed, so returning a model with its invariants and theorem links for a concept is still to build.
-- **Listing paperwork:** `public/mcp.html`, `terms.html` and `privacy.html` are on `main`.
+- **Listing paperwork:** `public/mcp.html`, `terms.html` and `privacy.html` are on `main`. The portal copy and the remaining gates are in [docs/connector-directory/](docs/connector-directory/checklist.md).

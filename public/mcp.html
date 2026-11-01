@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>MCP connector · pflow.xyz</title>
-<meta name="description" content="Connect Claude or any MCP client to pflow.xyz to build, check, simulate and save Petri nets and compositions of them.">
+<meta name="description" content="Connect Claude or any MCP client to pflow.xyz: snap parts together into a system you can see, run and check, with a stable ID to cite every model by.">
 <link rel="icon" href="/favicon.ico">
 <meta name="author" content="Matt York">
 <link rel="me" href="https://github.com/stackdump">
@@ -21,42 +21,57 @@ td:first-child{white-space:nowrap}nav a{margin-right:1rem}.lede{font-size:1.1rem
 <body>
 <nav><a href="/">pflow.xyz</a><a href="/terms.html">Terms</a><a href="/privacy.html">Privacy</a></nav>
 <h1>pflow.xyz MCP connector</h1>
-<p class="lede">Build, check, simulate and analyse Petri nets in the pflow.xyz format from Claude or any MCP client, then open them in the pflow.xyz editor.</p>
+<p class="lede">Snap parts together into a system you can see, run and check, from Claude or any MCP client.</p>
+
+<h2>What it does</h2>
+<ul>
+<li><b>Snap parts together.</b> Start from a catalog of parts (a bounded queue, a resource pool, a two-step saga) or your own models. Ask which connections are legal, join the parts, and run scenarios on the result.</li>
+<li><b>Find out whether it holds.</b> Can it deadlock? What does it conserve? What changes when one rate moves? The answers come from an engine, not an estimate, with a replayable counterexample when a property fails.</li>
+<li><b>Cite what you built.</b> Every model has a content ID (CID): the same model always gets the same ID.</li>
+</ul>
+<p>Under the hood every model is a Petri net, so runs replay and proofs check. You don't need to know that to use it. The tools below say "net" for a single model and "composition" for parts joined together.</p>
 
 <p>Connector URL:</p>
 <pre>https://pflow.xyz/mcp</pre>
 
 <h2>Set it up</h2>
-<p><b>Claude (web, desktop and mobile):</b> open Settings, then Connectors, choose Add custom connector, and paste the URL above. No sign-in is needed to start.</p>
+<p><b>Claude (web, desktop and mobile):</b> open Customize, then Connectors, add a custom connector, and paste the URL above. No sign-in is needed to start.</p>
 <p><b>Claude Code:</b></p>
 <pre>claude mcp add --transport http pflow https://pflow.xyz/mcp</pre>
 <p><b>Other clients:</b> it is a stateless Streamable HTTP server. POST JSON-RPC to the URL; there is no event stream.</p>
 
-<h2>The ontology server</h2>
+<h2>Looking up terms</h2>
 <p>A separate, read-only MCP server answers questions about the pflow vocabulary and its software components (terms, definitions, class hierarchy, dependencies). No sign-in, nothing is saved.</p>
 <pre>claude mcp add --transport http pflow-ontology https://ontology.pflow.xyz/mcp</pre>
 <p>Details, SPARQL endpoint and downloads: <a href="https://ontology.pflow.xyz">ontology.pflow.xyz</a>.</p>
 
 <h2>Signing in</h2>
-<p>Every tool works without an account except <code>pflow_save</code>. The first time you save, your client opens a pflow.xyz page where you sign in with GitHub or Google. The saved net is then recorded as yours. Saved nets are public, so don't save anything private. pflow.xyz keeps only your account id (and your GitHub username), never a password; see the <a href="/privacy.html">privacy policy</a>.</p>
+<p>Every tool works without an account except <code>pflow_save</code>. The first time you save, your client opens a pflow.xyz page where you sign in with GitHub or Google. The saved model is then recorded as yours. Saved models are public, so don't save anything private. pflow.xyz keeps only your account id (and your GitHub username), never a password; see the <a href="/privacy.html">privacy policy</a>.</p>
 
 <h2>Try asking</h2>
 <ul>
-<li>"Build a Petri net for a two-philosopher dining problem with pflow and tell me whether it can deadlock."</li>
-<li>"Here's my pflow net. Simulate it to t=50 and tell me where the tokens end up."</li>
-<li>"Find the place invariants of this net, then give me a link to open it in the pflow.xyz editor."</li>
-<li>"Compose an order queue, a worker pool and a payment saga with pflow, tell me which links the queue's dequeue could take, flatten the result and run the failed-payment scenario."</li>
+<li>"Join an order queue, a worker pool and a payment saga with pflow, show me which links the queue's dequeue could take, then run the failed-payment scenario."</li>
+<li>"Model two philosophers sharing two forks with pflow and tell me whether they can deadlock."</li>
+<li>"What stays constant in this pflow model? Give me a link to open it."</li>
+<li>"Here's my pflow model. Simulate it to t=50 and tell me where everything ends up."</li>
 </ul>
 
 <h2>Tools</h2>
 <table>
+<tr><td><code>pflow_bundle_example</code></td><td>The catalog of parts and a composition of them to start from: an order queue, a worker pool and a payment saga as one bundle of subnets, joined by the three idioms or by links you give, with the page's four scenarios. A composition is a PetriNetBundle: independently authored subnets, the ports on their boundaries and the typed links between them (token, data, event, guard).</td></tr>
+<tr><td><code>pflow_bundle_validate</code></td><td>Check a composition: its subnets, then every link (endpoints, net types, port schemas, direction), with errors and warnings that name the link. A subnet that declares no ports has one per exported place.</td></tr>
+<tr><td><code>pflow_bundle_candidates</code></td><td>The links a port could take: every other port (of the ports a subnet declares) judged as the far end, the first legal kind winning, each with its verdict; <code>only_ok</code> lists just the legal ones.</td></tr>
+<tr><td><code>pflow_bundle_add_link</code></td><td>Snap two parts together: add a link to a composition if it is legal (go-pflow's rules, and that a link joins two subnets and is not repeated); a refusal lists each reason and the ports its subnet has. It sets the kind and the two ends only: add a link's id or a guard's condition to the returned link yourself.</td></tr>
+<tr><td><code>pflow_bundle_flatten</code></td><td>Flatten a composition into one net: fused places and transitions with the members they came from, arcs, constraints, the maps and the warnings. The flat net is not a pflow.xyz net: <code>pflow_simulate</code>, <code>pflow_fire</code> and the other net tools cannot read it. Give every arc an explicit weight: an arc with none fires as 1, but a lone subnet is returned as written, with weight 0.</td></tr>
+<tr><td><code>pflow_bundle_run</code></td><td>Fire a script of subnet/transition members on the flat net, or one of the example's scenarios; it stops where a member cannot fire and says why. A member is the transition's own id in its subnet (<code>payment/do_charge</code>), not the port id a link names (<code>do:charge</code>). A negative arc weight never enables, as in pflow-rs.</td></tr>
+<tr><td><code>pflow_bundle_incidence</code></td><td>The flat net's incidence matrix, each subnet's block, and whether each declared constraint is a conservation law of the composition. An arc with no weight counts as 0 in a subnet's block (and everywhere for a lone subnet) but fires as 1, so give every arc an explicit weight; a <code>notes</code> entry says when that happens.</td></tr>
 <tr><td><code>pflow_edit</code></td><td>Build a net or change one with a list of edits, applied all together or not at all.</td></tr>
 <tr><td><code>pflow_info</code></td><td>Summarise a net: places, transitions, arcs, marking and what is enabled.</td></tr>
 <tr><td><code>pflow_check</code></td><td>Parse a net and report its size and anything it refuses.</td></tr>
 <tr><td><code>pflow_validate</code></td><td>Structural checks: connectivity, deadlocks, boundedness, conservation.</td></tr>
 <tr><td><code>pflow_verify</code></td><td>Prove or refute properties, with an invariant proof or a replayable counterexample.</td></tr>
 <tr><td><code>pflow_fire</code></td><td>Play the token game: fire a sequence of transitions.</td></tr>
-<tr><td><code>pflow_reachability</code></td><td>Explore reachable markings: state count, deadlocks, dead transitions, liveness.</td></tr>
+<tr><td><code>pflow_reachability</code></td><td>Explore reachable markings: state count, deadlocks, dead transitions, and whether every transition fires somewhere (a net with a deadlock can still pass that).</td></tr>
 <tr><td><code>pflow_invariants</code></td><td>P- and T-invariants (conservation laws and cycles).</td></tr>
 <tr><td><code>pflow_incidence</code></td><td>The incidence matrix.</td></tr>
 <tr><td><code>pflow_simulate</code></td><td>Mass-action ODE simulation with a sampled trajectory.</td></tr>
@@ -66,18 +81,11 @@ td:first-child{white-space:nowrap}nav a{margin-right:1rem}.lede{font-size:1.1rem
 <tr><td><code>pflow_optimize</code></td><td>Seeded Monte Carlo over transition rates, with the Pareto front of the objectives you name.</td></tr>
 <tr><td><code>pflow_game_value</code></td><td>The exact value of a position of a two-sided game played on a net (tic-tac-toe, Connect-4, Nim, any net whose moves belong to two sides), by alpha-beta search over the firing rule. The net's marking is the position. A search plan picks the move order, filters and drivers, and a root estimate that ranks the first moves by solving the net's mass-action ODE; a net with several token colours is searched on its colour copies.</td></tr>
 <tr><td><code>pflow_game_move</code></td><td>A best move at such a position and its exact value.</td></tr>
-<tr><td><code>pflow_bundle_example</code></td><td>A composition to start from: an order queue, a worker pool and a payment saga as one bundle of subnets, joined by the three idioms or by links you give, with the page's four scenarios. A composition is a PetriNetBundle: independently authored subnets, the ports on their boundaries and the typed links between them (token, data, event, guard).</td></tr>
-<tr><td><code>pflow_bundle_validate</code></td><td>Check a composition: its subnets, then every link (endpoints, net types, port schemas, direction), with errors and warnings that name the link. A subnet that declares no ports has one per exported place.</td></tr>
-<tr><td><code>pflow_bundle_candidates</code></td><td>The links a port could take: every other port (of the ports a subnet declares) judged as the far end, the first legal kind winning, each with its verdict; <code>only_ok</code> lists just the legal ones.</td></tr>
-<tr><td><code>pflow_bundle_add_link</code></td><td>Add a link to a composition if it is legal (go-pflow's rules, and that a link joins two subnets and is not repeated); a refusal lists each reason and the ports its subnet has. It sets the kind and the two ends only: add a link's id or a guard's condition to the returned link yourself.</td></tr>
-<tr><td><code>pflow_bundle_flatten</code></td><td>Flatten a composition into one net: fused places and transitions with the members they came from, arcs, constraints, the maps and the warnings. The flat net is not a pflow.xyz net: <code>pflow_simulate</code>, <code>pflow_fire</code> and the other net tools cannot read it. Give every arc an explicit weight: an arc with none fires as 1, but a lone subnet is returned as written, with weight 0.</td></tr>
-<tr><td><code>pflow_bundle_run</code></td><td>Fire a script of subnet/transition members on the flat net, or one of the example's scenarios; it stops where a member cannot fire and says why. A member is the transition's own id in its subnet (<code>payment/do_charge</code>), not the port id a link names (<code>do:charge</code>). A negative arc weight never enables, as in pflow-rs.</td></tr>
-<tr><td><code>pflow_bundle_incidence</code></td><td>The flat net's incidence matrix, each subnet's block, and whether each declared constraint is a conservation law of the composition. An arc with no weight counts as 0 in a subnet's block (and everywhere for a lone subnet) but fires as 1, so give every arc an explicit weight; a <code>notes</code> entry says when that happens.</td></tr>
 <tr><td><code>pflow_rate_scan</code></td><td>Sweep one rate and see how the outcome moves.</td></tr>
 <tr><td><code>pflow_export</code></td><td>The net as normalised JSON-LD or as an SVG drawing.</td></tr>
 <tr><td><code>pflow_cid</code></td><td>The content id a net seals to.</td></tr>
-<tr><td><code>pflow_links</code></td><td>Links to see a net: the editor, its SVG and its JSON-LD.</td></tr>
-<tr><td><code>pflow_get</code></td><td>Fetch a stored net by its content id.</td></tr>
+<tr><td><code>pflow_links</code></td><td>Links to see a model: the editor, its SVG and its JSON-LD. A stored composition opens on the composition page.</td></tr>
+<tr><td><code>pflow_get</code></td><td>Fetch a stored model by its content id: a net, or a composition or plan as stored.</td></tr>
 <tr><td><code>pflow_save</code></td><td>Store a net on pflow.xyz as yours (needs sign-in; stored nets are public).</td></tr>
 </table>
 
@@ -85,6 +93,7 @@ td:first-child{white-space:nowrap}nav a{margin-right:1rem}.lede{font-size:1.1rem
 <ul>
 <li>Each tool call has 60 seconds.</li>
 <li>Up to 8 calls run at once across all users; past that you get a "busy" error to retry.</li>
+<li><code>pflow_save</code> stores one net. A composition is checked and run in the call, and the connector does not store it yet.</li>
 <li>Large results are cut down; ask for fewer samples, a shorter time span or a smaller net.</li>
 <li>A composition (a bundle) has at most 32 subnets, 1000 places, 1000 transitions, 4000 arcs, 512 ports, 200 links and 200 constraints; its names are at most 128 bytes and its counts and weights below 2<sup>53</sup>; a script is at most 1000 steps. A flat net whose answer would pass about 2 MB, or whose incidence matrices would pass 50000 cells, is refused rather than cut. A misspelt net type, place or port kind, link kind or merge policy is refused; fields a tool does not know are ignored.</li>
 </ul>
@@ -94,9 +103,18 @@ td:first-child{white-space:nowrap}nav a{margin-right:1rem}.lede{font-size:1.1rem
 <li><b>"Busy" error:</b> the server is at its limit for a moment. Try again shortly.</li>
 <li><b>Save asks you to sign in again:</b> sign-ins last up to 30 days. Sign in again from your client, or remove and re-add the connector.</li>
 <li><b>Sign-in page says the app or redirect isn't allowed:</b> the client sent a redirect address pflow.xyz doesn't accept. Remove and re-add the connector; if it keeps happening, open an issue.</li>
-<li><b>A net is refused:</b> run <code>pflow_check</code> on it to see why, or open it in the <a href="/">editor</a>, which can repair most problems.</li>
+<li><b>A model is refused:</b> run <code>pflow_check</code> on it to see why, or open it in the <a href="/">editor</a>, which can repair most problems.</li>
 <li><b>Result was cut down:</b> narrow the request, as in Limits above.</li>
 </ul>
+
+<section id="on-the-way">
+<h2>On the way</h2>
+<p>These are not available yet:</p>
+<ul>
+<li>The composition canvas rendered inline in Claude. Today it is a web page: <a href="/compose.html">the composition views</a>.</li>
+<li>A library of verified parts you can look up by concept, each with its invariants and the theorems behind it.</li>
+</ul>
+</section>
 
 <h2>Support</h2>
 <p>Report problems or ask questions at <a href="https://github.com/pflow-xyz/pflow-xyz/issues">github.com/pflow-xyz/pflow-xyz/issues</a>. Use of the connector is covered by the <a href="/terms.html">terms</a> and <a href="/privacy.html">privacy policy</a>.</p>

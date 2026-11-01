@@ -1,0 +1,67 @@
+{
+  "_about": "What goes in the claude.ai developer portal for the main pflow connector. Matt submits it; nothing reads this file at run time. cmd/webserver/mcp_directory_test.go holds it to the server and to public/mcp.html. Gates and remaining steps: checklist.md.",
+  "connection_url": "https://pflow.xyz/mcp",
+  "name": "pflow",
+  "slug": "pflow",
+  "one_liner": "Snap parts together into a system you can see, run and check, with a stable ID to cite every model by.",
+  "description": "Snap parts together into a working system and find out whether it holds up before you build it.\n\nStart from a catalog of parts (a bounded queue, a resource pool, a two-step saga with compensation) or bring your own models. Ask which connections are legal, join the parts, then run scenarios to see what happens when a payment fails or a second order arrives.\n\nThe answers come from an engine, not an estimate: whether the system can deadlock, what it always conserves, how the outcome moves when one rate changes, and a replayable counterexample when a property fails.\n\nEvery model has a content ID, so the same model always gets the same citation, and a link opens a net in the pflow.xyz editor.\n\nEvery tool except saving works without an account. Saving needs a GitHub or Google sign-in, and saved models are public.",
+  "categories": [
+    {
+      "name": "Designs & media",
+      "gate": "canvas"
+    },
+    {
+      "name": "Reference docs",
+      "gate": "library"
+    }
+  ],
+  "gates": [
+    {
+      "id": "canvas",
+      "status": "closed",
+      "evidence_tool": "",
+      "claim_markers": ["inline", "mcp app", "in the conversation"],
+      "copy_when_open": "Snap parts together on a canvas right in the conversation: drag from port to port, and every join is checked as you make it."
+    },
+    {
+      "id": "library",
+      "status": "closed",
+      "evidence_tool": "",
+      "claim_markers": ["verified", "theorem", "arxiv", "by concept"],
+      "copy_when_open": "Look up a verified part by concept and get the model, its invariants and the theorem or paper behind it, with a stable CID to cite."
+    }
+  ],
+  "example_prompts": [
+    {
+      "prompt": "Join an order queue, a worker pool and a payment saga with pflow, show me which links the queue's dequeue could take, then run the failed-payment scenario.",
+      "tools": ["pflow_bundle_example", "pflow_bundle_candidates", "pflow_bundle_run"]
+    },
+    {
+      "prompt": "Model two philosophers sharing two forks with pflow and tell me whether they can deadlock.",
+      "tools": ["pflow_edit", "pflow_reachability"]
+    },
+    {
+      "prompt": "What stays constant in this pflow model? Give me a link to open it.",
+      "tools": ["pflow_invariants", "pflow_links"]
+    },
+    {
+      "prompt": "Here's my pflow model. Simulate it to t=50 and tell me where everything ends up.",
+      "tools": ["pflow_simulate"]
+    }
+  ],
+  "documentation_url": "https://pflow.xyz/mcp.html",
+  "privacy_policy_url": "https://pflow.xyz/privacy.html",
+  "terms_url": "https://pflow.xyz/terms.html",
+  "support_contact": "https://github.com/pflow-xyz/pflow-xyz/issues",
+  "use_cases": [
+    "Design a system from reusable parts and check that the joins are legal",
+    "Find deadlocks and prove what a system conserves before building it",
+    "Compare what-if scenarios on a seeded, repeatable simulation"
+  ],
+  "prerequisites": "None. Saving asks for a GitHub or Google sign-in the first time.",
+  "data_access": "Reads and writes: every tool works on the model in the call, and pflow_save stores a net publicly.",
+  "authentication_requirement": "Required when the server asks",
+  "underlying_api": "own",
+  "personal_health_data": false,
+  "sponsored_content": false
+}

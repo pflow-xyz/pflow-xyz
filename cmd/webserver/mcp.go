@@ -94,7 +94,7 @@ func mcpTools() []mcpTool {
 		},
 		{
 			Name:        "pflow_get",
-			Description: "A stored net by CID.",
+			Description: "A stored model by its CID, the stable content address to cite it by: a net, or a composition or plan exactly as stored.",
 			InputSchema: obj(map[string]any{"cid": map[string]any{"type": "string"}}, "cid"),
 			run:         mcpGet,
 		},
@@ -111,7 +111,7 @@ func mcpTools() []mcpTool {
 		},
 		{
 			Name:        "pflow_reachability",
-			Description: "Explore the reachable markings (go-pflow reachability, untimed: rates play no part): state count, bounded or not, deadlocks with the marking of the first, transitions that never fire, liveness. Exhaustive only when complete is true.",
+			Description: "Explore the reachable markings (go-pflow reachability, untimed: rates play no part): state count, bounded or not, deadlocks with the marking of the first, transitions that never fire, and live, which means only that every transition fires in some reachable state: a net with a deadlock can be live, so read deadlocks too. Exhaustive only when complete is true.",
 			InputSchema: obj(map[string]any{
 				"net":        netArg,
 				"max_states": map[string]any{"type": "integer", "description": "budget (default 2000, ≤ 20000)"},
@@ -120,7 +120,7 @@ func mcpTools() []mcpTool {
 		},
 		{
 			Name:        "pflow_links",
-			Description: "Where a person can see a net: the editor (with the net loaded), its SVG and its JSON-LD. Give a cid of a stored net, or a net (the editor link then carries it in the URL).",
+			Description: "Where a person can see a model: the editor (with the net loaded), its SVG and its JSON-LD. Give a cid of a stored model (a composition's or plan's opens on the composition page), or a net (the editor link then carries it in the URL; a composition has no inline link, only one by cid).",
 			InputSchema: obj(map[string]any{"cid": map[string]any{"type": "string"}, "net": netArg}),
 			run:         mcpLinks,
 		},
@@ -345,6 +345,10 @@ func mcpLinks(s *Server, r *http.Request, args map[string]any) (any, error) {
 	if err != nil {
 		return nil, errors.New("give a cid or a net")
 	}
+	// The editor reads only nets, so a ?data= link to anything else opens empty.
+	if k := model.KindOf(raw); k != model.KindNet {
+		return nil, fmt.Errorf("a %s has no inline link: the editor reads only nets, and the composition page opens one by the cid it is stored under", k)
+	}
 	// The editor reads ?data= as URI-encoded JSON (petri-view.js permalinks).
 	return map[string]any{"editor": base + "/?data=" + url.QueryEscape(url.QueryEscape(string(raw)))}, nil
 }
@@ -470,13 +474,13 @@ func (s *Server) mcpDispatch(r *http.Request, req rpcRequest) (rpcResponse, bool
 			"protocolVersion": negotiateProtocolVersion(p.ProtocolVersion),
 			"capabilities":    map[string]any{"tools": map[string]any{}},
 			"serverInfo":      map[string]any{"name": "pflow.xyz", "version": "workbench-1"},
-			"instructions": "pflow.xyz: Petri nets in the pflow.xyz JSON-LD format. Check, seal, simulate (ODE) and explore " +
-				"(reachability) a net on the server's go-pflow engines; pflow_links opens one in the editor, where the " +
-				"structural analyses, stochastic runs and the Assistant live. Compositions (a PetriNetBundle: subnets, " +
-				"the ports on their boundaries and the typed links between them): pflow_bundle_example gives one; " +
-				"pflow_bundle_validate, _candidates and _add_link check and extend it, _flatten makes one net of it, " +
-				"_run fires a script on that net and _incidence gives its matrix (that net is not a pflow.xyz net: " +
-				"pflow_simulate and the other net tools cannot read it). pflow_save needs the person signed in to pflow.xyz.",
+			"instructions": "pflow.xyz: snap parts together into a system you can run and check. Compositions (a PetriNetBundle: subnets, " +
+				"the ports on their boundaries and the typed links between them): pflow_bundle_example gives the catalog of parts and a " +
+				"composition of them; pflow_bundle_validate, _candidates and _add_link check and extend it, _flatten makes one net of it, " +
+				"_run fires a script on that net and _incidence gives its matrix (that net is not a pflow.xyz net: pflow_simulate and the " +
+				"other net tools cannot read it). A single model is a Petri net in the pflow.xyz JSON-LD format: check, simulate and explore " +
+				"one on the server's go-pflow engines, and pflow_links opens it in the editor. pflow_cid gives a model's stable content ID " +
+				"and pflow_get the stored model. pflow_save needs the person signed in to pflow.xyz.",
 		}
 	case "ping":
 		resp.Result = map[string]any{}

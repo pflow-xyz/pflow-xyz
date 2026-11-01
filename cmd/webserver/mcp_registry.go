@@ -91,10 +91,10 @@ type mcpAnnotation struct {
 var mcpAnnotations = map[string]mcpAnnotation{
 	"pflow_check":        {"Check a net", true, false, true},
 	"pflow_cid":          {"Compute a net's CID", true, false, true},
-	"pflow_get":          {"Fetch a stored net", true, false, true},
+	"pflow_get":          {"Fetch a stored model", true, false, true},
 	"pflow_simulate":     {"Simulate a net (ODE)", true, false, true},
 	"pflow_reachability": {"Explore reachable markings", true, false, true},
-	"pflow_links":        {"Links to view a net", true, false, true},
+	"pflow_links":        {"Links to view a model", true, false, true},
 	"pflow_save":         {"Save a net", false, true, true},
 
 	"pflow_edit":       {"Build or edit a net", true, false, true},

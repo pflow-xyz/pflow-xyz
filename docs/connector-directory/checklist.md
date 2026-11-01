@@ -1,0 +1,101 @@
+# Directory submission checklist
+
+Status at 2026-11-01: **not submitted, and not ready to be.** Neither target category's gate is
+open. Matt submits from the developer portal himself; nothing in this repo touches claude.ai.
+
+The portal's fields are in [`listing.json`](listing.json). Its copy claims only what ships today.
+`cmd/webserver/mcp_directory_test.go` holds it to the portal's limits, to the segmentation below and
+to the server, so a claim that outruns a closed gate fails `make test`.
+
+## The segmentation (Matt, 2026-11-01)
+
+| Listing | Category | What it is | Gate |
+|---------|----------|------------|------|
+| pflow (`pflow.xyz/mcp`) | **Designs & media** | The canvas: the snap-together composition interface, inline in Claude as an MCP App | 1, closed |
+| pflow (`pflow.xyz/mcp`) | **Reference docs** | The library: verified parts, queryable by concept | 2, closed |
+| mine (`mine.pflow.xyz`) | Automation & workflows, Logs & errors | Process mining, a separate listing | that repo's roadmap, M5 |
+
+The snap-together interface is the core offering, not a later phase. Public copy leads with outcomes
+and keeps Petri nets as the engine. Process mining stays out of the main listing.
+
+## Gate 1: the canvas (Designs & media)
+
+- [ ] `/mcp` serves an MCP App. Today `initialize` advertises tools only, no tool has `_meta`, and
+      `resources/list` answers `-32601`. Needed: a `resources` capability, `resources/list` and
+      `resources/read`, a `ui://` resource with MIME `text/html;profile=mcp-app`, and
+      `_meta.ui.resourceUri` on the tool that opens it.
+- [ ] The page loads inside Claude's sandbox. By default the frame runs only inline and own-origin
+      scripts, so `_meta.ui.csp` must list what the page fetches: pflow.xyz, the engine on
+      cdn.stackdump.com, and for the Laws view jsDelivr and PyPI. Those hosts must also answer an
+      `Origin` of `*.claudemcpcontent.com`. Untested.
+- [ ] Only if the app runs its own OAuth: `_meta.ui.domain` =
+      `f5caa4a1a9331ad9303f13d65c17a72a.claudemcpcontent.com` (the hash of `https://pflow.xyz/mcp`).
+- [ ] A composition can reach the canvas from a conversation. Today it cannot: `pflow_save` refuses a
+      composition, the `pflow_bundle_*` tools return no CID to open, and `pflow_links` refuses one
+      inline. The result that carries it must stay under about 150,000 characters.
+- [ ] The canvas works on the person's own parts, not only the built-in catalog. Today eight of the
+      ten views throw on a model with no pattern, and a place port on a part loaded by reference is
+      refused. Plan: [compose-user-nets](../plans/compose-user-nets.md).
+- [ ] Seen rendering in real Claude, added as a custom connector. Claude Code is text-only and cannot
+      show this.
+- [ ] 3 to 5 PNG screenshots: at least 1000px wide, cropped to the app with no prompt in the image,
+      each with its prompt given separately. No video or GIF.
+- [ ] If the app calls `ui/open-link`: list `https://pflow.xyz` as an allowed link URI.
+- [ ] To open it: add the tool as `evidence_tool` in `listing.json`, set `status` to `open`, work
+      `copy_when_open` into the description, and take the canvas line out of `#on-the-way` in
+      `public/mcp.html`.
+
+## Gate 2: the library (Reference docs)
+
+- [ ] A concept query returns a model, its invariants and theorem or arXiv links, with a stable CID
+      to cite. Today [ontology.pflow.xyz](https://ontology.pflow.xyz) has `search_terms`,
+      `describe_term`, `get_claim` and `sparql_query`, one worked claim, and a theorem layer still
+      marked proposed.
+- [ ] The query is a tool on `https://pflow.xyz/mcp`. A listing connects one server URL, and the
+      ontology is a separate server, so it does not count for this listing as it stands.
+- [ ] "Verified" means something a check decides. Say what a part must pass to be listed as verified.
+      The catalog behind `pflow_bundle_example` (queue, resource pool, saga) comes from go-pflow's
+      constructors; nothing yet ties a part to a claim, so the copy says "catalog".
+- [ ] A part that comes back can go straight into `pflow_bundle_*`, with its ports. This needs the
+      same by-reference port fix as gate 1.
+- [ ] To open it: as for gate 1, with this gate's own `copy_when_open` and `#on-the-way` line.
+
+## Before submitting, whichever gate opens first
+
+- [ ] Confirm the category labels in the portal. The public docs say "one to five categories" and do
+      not name them, so "Designs & media" and "Reference docs" are unchecked against the picker.
+- [ ] Decide the slug. `pflow` is in `listing.json`, and a slug is permanent once published.
+- [ ] Icon. The largest square icon in `public/` is 192x192 grey-and-alpha
+      (`android-chrome-192x192.png`); the docs give no size, so check it in the portal.
+- [ ] Reviewer test account. The portal requires credentials and instructions. Only `pflow_save` needs
+      sign-in (GitHub or Google); no account has been set up for this.
+- [ ] Run every tool in Claude as a custom connector and in MCP Inspector. **Test & launch** asks you
+      to confirm this. Not yet done from Claude; the example prompts' tool chains were run against the
+      live server over HTTP.
+- [ ] Support contact. `listing.json` gives the GitHub issues page; give an email if the portal wants one.
+- [ ] Portal answers: company name and primary contact, and the seven compliance acknowledgments.
+- [ ] Copy that still pitches the engine, outside this pass: `/compose.html`'s head and `llms.txt`'s
+      composition line both say "three Petri nets".
+
+## Already met
+
+- Remote HTTPS, Streamable HTTP, stateless: `https://pflow.xyz/mcp`.
+- 29 tools, each with a `title` and read-only and destructive hints; only `pflow_save` is destructive;
+  longest name 23 characters (`TestDirectoryToolRules`).
+- Sign-in on demand: OAuth 2.0 with dynamic client registration, which accepts any https redirect, so
+  `https://claude.ai/api/mcp/auth_callback` registers. Both discovery documents answer 200 live. A real
+  sign-in from Claude is part of the tool run above.
+- Limits inside Claude's: the 60s call timeout (240s allowed) and the 60KB result guard (about 150,000
+  characters allowed on claude.ai, 25,000 tokens in Claude Code).
+- Public docs, terms and privacy: `/mcp.html`, `/terms.html`, `/privacy.html`.
+
+## Sources
+
+Read 2026-11-01:
+[submit a connector](https://claude.com/docs/connectors/building/submission),
+[pre-submission checklist](https://claude.com/docs/connectors/building/review-criteria),
+[build a server](https://claude.com/docs/connectors/building/index),
+[MCP Apps](https://claude.com/docs/connectors/building/mcp-apps/getting-started),
+[MCP Apps quickstart](https://claude.com/docs/connectors/building/mcp-apps/quickstart),
+[MCP Apps troubleshooting](https://claude.com/docs/connectors/building/mcp-apps/troubleshooting),
+[directory policy](https://support.claude.com/en/articles/13145358-anthropic-software-directory-policy).

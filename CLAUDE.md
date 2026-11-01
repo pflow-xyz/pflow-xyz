@@ -134,6 +134,7 @@ examples/                # Example Petri nets in JSON-LD
 - **public/petri-chat.js** / **petri-chat-ui.js** - the Assistant: the tool loop (sandbox edits, Apply as one undo step) and its docked panel; **petri-tools.js** maps registry commands to LLM tools. The panel's Tools section counts the tools it can use (`toolsFor`: the manifest, without the edits in explain mode) and the calls it has made, and lists both
 - **public/petri-results.js** - renders artifacts by kind (Analysis dialog, Results dialog)
 - **docs/workbench-progress.md** - progress and decisions-to-review log for the ROADMAP's LLM workbench phases
+- **docs/connector-directory/** - the Claude directory listing (`listing.json`) and the submission checklist; `cmd/webserver/mcp_directory_test.go` holds the listing to the server, so copy cannot claim a closed gate. Matt submits it himself
 - **docs/engine-selection.md** - which engine (ODE/SSA/SDE) for which
   question; vendored from go-pflow (`scripts/docs-sync.sh check`/`sync`,
   same hash-lock pattern as the shared browser JS below)
