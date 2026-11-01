@@ -339,7 +339,7 @@ func registryTools() []mcpTool {
 		{
 			Name: "pflow_verify",
 			Description: "Check properties of a net and get proved / refuted / unknown with evidence: a structural proof from an invariant, or a replayable firing sequence for a counterexample (go-pflow verify). `properties` is a list of {kind, ...}: " +
-				"deadlock-free, bounded, live, terminating, conserves, reachable{target:{place:n}}, unreachable{target}, invariant{expr:\"a + b == 3\"}, mutual-exclusion{places:[…],bound}. A reachable verdict carries the firing sequence. Unknown means the search hit max_states, not a pass.",
+				"deadlock-free (a marking that drained to empty counts as finished), bounded, live (L1: every transition fires in some reachable marking, which a net with a deadlock can pass), l4-live (from every reachable marking, every transition can still fire), terminating, conserves, reachable{target:{place:n}}, unreachable{target}, invariant{expr:\"a + b == 3\"}, mutual-exclusion{places:[…],bound}. A reachable verdict carries the firing sequence. Unknown means the search hit max_states, not a pass.",
 			InputSchema: obj(map[string]any{
 				"net":        netArg,
 				"properties": map[string]any{"type": "array", "maxItems": 50, "items": map[string]any{"type": "object", "properties": map[string]any{"kind": map[string]any{"type": "string"}}, "required": []any{"kind"}}},

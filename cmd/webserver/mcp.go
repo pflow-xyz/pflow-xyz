@@ -111,7 +111,7 @@ func mcpTools() []mcpTool {
 		},
 		{
 			Name:        "pflow_reachability",
-			Description: "Explore the reachable markings (go-pflow reachability, untimed: rates play no part): state count, bounded or not, deadlocks with the marking of the first, transitions that never fire, and live, which means only that every transition fires in some reachable state: a net with a deadlock can be live, so read deadlocks too. Exhaustive only when complete is true.",
+			Description: "Explore the reachable markings (go-pflow reachability, untimed: rates play no part): state count, bounded or not, dead markings with the first, transitions that never fire, and three verdicts, each true, false or \"unknown\": deadlock_free (no reachable marking has nothing enabled, an empty one included), live (L4: from every reachable marking, every transition can still fire) and quasi_live (L1: every transition fires in some reachable marking, which a net with a deadlock can pass). witness is a firing sequence that replays to the dead marking, or into a closed region shutting transitions out, with never_fires naming them. When complete is false the search stopped at bound: no verdict is true, and only a witness makes one false.",
 			InputSchema: obj(map[string]any{
 				"net":        netArg,
 				"max_states": map[string]any{"type": "integer", "description": "budget (default 2000, ≤ 20000)"},
@@ -316,24 +316,38 @@ func mcpReachability(_ *Server, _ *http.Request, args map[string]any) (any, erro
 		return nil, fmt.Errorf("go-pflow cannot read the net: %v", err)
 	}
 	res := reachability.NewAnalyzer(net).WithMaxStates(int(max)).Analyze()
+	l := res.Liveness
 	out := map[string]any{
 		"states": res.StateCount, "edges": res.EdgeCount, "complete": res.IsComplete, "bounded": res.Bounded,
-		"max_tokens": res.MaxTokens, "deadlocks": len(res.Deadlocks), "live": res.Live,
-		"dead_transitions": res.DeadTrans, "note": "untimed: rates play no part; a claim about every state holds only when complete is true",
+		"max_tokens": res.MaxTokens, "deadlocks": len(res.DeadMarkings),
+		"deadlock_free": verdictValue(l.DeadlockFree), "live": verdictValue(l.Live), "quasi_live": verdictValue(l.QuasiLive),
+		"witness": l.Witness, "not_live": l.NotLive, "dead_transitions": res.DeadTrans,
+		"note": "untimed: rates play no part; a claim about every state holds only when complete is true",
 	}
 	if res.Truncated {
 		out["truncated"] = res.TruncateMsg
+		out["bound"] = map[string]any{"max_states": res.ExplorationStats.StatesLimit, "max_tokens": res.ExplorationStats.TokensLimit}
 	}
 	if !res.IsComplete {
-		// go-pflow reports bounded/live over the states it saw; a search that
-		// stopped at its budget has not seen them all, so say so instead.
+		// go-pflow reports bounded over the states it saw; a search that stopped
+		// at its budget has not seen them all, so say so instead.
 		out["bounded"] = "unknown: the search stopped at max_states"
-		out["live"] = "unknown: the search stopped at max_states"
 	}
-	if len(res.Deadlocks) > 0 && res.Deadlocks[0] != nil {
-		out["first_deadlock"] = res.Deadlocks[0].Marking
+	if len(res.DeadMarkings) > 0 {
+		out["first_deadlock"] = res.DeadMarkings[0].Marking
 	}
 	return out, nil
+}
+
+// verdictValue is a verdict as a caller reads it: a JSON boolean, or "unknown".
+func verdictValue(v reachability.Verdict) any {
+	switch v {
+	case reachability.VerdictTrue:
+		return true
+	case reachability.VerdictFalse:
+		return false
+	}
+	return "unknown"
 }
 
 func mcpLinks(s *Server, r *http.Request, args map[string]any) (any, error) {
