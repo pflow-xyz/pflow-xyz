@@ -465,7 +465,22 @@ canvas.pv-canvas {
     margin-top: 6px;
     margin-bottom: 0;
     pointer-events: none;
+    /* The node box is 30-80px wide and the label is positioned inside it, so
+       without these a multi-word label shrank to the box and wrapped one word
+       per line ("Waiting / in / queue"). Size to the text, wrap at 150px. */
+    width: max-content;
+    max-width: 150px;
+    text-align: center;
+    line-height: 1.25;
+    overflow-wrap: anywhere;
 }
+/* petri-layout.js picks the side of the node that no arc passes through */
+.pv-node .pv-label[data-side="above"] { top: auto; bottom: 100%; margin-top: 0; margin-bottom: 6px; }
+.pv-node .pv-label[data-side="right"] { left: 100%; top: 50%; transform: translateY(-50%); margin: 0 0 0 4px; text-align: left; }
+.pv-node .pv-label[data-side="left"] { left: auto; right: 100%; top: 50%; transform: translateY(-50%); margin: 0 4px 0 0; text-align: right; }
+.pv-place .pv-label[data-side="right"] { left: calc(50% + 22px); }
+.pv-place .pv-label[data-side="left"] { right: calc(50% + 22px); }
+.pv-place .pv-label[data-side="above"] { bottom: calc(50% + 22px); }
 
 /* tokens: small circles inside place */
 .pv-token {
