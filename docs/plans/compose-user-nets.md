@@ -42,10 +42,10 @@ names changes.
 | 4 | Port declaration starts as a form panel, not a canvas gesture. | It works in all ten views, by keyboard and on a phone, on day one. | 5 |
 | 5 | A portless net is drawn as `∅ → S ← ∅`, as a statement and not a warning. Ports are never inferred on load. | An interface is the author's claim. | 2 |
 | 6 | Ontology facts stay a pinned build-time snapshot; only links go live. | Section 6.3. | O4, O5 |
-| 7 | Citations move to versioned public IRIs, and the private repo can stay private. | Section 6.4. | O6 |
+| 7 | Citations move to versioned public IRIs, and the private repo stays private (Matt, 2026-11-01). | Section 6.4. | O6 |
 | 8 | Drop the vendored `.wasm.br` and `.wasm.gz`; keep the small text files. | Matt, 2026-11-01: "we can drop the vendored copy". Section 3.4. | V |
 
-**Left to Matt:** whether to make `ontology-pflow-xyz` public (6.4). `models-first.md` is still marked
+**Decided (Matt, 2026-11-01):** `ontology-pflow-xyz` stays private for now (6.4). `models-first.md` is still marked
 as a proposal; this plan uses only its slices 3-5, and none of its URL or navigation changes.
 
 ---
@@ -507,10 +507,12 @@ Today a reader of `ontology-pflow-xyz ns/patterns.ttl:496 @bc4a996` has no way t
 | Reader sees | the term's triples, in three formats, with no line numbers | the exact lines, in history |
 | Needs | O1, O2, versioned releases, `cq/` in the release | everything in the audit below, across history |
 | Survives an edit | yes, by version | yes, by revision |
-| Blocked on | nothing but work | Matt's decision |
+| Blocked on | nothing but work | Deferred: Matt decided on 2026-11-01 to keep the repo private |
 
-**Recommendation: A now.** It needs nothing made public beyond the CC0 release that is already
-public. B stays open and does not conflict.
+**Decision (Matt, 2026-11-01): A. `ontology-pflow-xyz` stays private for now; it is for our own
+purposes.** `compose.html` uses a pinned snapshot built from a release and cites versioned public IRIs.
+Other users start with an open ontology of their own, not this repo. A needs nothing made public beyond
+the CC0 release that is already public. B is deferred, not rejected, and does not conflict.
 
 The rewrite, O6 (**M**, pflow-native and pflow-xyz): map each `{repo: ontology, path, from, to}` cite to
 its term's IRI, by hand, since a line range is not always one term. That covers `ontology.json`,
@@ -518,7 +520,7 @@ its term's IRI, by hand, since a line range is not always one term. That covers 
 IRI, `parity/composition-views/sources_test.ts` fails on any cite not in the snapshot's IRI list, and
 `cq/13` and the other cited queries join the release, since they are cited as files.
 
-**What publishing would take, if B is wanted.**
+**What publishing would take, if B is ever wanted (deferred; reference only, not planned work).**
 
 | Item | State | Needed |
 |---|---|---|
