@@ -16,7 +16,7 @@ covered. The logic is in small DOM-free modules with deno tests; the DOM side is
 | link bar | `Tab` to it | the link to this view (focus selects it), Copy link, All views |
 | anywhere | `E` | switch between the orders and the Connect-4 example (same exceptions) |
 | first Tab | skip links | "Skip to the diagram", "Skip to the inspector" (they move focus and leave the address, with its view and example parameters, as it is) |
-| view tabs | `Left` `Right` `Home` `End`, then `Enter` | move between tabs (focus only: opening a view such as Laws loads Pyodide, so it is not automatic), open one |
+| view tabs | `Left` `Right` `Home` `End`, then `Enter` | move between tabs (focus only: opening a view can load more, such as the Laws view's checker, so it is not automatic), open one |
 | the diagram | `Tab` | one Tab stop per kind of thing, so a view with 500 cells is not 500 stops: the ports, the palette pieces, the small in-drawing buttons, and everything else inspectable |
 | the side column | `Tab` | one more Tab stop for the inspectable things there: the four link rules and, in the orders example, the rows of the Links card (each also has its own `×` button, a Tab stop of its own) |
 | a stop | `Arrow` keys | move to the nearest thing in that direction (by position); `Home` `End` to the first and last |
@@ -49,10 +49,10 @@ when a port is drawn twice (and in its first drawing when the redraw no longer h
 the second: a linked port leaves the outer interface). Where a view draws nothing
 to link to (the Flat net draws the palette's pieces and no slots) link mode is not
 entered, and it says so. A pointer drag is unchanged. A view's own background work
-(the Laws view's data arriving, its live Pyodide check or layout finishing) never
+(the Laws view's data arriving, its live check finishing) never
 cuts a drag or link mode: the redraw waits until the gesture has ended, is dropped
-if another view is shown by then, and the Laws status lines ("Laws: the live layout
-is drawn.") are spoken only while Laws is the view shown (the latest one that
+if another view is shown by then, and the Laws status lines ("Laws: the live check agrees
+with the precomputed one ...") are spoken only while Laws is the view shown (the latest one that
 came while it was away is spoken once, when it is drawn again). The reason a target is
 refused is also written in the status line at the bottom of the window (it stays
 on screen on a short laptop display), since the keyboard path never shows the
@@ -212,8 +212,7 @@ modules; this is what covers the DOM glue.
 - **The schema letter is small**: about 7-9 px on the dots that hold one, a framed
   10 px box beside the dots that are too small (Spiders).
 - **Some interactions are still pointer-only**: the draggable magnifier lens in the
-  String view's transition level; dragging in the Laws view's Chyp diagrams (its
-  internals are Pyodide's). The Laws view's own buttons are ordinary buttons. Every
+  String view's transition level; dragging in the Laws view's Chyp diagrams. The Laws view's own buttons are ordinary buttons. Every
   other `.inspectable` thing (stage and side column, both examples, every view module)
   has a Tab stop and a key handler.
 - **Inspectables with the same title and facts** (the Incidence view's cells) are

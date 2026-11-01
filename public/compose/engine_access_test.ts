@@ -146,11 +146,11 @@ Deno.test("engine access: only model.js and the page's loader import registry.js
     assertEquals(importersOf("compose/registry"), ["app.js", "model.js"]);
 });
 
-Deno.test("engine access: no module imports a module it cannot name, except the view loader and the Pyodide loader", () => {
-    // import(`./views/${id}.js`) in app.js (the view ids are the page's own list) and import(PYODIDE_URL) in
-    // laws-live.js (a CDN) are the two. Any other computed import could load registry.js past the checks above.
+Deno.test("engine access: no module imports a module it cannot name, except the view loader", () => {
+    // import(`./views/${id}.js`) in app.js (the view ids are the page's own list) is the one. Any other computed
+    // import could load registry.js past the checks above.
     const opaque = files.filter((f) => dynamicImports(sources[f]).includes(null));
-    assertEquals(opaque, ["app.js", "laws-live.js"]);
+    assertEquals(opaque, ["app.js"]);
 });
 
 Deno.test("engine access: only model.js and state.js use liveCommand", () => {

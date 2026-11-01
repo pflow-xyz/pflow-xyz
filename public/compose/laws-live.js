@@ -1,43 +1,25 @@
-// Chyp's own checker, run live in the browser under Pyodide, for the Laws view.
+// chyp-rs, run live in the browser, for the Laws view.
 //
-// What runs: Chyp (https://github.com/akissinger/chyp @3d28483, Apache-2.0,
-// Copyright (C) 2022-2023 Aleks Kissinger), its non-GUI modules vendored
-// unmodified in chyp/py/chyp/, driven by the prototype's chyp_headless
-// (chyp/py/chyp_headless/), on the four theories in chyp/*.chyp. See
-// chyp/README.md for the licences.
+// What runs: chyp-rs (https://github.com/stackdump/chyp-rs, Apache-2.0), a Rust port of the core of Chyp
+// (https://github.com/akissinger/chyp @3d28483, Apache-2.0, Copyright (C) 2022-2023 Aleks Kissinger), built to
+// WebAssembly and vendored in vendor/chyp-rs-wasm/ (with its LICENSE.txt and NOTICE.txt), on the four theories in chyp/*.chyp.
+// Its contract is to give Chyp's verdicts: chyp-rs's tests hold these theories to Chyp's own results, and
+// laws-live_test.ts holds the vendored bundle to the exported ones. See chyp/README.md.
 //
-// What is fetched from elsewhere, and why that is allowed here: Pyodide
-// 314.0.7 from cdn.jsdelivr.net and lark 1.3.1 from PyPI (micropip), plus
-// Pyodide's own cvxpy-base and clarabel packages for the layout. pflow.xyz sets
-// no Content-Security-Policy on its pages and the editor already loads Ace from
-// cdnjs (petri-view.js), so a third-party CDN is within the repo's practice.
-// Nothing is loaded until the Laws view asks (it is opened: app.js imports this
-// view's module only then, and Pyodide is imported inside pyodide() below, on the
-// first check()), and a failure (offline, CDN blocked) leaves the view on its
+// Nothing here comes from another host. The engine is imported and instantiated on the first check() (app.js imports
+// this view's module only when it is opened, and engine() below only runs then), and a failure leaves the view on its
 // precomputed results. The page's other nine views never reach this file.
 // parity/composition-views/load_budget_test.ts holds both facts.
-//
-// Two steps, each awaited separately so the view can show the first while the
-// second runs:
-//   check()   load_theory + check() on every theory: ~1 s after Pyodide loads;
-//             returns CheckReport.to_dict() per theory.
-//   layout()  export() with Chyp's convex_layout (cvxpy, CLARABEL): several
-//             seconds more; returns the full export per theory, the same
-//             document assets/chyp/<theory>.json holds.
 
-export const PYODIDE_VERSION = '314.0.7';
-/** About what the two steps download, said before they start (measured: docs/compose-load-budget.md). */
-export const DOWNLOAD_NOTE = 'about 6.5 MB for Pyodide and lark, then about 18 MB more for the live layout (numpy, scipy, cvxpy-base, clarabel)';
-export const PYODIDE_URL = `https://cdn.jsdelivr.net/pyodide/v${PYODIDE_VERSION}/full/pyodide.mjs`;
-export const LARK = 'lark==1.3.1';
+/** What check() downloads, said before it starts (the lock's brotli size, plus the glue). */
+export const DOWNLOAD_NOTE = 'about 90 KB, from this site';
+export const CHYP_RS_URL = 'https://github.com/stackdump/chyp-rs';
 const BASE = new URL('./chyp/', import.meta.url);
 
-let pyPromise = null;
+let enginePromise = null;
 
 /**
- * One readable line for a failure. A failed fetch says what it fetched; a
- * Python error (micropip with PyPI blocked, say) arrives as the whole
- * traceback, of which the last line is the one that says what went wrong.
+ * One readable line for a failure: the last line of the message, the one that says what went wrong.
  */
 export function explain(e) {
   const lines = String(e && e.message ? e.message : e).split('\n').map((l) => l.trim()).filter(Boolean);
@@ -45,110 +27,72 @@ export function explain(e) {
   return last.length > 240 ? `${last.slice(0, 237)}…` : last;
 }
 
-async function pyodide(onStatus) {
-  pyPromise ||= (async () => {
+async function engine(onStatus) {
+  enginePromise ||= (async () => {
     const t0 = performance.now();
-    onStatus?.(`loading Pyodide ${PYODIDE_VERSION} (cdn.jsdelivr.net, about 6.5 MB)…`);
-    const { loadPyodide } = await import(/* @vite-ignore */ PYODIDE_URL);
-    const py = await loadPyodide();
-    onStatus?.('loading Chyp 3d28483 and the theories into Pyodide…');
-    const list = await (await fetch(new URL('files.json', BASE))).json();
-    const write = async (url, dst) => {
-      const r = await fetch(url);
-      if (!r.ok) throw new Error(`${url}: HTTP ${r.status}`);
-      py.FS.mkdirTree(dst.slice(0, dst.lastIndexOf('/')));
-      py.FS.writeFile(dst, new Uint8Array(await r.arrayBuffer()));
-    };
-    await Promise.all([
-      ...list.python.map((f) => write(new URL(`py/${f.path}`, BASE), f.path.startsWith('chyp/') ? `/chyp/${f.path}` : `/w/${f.path}`)),
-      ...list.theories.map((t) => write(new URL(t, BASE), `/w/chyp/${t}`)),
-    ]);
-    onStatus?.(`installing ${LARK} (PyPI, micropip)…`);
-    await py.loadPackage('micropip');
-    await py.runPythonAsync(`import micropip\nawait micropip.install('${LARK}')`);
-    await py.runPythonAsync(`
-import os, sys
-os.environ['CHYP_PATH'] = '/chyp'
-sys.path.insert(0, '/w')
-os.chdir('/w')
-import chyp_headless as ch
-`);
-    return { py, loadSeconds: (performance.now() - t0) / 1000 };
+    onStatus?.(`loading chyp-rs (WebAssembly, ${DOWNLOAD_NOTE})…`);
+    const chyp = await import('../vendor/chyp-rs-wasm/chyp_rs.js');
+    await chyp.default();
+    return { chyp, loadSeconds: (performance.now() - t0) / 1000 };
   })();
-  pyPromise.catch(() => { pyPromise = null; });
-  return pyPromise;
+  enginePromise.catch(() => { enginePromise = null; });
+  return enginePromise;
 }
 
 /**
- * Chyp's check() on each theory: {results: {theory: CheckReport.to_dict()},
- * python, loadSeconds, checkSeconds}.
+ * chyp-rs's outline of a checked theory as the report the precomputed export carries for its rewrites
+ * (CheckReport.to_dict(), as far as compare() reads it): {rewrites: [{name, status, steps: [{status, line}]}]}.
+ *
+ * The rules are chyp_headless's. A rewrite statement is its RewriteParts in a row, each starting where the last one
+ * ended, under one name. A step is 'error' if Chyp logged a message on its line (or it was never decided), else its
+ * status. A rewrite is 'valid' if every step is, 'error' if any step is, else 'invalid'.
+ */
+export function reportOf(outline) {
+  const messages = new Map();
+  for (const e of outline.errors) messages.set(e.line, [...(messages.get(e.line) || []), e.msg]);
+  const rewrites = [];
+  let prev = null;
+  for (const p of outline.parts) {
+    if (p.kind === 'RewritePart') {
+      const said = messages.get(p.line) || [];
+      const step = { line: p.line, status: said.length || !['valid', 'invalid'].includes(p.status) ? 'error' : p.status, messages: said };
+      if (prev?.kind === 'RewritePart' && p.start === prev.end && p.name === prev.name) rewrites[rewrites.length - 1].steps.push(step);
+      else rewrites.push({ name: p.name, line: p.line, steps: [step] });
+    }
+    prev = p;
+  }
+  for (const r of rewrites) {
+    const st = r.steps.map((s) => s.status);
+    r.status = st.every((s) => s === 'valid') ? 'valid' : st.includes('error') ? 'error' : 'invalid';
+  }
+  return { rewrites, errors: outline.errors };
+}
+
+/** Run a loaded chyp-rs module on one theory's source: its report. */
+export function checkSource(chyp, source) {
+  const session = new chyp.Session(source);
+  try {
+    return reportOf(JSON.parse(session.check_all()));
+  } finally {
+    session.free();
+  }
+}
+
+/**
+ * chyp-rs's check of each theory: {results: {theory: report}, upstream, loadSeconds, checkSeconds}.
  */
 export async function check(theories, onStatus) {
-  const { py, loadSeconds } = await pyodide(onStatus);
-  onStatus?.('checking every rewrite with Chyp…');
+  const { chyp, loadSeconds } = await engine(onStatus);
+  const sources = await Promise.all(theories.map(async (t) => {
+    const url = new URL(`${t}.chyp`, BASE);
+    const r = await fetch(url);
+    if (!r.ok) throw new Error(`${url}: HTTP ${r.status}`);
+    return r.text();
+  }));
+  onStatus?.('checking every rewrite with chyp-rs…');
   const t0 = performance.now();
-  const out = await py.runPythonAsync(`
-import json, sys
-json.dumps({'python': sys.version.split()[0], 'results': {f: ch.check(ch.load_theory(f'chyp/{f}.chyp')).to_dict() for f in ${JSON.stringify(theories)}}})
-`);
-  return { ...JSON.parse(out), loadSeconds, checkSeconds: (performance.now() - t0) / 1000 };
-}
-
-/** The packages Chyp's layout needs, besides the numpy and scipy they pull in. */
-export const LAYOUT_PACKAGES = ['cvxpy-base', 'clarabel'];
-
-const pep503 = (name) => String(name).toLowerCase().replace(/[-_.]+/g, '-');
-
-/**
- * Which of `wanted` Pyodide does not list as loaded (`pyodide.loadedPackages`: name -> channel). Needed
- * because loadPackage does not throw when a wheel is blocked or cannot be fetched: it logs a warning
- * per package and resolves.
- */
-export function missingPackages(loadedPackages, wanted = LAYOUT_PACKAGES) {
-  const have = new Set(Object.keys(loadedPackages || {}).map(pep503));
-  return wanted.filter((w) => !have.has(pep503(w)));
-}
-
-/**
- * Why a live layout cannot be presented as the live result, or null. Two ways it silently becomes
- * something else: a package did not load (see missingPackages), or Chyp could not import cvxpy and
- * exported topology only (diagrams.layout.used is 'none', with a reason), which draws a different
- * structure. The text is what the page says, in plain words.
- * @param {{loadedPackages?: object, docs?: object}} o  py.loadedPackages, and the exports once there are some
- * @returns {string | null}
- */
-export function layoutProblem({ loadedPackages, docs }) {
-  const missing = missingPackages(loadedPackages);
-  if (missing.length) return `${missing.join(' and ')} did not load: ${missing.length > 1 ? 'their files' : 'its file'} could not be fetched from cdn.jsdelivr.net`;
-  if (docs) {
-    const topologyOnly = Object.entries(docs).filter(([, d]) => d?.diagrams?.layout?.used !== 'chyp');
-    if (topologyOnly.length) return `Chyp drew no coordinates: ${topologyOnly.map(([k, d]) => `${k} ${d?.diagrams?.layout?.reason || `(layout used: ${d?.diagrams?.layout?.used ?? 'unknown'})`}`).join('; ')}`;
-  }
-  return null;
-}
-
-/** The layout step on a loaded Pyodide `py`: throws, saying why, unless Chyp's own layout ran. */
-export async function layoutOn(py, theories, onStatus) {
-  onStatus?.('loading numpy, scipy, cvxpy-base and clarabel for Chyp\'s layout (about 18 MB)…');
-  const t0 = performance.now();
-  await py.loadPackage(LAYOUT_PACKAGES);
-  const notLoaded = layoutProblem({ loadedPackages: py.loadedPackages });
-  if (notLoaded) throw new Error(notLoaded);
-  onStatus?.('laying the diagrams out with Chyp (convex_layout)…');
-  const out = await py.runPythonAsync(`
-import json
-json.dumps({f: json.loads(ch.dumps(ch.export(ch.load_theory(f'chyp/{f}.chyp')))) for f in ${JSON.stringify(theories)}})
-`);
-  const docs = JSON.parse(out);
-  const problem = layoutProblem({ loadedPackages: py.loadedPackages, docs });
-  if (problem) throw new Error(problem);
-  return { docs, layoutSeconds: (performance.now() - t0) / 1000 };
-}
-
-/** export() with Chyp's layout on each theory: {docs: {theory: export}, layoutSeconds}. */
-export async function layout(theories, onStatus) {
-  const { py } = await pyodide(onStatus);
-  return layoutOn(py, theories, onStatus);
+  const results = Object.fromEntries(theories.map((t, i) => [t, checkSource(chyp, sources[i])]));
+  return { results, upstream: chyp.upstream_commit(), loadSeconds, checkSeconds: (performance.now() - t0) / 1000 };
 }
 
 /**
@@ -176,23 +120,7 @@ export function compare(live, pre) {
 }
 
 /**
- * Compare two exported diagram sets number by number (the live layout against
- * the precomputed one): {numbers, maxDiff, shapeDiffers}.
- */
-export function compareLayout(a, b) {
-  let numbers = 0, maxDiff = 0, shapeDiffers = false;
-  const walk = (x, y) => {
-    if (typeof x === 'number' && typeof y === 'number') { numbers++; maxDiff = Math.max(maxDiff, Math.abs(x - y)); return; }
-    if (Array.isArray(x) && Array.isArray(y)) { if (x.length !== y.length) shapeDiffers = true; for (let i = 0; i < Math.min(x.length, y.length); i++) walk(x[i], y[i]); return; }
-    if (x && y && typeof x === 'object' && typeof y === 'object') { for (const k of Object.keys(x)) if (k in y) walk(x[k], y[k]); else shapeDiffers = true; return; }
-    if (x !== y && !(typeof x === 'string' && typeof y === 'string')) shapeDiffers = true;
-  };
-  walk(a, b);
-  return { numbers, maxDiff, shapeDiffers };
-}
-
-/**
- * What the Laws view's background work (the data arriving, Pyodide finishing, the layout finishing) may do to the
+ * What the Laws view's background work (the data arriving, the live check finishing) may do to the
  * page. It outlives the view's drawing: the person may be in another view by then, with a drag or keyboard linking
  * in progress there. A redraw would cut that (a redraw is the current view's, not Laws'), and a "Laws: ..." line
  * spoken in the middle of it would be about something that is not on screen. So it speaks, and redraws, only

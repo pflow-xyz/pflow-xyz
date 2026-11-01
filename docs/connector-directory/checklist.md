@@ -25,8 +25,9 @@ and keeps Petri nets as the engine. Process mining stays out of the main listing
       `resources/read`, a `ui://` resource with MIME `text/html;profile=mcp-app`, and
       `_meta.ui.resourceUri` on the tool that opens it.
 - [ ] The page loads inside Claude's sandbox. By default the frame runs only inline and own-origin
-      scripts, so `_meta.ui.csp` must list what the page fetches: pflow.xyz, the engine on
-      cdn.stackdump.com, and for the Laws view jsDelivr and PyPI. Those hosts must also answer an
+      scripts, so `_meta.ui.csp` must list what the page fetches: pflow.xyz and the engine on
+      cdn.stackdump.com. The Laws view's checker comes from pflow.xyz, so it adds no host. Those hosts
+      must also answer an
       `Origin` of `*.claudemcpcontent.com`. Untested.
 - [ ] Only if the app runs its own OAuth: `_meta.ui.domain` =
       `f5caa4a1a9331ad9303f13d65c17a72a.claudemcpcontent.com` (the hash of `https://pflow.xyz/mcp`).
