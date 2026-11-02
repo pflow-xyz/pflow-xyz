@@ -10,6 +10,11 @@ package main
 // call, and refuses any tool call the manifest does not name. It returns the
 // model's message verbatim (thought signatures included, which Gemini wants
 // back on the next call) plus the calls it accepted.
+//
+// A request may ask for the "goals" toolset (llm_goal_tools.go) instead of the
+// default "all": the goal-level tools of public/llm-goal-tools.json, a brief
+// goal catalog and the rules for using them. Everything else about the turn is
+// the same, and so is the response.
 
 import (
 	_ "embed"
@@ -107,8 +112,20 @@ type turnRequest struct {
 	Mode     string          `json:"mode"`                // build, analyse, explain, or auto (llm_classify.go)
 	PrevMode string          `json:"prev_mode,omitempty"` // auto: the mode the conversation was in
 	Step     string          `json:"step,omitempty"`      // build mode's interview step (stepGuidance)
+	Toolset  string          `json:"toolset,omitempty"`   // all (the default) or goals (llm_goal_tools.go)
 	Net      json.RawMessage `json:"net"`
 	Messages []llm.Message   `json:"messages"`
+}
+
+// turnCall is a tool call the server accepted; turnRefusal one it did not.
+type turnCall struct {
+	Name string         `json:"name"`
+	Args map[string]any `json:"args"`
+}
+
+type turnRefusal struct {
+	Name   string `json:"name"`
+	Reason string `json:"reason"`
 }
 
 func validTurn(req *turnRequest) error {
@@ -120,6 +137,11 @@ func validTurn(req *turnRequest) error {
 	}
 	if req.PrevMode != "" && req.Mode != "auto" {
 		return errors.New("prev_mode is for auto mode")
+	}
+	switch req.Toolset {
+	case "", toolsetAll, toolsetGoals:
+	default:
+		return errors.New("toolset must be all or goals")
 	}
 	if req.Step != "" {
 		if req.Mode != "build" && req.Mode != "auto" {
@@ -196,7 +218,24 @@ func (s *Server) handleLLMTurn(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	done := svc.admit(w, u, "turn", turnPromptVersion+"/"+svc.toolsVersion)
+	// The toolset: "all" (today's, and the default) or "goals". A server
+	// without the goal manifest says so rather than quietly answering with the
+	// wrong tools; nothing is charged for the refusal.
+	var gt *goalToolset
+	tools, decls, toolsVersion := svc.tools, svc.toolDecls, svc.toolsVersion
+	if req.Toolset == toolsetGoals {
+		if gt = svc.goalTools; gt == nil {
+			llmError(w, http.StatusBadRequest, "toolset goals is not available on this server", nil)
+			return
+		}
+		tools, decls, toolsVersion = gt.names, gt.decls, gt.Version
+	}
+
+	prompt := turnPromptVersion + "/" + toolsVersion
+	if gt != nil {
+		prompt += "/" + goalRulesVersion
+	}
+	done := svc.admit(w, u, "turn", prompt)
 	if done == nil {
 		return
 	}
@@ -219,7 +258,11 @@ func (s *Server) handleLLMTurn(w http.ResponseWriter, r *http.Request) {
 	// The mode and the net travel as user content, never in the system
 	// prompt: a label in a shared net is data, not an instruction.
 	lead := modeGuidance[req.Mode]
-	if extra := svc.modeExtra[req.Mode]; extra != "" {
+	if gt != nil {
+		// the goals toolset's own brief replaces the long catalog of plans
+		// (modeExtra) the "all" toolset gives analyse mode
+		lead += "\n\n" + gt.lead
+	} else if extra := svc.modeExtra[req.Mode]; extra != "" {
 		lead += "\n\n" + extra
 	}
 	if g := stepGuidance[req.Step]; g != "" {
@@ -231,8 +274,9 @@ func (s *Server) handleLLMTurn(w http.ResponseWriter, r *http.Request) {
 	msgs := append([]llm.Message{{Role: "user", Parts: []llm.Part{{Text: lead}}}}, req.Messages...)
 	resp, err := svc.client.Complete(r.Context(), llm.Request{
 		System:          turnPromptV1,
+		Model:           svc.turnModel(gt != nil, req.Mode),
 		Messages:        msgs,
-		Tools:           svc.toolDecls,
+		Tools:           decls,
 		Temperature:     0.2,
 		MaxOutputTokens: 16384,
 		ThinkingBudget:  &turnThinkingBudget,
@@ -250,23 +294,27 @@ func (s *Server) handleLLMTurn(w http.ResponseWriter, r *http.Request) {
 	}
 	done(llm.Usage{Status: http.StatusOK, In: resp.InputTokens, Out: resp.OutputTokens})
 
-	type call struct {
-		Name string         `json:"name"`
-		Args map[string]any `json:"args"`
-	}
-	type refusal struct {
-		Name   string `json:"name"`
-		Reason string `json:"reason"`
-	}
-	accepted, refused := []call{}, []refusal{}
+	accepted, refused := []turnCall{}, []turnRefusal{}
 	for _, c := range resp.Calls {
 		switch {
-		case !svc.tools[c.Name]:
-			refused = append(refused, refusal{c.Name, "not a tool of this editor"})
+		case !tools[c.Name]:
+			reason := "not a tool of this editor"
+			if gt != nil {
+				reason = "not a tool of the goal toolset: use run_command with the command id"
+			}
+			refused = append(refused, turnRefusal{c.Name, reason})
 		case len(accepted) >= maxCallsPerReply:
-			refused = append(refused, refusal{c.Name, fmt.Sprintf("over the %d calls a reply may make", maxCallsPerReply)})
+			refused = append(refused, turnRefusal{c.Name, fmt.Sprintf("over the %d calls a reply may make", maxCallsPerReply)})
+		case gt != nil && gt.problem(c.Name, c.Args) != "":
+			refused = append(refused, turnRefusal{c.Name, gt.problem(c.Name, c.Args)})
 		default:
-			accepted = append(accepted, call{c.Name, c.Args})
+			accepted = append(accepted, turnCall{c.Name, c.Args})
+		}
+	}
+	// What a goal turn cost, by the goal it was for (anonymous; goalstats.go).
+	if gt != nil && svc.goalStats != nil {
+		if err := svc.goalStats.Record(gt.goalOf(accepted, req.Messages), resp.InputTokens, resp.OutputTokens, resp.ThoughtTokens); err != nil {
+			log.Printf("[llm] goal stats: %v", err)
 		}
 	}
 	left, reset := svc.limiter.Remaining(u.ID)
@@ -277,7 +325,7 @@ func (s *Server) handleLLMTurn(w http.ResponseWriter, r *http.Request) {
 		"refused":         refused,
 		"model":           resp.Model,
 		"prompt":          turnPromptVersion,
-		"tools":           svc.toolsVersion,
+		"tools":           toolsVersion,
 		"usage":           map[string]int{"input_tokens": resp.InputTokens, "output_tokens": resp.OutputTokens},
 		"remaining_today": left,
 		"reset":           reset.Format(time.RFC3339),
