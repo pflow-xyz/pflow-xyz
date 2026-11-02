@@ -1,7 +1,10 @@
 import { assert, assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import {
-    findOpenEntry, openTargetFromRecord, parseOpen, prefillModel, resultFromOutcome, showsInline,
+    ASK_PLACEHOLDER, MENU_ORDER, askSubmit, classicHref, findOpenEntry, flattenMenus, isFocusable, menuModel, menuStep,
+    openTargetFromRecord, parseOpen, prefillModel, releaseHref, resultFromOutcome, showsInline, triggerKey, typeahead,
+    uiMode, userLine,
 } from "./petri-menu.js";
+import { ACTION_IDS, METHOD_OF } from "./petri-menu-ui.js";
 import { buildIndex, outcomeOf, runCommandOutcome, runGoalOutcome } from "./petri-palette.js";
 import { formModel, goalFormModel, readValues } from "./petri-schema-form.js";
 import { Registry, createHeadlessHost } from "./petri-commands.js";
@@ -247,4 +250,224 @@ Deno.test("isTextFieldTarget: a field that asks for the chord (the Ask input) is
     assertEquals(isTextFieldTarget({ target: { tagName: "INPUT", type: "text", dataset: { paletteKey: "ok" } } }), false);
     assertEquals(isTextFieldTarget({ target: { tagName: "INPUT", type: "text", dataset: {} } }), true);
     assertEquals(isTextFieldTarget({ target: { tagName: "TEXTAREA", dataset: { paletteKey: "no" } } }), true, "only 'ok' opts out");
+});
+
+// ---- which UI ----
+
+Deno.test("uiMode: the bar needs the server, and ?ui=classic keeps the old hamburger", () => {
+    assertEquals(uiMode({ backend: true, search: "" }), "bar");
+    assertEquals(uiMode({ backend: true, search: "?cid=zb2rh" }), "bar");
+    assertEquals(uiMode({ backend: true, search: "?ui=classic" }), "classic");
+    assertEquals(uiMode({ backend: true, search: "?data=%7B%7D&ui=classic" }), "classic");
+    assertEquals(uiMode({ backend: true, search: "?ui=bar" }), "bar");
+    assertEquals(uiMode({ backend: true, search: "?ui=" }), "bar");
+    assertEquals(uiMode({ backend: true, search: "?ui=CLASSIC" }), "bar", "exact, so a typo is not a mode");
+    // a standalone component (no data-backend, e.g. a page that vendors petri-view.js) is classic whatever the URL says
+    assertEquals(uiMode({ backend: false, search: "" }), "classic");
+    assertEquals(uiMode({ backend: false, search: "?ui=bar" }), "classic");
+    assertEquals(uiMode({}), "classic");
+    assertEquals(uiMode({ backend: true, search: undefined as any }), "bar");
+});
+
+Deno.test("classicHref: sets ui=classic and keeps the model and the hash", () => {
+    assertEquals(classicHref("https://pflow.xyz/"), "https://pflow.xyz/?ui=classic");
+    assertEquals(classicHref("https://pflow.xyz/?cid=zb2rh#view=abc"), "https://pflow.xyz/?cid=zb2rh&ui=classic#view=abc");
+    assertEquals(classicHref("https://pflow.xyz/?ui=bar&data=%7B%7D"), "https://pflow.xyz/?ui=classic&data=%7B%7D");
+    assertEquals(new URL(classicHref("https://pflow.xyz/?data=%7B%22a%22%3A1%7D")).searchParams.get("data"), '{"a":1}');
+    assertEquals(classicHref("not a url"), "not a url", "an unreadable address is left alone");
+});
+
+// ---- the menus ----
+
+const ids = (entries: any[]) => entries.filter((e) => e.id).map((e) => e.id);
+const labels = (entries: any[]) => entries.filter((e) => e.label).map((e) => e.label);
+const SIGNED_OUT = { authenticated: false, user: null, filesEnabled: false, backend: true, version: "1.2.3" };
+const SIGNED_IN = { authenticated: true, user: { email: "me@example.com" }, filesEnabled: true, backend: true, version: "1.2.3" };
+
+Deno.test("menuModel: signed out, no server files", () => {
+    const m = menuModel(SIGNED_OUT);
+    assertEquals(ids(m.file), ["save", "delete", "download", "login"]);
+    assertEquals(labels(m.file), ["Save Permalink", "Delete", "Download JSON", "Login with GitHub"]);
+    assertEquals(ids(m.view), ["layout", "display", "json-editor", "app", "compose"]);
+    assertEquals(labels(m.view), ["Layout Algorithms", "Display Settings", "Toggle JSON editor", "Open as app", "Compose"]);
+    assertEquals(ids(m.help), ["help", "sim", "book", "native", "github", "classic", "version"]);
+    assertEquals(labels(m.help), ["Help", "Sim — Run & Check", "Book", "Native App", "GitHub", "Classic menu (this release)", "v1.2.3"]);
+    assertEquals(m.file.some((e: any) => e.kind === "info"), false, "no account line when nobody is signed in");
+});
+
+Deno.test("menuModel: signed in, with server files", () => {
+    const m = menuModel(SIGNED_IN);
+    assertEquals(ids(m.file), ["save", "delete", "account-save", "account-open", "share", "gist", "diagrams", "details", "download", "logout"]);
+    assertEquals(labels(m.file), [
+        "Save to Server", "Delete", "Save to my account…", "Open from my account…", "Share", "Save As Gist", "My Diagrams", "Edit Details",
+        "Download JSON", "Logout",
+    ]);
+    const info = m.file.find((e: any) => e.kind === "info");
+    assertEquals(info.text, "Logged in as: me@example.com");
+    // the user line comes after the separator and before Logout, as in the hamburger
+    const kinds = m.file.map((e: any) => e.kind);
+    assertEquals(kinds.slice(-3), ["separator", "info", "item"]);
+});
+
+Deno.test("menuModel: every condition of the old hamburger, one at a time", () => {
+    const only = (o: any) => menuModel({ ...SIGNED_OUT, ...o });
+    // /api/files/status
+    assertEquals(ids(only({ filesEnabled: true }).file).includes("account-save"), true);
+    assertEquals(ids(only({ filesEnabled: true }).file).includes("account-open"), true);
+    assertEquals(ids(only({ filesEnabled: false }).file).includes("account-save"), false);
+    // signed in: Share, Save As Gist, My Diagrams, Edit Details, and the Save entry's wording
+    for (const id of ["share", "gist", "diagrams", "details"]) {
+        assertEquals(ids(only({ authenticated: false }).file).includes(id), false, `${id} signed out`);
+        assertEquals(ids(only({ authenticated: true, user: {} }).file).includes(id), true, `${id} signed in`);
+    }
+    assertEquals(labels(only({ authenticated: true, user: {} }).file)[0], "Save to Server");
+    assertEquals(labels(only({ authenticated: false }).file)[0], "Save Permalink");
+    // signed in and signed out each have exactly one of Login and Logout
+    assertEquals(ids(only({ authenticated: true, user: {} }).file).filter((i) => i === "login" || i === "logout"), ["logout"]);
+    assertEquals(ids(only({ authenticated: false }).file).filter((i) => i === "login" || i === "logout"), ["login"]);
+    // the files do not depend on the account, nor the account on the files
+    assertEquals(ids(only({ authenticated: true, user: {}, filesEnabled: false }).file).includes("account-save"), false);
+    assertEquals(ids(only({ authenticated: false, filesEnabled: true }).file).includes("share"), false);
+    // no version, no footer link
+    assertEquals(ids(only({ version: "" }).help).includes("version"), false);
+});
+
+Deno.test("menuModel: the user line is the email, else the user name, else User", () => {
+    assertEquals(userLine({ email: "a@b.c", user_metadata: { user_name: "abc" } }), "a@b.c");
+    assertEquals(userLine({ email: "", user_metadata: { user_name: "abc" } }), "abc");
+    assertEquals(userLine({ user_metadata: {} }), "User");
+    assertEquals(userLine(null), "User");
+    assertEquals(menuModel({ ...SIGNED_IN, user: { user_metadata: { user_name: "octocat" } } }).file.find((e: any) => e.kind === "info").text, "Logged in as: octocat");
+});
+
+Deno.test("menuModel: a standalone component's contract has no account, no server files, no Compose and no way back", () => {
+    const m = menuModel({ backend: false, authenticated: true, user: { email: "x@y" }, filesEnabled: true, version: "1.2.3" });
+    assertEquals(ids(m.file), ["download"]);
+    assertEquals(ids(m.view), ["layout", "display", "json-editor", "app"]);
+    assertEquals(ids(m.help), ["help", "sim", "book", "native", "github", "version"]);
+    assertEquals(menuModel().file.map((e: any) => e.id), ["download"]);
+});
+
+Deno.test("menuModel: links carry their address, the classic link is an action, the version links to its release", () => {
+    const m = menuModel(SIGNED_OUT);
+    const by = (list: any[], id: string) => list.find((e: any) => e.id === id);
+    assertEquals(by(m.help, "sim").href, "https://sim.pflow.xyz");
+    assertEquals(by(m.help, "book").href, "https://book.pflow.xyz");
+    assertEquals(by(m.help, "native").href, "https://github.com/pflow-xyz/pflow-native");
+    assertEquals(by(m.help, "github").href, "https://github.com/pflow-xyz/pflow-xyz");
+    assertEquals(by(m.help, "version").href, releaseHref("1.2.3"));
+    assertEquals(releaseHref("1.2.3"), "https://github.com/pflow-xyz/pflow-xyz/releases/tag/v1.2.3");
+    assertEquals(by(m.view, "compose").href, "/compose.html");
+    assertEquals(by(m.help, "classic").kind, "item", "an action, not a link: it reloads with ?ui=classic");
+    for (const list of [m.file, m.view, m.help]) {
+        for (const e of list) {
+            if (e.kind === "link") assert(typeof e.href === "string" && e.href, e.id);
+            if (e.kind === "item" || e.kind === "link") assert(e.label && e.id, JSON.stringify(e));
+        }
+    }
+});
+
+Deno.test("menuModel: the Classic menu link is in Help and nowhere else", () => {
+    const m = menuModel(SIGNED_IN);
+    for (const name of ["file", "view"] as const) assert(!ids(m[name]).includes("classic"), name);
+    assertEquals(ids(m.help).filter((i) => i === "classic").length, 1);
+});
+
+Deno.test("menuModel: none of the removed entries is a menu entry any more", () => {
+    const all = [SIGNED_OUT, SIGNED_IN].flatMap((o) => { const m = menuModel(o); return [...m.file, ...m.view, ...m.help]; });
+    const text = all.map((e: any) => `${e.label || ""} ${e.text || ""}`).join(" | ");
+    for (const gone of ["Describe a process", "Draft notes", "Assistant", "Analysis", "Simulate", "Structure", "Components", "Results", "What do you want to know", "Check net"]) {
+        assert(!text.includes(gone), `${gone} is not a menu entry`);
+    }
+    // 25 entries in one panel became three menus: none of them is a long list
+    for (const o of [SIGNED_OUT, SIGNED_IN]) for (const list of Object.values(menuModel(o))) assert((list as any[]).length <= 12, `${(list as any[]).length} rows`);
+});
+
+Deno.test("every action a menu entry runs is one the bar can run, and the view has the method", async () => {
+    const entries = [SIGNED_OUT, SIGNED_IN, { ...SIGNED_IN, filesEnabled: false }].flatMap((o) => { const m = menuModel(o); return [...m.file, ...m.view, ...m.help]; });
+    const items = new Set(entries.filter((e: any) => e.kind === "item").map((e: any) => e.id));
+    for (const id of items) assert(ACTION_IDS.includes(id as string), `${id} has no action in petri-menu-ui.js`);
+    for (const id of ACTION_IDS) assert(items.has(id), `${id} is an action no menu entry names`);
+    const view = await Deno.readTextFile(new URL("./petri-view.js", import.meta.url));
+    for (const [id, method] of Object.entries(METHOD_OF)) {
+        assert(new RegExp(`^\\s+(async\\s+)?${method}\\(`, "m").test(view), `${id}: petri-view.js has no ${method}()`);
+    }
+    // the bar's three ways to reach the Ask pane, the palette and the problems chip exist on the view too
+    for (const method of ["_openChat", "_openPalette", "_openPaletteFor", "_showProblems", "_problemsGate", "_mountProblems", "_uiMode", "_createAppBar"]) {
+        assert(new RegExp(`^\\s+(async\\s+)?${method}\\(`, "m").test(view), `petri-view.js has no ${method}()`);
+    }
+});
+
+Deno.test("flattenMenus: the three menus as one list under headings, in order", () => {
+    const m = menuModel(SIGNED_IN);
+    const flat = flattenMenus(m);
+    const heads = flat.filter((e: any) => e.kind === "heading").map((e: any) => e.label);
+    assertEquals(heads, ["File", "View", "Help"]);
+    assertEquals(MENU_ORDER, ["file", "view", "help"]);
+    assertEquals(flat.length, m.file.length + m.view.length + m.help.length + 3);
+    assertEquals(flat[0], { kind: "heading", label: "File" });
+    assertEquals(ids(flat), [...ids(m.file), ...ids(m.view), ...ids(m.help)]);
+    assertEquals(flattenMenus({ file: [], view: [], help: [] } as any), []);
+    assertEquals(flattenMenus(null as any), []);
+});
+
+// ---- the Ask input ----
+
+Deno.test("askSubmit: the words go to the Ask pane with the intent left to the server; empty words still open it", () => {
+    assertEquals(askSubmit("  can it get stuck?  "), { mode: "auto", message: "can it get stuck?" });
+    assertEquals(askSubmit(""), { mode: "auto" });
+    assertEquals(askSubmit("   "), { mode: "auto" });
+    assertEquals(askSubmit(undefined), { mode: "auto" });
+    assertEquals(askSubmit(42 as any), { mode: "auto" });
+    assertEquals(askSubmit("a\nb"), { mode: "auto", message: "a\nb" });
+    assertEquals(ASK_PLACEHOLDER, "Ask about this net, or say what to change...");
+});
+
+// ---- a menu's keyboard ----
+
+Deno.test("menuStep: arrows wrap, Home and End go to the ends, rows that cannot take focus are skipped", () => {
+    const all = [true, true, true];
+    assertEquals(menuStep(all, 0, "ArrowDown"), 1);
+    assertEquals(menuStep(all, 2, "ArrowDown"), 0, "wraps down");
+    assertEquals(menuStep(all, 0, "ArrowUp"), 2, "wraps up");
+    assertEquals(menuStep(all, -1, "ArrowDown"), 0, "from nothing, down is the first");
+    assertEquals(menuStep(all, -1, "ArrowUp"), 2, "from nothing, up is the last");
+    assertEquals(menuStep(all, 1, "Home"), 0);
+    assertEquals(menuStep(all, 1, "End"), 2);
+    assertEquals(menuStep(all, 1, "PageDown"), 1, "another key moves nothing");
+    const gaps = [false, true, false, true, false];
+    assertEquals(menuStep(gaps, -1, "ArrowDown"), 1);
+    assertEquals(menuStep(gaps, 1, "ArrowDown"), 3);
+    assertEquals(menuStep(gaps, 3, "ArrowDown"), 1, "past the last it wraps over the gaps");
+    assertEquals(menuStep(gaps, 1, "ArrowUp"), 3);
+    assertEquals(menuStep(gaps, 0, "Home"), 1);
+    assertEquals(menuStep(gaps, 0, "End"), 3);
+    assertEquals(menuStep([false, false], 0, "ArrowDown"), -1, "nothing can take focus");
+    assertEquals(menuStep([], -1, "ArrowDown"), -1);
+    assertEquals(menuStep([true], 0, "ArrowDown"), 0);
+    assertEquals(menuStep([true], 0, "ArrowUp"), 0);
+});
+
+Deno.test("typeahead: the next row whose label starts with the letter, wrapping, case-insensitive", () => {
+    const rows = [{ label: "Save Permalink", focusable: true }, { label: "Delete", focusable: true }, { label: "Download JSON", focusable: true }, { label: "Login with GitHub", focusable: true }];
+    assertEquals(typeahead(rows, 0, "d"), 1);
+    assertEquals(typeahead(rows, 1, "d"), 2, "again: the next one");
+    assertEquals(typeahead(rows, 2, "D"), 1, "wraps, any case");
+    assertEquals(typeahead(rows, 0, "s"), 0, "only itself: stays");
+    assertEquals(typeahead(rows, 0, "z"), -1);
+    assertEquals(typeahead(rows, 0, "ab"), -1, "one character at a time");
+    assertEquals(typeahead(rows, 0, ""), -1);
+    assertEquals(typeahead([], -1, "a"), -1);
+    assertEquals(typeahead([{ label: "Delete", focusable: false }], -1, "d"), -1);
+    assertEquals(typeahead([{ label: "  Delete" , focusable: true }], -1, "d"), 0, "leading space is not part of a label");
+});
+
+Deno.test("triggerKey and isFocusable", () => {
+    assertEquals(triggerKey("ArrowDown"), "first");
+    assertEquals(triggerKey("Enter"), "first");
+    assertEquals(triggerKey(" "), "first");
+    assertEquals(triggerKey("ArrowUp"), "last");
+    assertEquals(triggerKey("a"), null);
+    assertEquals(triggerKey("Escape"), null);
+    assertEquals([{ kind: "item" }, { kind: "link" }, { kind: "info" }, { kind: "separator" }, { kind: "heading" }, null].map(isFocusable), [true, true, false, false, false, false]);
 });

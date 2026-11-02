@@ -210,6 +210,7 @@ PetriView = class PetriView extends HTMLElement {
                 this._hamburgerMenu = null;
                 this._hamburgerDropdown = null;
             }
+            this._destroyAppBar();
             this._createHamburgerMenu();
 
             // Initialize authentication if in backend mode
@@ -323,14 +324,19 @@ PetriView = class PetriView extends HTMLElement {
     }
 
     _updateMenuForAuth() {
-        // Re-create hamburger menu to reflect authentication state
-        if (this._hamburgerMenu) {
-            this._hamburgerMenu.remove();
-            this._hamburgerDropdown.remove();
-            this._hamburgerMenu = null;
-            this._hamburgerDropdown = null;
+        if (this._uiMode() === 'bar') {
+            // The bar's menus are built from the current sign-in state when they open; one that is open is redrawn.
+            this._appBar?.refresh();
+        } else {
+            // Re-create hamburger menu to reflect authentication state
+            if (this._hamburgerMenu) {
+                this._hamburgerMenu.remove();
+                this._hamburgerDropdown.remove();
+                this._hamburgerMenu = null;
+                this._hamburgerDropdown = null;
+            }
+            this._createHamburgerMenu();
         }
-        this._createHamburgerMenu();
 
         // Re-create top-right button to reflect authentication state
         if (this._topRightButton) {
@@ -1306,6 +1312,9 @@ PetriView = class PetriView extends HTMLElement {
             this._topRightButton.remove();
             this._topRightButton = null;
         }
+
+        // The bar, its Cmd-K chord and the problems chip
+        this._destroyAppBar();
     }
 
     // /api/files/status decides whether "Save to my account" is offered. A
@@ -1342,12 +1351,14 @@ PetriView = class PetriView extends HTMLElement {
         ui.openDraftDialog(this);
     }
 
+    // Resolves to false when the pane could not be opened (the Ask bar then keeps the person's words).
     async _openChat(opts) {
         try {
             const ui = await import('./petri-chat-ui.js');
             await ui.openChat(this, opts);
         } catch (e) {
             this._toast('The assistant is not available: ' + e.message, 'error');
+            return false;
         }
     }
 
@@ -1369,7 +1380,8 @@ PetriView = class PetriView extends HTMLElement {
             btn.type = 'button';
             btn.className = 'pv-btn pv-draft-prompt';
             btn.textContent = '✨ Describe a process in words → get a draft net';
-            btn.addEventListener('click', () => this._openDraftDialog());
+            // The Ask pane in build mode is where a description goes now; the old dialog stays behind ?ui=classic.
+            btn.addEventListener('click', () => (this._uiMode() === 'bar' ? this._openChat({mode: 'build'}) : this._openDraftDialog()));
             this._root.appendChild(btn);
             this._draftPromptBtn = btn;
         }
@@ -1482,6 +1494,150 @@ PetriView = class PetriView extends HTMLElement {
         } catch (e) {
             this._toast('Structure analysis is not available here: ' + e.message, 'error');
         }
+    }
+
+    // ---------------- the top bar, the Tools palette and the problems chip ----------------
+    // petri-menu.js decides what the menus hold and petri-menu-ui.js draws the bar (Ask, File, View, Help, Tools, the
+    // problems chip). The old hamburger (_createHamburgerMenu) stays behind ?ui=classic for one release, and is what a
+    // component with no data-backend always has: the bar needs the server's Ask pane and results pane.
+
+    // 'bar' or 'classic': petri-menu.js uiMode in three lines (this file cannot import it before the page has chosen a menu).
+    _uiMode() {
+        if (this._forceClassic || !this.hasAttribute('data-backend')) return 'classic';
+        return new URLSearchParams(window.location.search).get('ui') === 'classic' ? 'classic' : 'bar';
+    }
+
+    _createAppBar() {
+        if (this._appBar || this._appBarPending) return;
+        this.dataset.ui = 'bar'; // at once: the page's logo moves into the hamburger's place by it (petri-view.css)
+        this._appBarPending = import('./petri-menu-ui.js').then((ui) => {
+            if (!this.isConnected || !this._root || this._appBar || this._uiMode() !== 'bar') return;
+            this._appBar = ui.mountAppBar(this);
+            if (this._topRightButton) this._appBar.element.appendChild(this._topRightButton);
+            this._llmStatus(); // the empty-canvas prompt needs to know whether the assistant is on
+            this._mountProblems(this._appBar.problemsHost);
+        }).catch((err) => {
+            // A copy of the component served without the bar's modules keeps the menu it always had.
+            console.warn('The editor bar could not be loaded; using the classic menu.', err);
+            this._forceClassic = true;
+            this._destroyAppBar();
+            this._createHamburgerMenu();
+        }).finally(() => { this._appBarPending = null; });
+    }
+
+    _destroyAppBar() {
+        this._problemsChip?.destroy();
+        this._problemsChip = null;
+        this._problemsMonitor?.destroy();
+        this._problemsMonitor = null;
+        if (this._appBar) {
+            // The account button lives in the bar; it goes back on the canvas when the bar goes.
+            if (this._topRightButton && this._appBar.element.contains(this._topRightButton)) this._root?.appendChild(this._topRightButton);
+            this._appBar.destroy();
+            this._appBar = null;
+        }
+        delete this.dataset.ui;
+    }
+
+    // The automatic "problems" indicator that replaces the Check net menu entry (petri-problems.js). It checks the net
+    // once the document has loaded and again after each burst of edits (_syncLD asks); a copy of the component served
+    // without petri-problems.js simply has no chip.
+    async _mountProblems(host) {
+        if (this._problemsMonitor || !host) return;
+        let mod;
+        try {
+            mod = await import('./petri-problems.js');
+        } catch {
+            return;
+        }
+        if (this._problemsMonitor || !this.isConnected || !host.isConnected) return;
+        const monitor = new mod.ProblemsMonitor({
+            getModel: () => this._model,
+            check: (m, o) => mod.checkModel(m, { ...o, loadCheck: this._loadCheck }),
+        });
+        this._problemsMod = mod;
+        this._problemsMonitor = monitor;
+        this._problemsChip = mod.mountProblemsChip(host, monitor, { onOpen: (summary) => this._showProblems(summary) });
+        await this._loadCheckReady; // _loadCheck is set asynchronously: the first check counts what the load repaired
+        if (this._problemsMonitor === monitor && !monitor.state.summary && !monitor.state.checking) monitor.run();
+    }
+
+    // What the chip opens: the list (petri-problems.js problemsListHtml), the MCP call that makes the same check, and
+    // the full report of the Check net dialog.
+    async _showProblems(summary) {
+        const mod = this._problemsMod || await import('./petri-problems.js');
+        const opener = document.activeElement;
+        const overlay = document.createElement('div');
+        overlay.className = 'pv-modal-overlay';
+        const dialog = document.createElement('div');
+        dialog.className = 'pv-modal-dialog pv-modal-dialog-wide';
+        dialog.setAttribute('role', 'dialog');
+        dialog.setAttribute('aria-label', 'Problems');
+        dialog.innerHTML = `
+            <div class="pv-dialog-header">
+                <h2 class="pv-dialog-header-title">Problems</h2>
+                <button type="button" class="pv-dialog-close-icon" data-act="close" aria-label="Close" title="Close (Esc)">×</button>
+            </div>
+            ${mod.problemsListHtml(summary)}
+            <div class="pv-btn-container">
+                <button type="button" class="pv-btn" data-act="mcp" title="Copy the tools/call that makes this check (analysis.check)">Copy MCP call</button>
+                <button type="button" class="pv-btn" data-act="details" title="The full report, as the Check net dialog shows it">Details</button>
+                <button type="button" class="pv-btn" data-act="close">Close</button>
+            </div>`;
+        overlay.appendChild(dialog);
+        document.body.appendChild(overlay);
+        const close = () => {
+            overlay.remove();
+            try { if (opener && opener.isConnected) opener.focus(); } catch { /* gone */ }
+        };
+        overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+        overlay.addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.stopPropagation(); close(); } });
+        dialog.querySelectorAll('[data-act="close"]').forEach(b => b.addEventListener('click', close));
+        dialog.querySelector('[data-act="mcp"]').addEventListener('click', () => this._copyMcpCall({ source: { command: 'analysis.check', args: {} } }));
+        dialog.querySelector('[data-act="details"]').addEventListener('click', () => { close(); this._showCheckDialog(); });
+        overlay.tabIndex = -1;
+        overlay.focus();
+    }
+
+    // What an Apply does about problems in the net it would apply (petri-problems.js applyGate): {block: false, warn,
+    // message}. The Ask pane calls it with its pending net; with no net it checks the one on the canvas.
+    async _problemsGate(model) {
+        const mod = this._problemsMod || await import('./petri-problems.js');
+        return mod.applyGate(await mod.checkModel(model ?? this._model));
+    }
+
+    /**
+     * Open the Tools palette (Cmd-K, the Tools button). A run lands in the results pane, as an Ask result does; pass
+     * onResult to take it yourself, and `open: {id, args}` to open straight on a form with its arguments filled in.
+     */
+    async _openPalette(opts = {}) {
+        try {
+            const ui = await import('./petri-palette-ui.js');
+            return await ui.openPalette(this, { onResult: (outcome) => this._showPaletteResult(outcome), ...opts });
+        } catch (e) {
+            this._toast('Tools are not available here: ' + e.message, 'error');
+        }
+    }
+
+    // A palette run as a result: the same shape, the same footer (petri-menu.js resultFromOutcome, petri-results-pane.js).
+    async _showPaletteResult(outcome) {
+        const [{ resultFromOutcome }, { modelKey }, registry] = await Promise.all([import('./petri-menu.js'), import('./petri-engine-guard.js'), this.commands()]);
+        const result = await resultFromOutcome(outcome, {
+            registry,
+            net: { ...(this._originalCid ? { cid: this._originalCid } : {}), revision: modelKey(this._model) },
+        });
+        return this._showResult(result);
+    }
+
+    /** "Open in Tools" on a result: the palette on the record's first call, with the arguments it ran with. */
+    async _openPaletteFor(record) {
+        const { openTargetFromRecord } = await import('./petri-menu.js');
+        const target = openTargetFromRecord(record);
+        if (!target) {
+            this._toast('This result has no call to open in Tools');
+            return;
+        }
+        return this._openPalette({ open: target });
     }
 
     /** The command registry (petri-commands.js), loaded on first use. */
@@ -2170,14 +2326,19 @@ PetriView = class PetriView extends HTMLElement {
     _checkIncoming(doc) {
         let snapshot;
         try { snapshot = structuredClone(doc); } catch { return; }
-        import('./petri-validate.js').then(({ validateNet }) => {
+        // _loadCheckReady settles once _loadCheck is set, which is asynchronous: the problems chip waits for it.
+        this._loadCheckReady = import('./petri-validate.js').then(({ validateNet }) => {
             const report = validateNet(snapshot);
             this._loadCheck = report;
             if (report.errors.length) {
                 const n = report.errors.length;
-                this._toast(`Check: this net had ${n} problem${n === 1 ? '' : 's'} the editor repaired on load. Menu → Check net shows them.`, 'error', 8000);
+                // Where the list is depends on the menu: the problems chip, or the old hamburger's Check net.
+                const where = this._uiMode() === 'bar' ? 'The problems chip lists them.' : 'Menu → Check net shows them.';
+                this._toast(`Check: this net had ${n} problem${n === 1 ? '' : 's'} the editor repaired on load. ${where}`, 'error', 8000);
             }
+            this._problemsMonitor?.run(); // a document arrived: what the chip says was about the one before
         }).catch(() => {});
+        return this._loadCheckReady;
     }
 
     async _loadModelFromScriptOrAutosave() {
@@ -2290,6 +2451,9 @@ PetriView = class PetriView extends HTMLElement {
 
     // ---------------- persistence & history ----------------
     _syncLD(force = false) {
+        // The one place every change of the document passes (an edit, undo and redo, a command, a new model, the
+        // JSON editor): the problems chip re-checks after the burst (petri-problems.js ProblemsMonitor.schedule).
+        this._problemsMonitor?.schedule();
         try {
             localStorage.setItem(this._getStorageKey(), this._stableStringify(this._model));
         } catch {
@@ -5335,6 +5499,26 @@ PetriView = class PetriView extends HTMLElement {
         const content = document.createElement('div');
         content.className = 'pv-help-content';
 
+        // Where things are depends on the menu: the bar (File, View, Help, Ask, Tools) or the old hamburger.
+        const bar = this._uiMode() === 'bar';
+        const where = bar ? `
+            <h3>Finding your way around</h3>
+            <ul>
+                <li><strong>Ask</strong> (the box at the top): say what you want to know about this net, or what to change.
+                Describe a process to get a first draft, ask whether it can get stuck, ask for an edit. The reply says which
+                analysis answered and how it was computed. Without the assistant (signed out, or over its limit), Tools and
+                the problems chip below still work: they need no model.</li>
+                <li><strong>Tools</strong> (<strong>Ctrl K</strong>, or <strong>⌘K</strong> on a Mac): every command the editor has,
+                each with a form for its arguments, and no model involved. Under <em>Classic tools</em> are the dialogs the
+                menu used to open: Analysis, Simulate, Structure, Components, Results and the full Check net report.</li>
+                <li><strong>The problems chip</strong>: the net is checked for you when it loads and after you edit. Click the
+                chip for the list; <em>Details</em> there opens the full report.</li>
+                <li><strong>File</strong>: save, open, share, download, and your account. <strong>View</strong>: layout,
+                display settings, the JSON editor, the App view and Compose. <strong>Help</strong>: this page and the links.
+                <em>Classic menu</em> in Help brings the old single menu back for this release.</li>
+            </ul>
+        ` : '';
+
         content.innerHTML = `
             <h3>What are Petri Nets?</h3>
             <p>
@@ -5342,6 +5526,7 @@ PetriView = class PetriView extends HTMLElement {
                 that hold tokens, <strong>transitions</strong> (rectangles) that fire to move tokens, and <strong>arcs</strong> (arrows)
                 that connect them. When a transition fires, it consumes tokens from input places and produces tokens in output places.
             </p>
+            ${where}
 
             <h3>📖 Book</h3>
             <p>
@@ -5428,6 +5613,7 @@ PetriView = class PetriView extends HTMLElement {
                 <li><strong>7:</strong> Toggle Label Edit mode</li>
                 <li><strong>8:</strong> Start/stop simulation (same as X)</li>
                 <li><strong>9:</strong> Open the Analysis workbench</li>
+                ${bar ? '<li><strong>Ctrl/Cmd + K:</strong> Open Tools (every command, no model needed); press it again to close</li>' : ''}
             </ul>
 
             <h4>Other Features:</h4>
@@ -5442,7 +5628,9 @@ PetriView = class PetriView extends HTMLElement {
             <p>
                 Continuous-time math tools for the current model, computed in the browser with the same
                 mass-action semantics and Tsit5 solver options as go-pflow.
-                Open it from the hamburger menu (<strong>🧮 Analysis</strong>) or press <strong>9</strong>.
+                ${bar
+        ? 'Open it from <strong>Tools</strong> (Ctrl K, or ⌘K) under <em>Classic tools</em> → <strong>Analysis</strong>, or press <strong>9</strong>.'
+        : 'Open it from the hamburger menu (<strong>🧮 Analysis</strong>) or press <strong>9</strong>.'}
             </p>
 
             <h4>Tabs:</h4>
@@ -5464,7 +5652,9 @@ PetriView = class PetriView extends HTMLElement {
 
             <h3>Layout Algorithms</h3>
             <p>
-                Use the <strong>🎨 Layout Algorithms</strong> menu to automatically arrange your Petri net nodes:
+                ${bar
+        ? 'Use <strong>View → Layout Algorithms</strong> to automatically arrange your Petri net nodes:'
+        : 'Use the <strong>🎨 Layout Algorithms</strong> menu to automatically arrange your Petri net nodes:'}
             </p>
 
             <h4>Available Layouts:</h4>
@@ -5592,7 +5782,9 @@ PetriView = class PetriView extends HTMLElement {
                 <button type="button" class="pv-btn pv-results-item" data-id="${esc(a.id)}">
                     ${esc(a.title)} <span class="pv-results-meta">${esc(a.data.kind)} · ${esc(a.source.command)} · ${esc(a.id)}</span>
                 </button>`).join('')}</div>`
-                : '<p>No results yet. Run an analysis (🧮) or a check (✅), or call a command with el.execute().</p>'}
+                : `<p>No results yet. ${this._uiMode() === 'bar'
+                    ? 'Ask a question in the Ask box, run something from Tools (Ctrl K, or ⌘K), or call a command with el.execute().'
+                    : 'Run an analysis (🧮) or a check (✅), or call a command with el.execute().'}</p>`}
             <div class="pv-results-view"></div>
             <div class="pv-btn-container">
                 <button type="button" class="pv-btn" data-act="csv" disabled>CSV</button>
@@ -7622,6 +7814,10 @@ PetriView = class PetriView extends HTMLElement {
     _createHamburgerMenu() {
         if (this._hamburgerMenu) return;
         if (!this._root) return; // Safety check
+        if (this._uiMode() === 'bar') {
+            this._createAppBar();
+            return;
+        }
 
         const isBackendMode = this.hasAttribute('data-backend');
 
@@ -8030,7 +8226,8 @@ PetriView = class PetriView extends HTMLElement {
             }
         });
 
-        this._root.appendChild(button);
+        // In the bar it is the last thing in the row (so a long user name cannot run under the menus); else on the canvas.
+        (this._appBar?.element || this._root).appendChild(button);
         this._topRightButton = button;
     }
 

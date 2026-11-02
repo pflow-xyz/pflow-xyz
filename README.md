@@ -96,7 +96,9 @@ const sol = Solver.solve(prob, Solver.Tsit5(), { dt: 0.01 });
 
 **Editor** — Drag-and-drop places, transitions, arcs. Inhibitor arcs, capacity limits, multi-select, pan & zoom, undo/redo. Light + dark theme (follows `prefers-color-scheme`).
 
-**Analysis workbench** (`9` or ☰ → Analysis) — Tsit5 adaptive solver with mass-action kinetics, in four tabs: time-series **Simulate**, **Rate Scan** (steady state vs one rate), **Sweep** (overlaid trajectories), and **Phase Plot**. Interactive plots (crosshair, click-to-toggle legend), numeric results tables and CSV/JSON export.
+**The bar** — Ask (say what you want to know or change; a result says how it was computed), File / View / Help, **Tools** (`Ctrl K` or `⌘K`: every command with a form for its arguments, no model needed) and a problems chip that checks the net as you edit. The old single hamburger menu is still there for this release at `?ui=classic`.
+
+**Analysis workbench** (`9`, or Tools → Classic tools → Analysis) — Tsit5 adaptive solver with mass-action kinetics, in four tabs: time-series **Simulate**, **Rate Scan** (steady state vs one rate), **Sweep** (overlaid trajectories), and **Phase Plot**. Interactive plots (crosshair, click-to-toggle legend), numeric results tables and CSV/JSON export.
 
 **Ad-hoc pages** — every module is served from pflow.xyz with `Access-Control-Allow-Origin: *`, so a scratch HTML file (or an AI assistant writing one) can `import "https://pflow.xyz/petri-solver.js"` directly. See [pflow.xyz/llms.txt](https://pflow.xyz/llms.txt) for copy-paste recipes and the model format.
 

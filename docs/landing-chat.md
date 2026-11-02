@@ -111,3 +111,32 @@ real keyboard is exercised by the smoke.
 Run the smokes before a push with `scripts/smoke-gate.sh` (or `make smoke-gate`): it serves this checkout on a scratch
 port, keeps each smoke's full log and exits non-zero if any smoke did. Do not pipe a smoke into `tail` by hand: `... |
 tail || exit 1` tests `tail`, which is how one crash got past a push.
+
+## The editor's bar: the same Ask, and where the old menu went
+
+Inside the editor the hero's input has a counterpart, the bar over the canvas (`public/petri-menu-ui.js`, with
+`petri-menu.js` for the parts that need no DOM): **Ask**, **File**, **View**, **Help**, **Tools** (Ctrl K or ⌘K) and the
+problems chip, then the account button. Enter in its Ask input makes the call the hero makes, `view._openChat({mode:
+'auto', message})`, and sends nothing itself: a visitor who cannot chat (signed out, not on the allow-list, no chat on
+the server) still gets the pane (what the pane does with the words then is the Ask pane's, design section 9), and the
+bar never asks the model for anything a signed-out person would be refused. Focusing the input opens nothing. The bar is only in the pflow.xyz
+editor (`data-backend`); a standalone `<petri-view>` and `?ui=classic` keep the single hamburger for this release (Help >
+Classic menu is the one place that links to it).
+
+| the hamburger's entry | now |
+|---|---|
+| Describe a process, Draft notes, Assistant | the Ask input (the empty canvas's "Describe a process in words" button opens the Ask pane in `build`) |
+| What do you want to know? | the Ask input, and Tools > Questions; the dialog itself is in Tools > Classic tools |
+| Analysis, Simulate, Structure, Components, Results, Check net | Tools > Classic tools, each opening the same dialog; the key `9` still opens Analysis |
+| Check net | the problems chip: it checks on load and after each burst of edits; its list has Copy MCP call and Details (the old Check net dialog) |
+| App view | View > Open as app |
+| Composition Views | View > Compose |
+| the account, saving, sharing, Download JSON | File, with the conditions they had (signed in, `/api/files/status`) |
+| Layout Algorithms, Display Settings, Toggle Editor | View |
+| Help, Sim, Book, Native App, GitHub, the version | Help |
+
+A run from Tools (or the palette's "Open in Tools" on a result's footer, which opens the command's form with its
+arguments filled in) lands in the same results pane as an Ask result, with the same "How this was computed" footer, and
+works with no model: `scripts/menu-smoke.ts` runs it with every `/api/llm/*` answered 503. The smoke also covers the bar
+at 1280, 390 and 320 px, each menu from the keyboard, each removed entry's replacement, `?ui=classic` and the standalone
+component.
