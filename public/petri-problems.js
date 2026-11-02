@@ -11,6 +11,14 @@
 //   checkModel(model, {registry})    async: that summary for ANY net, read-only (the live document is never touched)
 //   ProblemsMonitor                  re-checks the live net after a burst of edits, drops results that went stale
 //   applyGate(summary)               what an Apply does about problems: show them first, never refuse
+//   chipHtml / mountProblemsChip / problemsListHtml
+//                                    the "N problems" chip by the title, and the list it opens
+//
+// Wiring (petri-view): build a ProblemsMonitor on the live net (getModel: () => this._model, check: (m) =>
+// checkModel(m, {loadCheck: this._loadCheck})), call monitor.run() once the document has loaded (after _loadCheck is
+// set) and monitor.schedule() after each edit, mount the chip with mountProblemsChip(host, monitor, {onOpen}), and have
+// onOpen show problemsListHtml(summary, {esc}) in a dialog. Before an Apply: applyGate(await checkModel(null,
+// {registry: chat.sandbox})).
 //
 // Severities, in the order they are listed: 'error' (a problem in the net as it is now), 'repaired' (a problem the
 // incoming document had, which normalizeModel fixed quietly on load: the net you see is not the net you were given),
@@ -105,13 +113,16 @@ function failedSummary(e) {
  * which is how analysis.check reads them too). When `model` is null or undefined and a `registry` is given, the
  * registry's own document is checked: pass the Assistant's sandbox registry to check the pending net BEFORE Apply.
  *
+ * `loadCheck` (optional) is summarize's: pass petri-view's `_loadCheck` when checking the live net, so what was
+ * repaired at load shows up as 'repaired' items in the same summary (the monitor's `check` can close over it).
+ *
  * It never rejects: a net that cannot be copied or checked comes back as an error item saying so.
  *
  * @param {*} model
- * @param {{registry?: {host: {getModel: () => *}}}} [opts]
+ * @param {{registry?: {host: {getModel: () => *}}, loadCheck?: Object|null}} [opts]
  * @returns {Promise<ProblemsSummary>}
  */
-export async function checkModel(model, { registry } = {}) {
+export async function checkModel(model, { registry, loadCheck = null } = {}) {
     let doc;
     try {
         const source = model ?? (registry && registry.host && registry.host.getModel());
@@ -124,7 +135,7 @@ export async function checkModel(model, { registry } = {}) {
         const { validateNet, smokeCheck } = await import('./petri-validate.js');
         const r = validateNet(doc);
         const smoke = r.ok ? await smokeCheck(doc) : null;
-        return summarize({ report: { errors: [...r.errors, ...(smoke ? smoke.errors : [])], warnings: r.warnings } });
+        return summarize({ report: { errors: [...r.errors, ...(smoke ? smoke.errors : [])], warnings: r.warnings }, loadCheck });
     } catch (e) {
         return failedSummary(e);
     }
@@ -262,5 +273,152 @@ export function applyGate(summary) {
         block: false,
         warn: true,
         message: `This leaves ${plural(n, 'error')} in the net. Look at the list first; you can still apply.`,
+    };
+}
+
+// ---------------------------------------------------------------------------
+// The chip and the list
+// ---------------------------------------------------------------------------
+//
+// chipHtml and problemsListHtml are pure strings (so they are tested without a DOM). mountProblemsChip is the only
+// part that touches an element, and only through innerHTML, querySelector, setAttribute and addEventListener.
+// Styles are in petri-view.css under "Problems indicator".
+
+const escHtml = (s) => String(s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+
+const LEVELS = ['ok', 'warn', 'error'];
+const SEVERITIES = ['error', 'repaired', 'warning'];
+const KIND_LABEL = { error: 'Error', repaired: 'Repaired on load', warning: 'Warning' };
+
+/** The most items the list shows; a big net can have hundreds of "no arc touches this place". */
+const MAX_LISTED = 200;
+
+// "where: message", or the message alone when it is about the net as a whole.
+const describe = (item) => (item.where && item.where !== NET ? `${item.where}: ${item.message}` : item.message);
+
+// What the chip shows for a summary (null: not checked yet). Level is 'pending' only here, never in a summary.
+function chipView(summary) {
+    if (!summary) {
+        return { level: 'pending', label: 'Checking…', ariaLabel: 'Checking for problems, open the list', title: 'Checking the net for problems' };
+    }
+    const level = LEVELS.includes(summary.level) ? summary.level : 'error';
+    const items = Array.isArray(summary.items) ? summary.items : [];
+    const first = items[0];
+    const kind = first && (KIND_LABEL[first.severity] || KIND_LABEL.error);
+    const title = summary.count > 0 && first
+        ? `${kind}: ${describe(first)}${summary.count > 1 ? ` (and ${summary.count - 1} more)` : ''}`
+        : 'No problems found in this net';
+    return { level, label: summary.label, ariaLabel: `${summary.label}, open the list`, title };
+}
+
+/**
+ * The chip as markup: a button with a coloured dot and the label ("3 problems"), whose title carries the first
+ * problem, and an empty polite live region that mountProblemsChip fills when the result changes. `summary` null
+ * is the state before the first check.
+ *
+ * @param {ProblemsSummary|null} summary
+ * @returns {string}
+ */
+export function chipHtml(summary) {
+    const v = chipView(summary);
+    return `<span class="pv-problems">`
+        + `<button type="button" role="button" class="pv-problems-chip" data-level="${v.level}" aria-label="${escHtml(v.ariaLabel)}" title="${escHtml(v.title)}">`
+        + `<span class="pv-problems-dot" aria-hidden="true"></span><span class="pv-problems-label">${escHtml(v.label)}</span></button>`
+        + `<span class="pv-problems-live" role="status" aria-live="polite" aria-atomic="true"></span></span>`;
+}
+
+function breakdown(summary) {
+    return [
+        summary.errors && plural(summary.errors, 'error'),
+        summary.repaired && `${summary.repaired} repaired on load`,
+        summary.warnings && plural(summary.warnings, 'warning'),
+    ].filter(Boolean).join(', ');
+}
+
+/**
+ * The list the chip opens: one row per problem, with what kind it is, where it is (a path such as
+ * `arcs[3].target`) and what is wrong. Offered to the caller as markup for a dialog; escapes every net-derived string.
+ *
+ * @param {ProblemsSummary|null} summary
+ * @param {{esc?: (s: string) => string}} [o] the caller's HTML escaper (petri-view's _escHtml); default is built in
+ * @returns {string}
+ */
+export function problemsListHtml(summary, { esc = escHtml } = {}) {
+    if (!summary) return '<div class="pv-problems-list" data-level="pending"><p class="pv-problems-none">Not checked yet.</p></div>';
+    const items = Array.isArray(summary.items) ? summary.items : [];
+    if (items.length === 0) return '<div class="pv-problems-list" data-level="ok"><p class="pv-problems-none">No problems found in this net.</p></div>';
+    const level = LEVELS.includes(summary.level) ? summary.level : 'error';
+    const rows = items.slice(0, MAX_LISTED).map((i) => {
+        const sev = SEVERITIES.includes(i.severity) ? i.severity : 'error';
+        return `<li class="pv-problem" data-severity="${sev}"><span class="pv-problem-kind">${KIND_LABEL[sev]}</span>`
+            + `<code class="pv-problem-where">${esc(i.where)}</code><span class="pv-problem-message">${esc(i.message)}</span></li>`;
+    }).join('');
+    const more = items.length > MAX_LISTED ? `<p class="pv-problems-more">and ${items.length - MAX_LISTED} more not shown</p>` : '';
+    return `<div class="pv-problems-list" data-level="${level}">`
+        + `<p class="pv-problems-summary">${esc(`${summary.label}: ${breakdown(summary)}.`)}</p>`
+        + `<ul class="pv-problems-items">${rows}</ul>${more}</div>`;
+}
+
+const sameCount = (a, b) => !!a && !!b && a.level === b.level && a.count === b.count;
+
+// What the polite live region says when the result changes. Quiet when only the problems themselves changed (the
+// count did not), and quiet for a clean net on first load.
+function announcement(prev, next) {
+    if (!next || sameCount(prev, next)) return '';
+    if (next.count === 0) return prev ? 'No problems' : '';
+    const v = chipView(next);
+    return `${v.label}. ${v.title}`;
+}
+
+/**
+ * Put the chip in `host` and keep it current. It follows `monitor` (via monitor.subscribe when there is one) and
+ * can be driven by hand with update(summary). Clicking calls onOpen(summary) with the latest summary; if nothing
+ * has been checked yet it checks first (monitor.run()), and onOpen gets null only if there is no net to check.
+ * The button stays the same element across updates, so keyboard focus is not lost when a result arrives.
+ *
+ * @param {HTMLElement} host
+ * @param {{state?: {summary: ProblemsSummary|null}, subscribe?: Function, run?: Function}} monitor a ProblemsMonitor
+ * @param {{onOpen?: (summary: ProblemsSummary|null) => void}} [o]
+ * @returns {{update: (summary: ProblemsSummary|null) => void, destroy: () => void}}
+ */
+export function mountProblemsChip(host, monitor, { onOpen = () => {} } = {}) {
+    let current = (monitor && monitor.state && monitor.state.summary) || null;
+    host.innerHTML = chipHtml(current);
+    const button = host.querySelector('.pv-problems-chip');
+    const label = host.querySelector('.pv-problems-label');
+    const live = host.querySelector('.pv-problems-live');
+    let destroyed = false;
+
+    const update = (summary) => {
+        if (destroyed) return;
+        const next = summary || null;
+        const v = chipView(next);
+        button.setAttribute('data-level', v.level);
+        button.setAttribute('aria-label', v.ariaLabel);
+        button.setAttribute('title', v.title);
+        label.textContent = v.label;
+        const said = announcement(current, next);
+        current = next;
+        if (said) live.textContent = said;
+    };
+
+    const onClick = async () => {
+        let summary = current;
+        if (!summary && monitor && typeof monitor.run === 'function') summary = await monitor.run();
+        onOpen(summary || null);
+    };
+    button.addEventListener('click', onClick);
+    const unsubscribe = monitor && typeof monitor.subscribe === 'function' ? monitor.subscribe(update) : null;
+
+    return {
+        update,
+        destroy() {
+            destroyed = true;
+            button.removeEventListener('click', onClick);
+            if (unsubscribe) unsubscribe();
+            host.innerHTML = '';
+        },
     };
 }

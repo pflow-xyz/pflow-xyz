@@ -1,5 +1,5 @@
 import { assert, assertEquals, assertNotEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
-import { applyGate, checkModel, ProblemsMonitor, summarize } from "./petri-problems.js";
+import { applyGate, checkModel, chipHtml, mountProblemsChip, problemsListHtml, ProblemsMonitor, summarize } from "./petri-problems.js";
 import { validateNet } from "./petri-validate.js";
 import { createHeadlessHost, Registry } from "./petri-commands.js";
 
@@ -253,6 +253,22 @@ Deno.test("checkModel: never rejects — a bad input is an error item", async ()
     assert(/could not run/.test(c.items[0].message), c.items[0].message);
 });
 
+Deno.test("checkModel: loadCheck adds what was repaired at load to the same summary", async () => {
+    const incoming = sir();
+    incoming.places.S.capacity = [500];
+    incoming.places.S.initial = [1590];
+    const loadCheck = validateNet(incoming);
+    const live = createHeadlessHost(incoming).getModel(); // normalized: clamped to 500, so clean now
+    const plain = await checkModel(live);
+    assertEquals(plain.count, 0);
+    const s = await checkModel(live, { loadCheck });
+    assertEquals([s.level, s.repaired, s.count], ["warn", 1, 1]);
+    assertEquals(s.items[0].severity, "repaired");
+    // and through the monitor, as petri-view will wire it
+    const m = new ProblemsMonitor({ getModel: () => live, check: (net: any) => checkModel(net, { loadCheck }) });
+    assertEquals((await m.run())!.repaired, 1);
+});
+
 // ---- ProblemsMonitor --------------------------------------------------------
 
 // Fake timers: nothing sleeps. advance(ms) fires what has come due, in order.
@@ -484,4 +500,220 @@ Deno.test("applyGate: gates the summary checkModel gives for a pending sandbox n
     const gate = applyGate(await checkModel(null, { registry: sandbox }));
     assertEquals([gate.block, gate.warn], [false, true]);
     assertEquals(applyGate(await checkModel(sir())).warn, false);
+});
+
+// ---- the chip and the list --------------------------------------------------
+
+const threeProblems = () => summarize({
+    report: {
+        errors: [{ path: "arcs[5].target", message: '"nowhere" is not a declared place or transition' }],
+        warnings: [{ path: "places.lonely", message: "no arc touches this place" }],
+    },
+    loadCheck: { errors: [{ path: "places.S.initial[0]", message: "1590 exceeds capacity 500; the editor would clamp it to 500" }] },
+});
+
+Deno.test("chipHtml: a button with a dot and the label, the first problem in its title", () => {
+    const html = chipHtml(threeProblems());
+    assert(/<button type="button" role="button" class="pv-problems-chip" data-level="error"/.test(html), html);
+    assert(html.includes('aria-label="3 problems, open the list"'), html);
+    assert(html.includes('<span class="pv-problems-label">3 problems</span>'), html);
+    assert(html.includes('class="pv-problems-dot" aria-hidden="true"'), html);
+    // the first problem is the first error; the rest are counted
+    assert(html.includes('title="Error: arcs[5].target: &quot;nowhere&quot; is not a declared place or transition (and 2 more)"'), html);
+});
+
+Deno.test("chipHtml: a polite status region announces changes", () => {
+    const html = chipHtml(summarize({}));
+    assert(/<span class="pv-problems-live" role="status" aria-live="polite" aria-atomic="true"><\/span>/.test(html), html);
+    // empty at render: mountProblemsChip fills it when a result changes
+    assert(html.includes('data-level="ok"') && html.includes("No problems</span>") && html.includes('aria-label="No problems, open the list"'));
+});
+
+Deno.test("chipHtml: one problem is singular; warn level; repaired and net-level wording", () => {
+    const one = chipHtml(summarize({ report: { errors: [], warnings: [{ path: "", message: "nothing is enabled at the initial marking" }] } }));
+    assert(one.includes('data-level="warn"') && one.includes('aria-label="1 problem, open the list"'), one);
+    assert(one.includes('title="Warning: nothing is enabled at the initial marking"'), one); // no "(net):" for the net itself
+    const rep = chipHtml(summarize({ loadCheck: { errors: [{ path: "places.S.initial[0]", message: "clamped" }] } }));
+    assert(rep.includes('title="Repaired on load: places.S.initial[0]: clamped"'), rep);
+});
+
+Deno.test("chipHtml: before the first check the chip says so, and everything from the net is escaped", () => {
+    const pending = chipHtml(null);
+    assert(pending.includes('data-level="pending"') && pending.includes("Checking…"), pending);
+    const evil = summarize({ report: { errors: [{ path: 'x"><img src=x onerror=alert(1)>', message: `<script>alert('x')</script>` }], warnings: [] } });
+    const html = chipHtml(evil);
+    assert(!html.includes("<img") && !html.includes("<script"), html);
+    assert(html.includes("&lt;script&gt;") && html.includes("&quot;&gt;&lt;img"), html);
+    // a crafted level cannot break out of the attribute
+    assert(chipHtml({ ...evil, level: 'x" onclick="y' } as any).includes('data-level="error"'));
+});
+
+Deno.test("problemsListHtml: where and message per problem, the kind named, the breakdown said", () => {
+    const html = problemsListHtml(threeProblems());
+    assert(html.includes('<p class="pv-problems-summary">3 problems: 1 error, 1 repaired on load, 1 warning.</p>'), html);
+    const rows = [...html.matchAll(/<li class="pv-problem" data-severity="(\w+)"><span class="pv-problem-kind">([^<]+)<\/span><code class="pv-problem-where">([^<]*)<\/code><span class="pv-problem-message">([^<]*)<\/span><\/li>/g)];
+    assertEquals(rows.map((r) => [r[1], r[2], r[3]]), [
+        ["error", "Error", "arcs[5].target"],
+        ["repaired", "Repaired on load", "places.S.initial[0]"],
+        ["warning", "Warning", "places.lonely"],
+    ]);
+    assert(rows[0][4].includes("&quot;nowhere&quot; is not a declared place"));
+    assert(html.includes('data-level="error"'));
+});
+
+Deno.test("problemsListHtml: uses the caller's escaper, escapes by default, and a clean net or no summary have a sentence", () => {
+    const calls: string[] = [];
+    const html = problemsListHtml(threeProblems(), { esc: (s: string) => { calls.push(s); return `[${s}]`; } });
+    assert(html.includes("[arcs[5].target]") && html.includes("[places.lonely]"), html);
+    assert(calls.includes("no arc touches this place"));
+    const evil = problemsListHtml(summarize({ report: { errors: [{ path: "<b>", message: "<i>" }], warnings: [] } }));
+    assert(!evil.includes("<b>") && !evil.includes("<i>") && evil.includes("&lt;b&gt;"), evil);
+    assert(problemsListHtml(summarize({})).includes("No problems found in this net."));
+    assert(problemsListHtml(null).includes("Not checked yet."));
+    // a hand-made item cannot invent a severity class
+    const odd = problemsListHtml({ ...threeProblems(), items: [{ severity: 'x" onmouseover="y', where: "w", message: "m" }] } as any);
+    assert(odd.includes('data-severity="error"') && !odd.includes("onmouseover"), odd);
+});
+
+Deno.test("problemsListHtml: a long list is capped, and says how many are not shown", () => {
+    const warnings = Array.from({ length: 250 }, (_, i) => ({ path: `places.p${i}`, message: "no arc touches this place" }));
+    const html = problemsListHtml(summarize({ report: { errors: [], warnings } }));
+    assertEquals((html.match(/<li class="pv-problem"/g) || []).length, 200);
+    assert(html.includes("and 50 more not shown"));
+    assert(html.includes("250 problems: 250 warnings."));
+});
+
+// A stand-in for the few DOM members mountProblemsChip uses; no parsing.
+function fakeNode() {
+    const attrs = new Map<string, string>();
+    const handlers = new Set<() => unknown>();
+    return {
+        textContent: "",
+        attrs,
+        setAttribute: (k: string, v: string) => { attrs.set(k, String(v)); },
+        addEventListener: (_t: string, fn: () => unknown) => { handlers.add(fn); },
+        removeEventListener: (_t: string, fn: () => unknown) => { handlers.delete(fn); },
+        listeners: () => handlers.size,
+        click: () => Promise.all([...handlers].map((fn) => fn())),
+    };
+}
+
+function fakeHost() {
+    const nodes = { ".pv-problems-chip": fakeNode(), ".pv-problems-label": fakeNode(), ".pv-problems-live": fakeNode() } as Record<string, ReturnType<typeof fakeNode>>;
+    const asked: string[] = [];
+    return {
+        innerHTML: "",
+        nodes,
+        asked,
+        querySelector(sel: string) { asked.push(sel); return nodes[sel] ?? null; },
+    };
+}
+
+Deno.test("mountProblemsChip: renders the chip, finds its parts, and updates them in place", () => {
+    const host = fakeHost();
+    const chip = mountProblemsChip(host as any, { state: { summary: null } });
+    // every part it looks for is in the markup chipHtml produced
+    for (const sel of host.asked) assert(host.innerHTML.includes(`class="${sel.slice(1)}"`), `${sel} in ${host.innerHTML}`);
+    assert(host.innerHTML.includes("Checking…"));
+    chip.update(threeProblems());
+    const { ".pv-problems-chip": btn, ".pv-problems-label": label } = host.nodes;
+    assertEquals(label.textContent, "3 problems");
+    assertEquals(btn.attrs.get("data-level"), "error");
+    assertEquals(btn.attrs.get("aria-label"), "3 problems, open the list");
+    assert(btn.attrs.get("title")!.startsWith("Error: arcs[5].target:"));
+    chip.update(summarize({}));
+    assertEquals(label.textContent, "No problems");
+    assertEquals(btn.attrs.get("data-level"), "ok");
+    assertEquals(btn.attrs.get("title"), "No problems found in this net");
+});
+
+Deno.test("mountProblemsChip: the live region speaks when the count or level changes, not on every keystroke", () => {
+    const host = fakeHost();
+    const chip = mountProblemsChip(host as any, { state: { summary: null } });
+    const live = host.nodes[".pv-problems-live"];
+    chip.update(summarize({}));
+    assertEquals(live.textContent, ""); // a clean net on load says nothing
+    chip.update(errSummary("a", "b"));
+    assert(live.textContent.startsWith("2 problems. Error: a: bad"), live.textContent);
+    const said = live.textContent;
+    chip.update(errSummary("c", "d")); // different problems, same count: quiet
+    assertEquals(live.textContent, said);
+    chip.update(errSummary("c"));
+    assert(live.textContent.startsWith("1 problem."), live.textContent);
+    chip.update(summarize({}));
+    assertEquals(live.textContent, "No problems");
+    // first result already has problems: that is worth saying
+    const host2 = fakeHost();
+    mountProblemsChip(host2 as any, { state: { summary: null } }).update(errSummary("x"));
+    assert(host2.nodes[".pv-problems-live"].textContent.startsWith("1 problem."));
+});
+
+Deno.test("mountProblemsChip: follows the monitor, and a click opens the list with the latest summary", async () => {
+    const host = fakeHost();
+    const results = [errSummary("a", "b"), summarize({})];
+    const monitor = new ProblemsMonitor({ getModel: () => ({}), check: async () => results.shift()! });
+    const opened: any[] = [];
+    mountProblemsChip(host as any, monitor, { onOpen: (s: any) => opened.push(s) });
+    await monitor.run();
+    assertEquals(host.nodes[".pv-problems-label"].textContent, "2 problems");
+    await host.nodes[".pv-problems-chip"].click();
+    assertEquals(opened.map((s) => s.label), ["2 problems"]);
+    await monitor.run();
+    assertEquals(host.nodes[".pv-problems-label"].textContent, "No problems");
+    await host.nodes[".pv-problems-chip"].click();
+    assertEquals(opened.map((s) => s.label), ["2 problems", "No problems"]);
+});
+
+Deno.test("mountProblemsChip: a click before the first result checks first; with no net it opens with null", async () => {
+    const host = fakeHost();
+    let ran = 0;
+    const monitor = new ProblemsMonitor({ getModel: () => ({}), check: async () => { ran++; return errSummary("a"); } });
+    const opened: any[] = [];
+    mountProblemsChip(host as any, monitor, { onOpen: (s: any) => opened.push(s) });
+    await host.nodes[".pv-problems-chip"].click();
+    assertEquals(ran, 1);
+    assertEquals(opened[0].label, "1 problem");
+    const host2 = fakeHost();
+    const none = new ProblemsMonitor({ getModel: () => undefined });
+    const opened2: any[] = [];
+    mountProblemsChip(host2 as any, none, { onOpen: (s: any) => opened2.push(s) });
+    await host2.nodes[".pv-problems-chip"].click();
+    assertEquals(opened2, [null]);
+});
+
+Deno.test("mountProblemsChip: destroy() unhooks the click, unsubscribes from the monitor and empties the host", async () => {
+    const host = fakeHost();
+    const monitor = new ProblemsMonitor({ getModel: () => ({}), check: async () => errSummary("a") });
+    const opened: any[] = [];
+    const chip = mountProblemsChip(host as any, monitor, { onOpen: (s: any) => opened.push(s) });
+    const btn = host.nodes[".pv-problems-chip"];
+    assertEquals(btn.listeners(), 1);
+    chip.destroy();
+    assertEquals(btn.listeners(), 0);
+    assertEquals(host.innerHTML, "");
+    await monitor.run(); // no longer reaches the chip
+    assertEquals(host.nodes[".pv-problems-label"].textContent, "");
+    chip.update(errSummary("z")); // a late update is ignored
+    assertEquals(host.nodes[".pv-problems-label"].textContent, "");
+    assertEquals(opened, []);
+});
+
+Deno.test("mountProblemsChip: works with update() alone, for a caller that does its own wiring", () => {
+    const host = fakeHost();
+    const chip = mountProblemsChip(host as any, null as any);
+    chip.update(errSummary("a"));
+    assertEquals(host.nodes[".pv-problems-label"].textContent, "1 problem");
+});
+
+Deno.test("the chip and the list have styles: every class the markup uses has a rule in petri-view.css", async () => {
+    const css = await Deno.readTextFile(new URL("./petri-view.css", import.meta.url));
+    const used = new Set<string>();
+    for (const html of [chipHtml(threeProblems()), problemsListHtml(threeProblems()), problemsListHtml(null), problemsListHtml(summarize({}))]) {
+        for (const m of html.matchAll(/class="([^"]+)"/g)) m[1].split(/\s+/).forEach((c) => used.add(c));
+    }
+    used.add("pv-problems-more"); // only past the cap
+    for (const c of used) assert(new RegExp(`\\.${c}\\b`).test(css), `.${c} has no rule in petri-view.css`);
+    // the three levels and the three severities are styled
+    for (const level of ["ok", "warn", "error", "pending"]) assert(css.includes(`.pv-problems-chip[data-level="${level}"]`), level);
+    for (const sev of ["error", "repaired", "warning"]) assert(css.includes(`.pv-problem[data-severity="${sev}"]`), sev);
 });
