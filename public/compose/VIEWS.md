@@ -120,6 +120,36 @@ stored file and not drawn by the registry, that it does not change with the link
 instances or plan on the page, and where it came from. The index shows each view's
 reads, sources and judgment in the view's own words.
 
+## Planned: a statechart view (roadmap only, not built)
+
+**Status: proposed, 2026-11-02. No code, no entry in `views-meta.js`.** Nothing on this page
+draws a statechart today. go-pflow can draw one that was authored as a chart
+(`visualization.RenderStateMachineSVG` on a `statemachine.Chart`), but nothing derives one
+from an arbitrary net, and no view or MCP tool shows it.
+
+The view would give a reader who will not read places and transitions a chart of the model:
+
+- **States** from the reachability graph, or, for a net compiled by go-pflow's
+  [`statemachine`](https://github.com/pflow-xyz/go-pflow/tree/main/statemachine) package,
+  from the chart's regions and their states. A net with one token per region is a
+  statechart; for any other net the graph is the honest source.
+- **Transitions** labelled in the reader's words: a transition's label or a per-model
+  phrase ("worker A takes lock 1"), not an id. Where the model gives no phrase, the view
+  says so and falls back to the id; it does not invent one.
+- **The deadlock witness** highlighted as a path: the firing sequence `pflow_reachability`
+  returns (for the two-worker, two-lock net, `aTake1, bTake2`) drawn from the initial state
+  to the dead one, in the order it fires, with the dead state marked.
+- It is **computed, never drawn by hand**, so it would carry the `consumes` and `convention`
+  fields every view needs, and mark the wording of states and arrows as judgment, not the
+  registry's output.
+
+Inspired by pstack's
+[`/statechart` skill](https://github.com/cursor/plugins/tree/main/pstack/skills/statechart),
+which draws TLC's state graph as a Mermaid chart a reader can judge, with a small view
+module mapping model states to words. Our version would read the net's own reachability
+graph instead of a TLA+ spec. Write-up:
+[One Object: pstack's Statecharts and Our Nets](https://blog.stackdump.com/posts/pstack-statecharts).
+
 ## Links
 
 ```

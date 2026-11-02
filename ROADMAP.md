@@ -27,6 +27,8 @@ review; it says how its cites are numbered (this section shifts the ROADMAP's li
 Pending item 17 below ("a push to `main` is a deploy") holds only for a commit signed
 with a key pflow.dev trusts; the design's section 5.1 has the details.
 
+*Planned view, 2026-11-02:* a reader-facing **statechart view** (states from the reachability graph or the `statemachine` regions, arrows in the reader's words, the deadlock witness as a highlighted path). Roadmap only, nothing built; see [Planned: a statechart view](public/compose/VIEWS.md#planned-a-statechart-view-roadmap-only-not-built).
+
 ## Guided modelling and simulation in the browser
 
 **Problem.** The editor can simulate, but only if you already know what you
