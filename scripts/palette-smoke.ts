@@ -10,9 +10,10 @@
 // a plain text field is left alone; focus never falls out of the dialog (a real click on Run, an unavailable question's
 // form, a click on plain text, a control that vanishes): Escape still closes it and the editor's Delete and x stay out.
 // The chord and the Tools button are the editor's own (the bar binds them, petri-menu-ui.js): their runs land in the
-// results pane with its footer, and Open in Tools in that footer comes back to the form with the arguments filled in; a
-// run that fails stays in the dialog. openPalette called without the view's default (a host that has no
-// view._openPalette) draws the result in the dialog, which is what the rest of this checks.
+// Ask pane as a result card with its footer (petri-results-pane.js: a card in the docked pane's log, not a dialog), and
+// Open in Tools in that footer comes back to the form with the arguments filled in; a run that fails stays in the dialog.
+// openPalette called without the view's default (a host that has no view._openPalette) draws the result in the dialog and
+// opens no pane at all, which is what the rest of this checks.
 // No model, no sign-in: nothing here calls /api/llm.
 //
 // Not part of `make test` (it needs Chrome and a running server). Exit status 1 on any failure; scripts/smoke-gate.sh
@@ -122,11 +123,14 @@ try {
   ok(await page.eval(`document.activeElement.getAttribute('aria-invalid') === 'true'`), "focus goes to the first invalid field");
   await page.eval(`(() => { document.querySelector('[data-field=runs]').value = '5'; document.querySelector('[data-field=t_end]').value = '20'; })()`);
   await page.eval(`document.querySelector('[data-act=run]').click()`);
-  ok(await page.waitFor("!!document.querySelector('.pv-result-dialog svg') && !document.querySelector('.pv-palette')", 15000), "Run lands in the results pane (a plot), and the palette is gone");
-  ok(await page.eval(`!!document.querySelector('.pv-result-dialog .pv-prov') && document.querySelector('.pv-result-dialog .pv-prov').textContent.includes('sim.ssa')`), "with the How this was computed footer");
+  ok(await page.waitFor("!!document.querySelector('.pv-ask-card svg') && !document.querySelector('.pv-palette')", 15000), "Run lands in the results pane (a card with a plot), and the palette is gone");
+  ok(await page.eval(`document.querySelectorAll('.pv-chat .pv-ask-card').length === 1 && !!document.querySelector('.pv-ask-card .pv-prov') && document.querySelector('.pv-ask-card .pv-prov').textContent.includes('sim.ssa')`), "with the How this was computed footer");
+  ok(await page.eval(`[...document.querySelectorAll('.pv-ask-card .pv-prov-acts button')].map((b) => b.dataset.act).join() === 'rerun,edit,mcp,link,tools'`), "and its five actions");
   const call = await page.eval(`(async () => { const reg = await document.querySelector('petri-view').commands(); const a = reg.artifacts().at(-1); return a.source; })()`);
   ok(call.command === "sim.ssa" && call.args.runs === 5 && call.args.t_end === 20, "the registry ran sim.ssa with the form's args");
-  await page.eval(`document.querySelectorAll('.pv-modal-overlay').forEach((o) => o.remove())`);
+  // the pane is not a modal: close it, so that what follows can tell whether anything opens it again
+  await page.eval(`document.querySelector('.pv-chat [data-act=close]').click()`);
+  ok(await page.eval(`!document.querySelector('.pv-chat') && !document.querySelector('.pv-ask-card')`), "the Ask pane closes (the card goes with it from the page)");
 
   console.log("openPalette on its own draws the result in the dialog (a host with no view._openPalette)");
   await page.eval(`window.__ui.openPalette(document.querySelector('petri-view'))`);
@@ -137,7 +141,7 @@ try {
   await page.eval(`(() => { document.querySelector('[data-field=runs]').value = '5'; document.querySelector('[data-field=t_end]').value = '20'; document.querySelector('[data-act=run]').click(); })()`);
   ok(await page.waitFor("!!document.querySelector('[data-pane=form] svg')", 15000), "Run draws the result (a plot) in the dialog");
   ok(await page.eval(`document.querySelector('.pv-structure-status').textContent === 'Done.'`), "status says Done.", await page.eval(`document.querySelector('.pv-structure-status').textContent`));
-  ok(await page.eval(`!!document.querySelector('.pv-palette') && !document.querySelector('.pv-result-dialog')`), "and nothing went to the results pane");
+  ok(await page.eval(`!!document.querySelector('.pv-palette') && !document.querySelector('.pv-chat') && !document.querySelector('.pv-ask-card')`), "and nothing went to the results pane (the Ask pane did not even open)");
 
   console.log("back, then a goal with an input");
   await page.eval(`document.querySelector('[data-act=back]').click()`);

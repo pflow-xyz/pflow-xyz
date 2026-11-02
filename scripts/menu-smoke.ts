@@ -19,13 +19,15 @@
 //                      dialog from Tools > Classic tools (each opens the dialog it always opened), the key 9, App view in
 //                      View, Check net as the problems chip (its list, its Details button, a re-check after an edit,
 //                      and after each command), Describe and the Assistant as the Ask input (Enter calls _openChat with
-//                      the words, mode auto; focusing opens nothing; a pane that will not open keeps the words; signed
-//                      out, or on a server with no chat, the pane opens and the words stay in the input where they can be
-//                      read, and a person who can send them sees the input empty; nothing is requested from the model),
+//                      the words, mode auto; focusing opens nothing; a pane that will not open keeps the words; the pane
+//                      takes the words whoever sends them: signed in they go to the model and the input is empty; signed
+//                      out, or on a server with no chat, they become the keyword router's cards (`.pv-ask-route`) in the pane
+//                      and nothing is requested from the model; words typed while the pane was opening are not wiped),
 //                      the empty-canvas prompt opening the Ask pane in build
-//   Tools              the button and Cmd-K (also from the Ask input); a run lands in the results pane with its footer,
-//                      Open in Tools opens the form with the arguments filled in, a failed run stays in the palette;
-//                      all of it with every /api/llm/* answered 503 and nothing requested from the model
+//   Tools              the button and Cmd-K (also from the Ask input); a run lands in the results place, a card in the docked
+//                      Ask pane (not a dialog: results accumulate, a second run is a second card) with its five-action footer,
+//                      Open in Tools opens the form with the arguments filled in, a failed run stays in the palette and hands
+//                      the pane nothing; all of it with every /api/llm/* answered 503 and nothing requested from the model
 //   ?ui=classic        the old hamburger with every entry it had, no bar, no Cmd-K, no chip; Help > Classic menu goes there
 //   standalone         a <petri-view> with no data-backend (no page in public/ has one, so one is made) keeps the dropdown
 //                      hamburger; removing data-backend from the editor swaps the bar for it
@@ -499,24 +501,26 @@ try {
   }
 
   // =========================================================================================================
-  console.log("the Ask input keeps words the pane cannot send (the real pane)");
+  console.log("the Ask input hands its words to the pane, which takes them (the real pane)");
   {
+    // signed out: the pane takes the words and, with no model to ask, runs the keyword router: the closest questions as cards
+    const p = await open("/", {});
+    await barUp(p);
+    await setNet(p, NET); // (an empty net has nothing to route to)
+    await p.eval(`document.querySelector('.pv-ask-input').focus()`);
+    await typeText(p, "can it get stuck?");
+    await press(p, "Enter");
+    ok(await p.waitFor("!!document.querySelector('.pv-chat')", 15000), "signed out: Enter opens the pane");
+    ok(await p.waitFor("document.querySelectorAll('.pv-chat-log .pv-ask-route .pv-ask-rcard').length >= 1", 15000), "signed out: the pane takes the words and routes them to the closest questions, as cards", await p.eval(`document.querySelector('.pv-chat-log')?.textContent.slice(0, 200)`));
+    ok(await p.eval(`[...document.querySelectorAll('.pv-chat-log .pv-chat-user')].some((m) => m.textContent === 'can it get stuck?')`), "signed out: and the words are in the pane's log");
+    ok(await p.eval(`document.querySelector('.pv-chat-form').hidden === false && document.querySelector('.pv-chat-input').value === ''`), "signed out: the pane has its form and its own box is empty: the words were taken, not left in it");
+    ok(await p.eval(`/Sign in to ask in your own words/.test(document.querySelector('.pv-ask-state').textContent) && !document.querySelector('.pv-ask-state').hidden`), "signed out: one quiet line offers the sign-in", await p.eval(`document.querySelector('.pv-ask-state').textContent`));
+    ok(await p.eval(`!window.__reqs.some((r) => r.path === '/api/llm/turn')`), "signed out: nothing was requested from the model");
+    await p.close();
+  }
+  {
+    // signed in with chat: the pane takes them, and the input is empty
     {
-      // signed out: the pane shows its sign-in note and hides its form; the words must stay where they can be read
-      const p = await open("/", {});
-      await barUp(p);
-      await p.eval(`document.querySelector('.pv-ask-input').focus()`);
-      await typeText(p, "can it get stuck?");
-      await press(p, "Enter");
-      ok(await p.waitFor("!!document.querySelector('.pv-chat')", 15000), "signed out: Enter opens the pane");
-      await sleep(600);
-      ok(await p.eval(`document.querySelector('.pv-chat-form').hidden === true`), "precondition: the pane has no form for them to send from");
-      ok(await p.eval(`document.querySelector('.pv-ask-input').value === 'can it get stuck?'`), "signed out: the words are still in the Ask input", await p.eval(`document.querySelector('.pv-ask-input').value`));
-      ok(await p.eval(`getComputedStyle(document.querySelector('.pv-ask-input')).visibility !== 'hidden' && document.querySelector('.pv-ask-input').getClientRects().length > 0`), "and showing");
-      await p.close();
-    }
-    {
-      // signed in with chat: the pane takes them, and the input is empty
       const p = await open("/", { signedIn: true });
       await barUp(p);
       await p.waitFor(`document.querySelector('.pv-appbar > .pv-top-right-btn')?.textContent.includes('smoke')`, 10000);
@@ -535,16 +539,18 @@ try {
       await p.close();
     }
     {
-      // a server with no chat: nothing to send from either
+      // a server with no chat: no model either, so the words become the router's cards here too
       const p = await open("/", { signedIn: true, chat: false });
       await barUp(p);
       await p.waitFor(`document.querySelector('.pv-appbar > .pv-top-right-btn')?.textContent.includes('smoke')`, 10000);
+      await setNet(p, NET);
       await p.eval(`document.querySelector('.pv-ask-input').focus()`);
       await typeText(p, "what is a siphon");
       await press(p, "Enter");
       ok(await p.waitFor("!!document.querySelector('.pv-chat')", 15000), "no chat on the server: Enter still opens the pane");
-      await sleep(600);
-      ok(await p.eval(`document.querySelector('.pv-ask-input').value === 'what is a siphon'`), "and the words stay in the input", await p.eval(`document.querySelector('.pv-ask-input').value`));
+      ok(await p.waitFor("document.querySelectorAll('.pv-chat-log .pv-ask-route .pv-ask-rcard').length >= 1", 15000), "no chat on the server: the pane routes the words to cards", await p.eval(`document.querySelector('.pv-chat-log')?.textContent.slice(0, 200)`));
+      ok(await p.eval(`!document.querySelector('.pv-ask-state').textContent.includes('Sign in')`), "no chat on the server: with no sign-in nag", await p.eval(`document.querySelector('.pv-ask-state').textContent`));
+      ok(await p.eval(`!window.__reqs.some((r) => r.path === '/api/llm/turn')`), "no chat on the server: nothing was requested from the model");
       await p.close();
     }
   }
@@ -576,31 +582,31 @@ try {
     ok(await p.eval(`!document.querySelector('.pv-palette')`), "Ctrl-K in another text field is left alone");
     await p.eval(`document.getElementById('plain').remove(); document.activeElement.blur()`);
 
-    // run a command: it lands in the results pane, with the footer
+    // run a command: it lands in the results place (a card in the Ask pane), with the footer
     await chord(p);
     await p.waitFor("!!document.querySelector('.pv-palette')");
     await typeText(p, "sim.ssa");
     await press(p, "Enter");
     await p.waitFor("!document.querySelector('[data-pane=form]').hidden");
     await p.eval(`(() => { document.querySelector('[data-field=t_end]').value = '12'; document.querySelector('[data-field=runs]').value = '4'; document.querySelector('[data-act=run]').click(); })()`);
-    ok(await p.waitFor("!!document.querySelector('.pv-result-dialog .pv-prov')", 20000), "the run lands in the results pane, with the How this was computed footer");
+    ok(await p.waitFor("!!document.querySelector('.pv-chat .pv-ask-card .pv-prov')", 20000), "the run lands in the results pane (a card in the Ask pane), with the How this was computed footer");
     ok(await p.eval(`!document.querySelector('.pv-palette')`), "and the palette is gone");
-    ok(await p.eval(`document.querySelector('.pv-result-dialog .pv-prov').textContent.includes('sim.ssa') && document.querySelector('.pv-result-dialog .pv-prov').textContent.includes('"runs":4')`), "the footer names the call and its arguments");
-    ok(await p.eval(`!!document.querySelector('.pv-result-dialog svg')`), "the evidence is drawn (a plot)");
-    ok(await p.eval(`[...document.querySelectorAll('.pv-result-dialog .pv-prov-acts button')].map((b) => b.dataset.act).join() === 'rerun,edit,mcp,link,tools'`), "the footer has its five actions");
+    ok(await p.eval(`document.querySelector('.pv-ask-card .pv-prov').textContent.includes('sim.ssa') && document.querySelector('.pv-ask-card .pv-prov').textContent.includes('"runs":4')`), "the footer names the call and its arguments");
+    ok(await p.eval(`!!document.querySelector('.pv-ask-card svg')`), "the evidence is drawn (a plot)");
+    ok(await p.eval(`[...document.querySelectorAll('.pv-ask-card .pv-prov-acts button')].map((b) => b.dataset.act).join() === 'rerun,edit,mcp,link,tools'`), "the footer has its five actions");
+    ok(await p.eval(`!document.querySelector('.pv-result-dialog') && !document.querySelector('.pv-modal-overlay')`), "and it is not a dialog: nothing modal is up");
     // Open in Tools: the form, filled in
-    await p.eval(`document.querySelector('.pv-result-dialog [data-act=tools]').click()`);
+    await p.eval(`document.querySelector('.pv-ask-card [data-act=tools]').click()`);
     ok(await p.waitFor("!!document.querySelector('.pv-palette') && !document.querySelector('[data-pane=form]').hidden", 10000), "Open in Tools opens the palette on a form");
     const f = await p.eval(`(() => { const pane = document.querySelector('[data-pane=form]'); return { title: pane.querySelector('h3').textContent, t_end: pane.querySelector('[data-field=t_end]').value, runs: pane.querySelector('[data-field=runs]').value, code: pane.querySelector('.pv-palette-form-sub code')?.textContent }; })()`);
     ok(f.code === "sim.ssa" && f.title === "Run SSA", "the form is the command's", JSON.stringify(f));
     ok(f.t_end === "12" && f.runs === "4", "with the arguments it was run with filled in", JSON.stringify(f));
-    await p.eval(`document.querySelectorAll('.pv-result-dialog').forEach((d) => d.closest('.pv-modal-overlay').remove())`);
+    // (no result dialog to close first: results accumulate in the pane)
     await p.eval(`document.querySelector('[data-act=run]').click()`);
-    ok(await p.waitFor("document.querySelectorAll('.pv-result-dialog .pv-prov').length === 1 && !document.querySelector('.pv-palette')", 20000), "Run on the filled-in form lands a second result");
-    ok(await p.eval(`document.querySelector('.pv-result-dialog .pv-prov').textContent.includes('"runs":4')`), "with the same arguments");
-    await p.eval(`document.querySelectorAll('.pv-modal-overlay').forEach((o) => o.remove())`);
+    ok(await p.waitFor("document.querySelectorAll('.pv-chat .pv-ask-card .pv-prov').length === 2 && !document.querySelector('.pv-palette')", 20000), "Run on the filled-in form lands a second result: a second card, the first still there");
+    ok(await p.eval(`(() => { const c = document.querySelectorAll('.pv-ask-card'); return c.length === 2 && c[1].querySelector('.pv-prov').textContent.includes('"runs":4') && c[0].querySelector('.pv-prov').textContent.includes('"runs":4'); })()`), "with the same arguments");
 
-    // a run that fails outright stays in the palette, error beside the form
+    // a run that fails outright stays in the palette, error beside the form, and hands the pane nothing
     await chord(p);
     await p.waitFor("!!document.querySelector('.pv-palette')");
     await typeText(p, "sim.fire");
@@ -608,10 +614,9 @@ try {
     await p.waitFor("!document.querySelector('[data-pane=form]').hidden");
     await p.eval(`(() => { document.querySelector('[data-field=id]').value = 'reset'; document.querySelector('[data-act=run]').click(); })()`);
     ok(await p.waitFor("document.querySelector('.pv-structure-status')?.textContent.startsWith('Stopped')", 15000), "a command that fails says so in the palette", await p.eval(`document.querySelector('.pv-structure-status')?.textContent`));
-    ok(await p.eval(`!!document.querySelector('.pv-palette') && !document.querySelector('.pv-result-dialog')`), "it is not handed to the results pane: there is no answer to show, and the form is where it gets fixed");
+    ok(await p.eval(`!!document.querySelector('.pv-palette') && document.querySelectorAll('.pv-ask-card').length === 2`), "it is not handed to the results pane (no third card): there is no answer to show, and the form is where it gets fixed");
     ok(await p.eval(`document.querySelector('[data-pane=form]').textContent.includes('not enabled')`), "the reason is on the page");
     await press(p, "Escape");
-    await p.eval(`document.querySelectorAll('.pv-modal-overlay').forEach((o) => o.remove())`);
 
     // a question runs from the palette and lands in the same place
     await chord(p);
@@ -620,9 +625,8 @@ try {
     await press(p, "Enter");
     await p.waitFor("!document.querySelector('[data-pane=form]').hidden");
     await p.eval(`document.querySelector('[data-act=run]').click()`);
-    ok(await p.waitFor("!!document.querySelector('.pv-result-dialog .pv-prov')", 20000), "a question (Which engine?) lands in the results pane too");
-    ok(await p.eval(`document.querySelector('.pv-result-dialog .pv-prov').textContent.includes('sim.recommend')`), "its footer lists the calls the question made");
-    await p.eval(`document.querySelectorAll('.pv-modal-overlay').forEach((o) => o.remove())`);
+    ok(await p.waitFor("document.querySelectorAll('.pv-chat .pv-ask-card .pv-prov').length === 3", 20000), "a question (Which engine?) lands in the results pane too: a third card");
+    ok(await p.eval(`(() => { const c = document.querySelectorAll('.pv-ask-card'); return c.length === 3 && c[2].querySelector('.pv-prov').textContent.includes('sim.recommend'); })()`), "its footer lists the calls the question made");
 
     const reqs = await p.eval(`window.__reqs`);
     ok(reqs.filter((r: any) => r.path === "/api/llm/turn").length === 0, "nothing was requested from the model (/api/llm/turn)", JSON.stringify(reqs));
@@ -642,8 +646,8 @@ try {
     await press(p, "Enter");
     await p.waitFor("!document.querySelector('[data-pane=form]').hidden");
     await p.eval(`document.querySelector('[data-act=run]').click()`);
-    ok(await p.waitFor("!!document.querySelector('.pv-result-dialog .pv-prov')", 15000), "a run lands in the results pane with its footer");
-    ok(await p.eval(`document.querySelector('.pv-result-dialog .pv-prov').textContent.includes('sim.marking')`), "naming its call");
+    ok(await p.waitFor("!!document.querySelector('.pv-chat .pv-ask-card .pv-prov')", 15000), "a run lands in the results pane (a card) with its footer");
+    ok(await p.eval(`document.querySelector('.pv-ask-card .pv-prov').textContent.includes('sim.marking')`), "naming its call");
     ok(await p.eval(`!window.__reqs.some((r) => r.path === '/api/llm/turn')`), "and nothing was requested from the model");
     await p.close();
   }

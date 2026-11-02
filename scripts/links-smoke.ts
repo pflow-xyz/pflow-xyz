@@ -4,23 +4,27 @@
 //   deno run -A scripts/links-smoke.ts http://127.0.0.1:8080/ [--chrome /path/to/chrome]
 //
 // In headless Chrome: the six example cards open into their recorded views (a real click on each card, so the #view= the
-// card carries must survive the navigation) and reproduce with no model call; a tampered digest says it differs, with
-// both engine versions; a link that asks for an edit is refused and runs nothing (no Worker is even started, and the net
-// is the one a bare ?cid= link opens); a command this app lacks is "not reproducible here" with the note and the calls
-// kept; a call that fails is "partial"; a garbage, oversized, too-new or net-less link is one line and the net alone;
-// /?cid= and /?data= without a hash are unchanged; Copy link makes a link that reproduces the view in a fresh page (the
-// saved form, the unsaved form, "Save to get a link" and "Save and copy link"); the Share dialog, reached through the menu
-// once the result's pane is closed (the pane covers the menu), offers "Share this view" for the last result shown, holds
-// Copy while the view's link is made, unchecks the box when the view has no link, and always says what a CID grants; a
-// /health that never answers delays nothing for long; a ?data= that does not decode is never replayed on another net; and
-// editing a net opened from a link takes the #view= out of the address bar.
+// card carries must survive the navigation) and reproduce with no model call, as a result CARD in the docked Ask pane
+// (petri-results-pane.js: `.pv-ask-card` in `.pv-chat`, with the link's status strip on top; there is no result dialog and
+// no modal over the page); a tampered digest says it differs, with both engine versions; a link that asks for an edit is
+// refused and runs nothing (no Worker is even started, and the net is the one a bare ?cid= link opens); a command this app
+// lacks is "not reproducible here" with the note and the calls kept; a call that fails is "partial"; a garbage, oversized,
+// too-new or net-less link is one line and the net alone; /?cid= and /?data= without a hash are unchanged; Copy link makes
+// a link that reproduces the view in a fresh page (the saved form, the unsaved form, "Save to get a link" and "Save and
+// copy link"); the Share dialog, reached through the menu with the result's card still on screen (the docked pane leaves
+// the bar alone) and again once the pane is closed, offers "Share this view" for the last result shown, holds Copy while
+// the view's link is made, unchecks the box when the view has no link, and always says what a CID grants; a /health that
+// never answers delays nothing for long; a ?data= that does not decode is never replayed on another net; and editing a net
+// opened from a link takes the #view= out of the address bar.
 //
 // It never signs in to GitHub and never reaches a model: /o/<cid> is answered in the page from examples/landing (the
 // scratch server has none of these nets stored), /api/llm/status says the chat is off, /auth/user and /api/save are
 // answered for the signed-in cases, and EVERY request to /api/llm/* that is not that status probe fails the smoke, as
 // does any that reaches the network (held by the browser, not only the ones the page's own fetch shows). A link adds no
-// such request to the ones a bare /?cid= makes. What is NOT covered: the Worker's own requests (the module graph and
-// the engine's .wasm; the page-level hooks cannot see a worker's network), which the unit tests hold to calling no model.
+// such request to the ones a bare /?cid= makes, except the one status probe the Ask pane makes when it opens to show the
+// result (the pane reads /api/llm/status afresh when it is built). What is NOT covered: the Worker's own requests (the
+// module graph and the engine's .wasm; the page-level hooks cannot see a worker's network), which the unit tests hold to
+// calling no model.
 //
 // Not part of `make test` (it needs Chrome and a running server). Exit status 1 on any failure; scripts/smoke-gate.sh runs it
 // (SMOKES="links"). LINKS_SHOTS=<dir> saves a screenshot of each state it checks at 1280x800 and 390x844.
@@ -127,37 +131,39 @@ const shot = async (p: any, name: string) => {
 const model = (p: any) => p.eval(`JSON.stringify(document.querySelector('petri-view').getModel())`);
 const viewWorkers = (p: any) => p.eval(`window.__workers.filter((w) => w.endsWith('/petri-viewspec.js')).length`);
 const llm = (p: any) => p.eval(`window.__fx.filter((x) => x.startsWith('/api/llm/'))`);
-// What the result pane shows.
+// What the result shows: the card in the Ask pane (the newest), with the link's strip at its top.
 const pane = (p: any) => p.eval(`(() => {
-  const d = document.querySelector('.pv-result-dialog'); if (!d) return null;
+  const d = [...document.querySelectorAll('.pv-chat .pv-ask-card')].at(-1); if (!d) return null;
   const s = d.querySelector('[data-link-status]');
   const rows = {}; for (const dt of d.querySelectorAll('.pv-prov-rows dt')) rows[dt.textContent.trim()] = dt.nextElementSibling.textContent.trim().replace(/\\s+/g, ' ');
-  const r = d.getBoundingClientRect();
+  const chat = document.querySelector('.pv-chat').getBoundingClientRect(), r = d.getBoundingClientRect();
   return {
-    title: d.querySelector('.pv-dialog-header-title')?.textContent ?? '',
+    title: d.querySelector('.pv-ask-title')?.textContent ?? '',
+    cards: document.querySelectorAll('.pv-chat .pv-ask-card').length,
     status: s?.dataset.status ?? null,
     chips: s ? [...s.querySelectorAll('[data-status]')].map((c) => c.textContent.trim()) : [],
     note: s?.querySelector('[data-link-note]')?.textContent ?? null,
     noteLabel: s?.querySelector('[data-link-note-label]')?.textContent ?? null,
     netLine: s?.querySelector('.pv-link-net')?.textContent ?? '',
     netAlone: !!s?.querySelector('[data-act="net-alone"]'),
-    warnings: [...d.querySelectorAll('.pv-engine-warn')].map((w) => w.textContent.trim()),
+    warnings: [...d.querySelectorAll('.pv-ask-warns .pv-engine-warn')].map((w) => w.textContent.trim()),
     calls: [...d.querySelectorAll('.pv-prov-call > code:first-child')].map((c) => c.textContent),
     rows,
-    evidence: d.querySelectorAll('.pv-result-evidence > div').length,
-    svgs: d.querySelectorAll('.pv-result-evidence svg').length,
-    fits: r.left >= 0 && r.right <= innerWidth && r.top >= 0 && r.bottom <= innerHeight,
-    box: [Math.round(r.left), Math.round(r.top), Math.round(r.right), Math.round(r.bottom)],
+    evidence: d.querySelectorAll('.pv-ask-evidence .pv-ask-art').length,
+    svgs: d.querySelectorAll('.pv-ask-evidence svg').length,
+    fits: chat.left >= 0 && chat.right <= innerWidth && chat.top >= 0 && chat.bottom <= innerHeight && r.left >= chat.left - 1 && r.right <= chat.right + 1,
+    box: [Math.round(chat.left), Math.round(chat.top), Math.round(chat.right), Math.round(chat.bottom)],
   };
 })()`);
 const notice = (p: any) => p.eval(`(() => { const n = document.querySelector('[data-link-notice="info"]'); return n ? n.textContent.replace('×', '').trim() : null; })()`);
 const noOverflow = (p: any) => p.eval(`document.documentElement.scrollWidth <= innerWidth + 1`);
 
-// A page that must not have made a model request, whatever else it did.
-async function noModel(p: any, label: string, baseline: string[]) {
+// A page that must not have made a model request, whatever else it did. `pane`: the link opened the Ask pane to show its result,
+// which reads the status probe once more (petri-chat-ui.js init); that is the only addition to what a bare ?cid= link asks.
+async function noModel(p: any, label: string, baseline: string[], { pane = true } = {}) {
   const seen = await llm(p);
   ok(seen.every((x: string) => x === "/api/llm/status"), `${label}: the only /api/llm/* the page asks is the status probe`, JSON.stringify(seen));
-  same(seen, baseline, `${label}: it asks no more than a bare ?cid= link does`);
+  same(seen, [...baseline, ...(pane ? ["/api/llm/status"] : [])], `${label}: it asks no more than a bare ?cid= link does${pane ? ", plus the Ask pane's own read of the status" : ""}`);
   ok(p.paused.length === 0, `${label}: nothing under /api/llm/ reached the network`, String(p.paused.length));
 }
 
@@ -185,7 +191,7 @@ let baseline: string[] = [];
   await sleep(2500); // a link would have shown its pane by now
   bareModel = await model(p);
   same(placeIds(JSON.parse(bareModel)), placeIds(nets[coffee.cid]), "/?cid= alone: the net loads");
-  ok(!(await p.eval(`!!document.querySelector('.pv-result-dialog, [data-link-status], [data-link-notice]')`)), "/?cid= alone: no pane, no notice");
+  ok(!(await p.eval(`!!document.querySelector('.pv-chat, .pv-ask-card, [data-link-status], [data-link-notice]')`)), "/?cid= alone: no pane, no notice");
   same(await viewWorkers(p), 0, "/?cid= alone: no replay worker is started");
   baseline = await llm(p);
   ok(baseline.every((x: string) => x === "/api/llm/status"), "/?cid= alone: the page's own /api/llm/* is the status probe", JSON.stringify(baseline));
@@ -198,7 +204,7 @@ let baseline: string[] = [];
   await editorUp(p);
   await sleep(1500);
   same(placeIds(JSON.parse(await model(p))), ["I", "R", "S"], "/?data= alone: the net loads from the permalink");
-  ok(!(await p.eval(`!!document.querySelector('.pv-result-dialog, [data-link-status], [data-link-notice]')`)), "/?data= alone: no pane, no notice");
+  ok(!(await p.eval(`!!document.querySelector('.pv-chat, .pv-ask-card, [data-link-status], [data-link-notice]')`)), "/?data= alone: no pane, no notice");
   await p.close();
 }
 
@@ -207,7 +213,7 @@ let baseline: string[] = [];
   const p = await open(hrefTo(`?cid=${coffee.cid}`, "#view=cospan&ex=orders"));
   await editorUp(p);
   await sleep(2000);
-  ok(!(await p.eval(`!!document.querySelector('.pv-result-dialog, [data-link-status], [data-link-notice]')`)), "#view=cospan&ex=orders: no pane, no notice");
+  ok(!(await p.eval(`!!document.querySelector('.pv-chat, .pv-ask-card, [data-link-status], [data-link-notice]')`)), "#view=cospan&ex=orders: no pane, no notice");
   same(await viewWorkers(p), 0, "#view=cospan&ex=orders: nothing was replayed");
   same(await model(p), bareModel, "#view=cospan&ex=orders: the net alone");
   await p.close();
@@ -231,7 +237,7 @@ for (const e of examples) {
   ok((await p.eval(`location.hash`)).startsWith("#view="), `${label}: the click kept the #view= in the URL`);
   ok(await p.eval(`getComputedStyle(document.getElementById('landing')).display === 'none'`), `${label}: the landing hero is skipped for a ?cid= link`);
   const r = await pane(p);
-  ok(r, `${label}: a result pane`);
+  ok(r, `${label}: a result card in the Ask pane`);
   if (r) {
     same(r.chips, ["Saved version of the net", "reproduced - no model call"], `${label}: saved version, reproduced with no model call`);
     same(r.calls, e.spec.calls.map((c: any) => c.command), `${label}: the footer lists the spec's calls, in order`);
@@ -244,7 +250,7 @@ for (const e of examples) {
     ok(!r.warnings.some((w: string) => /differs|refused|partial|not reproducible/.test(w)), `${label}: no drift, refusal or partial notice`, JSON.stringify(r.warnings));
     ok(r.netLine.includes("saved version of the net") && r.netLine.includes("Edit from here"), `${label}: says it is a saved version, and where to edit from`);
     ok(!r.netAlone, `${label}: no 'open the net alone' offered for a view that reproduced`);
-    ok(r.fits, `${label}: the pane fits the window`, JSON.stringify(r.box));
+    ok(r.fits, `${label}: the Ask pane and its card fit the window`, JSON.stringify(r.box));
     if (e.spec.calls.some((c: any) => c.command === "sim.ode")) ok(r.svgs >= 1, `${label}: the curve is drawn`);
   }
   same(placeIds(JSON.parse(await model(p))), placeIds(nets[e.cid]), `${label}: the net is open in the editor`);
@@ -266,7 +272,7 @@ for (const e of examples) {
   await sleep(2000);
   ok(!(await p.eval(`location.hash`)), "'Open the canvas': no hash, the net alone");
   ok((await p.eval(`location.search`)).startsWith("?cid=z4EBG9jC6H"), "'Open the canvas': /?cid=<net> as before");
-  ok(!(await p.eval(`!!document.querySelector('.pv-result-dialog, [data-link-status], [data-link-notice]')`)), "'Open the canvas': no result");
+  ok(!(await p.eval(`!!document.querySelector('.pv-chat, .pv-ask-card, [data-link-status], [data-link-notice]')`)), "'Open the canvas': no result, no Ask pane");
   await p.close();
 }
 
@@ -311,7 +317,7 @@ for (const e of examples) {
   await shot(p, "unreproducible-1280");
   await p.eval(`document.querySelector('[data-act="net-alone"]').click()`);
   await sleep(200);
-  ok(!(await p.eval(`!!document.querySelector('.pv-result-dialog')`)), "'Open the net alone' closes the pane and leaves the net");
+  ok(!(await p.eval(`!!document.querySelector('.pv-ask-card, [data-link-status]')`)), "'Open the net alone' takes the result card away and leaves the net");
   same(placeIds(JSON.parse(await model(p))), placeIds(nets[coffee.cid]), "the net is still open");
   await p.close();
 }
@@ -360,10 +366,10 @@ for (const [label, hash, expect] of garbage) {
   const n = await notice(p);
   ok(n && expect.test(n) && !n.includes("\n"), `${label}: one line saying why`, String(n));
   ok(n?.includes("the net is open on its own"), `${label}: and that the net is open`, String(n));
-  ok(!(await p.eval(`!!document.querySelector('.pv-result-dialog')`)), `${label}: no result pane`);
+  ok(!(await p.eval(`!!document.querySelector('.pv-ask-card')`)), `${label}: no result card`);
   same(await model(p), bareModel, `${label}: the net alone`);
   same(await viewWorkers(p), 0, `${label}: nothing was replayed`);
-  await noModel(p, label, baseline);
+  await noModel(p, label, baseline, { pane: false });
   if (label === "garbage payload") await shot(p, "garbage-1280");
   await p.close();
 }
@@ -399,7 +405,8 @@ for (const [label, hash, expect] of garbage) {
 
 // ---- 4. Copy link ---------------------------------------------------------------------------------------------------------
 
-const clickFooter = (p: any, act: string) => p.eval(`document.querySelector('.pv-result-dialog [data-prov] [data-act=${q(act)}]').click()`);
+const clickFooter = (p: any, act: string) => p.eval(`document.querySelector('.pv-ask-card [data-prov] [data-act=${q(act)}]').click()`);
+const closePane = (p: any) => p.eval(`document.querySelector('.pv-chat [data-act="close"]').click()`);
 const clip = (p: any) => p.waitFor(`window.__clip.length > 0`, 60000).then(() => p.eval(`window.__clip.at(-1)`));
 
 // The saved net: the link names it, and opens to the same view in a fresh page.
@@ -484,18 +491,16 @@ const unsavedResult = `(async () => {
 const centre = (p: any, sel: string) => p.eval(`(() => { const e = document.querySelector(${q(sel)}); if (!e) return null; e.scrollIntoView({ block: 'center' }); const r = e.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; })()`);
 const topmost = (p: any, x: number, y: number) => p.eval(`(() => { const e = document.elementFromPoint(${x}, ${y}); return e ? (e.className || e.tagName) : null; })()`);
 
-// The way a person gets there. The result's pane is a full-screen overlay that covers the menu, so the Share dialog is reached
-// once the pane is closed, and it still offers the view of the result that was just closed.
+// The way a person gets there. The result is a card in the docked Ask pane, which leaves the bar alone, so the menu is reached
+// with the result still on screen; the dialog offers the view of the last result shown, and still does once the pane is closed.
 {
   const p = await open(await linkTo(coffee.spec), { signedIn: true });
   ok(await settled(p), "share: a view is open");
   ok(await p.waitFor(`!!document.querySelector('petri-view')._user`, 15000), "share: signed in (the menu offers Share to a signed-in person)");
   const pt = await centre(p, "[data-menu=file]");
   ok(pt, "share: the File menu button is there");
-  ok(String(await topmost(p, pt[0], pt[1])).includes("pv-modal-overlay"), "share: while the result is open its pane covers the menu button (so it is reached after the pane is closed)", String(await topmost(p, pt[0], pt[1])));
-  await p.eval(`document.querySelector('.pv-result-dialog [data-act="close"]').click()`);
-  ok(!(await p.eval(`!!document.querySelector('.pv-result-dialog')`)), "share: the result is closed");
-  same(await topmost(p, pt[0], pt[1]) === "pv-modal-overlay", false, "share: and the menu button can be clicked");
+  ok(await p.eval(`!!document.querySelector('.pv-chat .pv-ask-card') && !document.querySelector('.pv-modal-overlay')`), "share: the result is on screen as a card in the Ask pane, and nothing modal is over the page");
+  ok(await p.eval(`!!document.elementFromPoint(${pt[0]}, ${pt[1]})?.closest('[data-menu=file]')`), "share: the menu button is what the mouse hits, with the result still open (the pane does not cover the bar)", String(await topmost(p, pt[0], pt[1])));
   await p.click(pt[0], pt[1]);
   ok(await p.waitFor(`!!document.querySelector('.pv-appmenu-pop')`, 5000), "share: the File menu opens");
   const item = await p.eval(`(() => { const e = [...document.querySelectorAll('.pv-appmenu-pop [role=menuitem]')].find((x) => x.dataset.label === 'Share'); if (!e) return null; e.scrollIntoView({ block: 'nearest' }); const r = e.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; })()`);
@@ -531,6 +536,12 @@ const topmost = (p: any, x: number, y: number) => p.eval(`(() => { const e = doc
   const md = await p.eval(`document.querySelector('.pv-share-textarea').value`);
   ok(!md.includes("#view=") && md.includes(`/?cid=${coffee.cid})`), "share: with the box off the snippet points at the net alone", md);
   same(await p.eval(`document.querySelector('[data-share-copy]').disabled`), false, "share: and Copy is not held (the net's link is what was asked for)");
+  // and again once the Ask pane is closed (the card goes with it): the last result shown is still the one the dialog offers
+  await p.eval(`document.querySelectorAll('.pv-modal-overlay').forEach((o) => o.remove())`);
+  await closePane(p);
+  ok(await p.eval(`!document.querySelector('.pv-chat') && !document.querySelector('.pv-ask-card')`), "share: the Ask pane is closed, and the card with it");
+  await p.eval(`document.querySelector('petri-view')._showShareDialog()`);
+  ok(await p.waitFor(`!!document.querySelector('[data-share-view-check]')`, 10000), "share, with the pane closed: 'Share this view' is still offered for the last result shown");
   same(problemsOf(p), [], "share: no page errors");
   await p.close();
 }
@@ -543,7 +554,7 @@ const topmost = (p: any, x: number, y: number) => p.eval(`(() => { const e = doc
     const P = await import('/petri-provenance.js');
     const rec = P.recordFromCall({ command: 'edit.delete', args: { id: 'CoffeeBeans' } }, { net: { revision: 0 } });
     await el._showResult({ title: 'An edit', source: 'palette', goal: null, record: rec, artifacts: [], registry: await el.commands(), warnings: [] });
-    document.querySelector('.pv-result-dialog [data-act="close"]').click();
+    document.querySelector('.pv-chat [data-act="close"]').click();
     await el._showShareDialog();
   })()`);
   ok(await p.waitFor(`document.querySelector('[data-share-view-state]')?.dataset.shareViewState === 'unavailable'`, 60000), "share, a view with no link: the dialog says there is none");
@@ -557,7 +568,7 @@ const topmost = (p: any, x: number, y: number) => p.eval(`(() => { const e = doc
 {
   const p = await open(await linkTo(coffee.spec));
   ok(await settled(p), "share, after an edit: a view is open");
-  await p.eval(`document.querySelector('.pv-result-dialog [data-act="close"]').click()`);
+  await closePane(p);
   await p.eval(`document.querySelector('petri-view').execute('net.add_place', { x: 10, y: 20 })`);
   await p.eval(`document.querySelector('petri-view')._showShareDialog()`);
   ok(await p.waitFor(`!!document.querySelector('[data-share-view-check]')`, 10000), "share, after an edit: 'Share this view' is still offered");
@@ -601,7 +612,7 @@ const topmost = (p: any, x: number, y: number) => p.eval(`(() => { const e = doc
   ok(await settled(p), "undecodable ?data=: the page says something");
   const n = (await notice(p)) ?? "";
   ok(/could not be read/.test(n) && n.includes("the net is open on its own") && !n.includes("\n"), "undecodable ?data=: one line saying the net could not be read", n);
-  ok(!(await p.eval(`!!document.querySelector('.pv-result-dialog')`)), "undecodable ?data=: no result pane, so no 'Net carried in the link'");
+  ok(!(await p.eval(`!!document.querySelector('.pv-ask-card')`)), "undecodable ?data=: no result card, so no 'Net carried in the link'");
   same(await viewWorkers(p), 0, "undecodable ?data=: nothing was replayed");
   await p.close();
   // ?cid=X&data=<garbage>: the editor loaded X, which is not the net the link carried
@@ -615,7 +626,7 @@ const topmost = (p: any, x: number, y: number) => p.eval(`(() => { const e = doc
 {
   const p = await open(await linkTo(coffee.spec));
   ok(await settled(p), "edit after opening: a view is open");
-  await p.eval(`document.querySelector('.pv-result-dialog [data-act="close"]').click()`);
+  await closePane(p);
   await p.eval(`document.querySelector('petri-view')._syncLD()`);
   ok((await p.eval(`location.hash`)).startsWith("#view="), "edit after opening: a sync that changes nothing keeps the #view= in the address bar");
   await p.eval(`document.querySelector('petri-view').execute('net.add_place', { x: 10, y: 20 })`);
@@ -625,7 +636,7 @@ const topmost = (p: any, x: number, y: number) => p.eval(`(() => { const e = doc
   const fresh = await open(href);
   await editorUp(fresh);
   await sleep(2000);
-  ok(!(await fresh.eval(`!!document.querySelector('.pv-result-dialog, [data-link-status], [data-link-notice]')`)), "edit after opening: the address, shared, opens the edited net alone: no view, no 'differs'");
+  ok(!(await fresh.eval(`!!document.querySelector('.pv-chat, .pv-ask-card, [data-link-status], [data-link-notice]')`)), "edit after opening: the address, shared, opens the edited net alone: no view, no 'differs'");
   same(placeIds(JSON.parse(await model(fresh))).length, placeIds(nets[coffee.cid]).length + 1, "edit after opening: and it is the edited net");
   await fresh.close();
   await p.close();
