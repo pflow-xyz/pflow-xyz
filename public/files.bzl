@@ -135,6 +135,8 @@ PUBLIC_FILES = [
     "petri-analysis-ui.js",
     "petri-appview-ui.js",
     "petri-ask-eval_test.ts",
+    "petri-ask-pane.js",
+    "petri-ask-pane_test.ts",
     "petri-ask.js",
     "petri-ask_test.ts",
     "petri-chat-ui.js",
