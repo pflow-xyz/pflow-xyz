@@ -3724,6 +3724,8 @@ canvas.pv-canvas {
     gap: 6px;
     margin-top: 6px;
 }
+
+
 /* ============================================================
    Command palette and schema forms
    (petri-palette-ui.js, petri-schema-form.js)
@@ -3963,6 +3965,8 @@ canvas.pv-canvas {
         max-height: 45vh;
     }
 }
+
+
 /* ============================================================
    Problems indicator (petri-problems.js)
    The "N problems" chip by the title, and the list it opens. It replaces the
@@ -4486,4 +4490,109 @@ html:has(petri-view[data-ui="bar"]) .fixed-title {
     .pv-appbar {
         left: 10px;
     }
+
+   Linkable views (petri-link-open.js, petri-view.js _openLinkedView)
+   An opened link's status strip over the result, and the one-line notice when a link's view was not run.
+   ============================================================ */
+.pv-link-status {
+    margin: 6px 0 10px;
+}
+.pv-link-chips {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+}
+.pv-link-ok {
+    color: var(--pv-success-strong);
+    border-color: var(--pv-success);
+}
+.pv-link-note {
+    margin: 8px 0 0;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+.pv-link-net {
+    margin: 6px 0 0;
+}
+.pv-link-notice {
+    position: absolute;
+    top: 64px; /* below the title bar and the menu button */
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 6;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: max-content; /* a box at left: 50% would otherwise shrink to half the canvas */
+    max-width: min(640px, calc(100% - 32px));
+    padding: 8px 12px;
+    border: 1px solid var(--pv-border);
+    border-left: 4px solid var(--pv-warning);
+    border-radius: 8px;
+    background: var(--pv-surface);
+    color: var(--pv-ink);
+    box-shadow: 0 4px 16px var(--pv-shadow-md);
+    font-size: 0.9em;
+    line-height: 1.4;
+}
+.pv-link-notice-busy {
+    border-left-color: var(--pv-accent);
+}
+.pv-link-notice-close {
+    flex: none;
+    min-width: 28px;
+    min-height: 28px;
+    border: 0;
+    background: none;
+    color: var(--pv-ink-secondary);
+    font-size: 1.2em;
+    cursor: pointer;
+}
+
+/* ---- Share this view (petri-view.js _shareViewSection) ---- */
+.pv-share-view {
+    margin: 8px 0 12px;
+}
+.pv-share-view-check {
+    display: block;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+.pv-share-link {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 6px 0;
+}
+.pv-share-link > span {
+    flex: none;
+    min-width: 5.5em;
+    color: var(--pv-ink-secondary);
+    font-size: 0.9em;
+}
+.pv-share-link > input {
+    flex: 1;
+    min-width: 0;
+    padding: 6px 8px;
+    border: 1px solid var(--pv-border);
+    border-radius: 4px;
+    background: var(--pv-surface);
+    color: var(--pv-ink);
+    font: inherit;
+    font-size: 0.85em;
+}
+.pv-share-link > input:disabled {
+    opacity: 0.6;
+}
+.pv-share-off > input {
+    opacity: 0.5;
+}
+.pv-share-privacy {
+    margin: 6px 0 0;
+}
+/* Copy waits for the view's link (petri-view.js _showShareDialog): a button that is waiting must look it */
+.pv-btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
 }

@@ -1,0 +1,144 @@
+{
+  "@context": "https://pflow.xyz/schema",
+  "@id": "z4EBG9jDW9ike1veSLWu9Et2dMTiPEWTMkai8TkjUtEaUVtyrda",
+  "@type": "ResourceNet",
+  "@version": "1.1",
+  "arcs": [
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "produce",
+      "target": "produced",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "produced",
+      "target": "produce",
+      "weight": [
+        0
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "slots",
+      "target": "produce",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "produce",
+      "target": "buffer",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "buffer",
+      "target": "consume",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "consume",
+      "target": "consumed",
+      "weight": [
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "consume",
+      "target": "slots",
+      "weight": [
+        1
+      ]
+    }
+  ],
+  "author": {
+    "@type": "Person",
+    "id": "github:243500",
+    "identifier": "https://github.com/stackdump",
+    "name": "stackdump"
+  },
+  "description": "Bounded buffer with producer and consumer processes.",
+  "name": "Producer-Consumer",
+  "places": {
+    "buffer": {
+      "@type": "Place",
+      "capacity": [
+        3
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 200,
+      "y": 200
+    },
+    "consumed": {
+      "@type": "Place",
+      "capacity": [
+        3
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 200,
+      "y": 300
+    },
+    "produced": {
+      "@type": "Place",
+      "capacity": [
+        3
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 200,
+      "y": 100
+    },
+    "slots": {
+      "@type": "Place",
+      "capacity": [
+        3
+      ],
+      "initial": [
+        3
+      ],
+      "offset": 0,
+      "x": 350,
+      "y": 150
+    }
+  },
+  "token": [
+    "https://pflow.xyz/tokens/black"
+  ],
+  "transitions": {
+    "consume": {
+      "@type": "Transition",
+      "x": 100,
+      "y": 250
+    },
+    "produce": {
+      "@type": "Transition",
+      "x": 100,
+      "y": 150
+    }
+  }
+}

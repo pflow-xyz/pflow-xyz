@@ -261,6 +261,37 @@ export function recordFromCall(entry, o = {}) {
     });
 }
 
+/**
+ * The record of an opened link (petri-viewspec.js, design 14.3): what the
+ * spec says, in the shape the footer draws, so a link's result looks like any
+ * other. The spec's calls are the claim: they are listed whether or not they
+ * ran here (the status chips say which did). `versions` are the ones that MADE
+ * the view (spec.engine), not this build's: the footer's Version row says what
+ * produced the view, and the differs notice compares it with the engine now.
+ * The engine's reason is not in a spec, so it says where the choice came from.
+ * @param {Object} spec a view spec (validated or not: only its shape is read)
+ * @param {Object} [o]
+ * @param {{id: string, question: string, caveat?: string}|null} [o.goal] the goal the view names, from the catalog
+ * @param {string[]} [o.warnings]
+ * @param {boolean} [o.withNote] false leaves the spec's note out (a link that was refused)
+ * @param {string} [o.engineWarning] the engine guard's chip for these calls on this net (a spec does not carry it: the opener works it out)
+ */
+export function recordFromSpec(spec, { goal = null, warnings = [], withNote = true, engineWarning = '' } = {}) {
+    const calls = normalizeCalls((Array.isArray(spec?.calls) ? spec.calls : []).filter((c) => c && typeof (c.command ?? c.id) === 'string'));
+    const used = calls.map((c) => engineOf(c.command, c.args)).find(Boolean) || null;
+    const made = spec?.engine && typeof spec.engine === 'object' ? spec.engine : null;
+    return provenance({
+        goal: goal && goal.id ? { id: goal.id, question: goal.question } : null,
+        calls,
+        engine: used ? { name: used, reason: 'as recorded in the link', ...(engineWarning ? { warning: engineWarning } : {}) } : null,
+        caveat: goal?.caveat || '',
+        net: { ...(spec?.net ? { cid: spec.net } : {}), revision: 0 },
+        versions: { registry: text(made?.registry) || UNKNOWN_APP, app: text(made?.app) || UNKNOWN_APP },
+        note: withNote && spec?.note && typeof spec.note.text === 'string' ? spec.note : null,
+        warnings,
+    });
+}
+
 // ---- repeating a record ----
 
 /**
