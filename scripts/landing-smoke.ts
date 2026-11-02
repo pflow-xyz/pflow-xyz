@@ -273,6 +273,8 @@ try {
     ok(await p.eval(`document.querySelectorAll('.landing-hero input[type="radio"], .landing-hero fieldset').length === 0`), "there is no mode picker");
     ok(await p.eval(`!/Design|Explore|Let it decide|Start/.test(document.querySelector('.landing-hero').textContent)`), "the hero does not use the old names");
     ok(await p.eval(`document.querySelectorAll('.landing-hero textarea').length === 1 && document.querySelectorAll('.landing-hero button[type="submit"]').length === 1`), "the hero is one input and one button");
+    ok(await p.eval(`!document.querySelector('.landing-hero a[href*="sim.pflow.xyz"]') && !/Describe it instead/.test(document.body.textContent)`), "the hero has no second door to sim");
+    ok(await p.eval(`[...document.querySelectorAll('.landing-nav-links a')].some((a) => a.textContent === 'Sim' && a.href.startsWith('https://sim.pflow.xyz'))`), "Sim is still a link in the nav");
     ok(await p.eval(`!document.getElementById('landing-chat-input').hidden && document.getElementById('landing-chat-input').getBoundingClientRect().height > 0`), "the box is there: what is typed is kept, not refused");
     ok(problemsOf(p).length === 0, "no console problems", problemsOf(p).join(" | "));
 
@@ -299,6 +301,20 @@ try {
     await p.eval(`document.getElementById('open-editor-btn').click()`);
     ok(await p.waitFor(`document.getElementById('editor-wrapper').style.display === 'block'`, 5000), "the editor is one click away");
     ok(!(await p.eval(`!!document.querySelector('.pv-chat')`)), "and opens with no chat nobody asked for");
+    await p.close();
+  }
+
+  console.log("below the hero: sim is named once, and says what it is");
+  {
+    const p = await open("/");
+    await routed(p);
+    const h2s = await p.eval(`[...document.querySelectorAll('#landing h2')].map((h) => h.textContent)`);
+    ok(h2s.includes("Calibrated what-ifs (sim.pflow.xyz)") && !h2s.includes("Or start from a description"), "the sim gallery is titled as sim's", h2s.join(" | "));
+    ok(h2s.indexOf("Example models, open in the editor") < h2s.indexOf("Calibrated what-ifs (sim.pflow.xyz)"), "under the examples");
+    ok(await p.eval(`document.querySelectorAll('#calibrated-what-ifs a.pipeline-card[href^="https://sim.pflow.xyz/"]').length === 3`), "with its three cards, still going to sim");
+    ok(await p.eval(`/already tuned/.test(${text("#calibrated-what-ifs")}) && /turn the knobs/.test(${text("#calibrated-what-ifs")})`), "and a line saying what is different");
+    ok(await p.eval(`![...document.querySelectorAll('#landing h3')].some((h) => h.textContent === 'Check') && ${text("a.pipeline-card[href='https://sim.pflow.xyz']")}.includes('Run a calibrated what-if and see which knob binds')`), "the word Check no longer names the card that goes to sim");
+    ok(await p.eval(`document.documentElement.scrollWidth <= window.innerWidth`), "no sideways scroll");
     await p.close();
   }
 

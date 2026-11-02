@@ -43,12 +43,32 @@ suggestion, because a session can change mode on any message. The landing works 
 Nothing offers a chat that would answer 401 or 403: where no chat can happen the box (and the question that goes
 with it) is hidden, not left to go nowhere. The static markup keeps the box, so the page reads the same to a crawler.
 
-The static landing content below the hero is unchanged by H0 and H1, so what a crawler reads moves only in the hero.
+### One AI door (H2)
+
+Two text-to-model boxes side by side made a visitor pick a backend before they knew what either was, so the hero has
+one (design 16.2). pflow and sim are one product with two surfaces:
+
+- **The hero** has `Open the editor` and `Compose`; the `Describe it instead (sim)` button is gone. Sim stays a link
+  in the nav and in the footer, and has its own labelled gallery below.
+- **`Calibrated what-ifs (sim.pflow.xyz)`** is the old `Or start from a description` section, under the example
+  models, with the same three cards to sim.pflow.xyz and one line on what is different: models already tuned,
+  turn the knobs, no editor needed, and to model your own start at the top. It is not a second place to describe.
+- **`Draw -> Run -> Prove`**: the middle card used to be `Check`, and said to describe a decision and start from
+  words, which is the Ask's job. It now says what sim is for ("Run a calibrated what-if and see which knob binds")
+  and keeps its link. The word Check is kept for the editor, where it will mean the problems chip (design 3).
+- **Left out:** the mockup's `You have... / Take...` table. It needs a third row about `Copy for sim` and an `Open in
+  sim` that does not exist yet, which would promise something on the page (16.2 says not to), and a table between the
+  hero and the examples is clutter; the gallery's one line carries the distinction instead.
+- Not decided here, and not on the page: whether the two share a sign-in or a quota.
+
+The page's static content stays in the HTML (the script writes the hero's words with `textContent` and flips
+`hidden`, never markup), the head's meta tags and structured data are untouched, and every link the page had is still
+there except the removed button; `petri-landing_test.ts` holds each of those to the source of `index.html`.
 
 ## Decided here, for Matt to overrule
 
-- **It is the landing page, not behind a flag.** The change is the hero's content; everything else on the page
-  is as it was, and the editor is one click away (design question 5).
+- **It is the landing page, not behind a flag.** The change is the hero's content and the sim section's copy; the
+  editor is one click away (design question 5).
 - **Returning visitors still land in the editor** (`pflow_skip_landing`), as before; the logo brings them back
   (question 5, the conservative answer).
 - **Build, Analyse, Explain, and nothing else.** "Let it decide" and "Auto" are not shown: they are what happens
@@ -59,6 +79,7 @@ The static landing content below the hero is unchanged by H0 and H1, so what a c
   there to correct a label once a session is open.
 - **Compose then build is a link, not a handoff.** No composition travels to the build tab yet (Phase 3).
 - **Auto does not pick Compose.** The server's classifier has three labels; a fourth is a prompt change (Phase 3).
+- **The sim gallery stays on the page**, under the examples, labelled as sim's (design question 16.6.3).
 - **Quota stays as it was:** GitHub-keyed, `PFLOW_LLM_ALLOW`-gated (question 6).
 
 ## Later slices
@@ -72,7 +93,8 @@ not reach them, and `file.*` stays out of its tools.
 `public/petri-landing_test.ts` (`make test-js`) holds the states, the routes (the `design` alias included) and the
 kept words as pure functions; drives `initLanding` against a stand-in page for every state (the box, the button,
 what a submit sends, a submit before the status answers, a link that forces a mode, the words kept across a
-sign-in); and reads the static `index.html` as text (no radios, one Ask, no old names, Compose still linked).
+sign-in); and reads the static `index.html` as text (no radios, one Ask, no old names, Compose and every old link
+still there, the sim gallery's title and the card that no longer says Check, valid metadata).
 `scripts/landing-smoke.ts` drives the page in Chrome. It cannot sign in to GitHub, so a signed-in session is answered
 in the page: it proves the mode and the words reach the Assistant's request, not Gemini.
 

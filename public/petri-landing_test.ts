@@ -316,3 +316,70 @@ Deno.test("a deep link that names a session skips the landing: the page knows ev
   const inModule = ROUTES.map((r) => r.id).sort();
   assertEquals(inPage, inModule);
 });
+
+Deno.test("one AI door: the hero has no second box to sim, and sim's gallery says what sim is", () => {
+  const hero = section('<section class="landing-hero">');
+  assertEquals(HTML.includes("Describe it instead"), false);
+  assertEquals(/sim\.pflow\.xyz/.test(hero), false, "the hero does not link to sim");
+  assertEquals(HTML.includes("Or start from a description"), false);
+
+  const what = section('<section class="landing-pipeline" id="calibrated-what-ifs">');
+  assertEquals(/<h2>Calibrated what-ifs \(sim\.pflow\.xyz\)<\/h2>/.test(what), true, "titled as sim's");
+  const cards = [...what.matchAll(/<a href="(https:\/\/sim\.pflow\.xyz\/[^"]+)" class="pipeline-card">/g)].map((m) => m[1]);
+  assertEquals(cards, [
+    "https://sim.pflow.xyz/second-car/",
+    "https://sim.pflow.xyz/whatif/?id=7d736018c17edd5d7b083444",
+    "https://sim.pflow.xyz/whatif/?id=3741e97f8256ab15e7a28aed",
+  ]);
+  const words = textOf(what);
+  for (const said of ["already tuned", "turn the knobs", "No editor needed"]) assertEquals(words.includes(said), true, `the gallery does not say "${said}"`);
+  assertEquals(words.includes("Describe a decision"), false, "it is not a second place to describe");
+  assertEquals(HTML.indexOf("Example models, open in the editor") < HTML.indexOf('id="calibrated-what-ifs"'), true, "under the examples");
+});
+
+Deno.test("Check is not a product name here: the card that went to sim says what sim is", () => {
+  const pipeline = section("<h2>Draw &rarr; Run &rarr; Prove</h2>");
+  assertEquals(/<h3>Check<\/h3>/.test(HTML), false);
+  assertEquals(HTML.includes("Draw &rarr; Check"), false);
+  const card = pipeline.slice(pipeline.indexOf('<a href="https://sim.pflow.xyz" class="pipeline-card">'));
+  assertEquals(card.startsWith('<a href="https://sim.pflow.xyz" class="pipeline-card">'), true, "the middle card still goes to sim");
+  assertEquals(textOf(card.slice(0, card.indexOf("</a>"))).includes("Run a calibrated what-if and see which knob binds"), true);
+  assertEquals(/<h3>Run<\/h3>/.test(card), true);
+});
+
+Deno.test("every link the page had is still there, except the removed second door", () => {
+  const hrefs = new Set([...HTML.matchAll(/\shref="([^"#][^"]*)"/g)].map((m) => m[1].replace(/&amp;/g, "&")));
+  const kept = [
+    "/", "/compose.html", "/mcp.html", "https://sim.pflow.xyz", "https://book.pflow.xyz", "https://blog.stackdump.com",
+    "https://github.com/pflow-xyz/pflow-xyz", "https://blog.stackdump.com/posts/zk-petri-nets", "https://sim.pflow.xyz/second-car/",
+    "https://sim.pflow.xyz/whatif/?id=7d736018c17edd5d7b083444", "https://sim.pflow.xyz/whatif/?id=3741e97f8256ab15e7a28aed",
+    "/?cid=z4EBG9j3NhEnaxZBEpXXCvyMbR9utkgUZoPBQFxS99qSehUwuBL&title=Coffee+Shop",
+    "/?cid=z4EBG9j1YQFZEQBpCn3ZjdpAuXpPnrKSDF5YXsW3q86znPztEoh&title=Tic-Tac-Toe",
+    "/?cid=z4EBG9j1aMiBny6hgTAKFXfXxTASCD5vT6NVY3opfQx4FfBf42a&title=Enzyme+Kinetics",
+    "/?cid=z4EBG9j7s3ri1DFxbBYpxYUhKtZf8ngA3nfw9849upqeQj85z9J&title=Predator-Prey",
+    "/?cid=z4EBG9jDW9ike1veSLWu9Et2dMTiPEWTMkai8TkjUtEaUVtyrda&title=Producer-Consumer",
+    "/?cid=z4EBG9jC6HtPfeMtyA5yt6HuzDspMH2B15FQZ7mx3D2zeBwBU1f&title=USDC+Bridge",
+  ];
+  for (const href of kept) assertEquals(hrefs.has(href), true, `index.html lost ${href}`);
+  const nav = HTML.slice(HTML.indexOf('<nav class="landing-nav">'), HTML.indexOf("</nav>"));
+  for (const href of ["https://sim.pflow.xyz", "https://book.pflow.xyz", "/compose.html", "https://github.com/pflow-xyz/pflow-xyz"]) {
+    assertEquals(nav.includes(`href="${href}"`), true, `the nav lost ${href}`);
+  }
+  assertEquals(/>\s*Sim\s*<\/a>/.test(nav), true, "and Sim is still a link in the nav");
+});
+
+Deno.test("the page stays crawlable and its metadata valid: static copy, no content written by the script", async () => {
+  const head = HTML.slice(0, HTML.indexOf("</head>"));
+  for (const needle of [
+    "<title>pflow - Explanations you can run</title>", '<meta name="description"', '<link rel="canonical" href="https://pflow.xyz/"/>',
+    '<meta property="og:title"', '<meta property="og:image"', '<meta name="twitter:card"',
+  ]) assertEquals(head.includes(needle), true, `the head lost ${needle}`);
+  for (const block of HTML.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)) JSON.parse(block[1]); // throws if invalid
+  assertEquals(/<h1[^>]*>Explanations you can run\.<\/h1>/.test(HTML), true);
+  for (const heading of ["Example models, open in the editor", "Calibrated what-ifs (sim.pflow.xyz)", "Draw &rarr; Run &rarr; Prove", "Go deeper"]) {
+    assertEquals(HTML.includes(`<h2>${heading}</h2>`), true, `the static page lost the heading ${heading}`);
+  }
+  // The script writes state words with textContent and flips hidden; it never injects markup.
+  const script = await Deno.readTextFile(new URL("./petri-landing.js", import.meta.url));
+  assertEquals(/innerHTML|insertAdjacentHTML|document\.write/.test(script), false);
+});
