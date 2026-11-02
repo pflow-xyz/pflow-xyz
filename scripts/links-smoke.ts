@@ -490,15 +490,15 @@ const topmost = (p: any, x: number, y: number) => p.eval(`(() => { const e = doc
   const p = await open(await linkTo(coffee.spec), { signedIn: true });
   ok(await settled(p), "share: a view is open");
   ok(await p.waitFor(`!!document.querySelector('petri-view')._user`, 15000), "share: signed in (the menu offers Share to a signed-in person)");
-  const pt = await centre(p, ".pv-hamburger-btn");
-  ok(pt, "share: the menu button is there");
+  const pt = await centre(p, "[data-menu=file]");
+  ok(pt, "share: the File menu button is there");
   ok(String(await topmost(p, pt[0], pt[1])).includes("pv-modal-overlay"), "share: while the result is open its pane covers the menu button (so it is reached after the pane is closed)", String(await topmost(p, pt[0], pt[1])));
   await p.eval(`document.querySelector('.pv-result-dialog [data-act="close"]').click()`);
   ok(!(await p.eval(`!!document.querySelector('.pv-result-dialog')`)), "share: the result is closed");
   same(await topmost(p, pt[0], pt[1]) === "pv-modal-overlay", false, "share: and the menu button can be clicked");
   await p.click(pt[0], pt[1]);
-  ok(await p.waitFor(`getComputedStyle(document.querySelector('.pv-hamburger-overlay')).display !== 'none'`, 5000), "share: the menu opens");
-  const item = await p.eval(`(() => { const e = [...document.querySelectorAll('.pv-hamburger-overlay .pv-menu-item')].find((x) => /Share/.test(x.textContent)); if (!e) return null; e.scrollIntoView({ block: 'nearest' }); const r = e.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; })()`);
+  ok(await p.waitFor(`!!document.querySelector('.pv-appmenu-pop')`, 5000), "share: the File menu opens");
+  const item = await p.eval(`(() => { const e = [...document.querySelectorAll('.pv-appmenu-pop [role=menuitem]')].find((x) => x.dataset.label === 'Share'); if (!e) return null; e.scrollIntoView({ block: 'nearest' }); const r = e.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; })()`);
   ok(item, "share: the menu has a Share item");
   // the first state the dialog is drawn in, before the view's link is ready (a MutationObserver sees it before any later work runs)
   await p.eval(`(() => {
