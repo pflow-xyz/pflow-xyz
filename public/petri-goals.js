@@ -14,11 +14,22 @@
 //                       the argument altogether)
 //   "$step<N>.<field>"  a field of an earlier step's result
 //
+// A reference to a number may be scaled: "$input.max_rate*0.25". An object key
+// may be a reference too ({"$input.transition": 0.5}), for a scenario's rates.
+//
 // A step may carry `when: {ref, equals}` (a "$step<N>.<field>" reference and
 // the value it must equal): when it does not hold the step is skipped, not
-// failed. The knob goal uses it to pick the ODE or the SSA diagnosis by what
-// sim.recommend says, so the plan never ranks knobs on an engine the net is
-// wrong for.
+// failed. The knob, average and best_setting goals use it to pick the ODE or
+// the SSA version of their step by what sim.recommend says, so the plan never
+// runs an engine the net is wrong for.
+//
+// Whatever the plan says, the engine guard (petri-engine-guard.js) has the
+// last word: a step whose command the recommendation rules out is refused
+// before it runs (entry.refused), and a step that runs on an engine the
+// recommendation did not pick carries a warning (entry.warning). The guard is
+// on unless opts.guard is false.
+
+import { EngineGuard } from './petri-engine-guard.js';
 
 let catalogPromise = null;
 
@@ -30,8 +41,19 @@ export function loadGoals(fetcher = (u) => fetch(u).then((r) => r.json())) {
 
 const DROP = Symbol('drop');
 
+// "$input.max_rate*0.25": a reference to a number times a literal.
+const SCALED = /^(\$[^*\s]+)\*(-?\d+(?:\.\d+)?)$/;
+
 function resolve(v, ctx) {
     if (typeof v === 'string' && v.startsWith('$')) {
+        const scaled = SCALED.exec(v);
+        if (scaled) {
+            const base = resolve(scaled[1], ctx);
+            if (base === DROP) return DROP;
+            const n = typeof base === 'string' && base.trim() !== '' ? Number(base) : base; // a number typed into a field
+            if (typeof n !== 'number' || !Number.isFinite(n)) throw new Error(`${v}: ${scaled[1]} is not a number`);
+            return n * Number(scaled[2]);
+        }
         const [head, ...path] = v.slice(1).split('.');
         let cur;
         if (head === 'input') {
@@ -53,8 +75,11 @@ function resolve(v, ctx) {
     if (v && typeof v === 'object') {
         const out = {};
         for (const [k, x] of Object.entries(v)) {
+            const key = k.startsWith('$') ? resolve(k, ctx) : k;
+            if (key === DROP) continue;
+            if (typeof key !== 'string' && typeof key !== 'number') throw new Error(`${k}: a key must resolve to a name`);
             const r = resolve(x, ctx);
-            if (r !== DROP) out[k] = r;
+            if (r !== DROP) out[key] = r;
         }
         return out;
     }
@@ -72,16 +97,27 @@ export function missingInputs(goal, inputs) {
 }
 
 /**
- * Run a goal's plan. onStep({index, command, args, result | error, artifacts})
- * is called after each step; a failing step stops the plan.
+ * Run a goal's plan. onStep({index, command, args, result | error | refused,
+ * warning, artifacts}) is called after each step; a failing or refused step
+ * stops the plan.
+ *
+ * The engine guard checks every step before it runs. A step it refuses gets
+ * `refused: {rule, message, recommended}` (and the message as `error`, for
+ * callers that only read errors); nothing ran, and the plan stops with ok:
+ * false. A step it lets through with a caution runs and carries `warning`.
  * @param {Object} registry
  * @param {Object} goal
  * @param {Object} [inputs]
  * @param {(step: Object) => void} [onStep]
+ * @param {Object} [opts]
+ * @param {Object|false} [opts.guard]  an EngineGuard-like ({check, prime?}) to use; false turns the guard off (tests)
+ * @param {string} [opts.override]     the engine the caller asks for against the recommendation ('ode'); honoured only when userText names it
+ * @param {string} [opts.userText]     the person's own words, which decide whether the override counts
  * @returns {Promise<{ok: boolean, steps: Array}>}
  */
-export async function runGoal(registry, goal, inputs = {}, onStep = () => {}) {
+export async function runGoal(registry, goal, inputs = {}, onStep = () => {}, opts = {}) {
     if (goal.available === false) throw new Error(goal.caveat || 'not available here');
+    const guard = opts.guard === false ? null : (opts.guard || new EngineGuard(registry));
     const filled = { ...inputs };
     for (const i of goal.inputs || []) if (i.kind === 'json' && typeof filled[i.name] === 'string' && !filled[i.name].trim()) filled[i.name] = ''; // blank text
     for (const i of goal.inputs || []) if ((filled[i.name] === undefined || filled[i.name] === '') && i.default !== undefined) filled[i.name] = i.default;
@@ -109,7 +145,20 @@ export async function runGoal(registry, goal, inputs = {}, onStep = () => {}) {
         const before = new Set(registry.artifacts().map((a) => a.id));
         try {
             entry.args = resolveArgs(step.args, ctx);
+            if (guard) {
+                const v = await guard.check(step.command, entry.args, { override: opts.override, userText: opts.userText });
+                if (v.verdict === 'refuse') {
+                    entry.refused = { rule: v.rule, message: v.message, recommended: v.recommended };
+                    entry.error = `refused: ${v.message}`;
+                    steps.push(entry);
+                    onStep(entry);
+                    return { ok: false, steps };
+                }
+                if (v.verdict === 'warn') entry.warning = v.message;
+            }
             entry.result = await registry.execute(step.command, entry.args);
+            // The plan ran sim.recommend itself: the guard need not run it again for this net.
+            if (step.command === 'sim.recommend') guard?.prime?.(entry.result);
             entry.artifacts = registry.artifacts().filter((a) => !before.has(a.id)).map((a) => a.id);
             ctx.results[index] = entry.result;
         } catch (e) {

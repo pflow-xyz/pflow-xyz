@@ -233,6 +233,7 @@ export async function openChat(view, { mode, message } = {}) {
         const args = JSON.stringify(entry.args);
         li.innerHTML = `<code>${esc(entry.command || entry.name)}</code> <span class="pv-result-dim">${esc(args.length > 120 ? args.slice(0, 117) + '…' : args)} · ${entry.ms} ms</span>
             ${entry.ok ? '' : `<div class="pv-chat-err">${esc(entry.error)}</div>`}
+            ${entry.warning ? `<div><span class="pv-engine-warn">${esc(entry.warning)}</span></div>` : ''}
             <div class="pv-chat-call-acts">
                 ${entry.artifacts.map((id) => `<button type="button" class="pv-btn" data-show="${esc(id)}">${esc(id)}</button>`).join('')}
                 <button type="button" class="pv-btn" data-act="rerun">Rerun</button>

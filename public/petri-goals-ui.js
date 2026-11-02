@@ -109,13 +109,18 @@ export async function openGoals(view) {
             const out = await goalsMod.runGoal(reg, g, inputs, (step) => {
                 if (step.skipped) return; // a step the plan chose not to run (the other engine's diagnosis)
                 const sec = document.createElement('section');
+                if (step.refused) { // the engine guard: this step does not suit the net, so it did not run
+                    sec.innerHTML = `<h4><code>${esc(step.command)}</code> refused</h4><p>${esc(step.refused.message)}</p>`;
+                    res.appendChild(sec);
+                    return;
+                }
                 if (step.error) {
                     sec.innerHTML = `<h4><code>${esc(step.command)}</code> failed</h4><p>${esc(step.error)}</p>`;
                     res.appendChild(sec);
                     return;
                 }
                 const head = step.result?.why || step.result?.summary || step.result?.verdict || (step.result?.answer ? `answer: ${step.result.answer}` : '');
-                sec.innerHTML = `<h4><code>${esc(step.command)}</code></h4>${head ? `<p>${esc(head)}</p>` : ''}`;
+                sec.innerHTML = `<h4><code>${esc(step.command)}</code></h4>${step.warning ? `<p><span class="pv-engine-warn">${esc(step.warning)}</span></p>` : ''}${head ? `<p>${esc(head)}</p>` : ''}`;
                 res.appendChild(sec); // in the document before the plots wire their hover
                 for (const id of step.artifacts || []) {
                     const art = reg.artifact(id);
@@ -127,7 +132,7 @@ export async function openGoals(view) {
                     R.wireArtifact(box, art, (cid, cargs) => reg.execute(cid, cargs), (msg) => { $('.pv-structure-status').textContent = msg; });
                 }
             });
-            $('.pv-structure-status').textContent = out.ok ? `Done. Remember: ${g.caveat}` : 'Stopped at the failing step.';
+            $('.pv-structure-status').textContent = out.ok ? `Done. Remember: ${g.caveat}` : out.steps.some((x) => x.refused) ? 'Stopped: a step does not suit this net and was not run.' : 'Stopped at the failing step.';
         } catch (e) {
             $('.pv-structure-status').textContent = e.message;
         } finally {

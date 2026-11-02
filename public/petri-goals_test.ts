@@ -1,6 +1,7 @@
 import { assert, assertEquals, assertRejects } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { inferPlace, matchGoals, missingInputs, resolveArgs, runGoal } from "./petri-goals.js";
 import { Registry, createHeadlessHost } from "./petri-commands.js";
+import { ENGINE_NEEDS } from "./petri-engine-guard.js";
 import { loadEngine } from "./petri-wasm.js";
 
 const catalog = JSON.parse(await Deno.readTextFile(new URL("./goals.json", import.meta.url)));
@@ -173,4 +174,245 @@ Deno.test("what-if: the table gains a Δ row (the card promises the difference i
     const cols = r.artifact(out.table).data.columns;
     const i = cols.indexOf("baristas_free");
     assert(Math.abs(rows[2][i] - (rows[1][i] - rows[0][i])) < 1e-4, JSON.stringify(rows));
+});
+
+// ---- the engine guard in front of the plans ----
+//
+// The live-test failure: analysis.diagnose ran the ODE although sim.recommend
+// said SSA, because the net has capacities. The plan runner now refuses an
+// engine-dependent step the net's own recommendation rules out.
+
+const gatedSir = () => { const n: any = sir(); n.places.I.capacity = [60]; return n; }; // 50 tokens + a capacity: Rule 1
+const largeSir = () => { const n: any = sir(); n.places.S.initial = [900]; n.places.I.initial = [100]; return n; }; // 1000 tokens, nothing gating
+const ranOn = (r: any) => { const ran: string[] = []; r.onExecute((e: any) => ran.push(e.id)); return ran; };
+const goalById = (id: string) => catalog.goals.find((g: any) => g.id === id);
+const executed = (out: any) => out.steps.filter((s: any) => !s.skipped).map((s: any) => s.command);
+// The commands that are the ODE or the SDE whatever their arguments (sim.scenario and sim.compare are
+// guarded only when a scenario asks for engine "ode"; the SSA ones the goals use do not).
+const ODE_COMMANDS = Object.entries(ENGINE_NEEDS).filter(([, e]: any) => e.needs !== "ssa" && !e.when).map(([id]) => id);
+
+Deno.test("guard: knob goal on SIR-with-capacity runs the SSA diagnosis and never analysis.diagnose", async () => {
+    const r: any = new Registry(createHeadlessHost(gatedSir()));
+    const ran = ranOn(r);
+    const out = await runGoal(r, goalById("knob"), { observable: "R" });
+    assert(out.ok, JSON.stringify(out.steps.find((s: any) => s.error)));
+    assert(ran.includes("analysis.diagnose_ssa"));
+    assert(!ran.includes("analysis.diagnose"), "the ODE ranking never ran");
+    assertEquals(out.steps[0].result.gating, ["capacity on I"]);
+    assertEquals(out.steps.filter((s: any) => s.refused || s.warning).length, 0, "the plan does not trip its own guard");
+});
+
+Deno.test("guard: a plan that runs analysis.diagnose unconditionally is refused on SIR-with-capacity, and nothing ran", async () => {
+    // the plan the live test ran: recommend, then the ODE ranking whatever it said
+    const bad = { id: "bad_knob", question: "?", inputs: [], plan: [{ command: "sim.recommend", args: {} }, { command: "analysis.diagnose", args: { observable: "R", t_end: "$step0.t_end" } }, { command: "analysis.verify", args: { properties: [{ kind: "bounded" }] } }] };
+    const r: any = new Registry(createHeadlessHost(gatedSir()));
+    const ran = ranOn(r);
+    const seen: any[] = [];
+    const out = await runGoal(r, bad, {}, (s: any) => seen.push(s));
+    assertEquals(out.ok, false);
+    assertEquals(out.steps.length, 2, "the plan stopped at the refusal");
+    const refused = out.steps[1];
+    assertEquals(refused.command, "analysis.diagnose");
+    assert(refused.refused.rule.includes("Rule 1") && refused.refused.rule.includes("docs/engine-selection.md"));
+    assertEquals(refused.refused.recommended, "ssa");
+    assert(refused.refused.message.includes("Nothing ran") && refused.refused.message.includes("analysis.diagnose_ssa"));
+    assert(refused.error.startsWith("refused: "), "callers that only read errors still see it");
+    assertEquals(refused.result, undefined);
+    assertEquals(seen.at(-1), refused, "reported through onStep");
+    assert(!ran.includes("analysis.diagnose") && !ran.includes("analysis.verify"), `ran: ${ran}`);
+    assertEquals(r.artifacts().length, 0);
+    // the control: without the guard the old plan runs the ODE ranking, which is the bug
+    const r2: any = new Registry(createHeadlessHost(gatedSir()));
+    const ran2 = ranOn(r2);
+    const unguarded = await runGoal(r2, bad, {}, () => {}, { guard: false });
+    assert(unguarded.ok && ran2.includes("analysis.diagnose"));
+});
+
+Deno.test("guard: average on a gated net is the SSA's ensemble mean, not the ODE; a large net keeps the ODE", async () => {
+    const goal = goalById("average");
+    const r: any = new Registry(createHeadlessHost(gatedSir()));
+    const ran = ranOn(r);
+    const out = await runGoal(r, goal, {});
+    assert(out.ok);
+    assertEquals(executed(out), ["sim.recommend", "sim.ssa"]);
+    assert(!ran.includes("sim.ode"));
+    assertEquals(out.steps[2].result.runs, 20, "an ensemble: the mean of 20 seeded runs");
+    assertEquals(out.steps[2].args, { t_end: out.steps[0].result.t_end, runs: 20, seed: 1 });
+    const band = r.artifact(out.steps[2].result.artifact).data.series[0].band;
+    assert(Array.isArray(band), "with its ±1 sd band");
+
+    const big: any = new Registry(createHeadlessHost(largeSir()));
+    const ranBig = ranOn(big);
+    const out2 = await runGoal(big, goal, {});
+    assertEquals(executed(out2), ["sim.recommend", "sim.ode"]);
+    assert(!ranBig.includes("sim.ssa"));
+});
+
+Deno.test("guard: best_setting scans the rate on the SSA when the engine says SSA, on the ODE otherwise", async () => {
+    const goal = goalById("best_setting");
+    const inputs = { transition: "recover", max_rate: 1 };
+    const r: any = new Registry(createHeadlessHost(gatedSir()));
+    const ran = ranOn(r);
+    const out = await runGoal(r, goal, inputs);
+    assert(out.ok, JSON.stringify(out.steps.find((s: any) => s.error)));
+    assertEquals(executed(out), ["sim.recommend", "sim.compare"]);
+    assert(!ran.includes("opt.rate_scan"));
+    // five rates from 0 to the maximum, one shared seed, the same horizon and runs
+    const scenarios = out.steps[2].args.scenarios;
+    assertEquals(scenarios.map((s: any) => s.rates.recover), [0, 0.25, 0.5, 0.75, 1]);
+    assertEquals(new Set(scenarios.map((s: any) => s.hours)).size, 1);
+    assertEquals(out.steps[2].args.seed, 1);
+    const table = r.artifact(out.steps[2].result.table).data;
+    assertEquals(table.rows.length, 5);
+    assertEquals(table.rows.map((row: any) => row[0]), ["rate 0% of max", "rate 25% of max", "rate 50% of max", "rate 75% of max", "rate 100% of max"]);
+    // the scale follows the person's maximum
+    const wide = await runGoal(r, goal, { transition: "recover", max_rate: 4 });
+    assertEquals(wide.steps[2].args.scenarios.map((s: any) => s.rates.recover), [0, 1, 2, 3, 4]);
+
+    const big: any = new Registry(createHeadlessHost(largeSir()));
+    const ranBig = ranOn(big);
+    const out2 = await runGoal(big, goal, inputs);
+    assertEquals(executed(out2), ["sim.recommend", "opt.rate_scan"]);
+    assert(!ranBig.includes("sim.compare"));
+});
+
+Deno.test("guard: no shipped goal runs an ODE or SDE command on a gated or a small net, and none trips its own guard", async () => {
+    for (const [label, net] of [["gated", gatedSir], ["small", sir]] as Array<[string, () => any]>) {
+        for (const goal of catalog.goals) {
+            if (goal.available === false || goal.id === "best_play") continue;
+            const r: any = new Registry(createHeadlessHost(net()));
+            const ran = ranOn(r);
+            const out = await runGoal(r, goal, inputsFor[goal.id] || {});
+            assert(out.ok, `${label} ${goal.id}: ${JSON.stringify(out.steps.find((s: any) => s.error))}`);
+            const odes = ran.filter((id) => ODE_COMMANDS.includes(id));
+            assertEquals(odes, [], `${label} ${goal.id} ran ${odes}`);
+            assertEquals(out.steps.filter((s: any) => s.refused || s.warning).length, 0, `${label} ${goal.id}`);
+        }
+    }
+    // and on a large unconstrained net the goals that have an ODE step run it, unwarned
+    for (const id of ["average", "best_setting", "knob"]) {
+        const r: any = new Registry(createHeadlessHost(largeSir()));
+        const ran = ranOn(r);
+        const out = await runGoal(r, goalById(id), inputsFor[id] || {});
+        assert(out.ok && ran.some((c) => ODE_COMMANDS.includes(c)), id);
+        assertEquals(out.steps.filter((s: any) => s.refused || s.warning).length, 0, id);
+    }
+});
+
+Deno.test("guard: sim.recommend runs once per goal run, whether the plan or the guard asks for it", async () => {
+    const r: any = new Registry(createHeadlessHost(largeSir()));
+    const ran = ranOn(r);
+    const goal = goalById("knob");
+    await runGoal(r, goal, { observable: "R" });
+    assertEquals(ran.filter((id) => id === "sim.recommend").length, 1, "the plan's own run is the guard's");
+    // a plan that never asks: the guard asks, once, for however many steps need it
+    const quiet = { id: "q", question: "?", inputs: [], plan: [{ command: "sim.ode", args: { t_end: 2 } }, { command: "opt.sweep", args: { transition: "recover", place: "R", from: 0.05, to: 0.1, steps: 2, t_end: 2 } }] };
+    const r2: any = new Registry(createHeadlessHost(largeSir()));
+    const ran2 = ranOn(r2);
+    const out = await runGoal(r2, quiet, {});
+    assert(out.ok);
+    assertEquals(ran2.filter((id) => id === "sim.recommend").length, 1);
+    // goals that need no engine never ask
+    const r3: any = new Registry(createHeadlessHost(largeSir()));
+    const ran3 = ranOn(r3);
+    await runGoal(r3, goalById("conserved"), {});
+    await runGoal(r3, goalById("risk"), {}); // plan-run recommend only
+    assertEquals(ran3.filter((id) => id === "sim.recommend").length, 1);
+});
+
+Deno.test("guard: the soft rule warns for sim.ode and refuses analysis.diagnose", async () => {
+    const r: any = new Registry(createHeadlessHost(sir())); // 50 tokens, nothing gating
+    const curve = { id: "c", question: "?", inputs: [], plan: [{ command: "sim.ode", args: { t_end: 5 } }] };
+    const out = await runGoal(r, curve, {});
+    assert(out.ok);
+    assert(out.steps[0].warning.startsWith("ODE on a net where the engine recommends SSA"), out.steps[0].warning);
+    assertEquals(out.steps[0].refused, undefined);
+    assert(out.steps[0].result.final, "it ran");
+
+    const ranking = { id: "k", question: "?", inputs: [], plan: [{ command: "analysis.diagnose", args: { observable: "R" } }] };
+    const ran = ranOn(r);
+    const out2 = await runGoal(r, ranking, {});
+    assertEquals(out2.ok, false);
+    assert(out2.steps[0].refused.rule.includes("Rule 2"), out2.steps[0].refused.rule);
+    assert(!ran.includes("analysis.diagnose"));
+});
+
+Deno.test("guard: an override counts only when the person's own words name the engine, and the result carries the warning", async () => {
+    const plan = { id: "o", question: "?", inputs: [], plan: [{ command: "sim.ode", args: { t_end: 5 } }] };
+    const run = (opts: any) => runGoal(new Registry(createHeadlessHost(gatedSir())) as any, plan, {}, () => {}, opts);
+    const yes = await run({ override: "ode", userText: "run it on the ODE please" });
+    assert(yes.ok);
+    assertEquals(yes.steps[0].warning, "ODE on a net with capacity on I; the engine recommends SSA");
+    assert(yes.steps[0].result.final);
+    // the model passes the override, the person never asked for it: refused
+    for (const opts of [{ override: "ode", userText: "simulate it" }, { override: "ode" }, { userText: "use the ODE" }, {}, { override: "ode", userText: "not the ODE" }, { override: "sde", userText: "use the SDE" }]) {
+        const no = await run(opts);
+        assertEquals(no.ok, false, JSON.stringify(opts));
+        assert(no.steps[0].refused.message.includes("Nothing ran"), JSON.stringify(opts));
+    }
+});
+
+Deno.test("guard: opts.guard replaces the guard and opts.guard === false turns it off", async () => {
+    const plan = { id: "g", question: "?", inputs: [], plan: [{ command: "net.info", args: {} }, { command: "sim.ode", args: { t_end: 5 } }] };
+    const calls: string[] = [];
+    const strict = { check: async (id: string) => { calls.push(id); return id === "sim.ode" ? { verdict: "refuse", rule: "r", message: "no way", recommended: "ssa" } : { verdict: "ok" }; } };
+    const r: any = new Registry(createHeadlessHost(largeSir()));
+    const out = await runGoal(r, plan, {}, () => {}, { guard: strict });
+    assertEquals(out.ok, false);
+    assertEquals(calls, ["net.info", "sim.ode"]);
+    assertEquals(out.steps[1].refused, { rule: "r", message: "no way", recommended: "ssa" });
+    // off: the gated net's ODE runs, as it did before the guard
+    const g: any = new Registry(createHeadlessHost(gatedSir()));
+    assert((await runGoal(g, plan, {}, () => {}, { guard: false })).ok);
+});
+
+Deno.test("goals: a reference to a number may be scaled, and an object key may be a reference", () => {
+    const ctx = { inputs: { t: "recover", top: 2, typed: "3", blank: "", obj: { a: 1 } }, results: [{ t_end: 40 }] };
+    assertEquals(resolveArgs({ rates: { "$input.t": "$input.top*0.25" } }, ctx), { rates: { recover: 0.5 } });
+    assertEquals(resolveArgs({ a: "$input.typed*2", b: "$step0.t_end*0.5", c: "$input.top*1" }, ctx), { a: 6, b: 20, c: 2 });
+    assertEquals(resolveArgs({ a: "$input.blank*2", b: 1 }, ctx), { b: 1 }, "a blank optional input drops it");
+    assertEquals(resolveArgs({ "$input.blank": 1, b: 2 }, ctx), { b: 2 });
+    let msg = "";
+    try { resolveArgs({ a: "$input.t*2" }, ctx); } catch (e) { msg = (e as Error).message; }
+    assert(msg.includes("not a number"), msg);
+    msg = "";
+    try { resolveArgs({ "$input.obj": 1 }, ctx); } catch (e) { msg = (e as Error).message; }
+    assert(msg.includes("key"), msg);
+    // not a scaled reference: left to the old rules
+    msg = "";
+    try { resolveArgs({ a: "$nope.x*2" }, ctx); } catch (e) { msg = (e as Error).message; }
+    assert(msg.includes("unknown reference"), msg);
+});
+
+Deno.test("guard: a plan step that replays a stored macro is held to the table's rules, and nothing ran (macro.play is not a way around the guard)", async () => {
+    const rank = { name: "goal_rank", steps: [{ command: "analysis.diagnose", args: { observable: "R", t_end: 5, noise: false } }] };
+    const plan = (name: string) => ({ id: "replay", question: "?", inputs: [], plan: [{ command: "sim.recommend", args: {} }, { command: "macro.play", args: { name } }] });
+    const r: any = new Registry(createHeadlessHost(gatedSir()));
+    await r.execute("macro.define", rank);
+    try {
+        const ran = ranOn(r);
+        const seen: any[] = [];
+        const out = await runGoal(r, plan("goal_rank"), {}, (s: any) => seen.push(s));
+        assertEquals(out.ok, false);
+        const refused = out.steps[1];
+        assertEquals(refused.command, "macro.play");
+        assert(refused.refused.rule.includes("Rule 1") && refused.refused.message.includes('step 1 of macro "goal_rank" (analysis.diagnose)'), refused.refused.message);
+        assertEquals(refused.refused.recommended, "ssa");
+        assert(refused.error.startsWith("refused: "));
+        assertEquals(refused.result, undefined);
+        assertEquals(seen.at(-1), refused, "reported through onStep");
+        assert(!ran.includes("macro.play") && !ran.includes("analysis.diagnose"), `ran: ${ran}`);
+        assertEquals(r.artifacts().length, 0);
+        // the control: the unguarded plan replays the macro, which is the bypass
+        const r2: any = new Registry(createHeadlessHost(gatedSir()));
+        const unguarded = await runGoal(r2, plan("goal_rank"), {}, () => {}, { guard: false });
+        assert(unguarded.ok && unguarded.steps[1].result.results[0].baseline !== undefined);
+        // a large net replays it, with no chip
+        const big: any = new Registry(createHeadlessHost(largeSir()));
+        const fine = await runGoal(big, plan("goal_rank"), {});
+        assert(fine.ok, JSON.stringify(fine.steps.at(-1)));
+        assertEquals(fine.steps.filter((s: any) => s.refused || s.warning).length, 0);
+    } finally {
+        await r.execute("macro.delete", { name: "goal_rank" });
+    }
 });

@@ -1,6 +1,6 @@
 {
   "version": "goals-v1",
-  "_comment": "The goal advisor's catalog (ROADMAP phase 5): what people want to know, mapped to the registry commands that answer it. Data, not prompt: the 'What do you want to know?' picker runs these plans, and /api/llm/turn gives the catalog to the Assistant's analyse mode. A plan step's args may reference $input.<name> (asked of the person) and $stepN.<field> (an earlier step's result). Every available goal is run end to end by public/petri-goals_test.ts.",
+  "_comment": "The goal advisor's catalog (ROADMAP phase 5): what people want to know, mapped to the registry commands that answer it. Data, not prompt: the 'What do you want to know?' picker runs these plans, and /api/llm/turn gives the catalog to the Assistant's analyse mode. A plan step's args may reference $input.<name> (asked of the person) and $stepN.<field> (an earlier step's result). A step may carry a when: {ref, equals} to run only on one engine: every step that needs the ODE has an SSA twin chosen by sim.recommend's engine (average, knob, best_setting), and public/petri-engine-guard.js refuses any engine-dependent step the recommendation rules out. Every available goal is run end to end, on a net of each kind, by public/petri-goals_test.ts.",
   "goals": [
     {
       "id": "stuck",
@@ -51,10 +51,11 @@
       "inputs": [],
       "plan": [
         { "command": "sim.recommend", "args": {} },
-        { "command": "sim.ode", "args": { "t_end": "$step0.t_end" } }
+        { "command": "sim.ode", "when": { "ref": "$step0.engine", "equals": "ode" }, "args": { "t_end": "$step0.t_end" } },
+        { "command": "sim.ssa", "when": { "ref": "$step0.engine", "equals": "ssa" }, "args": { "t_end": "$step0.t_end", "runs": "$step0.runs", "seed": "$step0.seed" } }
       ],
-      "answer": "The mean-field trajectory of every place, and where each ends up.",
-      "caveat": "The ODE is mean-field: wrong at small token counts and blind to inhibitor or read arcs and capacities (the recommendation says so when it applies)."
+      "answer": "The average trajectory of every place and where each ends up, on the engine sim.recommend picks: the mean-field ODE for a large net with nothing constraining it; for a small net, or one with capacities, inhibitor or read arcs, the mean of 20 seeded stochastic runs with a ±1 standard-deviation band.",
+      "caveat": "The first step says which engine ran and why. The ODE is mean-field: wrong at small token counts and blind to inhibitor or read arcs and capacities, so it is not run on such a net. The stochastic mean is a sample of 20 runs: the same seed always gives the same answer, another seed moves it a little."
     },
     {
       "id": "risk",
@@ -103,10 +104,24 @@
       ],
       "plan": [
         { "command": "sim.recommend", "args": {} },
-        { "command": "opt.rate_scan", "args": { "transition": "$input.transition", "from": 0, "to": "$input.max_rate", "steps": 13, "t_end": "$step0.t_end" } }
+        { "command": "opt.rate_scan", "when": { "ref": "$step0.engine", "equals": "ode" }, "args": { "transition": "$input.transition", "from": 0, "to": "$input.max_rate", "steps": 13, "t_end": "$step0.t_end" } },
+        {
+          "command": "sim.compare",
+          "when": { "ref": "$step0.engine", "equals": "ssa" },
+          "args": {
+            "seed": "$step0.seed",
+            "scenarios": [
+              { "name": "rate 0% of max", "hours": "$step0.t_end", "realizations": 16, "rates": { "$input.transition": "$input.max_rate*0" } },
+              { "name": "rate 25% of max", "hours": "$step0.t_end", "realizations": 16, "rates": { "$input.transition": "$input.max_rate*0.25" } },
+              { "name": "rate 50% of max", "hours": "$step0.t_end", "realizations": 16, "rates": { "$input.transition": "$input.max_rate*0.5" } },
+              { "name": "rate 75% of max", "hours": "$step0.t_end", "realizations": 16, "rates": { "$input.transition": "$input.max_rate*0.75" } },
+              { "name": "rate 100% of max", "hours": "$step0.t_end", "realizations": 16, "rates": { "$input.transition": "$input.max_rate*1" } }
+            ]
+          }
+        }
       ],
-      "answer": "Every place's value at the horizon against the rate, so you can read off where the outcome you care about peaks or levels off.",
-      "caveat": "The objective is yours to state: the scan shows every place, it does not pick one. For several rates at once, use Optimize."
+      "answer": "Every place's value at the horizon against the rate, so you can read off where the outcome you care about peaks or levels off. On a large net with nothing constraining it that is the ODE at 13 rates; on a small net, or one with capacities, inhibitor or read arcs, it is the mean of 16 seeded stochastic runs at five rates from 0 to the maximum, all on one seed so the differences are the rate's, not the dice's.",
+      "caveat": "The objective is yours to state: the scan shows every place, it does not pick one. For several rates at once, use Optimize. The stochastic version reads five rates, a coarser curve than the ODE's thirteen: narrow 'up to rate' around the region that matters and run again."
     },
     {
       "id": "data_match",
