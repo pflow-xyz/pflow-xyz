@@ -14,7 +14,15 @@
 // runner has applies here too. The outcome ({kind, title, goal, calls, steps,
 // artifacts, error, warnings}) goes to onResult when the caller gave one (the
 // palette then closes: the caller's results pane takes over), and is drawn in
-// the dialog otherwise, with the renderer the goals dialog uses.
+// the dialog otherwise, with the renderer the goals dialog uses. A run that failed
+// outright (an error, nothing ran, nothing stored) stays in the dialog either way:
+// it has no answer for a results pane, and the form with the error beside it is
+// where it gets fixed (petri-menu.js showsInline).
+//
+// `open: {id, args}` opens straight on that command's form (or that goal's) with
+// the arguments filled in: the result footer's "Open in Tools". The editor opens
+// the palette through view._openPalette when it has one (the Tools button and the
+// Cmd-K chord do), which defaults onResult to the shared results pane.
 //
 // Accessibility: role=dialog and aria-modal, a focus trap, Escape closes, the
 // search box is a combobox (aria-activedescendant over a listbox, Up / Down /
@@ -37,6 +45,7 @@ import {
     shortcutHint, stepActive, stepHeadline, strayKeyAction, trapTarget,
 } from './petri-palette.js';
 import { formModel, goalFormModel, readForm, renderFormHtml, showFormErrors } from './petri-schema-form.js';
+import { findOpenEntry, parseOpen, prefillModel, showsInline } from './petri-menu.js';
 
 const esc = (s) => String(s)
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -57,7 +66,8 @@ const CLASSIC = [
     ['classic.analysis', 'Analysis (ODE, scans, phase)', '_showSimulationDialog', ['ode', 'rate scan', 'sweep', 'phase plot']],
     ['classic.simulate', 'Simulate (stochastic, influence, what-if)', '_openWorkbench', ['ssa', 'sde', 'influence', 'heatmap', 'optimize']],
     ['classic.structure', 'Structure (invariants, verify, reach)', '_openStructureDialog', ['invariants', 'siphons', 'reachability graph']],
-    ['classic.check', 'Check net', '_showCheckDialog', ['validate', 'problems']],
+    // Check net itself is the problems chip now; this is the full report behind its Details button.
+    ['classic.check', 'Check net details', '_showCheckDialog', ['check net', 'validate', 'problems', 'report']],
     ['classic.results', 'Results', '_showResultsDialog', ['artifacts', 'export', 'csv']],
     ['classic.components', 'Components', '_openComponents', ['palette', 'fuse']],
     ['classic.goals', 'What do you want to know?', '_openGoals', ['questions', 'goals']],
@@ -90,27 +100,35 @@ export function isTextFieldTarget(e) {
         t = e?.target || null;
     }
     if (!t) return false;
+    // A field that wants the chord (the editor's Ask input) says so: Cmd-K there still opens Tools.
+    if (t.dataset?.paletteKey === 'ok') return false;
     if (t.tagName === 'TEXTAREA' || t.isContentEditable === true) return true;
     return t.tagName === 'INPUT' && !NON_TEXT_INPUT.has(String(t.type || 'text').toLowerCase());
 }
 
 /**
- * Open the palette. Resolves to a handle {close, focus, setQuery} once the
- * dialog is up; a palette that is already open is focused instead.
+ * Open the palette. Resolves to a handle {close, focus, setQuery, open} once the
+ * dialog is up; a palette that is already open is focused instead (or, with
+ * `open`, taken to that form).
  * @param {any} view the <petri-view> (commands(), getModel())
- * @param {{onResult?: (outcome: any) => any, initialQuery?: string}} [opts]
+ * @param {{onResult?: (outcome: any) => any, initialQuery?: string, open?: {id: string, args?: Object, kind?: 'goal'|'command'}}} [opts]
+ *   open: a command (or goal) id and the arguments to fill its form with; an id the palette does not have leaves the
+ *   list, searched for that id
  */
-export async function openPalette(view, { onResult, initialQuery = '' } = {}) {
+export async function openPalette(view, { onResult, initialQuery = '', open = null } = {}) {
     if (current) {
-        if (initialQuery) current.setQuery(initialQuery);
-        current.focus();
+        if (open) current.open(open);
+        else {
+            if (initialQuery) current.setQuery(initialQuery);
+            current.focus();
+        }
         return current;
     }
-    opening ||= build(view, { onResult, initialQuery }).finally(() => { opening = null; });
+    opening ||= build(view, { onResult, initialQuery, open }).finally(() => { opening = null; });
     return opening;
 }
 
-async function build(view, { onResult, initialQuery }) {
+async function build(view, { onResult, initialQuery, open }) {
     const opener = globalThis.document?.activeElement; // focus goes back here on close
     const [reg, R, goalsMod] = await Promise.all([view.commands(), import('./petri-results.js'), import('./petri-goals.js')]);
     let catalog = { goals: [] };
@@ -287,13 +305,16 @@ async function build(view, { onResult, initialQuery }) {
         }
     }
 
-    function showForm(entry) {
+    // `args`: what to fill the form with (the "open" option); null for the form as the command declares it.
+    function showForm(entry, args = null) {
         const goal = entry.kind === 'goal' ? (catalog.goals || []).find((g) => g.id === entry.id) : null;
         const spec = entry.kind === 'command' ? specs.find((s) => s.id === entry.id) : null;
         const m = view.getModel?.() || {};
         const places = Object.keys(m.places || {});
         const transitions = Object.keys(m.transitions || {});
-        const model = goal ? goalFormModel(goal) : formModel(spec.args);
+        let model = goal ? goalFormModel(goal) : formModel(spec.args);
+        let ignored = [];
+        if (args && Object.keys(args).length) ({ model, ignored } = prefillModel(model, args));
         if (goal) {
             // Read the outcome off the search, as the goals dialog reads it off the question.
             const typed = input.value.trim();
@@ -318,12 +339,14 @@ async function build(view, { onResult, initialQuery }) {
             ? `<p class="pv-goals-caveat">${goal ? esc(goal.caveat) : 'This command needs the editor view, which this host does not have.'}</p>`
             : '';
         const canRun = entry.available && !model.noForm;
+        const dropped = ignored.length ? `<p class="pv-result-dim">Not in this form: ${ignored.map((k) => `<code>${esc(k)}</code>`).join(', ')}.</p>` : '';
         formPane.innerHTML = `
             <button type="button" class="pv-btn pv-btn-sm" data-act="back">← All tools</button>
             <h3 class="pv-palette-form-title">${esc(entry.title)}</h3>
             <p class="pv-palette-form-sub">${goal ? 'Question' : `<code>${esc(entry.id)}</code>`}</p>
             ${about}
             ${blocked}
+            ${dropped}
             ${plan}
             <form class="pv-palette-form" novalidate>
                 ${renderFormHtml(model, { esc, places, transitions, idPrefix: `${uid}-f` })}
@@ -374,7 +397,7 @@ async function build(view, { onResult, initialQuery }) {
                 setBusy(false);
             }
             if (closed) return;
-            if (onResult) {
+            if (onResult && !showsInline(outcome)) {
                 try {
                     await onResult(outcome);
                     close();
@@ -387,6 +410,21 @@ async function build(view, { onResult, initialQuery }) {
             statusEl().textContent = outcome.error ? `Stopped: ${outcome.error}` : (goal ? `Done. Remember: ${goal.caveat}` : 'Done.');
         });
         (form.querySelector('[data-field]') || runBtn).focus();
+    }
+
+    // "Open in Tools": straight to a form, filled in. A command or goal the palette lacks is searched for instead.
+    function openTarget(spec) {
+        const p = parseOpen(spec);
+        if (!p) return;
+        const entry = findOpenEntry(index, p);
+        if (entry) {
+            showForm(entry, p.args);
+            return;
+        }
+        if (!formPane.hidden) showList();
+        input.value = p.id;
+        refresh();
+        live.textContent = `No tool called ${p.id}; showing what matches`;
     }
 
     function openEntry(entry) {
@@ -478,24 +516,39 @@ async function build(view, { onResult, initialQuery }) {
         element: dialog,
         focus: () => { if (!formPane.hidden) showList(); else input.focus(); },
         setQuery: (q) => { if (!formPane.hidden) showList(); input.value = q; refresh(); },
+        open: openTarget,
     };
     current = handle;
     input.value = initialQuery;
     refresh();
     input.focus();
+    if (open) openTarget(open);
     return handle;
 }
+
+// The editor opens the palette through view._openPalette when it has one: that is where onResult is defaulted to the
+// shared results pane. A host without it (a vendored copy of the component) gets the dialog that draws its own results.
+function openFor(view, opts) {
+    return typeof view?._openPalette === 'function' ? view._openPalette(opts) : openPalette(view, opts);
+}
+
+const bound = new WeakMap(); // doc -> WeakMap(view -> unbind): the chord is installed once
 
 /**
  * Install the Cmd-K / Ctrl-K handler. The chord opens the palette (and closes
  * it again when it is open); preventDefault is for that chord only, and the
  * chord is left alone while the person is typing in a text field that is not
- * the palette, so a field keeps whatever Ctrl-K means to it.
+ * the palette, so a field keeps whatever Ctrl-K means to it (a field can ask
+ * for the chord with data-palette-key="ok"). Installed once per view and
+ * document: a second call returns the first one's unbind.
  * @param {any} view
  * @param {Document} [doc]
  * @returns {() => void} unbind
  */
 export function bindPaletteKey(view, doc = document) {
+    let views = bound.get(doc);
+    if (!views) bound.set(doc, views = new WeakMap());
+    if (views.has(view)) return views.get(view);
     const onKey = (e) => {
         if (!isPaletteChord(e) || e.defaultPrevented) return;
         if (current) {
@@ -505,10 +558,15 @@ export function bindPaletteKey(view, doc = document) {
         }
         if (isTextFieldTarget(e)) return;
         e.preventDefault();
-        openPalette(view).catch((err) => view._toast?.(`Tools are not available here: ${err.message}`, 'error'));
+        openFor(view).catch((err) => view._toast?.(`Tools are not available here: ${err.message}`, 'error'));
     };
     doc.addEventListener('keydown', onKey);
-    return () => doc.removeEventListener('keydown', onKey);
+    const unbind = () => {
+        doc.removeEventListener('keydown', onKey);
+        if (views.get(view) === unbind) views.delete(view);
+    };
+    views.set(view, unbind);
+    return unbind;
 }
 
 /**
@@ -527,7 +585,7 @@ export function toolsButton(view) {
     b.title = `Tools: every command, no model needed (${hint.text})`;
     b.innerHTML = `<span class="pv-tools-label">Tools</span> <kbd class="pv-tools-kbd" aria-hidden="true">${esc(hint.text)}</kbd>`;
     b.addEventListener('click', () => {
-        openPalette(view).catch((err) => view._toast?.(`Tools are not available here: ${err.message}`, 'error'));
+        openFor(view).catch((err) => view._toast?.(`Tools are not available here: ${err.message}`, 'error'));
     });
     return b;
 }

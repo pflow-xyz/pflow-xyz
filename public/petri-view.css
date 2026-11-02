@@ -3723,7 +3723,7 @@ canvas.pv-canvas {
     flex-wrap: wrap;
     gap: 6px;
     margin-top: 6px;
-=======
+}
 /* ============================================================
    Command palette and schema forms
    (petri-palette-ui.js, petri-schema-form.js)
@@ -3962,7 +3962,7 @@ canvas.pv-canvas {
     .pv-palette-list {
         max-height: 45vh;
     }
-=======
+}
 /* ============================================================
    Problems indicator (petri-problems.js)
    The "N problems" chip by the title, and the list it opens. It replaces the
@@ -4120,4 +4120,370 @@ canvas.pv-canvas {
 .pv-problem-message {
     flex-basis: 100%;
     overflow-wrap: anywhere;
+}
+
+/* ============================================================
+   The editor bar (petri-menu-ui.js)
+   Ask input, File / View / Help, Tools, the problems chip and the account button, in one row over the canvas. It
+   replaces the hamburger (which stays behind ?ui=classic). docs/design/agent-first-analysis.md, section 3.
+
+   Where it goes: on a desktop, to the right of the page's logo, on the logo's row. On a phone, on its own row under the
+   logo (top: 64px) because the docked Ask pane starts at 64px and covers it whole when it is open, instead of leaving
+   a sliver of the bar above it (those panels are z-index 1000 there, so the bar is under them: 900). The account
+   button then takes the logo's row, at the right.
+
+   How it narrows: the bar is a size container, so what it drops depends on the room it has, not on the window.
+   Under 760px of bar the three menus fold into one "⋯" button; under 540px the Tools shortcut hint and the problems
+   label go (the chip keeps its mark and its accessible name) and the Ask button becomes an arrow. The Ask input takes
+   what is left and shrinks to 120px.
+
+   The menus' popovers hang off <body> (so they are above the Ask pane and the dialogs, which the bar is not), and are
+   placed from the button's rectangle when they open. Tokens only, so both themes work.
+   ============================================================ */
+.pv-sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    border: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+}
+
+/* The page's logo (index.html .fixed-title, left: 60px) sat to the right of the hamburger; without the hamburger it
+   goes to the left edge. data-ui is set the moment the bar is asked for, so the logo does not jump. */
+html:has(petri-view[data-ui="bar"]) .fixed-title {
+    left: 10px;
+}
+
+.pv-appbar {
+    position: absolute;
+    top: 10px;
+    left: 146px; /* clear of the logo: 10px + 120px + a gap */
+    right: 10px;
+    z-index: 1190; /* under the Ask pane (1250), which docks at 64px, and the popovers (1300) */
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    height: 40px;
+    font-family: var(--pv-font);
+    container: pv-appbar / inline-size;
+    pointer-events: none; /* the gaps between the controls are the canvas's */
+}
+.pv-appbar > * {
+    pointer-events: auto;
+    flex: none;
+}
+/* Side by side, the JSON editor is the pane to the right of the canvas, and the bar (which spans the whole editor) floats
+   over its top edge, above its toolbar: Find, Open URL, Download, Full, the toggle back to the stacked layout, Close. The
+   pane starts below the bar instead: 10px + 40px + a gap. Stacked, the editor is under the canvas and the bar is not over
+   it; on a phone the bar has a row of its own and the panes are stacked (the phone media query below). */
+@media (min-width: 761px) and (min-height: 521px) {
+    petri-view[data-ui="bar"] .pv-root.pv-layout-horizontal .pv-json-editor {
+        padding-top: 56px;
+    }
+}
+
+/* Ask: one pill, the input and its button inside it */
+.pv-appbar > .pv-ask {
+    flex: 1 1 220px;
+    min-width: 120px;
+    max-width: 640px;
+    display: flex;
+    align-items: center;
+    box-sizing: border-box;
+    height: 40px;
+    padding: 0 4px 0 16px;
+    border: 1px solid var(--pv-border);
+    border-radius: 20px;
+    background: var(--pv-panel-soft);
+    box-shadow: 0 2px 6px var(--pv-shadow);
+}
+.pv-ask:focus-within {
+    border-color: var(--pv-accent);
+    box-shadow: 0 0 0 3px var(--pv-focus-ring);
+}
+.pv-ask-input {
+    flex: 1 1 auto;
+    min-width: 0;
+    height: 100%;
+    padding: 0;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    color: var(--pv-ink);
+    font: inherit;
+    font-size: 14px;
+    text-overflow: ellipsis; /* a long placeholder ends in an ellipsis where the input ends */
+    /* .pv-root turns text selection off; an input inside it needs it back (iOS will not type into it otherwise) */
+    -webkit-user-select: text;
+    user-select: text;
+}
+.pv-ask-input::placeholder {
+    color: var(--pv-ink-muted);
+    opacity: 1;
+}
+.pv-ask-go {
+    flex: none;
+    height: 32px;
+    min-width: 32px;
+    padding: 0 14px;
+    border: 0;
+    border-radius: 16px;
+    background: var(--pv-accent);
+    color: var(--pv-accent-ink);
+    font: inherit;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+}
+.pv-ask-go:hover {
+    background: var(--pv-accent-strong);
+}
+.pv-ask-go:focus-visible {
+    outline: 2px solid var(--pv-accent-ink);
+    outline-offset: -4px;
+}
+.pv-ask-go-icon {
+    display: none;
+}
+
+/* The menu buttons and Tools: the same floating buttons the hamburger and the Login button were */
+.pv-appbar-menus {
+    display: flex;
+    gap: 6px;
+}
+.pv-appbar .pv-appbar-btn,
+.pv-appbar .pv-tools-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    box-sizing: border-box;
+    height: 40px;
+    padding: 0 12px;
+    border: 0;
+    border-radius: 6px;
+    background: var(--pv-panel-soft);
+    box-shadow: 0 2px 6px var(--pv-shadow);
+    color: var(--pv-ink);
+    font: inherit;
+    font-size: 14px;
+    font-weight: 400;
+    white-space: nowrap;
+    cursor: pointer;
+}
+.pv-appbar .pv-appbar-btn:hover,
+.pv-appbar .pv-tools-btn:hover {
+    background: var(--pv-panel);
+}
+.pv-appbar .pv-appbar-btn[aria-expanded="true"] {
+    background: var(--pv-panel);
+    box-shadow: inset 0 0 0 2px var(--pv-accent);
+}
+.pv-appbar .pv-appbar-btn:focus-visible,
+.pv-appbar .pv-tools-btn:focus-visible,
+.pv-appbar .pv-problems-chip:focus-visible,
+.pv-appbar .pv-top-right-btn:focus-visible {
+    outline: 2px solid var(--pv-accent);
+    outline-offset: 2px;
+}
+.pv-appbar-caret {
+    font-size: 0.8em;
+    color: var(--pv-ink-muted);
+}
+.pv-appbar .pv-appmenu-more {
+    display: none;
+    justify-content: center;
+    width: 40px;
+    padding: 0;
+    font-size: 20px;
+    line-height: 1;
+}
+.pv-appbar .pv-tools-kbd {
+    background: transparent;
+}
+
+/* The problems chip, at the bar's height (petri-problems.js draws it; Problems indicator, above) */
+.pv-appbar-problems {
+    display: inline-flex;
+}
+.pv-appbar .pv-problems-chip {
+    min-height: 40px;
+    padding: 0 14px 0 10px;
+    background: var(--pv-panel-soft);
+    box-shadow: 0 2px 6px var(--pv-shadow);
+    font-size: 14px;
+}
+.pv-appbar .pv-problems-chip:hover {
+    background: var(--pv-panel);
+}
+
+/* The account button is the last thing in the row, and gives way first if a user name is long */
+.pv-appbar > .pv-top-right-btn {
+    position: static;
+    display: block; /* a block, so a long name ends in an ellipsis (a flex container's text cannot) */
+    flex: 0 1 auto;
+    min-width: 0;
+    max-width: 180px;
+    margin-left: auto;
+    line-height: 38px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Narrow bar: one "⋯" for the three menus */
+@container pv-appbar (max-width: 759px) {
+    .pv-appbar-menus {
+        display: none;
+    }
+    .pv-appbar .pv-appmenu-more {
+        display: inline-flex;
+    }
+}
+/* Narrower still: the shortcut hint and the problems label go; the arrow stands for "Ask" */
+@container pv-appbar (max-width: 540px) {
+    .pv-appbar .pv-tools-kbd,
+    .pv-appbar .pv-problems-label {
+        display: none;
+    }
+    .pv-appbar .pv-problems-chip {
+        padding: 0 10px;
+        gap: 0;
+    }
+    .pv-ask-go {
+        padding: 0;
+        width: 32px;
+    }
+    .pv-ask-go-text {
+        display: none;
+    }
+    .pv-ask-go-icon {
+        display: inline;
+        font-size: 16px;
+    }
+    .pv-appbar > .pv-ask {
+        padding-left: 12px;
+    }
+    .pv-appbar .pv-tools-btn,
+    .pv-appbar .pv-appbar-btn {
+        padding: 0 10px;
+    }
+}
+
+/* The popover of a menu */
+.pv-appmenu-pop {
+    position: fixed;
+    z-index: 1300;
+    box-sizing: border-box;
+    min-width: 220px;
+    max-width: calc(100vw - 16px);
+    overflow-y: auto;
+    padding: 6px 0;
+    border: 1px solid var(--pv-border);
+    border-radius: 8px;
+    background: var(--pv-surface);
+    color: var(--pv-ink);
+    box-shadow: 0 4px 12px var(--pv-shadow-md);
+    font-family: var(--pv-font);
+    -webkit-user-select: none;
+    user-select: none;
+}
+.pv-appmenu-pop .pv-menu-item {
+    font-family: inherit;
+}
+.pv-appmenu-pop .pv-menu-item:focus {
+    outline: none;
+    background: var(--pv-surface-2);
+}
+.pv-appmenu-pop .pv-menu-item:focus-visible {
+    outline: 2px solid var(--pv-accent);
+    outline-offset: -2px;
+}
+.pv-appmenu-pop .pv-menu-version:focus-visible {
+    outline: 2px solid var(--pv-accent);
+    outline-offset: -2px;
+}
+.pv-appmenu-head {
+    padding: 10px 16px 4px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--pv-ink-muted);
+}
+.pv-appmenu-head:first-child {
+    padding-top: 4px;
+}
+
+/* A phone: the bar gets its own row under the logo's, and the account button takes the logo's row */
+@media (max-width: 760px) {
+    .pv-appbar {
+        top: 64px;
+        left: 10px;
+        right: 10px;
+        left: calc(10px + env(safe-area-inset-left, 0px));
+        right: calc(10px + env(safe-area-inset-right, 0px));
+        /* The docked panels (the Ask pane, the App view) are z-index 1000 on a phone, and start at 64px: they cover the
+           bar whole, which is what they are for. The popovers are on <body>, above them, so a menu is not affected. */
+        z-index: 900;
+    }
+    .pv-appbar > .pv-top-right-btn {
+        position: absolute;
+        top: -54px;
+        right: 0;
+        margin: 0;
+        max-width: min(180px, calc(100vw - 150px)); /* clear of the logo, which is 120px wide at the left edge */
+    }
+    /* While a docked panel is open it covers the bar's row, all but the 16px gutters beside it, where the Ask pill would
+       peek out: hide the row. The account button (the logo's row) stays. */
+    body:has(.pv-chat) .pv-appbar > :not(.pv-top-right-btn),
+    body:has(.pv-appview) .pv-appbar > :not(.pv-top-right-btn) {
+        visibility: hidden;
+    }
+    /* iOS zooms into a field under 16px */
+    .pv-ask-input {
+        font-size: 16px;
+    }
+    .pv-appbar .pv-appbar-btn,
+    .pv-appbar .pv-tools-btn {
+        min-width: 44px;
+    }
+}
+/* The same two steps as the container queries above, by window width, for a browser without container queries (Safari
+   before 16): a phone's bar is under 760px wide, and a narrow phone's under 540. Where container queries work these
+   repeat what they already say. */
+@media (max-width: 760px) {
+    .pv-appbar-menus {
+        display: none;
+    }
+    .pv-appbar .pv-appmenu-more {
+        display: inline-flex;
+    }
+}
+@media (max-width: 560px) {
+    .pv-appbar .pv-tools-kbd,
+    .pv-appbar .pv-problems-label,
+    .pv-ask-go-text {
+        display: none;
+    }
+    .pv-appbar .pv-problems-chip {
+        padding: 0 10px;
+        gap: 0;
+    }
+    .pv-ask-go {
+        padding: 0;
+        width: 32px;
+    }
+    .pv-ask-go-icon {
+        display: inline;
+        font-size: 16px;
+    }
+}
+/* A phone on its side: the page hides its logo to save the height, so the bar has the whole row */
+@media (max-height: 520px) and (orientation: landscape) and (pointer: coarse) {
+    .pv-appbar {
+        left: 10px;
+    }
 }

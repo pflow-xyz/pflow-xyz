@@ -9,6 +9,10 @@
 // inside the dialog; onResult gets the outcome and the palette closes; a classic tool opens its own dialog; Ctrl-K in
 // a plain text field is left alone; focus never falls out of the dialog (a real click on Run, an unavailable question's
 // form, a click on plain text, a control that vanishes): Escape still closes it and the editor's Delete and x stay out.
+// The chord and the Tools button are the editor's own (the bar binds them, petri-menu-ui.js): their runs land in the
+// results pane with its footer, and Open in Tools in that footer comes back to the form with the arguments filled in; a
+// run that fails stays in the dialog. openPalette called without the view's default (a host that has no
+// view._openPalette) draws the result in the dialog, which is what the rest of this checks.
 // No model, no sign-in: nothing here calls /api/llm.
 //
 // Not part of `make test` (it needs Chrome and a running server). Exit status 1 on any failure; scripts/smoke-gate.sh
@@ -47,14 +51,14 @@ try {
   const page = await newPage(1280, 900);
   await page.goto(url);
   await page.waitFor("!!customElements.get('petri-view') && !!document.querySelector('petri-view')");
+  // The editor is behind the landing page until it is opened, and the bar (with Tools and the chord) is built when it shows.
+  await page.eval(`window.pflowShowEditor()`);
+  ok(await page.waitFor("!!document.querySelector('.pv-appbar-tools')"), "the bar's Tools button is there once the editor is shown");
   await page.eval(`(async () => {
     const el = document.querySelector('petri-view');
     el.setModel(${JSON.stringify(SIR)});
     window.__ui = await import('/petri-palette-ui.js');
-    window.__unbind = window.__ui.bindPaletteKey(el);
-    window.__btn = window.__ui.toolsButton(el);
-    window.__btn.id = 'toolsbtn';
-    document.body.appendChild(window.__btn);
+    window.__btn = document.querySelector('.pv-appbar-tools'); // the bar's own: it binds the chord too, once
     window.__results = [];
   })()`);
 
@@ -118,10 +122,22 @@ try {
   ok(await page.eval(`document.activeElement.getAttribute('aria-invalid') === 'true'`), "focus goes to the first invalid field");
   await page.eval(`(() => { document.querySelector('[data-field=runs]').value = '5'; document.querySelector('[data-field=t_end]').value = '20'; })()`);
   await page.eval(`document.querySelector('[data-act=run]').click()`);
-  ok(await page.waitFor("!!document.querySelector('[data-pane=form] svg')", 15000), "Run draws the result (a plot)");
-  ok(await page.eval(`document.querySelector('.pv-structure-status').textContent === 'Done.'`), "status says Done.", await page.eval(`document.querySelector('.pv-structure-status').textContent`));
+  ok(await page.waitFor("!!document.querySelector('.pv-result-dialog svg') && !document.querySelector('.pv-palette')", 15000), "Run lands in the results pane (a plot), and the palette is gone");
+  ok(await page.eval(`!!document.querySelector('.pv-result-dialog .pv-prov') && document.querySelector('.pv-result-dialog .pv-prov').textContent.includes('sim.ssa')`), "with the How this was computed footer");
   const call = await page.eval(`(async () => { const reg = await document.querySelector('petri-view').commands(); const a = reg.artifacts().at(-1); return a.source; })()`);
   ok(call.command === "sim.ssa" && call.args.runs === 5 && call.args.t_end === 20, "the registry ran sim.ssa with the form's args");
+  await page.eval(`document.querySelectorAll('.pv-modal-overlay').forEach((o) => o.remove())`);
+
+  console.log("openPalette on its own draws the result in the dialog (a host with no view._openPalette)");
+  await page.eval(`window.__ui.openPalette(document.querySelector('petri-view'))`);
+  await page.waitFor("!!document.querySelector('.pv-palette')");
+  await typeText(page, "sim.ssa");
+  await key(page, "Enter", "Enter", 13);
+  await page.waitFor("!document.querySelector('[data-pane=form]').hidden");
+  await page.eval(`(() => { document.querySelector('[data-field=runs]').value = '5'; document.querySelector('[data-field=t_end]').value = '20'; document.querySelector('[data-act=run]').click(); })()`);
+  ok(await page.waitFor("!!document.querySelector('[data-pane=form] svg')", 15000), "Run draws the result (a plot) in the dialog");
+  ok(await page.eval(`document.querySelector('.pv-structure-status').textContent === 'Done.'`), "status says Done.", await page.eval(`document.querySelector('.pv-structure-status').textContent`));
+  ok(await page.eval(`!!document.querySelector('.pv-palette') && !document.querySelector('.pv-result-dialog')`), "and nothing went to the results pane");
 
   console.log("back, then a goal with an input");
   await page.eval(`document.querySelector('[data-act=back]').click()`);
@@ -159,8 +175,8 @@ try {
   console.log("classic tool + typing guard");
   await page.eval(`(async () => { await window.__ui.openPalette(document.querySelector('petri-view'), { initialQuery: 'check net' }); })()`);
   await sleep(200);
-  ok(await page.eval(`document.querySelector('.pv-palette [role=option] .pv-palette-title').textContent === 'Check net'`), "the classic Check net is found");
-  await page.eval(`(() => { const r = [...document.querySelectorAll('.pv-palette [role=option]')].find(x => x.querySelector('.pv-palette-title').textContent === 'Check net' && x.querySelector('.pv-palette-sub').textContent === 'Classic dialog'); r.click(); })()`);
+  ok(await page.eval(`[...document.querySelectorAll('.pv-palette [role=option]')].some(x => x.querySelector('.pv-palette-title').textContent === 'Check net details' && x.querySelector('.pv-palette-sub').textContent === 'Classic dialog')`), "the classic Check net details is found by 'check net'");
+  await page.eval(`(() => { const r = [...document.querySelectorAll('.pv-palette [role=option]')].find(x => x.querySelector('.pv-palette-title').textContent === 'Check net details' && x.querySelector('.pv-palette-sub').textContent === 'Classic dialog'); r.click(); })()`);
   await sleep(300);
   ok(await page.eval(`!document.querySelector('.pv-palette')`), "a classic tool closes the palette");
   ok(await page.eval(`[...document.querySelectorAll('[role=dialog]')].some(d => /check/i.test(d.getAttribute('aria-label') || d.textContent.slice(0, 60)))`), "and opens its own dialog");
@@ -193,8 +209,9 @@ try {
     window.__slow = 0;
     window.__calls = 0;
   })()`);
+  // Opened without the view's default: the result is drawn in the dialog, which is what these cases are about.
   const openForm = async (q: string) => {
-    await key(page, "k", "KeyK", 75, 2);
+    await page.eval(`window.__ui.openPalette(document.querySelector('petri-view'))`);
     await page.waitFor("!!document.querySelector('.pv-palette')");
     await typeText(page, q);
     await key(page, "Enter", "Enter", 13);

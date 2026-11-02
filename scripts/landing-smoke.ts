@@ -141,7 +141,7 @@ const ON_TOP_OF_THE_EDITOR = (panel: string, controls: string[]) => `(() => {
     if (!at || !P.contains(at)) bad.push(Math.round(x) + ',' + Math.round(y) + ' is ' + (at?.className || at?.tagName));
   }
   // And anywhere in between: the slider and the toolbar each have their own rect to compare.
-  for (const s of ['.pv-scale-meter', '.pv-mode-menu', '.pv-top-right-btn', '.pv-hamburger-btn']) {
+  for (const s of ['.pv-scale-meter', '.pv-mode-menu', '.pv-top-right-btn', '.pv-hamburger-btn', '.pv-appbar']) {
     const e = document.querySelector(s); if (!e) continue;
     const r = e.getBoundingClientRect();
     const [x0, x1, y0, y1] = [Math.max(r.left, c.left + i), Math.min(r.right, c.right - i), Math.max(r.top, c.top + i), Math.min(r.bottom, c.bottom - i)];
@@ -250,11 +250,14 @@ const APP_NET = {
     .map(([source, target]) => ({ "@type": "Arrow", source, target, weight: [1] })),
 };
 const SKIP_LANDING = `try { localStorage.setItem('pflow_skip_landing', '1'); } catch {}`;
-/** The editor with APP_NET, and the App view opened the way a visitor does: the menu's item. */
+/** The editor with APP_NET, and the App view opened the way a visitor does: View > Open as app. */
 const openAppView = async (p: any) => {
-  await p.waitFor(`!!document.querySelector('petri-view .pv-menu-item')`, 20000);
+  await p.waitFor(`!!document.querySelector('petri-view [data-menu]')`, 20000);
   await p.eval(`document.querySelector('petri-view').setModel(${JSON.stringify(APP_NET)})`);
-  await p.eval(`[...document.querySelectorAll('.pv-menu-item')].find((m) => m.textContent.includes('App view')).click()`);
+  // on a phone the three menus are folded into one button, whose menu holds the same entries
+  await p.eval(`(() => { const b = document.querySelector('[data-menu=view]'); (b.offsetParent ? b : document.querySelector('[data-menu=more]')).click(); })()`);
+  await p.waitFor(`!!document.querySelector('.pv-appmenu-pop')`, 5000);
+  await p.eval(`[...document.querySelectorAll('.pv-appmenu-pop [role=menuitem]')].find((m) => m.dataset.label === 'Open as app').click()`);
   return p.waitFor(`!!document.querySelector('.pv-appview [data-act="run"]')`, 20000);
 };
 
