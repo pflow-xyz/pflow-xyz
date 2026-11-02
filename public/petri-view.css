@@ -4598,3 +4598,428 @@ html:has(petri-view[data-ui="bar"]) .fixed-title {
     opacity: 0.55;
     cursor: not-allowed;
 }
+
+/* ============================================================
+   Ask pane (petri-chat-ui.js, petri-results-pane.js)
+   One docked panel: the head with the intent chip, the state line, the session list
+   (messages, the router's cards, every result as a card), the pending card, Tools,
+   the input. It is the .pv-chat panel above; these rules are what is new in it.
+   Tokens only, so both themes work. Phone rules: the .pv-chat media queries above
+   place the panel above the run bar; these keep what is inside from overflowing it.
+   ============================================================ */
+.pv-ask-sr {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+}
+.pv-ask-turn {
+    display: none;
+}
+/* appended to <body>, outside .pv-root: the family has to be asked for (see --pv-font) */
+.pv-ask {
+    font-family: var(--pv-font);
+}
+.pv-ask .pv-chat-head [data-act="new"] {
+    margin-left: auto;
+}
+.pv-ask-intent {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    flex: 0 1 auto;
+}
+.pv-ask-chip {
+    display: inline-block;
+    padding: 1px 9px;
+    border: 1px solid var(--pv-accent);
+    border-radius: 12px;
+    color: var(--pv-accent);
+    font-size: 0.9em;
+    white-space: nowrap;
+}
+.pv-ask-menu {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    z-index: 3;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 4px;
+    min-width: 150px;
+    border: 1px solid var(--pv-border);
+    border-radius: 6px;
+    background: var(--pv-surface);
+    box-shadow: 0 4px 16px var(--pv-shadow-lg);
+}
+.pv-ask-menu button {
+    text-align: left;
+}
+.pv-ask-state {
+    margin: 0;
+    padding: 4px 8px;
+    border-left: 3px solid var(--pv-border);
+    border-radius: 4px;
+    background: var(--pv-hover-soft);
+    color: var(--pv-ink-secondary);
+    font-size: 0.92em;
+}
+.pv-ask-state[data-state="quota"],
+.pv-ask-state[data-state="upstream"] {
+    border-left-color: var(--pv-warning);
+}
+.pv-ask-state[data-state="signed-out"] {
+    border-left-color: var(--pv-accent);
+}
+
+/* The empty log: suggested questions and the goal cards */
+.pv-ask-hint {
+    margin: 0 0 6px;
+    color: var(--pv-ink-secondary);
+}
+.pv-ask-suggest {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 8px;
+}
+.pv-ask-label {
+    margin: 6px 0 3px;
+    font-size: 0.85em;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: var(--pv-ink-secondary);
+}
+.pv-ask-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 6px;
+}
+.pv-ask-goalcard {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 6px 8px;
+    min-width: 0;
+    border: 1px solid var(--pv-border);
+    border-radius: 6px;
+    background: var(--pv-surface);
+    color: var(--pv-ink);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+.pv-ask-goalcard:hover {
+    background: var(--pv-hover-soft);
+}
+.pv-ask-goalcard span {
+    font-size: 0.85em;
+    overflow-wrap: anywhere;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+    overflow: hidden;
+}
+
+/* The router's cards (no model) and the question the model asks */
+.pv-ask-route {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.pv-ask-rcard,
+.pv-ask-q {
+    padding: 8px 10px;
+    border: 1px solid var(--pv-border);
+    border-radius: 8px;
+    background: var(--pv-surface);
+    min-width: 0;
+}
+.pv-ask-q {
+    border-color: var(--pv-accent);
+}
+.pv-ask-q-done {
+    border-color: var(--pv-border);
+}
+.pv-ask-q-text {
+    margin: 0 0 4px;
+    overflow-wrap: anywhere;
+}
+.pv-ask-rcard p {
+    margin: 2px 0;
+}
+.pv-ask-opts,
+.pv-ask-acts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 6px;
+}
+.pv-ask-other {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 6px;
+}
+.pv-ask-other input {
+    flex: 1 1 140px;
+    min-width: 0;
+    font: inherit;
+}
+.pv-ask-q-why {
+    margin: 6px 0 0;
+    font-size: 0.85em;
+}
+
+/* A result: one card in the session list */
+.pv-chat-log > .pv-ask-card,
+.pv-chat-log > .pv-ask-route,
+.pv-chat-log > .pv-ask-q,
+.pv-chat-log > .pv-ask-empty {
+    align-self: stretch;
+    max-width: 100%;
+    min-width: 0;
+}
+.pv-ask-card {
+    flex: none;
+    box-sizing: border-box;
+    padding: 8px 10px;
+    border: 1px solid var(--pv-border);
+    border-radius: 8px;
+    background: var(--pv-surface);
+    overflow-wrap: anywhere;
+}
+.pv-ask-card[data-stale="true"] {
+    border-color: var(--pv-warning);
+}
+.pv-ask-card[data-aside="true"] {
+    opacity: 0.65;
+}
+.pv-ask-card:focus-visible {
+    outline: 2px solid var(--pv-focus-ring);
+    outline-offset: 2px;
+}
+.pv-ask-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+}
+.pv-ask-head .pv-btn {
+    flex: none;
+    white-space: nowrap;
+}
+.pv-ask-title {
+    margin: 0 0 4px;
+    font-size: 1em;
+    overflow-wrap: anywhere;
+}
+.pv-ask-warns {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+.pv-ask-warns:empty {
+    display: none;
+}
+.pv-ask-warns .pv-engine-warn {
+    margin-bottom: 4px;
+    overflow-wrap: anywhere;
+}
+.pv-ask-line {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    margin: 2px 0 4px;
+}
+.pv-ask-line > .pv-prov-chip {
+    flex: none;
+}
+.pv-ask-md {
+    min-width: 0;
+}
+.pv-ask-md p,
+.pv-ask-md ul,
+.pv-ask-md ol {
+    margin: 0 0 4px;
+}
+.pv-ask-eng {
+    background: var(--pv-info-surface);
+    color: var(--pv-info-ink);
+    border-color: var(--pv-info-border);
+}
+.pv-ask-art {
+    overflow-x: auto;
+    margin: 2px 0 6px;
+}
+.pv-ask-art svg {
+    max-width: 100%;
+    height: auto;
+}
+.pv-ask-caveat {
+    margin: 2px 0;
+    font-size: 0.92em;
+    color: var(--pv-ink-secondary);
+}
+.pv-ask-assumed-list {
+    margin: 0 0 4px;
+    padding-left: 18px;
+}
+.pv-ask-assumed-list li {
+    margin: 2px 0;
+}
+.pv-ask-changer {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+}
+.pv-ask-changer[hidden] {
+    display: none;
+}
+.pv-ask-changer select,
+.pv-ask-changer input {
+    font: inherit;
+    max-width: 100%;
+    min-width: 0;
+}
+.pv-ask-stale,
+.pv-ask-note {
+    margin: 4px 0;
+    font-size: 0.92em;
+}
+.pv-ask-note[data-kind="ok"] {
+    color: var(--pv-success-strong);
+}
+.pv-ask-note[data-kind="warn"] {
+    color: var(--pv-warning);
+}
+.pv-ask-note[data-kind="error"] {
+    color: var(--pv-danger);
+}
+/* New and Send wait for the answer that is coming */
+.pv-ask .pv-btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+.pv-ask-follow {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    margin-top: 8px;
+}
+.pv-ask-follow:empty {
+    display: none;
+}
+.pv-ask-edit {
+    margin-top: 8px;
+    padding: 8px;
+    border: 1px dashed var(--pv-border);
+    border-radius: 6px;
+}
+.pv-ask-callform {
+    min-width: 0;
+    margin: 0 0 8px;
+    padding: 6px 8px;
+    border: 1px solid var(--pv-border);
+    border-radius: 6px;
+}
+.pv-ask-callform legend {
+    padding: 0 4px;
+}
+.pv-ask-card [hidden] {
+    display: none;
+}
+
+/* The pending card: the diff, the draft's notes, assumptions and rates, the problems list */
+.pv-ask-diff {
+    margin: 4px 0;
+    padding-left: 18px;
+}
+.pv-ask .pv-chat-pending {
+    max-height: 42vh;
+}
+.pv-ask-pending-head {
+    margin-bottom: 2px;
+}
+.pv-ask-pending-head + .pv-ask-acts {
+    margin: 4px 0 6px;
+}
+.pv-ask-diffbox {
+    margin: 4px 0;
+}
+.pv-ask-diffbox > summary {
+    cursor: pointer;
+    color: var(--pv-ink-secondary);
+}
+.pv-ask-proposal {
+    margin: 6px 0;
+    padding-top: 4px;
+    border-top: 1px solid var(--pv-border);
+}
+.pv-ask-assume {
+    margin: 2px 0 4px;
+    padding-left: 18px;
+}
+.pv-ask-assume li {
+    margin: 3px 0;
+}
+.pv-ask-rate input {
+    width: 5.5em;
+    font: inherit;
+}
+.pv-ask-problems {
+    margin: 6px 0;
+    max-height: 22vh;
+    overflow: auto;
+}
+.pv-ask-checknote {
+    align-self: stretch;
+    max-width: 100%;
+    text-align: left;
+    opacity: 1;
+}
+.pv-ask-checknote ul {
+    margin: 4px 0;
+    padding-left: 18px;
+}
+
+@media (max-width: 760px), (max-height: 520px) {
+    .pv-ask .pv-chat-head {
+        gap: 4px;
+    }
+    .pv-ask-intent {
+        flex-wrap: wrap;
+    }
+    .pv-ask-menu {
+        left: auto;
+        right: 0;
+    }
+    .pv-ask-state {
+        font-size: 0.9em;
+    }
+    .pv-ask-opts .pv-btn,
+    .pv-ask-follow .pv-btn,
+    .pv-ask-suggest .pv-btn {
+        min-height: 36px;
+    }
+    .pv-ask-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+    .pv-ask-other input,
+    .pv-ask-rate input,
+    .pv-ask-changer select,
+    .pv-ask-changer input {
+        font-size: 16px;
+    }
+}

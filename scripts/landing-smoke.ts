@@ -115,6 +115,7 @@ const HEAD_FITS = (panel: string) => `(() => {
   if (!close.contains(at)) return 'close covered by ' + (at?.className || at?.tagName);
   for (const b of P.querySelectorAll('.pv-chat-head button')) {
     const r = b.getBoundingClientRect();
+    if (!r.width && !r.height) continue; // hidden: "Not what I meant" waits for a message
     if (r.left < c.left || r.right > c.right) return (b.dataset.act || b.textContent) + ' at ' + r.left + '..' + r.right + ' of panel ' + c.left + '..' + c.right;
   }
   const head = P.querySelector('.pv-chat-head');
@@ -201,18 +202,20 @@ const toolsAre = async (p: any, label: string) => {
   }
 };
 const toolCount = (p: any) => p.eval(`document.querySelector('.pv-chat-tools-count').textContent`);
-const TOOLS_IN_MANIFEST = `fetch('/llm-tools.json').then((r) => r.json()).then((m) => m.tools.length)`;
+const TOOLS_IN_MANIFEST = (file: string) => `fetch('/${file}').then((r) => r.json()).then((m) => m.tools.length)`;
+// A server that lists the goal toolset in /api/llm/status gets the Ask pane's goal tools; the stubbed pages below list none, so they keep the full set.
+const ALL_TOOLS = "llm-tools.json", GOAL_TOOLS = "llm-goal-tools.json";
 const LISTED = `[...document.querySelectorAll('.pv-chat-avail li code')].map((c) => c.textContent)`;
 /** The section's contents against the manifest: the number on it, the groups, and the tools in them. */
-const toolsListed = async (p: any, label: string, wants: RegExp) => {
-  const n = await p.eval(TOOLS_IN_MANIFEST);
+const toolsListed = async (p: any, label: string, wants: RegExp, file = ALL_TOOLS) => {
+  const n = await p.eval(TOOLS_IN_MANIFEST(file));
   ok(n > 0, `${label}: the manifest has tools`, String(n));
   const count = await toolCount(p);
   ok(wants.test(count) && parseInt(count) === n, `${label}: the count is of the tools there are`, `${count}, manifest ${n}`);
   ok(!/^\(?0\b/.test(count), `${label}: it does not read 0`, count);
   const listed = await p.eval(LISTED);
   ok(listed.length === n, `${label}: every tool is listed`, `${listed.length} of ${n}`);
-  ok(listed.includes("net.add_place") && listed.includes("analysis.check") && listed.includes("sim.ode"), `${label}: by the names they have`, listed.slice(0, 5).join());
+  ok(listed.includes("net.add_place") && listed.includes("analysis.check") && listed.includes(file === GOAL_TOOLS ? "run_goal" : "sim.ode"), `${label}: by the names they have`, listed.slice(0, 5).join());
   ok((await p.eval(`document.querySelectorAll('.pv-chat-avail-group').length`)) > 3, `${label}: in groups`);
   ok(await p.eval(`[...document.querySelectorAll('.pv-chat-avail li')].every((li) => li.textContent.length > li.querySelector('code').textContent.length + 3)`), `${label}: each says what it does`);
 };
@@ -249,6 +252,9 @@ const APP_NET = {
   arcs: [["arrive", "queue"], ["queue", "start"], ["baristas", "start"], ["start", "serving"], ["serving", "finish"], ["finish", "served"], ["finish", "baristas"], ["queue", "give_up"], ["give_up", "gone"]]
     .map(([source, target]) => ({ "@type": "Arrow", source, target, weight: [1] })),
 };
+// The Ask pane's one quiet line offering the sign-in (it was a button in the log, with no box to type in: signed out the words now go to the router).
+const SIGNIN_SEL = '.pv-ask-state [data-ask="signin"]';
+const SIGNIN = JSON.stringify(SIGNIN_SEL); // for inside the page's own script
 const SKIP_LANDING = `try { localStorage.setItem('pflow_skip_landing', '1'); } catch {}`;
 /** The editor with APP_NET, and the App view opened the way a visitor does: View > Open as app. */
 const openAppView = async (p: any) => {
@@ -387,7 +393,8 @@ try {
   for (const [route, mode] of [["analyse", "analyse"], ["build", "build"], ["design", "build"], ["explain", "explain"]]) {
     // design is build's old name: links in the wild keep forcing it.
     const p = await open(`/?route=${route}`, SIGNED_IN());
-    ok(await p.waitFor(`document.querySelector('.pv-chat-mode.pv-active')?.dataset.mode === ${q(mode)}`, 20000), `?route=${route} opens the Assistant in ${mode}`);
+    ok(await p.waitFor(`document.querySelector('.pv-chat')?.dataset.intent === ${q(mode)}`, 20000), `?route=${route} opens the Ask pane as ${mode}`);
+    ok(await p.eval(`document.querySelectorAll('.pv-chat-mode').length === 0`), `?route=${route}: and there are no mode tabs to pick from`);
     ok((await p.eval(`window.__turns.length`)) === 0, `?route=${route} sends nothing by itself`);
     ok(await p.eval(`document.getElementById('editor-wrapper').style.display === 'block'`), `?route=${route} skips the landing`);
     // The one place a mode is stated: what is then typed in the panel goes out in it.
@@ -398,7 +405,7 @@ try {
   }
   {
     const p = await open("/?route=design");
-    ok(await p.waitFor(`document.querySelector('.pv-chat-log')?.textContent.includes('GitHub sign-in')`, 20000), "?route= signed out: the panel asks for the sign-in");
+    ok(await p.waitFor(`!!document.querySelector(${SIGNIN}) && ${text(".pv-ask-state")}.includes('Sign in to ask in your own words')`, 20000), "?route= signed out: the panel offers the sign-in, once, quietly");
     await p.close();
   }
   {
@@ -442,7 +449,7 @@ try {
     ok((await p.eval(`document.documentElement.scrollWidth <= innerWidth && scrollY === 0`)), `${label}: the page itself does not scroll`);
     ok((await p.eval(`parseFloat(getComputedStyle(document.querySelector('.pv-chat-input')).fontSize)`)) >= 16, `${label}: the box is 16px or more`);
     ok(await p.eval(`(() => { const b = document.querySelector('.pv-run-bar').getBoundingClientRect(), c = document.querySelector('.pv-chat').getBoundingClientRect(); return !b.height || c.bottom <= b.top; })()`), `${label}: the panel stops above the run bar`);
-    ok(await p.eval(`(() => { const c = document.querySelector('.pv-chat').getBoundingClientRect(); return [...document.querySelectorAll('.pv-chat-head button')].every((b) => { const r = b.getBoundingClientRect(); return r.left >= c.left && r.right <= c.right; }); })()`), `${label}: the head's buttons are inside the panel`);
+    ok(await p.eval(`(() => { const c = document.querySelector('.pv-chat').getBoundingClientRect(); return [...document.querySelectorAll('.pv-chat-head button')].filter((b) => b.getBoundingClientRect().width > 0).every((b) => { const r = b.getBoundingClientRect(); return r.left >= c.left && r.right <= c.right; }); })()`), `${label}: the head's buttons are inside the panel`);
 
     // The message list scrolls by itself, by touch; the input row does not move with it.
     const scrolls = await p.eval(`(() => { const l = document.querySelector('.pv-chat-log'); return l.scrollHeight > l.clientHeight; })()`);
@@ -518,12 +525,12 @@ try {
 
     // Explain does not edit, so the section does not offer it.
     const all = await p.eval(`parseInt(document.querySelector('.pv-chat-tools-count').textContent)`);
-    await p.eval(`document.querySelector('.pv-chat-mode[data-mode="explain"]').click()`);
+    await p.eval(`document.querySelector('petri-view')._openChat({ mode: 'explain' })`);
     const fewer = await p.eval(`parseInt(document.querySelector('.pv-chat-tools-count').textContent)`);
     ok(fewer > 0 && fewer < all, `${label}: explain has fewer`, `${fewer} of ${all}`);
     ok(!(await p.eval(`${LISTED}.includes('net.add_place')`)) && await p.eval(`${LISTED}.includes('net.info')`), `${label}: explain lists the ones that read`);
     ok(await p.eval(`${text(".pv-chat-tools-note")}.includes('Explain mode does not edit')`), `${label}: and says why the rest are not there`);
-    await p.eval(`document.querySelector('.pv-chat-mode[data-mode="analyse"]').click()`);
+    await p.eval(`document.querySelector('petri-view')._openChat({ mode: 'analyse' })`);
     ok((await p.eval(`parseInt(document.querySelector('.pv-chat-tools-count').textContent)`)) === all, `${label}: leaving explain brings them back`);
     ok(await p.eval(`getComputedStyle(document.querySelector('.pv-chat-tools-note')).display === 'none'`), `${label}: and the note goes`);
 
@@ -581,8 +588,8 @@ try {
     // Signed out the tools exist and cannot run yet, so that is what it says.
     const label = `tools signed out ${w}x${h}`;
     const p = await open("/?route=design", undefined, w, h, phone);
-    ok(await p.waitFor(`document.querySelector('.pv-chat-log')?.textContent.includes('GitHub sign-in')`, 20000), `${label}: the panel asks for the sign-in`);
-    await toolsListed(p, label, /^\d+ after sign-in$/);
+    ok(await p.waitFor(`!!document.querySelector(${SIGNIN})`, 20000), `${label}: the panel offers the sign-in`);
+    await toolsListed(p, label, /^\d+ after sign-in$/, GOAL_TOOLS); // the real server lists the goal toolset, which is what a signed-out pane holds
     ok(await p.eval(`${text(".pv-chat-tools-note")}.includes('Sign in')`), `${label}: it says what they wait for`);
     await p.eval(`document.querySelector('.pv-chat-tools > summary').click()`);
     await sleep(200);
@@ -623,17 +630,17 @@ try {
   }
   {
     const p = await open("/?route=design", undefined, 375, 553, true);
-    ok(await p.waitFor(`document.querySelector('.pv-chat-log')?.textContent.includes('GitHub sign-in')`, 20000), "signed out on a phone: the panel asks for the sign-in");
-    ok((await p.eval(REACHABLE('.pv-chat-log [data-act="login"]'))) === "ok", "and the button can be reached", await p.eval(REACHABLE('.pv-chat-log [data-act="login"]')));
-    ok(await p.eval(`document.querySelector('.pv-chat-form').getBoundingClientRect().height === 0`), "and there is no box to type in yet");
+    ok(await p.waitFor(`!!document.querySelector(${SIGNIN})`, 20000), "signed out on a phone: the panel offers the sign-in");
+    ok((await p.eval(REACHABLE(SIGNIN_SEL))) === "ok", "and the button can be reached", await p.eval(REACHABLE(SIGNIN_SEL)));
+    ok((await p.eval(REACHABLE(".pv-chat-input"))) === "ok", "and the box is there to type in: the words go to the router, with no model", await p.eval(REACHABLE(".pv-chat-input")));
     await p.close();
   }
   {
     // [hidden] wins over the form's display:flex on a desktop too: nothing to type into until there is a sign-in.
     const p = await open("/?route=design");
-    ok(await p.waitFor(`document.querySelector('.pv-chat-log')?.textContent.includes('GitHub sign-in')`, 20000), "signed out on a desktop: the panel asks for the sign-in");
-    ok(await p.eval(`(() => { const f = document.querySelector('.pv-chat-form'), i = document.querySelector('.pv-chat-input'); return f.hidden && getComputedStyle(f).display === 'none' && i.getBoundingClientRect().height === 0; })()`), "and there is no box to type in yet", await p.eval(`getComputedStyle(document.querySelector('.pv-chat-form')).display`));
-    ok((await p.eval(REACHABLE('.pv-chat-log [data-act="login"]'))) === "ok", "and the button can be reached", await p.eval(REACHABLE('.pv-chat-log [data-act="login"]')));
+    ok(await p.waitFor(`!!document.querySelector(${SIGNIN})`, 20000), "signed out on a desktop: the panel offers the sign-in");
+    ok(await p.eval(`(() => { const f = document.querySelector('.pv-chat-form'), i = document.querySelector('.pv-chat-input'); return !f.hidden && getComputedStyle(f).display !== 'none' && i.getBoundingClientRect().height > 0; })()`), "and there is a box to type in: the words go to the router, with no model");
+    ok((await p.eval(REACHABLE(SIGNIN_SEL))) === "ok", "and the button can be reached", await p.eval(REACHABLE(SIGNIN_SEL)));
     await p.close();
   }
   // The steps row is build mode's, now that [hidden] means it everywhere: it has to follow the mode as soon as it changes.
@@ -643,9 +650,9 @@ try {
     ok(await p.waitFor(`!!document.querySelector('.pv-chat-input')`, 20000), `${label} steps: the panel opens`);
     const steps = `getComputedStyle(document.querySelector('.pv-chat-steps')).display`;
     ok((await p.eval(steps)) === "none", `${label} steps: not in Analyse`, await p.eval(steps));
-    await p.eval(`document.querySelector('.pv-chat-mode[data-mode="build"]').click()`);
+    await p.eval(`document.querySelector('petri-view')._openChat({ mode: 'build' })`);
     ok((await p.eval(steps)) === "flex", `${label} steps: choosing Build shows them`, await p.eval(steps));
-    await p.eval(`document.querySelector('.pv-chat-mode[data-mode="explain"]').click()`);
+    await p.eval(`document.querySelector('petri-view')._openChat({ mode: 'explain' })`);
     ok((await p.eval(steps)) === "none", `${label} steps: leaving Build hides them`, await p.eval(steps));
     await p.close();
   }
@@ -663,10 +670,10 @@ try {
   for (const [w, h] of DESKTOPS) {
     const label = `desktop ${w}x${h}`;
     const p = await open("/?route=design", undefined, w, h);
-    ok(await p.waitFor(`!!document.querySelector('.pv-chat-log [data-act="login"]')`, 20000), `${label}: the panel opens`, problemsOf(p).join(" | "));
+    ok(await p.waitFor(`!!document.querySelector(${SIGNIN})`, 20000), `${label}: the panel opens`, problemsOf(p).join(" | "));
     await sleep(300);
     await headFits(p, label, ".pv-chat");
-    const clear = await p.eval(ON_TOP_OF_THE_EDITOR(".pv-chat", ['.pv-chat-log [data-act="login"]']));
+    const clear = await p.eval(ON_TOP_OF_THE_EDITOR(".pv-chat", [SIGNIN_SEL]));
     ok(clear === "ok", `${label}: nothing from the editor is over the panel`, clear);
     ok(await p.eval(`document.querySelector('.pv-chat-head strong').scrollWidth <= document.querySelector('.pv-chat-head strong').clientWidth`), `${label}: the title has its room`);
 
@@ -712,7 +719,7 @@ try {
   {
     // A window this wide has room for all of it, so the toolbar and the slider's height do not move for the panel.
     const p = await open("/?route=design", undefined, 1920, 1080);
-    await p.waitFor(`!!document.querySelector('.pv-chat-log [data-act="login"]')`, 20000);
+    await p.waitFor(`!!document.querySelector(${SIGNIN})`, 20000);
     await sleep(300);
     const at = await p.eval(`(() => { const r = document.querySelector('.pv-mode-menu').getBoundingClientRect(); return r.left + r.width / 2; })()`);
     ok(Math.abs(at - 960) <= 1, "desktop 1920x1080: the toolbar stays centred", String(at));

@@ -81,6 +81,27 @@ const VIEW = new Set(['view.highlight', 'view.clear_highlight', 'view.fit', 'art
 
 export const MODES = ['auto', 'build', 'analyse', 'explain'];
 
+// Where a node is drawn is not what a result says: dragging a place, or the layout a described net gets on Apply, must
+// not make every card "net changed since" and turn Rerun's "reproduced" check into a new card.
+const LAYOUT_KEYS = ['x', 'y', 'offset'];
+const withoutLayout = (nodes) => Object.fromEntries(Object.entries(nodes || {}).map(([id, n]) => {
+    const rest = { ...n };
+    for (const k of LAYOUT_KEYS) delete rest[k];
+    return [id, rest];
+}));
+
+/**
+ * The revision a result carries for the net it ran on, and what the pane compares with the net now: modelKey of the
+ * net with its layout left out (a node's x and y, a place's label offset). Places, transitions, arcs, rates, markings and
+ * capacities are all in it, so any edit that changes what an engine computes is a new revision; moving a node is not.
+ * (modelKey itself, which the engine guard's cache uses, still sees everything.)
+ * @param {Object} model  an editor net
+ * @returns {string}
+ */
+export function netRevision(model) {
+    return modelKey({ ...model, places: withoutLayout(model?.places), transitions: withoutLayout(model?.transitions) });
+}
+
 // 'auto' lets the server label each message (intent and sentiment); the
 // label picks one of the three real modes for that message's tool loop.
 
@@ -725,7 +746,7 @@ export class ChatSession {
     }
 
     _netRef() {
-        return { ...(this.netCid ? { cid: this.netCid } : {}), revision: modelKey(this.model()) };
+        return { ...(this.netCid ? { cid: this.netCid } : {}), revision: netRevision(this.model()) };
     }
 
     _artifacts(ids) {
@@ -1126,15 +1147,15 @@ export class ChatSession {
     }
 
     /**
-     * "Not what I meant": the last message again under another intent. The conversation and the sandbox go back to
-     * where that message found them (its replies, tool calls and edits are dropped), the intent is forced, and the
-     * message is sent. Costs the model calls any message does.
-     * @param {'build'|'analyse'|'explain'|'design'} mode
+     * Take the last message back: the conversation and the sandbox go back to where that message found them (its replies,
+     * tool calls and edits are dropped, a question card waiting for it is withdrawn). For a send that failed (the
+     * message would otherwise stay in the conversation with no reply, and a second send would put it there twice), and
+     * the first half of resend.
+     * @returns {string} the message's text
      */
-    async resend(mode, onEvent = () => {}) {
+    rewind() {
         const t = this._turn;
-        if (!t.text) throw new Error('there is no message to resend');
-        this.force(mode);
+        if (!t.text) throw new Error('there is no message to take back');
         this._ask = null;
         this._decided = [];
         this.messages.length = t.messagesLen;
@@ -1144,7 +1165,19 @@ export class ChatSession {
         this.pending = t.pending;
         this.proposal = t.proposal;
         this.step = t.step;
-        return this.send(t.text, onEvent);
+        t.open = false;
+        return t.text;
+    }
+
+    /**
+     * "Not what I meant": the last message again under another intent. It is taken back (rewind), the intent is forced,
+     * and the message is sent. Costs the model calls any message does.
+     * @param {'build'|'analyse'|'explain'|'design'} mode
+     */
+    async resend(mode, onEvent = () => {}) {
+        if (!this._turn.text) throw new Error('there is no message to resend');
+        this.force(mode);
+        return this.send(this.rewind(), onEvent);
     }
 
     /**
@@ -1238,7 +1271,7 @@ export class ChatSession {
         const used = calls.map((c) => engineOf(c.command, c.args)).find(Boolean);
         let engine = old.engine;
         if (used) engine = { name: used, reason: old.engine?.reason || '', ...(chips.length || old.engine?.overridden ? { overridden: true } : {}), ...(chips[0] ? { warning: chips[0] } : {}) };
-        const net = { ...(this.netCid ? { cid: this.netCid } : {}), revision: modelKey(sandbox.host.getModel()) };
+        const net = { ...(this.netCid ? { cid: this.netCid } : {}), revision: netRevision(sandbox.host.getModel()) };
         const assumed = (result.assumed || old.assumed || []).map((a) => ({ ...a }));
         const notes = [];
         if (edits.length) notes.push({ key: 'settings', how: 'edited', text: `Settings edited by you: ${edits.join('; ')}` });
