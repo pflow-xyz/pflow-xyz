@@ -1611,6 +1611,188 @@ PetriView = class PetriView extends HTMLElement {
         if (alone) alone.addEventListener('click', () => handle.close());
     }
 
+    /**
+     * The CID the net the editor holds is saved under, when it is saved and unchanged since. The URL says: ?cid= with
+     * no ?data= (the editor adds ?data= on the first edit, and the save paths write ?cid= alone). Null otherwise, which
+     * is the unsaved net: a view link then carries the net, or asks for a save first.
+     */
+    _savedNetCid() {
+        try {
+            const q = new URLSearchParams(window.location.search);
+            const cid = q.get('cid');
+            return cid && !q.has('data') ? cid : null;
+        } catch {
+            return null;
+        }
+    }
+
+    /**
+     * The link that reproduces a result's view (petri-link-open.js buildShareLink): /?cid=<net>#view=<payload> when the
+     * net is saved, /?data=...#view=... when it is small enough to travel, else {needsSave: true}. The digests in it
+     * come from a replay on a sandbox in a Worker, so the link is only handed out when it will open. Never throws.
+     */
+    async _viewLinkFor(record) {
+        try {
+            const L = await import('./petri-link-open.js');
+            const V = await import('./petri-viewspec.js');
+            const P = await import('./petri-provenance.js');
+            const versions = P.defaultVersions({ app: await this._appRevision() });
+            return await L.buildShareLink({ record, model: this._model, cid: this._savedNetCid(), origin: window.location.origin, replay: V.replayInWorker, versions });
+        } catch (e) {
+            return { ok: false, reason: `the link could not be made: ${e && e.message ? e.message : e}` };
+        }
+    }
+
+    /**
+     * "Copy link" on a result's footer: copy the link that reproduces the view. The net saved: the link names it. The
+     * net small and unsaved: it travels in the link. Neither: "Save to get a link", and when signed in one step,
+     * "Save and copy link". Toasts the outcome and never throws; resolves to what _viewLinkFor said.
+     */
+    async _copyViewLink(record) {
+        try {
+            this._toast('Preparing the link…');
+            const made = await this._viewLinkFor(record);
+            if (made.ok) {
+                this._copyToClipboard(made.url,
+                    () => this._toast(made.kind === 'saved'
+                        ? 'View link copied. It opens this net and this view, and runs no model.'
+                        : 'View link copied. The net travels inside it; save the net for a short link.'),
+                    () => this._toast(made.url, 'info', 12000));
+            } else if (made.needsSave) {
+                this._offerSaveForLink(record);
+            } else {
+                this._toast(made.reason.charAt(0).toUpperCase() + made.reason.slice(1), 'error', 9000);
+            }
+            return made;
+        } catch (e) {
+            this._toast('The link could not be made: ' + (e && e.message ? e.message : String(e)), 'error');
+            return { ok: false, reason: String(e && e.message ? e.message : e) };
+        }
+    }
+
+    // "Save to get a link": the net is not saved and too big to carry in a link. Signed in, one step does both; the
+    // save is the editor's own (_saveToPermalink), not a copy of it.
+    _offerSaveForLink(record) {
+        const { overlay, dialog } = this._createModalOverlay({});
+        const signedIn = !!(this._authInitialized && this._user);
+        const title = document.createElement('h3');
+        title.className = 'pv-modal-title';
+        title.textContent = 'Save to get a link';
+        const why = document.createElement('p');
+        why.className = 'pv-modal-description';
+        why.textContent = signedIn
+            ? 'This net is not saved, and it is too big to travel inside a link. Saving gives it an ID the link can name.'
+            : 'This net is not saved, and it is too big to travel inside a link. Sign in with GitHub, save it, and the link can name it.';
+        const privacy = document.createElement('p');
+        privacy.className = 'pv-result-dim';
+        privacy.textContent = 'Anyone who has the link can read the saved net: its ID is the only check.';
+        const row = document.createElement('div');
+        row.className = 'pv-btn-container';
+        const cancel = document.createElement('button');
+        cancel.type = 'button';
+        cancel.className = 'pv-btn';
+        cancel.textContent = signedIn ? 'Cancel' : 'Close';
+        const close = () => { if (overlay.parentNode) overlay.remove(); };
+        cancel.addEventListener('click', close);
+        overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+        overlay.addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.stopPropagation(); close(); } });
+        dialog.append(title, why, privacy, row);
+        if (signedIn) {
+            const go = document.createElement('button');
+            go.type = 'button';
+            go.className = 'pv-btn pv-btn-primary';
+            go.dataset.act = 'save-and-copy';
+            go.textContent = 'Save and copy link';
+            go.addEventListener('click', async () => {
+                go.disabled = true;
+                go.textContent = 'Saving…';
+                await this._saveToPermalink();
+                if (!this._savedNetCid()) { close(); return; } // the save path said why
+                const made = await this._viewLinkFor(record);
+                close();
+                if (made.ok) this._copyToClipboard(made.url, () => this._toast('Saved. The view link is copied.'), () => this._toast(made.url, 'info', 12000));
+                else this._toast(made.reason.charAt(0).toUpperCase() + made.reason.slice(1), 'error', 9000);
+            });
+            row.append(go);
+        }
+        row.append(cancel);
+        overlay.tabIndex = -1;
+        document.body.appendChild(overlay);
+        overlay.focus();
+    }
+
+    /**
+     * The Share dialog's "Share this view" block (design 14.7): while a result is open, a checkbox (on by default)
+     * that makes the shared link the view's, the view link and the net-only link side by side, and always the privacy
+     * line (14.6): possession of a net's CID is the only check on reading it, and nothing here implies more.
+     * `onLink(url)` is told the link the snippet should point at: the view's while the box is on and the link is
+     * ready, null otherwise (the net-only link).
+     */
+    _shareViewSection(docUrl, onLink) {
+        const box = document.createElement('div');
+        box.className = 'pv-share-view';
+        box.dataset.shareView = '';
+        const current = this._currentResult();
+        const privacy = document.createElement('p');
+        privacy.className = 'pv-result-dim pv-share-privacy';
+        privacy.dataset.sharePrivacy = '';
+        import('./petri-link-open.js').then((L) => { privacy.textContent = L.SHARE_PRIVACY; }).catch(() => {
+            privacy.textContent = 'Anyone who has a link can read the net it names: possessing its ID is the only check.';
+        });
+        if (!current || !current.record) { box.appendChild(privacy); return box; }
+
+        const label = document.createElement('label');
+        label.className = 'pv-share-view-check';
+        const check = document.createElement('input');
+        check.type = 'checkbox';
+        check.checked = true;
+        check.dataset.shareViewCheck = '';
+        label.append(check, document.createTextNode(` Share this view: ${current.title || 'the open result'}`));
+        const note = document.createElement('p');
+        note.className = 'pv-result-dim';
+        note.textContent = 'The link opens the net with this result, computed again in the reader\u2019s browser: no model call, no sign-in.';
+        const link = (name, value, dataKey) => {
+            const row = document.createElement('div');
+            row.className = 'pv-share-link';
+            const text = document.createElement('span');
+            text.textContent = name;
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.readOnly = true;
+            input.value = value;
+            input.setAttribute('aria-label', name);
+            input.dataset[dataKey] = '';
+            const copy = document.createElement('button');
+            copy.type = 'button';
+            copy.className = 'pv-btn pv-btn-sm';
+            copy.textContent = 'Copy';
+            copy.addEventListener('click', () => {
+                if (!input.value || input.disabled) return;
+                this._copyToClipboard(input.value, () => this._toast('Link copied'), () => { input.select(); });
+            });
+            row.append(text, input, copy);
+            return { row, input };
+        };
+        const view = link('This view', 'Preparing the link…', 'shareViewLink');
+        view.input.disabled = true;
+        const net = link('Net only', docUrl, 'shareNetLink');
+        let viewUrl = null;
+        const apply = () => onLink(check.checked ? viewUrl : null);
+        check.addEventListener('change', () => { view.row.classList.toggle('pv-share-off', !check.checked); apply(); });
+        box.append(label, note, view.row, net.row, privacy);
+        this._viewLinkFor(current.record).then((made) => {
+            if (made.ok) {
+                viewUrl = made.url;
+                view.input.disabled = false;
+                view.input.value = made.url;
+            } else {
+                view.input.value = made.needsSave ? 'Save the net to get a view link' : made.reason;
+            }
+            apply();
+        });
+        return box;
+    }
+
     // ---------------- public API ----------------
     /** Run a registry command: await el.execute('net.add_place', {x: 10, y: 20}). */
     async execute(id, args = {}) {
@@ -1887,7 +2069,7 @@ PetriView = class PetriView extends HTMLElement {
         const currentUrl = window.location.origin;
         const svgUrl = `${currentUrl}/img/${cid}.svg`;
         const docUrl = `${currentUrl}/?cid=${cid}`;
-        const markdown = `[![pflow](${svgUrl})](${docUrl})`;
+        let markdown = `[![pflow](${svgUrl})](${docUrl})`; // the link target becomes the view's link while "Share this view" is on
 
         // Create modal overlay
         const { overlay, dialog } = this._createModalOverlay({});
@@ -1903,6 +2085,12 @@ PetriView = class PetriView extends HTMLElement {
         description.textContent = 'Copy the markdown snippet below to share your Petri net:';
         description.className = 'pv-modal-description';
         dialog.appendChild(description);
+
+        // "Share this view" (when a result is open) and what a link lets a reader do (design 14.6, 14.7)
+        dialog.appendChild(this._shareViewSection(docUrl, (url) => {
+            markdown = `[![pflow](${svgUrl})](${url || docUrl})`;
+            textarea.value = markdown;
+        }));
 
         // Markdown textarea
         const textarea = document.createElement('textarea');

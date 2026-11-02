@@ -50,7 +50,8 @@ const esc = (s) => String(s ?? '')
     .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 
 const list = (names) => names.map((n) => `"${n}"`).join(', ');
-const shortDigest = (d) => (typeof d === 'string' ? `${d.slice(0, 14)}…` : 'none');
+// the head and the tail: two digests that differ in one character still look different
+const shortDigest = (d) => (typeof d === 'string' ? `${d.slice(0, 15)}…${d.slice(-6)}` : 'none');
 
 /** The goal a view names, from the catalog ({goals: [...]}), or null: a view id that is not a goal has no question. */
 function goalFor(spec, goals) {

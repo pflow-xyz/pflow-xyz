@@ -3723,7 +3723,8 @@ canvas.pv-canvas {
     flex-wrap: wrap;
     gap: 6px;
     margin-top: 6px;
-=======
+}
+
 /* ============================================================
    Command palette and schema forms
    (petri-palette-ui.js, petri-schema-form.js)
@@ -3962,7 +3963,8 @@ canvas.pv-canvas {
     .pv-palette-list {
         max-height: 45vh;
     }
-=======
+}
+
 /* ============================================================
    Problems indicator (petri-problems.js)
    The "N problems" chip by the title, and the list it opens. It replaces the
@@ -4149,13 +4151,14 @@ canvas.pv-canvas {
 }
 .pv-link-notice {
     position: absolute;
-    top: 12px;
+    top: 64px; /* below the title bar and the menu button */
     left: 50%;
     transform: translateX(-50%);
     z-index: 6;
     display: flex;
     align-items: center;
     gap: 8px;
+    width: max-content; /* a box at left: 50% would otherwise shrink to half the canvas */
     max-width: min(640px, calc(100% - 32px));
     padding: 8px 12px;
     border: 1px solid var(--pv-border);
@@ -4179,4 +4182,46 @@ canvas.pv-canvas {
     color: var(--pv-ink-secondary);
     font-size: 1.2em;
     cursor: pointer;
+}
+
+/* ---- Share this view (petri-view.js _shareViewSection) ---- */
+.pv-share-view {
+    margin: 8px 0 12px;
+}
+.pv-share-view-check {
+    display: block;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+.pv-share-link {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 6px 0;
+}
+.pv-share-link > span {
+    flex: none;
+    min-width: 5.5em;
+    color: var(--pv-ink-secondary);
+    font-size: 0.9em;
+}
+.pv-share-link > input {
+    flex: 1;
+    min-width: 0;
+    padding: 6px 8px;
+    border: 1px solid var(--pv-border);
+    border-radius: 4px;
+    background: var(--pv-surface);
+    color: var(--pv-ink);
+    font: inherit;
+    font-size: 0.85em;
+}
+.pv-share-link > input:disabled {
+    opacity: 0.6;
+}
+.pv-share-off > input {
+    opacity: 0.5;
+}
+.pv-share-privacy {
+    margin: 6px 0 0;
 }
