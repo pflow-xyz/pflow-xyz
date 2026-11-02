@@ -271,16 +271,15 @@ export function searchIndex(index, query, { limit = Infinity } = {}) {
 // ---------------------------------------------------------------------------
 
 /**
- * The list's next active row for an arrow / Home / End / Page key; -1 when the
- * list is empty. Arrows wrap; Home and End and the pages stop at the ends.
+ * The list's next active row for an arrow or page key; -1 when the list is
+ * empty. The arrows wrap, the pages stop at the ends. (Home and End stay with
+ * the search box: they move its caret.)
  */
 export function stepActive(count, current, key) {
     if (count <= 0) return -1;
     switch (key) {
     case 'ArrowDown': return current < 0 ? 0 : (current + 1) % count;
     case 'ArrowUp': return current <= 0 ? count - 1 : current - 1;
-    case 'Home': return 0;
-    case 'End': return count - 1;
     case 'PageDown': return Math.min(Math.max(current, 0) + 8, count - 1);
     case 'PageUp': return Math.max(Math.max(current, 0) - 8, 0);
     default: return current;

@@ -6,6 +6,7 @@ import {
 import { Registry, createHeadlessHost } from "./petri-commands.js";
 import { runGoal } from "./petri-goals.js";
 import { loadEngine } from "./petri-wasm.js";
+import { bindPaletteKey, classicTools, isTextFieldTarget } from "./petri-palette-ui.js";
 
 const catalog = JSON.parse(await Deno.readTextFile(new URL("./goals.json", import.meta.url)));
 // sim.what_if and the other pflow-native commands run in the vendored wasm (as petri-goals_test.ts loads it).
@@ -204,14 +205,14 @@ Deno.test("searchIndex: deterministic, and ties keep index order", () => {
 
 // ---- keyboard ----
 
-Deno.test("stepActive: arrows wrap, Home/End/pages stop at the ends, an empty list has no row", () => {
+Deno.test("stepActive: arrows wrap, the pages stop at the ends, an empty list has no row", () => {
     assertEquals(stepActive(0, -1, "ArrowDown"), -1);
     assertEquals(stepActive(5, -1, "ArrowDown"), 0);
     assertEquals(stepActive(5, 4, "ArrowDown"), 0);
     assertEquals(stepActive(5, 0, "ArrowUp"), 4);
     assertEquals(stepActive(5, -1, "ArrowUp"), 4);
     assertEquals(stepActive(5, 2, "ArrowUp"), 1);
-    assertEquals([stepActive(20, 7, "Home"), stepActive(20, 7, "End")], [0, 19]);
+    assertEquals([stepActive(20, 7, "Home"), stepActive(20, 7, "End")], [7, 7], "the caret keys are the search box's");
     assertEquals([stepActive(20, 7, "PageDown"), stepActive(20, 15, "PageDown"), stepActive(20, 3, "PageUp")], [15, 19, 0]);
     assertEquals(stepActive(5, 2, "a"), 2);
 });
@@ -350,4 +351,78 @@ Deno.test("stepHeadline and previewJson", () => {
     const cyc: any = {};
     cyc.self = cyc;
     assertEquals(typeof previewJson(cyc), "string");
+});
+
+// ---- the dialog's pure edges (petri-palette-ui.js); the dialog itself needs a DOM and is checked in Chrome ----
+
+Deno.test("classicTools: the dialogs this view has, each opening its own", () => {
+    const opened: string[] = [];
+    const view = {
+        _openStructureDialog: () => opened.push("structure"), _showResultsDialog: () => opened.push("results"),
+        _openGoals: () => opened.push("goals"), _notADialog: () => {},
+    };
+    const tools = classicTools(view);
+    assertEquals(tools.map((t: any) => t.id), ["classic.structure", "classic.results", "classic.goals"]);
+    assertEquals(tools.map((t: any) => t.title), ["Structure (invariants, verify, reach)", "Results", "What do you want to know?"]);
+    tools.forEach((t: any) => t.open());
+    assertEquals(opened, ["structure", "results", "goals"]);
+    assertEquals(classicTools({}), [], "an older petri-view.js with none of them");
+    assertEquals(classicTools(null), []);
+    // and they index as Classic tools
+    const idx = buildIndex({ specs, goals: catalog, classic: tools });
+    assertEquals(idx.filter((e: any) => e.kind === "classic").length, 3);
+});
+
+Deno.test("isTextFieldTarget: text fields yes, buttons and checkboxes no, through shadow roots too", () => {
+    const on = (t: any) => isTextFieldTarget({ target: t });
+    assert(on({ tagName: "TEXTAREA" }));
+    assert(on({ tagName: "INPUT", type: "text" }));
+    assert(on({ tagName: "INPUT", type: "search" }));
+    assert(on({ tagName: "INPUT" }), "no type is text");
+    assert(on({ tagName: "INPUT", type: "number" }));
+    assert(on({ tagName: "DIV", isContentEditable: true }));
+    assert(!on({ tagName: "INPUT", type: "checkbox" }));
+    assert(!on({ tagName: "INPUT", type: "button" }));
+    assert(!on({ tagName: "BODY" }));
+    assert(!isTextFieldTarget({}));
+    assert(isTextFieldTarget({ target: { tagName: "BODY" }, composedPath: () => [{ tagName: "INPUT", type: "text" }] }));
+});
+
+Deno.test("bindPaletteKey: the chord opens it, other keys and text fields are left alone, unbind removes it", async () => {
+    let handler: any = null;
+    const doc: any = {
+        addEventListener: (type: string, fn: any) => { assertEquals(type, "keydown"); handler = fn; },
+        removeEventListener: (type: string, fn: any) => { assertEquals([type, fn], ["keydown", handler]); handler = null; },
+    };
+    const asked: string[] = [];
+    const toasts: string[] = [];
+    // a view with no registry: opening fails after asking for it, and says so
+    const view = { commands: async () => { asked.push("commands"); throw new Error("no registry here"); }, _toast: (m: string) => toasts.push(m) };
+    const unbind = bindPaletteKey(view, doc);
+    assert(handler, "a keydown handler is installed");
+    const press = (e: any) => {
+        const ev = { key: "k", ctrlKey: true, target: { tagName: "BODY" }, defaultPrevented: false, ...e, prevented: false, preventDefault() { this.prevented = true; } };
+        handler(ev);
+        return ev;
+    };
+    const settle = () => new Promise((r) => setTimeout(r, 20));
+
+    assertEquals(press({ key: "j" }).prevented, false, "another key");
+    assertEquals(press({ key: "k", ctrlKey: false }).prevented, false, "no modifier");
+    assertEquals(press({ shiftKey: true }).prevented, false, "another chord");
+    assertEquals(press({ target: { tagName: "INPUT", type: "text" } }).prevented, false, "typing in a text field");
+    assertEquals(press({ target: { tagName: "TEXTAREA" } }).prevented, false, "typing in a textarea");
+    assertEquals(press({ defaultPrevented: true }).prevented, false, "someone else took it");
+    await settle();
+    assertEquals(asked, [], "nothing opened for any of those");
+
+    assertEquals(press({ target: { tagName: "BODY" } }).prevented, true, "the chord on the page");
+    assertEquals(press({ key: "K", metaKey: true, ctrlKey: false, target: { tagName: "INPUT", type: "checkbox" } }).prevented, true, "Cmd-K, from a checkbox");
+    await settle();
+    assertEquals(asked.length >= 1, true, "it asked the view for the registry");
+    assert(toasts.every((m) => m === "Tools are not available here: no registry here"), toasts.join());
+    assert(toasts.length >= 1);
+
+    unbind();
+    assertEquals(handler, null);
 });
