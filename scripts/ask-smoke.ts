@@ -258,8 +258,20 @@ try {
     ok(await p.eval(`window.__hooks.linked.length === 1 && window.__hooks.linked[0].goal.id === 'risk' && window.__hooks.linked[0].calls.length === 2`), "Copy link calls the view's hook with the record");
     await p.eval(`document.querySelector('${acts} [data-act="tools"]').click()`);
     ok(await p.eval(`window.__hooks.tools.length === 1 && window.__hooks.tools[0].goal.id === 'risk'`), "Open in Tools calls the view's hook with the record");
-    // without the hooks (a view that has not got them) each says so
+    // with the view's own hooks (the menu and links packages put them on <petri-view>; the stubs above shadow them on this one
+    // element, so deleting the stubs lets the real methods through): Copy link copies a link that carries the view, and Open in
+    // Tools opens the palette on the form of the record's first call
     await p.eval(`(() => { const v = document.querySelector('petri-view'); delete v._copyViewLink; delete v._openPaletteFor; })()`);
+    ok(await p.eval(`typeof document.querySelector('petri-view')._copyViewLink === 'function' && typeof document.querySelector('petri-view')._openPaletteFor === 'function'`), "(the view has its own Copy link and Open in Tools once the stubs are gone)");
+    await p.eval(`document.querySelector('${acts} [data-act="link"]').click()`);
+    ok(await p.waitFor(`/#view=/.test(window.__hooks.copied.at(-1) || '')`, 30000), "with the view's own hook, Copy link copies a link that carries #view=", await p.eval(`String(window.__hooks.copied.at(-1)).slice(0, 120)`));
+    await p.eval(`document.querySelector('${acts} [data-act="tools"]').click()`);
+    ok(await p.waitFor(`!!document.querySelector('.pv-palette') && !document.querySelector('.pv-palette [data-pane=form]').hidden`, 10000), "with the view's own hook, Open in Tools opens the palette on a form");
+    ok(await p.eval(`document.querySelector('.pv-palette .pv-palette-form-sub code')?.textContent === 'sim.recommend'`), "the form is the first call's command", await p.eval(`document.querySelector('.pv-palette .pv-palette-form-sub code')?.textContent`));
+    await p.eval(`document.querySelector('.pv-palette [data-act="close"]').click()`);
+    ok(await p.eval(`!document.querySelector('.pv-palette')`), "(the palette closes)");
+    // without the hooks (a view that has not got them) each says so. The stubs are gone, so say "not there" the way a vendored copy without them would
+    await p.eval(`(() => { const v = document.querySelector('petri-view'); v._copyViewLink = undefined; v._openPaletteFor = undefined; })()`);
     await p.eval(`document.querySelector('${acts} [data-act="link"]').click()`);
     ok(await p.waitFor(`/Copy link is not available here/.test(document.querySelector('.pv-toast-host')?.textContent || '')`, 3000), "Copy link says so when the view has no hook");
     await p.eval(`document.querySelector('${acts} [data-act="tools"]').click()`);
