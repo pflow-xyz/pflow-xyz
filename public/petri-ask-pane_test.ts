@@ -10,6 +10,7 @@ import { Registry, createHeadlessHost } from "./petri-commands.js";
 import { readValues } from "./petri-schema-form.js";
 import { applyGate, summarize } from "./petri-problems.js";
 import { loadEngine } from "./petri-wasm.js";
+import { DRAFT_EXAMPLES, applyDraftProposal, gateDraftResult, requestDraft } from "./petri-draft-ui.js";
 
 const gz = await Deno.readFile(new URL("./vendor/pflow-native-wasm/pflow_native_wasm_bg.wasm.gz", import.meta.url));
 await loadEngine({ bytes: new Uint8Array(await new Response(new Blob([gz as BufferSource]).stream().pipeThrough(new DecompressionStream("gzip"))).arrayBuffer()) });
@@ -140,10 +141,17 @@ Deno.test("cardForm: a goal with no form keeps its reason", () => {
     assertEquals(cardForm({ form: { fields: [], noForm: "x" }, missing: [], inputs: {} }).noForm, "x");
 });
 
-Deno.test("availableGoals: the cards the empty state offers are the goals that can run here", () => {
+Deno.test("availableGoals: the cards the empty state offers are the goals that can run here; best_play only for a net that is a game", async () => {
     const ids = availableGoals(catalog).map((g: any) => g.id);
     assert(ids.includes("risk") && ids.includes("stuck"));
     assertFalse(ids.includes("data_match"));
+    const sirModel = createHeadlessHost(sir()).getModel();
+    assertFalse(availableGoals(catalog, sirModel).some((g: any) => g.id === "best_play"), "not a game: no best play");
+    assert(availableGoals(catalog, sirModel).some((g: any) => g.id === "risk"));
+    const ttt = JSON.parse(await Deno.readTextFile(new URL("../parity/native/fixtures/game-tic-tac-toe.jsonld", import.meta.url)).catch(() => "null"));
+    if (ttt) assert(availableGoals(catalog, createHeadlessHost(ttt).getModel()).some((g: any) => g.id === "best_play"), "a game: best play");
+    // the router leaves it out too ("which move is best" on an SIR net)
+    assertFalse(routeCards(catalog, sirModel, "which move wins with best play?").some((c) => c.goal.id === "best_play"));
 });
 
 // ---- a result as a card ----
@@ -409,4 +417,89 @@ Deno.test("notThatText and announcement", async () => {
     const a = announcement({ ...result, warnings: ["ran ODE although sim.recommend says SSA"] });
     assert(a.startsWith(`Result: ${result.goal.question}.`) && a.includes("Engine: SSA.") && a.includes("Warning: ran ODE"), a);
     assertEquals(announcement({ title: "Run ODE" }), "Result: Run ODE.");
+});
+
+// ---- Describe's call, gate and Apply (petri-draft-ui.js), which the pane and the dialog share ----
+
+/** What fetch answers for /api/llm/draft while fn runs. */
+async function withFetch(answer: (url: string, opts: any) => Promise<Response>, fn: () => Promise<void>) {
+    const real = globalThis.fetch;
+    (globalThis as any).fetch = (u: any, o: any) => answer(String(u), o);
+    try { await fn(); } finally { (globalThis as any).fetch = real; }
+}
+const jsonRes = (body: any, status = 200) => new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
+
+Deno.test("requestDraft: the draft comes back; an HTTP failure or a dropped connection is an answer, not an exception", async () => {
+    const view = { _authToken: "tok" };
+    let seen: any = null;
+    await withFetch(async (u, o) => { seen = { u, o }; return jsonRes({ draft: { name: "x" }, remaining_today: 4 }); }, async () => {
+        const got: any = await requestDraft(view, "a coffee shop");
+        assertEquals([got.ok, got.draft.name, got.remaining_today], [true, "x", 4]);
+        assertEquals(seen.u, "/api/llm/draft");
+        assertEquals(seen.o.headers.Authorization, "Bearer tok");
+        assertEquals(JSON.parse(seen.o.body), { description: "a coffee shop" });
+    });
+    await withFetch(async () => jsonRes({ error: "daily limit", retry_after_s: 7200, reset: "2026-11-03T06:30:00Z" }, 429), async () => {
+        const got: any = await requestDraft(view, "x");
+        assertEquals([got.ok, got.status, got.retryAfter, got.reset], [false, 429, 7200, "2026-11-03T06:30:00Z"]);
+        assertEquals(got.error, "daily limit Try again in 2 h.");
+        // and the pane reads it as the quota
+        assertEquals(askState({ enabled: true, chat: true, signed_in: true, remaining_today: 3 }, { error: draftError(got) }).state, "quota");
+    });
+    await withFetch(async () => jsonRes({}, 500), async () => {
+        const got: any = await requestDraft(view, "x");
+        assertEquals([got.ok, got.status, got.error], [false, 500, "The request failed (500)."]);
+    });
+    await withFetch(async () => { throw new TypeError("Failed to fetch"); }, async () => {
+        const got: any = await requestDraft(view, "x");
+        assertEquals([got.ok, got.aborted, got.status, got.error], [false, false, undefined, "The request failed: Failed to fetch"]);
+    });
+    await withFetch(async () => { throw Object.assign(new Error("aborted"), { name: "AbortError" }); }, async () => {
+        assertEquals(((await requestDraft(view, "x")) as any).aborted, true);
+    });
+});
+
+Deno.test("gateDraftResult: a good draft passes the load gate with its net; a bad one is refused and listed", async () => {
+    const good = {
+        name: "Shop", summary: "People queue.", assumptions: ["One at a time."],
+        places: [{ id: "queue", label: "Queue", description: "waiting", initial: 0, capacity: 0 }, { id: "done", label: "Done", description: "served", initial: 0, capacity: 0 }],
+        transitions: [{ id: "arrive", label: "Arrive", description: "arrives", rate: 1 }, { id: "serve", label: "Serve", description: "served", rate: 2 }],
+        arcs: [{ from: "arrive", to: "queue", weight: 1, inhibitor: false }, { from: "queue", to: "serve", weight: 1, inhibitor: false }, { from: "serve", to: "done", weight: 1, inhibitor: false }],
+    };
+    const ok = await gateDraftResult(good);
+    assert(ok.gate.ok, JSON.stringify(ok.gate.errors));
+    assertEquals(Object.keys(ok.gate.net.places), ["queue", "done"]);
+    assertEquals(ok.issuesHtml, "");
+    // the same gate: an id the contract refuses
+    const bad = await gateDraftResult({ ...good, places: [{ ...good.places[0], id: "Bad Id" }, good.places[1]] });
+    assertFalse(bad.gate.ok);
+    assert(bad.issuesHtml.includes("<li><code>") && bad.gate.errors.length > 0);
+    // what the pane puts in the pending card is made from the same draft
+    assertEquals(proposalFromDraft(good).assumptions.filter((a: any) => a.kind === "rate").map((a: any) => [a.transition, a.value]), [["arrive", 1], ["serve", 2]]);
+    assertEquals(DRAFT_EXAMPLES.length, 3);
+});
+
+Deno.test("applyDraftProposal: one undo step (the layout takes the commit's place in the history), the notes kept; nothing pending is false", () => {
+    const history: string[] = ["empty"];
+    const view: any = {
+        _history: history,
+        _applySugiyamaLayout() { history.push("laid out"); },
+        _renderUI() {}, _refit() {}, _syncLD() {},
+    };
+    const chat: any = { applied: 0, apply() { history.push("committed"); this.applied++; return true; } };
+    const notes = { description: "a shop", draft: {}, warnings: [] };
+    assert(applyDraftProposal(view, chat, notes));
+    assertEquals(history, ["empty", "laid out"], "the grid it began as is not a step of its own");
+    assertEquals(view._draftNotes, notes);
+    // a layout that changes nothing adds no step, and nothing is squashed
+    const h2: string[] = ["empty"];
+    const v2: any = { _history: h2, _applySugiyamaLayout() {}, _renderUI() {}, _refit() {}, _syncLD() {} };
+    assert(applyDraftProposal(v2, { apply() { h2.push("committed"); return true; } }, notes));
+    assertEquals(h2, ["empty", "committed"]);
+    // nothing pending: nothing happens
+    const v3: any = { _history: ["empty"], _applySugiyamaLayout() { throw new Error("no layout"); } };
+    assertFalse(applyDraftProposal(v3, { apply: () => false }, notes));
+    assertEquals(v3._draftNotes, undefined);
+    // a view with no history array and no layout (a vendored copy) still applies
+    assert(applyDraftProposal({}, { apply: () => true }, notes));
 });

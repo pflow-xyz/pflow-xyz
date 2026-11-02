@@ -24,7 +24,7 @@
 //   notThatText               the message "Not that" sends again
 //
 // Nothing here asks a model for anything.
-import { assumptionLine, followUpsFor, isTransient, routeWords } from './petri-ask.js';
+import { assumptionLine, followUpsFor, isTransient, looksLikeGame, routeWords } from './petri-ask.js';
 import { inferPlace, missingInputs } from './petri-goals.js';
 import { formModel, goalFormModel } from './petri-schema-form.js';
 import { artifactDigest } from './petri-viewspec.js';
@@ -111,11 +111,24 @@ export function cardForm(card) {
 }
 
 /**
+ * Whether a goal makes sense for this net. The catalogue offers best_play for every net (it has no availability test of its
+ * own); the design (7) offers it only for a game-shaped one, so the cards and the router leave it out for any other.
+ * @param {any} goal
+ * @param {any} model
+ */
+export function fitsNet(goal, model) {
+    return goal?.id !== 'best_play' || looksLikeGame(model);
+}
+
+/**
  * The cards for the person's words (petri-ask.js routeWords, up to three), each with the form of its missing inputs.
+ * A goal that does not fit the net (best_play on a net that is no game) is not one of them.
  * @returns {Array<any>} {goal, inputs, assumed, missing, ready, form: {fields, noForm}}
  */
-export function routeCards(catalog, model, text, o = {}) {
-    return routeWords(catalog, model, text, o).map((card) => ({ ...card, form: cardForm(card) }));
+export function routeCards(catalog, model, text, { limit = 3 } = {}) {
+    // (routeWords is asked for more than `limit`, so that a goal left out does not leave a gap)
+    return routeWords(catalog, model, text, { limit: limit + 2 }).filter((c) => fitsNet(c.goal, model)).slice(0, limit)
+        .map((card) => ({ ...card, form: cardForm(card) }));
 }
 
 /** One goal as a card (the empty state's grid, a follow-up): the places the words name are proposed as assumptions.
@@ -140,12 +153,13 @@ export function goalCard(goal, model, text = '') {
     return { ...card, form: cardForm(card) };
 }
 
-/** The goals the empty state offers as cards: every one that can run here, in the catalogue's order.
+/** The goals the empty state offers as cards: every one that can run here (and fits the net, when it is given), in the catalogue's order.
  * @param {any} catalog
+ * @param {any} [model]
  * @returns {Array<any>}
  */
-export function availableGoals(catalog) {
-    return (catalog?.goals || []).filter((g) => g.available !== false);
+export function availableGoals(catalog, model) {
+    return (catalog?.goals || []).filter((g) => g.available !== false && (!model || fitsNet(g, model)));
 }
 
 // ---- a result as the card shows it ----

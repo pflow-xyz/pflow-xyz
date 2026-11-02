@@ -98,7 +98,7 @@ function firstSentence(text) {
 
 const INPUT_WORDS = {
     agent: 'Ask about the net, or say what to build…',
-    router: 'Say what you want to know; the closest questions run without the assistant…',
+    router: 'Say what you want to know…',
     card: 'Or type your own answer…',
 };
 
@@ -412,8 +412,9 @@ class AskPane {
         setTimeout(() => { sr.textContent = String(text).slice(0, 300); }, 20);
     }
 
+    /** Keep the newest thing in sight: a card, a form opened on one or the router's cards from their top, anything else at the end. The page does not scroll with it. */
     scrolled(el) {
-        if (el && el.classList?.contains('pv-ask-card')) el.scrollIntoView({ block: 'start' });
+        if (el && (el.classList?.contains('pv-ask-card') || el.classList?.contains('pv-ask-edit') || el.classList?.contains('pv-ask-route'))) this.log.scrollTop = Math.max(0, el.offsetTop - this.log.offsetTop - 4);
         else this.log.scrollTop = this.log.scrollHeight;
     }
 
@@ -449,7 +450,7 @@ class AskPane {
             let prompts;
             try { prompts = await suggestPromptsFor(this.live, this.catalog); } catch { prompts = suggestPrompts(model, this.catalog); }
             if (token !== this.emptyToken) return; // a newer repaint
-            const goals = availableGoals(this.catalog);
+            const goals = availableGoals(this.catalog, model);
             box.innerHTML = `<p class="pv-ask-hint">${a.canAsk ? 'Ask about this net in your own words, or start from a question.' : 'Pick a question; it runs on this net without the assistant.'}</p>
                 <div class="pv-ask-suggest" role="group" aria-label="Suggested questions">${prompts.map((p) => `<button type="button" class="pv-btn" data-pane="suggest" data-text="${esc(p.text)}" title="${esc(p.why)}">${esc(p.text)}</button>`).join('')}</div>
                 <div class="pv-ask-label">All the questions</div>
@@ -631,10 +632,10 @@ class AskPane {
         block.innerHTML = cards.length
             ? '<p class="pv-ask-hint">The closest questions I can run without the assistant:</p>'
             : '<p class="pv-ask-hint">No question matches those words. Pick one of these; each runs on this net without the assistant:</p>';
-        const list = cards.length ? cards : availableGoals(this.catalog).map((g) => goalCard(g, model, text));
+        const list = cards.length ? cards : availableGoals(this.catalog, model).map((g) => goalCard(g, model, text));
         for (const card of list) block.appendChild(this.routeCard(card, text));
         this.log.appendChild(block);
-        this.scrolled();
+        this.scrolled(block);
         if (announce) this.announce(`${list.length} question${list.length === 1 ? '' : 's'} to run without the assistant.`);
     }
 
@@ -648,7 +649,7 @@ class AskPane {
         block.setAttribute('aria-label', 'Question');
         block.appendChild(this.routeCard(goalCard(goal, this.view.getModel(), ''), ''));
         this.log.appendChild(block);
-        this.scrolled();
+        this.scrolled(block);
         block.querySelector('select, input, button')?.focus();
     }
 
@@ -908,16 +909,19 @@ class AskPane {
             ...d.arcsAdded.map((x) => `+ arc ${x}`), ...d.arcsRemoved.map((x) => `− arc ${x}`)];
         box.hidden = false;
         box.dataset.worse = worse ? '1' : '';
-        box.innerHTML = `<strong>Pending edits</strong> (not on the net yet)
-            <ul class="pv-ask-diff">${lines.slice(0, 30).map((l) => `<li><code>${esc(l)}</code></li>`).join('')}${lines.length > 30 ? `<li>… ${lines.length - 30} more</li>` : ''}${d.empty ? '<li>no structural change (marking or undo only)</li>' : ''}</ul>
-            ${this.proposalHtml()}
-            ${gate}
-            <div class="pv-ask-problems" role="region" aria-label="Problems found" hidden></div>
+        // The buttons come first: a described net's notes and a long diff are taller than the card, and Apply must not be below the fold.
+        const shown = lines.length;
+        box.innerHTML = `<div class="pv-ask-pending-head"><strong>Pending edits</strong> <span class="pv-result-dim">(not on the net yet)</span></div>
             <div class="pv-ask-acts">
                 <button type="button" class="pv-btn pv-btn-primary" data-act="apply">${worse ? 'Apply anyway' : 'Apply'} (one undo step)</button>
                 <button type="button" class="pv-btn" data-act="discard">Discard</button>
                 ${this.draft ? '<button type="button" class="pv-btn" data-act="regenerate" title="A new draft from the same description (spends one)">Regenerate</button>' : ''}
-            </div>`;
+            </div>
+            <div class="pv-ask-problems" role="region" aria-label="Problems found" hidden></div>
+            ${gate}
+            <details class="pv-ask-diffbox"${shown <= 8 && !this.chat.proposal ? ' open' : ''}><summary>${d.empty ? 'No structural change' : `${shown} change${shown === 1 ? '' : 's'}`}</summary>
+                <ul class="pv-ask-diff">${lines.slice(0, 30).map((l) => `<li><code>${esc(l)}</code></li>`).join('')}${lines.length > 30 ? `<li>… ${lines.length - 30} more</li>` : ''}${d.empty ? '<li>no structural change (marking or undo only)</li>' : ''}</ul></details>
+            ${this.proposalHtml()}`;
         this.wirePending(box);
     }
 

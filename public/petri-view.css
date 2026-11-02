@@ -4248,6 +4248,11 @@ canvas.pv-canvas {
 .pv-ask-goalcard span {
     font-size: 0.85em;
     overflow-wrap: anywhere;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+    overflow: hidden;
 }
 
 /* The router's cards (no model) and the question the model asks */
@@ -4460,6 +4465,22 @@ canvas.pv-canvas {
 .pv-ask-diff {
     margin: 4px 0;
     padding-left: 18px;
+}
+.pv-ask .pv-chat-pending {
+    max-height: 42vh;
+}
+.pv-ask-pending-head {
+    margin-bottom: 2px;
+}
+.pv-ask-pending-head + .pv-ask-acts {
+    margin: 4px 0 6px;
+}
+.pv-ask-diffbox {
+    margin: 4px 0;
+}
+.pv-ask-diffbox > summary {
+    cursor: pointer;
+    color: var(--pv-ink-secondary);
 }
 .pv-ask-proposal {
     margin: 6px 0;

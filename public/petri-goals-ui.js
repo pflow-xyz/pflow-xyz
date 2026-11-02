@@ -2,8 +2,10 @@
 // an LLM (ROADMAP phase 5). Pick a goal (or type it, and the catalog's
 // phrases rank the goals), give any inputs it asks for, see the plan as the
 // commands it will run, run it, and read each result with the answer's shape
-// and its caveat. Works signed out. When the Assistant is on, "Ask the
-// Assistant instead" hands the question to its analyse mode.
+// and its caveat. Works signed out. When the model can be asked, "Ask instead"
+// hands the words to the Ask pane (nothing forced: the server labels them). The
+// same goals are the Ask pane's empty-state cards and its no-model router
+// (petri-chat-ui.js), which land their results in the pane's session list.
 
 function esc(s) {
     return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -31,7 +33,7 @@ export async function openGoals(view) {
             <button type="button" class="pv-dialog-close-icon" data-act="close" title="Close (Esc)">×</button>
         </div>
         <input type="search" class="pv-goals-search" placeholder="In your words, e.g. “can it get stuck?”, “what if I had one more barista?”">
-        ${status.enabled && status.chat ? '<button type="button" class="pv-btn" data-act="ask">Ask the Assistant instead</button>' : ''}
+        ${status.enabled && status.chat ? '<button type="button" class="pv-btn" data-act="ask">Ask in your own words instead</button>' : ''}
         <div class="pv-goals-list"></div>
         <div class="pv-goals-detail"></div>
         <div class="pv-structure-status" aria-live="polite"></div>
@@ -47,8 +49,8 @@ export async function openGoals(view) {
     $('[data-act="ask"]')?.addEventListener('click', async () => {
         const q = $('.pv-goals-search').value.trim();
         close();
-        // The question goes straight in: the person already chose to ask. The conversation they had stays.
-        return view._openChat({ mode: 'analyse', message: q || undefined });
+        // The words go straight in: the person already chose to ask. The conversation they had stays.
+        return view._openChat({ mode: 'auto', message: q || undefined });
     });
 
     const inputHtml = (i) => {
@@ -142,7 +144,7 @@ export async function openGoals(view) {
 
     const list = (goals) => {
         $('.pv-goals-list').innerHTML = goals.map((g) => `<button type="button" class="pv-btn pv-goals-item${g.available === false ? ' pv-goals-off' : ''}" data-goal="${esc(g.id)}">${esc(g.question)}</button>`).join('')
-            || `<p class="pv-result-dim">No goal matches those words; try fewer, or pick from the full list (clear the box).${status.enabled && status.chat ? ' Or use “Ask the Assistant instead”, which reads the question in full.' : ''}</p>`;
+            || `<p class="pv-result-dim">No goal matches those words; try fewer, or pick from the full list (clear the box).${status.enabled && status.chat ? ' Or use “Ask in your own words instead”, which reads the question in full.' : ''}</p>`;
         dialog.querySelectorAll('[data-goal]').forEach((b) => b.addEventListener('click', () => showGoal(catalog.goals.find((g) => g.id === b.dataset.goal))));
     };
     list(catalog.goals);
