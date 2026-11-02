@@ -11,11 +11,18 @@
 // Wording rule: the gate's verdicts are labelled "Check"; the summary and
 // assumptions are labelled "Gemini's draft notes". No LLM output is presented
 // as an engine result.
+//
+// The Ask pane (petri-chat-ui.js) folds Describe into its build flow and uses three
+// of the functions below without the dialog: requestDraft (the call to /api/llm/draft),
+// gateDraftResult (the load gate) and applyDraftProposal (the Apply that keeps the
+// layout and the notes). The dialog uses the same two first, so there is one call and
+// one gate.
 
 const DRAFT_KEY = 'pflow_draft_description';
 const MAX = 2000;
 
-const EXAMPLES = [
+/** The examples the Describe dialog offers (and the Ask pane offers on an empty canvas): [title, description]. */
+export const DRAFT_EXAMPLES = [
     ['Coffee shop', 'A coffee shop with two baristas. Customers arrive, queue, order, and leave once served or after waiting too long.'],
     ['Order pipeline', 'Online orders are placed, paid, packed and shipped. A fraud hold stops an order from being packed until it is cleared.'],
     ['Epidemic', 'An SIR epidemic in a town of 1000 people: susceptible people catch it from infected people, and infected people recover with immunity.'],
@@ -84,7 +91,7 @@ export async function openDraftDialog(view, { description } = {}) {
             <span class="pv-draft-count"></span>
             <span class="pv-draft-quota">${status.remaining_today ?? '?'} draft${status.remaining_today === 1 ? '' : 's'} left today</span>
         </div>
-        <div class="pv-draft-examples">Try: ${EXAMPLES.map(([t], i) => `<button type="button" class="pv-btn pv-draft-example" data-ex="${i}">${esc(t)}</button>`).join(' ')}</div>
+        <div class="pv-draft-examples">Try: ${DRAFT_EXAMPLES.map(([t], i) => `<button type="button" class="pv-btn pv-draft-example" data-ex="${i}">${esc(t)}</button>`).join(' ')}</div>
         ${replacing ? '<p class="pv-draft-note">This replaces the current net. Undo brings it back. <button type="button" class="pv-btn" data-act="download">Download it first</button></p>' : ''}
         <div class="pv-draft-progress" aria-live="polite"></div>
         <div class="pv-draft-result"></div>
@@ -99,7 +106,7 @@ export async function openDraftDialog(view, { description } = {}) {
     text.addEventListener('input', count);
     count();
     dialog.querySelectorAll('.pv-draft-example').forEach((b) => b.addEventListener('click', () => {
-        text.value = EXAMPLES[+b.dataset.ex][1];
+        text.value = DRAFT_EXAMPLES[+b.dataset.ex][1];
         count();
     }));
     $('[data-act="download"]')?.addEventListener('click', () => view.downloadJSON());
@@ -118,35 +125,21 @@ export async function openDraftDialog(view, { description } = {}) {
         $('.pv-draft-result').innerHTML = '';
         controller = new AbortController();
         progress('Asking Gemini…');
-        let body;
-        try {
-            const res = await fetch('/api/llm/draft', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${view._authToken}` },
-                body: JSON.stringify({ description: desc }),
-                signal: controller.signal,
-            });
-            body = await res.json().catch(() => ({}));
-            if (!res.ok) {
-                const wait = res.status === 429 && body.retry_after_s ? ` Try again in ${body.retry_after_s < 120 ? `${body.retry_after_s} s` : `${Math.round(body.retry_after_s / 3600)} h`}.` : '';
-                progress(`${body.error || `The request failed (${res.status}).`}${wait}`);
-                gen.disabled = false;
-                return;
-            }
-        } catch (e) {
-            if (e.name !== 'AbortError') progress(`The request failed: ${e.message}`);
+        const got = await requestDraft(view, desc, { signal: controller.signal });
+        if (!got.ok) {
+            if (!got.aborted) progress(got.error);
             gen.disabled = false;
             return;
         }
+        const body = got;
         $('.pv-draft-quota').textContent = `${body.remaining_today} draft${body.remaining_today === 1 ? '' : 's'} left today`;
         progress('Checking the draft…');
-        const { gateDraft, formatIssueList } = await loadGate();
-        const gate = await gateDraft(body.draft);
+        const { gate, issuesHtml } = await gateDraftResult(body.draft);
         if (!gate.ok) {
             progress('');
             $('.pv-draft-result').innerHTML = `
                 <h3>Check: the draft was not loaded (${gate.errors.length} problem${gate.errors.length === 1 ? '' : 's'})</h3>
-                ${formatIssueList(gate.errors)}
+                ${issuesHtml}
                 <details><summary>Show raw reply</summary><pre class="pv-result-json">${esc(JSON.stringify(body.draft, null, 2))}</pre></details>
                 <p>Try again spends another draft; or edit the description first.</p>`;
             gen.textContent = 'Try again';
@@ -157,6 +150,66 @@ export async function openDraftDialog(view, { description } = {}) {
         loadDraft(view, desc, body.draft, gate);
     });
     text.focus();
+}
+
+/**
+ * Ask /api/llm/draft for a draft net. An HTTP failure or a dropped connection is an answer, not an exception:
+ * {ok: false, error (the words to show), status?, retryAfter?, reset?, aborted?}. The caller gates the draft
+ * (gateDraftResult) before anything of it touches a net.
+ * @param {any} view  the <petri-view> (its sign-in token)
+ * @param {string} description
+ * @param {{signal?: AbortSignal}} [o]
+ * @returns {Promise<{ok: true, draft: any, remaining_today?: number} | {ok: false, error: string, status?: number, retryAfter?: number, reset?: string, aborted?: boolean}>}
+ */
+export async function requestDraft(view, description, { signal } = {}) {
+    let res, body;
+    try {
+        res = await fetch('/api/llm/draft', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${view._authToken}` },
+            body: JSON.stringify({ description }),
+            signal,
+        });
+        body = await res.json().catch(() => ({}));
+    } catch (e) {
+        return { ok: false, aborted: e.name === 'AbortError', error: `The request failed: ${e.message}` };
+    }
+    if (!res.ok) {
+        const wait = res.status === 429 && body.retry_after_s ? ` Try again in ${body.retry_after_s < 120 ? `${body.retry_after_s} s` : `${Math.round(body.retry_after_s / 3600)} h`}.` : '';
+        return { ok: false, status: res.status, retryAfter: body.retry_after_s, reset: body.reset, error: `${body.error || `The request failed (${res.status}).`}${wait}` };
+    }
+    return { ok: true, draft: body.draft, remaining_today: body.remaining_today };
+}
+
+/**
+ * The load gate on a draft (petri-draft.js gateDraft: the draft contract, the conversion, the editor's strict check, the
+ * engine smoke checks), and the list of what failed as markup when it does not pass. Nothing of an unchecked draft goes on.
+ */
+export async function gateDraftResult(draft) {
+    const { gateDraft, formatIssueList } = await loadGate();
+    const gate = await gateDraft(draft);
+    return { gate, issuesHtml: gate.ok ? '' : formatIssueList(gate.errors) };
+}
+
+/**
+ * Apply a described net the Ask pane holds as its pending change (ChatSession.proposeNet), the way the Describe dialog
+ * puts one on the canvas: Sugiyama layout, framed, and its notes kept for the Draft notes panel. The commit is one undo
+ * step, and the layout is not a second one: the history keeps the laid-out net in place of the grid it began as.
+ * @param {any} view
+ * @param {{apply: () => boolean}} chat
+ * @param {{description: string, draft: any, warnings: Array}} notes  what showDraftNotes reads (view._draftNotes)
+ * @returns {boolean} whether anything was applied
+ */
+export function applyDraftProposal(view, chat, notes) {
+    const before = Array.isArray(view._history) ? view._history.length : null;
+    if (!chat.apply()) return false;
+    view._applySugiyamaLayout?.();
+    view._renderUI?.();
+    view._refit?.();
+    view._syncLD?.();
+    if (before !== null && Array.isArray(view._history) && view._history.length === before + 2) view._history.splice(before, 1);
+    view._draftNotes = notes;
+    return true;
 }
 
 let gateModule = null;

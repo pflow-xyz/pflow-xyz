@@ -1126,15 +1126,15 @@ export class ChatSession {
     }
 
     /**
-     * "Not what I meant": the last message again under another intent. The conversation and the sandbox go back to
-     * where that message found them (its replies, tool calls and edits are dropped), the intent is forced, and the
-     * message is sent. Costs the model calls any message does.
-     * @param {'build'|'analyse'|'explain'|'design'} mode
+     * Take the last message back: the conversation and the sandbox go back to where that message found them (its replies,
+     * tool calls and edits are dropped, a question card waiting for it is withdrawn). For a send that failed (the
+     * message would otherwise stay in the conversation with no reply, and a second send would put it there twice), and
+     * the first half of resend.
+     * @returns {string} the message's text
      */
-    async resend(mode, onEvent = () => {}) {
+    rewind() {
         const t = this._turn;
-        if (!t.text) throw new Error('there is no message to resend');
-        this.force(mode);
+        if (!t.text) throw new Error('there is no message to take back');
         this._ask = null;
         this._decided = [];
         this.messages.length = t.messagesLen;
@@ -1144,7 +1144,19 @@ export class ChatSession {
         this.pending = t.pending;
         this.proposal = t.proposal;
         this.step = t.step;
-        return this.send(t.text, onEvent);
+        t.open = false;
+        return t.text;
+    }
+
+    /**
+     * "Not what I meant": the last message again under another intent. It is taken back (rewind), the intent is forced,
+     * and the message is sent. Costs the model calls any message does.
+     * @param {'build'|'analyse'|'explain'|'design'} mode
+     */
+    async resend(mode, onEvent = () => {}) {
+        if (!this._turn.text) throw new Error('there is no message to resend');
+        this.force(mode);
+        return this.send(this.rewind(), onEvent);
     }
 
     /**
