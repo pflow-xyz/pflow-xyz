@@ -5,7 +5,8 @@
 //                    against the registry and the replay allowlist, and replayed on a SANDBOX (petri-viewspec.js
 //                    replayInWorker: a Worker, so a hostile link cannot freeze the tab). Nothing here can reach a model:
 //                    this module calls no /api/llm route (its one request is GET /health, for the build revision in
-//                    appRevision), and scripts/links-smoke.ts asserts that no model route is called while a link opens.
+//                    appRevision, which gives up after HEALTH_TIMEOUT_MS and which the replay does not wait for), and
+//                    scripts/links-smoke.ts asserts that no model route is called while a link opens.
 //   buildShareLink   a provenance record in, the link that reproduces it out: /?cid=<net>#view= when the net is saved,
 //                    /?data=<permalink>#view= when it is small enough to travel in the link, else "Save to get a link".
 //                    The expect digests come from a replay of the record's calls, so they are exactly what whoever opens
@@ -59,12 +60,21 @@ function goalFor(spec, goals) {
     return g ? { id: g.id, question: g.question, caveat: g.caveat } : null;
 }
 
-/** How the engine now differs from the one that made the view, in a sentence. */
-export function engineSentence(made, now) {
+/**
+ * How the engine now differs from the one that made the view, in a sentence.
+ * `netSaved` is true when the net is a saved CID (immutable, so the net cannot be what changed); a net that travels in
+ * the link may not be the one the view was made on (the link was edited, or the person edited the net after it opened
+ * and shared the address bar), so the sentence says so rather than blame the engine alone.
+ */
+export function engineSentence(made, now, { netSaved = true } = {}) {
     const m = made ? `${made.registry}${made.app && made.app !== 'unknown' ? `, app ${made.app}` : ''}` : 'an engine the link does not name';
     const n = `${now.registry}${now.app && now.app !== 'unknown' ? `, app ${now.app}` : ''}`;
-    if (made && made.registry === now.registry && made.app === now.app) return `Both ran ${n}; the same engine now gives another answer.`;
-    return `The view was made with ${m}; this app runs ${n}.`;
+    if (made && made.registry === now.registry && made.app === now.app) {
+        return netSaved
+            ? `Both ran ${n}; the same engine now gives another answer.`
+            : `Both ran ${n}, so either the engine now gives another answer or the net carried in the link is not the net the view was made on.`;
+    }
+    return `The view was made with ${m}; this app runs ${n}.${netSaved ? '' : ' The net travels in the link, so it may also differ from the net the view was made on.'}`;
 }
 
 /**
@@ -73,9 +83,10 @@ export function engineSentence(made, now) {
  * @param {Object} spec
  * @param {Object} run a replay result
  * @param {{registry: string, app: string}} now this build's versions
+ * @param {{netSaved?: boolean}} [o] netSaved: false when the net travels in the link (see engineSentence)
  * @returns {{status: string, chips: Array<{id: string, text: string, tone?: string}>, warnings: string[]}}
  */
-export function statusesOf(spec, run, now) {
+export function statusesOf(spec, run, now, { netSaved = true } = {}) {
     const chips = [];
     const warnings = [];
     const expected = Array.isArray(spec?.expect?.artifacts) ? spec.expect.artifacts : [];
@@ -108,7 +119,7 @@ export function statusesOf(spec, run, now) {
         bad.push('differs');
         chips.push({ id: 'differs', text: STATUS.differs, tone: 'warn' });
         const rows = drift.differed.map((d) => `result ${d.index + 1}${d.title ? ` (${d.title})` : ''}: saved ${shortDigest(d.expected)}, now ${shortDigest(d.actual)}`);
-        warnings.push(`${STATUS.differs}. ${engineSentence(spec?.engine ?? null, now)} ${rows.join('; ')}. What is shown is the result now, not the saved one.`);
+        warnings.push(`${STATUS.differs}. ${engineSentence(spec?.engine ?? null, now, { netSaved })} ${rows.join('; ')}. What is shown is the result now, not the saved one.`);
     }
     if (!bad.length) {
         if (expected.length && drift.matched.length === expected.length && run.artifacts?.length === expected.length) chips.push({ id: 'reproduced', text: STATUS.reproduced, tone: 'ok' });
@@ -117,7 +128,7 @@ export function statusesOf(spec, run, now) {
             // fewer or more results than the link remembers, with no step failing: say so rather than claim a match
             chips.push({ id: 'differs', text: STATUS.differs, tone: 'warn' });
             bad.push('differs');
-            warnings.push(`${STATUS.differs}. The link remembers ${expected.length} result${expected.length === 1 ? '' : 's'}; it gave ${run.artifacts?.length ?? 0}. ${engineSentence(spec?.engine ?? null, now)}`);
+            warnings.push(`${STATUS.differs}. The link remembers ${expected.length} result${expected.length === 1 ? '' : 's'}; it gave ${run.artifacts?.length ?? 0}. ${engineSentence(spec?.engine ?? null, now, { netSaved })}`);
         }
     }
     const status = bad[0] || chips[chips.length - 1]?.id || 'ran';
@@ -154,6 +165,20 @@ export async function engineNotes(calls, registry) {
     }
 }
 
+/** How long an opening waits for this build's version before it goes on without the app revision. */
+export const VERSIONS_WAIT_MS = 3000;
+
+// This build's versions, or the defaults once `ms` has passed: asking /health must never hold a link open. Never rejects.
+async function versionsWithin(getVersions, ms) {
+    let timer;
+    const late = new Promise((resolve) => { timer = setTimeout(() => resolve(defaultVersions()), ms); });
+    try {
+        return await Promise.race([Promise.resolve().then(getVersions).catch(() => defaultVersions()), late]);
+    } finally {
+        clearTimeout(timer);
+    }
+}
+
 /**
  * Open the view in a location, with no model call. Returns what to show:
  *   {kind: 'none'}               no #view= (a compose hash, or nothing): the page opens as it always has
@@ -165,21 +190,30 @@ export async function engineNotes(calls, registry) {
  * @param {{search?: string, hash?: string}} o.location
  * @param {Object} o.model the net the editor holds (the sandbox is a copy of it)
  * @param {string|null} [o.netCid] the CID the editor loaded the net from (null: it came from ?data= or elsewhere)
+ * @param {'data'|'cid'|string} [o.netSource] where the editor got the net it holds: 'data' (the ?data= permalink decoded), 'cid'
+ *   (fetched from ?cid=) or anything else (neither: a ?data= that did not decode leaves the editor on the ?cid= net, a saved
+ *   draft or the default one). A link whose net travels in ?data= is replayed only on a net that did come from it. Omitted:
+ *   the caller vouches for the net (unit tests).
  * @param {Object} [o.registry] a registry, to tell commands it has from those it lacks (list() only)
  * @param {Function} [o.replay] (spec, model, opts) => Promise<replay result>; default replayInWorker
- * @param {() => Promise<{registry: string, app: string}>} [o.getVersions] this build's versions
+ * @param {() => Promise<{registry: string, app: string}>} [o.getVersions] this build's versions; asked in parallel with the
+ *   replay (the replay does not depend on it) and waited for at most `versionsWaitMs`, after which the app revision reads unknown
  * @param {Object|null} [o.goals] the goal catalog, for the view's question
  * @param {(calls: Array, registry: Object) => Promise<Array<{command: string, message: string}>>} [o.guardNotes] default engineNotes
+ * @param {number} [o.versionsWaitMs]
  */
-export async function openLinkedView({ location, model, netCid = null, registry, replay = replayInWorker, getVersions = async () => defaultVersions(), goals = null, guardNotes = engineNotes } = {}) {
+export async function openLinkedView({ location, model, netCid = null, netSource, registry, replay = replayInWorker, getVersions = async () => defaultVersions(), goals = null, guardNotes = engineNotes, versionsWaitMs = VERSIONS_WAIT_MS } = {}) {
     try {
         const loc = parseLocation(location || {});
         if (!loc.viewPayload) return { kind: 'none' };
         const aloneTail = 'the net is open on its own.';
         // Which net the view belongs to. ?data= wins over ?cid= in the editor's loader, so it does here: a net that
-        // travels in the link has no CID to name. A ?cid= the editor could not load (netCid is not it) leaves the
-        // editor on some other net, and a view must never be replayed on that.
-        if (!loc.data) {
+        // travels in the link has no CID to name. A ?data= the editor could not decode (cut off, damaged) leaves it on
+        // the ?cid= net or on some other net altogether, and a ?cid= it could not load (netCid is not it) does the same:
+        // a view must never be replayed on a net the link does not carry or name.
+        if (loc.data) {
+            if (netSource !== undefined && netSource !== 'data') return { kind: 'notice', text: `This link's net could not be read (the data it carries is cut off or damaged), so its view was not run; ${aloneTail}` };
+        } else {
             if (!loc.cid) return { kind: 'notice', text: `This link names no net, so its view was not run; ${aloneTail}` };
             if (netCid !== loc.cid) return { kind: 'notice', text: `This link's net could not be loaded (it may have been removed by its author), so its view was not run; ${aloneTail}` };
         }
@@ -191,14 +225,16 @@ export async function openLinkedView({ location, model, netCid = null, registry,
         const check = validateViewSpec(spec, registry, { model });
         if (check.errors.length) return { kind: 'notice', text: `This link's view could not be used (${check.errors[0]}); ${aloneTail}` };
 
-        const now = await getVersions();
+        const versionsP = versionsWithin(getVersions, versionsWaitMs); // not awaited until the replay is done
         const goal = goalFor(spec, goals);
         const title = goal ? goal.question : `View: ${spec.view}`;
         const base = { source: 'link', goal: goal ? { id: goal.id, question: goal.question } : null, answer: null, stale: false };
         const netChip = net ? { id: 'saved', text: STATUS.saved } : { id: 'carried', text: STATUS.carried };
         const netLine = net
             ? 'This is a saved version of the net. Edit from here: the net is open in the editor, and saving makes a new net; this link keeps opening this one.'
-            : 'The net travels inside this link. Edit from here: it is open in the editor; saving gives a link that does not carry it.';
+            : loc.cid
+                ? `This link names a saved net (${shortCid(loc.cid)}) and also carries a copy of it, which may have been edited: the view ran on the copy. Edit from here: it is open in the editor; saving gives a link that does not carry it.`
+                : 'The net travels inside this link. Edit from here: it is open in the editor; saving gives a link that does not carry it.';
 
         if (check.refused.length) {
             // Nothing runs: a link that asks for an edit is refused whole, whatever else is in it, and its note is not shown.
@@ -211,11 +247,13 @@ export async function openLinkedView({ location, model, netCid = null, registry,
             };
         }
 
-        const run = await replay(spec, model, { versions: now });
+        // The replay does not use the app revision (it only stamps the result it reports), so it does not wait for it.
+        const run = await replay(spec, model, { versions: defaultVersions() });
         if (!run.steps?.length && (run.errors || []).length && !run.timedOut) {
             return { kind: 'notice', text: `This link's view could not be run (${run.errors[0]}); ${aloneTail}` };
         }
-        const st = statusesOf(spec, run, now);
+        const now = await versionsP;
+        const st = statusesOf(spec, run, now, { netSaved: !!net });
         const notes = await guardNotes(spec.calls, sandboxRegistry(model));
         for (const n of notes) st.warnings.push(`engine caution: ${n.message}.`);
         const sourceOf = new Map();
@@ -304,19 +342,33 @@ export async function buildShareLink({ record, model, cid = null, origin = '', r
     }
 }
 
+/** How long appRevision waits for /health: a server that accepts the connection and never answers must not hold anything up. */
+export const HEALTH_TIMEOUT_MS = 2500;
+
 /**
  * The build revision /health reports (X-Build-Revision), or 'unknown': what
- * `app` in a spec's engine means. Never throws; a server without the header,
- * a network failure and a refusal all read as unknown.
+ * `app` in a spec's engine means. Never throws and never waits past
+ * `timeoutMs`; a server without the header, a network failure, a refusal and a
+ * request that never answers all read as unknown (the caller should not
+ * remember an 'unknown' as the answer, since it may be only a bad moment).
  * @param {typeof fetch} [fetchImpl]
+ * @param {{timeoutMs?: number}} [o]
  */
-export async function appRevision(fetchImpl = globalThis.fetch) {
+export async function appRevision(fetchImpl = globalThis.fetch, { timeoutMs = HEALTH_TIMEOUT_MS } = {}) {
+    let timer;
     try {
-        const r = await fetchImpl('/health', { method: 'GET', cache: 'no-store' });
-        const rev = r?.headers?.get?.('X-Build-Revision');
-        return rev ? String(rev).slice(0, 12) : 'unknown';
+        const ctl = typeof AbortController === 'function' ? new AbortController() : null;
+        const late = new Promise((resolve) => { timer = setTimeout(() => { try { ctl?.abort(); } catch { /* nothing to abort */ } resolve('unknown'); }, timeoutMs); });
+        const ask = (async () => {
+            const r = await fetchImpl('/health', { method: 'GET', cache: 'no-store', ...(ctl ? { signal: ctl.signal } : {}) });
+            const rev = r?.headers?.get?.('X-Build-Revision');
+            return rev ? String(rev).slice(0, 12) : 'unknown';
+        })().catch(() => 'unknown');
+        return await Promise.race([ask, late]);
     } catch {
         return 'unknown';
+    } finally {
+        clearTimeout(timer);
     }
 }
 

@@ -9,8 +9,11 @@
 // is the one a bare ?cid= link opens); a command this app lacks is "not reproducible here" with the note and the calls
 // kept; a call that fails is "partial"; a garbage, oversized, too-new or net-less link is one line and the net alone;
 // /?cid= and /?data= without a hash are unchanged; Copy link makes a link that reproduces the view in a fresh page (the
-// saved form, the unsaved form, "Save to get a link" and "Save and copy link"); the Share dialog offers "Share this view"
-// only while a result is open and always says what a CID grants.
+// saved form, the unsaved form, "Save to get a link" and "Save and copy link"); the Share dialog, reached through the menu
+// once the result's pane is closed (the pane covers the menu), offers "Share this view" for the last result shown, holds
+// Copy while the view's link is made, unchecks the box when the view has no link, and always says what a CID grants; a
+// /health that never answers delays nothing for long; a ?data= that does not decode is never replayed on another net; and
+// editing a net opened from a link takes the #view= out of the address bar.
 //
 // It never signs in to GitHub and never reaches a model: /o/<cid> is answered in the page from examples/landing (the
 // scratch server has none of these nets stored), /api/llm/status says the chat is off, /auth/user and /api/save are
@@ -95,15 +98,20 @@ const BEFORE = (o: { signedIn?: boolean } = {}) => `
 const problemsOf = (p: any) => p.problems.filter((x: string) => !/\/img\/z\w+\.svg/.test(x) && !/\/\?cid=/.test(x));
 
 // Hold every model route at the browser: nothing may reach the network (the page's own fetch answers /api/llm/status).
-async function open(href: string, o: { width?: number; height?: number; signedIn?: boolean; phone?: boolean } = {}) {
-  const { width = 1280, height = 800, signedIn = false, phone = false } = o;
-  const p = await newPage(width, height);
+async function open(href: string, o: { width?: number; height?: number; signedIn?: boolean; phone?: boolean; stallHealth?: boolean } = {}) {
+  const { width = 1280, height = 800, signedIn = false, phone = false, stallHealth = false } = o;
+  const p: any = await newPage(width, height);
   if (phone) {
     await p.send("Emulation.setDeviceMetricsOverride", { width, height, deviceScaleFactor: 2, mobile: true });
     await p.send("Emulation.setTouchEmulationEnabled", { enabled: true });
   }
   await p.send("Page.addScriptToEvaluateOnNewDocument", { source: CLEAN + BEFORE({ signedIn }) });
-  await p.hold(["*/api/llm/*"]);
+  p.stalled = [];
+  if (stallHealth) {
+    // a server that takes the connection and never answers /health: those requests are held for good, the model routes as ever
+    p.onPaused = (r: any) => { if (/\/health(\?|$)/.test(r.request.url)) p.stalled.push(r.requestId); else p.paused.push(r.requestId); };
+    await p.hold(["*/api/llm/*", "*/health"]);
+  } else await p.hold(["*/api/llm/*"]);
   await p.goto(href);
   return p;
 }
@@ -473,17 +481,48 @@ const unsavedResult = `(async () => {
 
 // ---- 5. the Share dialog --------------------------------------------------------------------------------------------------
 
+const centre = (p: any, sel: string) => p.eval(`(() => { const e = document.querySelector(${q(sel)}); if (!e) return null; e.scrollIntoView({ block: 'center' }); const r = e.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; })()`);
+const topmost = (p: any, x: number, y: number) => p.eval(`(() => { const e = document.elementFromPoint(${x}, ${y}); return e ? (e.className || e.tagName) : null; })()`);
+
+// The way a person gets there. The result's pane is a full-screen overlay that covers the menu, so the Share dialog is reached
+// once the pane is closed, and it still offers the view of the result that was just closed.
 {
-  const p = await open(await linkTo(coffee.spec));
+  const p = await open(await linkTo(coffee.spec), { signedIn: true });
   ok(await settled(p), "share: a view is open");
-  await p.eval(`document.querySelector('petri-view')._showShareDialog()`);
-  ok(await p.waitFor(`!!document.querySelector('[data-share-view-check]')`, 10000), "share, with a result open: 'Share this view' is offered");
-  ok(await p.eval(`document.querySelector('[data-share-view-check]').checked`), "share: and is on by default");
+  ok(await p.waitFor(`!!document.querySelector('petri-view')._user`, 15000), "share: signed in (the menu offers Share to a signed-in person)");
+  const pt = await centre(p, ".pv-hamburger-btn");
+  ok(pt, "share: the menu button is there");
+  ok(String(await topmost(p, pt[0], pt[1])).includes("pv-modal-overlay"), "share: while the result is open its pane covers the menu button (so it is reached after the pane is closed)", String(await topmost(p, pt[0], pt[1])));
+  await p.eval(`document.querySelector('.pv-result-dialog [data-act="close"]').click()`);
+  ok(!(await p.eval(`!!document.querySelector('.pv-result-dialog')`)), "share: the result is closed");
+  same(await topmost(p, pt[0], pt[1]) === "pv-modal-overlay", false, "share: and the menu button can be clicked");
+  await p.click(pt[0], pt[1]);
+  ok(await p.waitFor(`getComputedStyle(document.querySelector('.pv-hamburger-overlay')).display !== 'none'`, 5000), "share: the menu opens");
+  const item = await p.eval(`(() => { const e = [...document.querySelectorAll('.pv-hamburger-overlay .pv-menu-item')].find((x) => /Share/.test(x.textContent)); if (!e) return null; e.scrollIntoView({ block: 'nearest' }); const r = e.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; })()`);
+  ok(item, "share: the menu has a Share item");
+  // the first state the dialog is drawn in, before the view's link is ready (a MutationObserver sees it before any later work runs)
+  await p.eval(`(() => {
+    window.__shareFirst = null;
+    new MutationObserver(() => {
+      const c = document.querySelector('[data-share-copy]');
+      if (c && !window.__shareFirst) window.__shareFirst = { disabled: c.disabled, text: c.textContent, state: document.querySelector('[data-share-view-state]')?.dataset.shareViewState ?? null, checked: document.querySelector('[data-share-view-check]')?.checked, checkDisabled: document.querySelector('[data-share-view-check]')?.disabled, md: document.querySelector('.pv-share-textarea').value };
+    }).observe(document.body, { childList: true, subtree: true });
+  })()`);
+  await p.click(item[0], item[1]);
+  ok(await p.waitFor(`!!document.querySelector('[data-share-view-check]')`, 10000), "share, via the menu after the result was closed: 'Share this view' is offered");
+  const first = await p.eval(`window.__shareFirst`);
+  same([first?.state, first?.disabled, first?.checkDisabled], ["preparing", true, true], "share: while the view's link is made, the box is held and Copy waits (it would hand out the net's link as the view's)");
+  ok(first?.text?.includes("Preparing"), "share: and Copy says why", String(first?.text));
+  ok(first && !first.md.includes("#view="), "share: and the snippet is the net's link meanwhile", String(first?.md));
   ok(await p.waitFor(`document.querySelector('[data-share-view-link]')?.value.includes('#view=')`, 60000), "share: the view link is filled in");
+  same(await p.eval(`[document.querySelector('[data-share-view-state]').dataset.shareViewState, document.querySelector('[data-share-copy]').disabled, document.querySelector('[data-share-copy]').textContent, document.querySelector('[data-share-view-check]').disabled]`), ["ready", false, "Copy to Clipboard", false], "share: ready: the box and Copy are released");
+  ok(await p.eval(`document.querySelector('[data-share-view-check]').checked`), "share: the box is on by default (the net has not changed)");
   const links = await p.eval(`({ view: document.querySelector('[data-share-view-link]').value, net: document.querySelector('[data-share-net-link]').value, md: document.querySelector('.pv-share-textarea').value })`);
   ok(links.net.endsWith(`/?cid=${coffee.cid}`) && !links.net.includes("#"), "share: the net-only link sits beside it", links.net);
   ok(links.view.startsWith(links.net) && links.view.includes("#view="), "share: the view link is the net's link plus the view", links.view.slice(0, 100));
   ok(links.md.includes("#view="), "share: the markdown snippet points at the view while the box is on");
+  await p.eval(`document.querySelector('[data-share-copy]').click()`);
+  ok(await p.waitFor(`window.__clip.length > 0`, 5000) && (await p.eval(`window.__clip.at(-1)`)).includes("#view="), "share: Copy copies the snippet with the view's link");
   const privacy = await p.eval(`document.querySelector('[data-share-privacy]').textContent`);
   ok(/possessing the net.s ID/.test(privacy) && /only check/.test(privacy) && /deleting the net breaks the link/.test(privacy), "share: it says possession of the ID is the only check, and implies no more", privacy);
   ok(!/secure|protected|access control|permission/i.test(privacy), "share: and claims no protection it does not have", privacy);
@@ -491,15 +530,104 @@ const unsavedResult = `(async () => {
   await p.eval(`(() => { const c = document.querySelector('[data-share-view-check]'); c.checked = false; c.dispatchEvent(new Event('change')); })()`);
   const md = await p.eval(`document.querySelector('.pv-share-textarea').value`);
   ok(!md.includes("#view=") && md.includes(`/?cid=${coffee.cid})`), "share: with the box off the snippet points at the net alone", md);
+  same(await p.eval(`document.querySelector('[data-share-copy]').disabled`), false, "share: and Copy is not held (the net's link is what was asked for)");
+  same(problemsOf(p), [], "share: no page errors");
+  await p.close();
+}
+// A view that has no link (it asks for an edit): the box cannot be on, the snippet is the net's and says so, nothing is held.
+{
+  const p = await open(hrefTo(`?cid=${coffee.cid}`));
+  await editorUp(p);
+  await p.eval(`(async () => {
+    const el = document.querySelector('petri-view');
+    const P = await import('/petri-provenance.js');
+    const rec = P.recordFromCall({ command: 'edit.delete', args: { id: 'CoffeeBeans' } }, { net: { revision: 0 } });
+    await el._showResult({ title: 'An edit', source: 'palette', goal: null, record: rec, artifacts: [], registry: await el.commands(), warnings: [] });
+    document.querySelector('.pv-result-dialog [data-act="close"]').click();
+    await el._showShareDialog();
+  })()`);
+  ok(await p.waitFor(`document.querySelector('[data-share-view-state]')?.dataset.shareViewState === 'unavailable'`, 60000), "share, a view with no link: the dialog says there is none");
+  same(await p.eval(`[document.querySelector('[data-share-view-check]').checked, document.querySelector('[data-share-view-check]').disabled, document.querySelector('[data-share-copy]').disabled]`), [false, true, false], "share, no link: the box is off and cannot be turned on; Copy gives the net's link");
+  const st = await p.eval(`document.querySelector('[data-share-view-state]').textContent`);
+  ok(/no link/i.test(st) && /net alone/.test(st), "share, no link: it says why, and that the snippet is the net alone", st);
+  ok(!(await p.eval(`document.querySelector('.pv-share-textarea').value`)).includes("#view="), "share, no link: the snippet has no view in it");
+  await p.close();
+}
+// The net is not the net the result was made on: the box starts off, and says what the link would show.
+{
+  const p = await open(await linkTo(coffee.spec));
+  ok(await settled(p), "share, after an edit: a view is open");
+  await p.eval(`document.querySelector('.pv-result-dialog [data-act="close"]').click()`);
+  await p.eval(`document.querySelector('petri-view').execute('net.add_place', { x: 10, y: 20 })`);
+  await p.eval(`document.querySelector('petri-view')._showShareDialog()`);
+  ok(await p.waitFor(`!!document.querySelector('[data-share-view-check]')`, 10000), "share, after an edit: 'Share this view' is still offered");
+  same(await p.eval(`document.querySelector('[data-share-view-check]').checked`), false, "share, after an edit: but the box starts off");
+  ok((await p.eval(`document.querySelector('[data-share-view-check]').closest('[data-share-view]').textContent`)).includes("net has changed since this result was made"), "share, after an edit: and says the link shows the view on the net as it is now");
   await p.close();
 }
 {
   const p = await open(hrefTo(`?cid=${coffee.cid}`));
   await editorUp(p);
   await p.eval(`document.querySelector('petri-view')._showShareDialog()`);
-  ok(await p.waitFor(`!!document.querySelector('[data-share-privacy]')`, 10000), "share, no result open: the dialog opens");
-  ok(!(await p.eval(`!!document.querySelector('[data-share-view-check]')`)), "share, no result open: no 'Share this view'");
-  ok(await p.waitFor(`document.querySelector('[data-share-privacy]').textContent.includes('only check')`, 10000), "share, no result open: the privacy line is still there");
+  ok(await p.waitFor(`!!document.querySelector('[data-share-privacy]')`, 10000), "share, no result shown yet: the dialog opens");
+  ok(!(await p.eval(`!!document.querySelector('[data-share-view-check]')`)), "share, no result shown yet: no 'Share this view'");
+  ok(await p.waitFor(`document.querySelector('[data-share-privacy]').textContent.includes('only check')`, 10000), "share, no result shown yet: the privacy line is still there");
+  await p.close();
+}
+
+// ---- 5b. a /health that never answers, a ?data= that does not decode, an edit after opening ----------------------------------
+
+{
+  const t0 = Date.now();
+  const p = await open(await linkTo(coffee.spec), { stallHealth: true });
+  ok(await settled(p, 25000), "stalled /health: the view still opens");
+  ok(Date.now() - t0 < 25000, "stalled /health: within a few seconds of the engine starting, not after it", `${Date.now() - t0} ms`);
+  const r = await pane(p);
+  same(r?.chips, ["Saved version of the net", "reproduced - no model call"], "stalled /health: and reproduces (the digests do not depend on the app revision)");
+  ok(p.stalled.length >= 1, "stalled /health: the request really was held", String(p.stalled.length));
+  // Copy link waits for the revision only as long as the probe does, and the link it makes names the app as unknown
+  await clickFooter(p, "link");
+  const copied: string = await clip(p);
+  ok(copied.startsWith(hrefTo(`?cid=${coffee.cid}`, "#view=")), "stalled /health: Copy link still copies a view link", copied.slice(0, 100));
+  const d: any = await decodeView(decodeURIComponent(new URL(copied).hash.slice(6)), { net: coffee.cid });
+  ok(d.ok && d.spec.engine?.app === "unknown", "stalled /health: with the app revision unknown", JSON.stringify(d.spec?.engine));
+  await noModel(p, "stalled /health", baseline);
+  await p.close();
+}
+{
+  const hash = `#view=${await encodeView(coffee.spec)}`;
+  // nothing the editor could read: it opens its own net, and a view must not be replayed on that
+  const p = await open(hrefTo("?data=%7B%22data%22%3A%7B%22places%22%3A%7B%22A%22%3A", hash));
+  ok(await settled(p), "undecodable ?data=: the page says something");
+  const n = (await notice(p)) ?? "";
+  ok(/could not be read/.test(n) && n.includes("the net is open on its own") && !n.includes("\n"), "undecodable ?data=: one line saying the net could not be read", n);
+  ok(!(await p.eval(`!!document.querySelector('.pv-result-dialog')`)), "undecodable ?data=: no result pane, so no 'Net carried in the link'");
+  same(await viewWorkers(p), 0, "undecodable ?data=: nothing was replayed");
+  await p.close();
+  // ?cid=X&data=<garbage>: the editor loaded X, which is not the net the link carried
+  const c = await open(hrefTo(`?cid=${coffee.cid}&data=%7Bbroken`, hash));
+  ok(await settled(c), "?cid= with an undecodable ?data=: the page says something");
+  ok(/could not be read/.test((await notice(c)) ?? ""), "?cid= with an undecodable ?data=: the same line", String(await notice(c)));
+  same(await viewWorkers(c), 0, "?cid= with an undecodable ?data=: nothing was replayed");
+  same(placeIds(JSON.parse(await model(c))), placeIds(nets[coffee.cid]), "?cid= with an undecodable ?data=: the net the cid names is open, alone");
+  await c.close();
+}
+{
+  const p = await open(await linkTo(coffee.spec));
+  ok(await settled(p), "edit after opening: a view is open");
+  await p.eval(`document.querySelector('.pv-result-dialog [data-act="close"]').click()`);
+  await p.eval(`document.querySelector('petri-view')._syncLD()`);
+  ok((await p.eval(`location.hash`)).startsWith("#view="), "edit after opening: a sync that changes nothing keeps the #view= in the address bar");
+  await p.eval(`document.querySelector('petri-view').execute('net.add_place', { x: 10, y: 20 })`);
+  same(await p.eval(`location.hash`), "", "edit after opening: the first edit takes the #view= out of the address bar");
+  ok((await p.eval(`location.search`)).includes("data="), "edit after opening: the edited net is in it, as ever");
+  const href = await p.eval(`location.href`);
+  const fresh = await open(href);
+  await editorUp(fresh);
+  await sleep(2000);
+  ok(!(await fresh.eval(`!!document.querySelector('.pv-result-dialog, [data-link-status], [data-link-notice]')`)), "edit after opening: the address, shared, opens the edited net alone: no view, no 'differs'");
+  same(placeIds(JSON.parse(await model(fresh))).length, placeIds(nets[coffee.cid]).length + 1, "edit after opening: and it is the edited net");
+  await fresh.close();
   await p.close();
 }
 

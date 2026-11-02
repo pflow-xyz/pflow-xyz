@@ -1500,7 +1500,9 @@ PetriView = class PetriView extends HTMLElement {
     async _showResult(result) {
         const ui = await import('./petri-results-pane.js');
         const handle = await ui.showResult(this, result);
-        this._lastResult = { result, handle }; // _currentResult(): the Share dialog offers "Share this view" while one is open
+        // _recentResult(): the Share dialog offers "Share this view" for the last result shown, open or closed (the result's
+        // own pane covers the menu, so the menu is reached after it is closed)
+        this._lastResult = { result, handle, net: JSON.stringify(this._model) };
         return handle;
     }
 
@@ -1517,15 +1519,32 @@ PetriView = class PetriView extends HTMLElement {
     // a model, so it spends no quota. The decisions are petri-link-open.js's; this is the DOM around them. Backend
     // mode only: a standalone component has no server to name a net on.
 
-    /** The result the results pane is showing now, or null. */
-    _currentResult() {
+    /**
+     * The last result shown, or null: {result, open, changed}. `open` is whether its pane is still up; `changed` whether
+     * the net is not the net the result was made on (an edit, another net loaded), in which case a link to the view shows
+     * the view on the net as it is now.
+     */
+    _recentResult() {
         const r = this._lastResult;
-        return r && r.handle && r.handle.element && r.handle.element.isConnected ? r.result : null;
+        if (!r || !r.result) return null;
+        const open = !!(r.handle && r.handle.element && r.handle.element.isConnected);
+        let changed = false;
+        try { changed = JSON.stringify(this._model) !== r.net; } catch { changed = true; }
+        return { result: r.result, open, changed };
     }
 
-    /** The build revision /health reports, for the `app` in a spec's engine ('unknown' when it cannot be read). */
+    /**
+     * The build revision /health reports, for the `app` in a spec's engine ('unknown' when it cannot be read or does not
+     * answer in time: appRevision gives up after a few seconds). Only an answer is remembered; an 'unknown' is asked again
+     * next time, since it may be only a bad moment.
+     */
     _appRevision() {
-        this._appRevisionPromise ||= import('./petri-link-open.js').then((L) => L.appRevision());
+        if (!this._appRevisionPromise) {
+            const p = import('./petri-link-open.js').then((L) => L.appRevision());
+            this._appRevisionPromise = p;
+            const forget = () => { if (this._appRevisionPromise === p) this._appRevisionPromise = null; };
+            p.then((rev) => { if (rev === 'unknown') forget(); }, forget);
+        }
         return this._appRevisionPromise;
     }
 
@@ -1575,11 +1594,13 @@ PetriView = class PetriView extends HTMLElement {
         try {
             const V = await import('./petri-viewspec.js');
             if (!V.parseLocation(location).viewPayload) return; // a compose-page hash (#view=cospan&ex=...) is not ours
+            this._viewHashNet = JSON.stringify(this._model); // _updatePermalinkURL drops the #view= when the net stops being this one
+            this._appRevision(); // asked now, in parallel with loading the rest; a link never waits long for it
             const L = await import('./petri-link-open.js');
             const P = await import('./petri-provenance.js');
             this._showLinkNotice('Opening the saved view (no model call)…', { busy: true });
             const opening = await L.openLinkedView({
-                location, model: this._model, netCid: this._originalCid,
+                location, model: this._model, netCid: this._originalCid, netSource: this._netSource,
                 registry: await this.commands(), replay: V.replayInWorker,
                 getVersions: async () => P.defaultVersions({ app: await this._appRevision() }),
                 goals: await this._goalsCatalog(),
@@ -1723,17 +1744,23 @@ PetriView = class PetriView extends HTMLElement {
     }
 
     /**
-     * The Share dialog's "Share this view" block (design 14.7): while a result is open, a checkbox (on by default)
+     * The Share dialog's "Share this view" block (design 14.7): once a result has been shown, a checkbox (on by default)
      * that makes the shared link the view's, the view link and the net-only link side by side, and always the privacy
-     * line (14.6): possession of a net's CID is the only check on reading it, and nothing here implies more.
-     * `onLink(url)` is told the link the snippet should point at: the view's while the box is on and the link is
-     * ready, null otherwise (the net-only link).
+     * line (14.6): possession of a net's CID is the only check on reading it, and nothing here implies more. The block
+     * is offered for the last result shown, open or closed (its own pane covers the menu, so the menu is reached once it
+     * is closed); when the net is not the net it was made on, the box starts off and says so.
+     *
+     * `onLink(url, waiting)` is told the link the snippet should point at: the view's while the box is on and the link is
+     * ready, null otherwise (the net-only link); `waiting` is true while the box is on and the link is still being made,
+     * so the dialog can hold its Copy button rather than hand out the net-only link as if it were the view's. A view that
+     * has no link (it cannot be reproduced, the net must be saved first) unchecks and disables the box and says why.
      */
     _shareViewSection(docUrl, onLink) {
         const box = document.createElement('div');
         box.className = 'pv-share-view';
         box.dataset.shareView = '';
-        const current = this._currentResult();
+        const recent = this._recentResult();
+        const current = recent && recent.result;
         const privacy = document.createElement('p');
         privacy.className = 'pv-result-dim pv-share-privacy';
         privacy.dataset.sharePrivacy = '';
@@ -1746,12 +1773,19 @@ PetriView = class PetriView extends HTMLElement {
         label.className = 'pv-share-view-check';
         const check = document.createElement('input');
         check.type = 'checkbox';
-        check.checked = true;
+        check.checked = !recent.changed;
+        check.disabled = true; // until the link is ready
         check.dataset.shareViewCheck = '';
-        label.append(check, document.createTextNode(` Share this view: ${current.title || 'the open result'}`));
+        label.append(check, document.createTextNode(` Share this view: ${current.title || 'the last result'}`));
         const note = document.createElement('p');
         note.className = 'pv-result-dim';
-        note.textContent = 'The link opens the net with this result, computed again in the reader\u2019s browser: no model call, no sign-in.';
+        note.textContent = 'The link opens the net with this result, computed again in the reader\u2019s browser: no model call, no sign-in.'
+            + (recent.changed ? ' The net has changed since this result was made, so the link shows this view on the net as it is now.' : '');
+        const state = document.createElement('p');
+        state.className = 'pv-result-dim';
+        state.dataset.shareViewState = 'preparing';
+        state.setAttribute('role', 'status');
+        state.textContent = 'Preparing the link to this view\u2026';
         const link = (name, value, dataKey) => {
             const row = document.createElement('div');
             row.className = 'pv-share-link';
@@ -1774,20 +1808,36 @@ PetriView = class PetriView extends HTMLElement {
             row.append(text, input, copy);
             return { row, input };
         };
-        const view = link('This view', 'Preparing the link…', 'shareViewLink');
+        const view = link('This view', 'Preparing the link\u2026', 'shareViewLink');
         view.input.disabled = true;
         const net = link('Net only', docUrl, 'shareNetLink');
         let viewUrl = null;
-        const apply = () => onLink(check.checked ? viewUrl : null);
-        check.addEventListener('change', () => { view.row.classList.toggle('pv-share-off', !check.checked); apply(); });
-        box.append(label, note, view.row, net.row, privacy);
+        let ready = false;
+        const apply = () => {
+            view.row.classList.toggle('pv-share-off', !check.checked);
+            onLink(check.checked && viewUrl ? viewUrl : null, check.checked && !ready);
+        };
+        check.addEventListener('change', apply);
+        box.append(label, note, state, view.row, net.row, privacy);
+        apply();
         this._viewLinkFor(current.record).then((made) => {
+            ready = true;
             if (made.ok) {
                 viewUrl = made.url;
                 view.input.disabled = false;
                 view.input.value = made.url;
+                check.disabled = false;
+                state.dataset.shareViewState = 'ready';
+                state.textContent = '';
             } else {
-                view.input.value = made.needsSave ? 'Save the net to get a view link' : made.reason;
+                // no link for this view: the box cannot be on, and the snippet says nothing about a view it cannot link to
+                check.checked = false;
+                check.disabled = true;
+                view.input.value = made.needsSave ? 'Save the net to get a view link' : 'No link for this view';
+                state.dataset.shareViewState = 'unavailable';
+                state.textContent = made.needsSave
+                    ? 'This view has no link yet: the net is not saved, and it is too big to travel inside a link. The snippet points at the net alone.'
+                    : `This view has no link: ${made.reason}. The snippet points at the net alone.`;
             }
             apply();
         });
@@ -2087,17 +2137,28 @@ PetriView = class PetriView extends HTMLElement {
         description.className = 'pv-modal-description';
         dialog.appendChild(description);
 
-        // "Share this view" (when a result is open) and what a link lets a reader do (design 14.6, 14.7)
-        dialog.appendChild(this._shareViewSection(docUrl, (url) => {
-            markdown = `[![pflow](${svgUrl})](${url || docUrl})`;
-            textarea.value = markdown;
-        }));
-
-        // Markdown textarea
+        // Markdown textarea (made before the block below, which tells it which link to point at)
         const textarea = document.createElement('textarea');
         textarea.value = markdown;
         textarea.readOnly = true;
         textarea.className = 'pv-share-textarea';
+
+        // "Share this view" (once a result has been shown) and what a link lets a reader do (design 14.6, 14.7). While the
+        // view's link is still being made the Copy button waits: the snippet would otherwise be the net's link, handed out
+        // as if it were the view's.
+        let copyButton = null;
+        let copyWaits = false;
+        const setCopyWaits = (waiting) => {
+            copyWaits = waiting;
+            if (!copyButton) return;
+            copyButton.disabled = waiting;
+            copyButton.textContent = waiting ? 'Preparing the link\u2026' : 'Copy to Clipboard';
+        };
+        dialog.appendChild(this._shareViewSection(docUrl, (url, waiting) => {
+            markdown = `[![pflow](${svgUrl})](${url || docUrl})`;
+            textarea.value = markdown;
+            setCopyWaits(!!waiting);
+        }));
         dialog.appendChild(textarea);
 
         // Image URL label
@@ -2169,10 +2230,12 @@ PetriView = class PetriView extends HTMLElement {
         buttonContainer.style.marginTop = '20px';
 
         // Copy button
-        const copyButton = document.createElement('button');
+        copyButton = document.createElement('button');
         copyButton.textContent = 'Copy to Clipboard';
         copyButton.type = 'button';
         copyButton.className = 'pv-btn pv-btn-primary';
+        copyButton.dataset.shareCopy = '';
+        setCopyWaits(copyWaits);
         copyButton.addEventListener('click', () => {
             textarea.select();
             const showCopied = () => {
@@ -2475,6 +2538,9 @@ PetriView = class PetriView extends HTMLElement {
     }
 
     async _loadModelFromScriptOrAutosave() {
+        // Where the net came from, for a #view= link to check: 'data' (the ?data= permalink decoded), 'cid' (fetched from
+        // ?cid=) or 'other' (neither: a ?data= that would not decode falls through to ?cid=, a saved draft or the default net).
+        this._netSource = 'other';
         // Check for permalink data first (highest priority)
         const urlParams = new URLSearchParams(window.location.search);
         const encodedData = urlParams.get('data');
@@ -2482,6 +2548,7 @@ PetriView = class PetriView extends HTMLElement {
             const permalinkData = this._decodePermalinkData(encodedData);
             if (permalinkData) {
                 this._model = permalinkData.data || {};
+                this._netSource = 'data';
                 return;
             }
         }
@@ -2496,6 +2563,7 @@ PetriView = class PetriView extends HTMLElement {
                     this._model = data || {};
                     // Store the original CID for revert functionality
                     this._originalCid = cid;
+                    this._netSource = 'cid';
                     return;
                 } else {
                     console.error(`Failed to load data from CID: ${response.status} ${response.statusText}`);
@@ -2574,6 +2642,12 @@ PetriView = class PetriView extends HTMLElement {
             const encodedData = encodeURIComponent(jsonString);
             const url = new URL(window.location.href);
             url.searchParams.set('data', encodedData);
+            // A #view= is a view of the net the link opened with. Once the net is another net the address must not keep
+            // it: shared as it stands, it would replay the view on the edited net and blame the engine for the difference.
+            if (this._viewHashNet && this._viewHashNet !== jsonString) {
+                this._viewHashNet = null;
+                if (/(^#|&)view=/.test(url.hash)) url.hash = '';
+            }
 
             // Update URL without reloading the page
             window.history.replaceState({}, '', url.toString());

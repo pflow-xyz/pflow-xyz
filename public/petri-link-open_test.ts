@@ -48,7 +48,9 @@ async function recorded(extra: any = {}): Promise<any> {
 const loc = async (spec: any, search = `?cid=${CID}`) => ({ search, hash: `#view=${await encodeView(spec)}` });
 const open = async (spec: any, o: any = {}): Promise<any> => openLinkedView({
     location: o.location ?? await loc(spec), model: o.model ?? sir(), netCid: o.netCid === undefined ? CID : o.netCid,
-    registry: sandboxRegistry(o.model ?? sir()), replay: o.replay ?? inThread, getVersions: async () => NOW, goals: o.goals ?? catalog,
+    ...(o.netSource === undefined ? {} : { netSource: o.netSource }),
+    registry: sandboxRegistry(o.model ?? sir()), replay: o.replay ?? inThread, getVersions: o.getVersions ?? (async () => NOW), goals: o.goals ?? catalog,
+    ...(o.versionsWaitMs === undefined ? {} : { versionsWaitMs: o.versionsWaitMs }),
 });
 
 // ---------------------------------------------------------------------------
@@ -459,6 +461,110 @@ Deno.test("buildShareLink: the link's note is the record's, and a link made from
     assertEquals(again.url, r.url, "the same view makes the same link");
     const other: any = await buildShareLink({ record: noted, model: sir(), cid: "z4EBG9jOther", origin: "https://pflow.xyz", replay: inThread, versions: NOW });
     assertNotEquals(other.url, r.url);
+});
+
+// ---------------------------------------------------------------------------
+// review findings: a stalled /health, a ?data= that did not decode, a net that is not the one the view was made on
+// ---------------------------------------------------------------------------
+
+Deno.test("openLinkedView: a build version that never arrives does not hold the link open: the replay runs, and the app reads unknown", async () => {
+    const { spec } = await recorded();
+    const t0 = Date.now();
+    const o = await open(spec, { getVersions: () => new Promise(() => {}), versionsWaitMs: 30 });
+    assertEquals(o.kind, "result");
+    assertEquals(o.opening.status, "reproduced", "the digests do not depend on the app revision");
+    assert(Date.now() - t0 < 5000, "it waited for the version only as long as it was told to");
+    // a version lookup that fails is the same as one that does not come
+    const failed = await open(spec, { getVersions: () => Promise.reject(new Error("health is down")) });
+    assertEquals(failed.kind, "result");
+    assertEquals(failed.opening.status, "reproduced");
+});
+
+Deno.test("openLinkedView: the replay starts without waiting for the build version", async () => {
+    const { spec } = await recorded();
+    let release!: () => void;
+    const gate = new Promise<void>((r) => { release = r; });
+    // the version is held until the replay has been started: if the opener awaited it first, this would wait out versionsWaitMs
+    const t0 = Date.now();
+    const o = await open(spec, {
+        versionsWaitMs: 60000,
+        getVersions: async () => { await gate; return NOW; },
+        replay: (s: any, m: any, ro: any) => { release(); return inThread(s, m, ro); },
+    });
+    assertEquals(o.kind, "result");
+    assert(Date.now() - t0 < 30000, "the replay was not gated on the version");
+});
+
+Deno.test("openLinkedView: a ?data= the editor could not decode is never replayed on the net it fell back to", async () => {
+    const { spec } = await recorded();
+    const hash = `#view=${await encodeView(spec)}`;
+    // the editor kept its default net (netSource 'other'): "Net carried in the link" would be a lie
+    const cut = await open(spec, { location: { search: "?data=%7B%22data%22%3A%7B%22places%22%3A%7B%22A%22%3A", hash }, netCid: null, netSource: "other" });
+    assertEquals(cut.kind, "notice");
+    assertStringIncludes(cut.text, "could not be read");
+    assertStringIncludes(cut.text, "net is open on its own");
+    // ?cid=X&data=<garbage>: the editor loaded X, but the link said the net was the data
+    const both = await open(spec, { location: { search: `?cid=${CID}&data=%7Bbroken`, hash }, netCid: CID, netSource: "cid" });
+    assertEquals(both.kind, "notice");
+    assertStringIncludes(both.text, "could not be read");
+    // the data decoded: the view is replayed on it, and the chip says the net was carried
+    const fine = await open({ ...spec, net: null }, { location: { search: `?data=${encodeURIComponent(encodeURIComponent(JSON.stringify(sir())))}`, hash }, netCid: null, netSource: "data" });
+    assertEquals(fine.kind, "result");
+    assertEquals(fine.opening.chips[0].text, STATUS.carried);
+});
+
+Deno.test("engineSentence / statusesOf: a net that travels in the link may be what differs, and the saved-net wording is unchanged", async () => {
+    // saved net: a CID is immutable, so the engine alone is blamed (and nothing about the net is said)
+    assertEquals(engineSentence(NOW, NOW), `Both ran ${NOW.registry}, app rev-now; the same engine now gives another answer.`);
+    assertEquals(engineSentence(NOW, NOW, { netSaved: true }), engineSentence(NOW, NOW));
+    // carried net: the same engine on both sides no longer proves the engine changed
+    const carried = engineSentence(NOW, NOW, { netSaved: false });
+    assertStringIncludes(carried, `Both ran ${NOW.registry}`);
+    assertStringIncludes(carried, "not the net the view was made on");
+    assert(!carried.includes("the same engine now gives another answer."), carried);
+    const other = engineSentence({ registry: "pflow-native 0.7.0", app: "a" }, NOW, { netSaved: false });
+    assertStringIncludes(other, "may also differ from the net the view was made on");
+    assert(!engineSentence({ registry: "pflow-native 0.7.0", app: "a" }, NOW).includes("may also differ"));
+    // the status's warning carries it
+    const { spec, run } = await recorded();
+    const tampered = { ...spec, expect: { ...spec.expect, artifacts: spec.expect.artifacts.map((d: string) => d.replace(/.$/, d.endsWith("0") ? "1" : "0")) } };
+    const drifted = await inThread(tampered, sir());
+    assertStringIncludes(statusesOf(tampered, drifted, NOW, { netSaved: false }).warnings.join(" "), "not the net the view was made on");
+    assertStringIncludes(statusesOf(tampered, drifted, NOW).warnings.join(" "), "the same engine now gives another answer");
+    assertEquals(run.drift.differed.length, 0);
+});
+
+Deno.test("openLinkedView: a differing view on a carried net does not blame the engine alone; a saved net still does", async () => {
+    const { spec } = await recorded();
+    const tampered = { ...spec, expect: { ...spec.expect, artifacts: spec.expect.artifacts.map((d: string) => d.replace(/.$/, d.endsWith("0") ? "1" : "0")) } };
+    const hash = `#view=${await encodeView({ ...tampered, engine: NOW })}`;
+    const data = encodeURIComponent(encodeURIComponent(JSON.stringify(sir())));
+    const carried = await open({ ...tampered, engine: NOW, net: null }, { location: { search: `?data=${data}`, hash }, netCid: null, netSource: "data" });
+    assertEquals(carried.opening.status, "differs");
+    assertStringIncludes(carried.result.warnings.join(" "), "not the net the view was made on");
+    // both a CID and a carried copy (an address copied after an edit, from before the editor dropped the #view=): said on the net line
+    const edited = await open({ ...tampered, engine: NOW, net: null }, { location: { search: `?cid=${CID}&data=${data}`, hash }, netCid: CID, netSource: "data" });
+    assertEquals(edited.opening.chips[0].text, STATUS.carried);
+    assertStringIncludes(edited.opening.netLine, "names a saved net");
+    assertStringIncludes(edited.opening.netLine, "may have been edited");
+    const saved = await open({ ...tampered, engine: NOW });
+    assertStringIncludes(saved.result.warnings.join(" "), "the same engine now gives another answer");
+    assert(!saved.result.warnings.join(" ").includes("not the net the view was made on"));
+});
+
+Deno.test("appRevision: a /health that never answers is unknown after the timeout, whether or not the fetch honours the abort", async () => {
+    const t0 = Date.now();
+    // a fetch that ignores its signal and never settles
+    assertEquals(await appRevision((() => new Promise(() => {})) as any, { timeoutMs: 30 }), "unknown");
+    // one that honours it (the request is cancelled, not left open)
+    let aborted = false;
+    const honours = (_u: any, init: any) => new Promise((_res, rej) => { init.signal.addEventListener("abort", () => { aborted = true; rej(new DOMException("aborted", "AbortError")); }); });
+    assertEquals(await appRevision(honours as any, { timeoutMs: 30 }), "unknown");
+    assert(aborted, "the stalled request was aborted");
+    assert(Date.now() - t0 < 5000);
+    // an answer in time is still read
+    const quick = async () => new Response("{}", { headers: { "X-Build-Revision": "abcdef0123456789" } });
+    assertEquals(await appRevision(quick as any, { timeoutMs: 1000 }), "abcdef012345");
 });
 
 Deno.test("appRevision: the X-Build-Revision header, shortened; unknown when there is none or the request fails", async () => {

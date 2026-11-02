@@ -4225,3 +4225,8 @@ canvas.pv-canvas {
 .pv-share-privacy {
     margin: 6px 0 0;
 }
+/* Copy waits for the view's link (petri-view.js _showShareDialog): a button that is waiting must look it */
+.pv-btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
