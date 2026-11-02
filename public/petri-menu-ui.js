@@ -7,7 +7,9 @@
 //   Ask        one input. Enter (or the button) hands the words to view._openChat({mode: 'auto', message}); the Ask pane
 //              (petri-chat-ui.js) does the rest, and what it does for a person who cannot chat (signed out, not allowed,
 //              no chat: design section 9) is its own. Focusing the input opens nothing, and nothing is sent from here,
-//              so there is no request for a signed-out person to be refused.
+//              so there is no request for a signed-out person to be refused. The input lets go of the words only once
+//              the pane has them in a form it can send (petri-menu.js askTaken): a person who cannot chat keeps what they
+//              typed where they can see it.
 //   File View Help
 //              real menus (the ARIA menu button pattern): a button with aria-haspopup and aria-expanded, a popover with
 //              role=menu whose rows take focus one at a time (arrow keys, Home, End, type-ahead), Escape closes and
@@ -19,14 +21,17 @@
 //   account    petri-view.js _createTopRightButton puts the Login / user button last in the bar.
 //
 // The view builds the bar once the editor is on screen (petri-view.js _createAppBar), not at page load: pflow.xyz holds the
-// editor hidden behind the landing page, and a visitor who only reads that fetches none of this and has no Cmd-K.
+// editor hidden behind the landing page, and a visitor who only reads that fetches none of this and has no Cmd-K. It is
+// built after the JSON editor, but goes FIRST in the root: the bar is absolutely positioned, so its place in the DOM does
+// nothing for the layout and everything for the Tab order, where Ace (which keeps Tab for indenting) would otherwise stand
+// between the start of the page and every control in it.
 //
 // The popovers hang off <body>, not the bar: the Ask pane and the dialogs are stacked above the bar, and a menu opened
 // from it must be above them. They are fixed to the viewport and placed from the button's rectangle on open.
 //
 // Thin on purpose: what the menus hold, how the arrow keys step and what Enter hands on are petri-menu.js, with tests.
 
-import { ASK_PLACEHOLDER, MENU_LABELS, MENU_ORDER, askSubmit, classicHref, flattenMenus, isFocusable, menuModel, menuStep, triggerKey, typeahead } from './petri-menu.js';
+import { ASK_PLACEHOLDER, MENU_LABELS, MENU_ORDER, askSubmit, askTaken, classicHref, flattenMenus, isFocusable, menuModel, menuStep, triggerKey, typeahead } from './petri-menu.js';
 import { bindPaletteKey, toolsButton } from './petri-palette-ui.js';
 import { isPaletteChord } from './petri-palette.js';
 
@@ -98,6 +103,12 @@ export function mountAppBar(view) {
     go.innerHTML = '<span class="pv-ask-go-text">Ask</span><span class="pv-ask-go-icon" aria-hidden="true">→</span>';
     form.append(input, go);
     let asking = false;
+    // Did the pane take the words? Only if the person can send them (askTaken): a signed-out person's pane has a hidden form,
+    // and the words in it are out of sight. /api/llm/status is the answer the pane has: a pane being opened fetches it afresh,
+    // one already open has the last.
+    const paneTookWords = async () => {
+        try { return askTaken(await view._llmStatus?.()); } catch { return false; }
+    };
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
         if (asking) return;
@@ -105,7 +116,8 @@ export function mountAppBar(view) {
         try {
             const plan = askSubmit(input.value);
             const opened = await view._openChat(plan);
-            if (opened !== false && plan.message) input.value = ''; // the pane has the words now; a pane that would not open keeps them here
+            // A pane that would not open, or that cannot use the words, leaves them here. Words typed since Enter stay too.
+            if (opened !== false && plan.message && input.value.trim() === plan.message && await paneTookWords()) input.value = '';
         } finally {
             asking = false;
         }
@@ -130,7 +142,7 @@ export function mountAppBar(view) {
     const problemsHost = el('span', 'pv-appbar-problems');
 
     bar.append(form, menus, more, tools, problemsHost);
-    view._root.appendChild(bar);
+    view._root.prepend(bar); // first, for the Tab order (see the header); it is out of the flow, so the layout does not move
 
     // ---- the popover ----
     // The open menu: its entries that are rows (an action or a link), those rows as elements, and how to take it down.
@@ -257,7 +269,9 @@ export function mountAppBar(view) {
             if (!row) return;
             if (row.tagName === 'A') { close(false); return; } // a real link: the browser follows it
             e.stopPropagation();
-            const entry = entries.find((x) => x.id === row.dataset.id);
+            // The live list, not the one this menu opened with: refresh() redraws the rows when the files status or the
+            // sign-in arrives late, and a row that was not in the first list is in this one.
+            const entry = openMenu?.entries.find((x) => x.id === row.dataset.id);
             close(true);
             if (entry) runEntry(entry);
         };

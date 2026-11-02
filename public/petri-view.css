@@ -4176,6 +4176,15 @@ html:has(petri-view[data-ui="bar"]) .fixed-title {
     pointer-events: auto;
     flex: none;
 }
+/* Side by side, the JSON editor is the pane to the right of the canvas, and the bar (which spans the whole editor) floats
+   over its top edge, above its toolbar: Find, Open URL, Download, Full, the toggle back to the stacked layout, Close. The
+   pane starts below the bar instead: 10px + 40px + a gap. Stacked, the editor is under the canvas and the bar is not over
+   it; on a phone the bar has a row of its own and the panes are stacked (the phone media query below). */
+@media (min-width: 761px) and (min-height: 521px) {
+    petri-view[data-ui="bar"] .pv-root.pv-layout-horizontal .pv-json-editor {
+        padding-top: 56px;
+    }
+}
 
 /* Ask: one pill, the input and its button inside it */
 .pv-appbar > .pv-ask {

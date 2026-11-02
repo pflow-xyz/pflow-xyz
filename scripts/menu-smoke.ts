@@ -9,13 +9,20 @@
 //   the menus          File, View and Help open from the keyboard and the mouse; arrow keys, Home, End, type-ahead,
 //                      Escape (focus goes back to the button), Tab, a click outside; ArrowRight moves to the next menu; every entry
 //                      runs the method it should (signed out, and signed in with the server's files), links open where
-//                      they should; the account line follows a sign-out
+//                      they should; the account line follows a sign-out; a row that only appears when the files status or
+//                      the sign-in arrives late (the menu already open) still runs
+//   reach              Tab from the start of the page gets to the Ask input, File, View, Help, Tools, the chip and the account
+//                      button before the JSON editor (Ace keeps Tab for itself); and the JSON editor's own toolbar (Find,
+//                      Download, the layout toggle, Close) is under no part of the bar, stacked and side by side, and a real
+//                      click on the toggle in the side-by-side layout gets back to the stacked one
 //   removed entries    each one's replacement: Analysis, Simulate, Structure, Components, Results and the questions
 //                      dialog from Tools > Classic tools (each opens the dialog it always opened), the key 9, App view in
 //                      View, Check net as the problems chip (its list, its Details button, a re-check after an edit,
 //                      and after each command), Describe and the Assistant as the Ask input (Enter calls _openChat with
 //                      the words, mode auto; focusing opens nothing; a pane that will not open keeps the words; signed
-//                      out, nothing is requested from the model), the empty-canvas prompt opening the Ask pane in build
+//                      out, or on a server with no chat, the pane opens and the words stay in the input where they can be
+//                      read, and a person who can send them sees the input empty; nothing is requested from the model),
+//                      the empty-canvas prompt opening the Ask pane in build
 //   Tools              the button and Cmd-K (also from the Ask input); a run lands in the results pane with its footer,
 //                      Open in Tools opens the form with the arguments filled in, a failed run stays in the palette;
 //                      all of it with every /api/llm/* answered 503 and nothing requested from the model
@@ -56,7 +63,7 @@ const NET = {
 const BAD_NET = { ...NET, arcs: [...NET.arcs, { "@type": "Arrow", source: "S", target: "nowhere", weight: [1] }] };
 
 /** Before any script: the account, the files and the model's route answered here, and what was asked of them kept. */
-const STUB = (o: { signedIn?: boolean; files?: boolean; chat?: boolean; llm503?: boolean; llm401?: boolean; landing?: boolean } = {}) => `
+const STUB = (o: { signedIn?: boolean; files?: boolean; chat?: boolean; llm503?: boolean; llm401?: boolean; landing?: boolean; delayUser?: number; delayFiles?: number } = {}) => `
   window.__reqs = [];
   window.__opened = [];
   window.open = (...a) => { window.__opened.push(a); return null; };
@@ -67,7 +74,8 @@ const STUB = (o: { signedIn?: boolean; files?: boolean; chat?: boolean; llm503?:
     const path = new URL(String(u?.url ?? u), location.href).pathname;
     const bearer = new Headers(opts?.headers).get('Authorization') === 'Bearer smoke-token';
     if (path.startsWith('/api/llm/') || path === '/auth/user' || path === '/api/files/status') window.__reqs.push({ path, bearer });
-    if (path === '/api/files/status') return json({ enabled: ${!!o.files} });
+    if (path === '/api/files/status') { ${o.delayFiles ? `await new Promise((r) => setTimeout(r, ${o.delayFiles}));` : ""} return json({ enabled: ${!!o.files} }); }
+    if (path === '/auth/user' && bearer) { ${o.delayUser ? `await new Promise((r) => setTimeout(r, ${o.delayUser}));` : ""} }
     if (path.startsWith('/api/llm/') && ${!!o.llm503}) return json({ error: 'unavailable' }, 503);
     if (path.startsWith('/api/llm/') && ${!!o.llm401}) return json({ error: 'sign in' }, 401);
     if (path === '/api/llm/status') return json(bearer ? { enabled: true, chat: ${o.chat !== false}, signed_in: true, allowed: true, model: 'smoke', remaining_today: 7 } : { enabled: true, chat: ${o.chat !== false}, signed_in: false });
@@ -367,6 +375,178 @@ try {
     await openMenu(p, "file");
     ok(same(await menuItems(p), ["Save to Server", "Delete", "Share", "Save As Gist", "My Diagrams", "Edit Details", "Download JSON", "Logout"]), "signed in with no server files: no Save to / Open from my account", (await menuItems(p)).join());
     await p.close();
+  }
+
+  // =========================================================================================================
+  console.log("a menu that is open when the files status or the sign-in arrives late");
+  {
+    // The rows that appear are not in the list the menu opened with; a click on one must still run it (it once only closed the menu).
+    const CALLED = `(() => { const v = document.querySelector('petri-view'); window.__called = []; for (const m of ['_showAccountSaveDialog','_showAccountFilesDialog','_showShareDialog','_saveAsGist']) v[m] = () => { window.__called.push(m); }; })()`;
+    {
+      const p = await open("/", { files: true, signedIn: true, delayFiles: 5000 });
+      await barUp(p);
+      await p.eval(CALLED);
+      await openMenu(p, "file");
+      const early = await menuItems(p);
+      ok(!early.includes("Save to my account…") && !early.includes("Open from my account…"), "precondition: the files status has not come in, so the account rows are not there yet", early.join());
+      ok(await p.waitFor(`[...document.querySelectorAll('.pv-appmenu-pop [role=menuitem]')].some((e) => e.dataset.label === 'Open from my account…')`, 20000), "the open menu is redrawn when the status arrives: Open from my account… appears", (await menuItems(p)).join());
+      ok(await p.eval(`document.querySelectorAll('.pv-appmenu-pop').length === 1 && document.querySelector('[data-menu=file]').getAttribute('aria-expanded') === 'true'`), "and it is the same menu, still open");
+      await p.eval(`[...document.querySelectorAll('.pv-appmenu-pop [role=menuitem]')].find((e) => e.dataset.label === 'Save to my account…').click()`);
+      await sleep(150);
+      ok(same(await p.eval(`window.__called`), ["_showAccountSaveDialog"]), "a click on the new row 'Save to my account…' runs it", JSON.stringify(await p.eval(`window.__called`)));
+      ok(!(await popOpen(p)), "and closes the menu");
+      await p.eval(`window.__called.length = 0`);
+      await openMenu(p, "file");
+      await p.eval(`[...document.querySelectorAll('.pv-appmenu-pop [role=menuitem]')].find((e) => e.dataset.label === 'Open from my account…').click()`);
+      await sleep(150);
+      ok(same(await p.eval(`window.__called`), ["_showAccountFilesDialog"]), "and the menu opened afterwards runs Open from my account… too", JSON.stringify(await p.eval(`window.__called`)));
+      await p.close();
+    }
+    {
+      const p = await open("/", { files: false, signedIn: true, delayUser: 5000 });
+      await barUp(p);
+      await p.eval(CALLED);
+      await openMenu(p, "file");
+      const early = await menuItems(p);
+      ok(early.includes("Login with GitHub") && !early.includes("Share"), "precondition: signed out until /auth/user answers, so File offers Login and no Share", early.join());
+      ok(await p.waitFor(`[...document.querySelectorAll('.pv-appmenu-pop [role=menuitem]')].some((e) => e.dataset.label === 'Share')`, 20000), "the open menu is redrawn when the sign-in arrives: Share appears", (await menuItems(p)).join());
+      await p.eval(`[...document.querySelectorAll('.pv-appmenu-pop [role=menuitem]')].find((e) => e.dataset.label === 'Share').click()`);
+      await sleep(150);
+      ok(same(await p.eval(`window.__called`), ["_showShareDialog"]), "a click on the new row 'Share' runs it", JSON.stringify(await p.eval(`window.__called`)));
+      // the focused row survives a redraw
+      await p.eval(`window.__called.length = 0`);
+      await openMenu(p, "file");
+      await p.eval(`[...document.querySelectorAll('.pv-appmenu-pop [role=menuitem]')].find((e) => e.dataset.label === 'Save As Gist').click()`);
+      await sleep(150);
+      ok(same(await p.eval(`window.__called`), ["_saveAsGist"]), "Save As Gist, a row that only a signed-in File has, runs from a fresh menu", JSON.stringify(await p.eval(`window.__called`)));
+      await p.close();
+    }
+  }
+
+  // =========================================================================================================
+  console.log("reaching the bar and the JSON editor's toolbar");
+  {
+    const JSON_EDITOR_UP = `(() => { const v = document.querySelector('petri-view'); if (!v.hasAttribute('data-json-editor')) v.setAttribute('data-json-editor', ''); })()`;
+    // Every visible button of the editor's own toolbar (Ace's, or the plain one before Ace has loaded): is it what the mouse would hit at its centre?
+    const TOOLBAR = `(() => [...document.querySelectorAll('.pv-ace-toolbar-btn, .pv-editor-toolbar-btn')].filter((b) => b.getClientRects().length).map((b) => {
+      const r = b.getBoundingClientRect(), x = r.left + r.width / 2, y = r.top + r.height / 2, top = document.elementFromPoint(x, y);
+      return { title: b.title, x, y, inside: x > 0 && x < innerWidth && y > 0 && y < innerHeight, ok: top === b || b.contains(top), covered: top && !(top === b || b.contains(top)) ? String(top.className || top.tagName) : '' };
+    }))()`;
+    const toolbarState = async (p: Page, where: string) => {
+      const list = await p.eval(TOOLBAR) as { title: string; x: number; y: number; inside: boolean; ok: boolean; covered: string }[];
+      ok(list.length >= 3, `${where}: the editor's toolbar is showing`, String(list.length));
+      for (const b of list) ok(b.inside && b.ok, `${where}: "${b.title}" is not under anything`, b.covered ? `covered by .${b.covered}` : "outside the window");
+      return list;
+    };
+    const toolbarUp = (p: Page) => p.waitFor(`document.querySelectorAll('.pv-ace-toolbar-btn, .pv-editor-toolbar-btn').length >= 3 && [...document.querySelectorAll('.pv-ace-toolbar-btn, .pv-editor-toolbar-btn')].filter((b) => b.getClientRects().length).length >= 3`, 15000);
+    for (const [w, h] of [[1280, 800], [800, 600]]) {
+      const p = await open("/", {}, w, h);
+      await barUp(p);
+      await p.eval(JSON_EDITOR_UP);
+      ok(await toolbarUp(p), `${w}: the JSON editor opens with a toolbar`);
+      await sleep(1500); // Ace, if it loads, replaces the plain toolbar with its own
+      await toolbarState(p, `${w} stacked`);
+      // side by side: a real click on the layout toggle, as a person would
+      const toggle = async () => p.eval(`(() => { const b = [...document.querySelectorAll('.pv-ace-toolbar-btn, .pv-editor-toolbar-btn')].filter((b) => b.getClientRects().length).find((b) => b.title.startsWith('Toggle horizontal')); const r = b.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()`);
+      let at = await toggle();
+      await p.click(at.x, at.y);
+      ok(await p.waitFor(`document.querySelector('petri-view').hasAttribute('data-layout-horizontal')`, 3000), `${w}: clicking the toggle puts the editor beside the canvas`);
+      await sleep(300);
+      const horizontal = await toolbarState(p, `${w} side by side`);
+      ok(await p.eval(`parseFloat(getComputedStyle(document.querySelector('.pv-json-editor')).paddingTop) >= 50`), `${w} side by side: the editor pane starts below the bar`, await p.eval(`getComputedStyle(document.querySelector('.pv-json-editor')).paddingTop`));
+      const bar = await rect(p, ".pv-appbar"), ed = await rect(p, ".pv-json-editor");
+      ok(bar && ed && ed.l > 0 && ed.l < bar.r, `${w} side by side: the bar does run over the editor's pane (so the padding is what keeps its toolbar clear)`, JSON.stringify([bar, ed]));
+      ok(await p.eval(`(() => { const i = document.querySelector('.pv-ask-input'); const r = i.getBoundingClientRect(); return document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2) === i; })()`), `${w} side by side: and the Ask input is still what the mouse hits`);
+      // and back, with the editor's own button: this was the click the bar swallowed
+      at = await toggle();
+      ok(horizontal.length > 0, `${w}: (the toggle is one of the buttons checked above)`);
+      await p.click(at.x, at.y);
+      ok(await p.waitFor(`!document.querySelector('petri-view').hasAttribute('data-layout-horizontal')`, 3000), `${w}: a click on the toggle in the side-by-side layout goes back to stacked`);
+      await sleep(300);
+      await toolbarState(p, `${w} stacked again`);
+      // Close, side by side, by a click
+      await p.eval(`document.querySelector('petri-view')._setLayout(true)`);
+      await sleep(300);
+      const close = await p.eval(`(() => { const b = [...document.querySelectorAll('.pv-ace-toolbar-btn, .pv-editor-toolbar-btn')].filter((b) => b.getClientRects().length).find((b) => /close/i.test(b.title)); const r = b.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()`);
+      await p.click(close.x, close.y);
+      ok(await p.waitFor(`!document.querySelector('petri-view').hasAttribute('data-json-editor')`, 3000), `${w}: a click on Close, side by side, closes the editor`);
+      await p.close();
+    }
+    // Tab from the start of the page: the bar comes before the JSON editor
+    {
+      const p = await open("/", {});
+      await barUp(p);
+      await p.eval(JSON_EDITOR_UP);
+      await toolbarUp(p);
+      await sleep(1500);
+      ok(await p.eval(`(() => { const kids = [...document.querySelector('petri-view .pv-root').children]; return kids.indexOf(document.querySelector('.pv-appbar')) < kids.indexOf(document.querySelector('.pv-json-editor')); })()`), "the bar comes before the JSON editor in the document");
+      await p.eval(`document.activeElement?.blur()`);
+      const name = `(() => { const a = document.activeElement; if (!a || a === document.body) return 'body'; const c = a.classList; return c.contains('pv-ask-input') ? 'ask' : c.contains('pv-ask-go') ? 'ask-go' : a.dataset.menu ? 'menu:' + a.dataset.menu : c.contains('pv-tools-btn') ? 'tools' : c.contains('pv-problems-chip') ? 'chip' : c.contains('pv-top-right-btn') ? 'account' : c.contains('ace_text-input') || c.contains('pv-json-textarea') ? 'editor' : a.tagName.toLowerCase() + '.' + (String(a.className).split(' ')[0] || ''); })()`;
+      const seen: string[] = [];
+      for (let i = 0; i < 24; i++) {
+        await press(p, "Tab");
+        const n = await p.eval(name) as string;
+        seen.push(n);
+        if (n === "editor" || n === "account") break;
+      }
+      const want = ["ask", "ask-go", "menu:file", "menu:view", "menu:help", "tools", "chip", "account"];
+      const at = want.map((w) => seen.indexOf(w));
+      ok(at.every((i) => i >= 0), "Tab from the start of the page reaches the Ask input, its button, File, View, Help, Tools, the chip and the account button", seen.join(" > "));
+      ok(at.every((i, k) => k === 0 || i > at[k - 1]), "in that order", seen.join(" > "));
+      ok(!seen.includes("editor") || seen.indexOf("editor") > at[at.length - 1], "and before the JSON editor, which keeps Tab for indenting", seen.join(" > "));
+      await p.close();
+    }
+  }
+
+  // =========================================================================================================
+  console.log("the Ask input keeps words the pane cannot send (the real pane)");
+  {
+    {
+      // signed out: the pane shows its sign-in note and hides its form; the words must stay where they can be read
+      const p = await open("/", {});
+      await barUp(p);
+      await p.eval(`document.querySelector('.pv-ask-input').focus()`);
+      await typeText(p, "can it get stuck?");
+      await press(p, "Enter");
+      ok(await p.waitFor("!!document.querySelector('.pv-chat')", 15000), "signed out: Enter opens the pane");
+      await sleep(600);
+      ok(await p.eval(`document.querySelector('.pv-chat-form').hidden === true`), "precondition: the pane has no form for them to send from");
+      ok(await p.eval(`document.querySelector('.pv-ask-input').value === 'can it get stuck?'`), "signed out: the words are still in the Ask input", await p.eval(`document.querySelector('.pv-ask-input').value`));
+      ok(await p.eval(`getComputedStyle(document.querySelector('.pv-ask-input')).visibility !== 'hidden' && document.querySelector('.pv-ask-input').getClientRects().length > 0`), "and showing");
+      await p.close();
+    }
+    {
+      // signed in with chat: the pane takes them, and the input is empty
+      const p = await open("/", { signedIn: true });
+      await barUp(p);
+      await p.waitFor(`document.querySelector('.pv-appbar > .pv-top-right-btn')?.textContent.includes('smoke')`, 10000);
+      await p.eval(`document.querySelector('.pv-ask-input').focus()`);
+      await typeText(p, "can it get stuck?");
+      await press(p, "Enter");
+      ok(await p.waitFor("!!document.querySelector('.pv-chat') && document.querySelector('.pv-chat-form').hidden === false", 15000), "signed in: Enter opens the pane, with its form");
+      ok(await p.waitFor(`document.querySelector('.pv-ask-input').value === ''`, 5000), "signed in: the words are in the pane, and the input is empty", await p.eval(`document.querySelector('.pv-ask-input').value`));
+      ok(await p.eval(`document.querySelector('.pv-chat-log').textContent.includes('can it get stuck?')`) || await p.waitFor(`document.querySelector('.pv-chat-log').textContent.includes('can it get stuck?')`, 5000), "and they are in the pane's log");
+      // more typed while the pane was opening is not wiped
+      await p.eval(`(() => { const v = document.querySelector('petri-view'); v._openChat = async () => { document.querySelector('.pv-ask-input').value = 'can it get stuck? and then'; }; })()`);
+      await p.eval(`document.querySelector('.pv-ask-input').value = 'can it get stuck?'`);
+      await p.eval(`document.querySelector('.pv-ask-go').click()`);
+      await sleep(400);
+      ok(await p.eval(`document.querySelector('.pv-ask-input').value === 'can it get stuck? and then'`), "words typed while the pane was opening are not wiped with the ones sent");
+      await p.close();
+    }
+    {
+      // a server with no chat: nothing to send from either
+      const p = await open("/", { signedIn: true, chat: false });
+      await barUp(p);
+      await p.waitFor(`document.querySelector('.pv-appbar > .pv-top-right-btn')?.textContent.includes('smoke')`, 10000);
+      await p.eval(`document.querySelector('.pv-ask-input').focus()`);
+      await typeText(p, "what is a siphon");
+      await press(p, "Enter");
+      ok(await p.waitFor("!!document.querySelector('.pv-chat')", 15000), "no chat on the server: Enter still opens the pane");
+      await sleep(600);
+      ok(await p.eval(`document.querySelector('.pv-ask-input').value === 'what is a siphon'`), "and the words stay in the input", await p.eval(`document.querySelector('.pv-ask-input').value`));
+      await p.close();
+    }
   }
 
   // =========================================================================================================

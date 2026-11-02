@@ -1,6 +1,6 @@
 import { assert, assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import {
-    ASK_PLACEHOLDER, MENU_ORDER, askSubmit, classicHref, findOpenEntry, flattenMenus, isFocusable, menuModel, menuStep,
+    ASK_PLACEHOLDER, MENU_ORDER, askSubmit, askTaken, classicHref, findOpenEntry, flattenMenus, isFocusable, menuModel, menuStep,
     openTargetFromRecord, parseOpen, prefillModel, releaseHref, resultFromOutcome, showsInline, triggerKey, typeahead,
     uiMode, userLine,
 } from "./petri-menu.js";
@@ -398,6 +398,20 @@ Deno.test("every action a menu entry runs is one the bar can run, and the view h
     }
 });
 
+// The browser holds these (scripts/menu-smoke.ts: "reaching the bar...", "a menu that is open when..."); `make test-js` does
+// not run a browser, so the three one-line causes of the three regressions the review found are held here too.
+Deno.test("the bar's source: first in the root, a click reads the live list, the JSON editor starts below the bar", async () => {
+    const ui = await Deno.readTextFile(new URL("./petri-menu-ui.js", import.meta.url));
+    assert(/view\._root\.prepend\(bar\)/.test(ui), "the bar is prepended to the root: Tab reaches it before Ace, which keeps Tab for indenting");
+    assert(!/_root\.appendChild\(bar\)/.test(ui), "and is not appended after the JSON editor");
+    assert(/const entry = openMenu\?\.entries\.find\(/.test(ui), "a click on a row looks it up in the open menu's current entries, which refresh() replaces");
+    assert(/askTaken\(/.test(ui), "the Ask input lets go of the words only when askTaken says the pane has them");
+    const css = await Deno.readTextFile(new URL("./petri-view.css", import.meta.url));
+    const rule = css.match(/petri-view\[data-ui="bar"\] \.pv-root\.pv-layout-horizontal \.pv-json-editor\s*\{([^}]*)\}/);
+    assert(rule, "side by side, the bar's JSON editor has a rule of its own");
+    assert(/padding-top:\s*(5[0-9]|[6-9][0-9])px/.test(rule![1]), "that clears the bar (10px + 40px): the editor's toolbar is not under it");
+});
+
 Deno.test("flattenMenus: the three menus as one list under headings, in order", () => {
     const m = menuModel(SIGNED_IN);
     const flat = flattenMenus(m);
@@ -421,6 +435,18 @@ Deno.test("askSubmit: the words go to the Ask pane with the intent left to the s
     assertEquals(askSubmit(42 as any), { mode: "auto" });
     assertEquals(askSubmit("a\nb"), { mode: "auto", message: "a\nb" });
     assertEquals(ASK_PLACEHOLDER, "Ask about this net, or say what to change...");
+});
+
+Deno.test("askTaken: the input lets go of the words only when the person can send them from the pane", () => {
+    assertEquals(askTaken({ enabled: true, chat: true, signed_in: true, allowed: true }), true);
+    // signed out: the pane shows the sign-in note and hides its form, so the words would be out of sight
+    assertEquals(askTaken({ enabled: true, chat: true, signed_in: false }), false);
+    // a server with no chat, or with the assistant off, has no form to send from
+    assertEquals(askTaken({ enabled: true, chat: false, signed_in: true }), false);
+    assertEquals(askTaken({ enabled: false, chat: true, signed_in: true }), false);
+    assertEquals(askTaken({ enabled: false }), false);
+    // not knowing is not a yes: the words stay where the person can read them
+    for (const unknown of [undefined, null, {}, "ok", 1, []]) assertEquals(askTaken(unknown as any), false, JSON.stringify(unknown));
 });
 
 // ---- a menu's keyboard ----

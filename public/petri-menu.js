@@ -224,13 +224,27 @@ export const isFocusable = (entry) => entry?.kind === 'item' || entry?.kind === 
  * and the words go along when there are any. Empty words still open the pane, which then offers what to ask, so the
  * input is never one that does nothing. Whether the person can chat is the pane's question (design section 9: what it
  * does with the words signed out, off the allow-list and with no chat is the Ask pane's), not this one's: nothing is
- * sent from here.
+ * sent from here. Whether the input then lets go of the words is askTaken's.
  * @param {*} value the input's text
  * @returns {{mode: 'auto', message?: string}}
  */
 export function askSubmit(value) {
     const message = typeof value === 'string' ? value.trim() : '';
     return message ? { mode: 'auto', message } : { mode: 'auto' };
+}
+
+/**
+ * Whether the Ask pane took the words it was handed, so the input may let go of them. The pane has them only if the
+ * person can send them: the assistant is on, the server has chat, and they are signed in. A signed-out person's pane
+ * shows the sign-in note with its form hidden (the words wait in a box nobody can see), a server with no chat has no
+ * form to send from; for both the words stay in the Ask input, where the person can still read, edit and copy them. The
+ * cost of keeping words that did land is a duplicate on screen; the cost of dropping words that did not is a lost
+ * question, so anything but a clear yes keeps them.
+ * @param {*} status /api/llm/status ({enabled, chat, signed_in, ...}), or nothing when it is not known
+ * @returns {boolean}
+ */
+export function askTaken(status) {
+    return !!(status && status.enabled && status.chat && status.signed_in);
 }
 
 // ---------------------------------------------------------------------------
