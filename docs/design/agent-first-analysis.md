@@ -1,6 +1,6 @@
 # Agent-first analysis: one Ask, views the agent opens
 
-Status: design, not implemented. No app code changes. Mockup: [agent-first-analysis-mockup.html](agent-first-analysis-mockup.html) (static, open it in a browser).
+Status: implemented on branch `val/run-e68c5b30` through Step 5, L1/L2 (minimal), H0 to H4 and the problems chip; see [section 17](#17-implementation-status). Written as a design with no code changes first. Mockup: [agent-first-analysis-mockup.html](agent-first-analysis-mockup.html) (static, open it in a browser).
 
 Written against `main` at 8d30d96. A second run is fixing bugs on `fix/gemini-agentic-feedback` (landing chat, Assistant panel on phones). Its `docs/landing-chat.md` was read for overlap; see [Sequencing](#sequencing-with-the-landing-chat).
 
@@ -594,3 +594,44 @@ H0 to H5 in the [migration plan](#11-migration-plan-small-shippable-steps). H0 t
 2. Is "Open in sim" (pflow to sim) wanted, and is a sim to pflow import worth a sim-side change (H5)?
 3. Should the sim gallery stay on the landing page at all, or live only behind the nav link? Recommend: keep it, below the examples, clearly labelled.
 4. Who records and reviews the six curated views? They are editorial claims about each model.
+
+## 17. Implementation status
+
+Built on branch `val/run-e68c5b30` (not merged; a push to `main` deploys). Each package was built in its own worktree, reviewed by an independent agent that ran the code and the browser smokes, and fixed; the merge is `git log --first-parent`. Browser smokes run in headless Chrome through `scripts/smoke-gate.sh` (landing, views, menu, palette, links, ask).
+
+| Step | State | Where |
+|---|---|---|
+| 0 Provenance footer | done: every result card, palette run and opened link ends in "How this was computed" with Rerun, Edit settings, Copy MCP call, Copy link, Open in Tools | `petri-provenance.js`, `petri-results-pane.js` |
+| 1 Engine guard | done: `ENGINE_NEEDS` audited over the JS and native commands, hard rule (gating) refuses, soft rule (small counts) refuses a ranking and warns on an explicit run, `macro.play` is checked through its steps; `average` and `best_setting` route by engine; override only when the person's own words name the engine | `petri-engine-guard.js`, `goals.json` |
+| 2 Goal tools | done on both sides: `toolset: 'goals'` (17 tools), brief catalog and guidance in the lead text, `PFLOW_LLM_GOAL_MODEL` (unset), cost per goal in `data/llm/goal-stats.json`, 44 eval cases, a scripted eval in CI and a gated live eval. **Not measured: calls per question and goal-selection accuracy (no key in the build environment).** | `llm-goal-tools.json`, `petri-chat.js`, `cmd/webserver/llm_goal_tools.go` |
+| 3 Ask pane | done, with no `?ui=ask` flag: the Assistant entry opens it; no mode tabs, intent chip with "Not what I meant", the five states, result cards, ask card, pending card with assumptions and a problems gate, Describe folded in where the intent is already build | `petri-chat-ui.js`, `petri-ask.js`, `petri-ask-pane.js` |
+| 4 Palette | done: Cmd/Ctrl-K, goals and all 141 registry commands with forms, "Classic tools", works signed out and with every `/api/llm/*` answering 503 | `petri-palette*.js`, `petri-schema-form.js` |
+| 5 Menu swap | done for the pflow.xyz server; `?ui=classic` and a standalone `<petri-view>` keep the hamburger for this release | `petri-menu*.js`, `petri-view.js` |
+| 6 Delete the classic dialogs | **not done, by design**: needs usage evidence |  |
+| Check net to a problems chip | done: runs on load and after edits, before Apply in the Ask pane | `petri-problems.js` |
+| L1 ViewSpec links, L2 minimal | done: `/?cid=<cid>#view=...` and `/?data=...#view=...` replay on a sandbox with no model call; Copy link, Save and copy link, "Share this view" | `petri-viewspec.js`, `petri-link-open.js` |
+| L1 `?v=<specCID>`, L3, `pflow_view_link` | **not done** (need the `ViewSpec` terms in both CID contexts and the schema, a route decision, and a Go encoder) |  |
+| C1 to C6 composition | **not started** |  |
+| H0 to H2 landing copy and hero | done (no radios, one Ask, Build/Analyse/Explain, sim as a labelled gallery) | `petri-landing.js`, `index.html` |
+| H3, H4 examples as views | done: six nets under `examples/landing/`, curated specs in `examples.json` recorded by running the plans, replayed in CI; cards open into the view | `examples.json`, `public/examples_test.ts` |
+| H5 sim to pflow handoff | **not done** (needs a sim-side change) |  |
+
+### Where the build differs from the design, and why
+
+- **The manifest estimate was low.** The design assumed about 109 tools, 20 KB, 5k tokens. Measured: 110 tools, 63.7 KB of declarations (about 15.9k tokens). The goals toolset is 17 tools, 7.7 KB (about 1.9k tokens); with the command index and the guidance a goals analyse call carries about 4.3k tokens against 17.3k, roughly a quarter. The target of "about 25" tools was 17: five pseudo-tools plus the 12 edit/read tools a build interview needs.
+- **`engine_override` is `ode` or `sde`.** The SSA is never refused, so it needs no override. The code, not the model, decides whether an override counts (`overrideAllowed`).
+- **ViewSpec calls are `{command, args}`** and replay is a deny-by-default allowlist table in `petri-viewspec.js` rather than a `replay: true` flag on registry specs (the specs are in a vendored file). `?v=<specCID>` was not built.
+- **`ask_user` has an optional `default_option`**, so "You decide" records the model's pick without another model call.
+- **Describe** goes through `/api/llm/draft` only when the intent is already known to be build before the message (route or mode, the empty-canvas button, "Build instead"); an auto-labelled first message goes through the turn like any other.
+- **H1 shipped without waiting for the auto-stats** (16.6.1). The collapsed Build/Analyse/Explain row is not built; "Not what I meant" in the pane is the correction.
+- **LLM limits are untouched.** `internal/llm/limits.go` and the env line in this file are held at `main`'s values; the merged `fix/gemini-agentic-feedback` branch had relaxed them and a separate commit reverts that until the billing-alarm policy is decided (revert that commit to adopt the relaxed values).
+- **Cost per goal** is in its own anonymous `goal-stats.json`, not a field on the usage `done` line, because `Usage` lives in `limits.go`.
+- **A hazard found on the way:** `sim.ode` on the cafe showcase net does not return in the vendored wasm (a synchronous call cannot be interrupted). The Ask core bounds an ODE run by a trial integration before honouring an override; the classic dialogs and the palette still run it on request.
+
+### Open items for the owner
+
+1. The six "Opens to" lines in `public/examples.json` are editorial claims about each model, recorded from what the result shows; read them (one blurb, Coffee Shop's "guarantee you never oversell", reads stronger than the view it opens to).
+2. Run `make llm-eval`-style `TestLLMGoalEvalLive` (`PFLOW_LLM_EVAL=1`, `GEMINI_API_KEY`) on the main and the cheaper model before setting `PFLOW_LLM_GOAL_MODEL`, and read calls per question from `data/llm/usage-*.jsonl`.
+3. Decide the billing-alarm policy, then revert or keep the limits commit.
+4. Step 6 (delete the classic dialogs) waits for usage evidence; `?ui=classic` and "Classic tools" are the evidence counters to add.
+
