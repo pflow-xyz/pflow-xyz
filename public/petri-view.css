@@ -3734,6 +3734,17 @@ canvas.pv-canvas {
     margin-left: 0;
     margin-right: 0;
 }
+.pv-palette:focus {
+    outline: none; /* the dialog takes focus when plain text in it is clicked (tabindex=-1), so keys stay in it */
+}
+/* Run is aria-disabled, never disabled: a focused button that becomes disabled drops focus to <body> */
+.pv-palette .pv-btn[aria-disabled="true"] {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+.pv-palette .pv-btn-primary[aria-disabled="true"]:hover {
+    background: var(--pv-accent);
+}
 .pv-palette > .pv-palette-pane {
     margin-bottom: 20px; /* the xl dialog gives only its last child a bottom margin; the list pane is not last while the form is hidden */
 }

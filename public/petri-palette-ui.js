@@ -20,11 +20,21 @@
 // search box is a combobox (aria-activedescendant over a listbox, Up / Down /
 // PageUp / PageDown / Enter), every form control is labelled and described,
 // errors are role=alert, the live region says how many results there are.
+//
+// Focus never leaves the dialog. A button that is `disabled` while it holds
+// focus drops focus to <body> (Chrome blurs it, and re-enabling does not give
+// it back), and from <body> the dialog's own key handling (Escape, the Tab
+// trap) hears nothing while the editor's window shortcuts (Delete, x, Cmd-Z)
+// act on the net behind the dialog. So Run is never `disabled`: it is
+// aria-disabled (still focusable, announced as unavailable) and the submit
+// handler refuses; the dialog itself is focusable (tabindex=-1) so a click on
+// plain text lands there; and a capture-phase key listener on the document
+// keeps the keys of a page whose focus is nowhere inside the dialog.
 
 import { usesCommandKey } from './petri-clipboard.js';
 import {
     buildIndex, isPaletteChord, prefixLabel, previewJson, runCommandOutcome, runGoalOutcome, searchIndex,
-    shortcutHint, stepActive, stepHeadline, trapTarget,
+    shortcutHint, stepActive, stepHeadline, strayKeyAction, trapTarget,
 } from './petri-palette.js';
 import { formModel, goalFormModel, readForm, renderFormHtml, showFormErrors } from './petri-schema-form.js';
 
@@ -119,6 +129,7 @@ async function build(view, { onResult, initialQuery }) {
     dialog.setAttribute('role', 'dialog');
     dialog.setAttribute('aria-modal', 'true');
     dialog.setAttribute('aria-label', 'Tools');
+    dialog.tabIndex = -1; // a click on plain text focuses the dialog, not <body>
     dialog.innerHTML = `
         <div class="pv-dialog-header">
             <h2 class="pv-dialog-header-title">Tools</h2>
@@ -317,7 +328,7 @@ async function build(view, { onResult, initialQuery }) {
             <form class="pv-palette-form" novalidate>
                 ${renderFormHtml(model, { esc, places, transitions, idPrefix: `${uid}-f` })}
                 <div class="pv-form-summary" role="alert" hidden></div>
-                <div class="pv-btn-container"><button type="submit" class="pv-btn pv-btn-primary" data-act="run"${canRun ? '' : ' disabled'}>Run</button></div>
+                <div class="pv-btn-container"><button type="submit" class="pv-btn pv-btn-primary" data-act="run"${canRun ? '' : ' aria-disabled="true"'}>Run</button></div>
             </form>
             <div class="pv-structure-status" role="status" aria-live="polite"></div>
             <div class="pv-structure-results"></div>`;
@@ -328,9 +339,21 @@ async function build(view, { onResult, initialQuery }) {
         const summary = formPane.querySelector('.pv-form-summary');
         const results = formPane.querySelector('.pv-structure-results');
         const runBtn = formPane.querySelector('[data-act="run"]');
+        // Never `disabled`: see the header. aria-disabled keeps the button focusable and the submit handler refuses.
+        let running = false;
+        const setBusy = (on) => {
+            running = on;
+            if (on) {
+                runBtn.setAttribute('aria-disabled', 'true');
+                runBtn.setAttribute('aria-busy', 'true');
+            } else {
+                runBtn.removeAttribute('aria-disabled');
+                runBtn.removeAttribute('aria-busy');
+            }
+        };
         form.addEventListener('submit', async (ev) => {
             ev.preventDefault();
-            if (!canRun || runBtn.disabled) return;
+            if (!canRun || running) return;
             const { args, errors } = readForm(form, model);
             showFormErrors(form, errors);
             summary.hidden = !errors.length;
@@ -339,7 +362,7 @@ async function build(view, { onResult, initialQuery }) {
                 form.querySelector('[aria-invalid="true"]')?.focus();
                 return;
             }
-            runBtn.disabled = true;
+            setBusy(true);
             statusEl().textContent = 'Running…';
             results.innerHTML = '';
             let outcome;
@@ -348,7 +371,7 @@ async function build(view, { onResult, initialQuery }) {
                     ? await runGoalOutcome(reg, goal, args, goalsMod.runGoal)
                     : await runCommandOutcome(reg, spec.id, args, { title: spec.label });
             } finally {
-                runBtn.disabled = false;
+                setBusy(false);
             }
             if (closed) return;
             if (onResult) {
@@ -382,12 +405,33 @@ async function build(view, { onResult, initialQuery }) {
     function close() {
         if (closed) return;
         closed = true;
+        document.removeEventListener('keydown', onStrayKey, true);
         overlay.remove();
         if (current === handle) current = null;
         try {
             if (opener && opener.isConnected && typeof opener.focus === 'function') opener.focus();
         } catch { /* the opener is gone */ }
     }
+
+    // A key that arrives while focus is on nothing (<body>: a control that was removed, or anything else that
+    // dropped focus) is still the dialog's: the overlay's listener never sees it, and the editor's window
+    // shortcuts must not. Capture phase, so it runs before them.
+    function onStrayKey(e) {
+        if (closed) return;
+        const a = document.activeElement;
+        const action = strayKeyAction(e, !a || a === document.body || a === document.documentElement);
+        if (!action) return; // focus is on something: its own handlers decide
+        e.stopPropagation();
+        if (action === 'close') {
+            e.preventDefault();
+            close();
+        } else if (action === 'tab') {
+            e.preventDefault();
+            const els = [...dialog.querySelectorAll(FOCUSABLE)].filter((el) => !el.closest('[hidden]'));
+            (els[e.shiftKey ? els.length - 1 : 0] || dialog).focus();
+        }
+    }
+    document.addEventListener('keydown', onStrayKey, true);
 
     overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
     dialog.querySelector('[data-act="close"]').addEventListener('click', close);

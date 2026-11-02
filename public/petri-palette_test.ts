@@ -1,7 +1,7 @@
 import { assert, assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import {
     buildIndex, isPaletteChord, outcomeOf, prefixLabel, previewJson, runCommandOutcome, runGoalOutcome,
-    searchIndex, shortcutHint, stepActive, stepHeadline, trapTarget,
+    searchIndex, shortcutHint, stepActive, stepHeadline, strayKeyAction, trapTarget,
 } from "./petri-palette.js";
 import { Registry, createHeadlessHost } from "./petri-commands.js";
 import { runGoal } from "./petri-goals.js";
@@ -425,4 +425,31 @@ Deno.test("bindPaletteKey: the chord opens it, other keys and text fields are le
 
     unbind();
     assertEquals(handler, null);
+});
+
+Deno.test("strayKeyAction: with focus on nothing the dialog takes Escape, the chord and Tab, and keeps every other key from the editor", () => {
+    assertEquals(strayKeyAction({ key: "Escape" }, true), "close");
+    assertEquals(strayKeyAction({ key: "k", ctrlKey: true }, true), "close");
+    assertEquals(strayKeyAction({ key: "K", metaKey: true }, true), "close");
+    assertEquals(strayKeyAction({ key: "Tab" }, true), "tab");
+    assertEquals(strayKeyAction({ key: "Tab", shiftKey: true }, true), "tab");
+    // the keys the editor's window handler acts on
+    for (const key of ["Delete", "Backspace", "x", "Enter", " ", "z"]) assertEquals(strayKeyAction({ key }, true), "swallow", key);
+    assertEquals(strayKeyAction({ key: "z", metaKey: true }, true), "swallow", "Cmd-Z is not the palette chord");
+    assertEquals(strayKeyAction({ key: "k", ctrlKey: true, shiftKey: true }, true), "swallow", "another chord");
+    // with focus on something, that element's handlers decide
+    assertEquals(strayKeyAction({ key: "Escape" }, false), null);
+    assertEquals(strayKeyAction({ key: "Delete" }, false), null);
+    assertEquals(strayKeyAction(null as any, true), null);
+});
+
+Deno.test("the Run button is never `disabled` (a focused button that becomes disabled drops focus to <body>)", async () => {
+    const src = await Deno.readTextFile(new URL("./petri-palette-ui.js", import.meta.url));
+    // code only: the header comment explains why
+    const code = src.split("\n").filter((l) => !l.trim().startsWith("//")).join("\n");
+    assert(!/\.disabled\s*=/.test(code), "nothing assigns .disabled (aria-disabled and an early return in the submit handler instead)");
+    assert(!/data-act="run"[^>]*\sdisabled[\s>]/.test(code), "the Run button is not rendered disabled");
+    assert(/data-act="run"[^>]*aria-disabled/.test(code), "an unavailable Run is aria-disabled");
+    assert(/tabIndex\s*=\s*-1/.test(code), "the dialog is focusable, so a click on plain text does not drop focus to <body>");
+    assert(/addEventListener\('keydown', onStrayKey, true\)/.test(code) && /removeEventListener\('keydown', onStrayKey, true\)/.test(code), "the capture-phase key backstop is installed and removed");
 });

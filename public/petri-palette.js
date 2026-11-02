@@ -299,6 +299,26 @@ export function trapTarget(count, current, shift) {
     return null;
 }
 
+/**
+ * What the open dialog does with a key that arrives while focus is on nothing
+ * (<body>: the person clicked plain text, or the focused control went away).
+ * The dialog's own key handling does not hear such a key and the editor's
+ * window shortcuts (Delete, x, Cmd-Z) would act on the net behind it, so the
+ * dialog takes it: 'close' for Escape and the palette chord, 'tab' to bring
+ * focus back inside, 'swallow' for every other key (kept from the editor, the
+ * browser's own default left alone). null when focus is on something, whose
+ * handlers decide.
+ * @param {{key?: string, metaKey?: boolean, ctrlKey?: boolean, altKey?: boolean, shiftKey?: boolean}} e
+ * @param {boolean} focusIsNowhere document.activeElement is null, <body> or <html>
+ * @returns {'close' | 'tab' | 'swallow' | null}
+ */
+export function strayKeyAction(e, focusIsNowhere) {
+    if (!focusIsNowhere || !e) return null;
+    if (e.key === 'Escape' || isPaletteChord(e)) return 'close';
+    if (e.key === 'Tab') return 'tab';
+    return 'swallow';
+}
+
 /** Cmd-K or Ctrl-K, with no other modifier (one of Cmd and Ctrl, as the platform has it). */
 export function isPaletteChord(e) {
     return !!e && typeof e.key === 'string' && e.key.toLowerCase() === 'k'

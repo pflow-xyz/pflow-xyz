@@ -7,7 +7,9 @@
 // form of a command (sim.ssa) whose bad entries are reported beside their fields and whose good ones run through the
 // registry; a goal's place input is a select of the net's places with the one the search names preselected; Tab stays
 // inside the dialog; onResult gets the outcome and the palette closes; a classic tool opens its own dialog; Ctrl-K in
-// a plain text field is left alone. No model, no sign-in: nothing here calls /api/llm.
+// a plain text field is left alone; focus never falls out of the dialog (a real click on Run, an unavailable question's
+// form, a click on plain text, a control that vanishes): Escape still closes it and the editor's Delete and x stay out.
+// No model, no sign-in: nothing here calls /api/llm.
 //
 // Not part of `make test` (it needs Chrome and a running server). Exit status 1 on any failure; scripts/smoke-gate.sh
 // is the way to run it before a push.
@@ -34,8 +36,8 @@ const SIR = {
   ],
 };
 
-async function key(page: Page, k: string, code: string, vk: number, modifiers = 0) {
-  await page.send("Input.dispatchKeyEvent", { type: "rawKeyDown", key: k, code, windowsVirtualKeyCode: vk, modifiers });
+async function key(page: Page, k: string, code: string, vk: number, modifiers = 0, text?: string) {
+  await page.send("Input.dispatchKeyEvent", { type: text ? "keyDown" : "rawKeyDown", key: k, code, windowsVirtualKeyCode: vk, modifiers, text });
   await page.send("Input.dispatchKeyEvent", { type: "keyUp", key: k, code, windowsVirtualKeyCode: vk, modifiers });
   await sleep(60);
 }
@@ -168,6 +170,105 @@ try {
   await key(page, "k", "KeyK", 75, 2);
   await sleep(200);
   ok(await page.eval(`!document.querySelector('.pv-palette') && window.__prevented === false`), "Ctrl-K inside a plain text field does not open the palette and is not prevented", await page.eval(`String(window.__prevented)`));
+
+  console.log("focus never falls out of the dialog");
+  // When focus falls to BODY the dialog's own key handling (Escape, the Tab trap) never sees a key and the editor's
+  // window shortcuts act behind it. Each case below uses a real click or real key events and then asks the same three
+  // things: is focus still in the dialog, did Delete and x leave the net alone, does Escape close the dialog.
+  const placesOf = () => page.eval(`JSON.stringify(Object.keys(document.querySelector('petri-view').getModel().places))`);
+  const inDialog = () => page.eval(`!!document.activeElement?.closest?.('.pv-palette')`);
+  const resetNet = () => page.eval(`(async () => {
+    document.getElementById('plain')?.remove();
+    document.activeElement?.blur?.();
+    const v = document.querySelector('petri-view');
+    v.setModel(${JSON.stringify(SIR)});
+    v._selectedNodes.clear();
+    v._selectedNodes.add('S');
+    v._simRunning = false;
+    const reg = await v.commands();
+    if (!window.__origExec) {
+      window.__origExec = reg.execute.bind(reg);
+      reg.execute = async (id, a) => { window.__calls++; await new Promise((r) => setTimeout(r, window.__slow || 0)); return window.__origExec(id, a); };
+    }
+    window.__slow = 0;
+    window.__calls = 0;
+  })()`);
+  const openForm = async (q: string) => {
+    await key(page, "k", "KeyK", 75, 2);
+    await page.waitFor("!!document.querySelector('.pv-palette')");
+    await typeText(page, q);
+    await key(page, "Enter", "Enter", 13);
+    await page.waitFor("!document.querySelector('[data-pane=form]').hidden");
+    await sleep(150);
+  };
+  const centreOf = (sel: string) => page.eval(`(() => { const b = document.querySelector(${JSON.stringify(sel)}).getBoundingClientRect(); return [b.x + b.width / 2, b.y + b.height / 2]; })()`);
+  const NET = JSON.stringify(["S", "I", "R"]);
+  const staysOut = async (label: string) => {
+    ok(await inDialog(), `${label}: focus is in the dialog`, await page.eval(`document.activeElement?.tagName + '.' + document.activeElement?.className`));
+    await key(page, "Delete", "Delete", 46);
+    await key(page, "x", "KeyX", 88, 0, "x");
+    ok(await placesOf() === NET, `${label}: Delete leaves the net alone`, await placesOf());
+    ok(await page.eval(`!document.querySelector('petri-view')._simRunning`), `${label}: x does not start the simulation`);
+    await key(page, "Escape", "Escape", 27);
+    ok(await page.eval(`!document.querySelector('.pv-palette')`), `${label}: Escape closes the dialog`);
+  };
+
+  // a real mouse click on Run, with the run slow enough to see
+  await resetNet();
+  await page.eval(`window.__slow = 500`);
+  await openForm("sim.marking");
+  const run = await centreOf("[data-act=run]");
+  await page.click(run[0], run[1]);
+  await sleep(150);
+  ok(await page.eval(`(() => { const b = document.querySelector('[data-act=run]'); return b.getAttribute('aria-disabled') === 'true' && !b.disabled && document.activeElement === b; })()`), "while it runs the Run button is aria-disabled, not disabled, and keeps focus");
+  await page.eval(`document.querySelector('[data-act=run]').click()`);
+  await sleep(100);
+  await page.waitFor("document.querySelector('.pv-structure-status').textContent === 'Done.'", 10000);
+  ok(await page.eval(`document.querySelector('[data-act=run]').getAttribute('aria-disabled') === null`), "when it is done Run is available again");
+  ok(await page.eval(`window.__calls === 1`), "a second click while it was running did not run it twice", await page.eval(`String(window.__calls)`));
+  await staysOut("after a mouse click on Run");
+
+  // Enter on the Run button
+  await resetNet();
+  await page.eval(`window.__slow = 300`);
+  await openForm("sim.marking");
+  await page.eval(`document.querySelector('[data-act=run]').focus()`);
+  await key(page, "Enter", "Enter", 13, 0, "\r");
+  await sleep(100);
+  await page.waitFor("document.querySelector('.pv-structure-status').textContent === 'Done.'", 10000);
+  await staysOut("after Enter on Run");
+
+  // a question that cannot run here: its form has no fields and Run cannot be used
+  await resetNet();
+  await openForm("Does my data match the model");
+  ok(await page.eval(`(() => { const b = document.querySelector('[data-act=run]'); return b.getAttribute('aria-disabled') === 'true' && !b.disabled; })()`), "an unavailable question's Run is aria-disabled and still focusable");
+  await page.eval(`document.querySelector('[data-act=run]').click()`);
+  await sleep(150);
+  ok(await page.eval(`!document.querySelector('.pv-structure-results').children.length`), "Run on an unavailable question does nothing");
+  await staysOut("an unavailable question's form");
+
+  // a click on plain text inside the dialog
+  await resetNet();
+  await openForm("sim.ssa");
+  const title = await centreOf(".pv-palette-form-title");
+  await page.click(title[0], title[1]);
+  await sleep(100);
+  await staysOut("after a click on plain text");
+
+  // the backstop: whatever else takes focus off everything, keys still belong to the dialog
+  await resetNet();
+  await openForm("sim.ssa");
+  await page.eval(`document.activeElement.blur()`);
+  ok(await page.eval(`document.activeElement === document.body`), "(focus is now on the page body)");
+  await key(page, "Delete", "Delete", 46);
+  await key(page, "x", "KeyX", 88, 0, "x");
+  ok(await placesOf() === NET && await page.eval(`!document.querySelector('petri-view')._simRunning`), "with focus on the body Delete and x still stay out of the net");
+  await key(page, "Tab", "Tab", 9);
+  ok(await inDialog(), "Tab brings focus back into the dialog");
+  await page.eval(`document.activeElement.blur()`);
+  await key(page, "Escape", "Escape", 27);
+  ok(await page.eval(`!document.querySelector('.pv-palette')`), "with focus on the body Escape still closes the dialog");
+  ok(await placesOf() === NET, "and the net is untouched");
 
   // A script error or a failed import of the palette is a failure; a missing thumbnail on the landing page is not.
   const bad = page.problems.filter((p: string) => p.startsWith("exception:") || /palette|schema-form/.test(p));
