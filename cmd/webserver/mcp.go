@@ -140,8 +140,61 @@ func netBytes(args map[string]any) ([]byte, map[string]any, error) {
 	if !ok {
 		return nil, nil, errors.New("net: a JSON object (the editor's format) is required")
 	}
+	if err := netShape(n); err != nil {
+		return nil, nil, err
+	}
 	raw, err := json.Marshal(n)
 	return raw, n, err
+}
+
+// netShape refuses a net whose places, transitions or arcs are not in the
+// editor's shape. go-pflow's reader skips what it does not recognise, so the
+// flat net pflow_bundle_flatten returns (places and transitions as lists, arcs
+// with from/to) read as a net with no places, and every tool answered about an
+// empty net instead of refusing. A part that is absent is left to the tool (a
+// composition has none).
+func netShape(doc map[string]any) error {
+	flat := false
+	for _, k := range []string{"places", "transitions"} {
+		if _, ok := doc[k].([]any); ok {
+			flat = true
+		}
+	}
+	arcs, arcsOK := doc["arcs"].([]any)
+	for _, a := range arcs {
+		if m, ok := a.(map[string]any); ok && (m["from"] != nil || m["to"] != nil) {
+			flat = true
+		}
+	}
+	hint := ""
+	if flat {
+		hint = " (this looks like the flat net pflow_bundle_flatten returns, which the net tools cannot read: fire it with pflow_bundle_run)"
+	}
+	for _, k := range []string{"places", "transitions"} {
+		if v, ok := doc[k]; ok && v != nil {
+			if _, ok := v.(map[string]any); !ok {
+				return fmt.Errorf("net.%s: an object keyed by %s id%s", k, strings.TrimSuffix(k, "s"), hint)
+			}
+		}
+	}
+	if v, ok := doc["arcs"]; ok && v != nil {
+		if !arcsOK {
+			return errors.New("net.arcs: a list of {source, target, weight}")
+		}
+		for i, a := range arcs {
+			m, ok := a.(map[string]any)
+			if !ok {
+				return fmt.Errorf("net.arcs[%d]: an object {source, target, weight}", i)
+			}
+			if _, ok := m["source"].(string); !ok {
+				return fmt.Errorf("net.arcs[%d]: source, the id of a place or transition%s", i, hint)
+			}
+			if _, ok := m["target"].(string); !ok {
+				return fmt.Errorf("net.arcs[%d]: target, the id of a place or transition%s", i, hint)
+			}
+		}
+	}
+	return nil
 }
 
 func mcpCheck(_ *Server, _ *http.Request, args map[string]any) (any, error) {
@@ -356,9 +409,12 @@ func mcpLinks(s *Server, r *http.Request, args map[string]any) (any, error) {
 	if cid, _ := args["cid"].(string); cid != "" {
 		return map[string]any{"editor": base + "/?cid=" + url.QueryEscape(cid), "svg": base + "/img/" + cid + ".svg", "jsonld": base + "/o/" + cid}, nil
 	}
+	if args["net"] == nil {
+		return nil, errors.New("give a cid or a net")
+	}
 	raw, _, err := netBytes(args)
 	if err != nil {
-		return nil, errors.New("give a cid or a net")
+		return nil, err
 	}
 	// The editor reads only nets, so a ?data= link to anything else opens empty.
 	if k := model.KindOf(raw); k != model.KindNet {

@@ -840,6 +840,9 @@ func mcpEdit(_ *Server, _ *http.Request, args map[string]any) (any, error) {
 		if !ok {
 			return nil, errors.New("net: a JSON object (the editor's format)")
 		}
+		if err := netShape(m); err != nil {
+			return nil, err
+		}
 		doc = cloneDoc(m)
 	} else {
 		doc = emptyNetDoc()
