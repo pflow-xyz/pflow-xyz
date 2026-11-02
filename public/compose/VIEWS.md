@@ -147,8 +147,7 @@ Inspired by pstack's
 [`/statechart` skill](https://github.com/cursor/plugins/tree/main/pstack/skills/statechart),
 which draws TLC's state graph as a Mermaid chart a reader can judge, with a small view
 module mapping model states to words. Our version would read the net's own reachability
-graph instead of a TLA+ spec. Write-up:
-[One Object: pstack's Statecharts and Our Nets](https://blog.stackdump.com/posts/pstack-statecharts).
+graph instead of a TLA+ spec.
 
 ## Links
 
