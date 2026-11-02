@@ -626,7 +626,7 @@ Built on branch `val/run-e68c5b30` (not merged; a push to `main` deploys). Each 
 - **H1 shipped without waiting for the auto-stats** (16.6.1). The collapsed Build/Analyse/Explain row is not built; "Not what I meant" in the pane is the correction.
 - **LLM limits are untouched.** `internal/llm/limits.go` and the env line in this file are held at `main`'s values; the merged `fix/gemini-agentic-feedback` branch had relaxed them and a separate commit reverts that until the billing-alarm policy is decided (revert that commit to adopt the relaxed values).
 - **Cost per goal** is in its own anonymous `goal-stats.json`, not a field on the usage `done` line, because `Usage` lives in `limits.go`.
-- **A hazard found on the way:** `sim.ode` on the cafe showcase net does not return in the vendored wasm (a synchronous call cannot be interrupted). The Ask core bounds an ODE run by a trial integration before honouring an override; the classic dialogs and the palette still run it on request.
+- **A hazard found on the way:** `sim.ode` on the cafe showcase net (`examples/showcase/cafe.jsonld`) does not return within a minute, and a synchronous call cannot be interrupted, so an honoured "use the ODE" would freeze the tab. The Ask core bounds an ODE run with a trial integration before honouring an override; the classic dialogs and the palette still run it on request, as before.
 
 ### Open items for the owner
 
