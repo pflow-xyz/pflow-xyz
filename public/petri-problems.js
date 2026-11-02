@@ -8,17 +8,30 @@
 // What is here
 //   summarize({report, loadCheck})   pure: an analysis.check report plus what the editor repaired at load -> one
 //                                    summary {level, count, errors, warnings, repaired, items, label}
-//   checkModel(model, {registry})    async: that summary for ANY net, read-only (the live document is never touched)
-//   ProblemsMonitor                  re-checks the live net after a burst of edits, drops results that went stale
+//   checkModel(model, {registry, full})
+//                                    async: that summary for ANY net, read-only (the live document is never touched).
+//                                    `full` (default true) is the whole analysis.check; `full: false` is the quick tier
+//   ProblemsMonitor                  re-checks the live net after a burst of edits, one check at a time, drops results
+//                                    that went stale
 //   applyGate(summary)               what an Apply does about problems: show them first, never refuse
 //   chipHtml / mountProblemsChip / problemsListHtml
 //                                    the "N problems" chip by the title, and the list it opens
 //
-// Wiring (petri-view): build a ProblemsMonitor on the live net (getModel: () => this._model, check: (m) =>
-// checkModel(m, {loadCheck: this._loadCheck})), call monitor.run() once the document has loaded (after _loadCheck is
-// set) and monitor.schedule() after each edit, mount the chip with mountProblemsChip(host, monitor, {onOpen}), and have
-// onOpen show problemsListHtml(summary, {esc}) in a dialog. Before an Apply: applyGate(await checkModel(null,
+// Wiring (petri-view): build a ProblemsMonitor on the live net (getModel: () => this._model, check: (m, o) =>
+// checkModel(m, {...o, loadCheck: this._loadCheck})), call monitor.run() once the document has loaded (after _loadCheck
+// is set) and monitor.schedule() after each edit, mount the chip with mountProblemsChip(host, monitor, {onOpen}), and
+// have onOpen show problemsListHtml(summary, {esc}) in a dialog. Before an Apply: applyGate(await checkModel(null,
 // {registry: chat.sandbox})).
+//
+// Two tiers, so that being always on costs nothing while someone edits. The full check is analysis.check as it is:
+// validateNet, then the engine smoke check (firing rule, ODE reading, CID seal). It runs on load (monitor.run()) and
+// before an Apply (checkModel with no `full`). The quick tier is what monitor.schedule() runs after an edit burst: the
+// same validateNet and the same firing-rule and ODE checks, but the CID seal only on a net of QUICK_SEAL_LIMIT elements
+// or fewer. Sealing canonicalises the whole net (URDNA2015) and is superlinear (deno, this box: 60 elements ~70 ms,
+// 120 ~260 ms, 200 ~850 ms, against ~30 ms for everything else on the 200), so on a big net it is nearly the whole
+// cost of a check. The price: on a net over the limit, a seal failure is reported by the load check and the Apply
+// gate but not by the re-check after an edit (a net validateNet accepts that cannot seal is not a case we have seen).
+// And the monitor runs one check at a time (see ProblemsMonitor), so a slow check can never pile up behind itself.
 //
 // Severities, in the order they are listed: 'error' (a problem in the net as it is now), 'repaired' (a problem the
 // incoming document had, which normalizeModel fixed quietly on load: the net you see is not the net you were given),
@@ -104,6 +117,38 @@ function failedSummary(e) {
     return summarize({ report: { errors: [{ path: '', message: `the check could not run: ${why}` }], warnings: [] } });
 }
 
+/** The most elements (places + transitions + arcs) a net can have for a quick check to still seal it. See the header. */
+export const QUICK_SEAL_LIMIT = 60;
+
+// Places + transitions + arcs of a raw or live document. places/transitions are objects keyed by id (arrays are
+// counted too). A shape validateNet rejects never gets here.
+function sizeOf(doc) {
+    const n = (x) => (Array.isArray(x) ? x.length : x && typeof x === 'object' ? Object.keys(x).length : 0);
+    return doc && typeof doc === 'object' ? n(doc.places) + n(doc.transitions) + n(doc.arcs) : 0;
+}
+
+// smokeCheck without the CID seal: the same two checks, in the same order and with the same messages, as
+// petri-validate.js smokeCheck (which this file may not change). Used by the quick tier on a net over the seal limit.
+async function smokeCheckUnsealed(doc) {
+    const { normalizeModel, enabledTransitions, transitionRates } = await import('./petri-sim.js');
+    const errors = [];
+    const net = normalizeModel(structuredClone(doc));
+    try {
+        enabledTransitions(net);
+    } catch (e) {
+        errors.push({ path: '', message: `the firing rule failed: ${e.message}` });
+    }
+    try {
+        const solver = await import('./petri-solver.js');
+        const pn = solver.fromJSON(net);
+        solver.setState(pn);
+        solver.setRates(pn, transitionRates(net));
+    } catch (e) {
+        errors.push({ path: '', message: `the ODE solver cannot read it: ${e.message}` });
+    }
+    return { ok: errors.length === 0, errors };
+}
+
 /**
  * Check any net the way analysis.check does (validateNet, then, if that found no error, the engine smoke check) and
  * summarize it. Read-only: the net is copied before anything else happens, so `model` is never changed, an edit made
@@ -116,13 +161,17 @@ function failedSummary(e) {
  * `loadCheck` (optional) is summarize's: pass petri-view's `_loadCheck` when checking the live net, so what was
  * repaired at load shows up as 'repaired' items in the same summary (the monitor's `check` can close over it).
  *
+ * `full` (default true) is the whole check, exactly analysis.check's. `full: false` is the quick tier the monitor
+ * runs after an edit: it skips the CID seal on a net of more than QUICK_SEAL_LIMIT elements (header: why), and is the
+ * same check otherwise. Load and Apply use the default.
+ *
  * It never rejects: a net that cannot be copied or checked comes back as an error item saying so.
  *
  * @param {*} model
- * @param {{registry?: {host: {getModel: () => *}}, loadCheck?: Object|null}} [opts]
+ * @param {{registry?: {host: {getModel: () => *}}, loadCheck?: Object|null, full?: boolean}} [opts]
  * @returns {Promise<ProblemsSummary>}
  */
-export async function checkModel(model, { registry, loadCheck = null } = {}) {
+export async function checkModel(model, { registry, loadCheck = null, full = true } = {}) {
     let doc;
     try {
         const source = model ?? (registry && registry.host && registry.host.getModel());
@@ -134,7 +183,8 @@ export async function checkModel(model, { registry, loadCheck = null } = {}) {
     try {
         const { validateNet, smokeCheck } = await import('./petri-validate.js');
         const r = validateNet(doc);
-        const smoke = r.ok ? await smokeCheck(doc) : null;
+        const seal = full !== false || sizeOf(doc) <= QUICK_SEAL_LIMIT;
+        const smoke = !r.ok ? null : seal ? await smokeCheck(doc) : await smokeCheckUnsealed(doc);
         return summarize({ report: { errors: [...r.errors, ...(smoke ? smoke.errors : [])], warnings: r.warnings }, loadCheck });
     } catch (e) {
         return failedSummary(e);
@@ -147,23 +197,30 @@ const sameSummary = (a, b) => !!a && !!b && a.level === b.level && a.count === b
 /**
  * Keeps a ProblemsSummary of a live net up to date without blocking edits.
  *
- *   schedule()   an edit happened: check again after `delayMs` of quiet. A burst of edits runs one check, on the
- *                model as it is when the timer fires (the last one wins).
- *   run()        check now (on load, before an Apply); resolves to the summary
+ *   schedule()   an edit happened: check again after `delayMs` of quiet, with the quick tier (`full: false`). A burst
+ *                of edits runs one check, on the model as it is when the timer fires (the last one wins).
+ *   run()        check now (on load, before an Apply) with the full tier; resolves to the summary
  *   state        {summary, checking}: the latest accepted summary (null before the first) and whether a check is
  *                waiting or running
  *   subscribe(fn) fn(summary) on each accepted result that differs from the last; returns an unsubscribe
  *   destroy()    stop: cancels the timer and drops anything still running
  *
- * A result is stale when a newer schedule() or run() started after the check that produced it: the model has
- * moved on, so the result is dropped (not stored, nobody is told). The run() that was dropped resolves to the
- * latest accepted summary instead. Timers are injectable so tests never sleep.
+ * One check at a time. A check is CPU-bound and cannot be cancelled once started, so if schedule()'s timer or run()
+ * asks for another while one is running, nothing new starts: the running one finishes (its result is stale, so it is
+ * dropped) and then ONE follow-up check runs on the model as it is by then, however many asks came in. A person who
+ * keeps editing therefore costs at most one check in flight plus one waiting, never a pile of them, and the chip
+ * gets its result as soon as the edits pause for `delayMs` plus one check.
+ *
+ * A result is stale when a newer schedule() or run() came after the check that produced it: the model has moved on,
+ * so the result is dropped (not stored, nobody is told). run() resolves to the latest accepted summary once nothing
+ * more is waiting, so a run() that was folded into a later check resolves to that check's result. The check function
+ * is called as check(model, {full}). Timers are injectable so tests never sleep.
  */
 export class ProblemsMonitor {
     /**
      * @param {Object} o
      * @param {() => *} o.getModel the live net, read when a check starts
-     * @param {(model: *) => Promise<ProblemsSummary>} [o.check]
+     * @param {(model: *, opts: {full: boolean}) => Promise<ProblemsSummary>} [o.check]
      * @param {(summary: ProblemsSummary) => void} [o.onChange]
      * @param {number} [o.delayMs] quiet time before a scheduled check (default 400)
      * @param {(fn: () => void, ms: number) => *} [o.setTimer]
@@ -179,14 +236,17 @@ export class ProblemsMonitor {
         this._clearTimer = (handle) => clearTimer(handle);
         this._listeners = new Set(typeof onChange === 'function' ? [onChange] : []);
         this._timer = null;
-        this._gen = 0;
-        this._inflight = 0;
+        this._gen = 0;          // bumped by every schedule() and every ask: a check is stale if this moved while it ran
+        this._busy = false;     // a check is running (or about to): the single flight
+        this._flight = null;    // the promise of the running drain, what run() hands back
+        this._dirty = false;    // another check was asked for while one was running (or before it started)
+        this._wantFull = false; // ...and at least one of the asks wanted the full tier
         this._summary = null;
         this._destroyed = false;
     }
 
     get state() {
-        return { summary: this._summary, checking: this._timer !== null || this._inflight > 0 };
+        return { summary: this._summary, checking: this._timer !== null || this._busy };
     }
 
     subscribe(fn) {
@@ -201,47 +261,74 @@ export class ProblemsMonitor {
         this._cancelTimer();
         this._timer = this._setTimer(() => {
             this._timer = null;
-            this.run();
+            this._ask(false);
         }, this._delayMs);
     }
 
     /**
-     * Check the net now. Resolves to the new summary, or, when a newer check supersedes this one (or the monitor was
-     * destroyed, or there is no net yet), to the latest accepted summary, which is null before the first. Never rejects.
+     * Check the net now (the full tier unless `full: false`). Resolves to the new summary, or, when a newer check
+     * supersedes this one (or the monitor was destroyed, or there is no net yet), to the latest accepted summary,
+     * which is null before the first. If a check is already running this one waits for it and runs after it, once.
+     * Never rejects.
+     * @param {{full?: boolean}} [o]
      * @returns {Promise<ProblemsSummary|null>}
      */
-    async run() {
+    async run({ full = true } = {}) {
         if (this._destroyed) return this._summary;
         this._cancelTimer(); // this check covers the one that was waiting
-        let model;
-        try { model = this._getModel(); } catch { model = undefined; }
-        if (model === null || model === undefined) return this._summary;
-        const gen = ++this._gen;
-        this._inflight++;
-        let summary;
-        try {
-            summary = await this._check(model);
-            if (!summary || typeof summary !== 'object') throw new Error('the check returned nothing');
-        } catch (e) {
-            summary = failedSummary(e);
-        } finally {
-            this._inflight--;
-        }
-        if (this._destroyed || gen !== this._gen) return this._summary; // stale: the net changed while it ran
-        const changed = !sameSummary(this._summary, summary);
-        this._summary = summary;
-        if (changed) {
-            for (const fn of [...this._listeners]) {
-                try { fn(summary); } catch { /* a listener never breaks the monitor */ }
-            }
-        }
-        return summary;
+        return this._ask(full !== false);
     }
 
     destroy() {
         this._destroyed = true;
         this._cancelTimer();
         this._listeners.clear();
+    }
+
+    // Ask for a check and join the running drain, or start it. The check itself starts synchronously when idle.
+    _ask(full) {
+        if (this._destroyed) return Promise.resolve(this._summary);
+        this._gen++;
+        this._dirty = true;
+        if (full) this._wantFull = true;
+        if (!this._busy) {
+            this._busy = true;
+            this._flight = this._drain();
+        }
+        return this._flight;
+    }
+
+    // Run checks one after another for as long as one is wanted. Always resolves, to the latest accepted summary.
+    async _drain() {
+        try {
+            while (this._dirty && !this._destroyed) {
+                this._dirty = false;
+                const full = this._wantFull;
+                this._wantFull = false;
+                let model;
+                try { model = this._getModel(); } catch { model = undefined; }
+                if (model === null || model === undefined) continue; // no net yet: nothing to check
+                const gen = this._gen;
+                let summary;
+                try {
+                    summary = await this._check(model, { full });
+                    if (!summary || typeof summary !== 'object') throw new Error('the check returned nothing');
+                } catch (e) {
+                    summary = failedSummary(e);
+                }
+                if (this._destroyed || gen !== this._gen) continue; // stale: the net changed while it ran
+                const changed = !sameSummary(this._summary, summary);
+                this._summary = summary;
+                if (changed) {
+                    for (const fn of [...this._listeners]) {
+                        try { fn(summary); } catch { /* a listener never breaks the monitor */ }
+                    }
+                }
+            }
+        } finally {
+            this._busy = false;
+        }
+        return this._summary;
     }
 
     _cancelTimer() {

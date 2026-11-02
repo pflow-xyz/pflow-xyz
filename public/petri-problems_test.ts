@@ -1,5 +1,5 @@
 import { assert, assertEquals, assertNotEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
-import { applyGate, checkModel, chipHtml, mountProblemsChip, problemsListHtml, ProblemsMonitor, summarize } from "./petri-problems.js";
+import { applyGate, checkModel, chipHtml, mountProblemsChip, problemsListHtml, ProblemsMonitor, QUICK_SEAL_LIMIT, summarize } from "./petri-problems.js";
 import { validateNet } from "./petri-validate.js";
 import { createHeadlessHost, Registry } from "./petri-commands.js";
 
@@ -30,6 +30,33 @@ function editorNet(model: any): any {
 }
 
 const sir = () => editorNet(portable.model);
+
+// A ring of n places and n transitions: 4n elements. Sealing it (URDNA2015) is what makes a check slow.
+function ringNet(n: number): any {
+    const places: any = {};
+    const transitions: any = {};
+    const arcs: any[] = [];
+    for (let i = 0; i < n; i++) {
+        places[`p${i}`] = { "@type": "Place", initial: [i % 3], capacity: [0], x: 40 + i * 10, y: 40, offset: 0 };
+        transitions[`t${i}`] = { "@type": "Transition", x: 40 + i * 10, y: 120, rate: 1 };
+        arcs.push({ "@type": "Arrow", source: `p${i}`, target: `t${i}`, weight: [1], inhibitTransition: false });
+        arcs.push({ "@type": "Arrow", source: `t${i}`, target: `p${(i + 1) % n}`, weight: [1], inhibitTransition: false });
+    }
+    return {
+        "@context": "https://pflow.xyz/schema", "@type": "PetriNet", "@version": "1.1",
+        token: ["https://pflow.xyz/tokens/black"], places, transitions, arcs,
+    };
+}
+
+// Count the SHA-256 digests taken while `fn` runs: sealing a CID takes at least one, nothing else in a check does.
+async function countDigests(fn: () => Promise<unknown>): Promise<number> {
+    const subtle = crypto.subtle as any;
+    const original = subtle.digest;
+    let n = 0;
+    subtle.digest = function (...a: any[]) { n++; return original.apply(this, a); };
+    try { await fn(); } finally { subtle.digest = original; }
+    return n;
+}
 
 function deepFreeze<T>(o: T): T {
     if (o && typeof o === "object") {
@@ -265,8 +292,55 @@ Deno.test("checkModel: loadCheck adds what was repaired at load to the same summ
     assertEquals([s.level, s.repaired, s.count], ["warn", 1, 1]);
     assertEquals(s.items[0].severity, "repaired");
     // and through the monitor, as petri-view will wire it
-    const m = new ProblemsMonitor({ getModel: () => live, check: (net: any) => checkModel(net, { loadCheck }) });
+    const m = new ProblemsMonitor({ getModel: () => live, check: (net: any, o: any) => checkModel(net, { ...o, loadCheck }) });
     assertEquals((await m.run())!.repaired, 1);
+});
+
+Deno.test("checkModel: the full check seals the CID; the quick tier seals only a small net", async () => {
+    const big = ringNet(30);   // 120 elements, over the limit
+    const small = sir();       // a handful
+    assert(QUICK_SEAL_LIMIT < 120 && QUICK_SEAL_LIMIT >= 20);
+    assert(await countDigests(() => checkModel(big)) > 0);                       // load and Apply: sealed
+    assert(await countDigests(() => checkModel(big, { full: true })) > 0);
+    assertEquals(await countDigests(() => checkModel(big, { full: false })), 0); // an edit re-check of a big net: not sealed
+    assert(await countDigests(() => checkModel(small, { full: false })) > 0);    // a small net is cheap to seal, so it is
+    // the limit is in elements (places + transitions + arcs), at the boundary
+    const edge = ringNet(QUICK_SEAL_LIMIT / 4);          // exactly the limit
+    const over = ringNet(QUICK_SEAL_LIMIT / 4 + 1);      // four elements over
+    assert(await countDigests(() => checkModel(edge, { full: false })) > 0);
+    assertEquals(await countDigests(() => checkModel(over, { full: false })), 0);
+});
+
+Deno.test("checkModel: the quick tier finds what the full one finds, apart from the seal", async () => {
+    const bigClean = ringNet(30);
+    const bigWarn = ringNet(30);
+    bigWarn.places.lonely = { initial: [0], capacity: [0], x: 0, y: 0 };
+    const bigBroken = ringNet(30);
+    bigBroken.arcs.push({ source: "p0", target: "nowhere", weight: [1] });
+    bigBroken.places.p1.initial = [-1];
+    const live: any = createHeadlessHost(ringNet(30)).getModel();
+    for (const net of [bigClean, bigWarn, bigBroken, live, sir()]) {
+        assertEquals(await checkModel(net, { full: false }), await checkModel(net, { full: true }));
+    }
+    assertEquals((await checkModel(bigBroken, { full: false })).errors, 2);
+    assertEquals((await checkModel(bigWarn, { full: false })).warnings, 1);
+    // read-only and loadCheck, as in the full tier
+    const frozen = deepFreeze(ringNet(30));
+    assertEquals((await checkModel(frozen, { full: false })).count, 0);
+    const loadCheck = validateNet(bigBroken);
+    assertEquals((await checkModel(bigClean, { full: false, loadCheck })).repaired, 2);
+});
+
+Deno.test("checkModel: the quick tier on a big net is the cheap path (no seal), by the clock too", async () => {
+    const big = ringNet(40); // 160 elements: ~0.5 s to seal on the dev box, ~30 ms without
+    await checkModel(big, { full: false }); // warm the module imports
+    const t0 = performance.now();
+    await checkModel(big, { full: false });
+    const quick = performance.now() - t0;
+    const t1 = performance.now();
+    await checkModel(big, { full: true });
+    const full = performance.now() - t1;
+    assert(quick < full / 3, `quick ${quick.toFixed(0)} ms is not well under full ${full.toFixed(0)} ms`);
 });
 
 // ---- ProblemsMonitor --------------------------------------------------------
@@ -383,22 +457,119 @@ Deno.test("monitor: a result that went stale while the check ran is dropped", as
     assertEquals(changes, [okSummary()]);
 });
 
-Deno.test("monitor: when two checks overlap, the older one finishing last does not overwrite the newer", async () => {
-    const a = deferred<any>();
-    const b = deferred<any>();
-    const queue = [a, b];
+Deno.test("monitor: one check at a time — asks made while one runs fold into a single follow-up, on the newest net", async () => {
+    let active = 0;
+    let maxActive = 0;
+    const started: any[] = [];
+    const waiting: Array<ReturnType<typeof deferred<any>>> = [];
+    let model: any = { v: 0 };
     const changes: string[] = [];
-    const m = new ProblemsMonitor({ getModel: () => ({}), check: () => queue.shift()!.promise, onChange: (s: any) => changes.push(s.label) });
+    const m = new ProblemsMonitor({
+        getModel: () => model,
+        check: async (mm: any) => {
+            started.push(mm); active++; maxActive = Math.max(maxActive, active);
+            const d = deferred<any>(); waiting.push(d);
+            try { return await d.promise; } finally { active--; }
+        },
+        onChange: (s: any) => changes.push(s.label),
+    });
     const runA = m.run();
-    const runB = m.run();
-    b.resolve(errSummary("new"));
+    model = { v: 1 }; const runB = m.run();
+    model = { v: 2 }; const runC = m.run();
+    assertEquals(started, [{ v: 0 }]);        // B and C did not start a second and third check
+    assertEquals(m.state.checking, true);
+    model = { v: 3 };
+    waiting[0].resolve(errSummary("old"));    // A finishes: stale (B and C asked after it), so dropped...
+    await tick(); await tick(); await tick();
+    assertEquals(started, [{ v: 0 }, { v: 3 }]); // ...and exactly one follow-up runs, on the net as it is now
+    assertEquals(m.state.summary, null);
+    assertEquals(changes, []);
+    waiting[1].resolve(errSummary("new"));
+    assertEquals(await runA, errSummary("new")); // all three asks resolve to the latest accepted summary
     assertEquals(await runB, errSummary("new"));
-    a.resolve(errSummary("x", "y", "z"));
-    // the stale run resolves to the latest accepted summary, not its own
-    assertEquals(await runA, errSummary("new"));
-    assertEquals(m.state.summary, errSummary("new"));
+    assertEquals(await runC, errSummary("new"));
     assertEquals(changes, ["1 problem"]);
+    assertEquals([started.length, maxActive], [2, 1]);
     assert(!m.state.checking);
+    // idle again: the next ask starts at once
+    const runD = m.run();
+    assertEquals(started.length, 3);
+    waiting[2].resolve(okSummary());
+    assertEquals(await runD, okSummary());
+    assertEquals(maxActive, 1);
+});
+
+Deno.test("monitor: edits every 700 ms against a slow check never put two checks in flight", async () => {
+    // The reviewer's scenario: a check that outlasts the quiet time, a person who keeps editing. Fake time, so
+    // the 9 edits all happen while the first check is still running.
+    const t = fakeTimers();
+    let active = 0;
+    let maxActive = 0;
+    let calls = 0;
+    const waiting: Array<ReturnType<typeof deferred<any>>> = [];
+    let model: any = { v: 0 };
+    const m = new ProblemsMonitor({
+        getModel: () => model,
+        check: async () => {
+            calls++; active++; maxActive = Math.max(maxActive, active);
+            const d = deferred<any>(); waiting.push(d);
+            try { return await d.promise; } finally { active--; }
+        },
+        setTimer: t.setTimer, clearTimer: t.clearTimer,
+    });
+    for (let v = 1; v <= 9; v++) { model = { v }; m.schedule(); t.advance(700); }
+    assertEquals(calls, 1);        // the first quiet period started a check; the other eight only asked
+    assertEquals(maxActive, 1);
+    assert(m.state.checking);
+    waiting[0].resolve(errSummary("stale"));
+    await tick(); await tick(); await tick();
+    assertEquals(calls, 2);        // one follow-up for all eight asks
+    assertEquals(maxActive, 1);
+    assertEquals(m.state.summary, null); // the stale result was not accepted
+    waiting[1].resolve(okSummary());
+    await tick(); await tick(); await tick();
+    assertEquals(m.state.summary, okSummary()); // and once the edits stop, the chip gets a result
+    assertEquals([calls, maxActive, m.state.checking], [2, 1, false]);
+});
+
+Deno.test("monitor: an edit during a check waits for quiet; it does not re-check at once", async () => {
+    const t = fakeTimers();
+    let calls = 0;
+    const d = deferred<any>();
+    const m = new ProblemsMonitor({ getModel: () => ({}), check: () => { calls++; return calls === 1 ? d.promise : Promise.resolve(okSummary()); }, setTimer: t.setTimer, clearTimer: t.clearTimer });
+    const run = m.run();
+    m.schedule();                  // an edit: the running check is stale, and a quiet-time check is waiting
+    d.resolve(errSummary("old"));
+    assertEquals(await run, null); // dropped
+    assertEquals(calls, 1);        // no follow-up yet: the timer decides when
+    assertEquals(t.waiting, 1);
+    assert(m.state.checking);
+    t.advance(400);
+    await tick(); await tick(); await tick();
+    assertEquals(calls, 2);
+    assertEquals(m.state.summary, okSummary());
+});
+
+Deno.test("monitor: the quiet-time check is the quick tier, run() is the full one, and a full ask is not lost to a quick one", async () => {
+    const t = fakeTimers();
+    const tiers: boolean[] = [];
+    const waiting: Array<ReturnType<typeof deferred<any>>> = [];
+    const m = new ProblemsMonitor({
+        getModel: () => ({}),
+        check: (_m: any, o: any) => { tiers.push(o.full); const d = deferred<any>(); waiting.push(d); return d.promise; },
+        setTimer: t.setTimer, clearTimer: t.clearTimer,
+    });
+    m.schedule(); t.advance(400);
+    assertEquals(tiers, [false]);
+    m.run();                       // asked while the quick one runs, then a quick ask joins it
+    m.schedule(); t.advance(400);
+    waiting[0].resolve(okSummary());
+    await tick(); await tick(); await tick();
+    assertEquals(tiers, [false, true]); // the follow-up is the full tier: the quick ask did not downgrade it
+    waiting[1].resolve(okSummary());
+    await tick(); await tick(); await tick();
+    m.run({ full: false });
+    assertEquals(tiers, [false, true, false]);
 });
 
 Deno.test("monitor: a check that throws is an error item, not a silent All clear, and the monitor keeps working", async () => {
@@ -470,6 +641,33 @@ Deno.test("monitor: needs getModel, and works end to end with the real checkMode
     t.advance(400);
     for (let i = 0; i < 50 && m.state.checking; i++) await new Promise((r) => setTimeout(r, 0)); // the real engines, a few ticks
     assertEquals(m.state.summary!.level, "error");
+});
+
+Deno.test("monitor: with the real checkModel on a big net, edits cost one check in flight and one follow-up, and a result", async () => {
+    const t = fakeTimers();
+    let active = 0;
+    let maxActive = 0;
+    let calls = 0;
+    const tiers: boolean[] = [];
+    let net: any = ringNet(50); // 200 elements: ~1 s to seal, ~30 ms without
+    const m = new ProblemsMonitor({
+        getModel: () => net,
+        check: async (mm: any, o: any) => {
+            calls++; active++; maxActive = Math.max(maxActive, active); tiers.push(o.full);
+            try { return await checkModel(mm, o); } finally { active--; }
+        },
+        setTimer: t.setTimer, clearTimer: t.clearTimer,
+    });
+    for (let v = 1; v <= 9; v++) { // nine edits, each after the quiet time, all while the first check runs
+        net = ringNet(50); net.places.p0.initial = [v];
+        m.schedule(); t.advance(700);
+    }
+    for (let i = 0; i < 400 && m.state.checking; i++) await new Promise((r) => setTimeout(r, 5));
+    assertEquals(m.state.checking, false);
+    assertEquals(maxActive, 1);
+    assertEquals(calls, 2);
+    assertEquals(tiers, [false, false]);
+    assertEquals(m.state.summary, okSummary()); // the chip has its answer
 });
 
 // ---- applyGate --------------------------------------------------------------
