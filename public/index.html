@@ -171,9 +171,7 @@
             padding: 10px 12px;
             resize: vertical;
         }
-        .landing-chat-routes { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 14px; border: 0; margin: 0; padding: 0; }
-        .landing-chat-routes label { cursor: pointer; font-size: 0.95rem; }
-        .landing-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+        .landing-chat [hidden] { display: none; } /* no chat for this visitor: no box (petri-landing.js) */
         .landing-chat a { color: var(--pf-accent); }
         .landing-hero-buttons {
             display: flex;
@@ -542,33 +540,14 @@
                 <h1 id="landing-chat-q">Explanations you can run.</h1>
                 <p>LLM-written code got good in the last year. Understanding it didn't get faster. You can only move as fast as you comprehend what you've built. pflow turns each model into something you can see, run and check. <span id="landing-chat-ask">What are you working on?</span></p>
                 <textarea id="landing-chat-input" rows="2" aria-labelledby="landing-chat-ask" placeholder="A coffee shop with one barista and a queue. Where does it jam?"></textarea>
-                <fieldset class="landing-chat-routes">
-                    <legend class="landing-sr">What kind of session</legend>
-                    <label><input type="radio" name="route" value="auto" checked/> Let it decide</label>
-                    <label><input type="radio" name="route" value="design"/> Design</label>
-                    <label><input type="radio" name="route" value="analyse"/> Analyse</label>
-                    <label><input type="radio" name="route" value="explore"/> Explore</label>
-                    <label><input type="radio" name="route" value="explain"/> Explain</label>
-                </fieldset>
-                <p id="landing-chat-hint" class="landing-chat-small"></p>
-                <button type="submit" id="landing-chat-send" class="btn-primary">Start</button>
+                <button type="submit" id="landing-chat-send" class="btn-primary">Ask</button>
                 <p id="landing-chat-state" class="landing-chat-small" role="status"></p>
                 <p id="landing-chat-connector" class="landing-chat-small" hidden>Using Claude or another MCP client? <a href="/mcp.html">Add pflow as a connector</a> and chat there.</p>
             </form>
             <div class="landing-hero-buttons">
                 <a class="btn-secondary" href="#" id="open-editor-btn">Open the editor</a>
-                <a class="btn-secondary" href="https://sim.pflow.xyz">Describe it instead (sim)</a>
+                <a class="btn-secondary" href="/compose.html">Compose</a>
             </div>
-        </div>
-    </section>
-
-    <section class="landing-pipeline">
-        <h2>Or start from a description</h2>
-        <p class="landing-pipeline-sub">Describe a decision, process or mechanism to your AI assistant and get back a model you can run and check. Some to open on sim.pflow.xyz:</p>
-        <div class="pipeline-grid">
-            <a href="https://sim.pflow.xyz/second-car/" class="pipeline-card"><h3>Second car or ride-share?</h3><p>A household decision with the spread shown, free with no sign-up.</p><span class="pipeline-link">Open &rarr;</span></a>
-            <a href="https://sim.pflow.xyz/whatif/?id=7d736018c17edd5d7b083444" class="pipeline-card"><h3>Cold-chain attack</h3><p>How many technicians does it take to beat a freezer defrost attack?</p><span class="pipeline-link">Open &rarr;</span></a>
-            <a href="https://sim.pflow.xyz/whatif/?id=3741e97f8256ab15e7a28aed" class="pipeline-card"><h3>Baggage hall</h3><p>Conveyor health against sorter headcount, and which one moves missed bags.</p><span class="pipeline-link">Open &rarr;</span></a>
         </div>
     </section>
 
@@ -633,8 +612,18 @@
         </div>
     </section>
 
+    <section class="landing-pipeline" id="calibrated-what-ifs">
+        <h2>Calibrated what-ifs (sim.pflow.xyz)</h2>
+        <p class="landing-pipeline-sub">Models already tuned to a known kind of system: open one, turn the knobs and see which one binds. No editor needed. To model your own, start at the top of the page.</p>
+        <div class="pipeline-grid">
+            <a href="https://sim.pflow.xyz/second-car/" class="pipeline-card"><h3>Second car or ride-share?</h3><p>A household decision with the spread shown, free with no sign-up.</p><span class="pipeline-link">Open &rarr;</span></a>
+            <a href="https://sim.pflow.xyz/whatif/?id=7d736018c17edd5d7b083444" class="pipeline-card"><h3>Cold-chain attack</h3><p>How many technicians does it take to beat a freezer defrost attack?</p><span class="pipeline-link">Open &rarr;</span></a>
+            <a href="https://sim.pflow.xyz/whatif/?id=3741e97f8256ab15e7a28aed" class="pipeline-card"><h3>Baggage hall</h3><p>Conveyor health against sorter headcount, and which one moves missed bags.</p><span class="pipeline-link">Open &rarr;</span></a>
+        </div>
+    </section>
+
     <section class="landing-pipeline">
-        <h2>Draw &rarr; Check &rarr; Prove</h2>
+        <h2>Draw &rarr; Run &rarr; Prove</h2>
         <p class="landing-pipeline-sub">One model, three questions: what is it, what does it do, can it be audited.</p>
         <div class="pipeline-grid">
             <a href="#" id="pipeline-draw" class="pipeline-card">
@@ -664,8 +653,8 @@
                         <line x1="24" y1="36" x2="24" y2="39" stroke="#EBFF00" stroke-width="2"/>
                     </svg>
                 </div>
-                <h3>Check</h3>
-                <p>Describe a decision or a process and get back a model that is seeded, repeatable and checked knob by knob, instead of a confident guess. Start from words, not from a canvas.</p>
+                <h3>Run</h3>
+                <p>Run a calibrated what-if and see which knob binds. The model is seeded and repeatable, so the answer is checked knob by knob instead of being a confident guess.</p>
                 <span class="pipeline-link">sim.pflow.xyz &rarr;</span>
             </a>
             <a href="https://blog.stackdump.com/posts/zk-petri-nets" class="pipeline-card">
@@ -859,7 +848,7 @@
     }
 
     // Deep link: skip landing if ?cid= or ?data= present, or the URL names a chat session (petri-landing.js)
-    if (params.has('cid') || params.has('data') || ['auto', 'design', 'analyse', 'explain'].includes(params.get('route'))) {
+    if (params.has('cid') || params.has('data') || ['auto', 'build', 'design', 'analyse', 'explain'].includes(params.get('route'))) {
         showEditor();
         return;
     }
