@@ -1282,3 +1282,56 @@ Deno.test("goalAnswer: stays under the byte bound however large the steps are, a
     const small = goalAnswer({ goal, record, steps: [{ index: 0, command: "sim.recommend", args: {}, result: { engine: "ssa" }, artifacts: [] }], artifact: art });
     assertEquals(small.steps, [], "sim.recommend is folded into engine");
 });
+
+// ---- the result's follow-ups, and R3: numbers in the model's prose ----
+
+Deno.test("run_goal: the result carries the goal's follow-up goals (goals.json), as ids", async () => {
+    const { chat } = goalSession(smallNet(), []);
+    const risk = await chat.runCall(run("risk"));
+    assertEquals(risk.result.followUps, ["knob", "average"]);
+    assertEquals((await chat.runCall(run("stuck"))).result.followUps, ["conserved", "can_happen"]);
+    // a catalogue that dropped a goal drops it from the list
+    const gone = goalSession(smallNet(), [], { goals: { ...catalog, goals: catalog.goals.map((g: any) => (g.id === "knob" ? { ...g, available: false } : g)) } });
+    assertEquals((await gone.chat.runCall(run("risk"))).result.followUps, ["average"]);
+});
+
+Deno.test("R3: the model's reply is the result's answer, labelled the assistant's; a number in none of the evidence is a warning, not a block", async () => {
+    const { chat } = goalSession(smallNet(), [
+        { tool_calls: [run("risk")] },
+        { reply: "Across the 20 runs the infection reaches 987.654 people." },
+    ]);
+    const events: any[] = [];
+    const out = await chat.send("How bad can the outbreak get?", (e: any) => events.push(e));
+    assertEquals(out.reply, "Across the 20 runs the infection reaches 987.654 people.", "the reply is not blocked");
+    const r = events.find((e) => e.type === "goal").entry.result;
+    assertEquals(r.answer, { by: "assistant", text: "Across the 20 runs the infection reaches 987.654 people.", stray: ["987.654"] });
+    assertEquals(r.warnings.length, 1);
+    assert(r.warnings[0].includes("a number that is in none of the results: 987.654"), r.warnings[0]);
+    const answered = events.filter((e) => e.type === "answer");
+    assertEquals(answered.length, 1);
+    assert(answered[0].result === r, "the event carries the result it belongs to");
+    assertEquals(answered[0].answer, r.answer);
+    assertEquals(r.record.warnings, [], "the footer is the engine's: the model's slip is not in it");
+    assertEquals(r.record.note, null);
+});
+
+Deno.test("R3: numbers the evidence holds (a run count, the seed, a value of the series, the person's own) draw no warning", async () => {
+    const probe = goalSession(smallNet(), []);
+    const first = (await probe.chat.runCall(run("risk"))).result;
+    const final = first.artifacts[0].data.series[0].values.at(-1);
+    const quote = `${+final.toFixed(1)}`;
+    const { chat } = goalSession(smallNet(), [
+        { tool_calls: [run("risk")] },
+        { reply: `Over 20 runs (seed 1, ${first.record.calls[1].args.t_end} days) it ends near ${quote}, as you guessed with 40.` },
+    ]);
+    const events: any[] = [];
+    await chat.send("Is it 40 at the end? How bad can it get?", (e: any) => events.push(e));
+    const r = events.find((e) => e.type === "goal").entry.result;
+    assertEquals(r.answer.stray, undefined, JSON.stringify(r.answer));
+    assertEquals(r.warnings, []);
+    // a reply with no tool results in the turn is not attached to anything
+    const none = goalSession(smallNet(), [{ reply: "It has 3 places." }]);
+    const ev: any[] = [];
+    await none.chat.send("hi", (e: any) => ev.push(e));
+    assertFalse(ev.some((e) => e.type === "answer"));
+});

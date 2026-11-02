@@ -38,6 +38,12 @@
 //   open_view       tells the interface to open a classic view
 //                   {type:'open_view', view}; the interface opens it
 //
+// The model's prose is checked against the evidence (R3): when its reply
+// follows a goal result, the numbers in it that are in no artifact, result or
+// call argument become a warning on that result ({type:'answer', result,
+// answer}), never a block. The reply is kept as result.answer, labelled the
+// assistant's.
+//
 // The twelve direct tools (net_add_place ... view_fit) are plain commands.
 // A server that does not know the goals toolset answers 400 "toolset goals is
 // not available"; the session then falls back to 'all' once
@@ -52,6 +58,7 @@ import { GOAL_VIEWS, decodeCall, decodeGoalCall, summarizeResult } from './petri
 import { EngineGuard, checkEngine, engineNeeded, isEdit, modelKey, needsGuard, overrideAllowed, refusalText } from './petri-engine-guard.js';
 import { inferPlace, runGoal } from './petri-goals.js';
 import { engineOf, provenance, recordFromCall, recordFromGoalRun, rerun } from './petri-provenance.js';
+import { followUpsFor, numeralsOutside } from './petri-ask.js';
 
 // isEdit (which commands change the document, or the token game's marking,
 // which lives in it: they make the sandbox differ from the live net) lives in
@@ -697,7 +704,7 @@ export class ChatSession {
         const result = {
             id: resultId(), title: goal.question, source: 'ask', goal: { id: goal.id, question: goal.question },
             record, artifacts, steps: run.steps, inputs: prep.filled, warnings, assumed,
-            caveat: goal.caveat || '', answerShape: goal.answer || '', followUps: [...(goal.followUps || [])],
+            caveat: goal.caveat || '', answerShape: goal.answer || '', followUps: followUpsFor(goal, this.goals).map((g) => g.id),
             registry: this.sandbox, onProposal: !!this.proposal, answer: null, stale: false,
         };
         entry.ok = true;
@@ -794,6 +801,20 @@ export class ChatSession {
         };
     }
 
+    /**
+     * The model's reply after a goal result is that result's answer, labelled the assistant's. R3: a number in it that
+     * is in no artifact, step result, call argument or word of the person's is a warning on the result (not a block).
+     */
+    _checkAnswer(text, onEvent) {
+        const results = this._turn.results;
+        const last = results.at(-1);
+        const evidence = results.map((r) => [r.artifacts.map((a) => a.data), r.steps.map((s) => s.result), r.record.calls, r.record.engine, r.record.assumed, r.inputs]);
+        const stray = numeralsOutside(text, evidence, { also: this._lastUserText() });
+        last.answer = { by: 'assistant', text, ...(stray.length ? { stray } : {}) };
+        if (stray.length) last.warnings.push(`The assistant's text has ${stray.length === 1 ? 'a number' : 'numbers'} that ${stray.length === 1 ? 'is' : 'are'} in none of the results: ${stray.join(', ')}.`);
+        onEvent({ type: 'answer', result: last, answer: last.answer });
+    }
+
     /** The turn is over: analysis composed from commands with no goal is logged by id, for adding goals later. */
     _finishTurn(onEvent) {
         const t = this._turn;
@@ -809,9 +830,10 @@ export class ChatSession {
      * Send the person's message and run the loop until the model answers
      * without tools, asks the person a question, or maxRounds model calls.
      * onEvent receives {type: 'reply' | 'call' | 'round' | 'quota' | 'auto' | 'wait' | 'step' | 'checks' | 'intent'
-     * | 'toolset' | 'goal' | 'command' | 'ask' | 'open_view' | 'composed', ...} as it happens (the goals toolset's events are
-     * described on the pseudo-tools in the header: goal {entry}, command {entry}, ask {card}, open_view {view}, composed {ids},
-     * toolset {toolset}; intent {mode, forced, sentiment?, confidence?} when a message's intent is known).
+     * | 'toolset' | 'goal' | 'command' | 'ask' | 'answered' | 'answer' | 'open_view' | 'composed', ...} as it happens (the goals
+     * toolset's events are described on the pseudo-tools in the header: goal {entry}, command {entry}, ask {card}, answered
+     * {answer}, answer {result, answer} (the model's reply attached to the goal result it follows), open_view {view}, composed
+     * {ids}, toolset {toolset}; intent {mode, forced, sentiment?, confidence?} when a message's intent is known).
      * A message typed while a question card is open is the card's "Other…" answer (see answer).
      * @param {string} text
      * @param {(e: Object) => void} [onEvent]
@@ -863,6 +885,7 @@ export class ChatSession {
             if (resp.reply) {
                 reply = resp.reply;
                 onEvent({ type: 'reply', text: resp.reply });
+                if (t.results.length) this._checkAnswer(resp.reply, onEvent);
                 const to = this.effectiveMode === 'build' ? nextStepIn(resp.reply, this.step) : null;
                 if (to) {
                     this.step = to;
