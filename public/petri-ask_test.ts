@@ -290,6 +290,11 @@ Deno.test("assumptionLine: what the code and the model each took, as a sentence"
     assertEquals(assumptionLine({ key: "k" }), "k");
     assertEquals(assumptionLine(null as any), "");
     assertEquals(assumptionLines([{ how: "inferred", key: "p", value: "S" }, null, { text: "x" }] as any), ["I took p to be S.", "x"]);
+    // an entry that says it was inferred or defaulted but holds no value says its own wording, never "undefined"
+    assertEquals(assumptionLine({ how: "default", key: "to", text: "to = 2 (default for best_setting)" }), "to = 2 (default for best_setting)");
+    assertEquals(assumptionLine({ how: "inferred", key: "p", text: "p = S (taken from your words)" }), "p = S (taken from your words)");
+    assertEquals(assumptionLine({ how: "default", label: "up to rate" }), "");
+    assertFalse(assumptionLine({ how: "default", key: "to" }).includes("undefined"));
 });
 
 Deno.test("answerLabel and taggedLines: every line is the engine's or the assistant's; 'you decide' is the assistant's judgment", () => {
@@ -345,6 +350,73 @@ Deno.test("numeralsOutside: a number in no artifact, result or call is reported;
     assertEquals(numeralsOutside("No numbers here.", [artifact]), []);
     assertEquals(numeralsOutside("", [artifact]), []);
     assertEquals(numeralsOutside(undefined as any, undefined), []);
+});
+
+// The check every numeral used to get: a scan of all the evidence with the rounding and truncation test (the definition
+// the binary search must give the same answers as).
+function bruteOutside(text: string, values: number[]) {
+    const out: string[] = [];
+    for (const m of text.matchAll(/\d+(?:\.\d+)?(?:e[+-]?\d+)?%?/g)) {
+        const written = m[0].replace("%", "");
+        const x = Number(written);
+        const d = /\.(\d+)/.exec(written)?.[1].length ?? 0;
+        const exp = /e/i.test(written);
+        const at = (w: number) => (exp ? Math.abs(w - x) <= Math.abs(x) * 1e-3 : Number(w.toFixed(Math.min(d, 20))) === x || Math.trunc(w * 10 ** d) / 10 ** d === x);
+        if (Number.isInteger(x) && d === 0 && !exp && !m[0].endsWith("%") && (x === 0 || x === 1)) continue;
+        if (!values.some((v) => at(v) || at(v * 100)) && !out.includes(written)) out.push(written);
+    }
+    return out;
+}
+
+Deno.test("numeralsOutside: the sorted lookup answers exactly what a scan of every value would (random evidence, random numerals)", () => {
+    let seed = 12345;
+    const rnd = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 2 ** 32);
+    for (let round = 0; round < 60; round++) {
+        const values = Array.from({ length: 1 + Math.floor(rnd() * 300) }, () => {
+            const k = rnd();
+            const v = k < 0.25 ? Math.floor(rnd() * 100) : k < 0.5 ? rnd() : k < 0.6 ? -rnd() * 50 : k < 0.7 ? rnd() * 1e6 : k < 0.8 ? rnd() * 1e-3 : (Math.floor(rnd() * 2000) / 100);
+            return v;
+        });
+        const numerals: string[] = [];
+        for (let i = 0; i < 40; i++) {
+            const base = values[Math.floor(rnd() * values.length)] * (rnd() < 0.3 ? 100 : 1);
+            const digits = Math.floor(rnd() * 4);
+            const shape = rnd();
+            const written = shape < 0.4 ? Math.abs(base).toFixed(digits) : shape < 0.6 ? String(Math.trunc(Math.abs(base) * 10 ** digits) / 10 ** digits)
+                : shape < 0.8 ? (Math.abs(base) + (rnd() - 0.5) * 2 * 10 ** -digits).toFixed(digits) : Math.abs(base).toExponential(Math.floor(rnd() * 3));
+            numerals.push(written.replace(/e\+?/, "e") + (rnd() < 0.2 ? "%" : ""));
+        }
+        const text = `Values: ${numerals.join(", ")}.`;
+        assertEquals(numeralsOutside(text, [{ values }]), bruteOutside(text, values), `round ${round}: ${text}`);
+    }
+    // the edge that truncation reaches and rounding does not, a zero from the negative side, and a float on the edge
+    assertEquals(numeralsOutside("0.5", [[0.5999]]), []);
+    assertEquals(numeralsOutside("0.6", [[0.5999]]), []);
+    assertEquals(numeralsOutside("0.7", [[0.5999]]), ["0.7"]);
+    assertEquals(numeralsOutside("0.0", [[-0.07]], { ignore: [] }), bruteOutside("0.0", [-0.07]));
+    assertEquals(numeralsOutside("0.29", [[0.29]]), []);
+});
+
+Deno.test("numeralsOutside: a numeric table in the reply over a large result does not freeze the tab", () => {
+    // 100,000 numbers of evidence and 400 distinct numerals in the reply took 10 s with a scan of every value per numeral
+    const values = Array.from({ length: 100000 }, (_, i) => i * 0.37);
+    const numerals = Array.from({ length: 400 }, (_, i) => (i * 2.5 + 0.13).toFixed(2));
+    const text = numerals.join(" | ");
+    const t0 = performance.now();
+    const outside = numeralsOutside(text, [{ values }]);
+    const ms = performance.now() - t0;
+    assert(ms < 1500, `${Math.round(ms)} ms`);
+    // the same answer as the scan gives (checked on the first 25 numerals, which the scan can do in reasonable time)
+    const few = numerals.slice(0, 25).join(" | ");
+    assertEquals(numeralsOutside(few, [{ values }]), bruteOutside(few, values));
+    assert(outside.length > 0 && outside.length < numerals.length, "some numerals are in the evidence and some are not");
+});
+
+Deno.test("numeralsOutside: evidence too big to index claims no stray (it cannot say what is outside what it did not see)", () => {
+    const huge = new Array(5_000_001).fill(7);
+    assertEquals(numeralsOutside("It reaches 123456.", [huge]), []);
+    // one under the limit is indexed, and the stray is found
+    assertEquals(numeralsOutside("It reaches 123456.", [new Array(1000).fill(7)]), ["123456"]);
 });
 
 Deno.test("numeralsOutside: evidence is anything JSON-like, including numbers inside text, and survives cycles and big series", () => {

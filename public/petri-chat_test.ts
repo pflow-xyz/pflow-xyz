@@ -1,5 +1,6 @@
 import { assert, assertEquals, assertFalse, assertRejects } from "https://deno.land/std@0.224.0/assert/mod.ts";
-import { ChatSession, GOAL_ANSWER_MAX, diffNets, goalAnswer, isEdit, isGoalManifest, prepareGoalInputs, toolsFor } from "./petri-chat.js";
+import { ChatSession, GOAL_ANSWER_MAX, ODE_BOUND_RULE, ODE_TRIAL, diffNets, goalAnswer, isEdit, isGoalManifest, odeFinishes, prepareGoalInputs, toolsFor } from "./petri-chat.js";
+import { assumptionLines, taggedLines } from "./petri-ask.js";
 import { artifactDigest } from "./petri-viewspec.js";
 import { panelFrame } from "./petri-panel-frame.js";
 import { Registry, createHeadlessHost } from "./petri-commands.js";
@@ -734,6 +735,15 @@ Deno.test("run_goal: defaults the goal fills are assumptions with a Change that 
     assertEquals([bd.key, bd.change.input, bd.change.arg], ["to", "max_rate", "to"]);
     assertEquals(ode.result.record.assumed.find((a: any) => a.key === "to").change, "to");
     assertEquals(ode.result.record.engine.name, "ODE");
+    // the pane says what the plan-derived default is in words: the input's label and value, never "undefined"
+    assertEquals([bd.label, bd.value], ["up to rate", 2]);
+    const lines = assumptionLines(ode.result.assumed);
+    assert(lines.includes("Up to rate is 2, the goal's default."), JSON.stringify(lines));
+    assertFalse(lines.some((l: string) => l.includes("undefined")), JSON.stringify(lines));
+    assert(assumptionLines(r.assumed).includes("Up to rate is 2, the goal's default."), JSON.stringify(assumptionLines(r.assumed)));
+    const tagged = taggedLines(ode.result);
+    assertFalse(tagged.some((l: any) => l.text.includes("undefined")), JSON.stringify(tagged));
+    assertEquals(tagged.filter((l: any) => l.kind === "assumed").map((l: any) => l.by), ["engine", "engine", "engine", "engine"]);
     // a value the person gave is not an assumption
     const given = await chat.runCall(run("best_setting", { transition: "infect", max_rate: "3" }));
     assert(given.ok && !given.result.assumed.some((a: any) => a.how === "default"));
@@ -1161,9 +1171,30 @@ Deno.test("intent: the server's label shows as a chip; force() makes the next me
     const fixed = goalSession(smallNet(), [{ reply: "a" }, { reply: "b" }], { session: { mode: "analyse" } });
     fixed.chat.force("explain");
     await fixed.chat.send("one");
+    // the chip still says what that message ran as, after its turn has closed (not the session's mode)
+    assertEquals([fixed.sent[0].mode, fixed.chat.intent, fixed.chat.effectiveMode], ["explain", "explain", "analyse"]);
     await fixed.chat.send("two");
     assertEquals(fixed.sent.map((b: any) => b.mode), ["explain", "analyse"]);
     assertEquals(fixed.chat.intent, "analyse");
+});
+
+Deno.test("intent: a forced message keeps its label after the turn in a session with a fixed mode; resend() does too; picking another mode takes it back", async () => {
+    const { chat, sent } = goalSession(smallNet(), [{ reply: "a" }, { reply: "b" }, { reply: "c" }], { session: { mode: "analyse" } });
+    assertEquals(chat.intent, "analyse");
+    chat.force("explain");
+    await chat.send("what is S?");
+    assertEquals([sent[0].mode, chat.intent], ["explain", "explain"]);
+    // "Not what I meant": the same message again as build
+    await chat.resend("build");
+    assertEquals([sent[1].mode, chat.intent], ["build", "build"]);
+    // the person picks a session mode: that is the intent now
+    chat.setMode("explain");
+    assertEquals(chat.intent, "explain");
+    chat.setMode("analyse");
+    assertEquals(chat.intent, "analyse");
+    // an ordinary message is the session's mode again
+    await chat.send("and now?");
+    assertEquals([sent[2].mode, chat.intent], ["analyse", "analyse"]);
 });
 
 Deno.test("resend: the last message again under the other intent; the replies, tool calls and edits of the first attempt are dropped", async () => {
@@ -1252,6 +1283,45 @@ Deno.test("rerunResult: the same settings reproduce the artifacts byte for byte 
     assertEquals(first.record.calls[1].args.runs, 20);
 });
 
+Deno.test("rerunResult: a result made on a proposal or on pending sandbox edits reruns on the net it ran on, not on the live net that lacks them", async () => {
+    // a described net waiting as the pending change, and a goal asked about a place only the proposal has
+    const { chat, reg } = goalSession(smallNet(), []);
+    const draft: any = rated(sir());
+    draft.places.X = { initial: [0], capacity: [0], x: 200, y: 0 };
+    draft.transitions.grow = { x: 150, y: 0, rate: 0.1 };
+    draft.arcs.push({ source: "I", target: "grow", weight: [1] }, { source: "grow", target: "X", weight: [1] });
+    chat.proposeNet(draft);
+    const first = await chat.runCall(run("one_more", { place: "X" }));
+    assert(first.ok && first.result.onProposal && first.result.onPending, first.error);
+    const again = await chat.rerunResult(first.result);
+    assertEquals(again.record.calls, first.result.record.calls);
+    assertEquals(again.record.assumed.map((a: any) => a.text), first.result.record.assumed.map((a: any) => a.text), "it is the net it ran on: no 'net has changed' note");
+    assertEquals([again.onProposal, again.onPending, again.rerunOf], [true, true, first.result.id], "and it is still a result about the proposal");
+    assertEquals(Object.keys(reg.host.getModel().places), ["S", "I"], "the live net is untouched");
+    // edited settings take the same way
+    const edited = await chat.rerunResult(first.result, { args: { 1: { runs: 3 } } });
+    assertEquals(edited.record.calls[1].args.runs, 3);
+    // a rerun of the rerun
+    assertEquals((await chat.rerunResult(again)).record.calls, first.result.record.calls);
+    // after the proposal is discarded the result still answers about it; after apply the live net has it
+    chat.discard();
+    assertEquals((await chat.rerunResult(first.result)).record.calls, first.result.record.calls);
+    chat.proposeNet(draft);
+    assert(chat.apply());
+    assertEquals((await chat.rerunResult(first.result)).record.calls, first.result.record.calls);
+    // build-mode edits in the sandbox, then a goal on them: the same
+    const built = goalSession(smallNet(), [], { session: { mode: "build" } });
+    const added = await built.chat.runCall({ name: "net_add_place", args: { id: "Z", x: 0, y: 0 } });
+    assert(added.ok, added.error);
+    assert(built.chat.pending);
+    const onZ = await built.chat.runCall(run("one_more", { place: "Z" }));
+    assert(onZ.ok && onZ.result.onPending && !onZ.result.onProposal, onZ.error);
+    assertEquals((await built.chat.rerunResult(onZ.result)).record.calls, onZ.result.record.calls);
+    // a result made on the live net (nothing pending) still reruns on the net as it is now
+    const plain = (await goalSession(smallNet(), []).chat.runCall(run("risk"))).result;
+    assertEquals(plain.onPending, false);
+});
+
 Deno.test("rerunResult: edited settings run unguarded, are recorded as the person's edit, and change the artifacts", async () => {
     const { chat } = goalSession(smallNet(), []);
     const first = (await chat.runCall(run("risk"))).result;
@@ -1313,6 +1383,114 @@ Deno.test("goalAnswer: stays under the byte bound however large the steps are, a
     // small answers are left whole
     const small = goalAnswer({ goal, record, steps: [{ index: 0, command: "sim.recommend", args: {}, result: { engine: "ssa" }, artifacts: [] }], artifact: art });
     assertEquals(small.steps, [], "sim.recommend is folded into engine");
+});
+
+// A ring of n places, each with a capacity: every place is a gate, so the recommender's reason names all of them.
+function ring(n: number) {
+    const places: any = {}, transitions: any = {}, arcs: any[] = [];
+    for (let i = 0; i < n; i++) {
+        places[`p${i}`] = { initial: [i === 0 ? 1 : 0], capacity: [3], x: i * 10, y: 0 };
+        transitions[`t${i}`] = { x: i * 10 + 5, y: 0, rate: 0.5 };
+        arcs.push({ source: `p${i}`, target: `t${i}`, weight: [1] }, { source: `t${i}`, target: `p${(i + 1) % n}`, weight: [1] });
+    }
+    return { places, transitions, arcs };
+}
+
+Deno.test("goalAnswer: the free text is cut too (the engine's reason, warnings, assumptions, notes), so no net makes the answer outgrow the bound", async () => {
+    const goal = catalog.goals[0];
+    // the units: texts of thousands of characters and lists of dozens
+    const record: any = { engine: { name: "SSA", reason: `The net has capacity on ${"p1, ".repeat(2000)}. Use the SSA.`, overridden: true } };
+    const art = (id: string) => ({ id, title: id, data: { kind: "table", columns: ["a"], rows: [[1]] }, source: {} });
+    const steps = [{ index: 0, command: "sim.ssa", args: { t_end: 5 }, result: { final: { a: 1 } }, artifacts: ["a0"] }];
+    const a = goalAnswer({
+        goal, record, steps, artifact: art,
+        warnings: Array.from({ length: 50 }, () => "w ".repeat(2000)), assumed: Array.from({ length: 100 }, (_, i) => ({ text: `a${i} ${"t".repeat(1000)}` })),
+        notes: Array.from({ length: 20 }, () => "n".repeat(5000)),
+    });
+    assert(bytes(a) <= GOAL_ANSWER_MAX, `${bytes(a)}`);
+    assert(a.engine.why.length <= 300 && a.engine.why.endsWith("…"), a.engine.why.length);
+    assertEquals([a.warnings.length, a.assumed.length, a.notes.length], [4, 11, 4], "three, ten, three, and the rest counted");
+    assert(a.warnings.slice(0, 3).every((w: string) => w.length <= 300 && w.endsWith("…")));
+    assertEquals(a.warnings[3], "… and 47 more (in the result)");
+    assert(a.notes.slice(0, 3).every((n: string) => n.length <= 300 && n.endsWith("…")));
+    // short lists and short texts are as they were
+    const small = goalAnswer({ goal, record: { engine: { name: "SSA", reason: "Few gates." } }, steps, artifact: art, warnings: ["w1", "w2"], assumed: [{ text: "x = 1" }], notes: ["n1"] });
+    assertEquals([small.engine.why, small.warnings, small.assumed, small.notes], ["Few gates.", ["w1", "w2"], ["x = 1"], ["n1"]]);
+    // many steps, each big: the steps share what the rest leaves, and what cannot be shared is dropped, said so
+    const big = Array.from({ length: 80 }, (_, i) => ({ index: i, command: "analysis.verify", args: { n: "y".repeat(500) }, result: { rows: Array.from({ length: 60 }, (_, k) => ({ k, text: "z".repeat(100) })) }, artifacts: [`a${i}`] }));
+    const many = goalAnswer({ goal, record, steps: big, artifact: (id: string) => ({ ...art(id), data: { kind: "table", rows: Array.from({ length: 40 }, (_, i) => [i, "x".repeat(200)]) } }), warnings: ["w"], assumed: [{ text: "t = 1" }] });
+    assert(bytes(many) <= GOAL_ANSWER_MAX, `${bytes(many)}`);
+    assert(many.steps.length >= 1 && many.stepsOmitted === 80 - many.steps.length, `${many.steps.length} kept, ${many.stepsOmitted} omitted`);
+    // through the session: a ring of 300 gated places (the reason alone was 1.7 KB, the answer 8.3 KB, and it grows with the net)
+    for (const n of [30, 300, 3000]) {
+        const { chat } = goalSession(ring(n), []);
+        const e = await chat.runCall(run("risk"));
+        assert(e.ok, e.error);
+        assert(bytes(e.response) <= GOAL_ANSWER_MAX, `${n} places: ${bytes(e.response)} bytes`);
+        assertEquals(e.response.engine.name, "SSA");
+        assert(e.response.engine.why.startsWith("The net has capacity on p0, p1"), e.response.engine.why);
+        assertEquals(e.result.record.engine.reason.includes(`p${n - 1}`), true, "the result keeps the whole reason for the footer");
+    }
+});
+
+// ---- an honoured "use the ODE" has to be able to finish ----
+
+const cafeNet = async () => JSON.parse(await Deno.readTextFile(new URL("../examples/showcase/cafe.jsonld", import.meta.url)));
+
+Deno.test("odeFinishes: a net the ODE integrates in a few thousand evaluations passes; the café (gates make its step collapse) runs out of its budget; a looser tolerance fits it", async () => {
+    const t0 = performance.now();
+    const ok = await odeFinishes(smallNet(), { t_end: 50 });
+    assert(ok.finished && ok.evals < 5000, JSON.stringify(ok));
+    assert((await odeFinishes(gatedNet(), { t_end: 50 })).finished, "a capacity alone is not the problem");
+    // the café: measured at 7 s for t_end 0.5 and no answer in 70 s for t_end 2 with the default tolerances
+    const cafe = await cafeNet();
+    const bad = await odeFinishes(cafe, { t_end: 5 });
+    assertEquals([bad.finished, bad.evals], [false, ODE_TRIAL.evals + 1]);
+    assertEquals((await odeFinishes(cafe)).finished, false, "the default horizon too");
+    // the same net at tolerances a thousand times looser integrates in a few thousand evaluations: the budget is about the work, not the net's size
+    assert((await odeFinishes(cafe, { t_end: 5, reltol: 0.05, abstol: 0.01 })).finished);
+    // the budget is the caller's to set
+    assertEquals((await odeFinishes(smallNet(), { t_end: 50 }, { evals: 10 })).finished, false);
+    assert(performance.now() - t0 < 15000, "the trial itself is bounded");
+});
+
+Deno.test("an ODE override the person's words earned is declined when the ODE cannot finish the net: the tool's refusal, nothing run, the SSA offered", async () => {
+    const cafe = await cafeNet();
+    const t0 = performance.now();
+    // through run_goal: the plan's ODE branch (sim.recommend patched to ode) meets the trial
+    const { chat, sent } = goalSession(cafe, [
+        { tool_calls: [run("average", undefined, { engine_override: "ode" })] },
+        { reply: "I could not run the ODE on this net; here is the SSA." },
+    ]);
+    const events: any[] = [];
+    await chat.send("Use the ODE to show me the typical behaviour of the café.", (e: any) => events.push(e));
+    const e = chat.calls[0];
+    assertFalse(e.ok);
+    assertEquals(e.refused.rule, ODE_BOUND_RULE);
+    assert(e.error.startsWith("refused: Not run: the ODE did not finish this net") && e.error.includes("call the goal again without engine_override") && e.error.includes("The SSA reads this net exactly"), e.error);
+    assertFalse(e.error.includes("call again with engine_override"), "the generic 'pass the override' advice would send the model round the loop");
+    assertEquals(answers(sent, 1)[0].response, { error: e.error });
+    assertEquals(chat.live.artifacts().length, 0, "nothing ran, nothing was stored");
+    assertEquals(events.filter((x) => x.type === "goal").length, 0);
+    // through run_command: the model's own sim.ode call with the override
+    const direct = goalSession(cafe, []);
+    direct.chat.messages.push({ role: "user", parts: [{ text: "Run the ODE on it, I know what that means." }] });
+    const d = await direct.chat.runCall({ name: "run_command", args: { id: "sim.ode", args: JSON.stringify({ t_end: 5 }), engine_override: "ode" } });
+    assertFalse(d.ok);
+    assertEquals(d.refused.rule, ODE_BOUND_RULE);
+    assertEquals(direct.chat.live.artifacts().length, 0);
+    // and the same call with tolerances the net can take is the person's: it runs, with the guard's chip
+    const loose = await direct.chat.runCall({ name: "run_command", args: { id: "sim.ode", args: JSON.stringify({ t_end: 5, reltol: 0.05, abstol: 0.01 }), engine_override: "ode" } });
+    assert(loose.ok, loose.error);
+    assert(loose.warning.startsWith("ODE on a net with"), loose.warning);
+    assertEquals(loose.override, "ode");
+    // without the words the override is not honoured at all: the SSA, as before, and no trial is run
+    const own = goalSession(cafe, []);
+    own.chat.messages.push({ role: "user", parts: [{ text: "What happens on average?" }] });
+    const ssa = await own.chat.runCall(run("average", undefined, { engine_override: "ode" }));
+    assert(ssa.ok, ssa.error);
+    assertEquals([ssa.result.record.engine.name, ssa.overrideIgnored], ["SSA", "ode"]);
+    assert(performance.now() - t0 < 20000, "bounded");
 });
 
 // ---- the result's follow-ups, and R3: numbers in the model's prose ----

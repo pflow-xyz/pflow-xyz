@@ -50,6 +50,10 @@
 //   proposeNet(net, {notes, assumptions})   a described net as the pending change
 //   rerunResult(result, {args})   the footer's Rerun / Edit settings, unguarded
 //
+// An engine override the person's words earned still has to be able to finish: the ODE cannot be interrupted once a
+// command has started it, and on a net with gates it can run for minutes, so an honoured ODE is first tried under a
+// budget (odeFinishes) and declined, with the SSA offered, when the trial runs out (ODE_BOUND_RULE).
+//
 // The twelve direct tools (net_add_place ... view_fit) are plain commands.
 // A server that does not know the goals toolset answers 400 "toolset goals is
 // not available"; the session then falls back to 'all' once
@@ -65,6 +69,7 @@ import { EngineGuard, checkEngine, engineNeeded, isEdit, modelKey, needsGuard, o
 import { inferPlace, runGoal } from './petri-goals.js';
 import { engineOf, provenance, recordFromCall, recordFromGoalRun, rerun } from './petri-provenance.js';
 import { followUpsFor, numeralsOutside } from './petri-ask.js';
+import * as Sim from './petri-sim.js';
 
 // isEdit (which commands change the document, or the token game's marking,
 // which lives in it: they make the sandbox differ from the live net) lives in
@@ -231,10 +236,34 @@ const clipValue = (v, n) => {
 
 /**
  * The longest a run_goal answer to the model may be, in JSON characters. The
- * scripted eval (petri-ask-eval_test.ts) measures the 44 cases against it;
- * goalAnswer shrinks an answer that would exceed it, so it is a guarantee.
+ * scripted eval (petri-ask-eval_test.ts) measures the 44 cases against it, and
+ * goalAnswer keeps to it however large the net is: the free text in an answer
+ * (the engine's reason, the warnings, the assumptions, the notes) is cut to
+ * fixed lengths and counts (the result and the pane carry them whole), and the
+ * steps share what is left. The fixed parts come to about 4,500 characters at
+ * the worst, so the bound holds for any `max` of 5,000 or more.
  */
 export const GOAL_ANSWER_MAX = 6000;
+
+// The free text of an answer, cut: how long each piece may be and how many pieces of a kind go to the model.
+const TEXT_MAX = 300;
+const ASSUMED_TEXT_MAX = 200;
+const WARNINGS_MAX = 3;
+const ASSUMED_MAX = 10;
+const NOTES_MAX = 3;
+
+/** A text of at most n characters, cut with an ellipsis. */
+const clipText = (t, n = TEXT_MAX) => {
+    const s = String(t ?? '');
+    return s.length <= n ? s : `${s.slice(0, n - 1)}…`;
+};
+
+/** A list of texts: each cut, at most `count` of them, and the rest counted. A short list comes back as it is (copied). */
+const clipTexts = (list, count, n = TEXT_MAX) => {
+    const kept = list.slice(0, count).map((t) => clipText(t, n));
+    if (list.length > count) kept.push(`… and ${list.length - count} more (in the result)`);
+    return kept;
+};
 
 /**
  * What goes back to the model after run_goal: compact, and only the evidence.
@@ -259,7 +288,8 @@ export function goalAnswer({ goal, record, steps, artifact, warnings = [], assum
     if (record.engine) {
         out.engine = { name: record.engine.name };
         // the recommender's first sentence (what the net has); the rest is the generic rule, which the footer shows
-        if (record.engine.reason) out.engine.why = (/^[\s\S]*?\.(?= [A-Z]|$)/.exec(record.engine.reason) || [record.engine.reason])[0];
+        // (a net with many gated places has a first sentence that names every one of them: cut)
+        if (record.engine.reason) out.engine.why = clipText((/^[\s\S]*?\.(?= [A-Z]|$)/.exec(record.engine.reason) || [record.engine.reason])[0]);
         if (record.engine.overridden) out.engine.overridden = true;
         if (record.engine.recommendedOnly) out.engine.recommendedOnly = true;
     }
@@ -274,19 +304,82 @@ export function goalAnswer({ goal, record, steps, artifact, warnings = [], assum
         }
         return { command: s.command, args: clipValue(s.args, 300), ...sum };
     });
-    if (assumed.length) out.assumed = assumed.map((a) => a.text);
-    if (warnings.length) out.warnings = [...warnings]; // (a copy: the result's own list gets more later, and this one is in the conversation)
-    if (notes.length) out.notes = notes;
+    // (copies: the result's own lists get more later, and these are in the conversation)
+    if (assumed.length) out.assumed = clipTexts(assumed.map((a) => a.text), ASSUMED_MAX, ASSUMED_TEXT_MAX);
+    if (warnings.length) out.warnings = clipTexts(warnings, WARNINGS_MAX);
+    if (notes.length) out.notes = clipTexts(notes, NOTES_MAX);
     const size = () => JSON.stringify(out).length;
     if (size() > max) for (const s of out.steps) delete s.args;
     if (size() > max && out.steps.length) {
-        const budget = Math.max(400, Math.floor((max - 1200) / out.steps.length));
-        for (const s of out.steps) {
-            s.result = clipValue(s.result, Math.floor(budget / 2));
-            s.artifacts = s.artifacts.map((a) => clipValue(a, Math.floor(budget / (2 * Math.max(1, s.artifacts.length)))));
+        // the steps share what the rest of the answer leaves; try smaller shares until the whole fits
+        const full = out.steps.map((s) => ({ result: s.result, artifacts: s.artifacts }));
+        let budget = Math.max(40, Math.floor((max - (size() - JSON.stringify(out.steps).length)) / out.steps.length) - 100);
+        for (let tries = 0; size() > max && tries < 12; tries++, budget = Math.floor(budget * 0.7)) {
+            out.steps.forEach((s, i) => {
+                s.result = clipValue(full[i].result, Math.floor(budget / 2));
+                s.artifacts = full[i].artifacts.map((a) => clipValue(a, Math.floor(budget / (2 * Math.max(1, full[i].artifacts.length)))));
+            });
+        }
+        // still over (very many steps): a step's command and nothing else, then fewer steps
+        if (size() > max) for (const s of out.steps) { s.result = { truncated: true }; s.artifacts = s.artifacts.map(() => ({ truncated: true })); }
+        const all = out.steps.length;
+        while (size() > max && out.steps.length > 1) {
+            out.steps.pop();
+            out.stepsOmitted = all - out.steps.length;
         }
     }
     return out;
+}
+
+// ---- an honoured "use the ODE" must be able to finish ----
+
+/**
+ * The work a trial integration may do before the ODE is declined: right-hand-side evaluations (deterministic: the same
+ * net runs out at the same count on every machine) and wall-clock milliseconds (the backstop for a net whose evaluations
+ * are slow). A run that is fine takes a few thousand evaluations (the SIR and the gated fixtures: about 3,500 to t=50).
+ */
+export const ODE_TRIAL = Object.freeze({ evals: 40000, ms: 3000 });
+
+/** The rule a declined ODE override carries in entry.refused (the guard's own rules are docs/engine-selection.md Rules 1 and 2). */
+export const ODE_BOUND_RULE = 'the ODE must finish in bounded work';
+
+/**
+ * Whether the ODE of a net integrates to the call's horizon within a fixed amount of work. The solver
+ * (petri-solver.js, a plain JavaScript loop) cannot be interrupted once a command has started it, and on some nets with
+ * gates (inhibitor and read arcs, capacities) it takes steps without end in sight: the café showcase net needs 324,000
+ * evaluations and 3.5 s for t_end 0.5, and gave no answer in 40 s for t_end 5 (its accepted-step cap of 100,000 bounds
+ * it, but only after minutes). So an ODE the person's words asked for against the recommendation is first tried here
+ * with the same net, rates, horizon and tolerances and a budget, and is run only when the trial finished. The trial
+ * costs at most `evals` evaluations; a net it finishes on is integrated a second time by the command, which is cheap
+ * next to the budget. (It is a trial of this net's trajectory: a command that integrates many trajectories, such as
+ * a rate scan, can still be slower than the trial says.)
+ * @param {Object} model  the net the command will run on (the sandbox's)
+ * @param {{t_end?: number, dt?: number, abstol?: number, reltol?: number, dtmax?: number}} [args]  the call's own arguments
+ * @param {{evals?: number, ms?: number}} [budget]
+ * @returns {Promise<{finished: boolean, evals: number}>}
+ */
+export async function odeFinishes(model, args = {}, { evals = ODE_TRIAL.evals, ms = ODE_TRIAL.ms } = {}) {
+    const S = await import('./petri-solver.js');
+    const net = S.fromJSON(model);
+    const tEnd = Number(args?.t_end) > 0 ? Number(args.t_end) : 10; // sim.ode's default; the long horizons are the plan's own
+    const prob = new S.ODEProblem(net, S.setState(net), [0, tEnd], S.setRates(net, Sim.transitionRates(model)));
+    const f = prob.f;
+    const over = {};
+    let n = 0;
+    const t0 = performance.now();
+    prob.f = (t, u) => {
+        if (++n > evals || (n % 128 === 0 && performance.now() - t0 > ms)) throw over;
+        return f(t, u);
+    };
+    const opts = { dt: args?.dt ?? 0.01, abstol: args?.abstol ?? 1e-6, reltol: args?.reltol ?? 1e-3, adaptive: true };
+    if (args?.dtmax !== undefined) opts.dtmax = args.dtmax;
+    try {
+        S.solve(prob, S.Tsit5(), opts);
+        return { finished: true, evals: n };
+    } catch (e) {
+        if (e === over) return { finished: false, evals: n };
+        throw e;
+    }
 }
 
 const COMPOSE_PREFIXES = ['analysis.', 'sim.', 'opt.', 'game.'];
@@ -388,6 +481,8 @@ export class ChatSession {
         this.proposal = null;
         this.pending = false;
         this._forced = null;
+        /** The intent the last message was forced to, and the session mode it was sent under: what `intent` answers once that turn has closed. */
+        this._ran = null;
         this._ask = null;
         this._decided = [];
         this._reseed();
@@ -409,6 +504,7 @@ export class ChatSession {
 
     setMode(mode) {
         if (!MODES.includes(mode)) throw new Error(`mode must be ${MODES.join(', ')}`);
+        if (mode !== this.mode) this._ran = null; // picking another mode is the person's label now
         this.mode = mode;
     }
 
@@ -419,13 +515,17 @@ export class ChatSession {
     }
 
     /**
-     * The intent the last message ran under, or the next one will: what the person forced, else the server's last label
-     * (auto), else the session's mode. null in auto mode until the server has labelled a message.
+     * The intent the last message ran under, or the next one will: what the person forced (for the next message, or for
+     * the last one, which keeps its label after its turn has closed, in whatever mode the session is), else the
+     * server's last label (auto), else the session's mode. null in auto mode until the server has labelled a message.
      * @returns {'build'|'analyse'|'explain'|null}
      */
     get intent() {
         if (this._forced) return this._forced;
         if (this._turn.open && this._turn.forced) return this._turn.forced;
+        // a forced turn's label outlives the turn (the chip would say "Analysing" for a message that ran as Explain), until
+        // the person picks another session mode
+        if (this._ran && this._ran.session === this.mode) return this._ran.mode;
         return this.mode === 'auto' ? this.resolved : this.mode;
     }
 
@@ -562,10 +662,10 @@ export class ChatSession {
         if (!this.pending && !VIEW.has(id)) this._reseed();
         if (!VIEW.has(id) && needsGuard(id, args)) {
             const userText = opts.userText ?? this._lastUserText();
-            const v = await this.guard.check(id, args, { override: opts.override, userText });
+            const v = await this._boundOverride(await this.guard.check(id, args, { override: opts.override, userText }), args);
             if (v.verdict === 'refuse') {
                 entry.refused = { rule: v.rule, message: v.message, recommended: v.recommended };
-                throw new Error(refusalText(v, { canOverride: !!opts.canOverride }));
+                throw new Error(v.rule === ODE_BOUND_RULE ? `refused: ${v.message}` : refusalText(v, { canOverride: !!opts.canOverride }));
             }
             if (v.verdict === 'warn') {
                 entry.warning = v.message;
@@ -594,6 +694,28 @@ export class ChatSession {
         case 'open_view': return this._openView(args, entry);
         default: throw new Error(`unknown tool ${name}`);
         }
+    }
+
+    /**
+     * An engine override the person's words earned, held to one more condition: the ODE has to be able to finish. When
+     * the verdict is an honoured ODE (a warning, `overridden`) and a trial integration of this net at the call's horizon
+     * and tolerances runs out of its budget (odeFinishes), the verdict becomes a refusal that says so and sends the model
+     * to the engine the recommendation gives. Any other verdict comes back as it was.
+     */
+    async _boundOverride(v, args) {
+        if (v.verdict !== 'warn' || !v.overridden || v.needs !== 'ode') return v;
+        let trial;
+        try {
+            trial = await odeFinishes(this.model(), args);
+        } catch {
+            return v; // a net the trial cannot read: the command reports that itself
+        }
+        if (trial.finished) return v;
+        return {
+            ...v, verdict: 'refuse', rule: ODE_BOUND_RULE,
+            message: `Not run: the ODE did not finish this net within ${ODE_TRIAL.evals.toLocaleString('en-US')} evaluations of work (it happens on nets with gates, inhibitor or read arcs and capacities: the solver's steps shrink without end, and it cannot be stopped once started, so the person's browser tab would freeze). `
+                + `The SSA reads this net exactly. Do not retry the ODE: call the goal again without engine_override, and tell the person the ODE was not run and why.`,
+        };
     }
 
     _requireRunnable(id) {
@@ -645,14 +767,16 @@ export class ChatSession {
                     return id === 'sim.recommend' && r && typeof r === 'object' ? { ...r, engine: 'ode' } : r;
                 },
             };
-            // the guard judges against the net's real recommendation, which the patched result must not replace
-            guard = { check: (id, a, o) => this.guard.check(id, a, o), prime() {} };
+            // the guard judges against the net's real recommendation, which the patched result must not replace; an ODE
+            // the words earned still has to be able to finish (odeFinishes), or the step is declined
+            guard = { check: async (id, a, o) => this._boundOverride(await this.guard.check(id, a, o), a), prime() {} };
         }
         const run = await runGoal(registry, goal, prep.filled, () => {}, { guard, override: asked, userText });
         const failed = run.steps.find((s) => s.error || s.refused);
         if (!run.ok && failed) {
             if (failed.refused) {
                 entry.refused = failed.refused;
+                if (failed.refused.rule === ODE_BOUND_RULE) throw new Error(`refused: ${failed.refused.message}`);
                 throw new Error(refusalText({ message: failed.refused.message, needs: engineNeeded(failed.command, failed.args)?.needs ?? null }, { canOverride: true }));
             }
             const blank = (goal.inputs || []).filter((i) => i.kind === 'place' && prep.inputs[i.name] === undefined);
@@ -681,7 +805,8 @@ export class ChatSession {
             const isDefault = / \(default for /.test(a.text);
             const decl = isDefault && declared.get(refs.get(a.key));
             if (decl) a.change = a.key;
-            return { key: a.key, text: a.text, how: isDefault ? 'default' : 'plan', ...(decl ? { change: { input: decl.name, kind: decl.kind, arg: a.key, options: null, default: decl.default } } : {}) };
+            // label and value are what assumptionLine says ("Up to rate is 2, the goal's default"); a.text is the record's own wording
+            return { key: a.key, text: a.text, how: isDefault ? 'default' : 'plan', ...(decl ? { label: decl.label || decl.name, value: decl.default, change: { input: decl.name, kind: decl.kind, arg: a.key, options: null, default: decl.default } } : {}) };
         });
         // the call argument an input fills, when a call that ran takes it at the top level (else the footer names the input)
         const argOf = (input) => [...refs].find(([, name]) => name === input)?.[0] || input;
@@ -723,7 +848,7 @@ export class ChatSession {
             id: resultId(), title: goal.question, source: 'ask', goal: { id: goal.id, question: goal.question },
             record, artifacts, steps: run.steps, inputs: prep.filled, warnings, assumed,
             caveat: goal.caveat || '', answerShape: goal.answer || '', followUps: followUpsFor(goal, this.goals).map((g) => g.id),
-            registry: this.sandbox, onProposal: !!this.proposal, answer: null, stale: false,
+            registry: this.sandbox, onProposal: !!this.proposal, onPending: this.pending, answer: null, stale: false,
         };
         entry.ok = true;
         entry.result = result;
@@ -787,7 +912,8 @@ export class ChatSession {
             id: resultId(), title, source: 'ask', goal: null, record, artifacts: this._artifacts(entry.artifacts),
             steps: [{ index: 0, command: entry.command, args: entry.commandArgs, result: entry.result, artifacts: entry.artifacts }],
             inputs: {}, warnings: entry.warning ? [entry.warning] : [], assumed: [], caveat: '', answerShape: '', followUps: [],
-            registry: this.sandbox, onProposal: !!this.proposal, answer: null, stale: false, composed: true,
+            // (a command that edits ran on the net as it was before: its rerun starts from the live net, not from its own edit)
+            registry: this.sandbox, onProposal: !!this.proposal, onPending: this.pending && !editsNet(entry), answer: null, stale: false, composed: true,
         };
     }
 
@@ -863,6 +989,7 @@ export class ChatSession {
         this._turn = this._newTurn(text);
         const forced = this._forced;
         this._forced = null;
+        this._ran = forced ? { mode: forced, session: this.mode } : null;
         if (forced) {
             this.resolved = forced;
             onEvent({ type: 'intent', mode: forced, forced: true });
@@ -1077,7 +1204,9 @@ export class ChatSession {
 
     /**
      * The footer's Rerun and Edit settings: run a result's recorded calls again on a fresh sandbox over the net as it is
-     * now, and return a new result beside the old one. Unguarded: the person chose these settings, so an engine the net's
+     * now, and return a new result beside the old one. A result made on a pending sandbox (build-mode edits not applied, a
+     * described net waiting as a proposal: `onPending`) ran on a net the live one does not have, and the calls would name
+     * places and transitions it lacks; it runs again on the net its own registry holds. Unguarded: the person chose these settings, so an engine the net's
      * recommendation advises against runs, with the same warning chip the guard would have put on an override. Nothing is
      * re-resolved, so a seeded engine reproduces the artifacts byte for byte.
      * @param {Object} result  a goal result (entry.result) or a command result (entry.shown)
@@ -1092,7 +1221,8 @@ export class ChatSession {
         const patches = overridesFor(old.calls, args);
         const calls = old.calls.map((c, i) => ({ command: c.command, args: patchArgs(c.args, patches[i]) }));
         const edits = old.calls.map((c, i) => editText(c.command, c.args, calls[i].args)).filter(Boolean);
-        const sandbox = new Registry(createHeadlessHost(structuredClone(this.live.host.getModel())), undefined, { store: this.live._store });
+        const ran = result.onPending ? result.registry?.host?.getModel?.() : undefined;
+        const sandbox = new Registry(createHeadlessHost(structuredClone(ran || this.live.host.getModel())), undefined, { store: this.live._store });
         const steps = await rerun(sandbox, { calls });
         const failed = steps.find((s) => s.error);
         if (failed) throw Object.assign(new Error(`${failed.command}: ${failed.error}`), { step: failed.index });
@@ -1126,7 +1256,7 @@ export class ChatSession {
             steps: steps.map((s) => ({ index: s.index, command: s.command, args: s.args, result: s.result, artifacts: s.artifacts })),
             inputs: result.inputs || {}, warnings: record.warnings.slice(), assumed: [...assumed, ...notes],
             caveat: result.caveat ?? old.caveat, answerShape: result.answerShape || '', followUps: [...(result.followUps || [])],
-            registry: sandbox, onProposal: false, answer: null, stale: false, rerunOf: result.id ?? null, edited: edits.length > 0,
+            registry: sandbox, onProposal: ran ? !!result.onProposal : false, onPending: !!ran, answer: null, stale: false, rerunOf: result.id ?? null, edited: edits.length > 0,
             ...(result.composed ? { composed: true } : {}),
         };
     }

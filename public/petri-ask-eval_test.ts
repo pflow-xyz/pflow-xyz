@@ -1,5 +1,5 @@
 import { assert, assertEquals, assertFalse } from "https://deno.land/std@0.224.0/assert/mod.ts";
-import { ChatSession, GOAL_ANSWER_MAX } from "./petri-chat.js";
+import { ChatSession, GOAL_ANSWER_MAX, ODE_BOUND_RULE } from "./petri-chat.js";
 import { Registry, createHeadlessHost } from "./petri-commands.js";
 import { ENGINE_OVERRIDES } from "./petri-tools.js";
 import { footerHtml, mcpCallText } from "./petri-provenance.js";
@@ -19,7 +19,8 @@ import { loadEngine } from "./petri-wasm.js";
 //   - a goal case costs exactly 2 model calls (the tool call, the summary), an ambiguous case 1 (the card);
 //   - the result carries a record the footer can draw, copy as an MCP call and turn into a view spec;
 //   - the body the server would receive is within its limits (the net summary the case file holds, the toolset);
-//   - what goes back to the model after run_goal is compact: under GOAL_ANSWER_MAX, and never the caveat.
+//   - what goes back to the model after run_goal is compact: under GOAL_ANSWER_MAX, and never the caveat;
+//   - an engine override the words earn is still declined when the ODE cannot finish the net (average-3, below).
 //
 // WHAT IT DOES NOT PROVE: that a model picks the right goal, fills the right inputs or asks when it should. That is
 // goal-selection accuracy, measured live with cmd/webserver/llm_goal_eval_test.go (the same cases file):
@@ -54,20 +55,14 @@ const BRANCH: Record<string, Record<string, string>> = {
     best_setting: { ode: "opt.rate_scan", ssa: "sim.compare" },
 };
 
-// sim.ode on the café showcase net (four token colours, per-colour capacities, inhibitor and read arcs) does not
-// return in the vendored wasm (measured: no answer in 60 s, even for t_end 0.5), so the one case that honours an
-// "use the ODE" on it (average-3) must not run it. For the nets in this set the SSA answers in the ODE's place: the
-// plan, the patched recommendation, the guard's override and warning, the record and the answer to the model are all
-// real; only the numbers behind that one step are the SSA's. Reported to the integrator as a finding.
-const ODE_HANGS = new Set(["cafe"]);
-async function withOdeStandIn(on: boolean, fn: () => Promise<any>): Promise<any> {
-    if (!on) return fn();
-    const real = (Registry as any).prototype.execute;
-    (Registry as any).prototype.execute = function (id: string, a: any) {
-        return id === "sim.ode" ? real.call(this, "sim.ssa", { t_end: a?.t_end ?? 5, runs: 1, seed: 1 }) : real.call(this, id, a);
-    };
-    try { return await fn(); } finally { (Registry as any).prototype.execute = real; }
-}
+// The one case that asks for the ODE against the recommendation on a net the ODE cannot finish (average-3: "use the
+// ODE" on the café, which has inhibitor and read arcs and capacities). Measured: sim.ode on that net takes 7 s for
+// t_end 0.5 and does not answer in 70 s for t_end 2 (the step size collapses at the gates), and a running command
+// cannot be interrupted. The person's words earn the override, so the guard honours it; ChatSession then tries the
+// integration under a budget first (odeFinishes) and declines the step when the trial runs out: the model is told so,
+// nothing runs, and the same question without the override is answered by the SSA. The real engine does all of it:
+// there is no stand-in. The case is counted in the totals but is not one of the answers whose size is measured.
+const ODE_DECLINED = new Set(["average-3"]);
 
 // parity/ssa's files are sim.pflow.xyz's model shape; the editor's is what the registry takes (scripts/gen-goal-cases.mjs's loader)
 function simToEditor(m: any) {
@@ -111,7 +106,7 @@ function goalCall(c: any, extra: any = {}) {
 }
 
 const sizes: Array<{ id: string; goal: string; bytes: number }> = [];
-let goalCases = 0, askCases = 0, modelCalls = 0;
+let goalCases = 0, askCases = 0, modelCalls = 0, declined = 0;
 
 function session(live: any, replies: any[]) {
     const { post, sent } = scripted(replies);
@@ -128,8 +123,35 @@ for (const c of doc.cases.filter((x: any) => x.goal !== "ask_user")) {
         const before = JSON.stringify(live.host.getModel());
         const { chat, sent } = session(live, [{ reply: "Running that.", tool_calls: [goalCall(c)] }, { reply: "Here is what the evidence shows." }]);
         const events: any[] = [];
-        const out = await withOdeStandIn(c.engine_override === "ode" && ODE_HANGS.has(c.net), () => chat.send(c.text, (e: any) => events.push(e)));
+        const out = await chat.send(c.text, (e: any) => events.push(e));
         modelCalls += sent.length;
+
+        if (ODE_DECLINED.has(c.id)) {
+            declined++;
+            // two model calls as for any goal: the call, and the summary after the refusal
+            assertEquals([sent.length, out.rounds], [2, 2]);
+            const e = chat.calls[0];
+            assertFalse(e.ok);
+            assertEquals(e.refused.rule, ODE_BOUND_RULE);
+            assert(e.error.startsWith("refused: Not run: the ODE did not finish this net") && e.error.includes("without engine_override"), e.error);
+            assertEquals(e.result, undefined, "no result, no answer to quote");
+            // the refusal is the tool's answer: the model reads why and what to do
+            const told = sent[1].messages.at(-1).parts[0].functionResponse;
+            assertEquals(told.name, "run_goal");
+            assert(JSON.stringify(told.response).includes("The SSA reads this net exactly"), JSON.stringify(told.response));
+            // nothing ran and nothing changed
+            assertEquals(live.artifacts().length, 0);
+            assertEquals(JSON.stringify(live.host.getModel()), before);
+            assertFalse(chat.pending);
+            assertEquals(events.filter((x) => x.type === "goal").length, 0, "no result card");
+            // the same question without the override: the plan runs what the recommendation says, the SSA
+            const control = new ChatSession({ live, manifest: goalManifest, goals: catalog, post: async () => ({}), mode: "analyse" });
+            control.messages.push({ role: "user", parts: [{ text: "Show me the typical behaviour of the café." }] });
+            const same = await control.runCall(goalCall(c, { engine_override: undefined }));
+            assert(same.ok, same.error);
+            assertEquals([same.result.record.engine.name, same.result.record.engine.overridden], ["SSA", undefined]);
+            return;
+        }
 
         // the call is one the server's manifest accepts
         const declared = goalManifest.tools.find((t: any) => t.name === "run_goal");
@@ -286,7 +308,8 @@ Deno.test("eval: the cases are the 44 of the case file, and what they cost in mo
     assertEquals(goalCases, doc.cases.filter((c: any) => c.goal !== "ask_user").length);
     assertEquals(askCases, 6);
     assertEquals(goalCases + askCases, doc.cases.length);
-    assertEquals(sizes.length, goalCases);
+    assertEquals(sizes.length, goalCases - declined);
+    assertEquals(declined, ODE_DECLINED.size);
     // 2 calls per goal case, 1 per ambiguous case up to the card (and 2 more once answered)
     assertEquals(modelCalls, goalCases * 2 + askCases * 3);
     const bytes = sizes.map((s) => s.bytes).sort((a, b) => a - b);

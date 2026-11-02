@@ -294,6 +294,8 @@ export function assumptionLine(a) {
     if (!a) return '';
     const what = a.label || a.key || '';
     const v = typeof a.value === 'string' ? a.value : JSON.stringify(a.value);
+    // an entry with no value to say (JSON.stringify(undefined) is undefined) has only its own wording
+    if ((a.how === 'inferred' || a.how === 'default') && v === undefined) return a.text || a.key || '';
     switch (a.how) {
     case 'inferred': return `I took ${what} to be ${v}.`;
     case 'default': return `${what.charAt(0).toUpperCase()}${what.slice(1)} is ${v}, the goal's default.`;
@@ -361,23 +363,66 @@ function numeralsIn(text) {
     return out;
 }
 
-function collectNumbers(value, into, seen = new WeakSet(), depth = 0) {
-    if (depth > 12 || into.length > 400000) return;
-    if (typeof value === 'number') { if (Number.isFinite(value)) into.push(value); return; }
-    if (typeof value === 'string') { for (const n of numeralsIn(value)) into.push(n.x); return; }
+// The most numbers one reply's evidence may hold before it is too big to index (40 MB of doubles), and the most
+// distinct numerals of one reply that are looked up. Both are far past anything a real result or reply reaches.
+const MAX_EVIDENCE = 5_000_000;
+const MAX_WANTED = 1000;
+
+/** @param {{values: number[], full: boolean}} acc */
+function pushNumber(acc, x) {
+    if (acc.values.length >= MAX_EVIDENCE) acc.full = true;
+    else acc.values.push(x);
+}
+
+function collectNumbers(value, acc, seen = new WeakSet(), depth = 0) {
+    if (acc.full || depth > 12) return;
+    if (typeof value === 'number') { if (Number.isFinite(value)) pushNumber(acc, value); return; }
+    if (typeof value === 'string') { for (const n of numeralsIn(value)) pushNumber(acc, n.x); return; }
     if (!value || typeof value !== 'object' || seen.has(value)) return;
     seen.add(value);
-    if (Array.isArray(value)) { for (const v of value) collectNumbers(v, into, seen, depth + 1); return; }
+    if (Array.isArray(value)) { for (const v of value) { if (acc.full) return; collectNumbers(v, acc, seen, depth + 1); } return; }
     if (value.nodeType || typeof value.execute === 'function') return; // a registry or an element, not data
-    for (const v of Object.values(value)) collectNumbers(v, into, seen, depth + 1);
+    for (const v of Object.values(value)) { if (acc.full) return; collectNumbers(v, acc, seen, depth + 1); }
 }
 
 const roundTo = (v, d) => Number(v.toFixed(Math.min(d, 20)));
 const truncTo = (v, d) => Math.trunc(v * 10 ** d) / 10 ** d;
 
-function matches(n, v) {
-    const at = (w) => n.exponent ? Math.abs(w - n.x) <= Math.abs(n.x) * 1e-3 : roundTo(w, n.decimals) === n.x || truncTo(w, n.decimals) === n.x;
-    return at(v) || at(v * 100);
+/** Whether the value w is the written numeral n at the digits written (rounded or truncated), or n within 0.1% for an exponent form. */
+function at(n, w) {
+    return n.exponent ? Math.abs(w - n.x) <= Math.abs(n.x) * 1e-3 : roundTo(w, n.decimals) === n.x || truncTo(w, n.decimals) === n.x;
+}
+
+/** The first index of the sorted array whose value is not below x. */
+function lowerBound(sorted, x) {
+    let lo = 0, hi = sorted.length;
+    while (lo < hi) {
+        const mid = (lo + hi) >>> 1;
+        if (sorted[mid] < x) lo = mid + 1; else hi = mid;
+    }
+    return lo;
+}
+
+/** Whether some value of the sorted array in [lo, hi] satisfies ok. */
+function anyIn(sorted, lo, hi, ok) {
+    for (let i = lowerBound(sorted, lo); i < sorted.length && sorted[i] <= hi; i++) if (ok(sorted[i])) return true;
+    return false;
+}
+
+/**
+ * Whether the evidence (a sorted array) holds the numeral: a value that rounds or truncates to it at the digits written,
+ * or the value times 100 for a percentage. A binary search finds the few values in the window a match can be in (rounding
+ * reaches half a unit of the last digit either side, truncation a whole unit above; an exponent form a tenth of a percent),
+ * and `at` has the last word on them, so the answer is the one a scan of every value would give.
+ */
+function holds(sorted, n) {
+    const u = n.exponent ? Math.abs(n.x) * 1e-3 : 10 ** -Math.min(n.decimals, 20);
+    const slack = u * 1e-6; // the window is only a filter: float noise at its edges must not shut a match out
+    // (a zero truncates from either side: -0.7 is "0" at no decimals)
+    const lo = (n.exponent ? n.x - u : n.x === 0 ? -u : n.x - u / 2) - slack, hi = n.x + u + slack;
+    if (anyIn(sorted, lo, hi, (w) => at(n, w))) return true;
+    const rel = (v) => Math.abs(v) * 1e-9;
+    return anyIn(sorted, lo / 100 - rel(lo / 100), hi / 100 + rel(hi / 100), (w) => at(n, w * 100));
 }
 
 /**
@@ -385,7 +430,10 @@ function matches(n, v) {
  * (their data), step results, the record's calls, the person's own words (`also`). A written number matches a value
  * when the value rounds (or truncates) to it at the digits written, or is that ratio as a percentage: "about 41" is
  * 41.237, "35%" is 0.35. 0 and 1 are not checked (`ignore`): they are counts of nothing in particular ("one run").
- * It starts as a warning in result.warnings, not a block; the pane renders numbers from artifact fields.
+ * It starts as a warning in result.warnings, not a block; the pane renders numbers from artifact fields. The evidence is
+ * sorted once and each numeral is a binary search, so a long table in the reply costs what it says, not the evidence
+ * times the table. Evidence of more than 5 million numbers is not indexed and claims no stray; at most 1000 distinct
+ * numerals of a reply are looked up.
  * @param {string} text  the model's prose
  * @param {any} artifacts  artifacts and results: anything that may hold numbers
  * @param {Object} [o]
@@ -396,12 +444,20 @@ function matches(n, v) {
 export function numeralsOutside(text, artifacts, { also = '', ignore = [0, 1] } = {}) {
     const wanted = numeralsIn(text || '').filter((n) => !(Number.isInteger(n.x) && n.decimals === 0 && !n.percent && ignore.includes(n.x)));
     if (!wanted.length) return [];
-    const evidence = [];
-    collectNumbers(artifacts, evidence);
-    for (const n of numeralsIn(also)) evidence.push(n.x);
+    const acc = { values: [], full: false };
+    collectNumbers(artifacts, acc);
+    for (const n of numeralsIn(also)) pushNumber(acc, n.x);
+    // evidence too big to index is evidence not all seen: nothing can be called outside it, so no stray is claimed
+    if (acc.full) return [];
+    const sorted = Float64Array.from(acc.values).sort();
     const outside = [];
+    const looked = new Set();
     for (const n of wanted) {
-        if (!evidence.some((v) => matches(n, v)) && !outside.includes(n.written)) outside.push(n.written);
+        const key = `${n.written}|${n.percent}`;
+        if (looked.has(key)) continue;
+        if (looked.size >= MAX_WANTED) break;
+        looked.add(key);
+        if (!holds(sorted, n) && !outside.includes(n.written)) outside.push(n.written);
     }
     return outside;
 }
