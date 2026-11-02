@@ -1493,6 +1493,12 @@ PetriView = class PetriView extends HTMLElement {
         return this._registry;
     }
 
+    /** Show a result (the shape is documented in petri-results-pane.js): the Ask pane, the Tools palette and an opened link all end here. */
+    async _showResult(result) {
+        const ui = await import('./petri-results-pane.js');
+        return ui.showResult(this, result);
+    }
+
     /** Copy the MCP tools/call params that re-run an artifact's command. */
     _copyMcpCall(art) {
         if (!art) return;

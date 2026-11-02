@@ -161,6 +161,7 @@ PUBLIC_FILES = [
     "petri-problems_test.ts",
     "petri-provenance.js",
     "petri-provenance_test.ts",
+    "petri-results-pane.js",
     "petri-refine_test.ts",
     "petri-markdown.js",
     "petri-markdown_test.ts",
