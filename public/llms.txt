@@ -96,7 +96,8 @@ Only `pflow_save` needs a sign-in. [Setup and every tool](https://pflow.xyz/mcp.
 - Nets: pflow_edit, pflow_info, pflow_check, pflow_validate, pflow_verify,
   pflow_fire, pflow_reachability, pflow_invariants, pflow_incidence,
   pflow_simulate, pflow_ssa, pflow_sde, pflow_what_if, pflow_rate_scan,
-  pflow_optimize, pflow_cid, pflow_get, pflow_export, pflow_links, pflow_save
+  pflow_optimize, pflow_cid, pflow_get, pflow_export, pflow_links, pflow_save, pflow_skill (a ready-to-save Claude skill:
+  the model-check-show procedure with this tool list filled in live)
 - Two-sided games, solved exactly by alpha-beta search over the firing rule. The
   net's marking is the position. Both tools need `net`, `sides` (transition-id
   prefix to sign, `{"x_": 1, "o_": -1}`) and `reward` (place to weight, read from

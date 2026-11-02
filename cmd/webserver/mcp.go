@@ -557,7 +557,8 @@ func (s *Server) mcpDispatch(r *http.Request, req rpcRequest) (rpcResponse, bool
 				"_run fires a script on that net and _incidence gives its matrix (that net is not a pflow.xyz net: pflow_simulate and the " +
 				"other net tools cannot read it). pflow_canvas opens a composition for the person to join parts by hand. A single model is a Petri net in the pflow.xyz JSON-LD format: check, simulate and explore " +
 				"one on the server's go-pflow engines, and pflow_links opens it in the editor. pflow_cid gives a model's stable content ID " +
-				"and pflow_get the stored model. pflow_save needs the person signed in to pflow.xyz.",
+				"and pflow_get the stored model. pflow_save needs the person signed in to pflow.xyz. " +
+				"When the person wants to keep pflow's workflow across sessions, offer pflow_skill and save what it returns as a skill; never save it without asking.",
 		}
 	case "ping":
 		resp.Result = map[string]any{}

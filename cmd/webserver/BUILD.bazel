@@ -25,6 +25,7 @@ go_library(
         "mcp_model_rules.go",
         "mcp_oauth.go",
         "mcp_registry.go",
+        "mcp_skill.go",
         "mcp_simulate_gated.go",
         "mcp_workbench.go",
         "mcp_workbench_engine.go",
@@ -149,6 +150,7 @@ go_test(
         "mcp_oauth_test.go",
         "mcp_pages_test.go",
         "mcp_registry_test.go",
+        "mcp_skill_test.go",
         "mcp_simulate_gated_test.go",
         "mcp_test.go",
         "mcp_workbench_parity_test.go",
@@ -193,5 +195,6 @@ go_test(
         "@com_github_pflow_xyz_go_pflow//metamodel",
         "@com_github_pflow_xyz_go_pflow//solver",
         "@com_github_piprate_json_gold//ld",
+        "@in_gopkg_yaml_v3//:yaml_v3",
     ],
 )
