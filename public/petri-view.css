@@ -3655,7 +3655,7 @@ canvas.pv-canvas {
     font-size: 0.9em;
 }
 
-/* ============================================
+/* =====================================
    Provenance footer (petri-provenance.js footerHtml)
    "How this was computed", under every result: collapsed by default.
    ============================================ */
@@ -3723,4 +3723,243 @@ canvas.pv-canvas {
     flex-wrap: wrap;
     gap: 6px;
     margin-top: 6px;
+=======
+/* ============================================================
+   Command palette and schema forms
+   (petri-palette-ui.js, petri-schema-form.js)
+
+   Cmd-K / Ctrl-K: search the questions and every registry command, then a form
+   generated from the command's JSON Schema. Tokens only, so both themes work.
+   ============================================================ */
+.pv-palette-search {
+    width: 100%;
+    box-sizing: border-box;
+    font: inherit;
+    padding: 8px 10px;
+    margin: 0 0 8px;
+    border: 1px solid var(--pv-border);
+    border-radius: 6px;
+    background: var(--pv-surface);
+    color: var(--pv-ink);
+}
+.pv-palette-list {
+    max-height: min(52vh, 440px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    border: 1px solid var(--pv-border);
+    border-radius: 6px;
+    background: var(--pv-surface);
+}
+.pv-palette-head {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    padding: 4px 10px;
+    font-size: 0.75em;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--pv-ink-muted);
+    background: var(--pv-surface-2);
+    border-bottom: 1px solid var(--pv-border);
+}
+.pv-palette-item {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 2px 10px;
+    padding: 6px 10px;
+    cursor: pointer;
+    scroll-margin-top: 28px;
+    border-left: 3px solid transparent;
+}
+.pv-palette-item[aria-selected="true"] {
+    background: var(--pv-surface-3);
+    border-left-color: var(--pv-accent);
+}
+.pv-palette-off .pv-palette-title {
+    color: var(--pv-ink-muted);
+}
+.pv-palette-title {
+    font-weight: 500;
+    color: var(--pv-ink);
+}
+.pv-palette-sub {
+    font-size: 0.85em;
+    color: var(--pv-ink-muted);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100%;
+    padding-bottom: 0.15em; /* the underscore of sim.what_if sits below the baseline, inside the clip */
+}
+.pv-palette-tag,
+.pv-palette-flag {
+    font-size: 0.72em;
+    padding: 0 6px;
+    border-radius: 8px;
+    border: 1px solid var(--pv-border);
+    color: var(--pv-ink-secondary);
+    white-space: nowrap;
+}
+.pv-palette-flag {
+    border-color: var(--pv-warning);
+}
+.pv-palette-empty,
+.pv-palette-hint {
+    margin: 8px 10px;
+}
+.pv-palette-hint {
+    margin-left: 0;
+    margin-right: 0;
+}
+.pv-palette:focus {
+    outline: none; /* the dialog takes focus when plain text in it is clicked (tabindex=-1), so keys stay in it */
+}
+/* Run is aria-disabled, never disabled: a focused button that becomes disabled drops focus to <body> */
+.pv-palette .pv-btn[aria-disabled="true"] {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+.pv-palette .pv-btn-primary[aria-disabled="true"]:hover {
+    background: var(--pv-accent);
+}
+.pv-palette > .pv-palette-pane {
+    margin-bottom: 20px; /* the xl dialog gives only its last child a bottom margin; the list pane is not last while the form is hidden */
+}
+.pv-palette-live {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+.pv-palette-form-title {
+    margin: 12px 0 2px;
+}
+.pv-palette-form-sub {
+    margin: 0 0 8px;
+    color: var(--pv-ink-muted);
+}
+
+/* The form the schema makes */
+.pv-form-field {
+    margin: 10px 0;
+    padding: 0;
+    border: 0;
+    min-width: 0;
+}
+.pv-form-label {
+    display: block;
+    margin-bottom: 2px;
+    font-weight: 500;
+    color: var(--pv-ink);
+}
+.pv-form-check {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.pv-form-check .pv-form-label {
+    display: inline;
+    margin: 0;
+}
+.pv-form-req {
+    color: var(--pv-danger);
+}
+.pv-form-key {
+    margin: 0;
+    font-size: 0.85em;
+    color: var(--pv-ink-muted);
+}
+.pv-form-field input[type="text"],
+.pv-form-field select,
+.pv-form-field textarea {
+    width: 100%;
+    box-sizing: border-box;
+    font: inherit;
+    padding: 6px 8px;
+    border: 1px solid var(--pv-border);
+    border-radius: 4px;
+    background: var(--pv-surface);
+    color: var(--pv-ink);
+}
+.pv-form-field textarea {
+    resize: vertical;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.9em;
+}
+.pv-form-field [aria-invalid="true"] {
+    border-color: var(--pv-danger);
+}
+.pv-form-help {
+    margin-top: 2px;
+    font-size: 0.85em;
+    color: var(--pv-ink-muted);
+}
+.pv-form-help:empty {
+    display: none;
+}
+.pv-form-err,
+.pv-form-summary {
+    margin-top: 2px;
+    font-size: 0.9em;
+    color: var(--pv-danger);
+}
+.pv-form-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 12px;
+}
+.pv-form-mark {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+.pv-form-mark input {
+    width: 5em;
+}
+.pv-form-more {
+    margin: 8px 0;
+}
+.pv-form-more > summary {
+    cursor: pointer;
+    color: var(--pv-ink-secondary);
+}
+.pv-form-noform {
+    border-left: 3px solid var(--pv-warning);
+    padding-left: 8px;
+}
+
+/* The Tools button and its shortcut */
+.pv-tools-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+.pv-tools-kbd {
+    font: inherit;
+    font-size: 0.8em;
+    padding: 0 5px;
+    border: 1px solid var(--pv-border);
+    border-radius: 4px;
+    color: var(--pv-ink-muted);
+}
+@media (max-width: 760px), (max-height: 520px) {
+    .pv-palette-search,
+    .pv-form-field input[type="text"],
+    .pv-form-field select,
+    .pv-form-field textarea {
+        font-size: 16px; /* under 16px, iOS zooms the page in on focus */
+    }
+    .pv-tools-kbd {
+        display: none; /* no keyboard shortcut on a phone */
+    }
+    .pv-palette-list {
+        max-height: 45vh;
+    }
 }
