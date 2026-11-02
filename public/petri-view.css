@@ -3643,3 +3643,14 @@ canvas.pv-canvas {
         font-size: 16px;
     }
 }
+
+/* ---- Engine guard (petri-engine-guard.js) ---- */
+/* The chip on a result that ran on an engine the net's own recommendation did not
+   pick: "ODE on a net with capacity on I; the engine recommends SSA". */
+.pv-engine-warn {
+    display: inline-block;
+    border: 1px solid var(--pv-warning);
+    border-radius: 10px;
+    padding: 0 8px;
+    font-size: 0.9em;
+}

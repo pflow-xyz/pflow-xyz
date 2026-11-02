@@ -107,8 +107,9 @@ Deno.test("checkEngine hard rule: every ODE and SDE command is refused, naming t
         assert(v.message.includes("SSA"), `${id}: names the engine to use`);
         assert(v.message.includes("Rule 1"), id);
     }
-    // the knob goal's twin is named
-    assert(checkEngine("analysis.diagnose", hardRec).message.includes("analysis.diagnose_ssa"));
+    // the knob goal's twin is named; a command with no SSA twin just says which engine
+    assert(checkEngine("analysis.diagnose", hardRec).message.includes("Use analysis.diagnose_ssa."));
+    assert(checkEngine("opt.fit", hardRec).message.endsWith("The engine recommends the SSA."));
 });
 
 Deno.test("checkEngine hard rule: the override must name the command's own engine, and then it is a warning chip", () => {

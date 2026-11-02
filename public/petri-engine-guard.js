@@ -158,14 +158,14 @@ export function checkEngine(commandId, recommendation, { override, args } = {}) 
     const name = label(entry.needs);
     const rec = label(recommended);
     const rule = (hard ? RULES.firing : RULES.population).id;
-    const use = entry.instead ? `Use ${entry.instead}.` : `Use the ${rec}.`;
+    const use = entry.instead ? ` Use ${entry.instead}.` : '';
     let verdict = hard || entry.onSoft === 'refuse' ? 'refuse' : 'warn';
     const used = override === entry.needs;
     let message;
     if (verdict === 'refuse' && !used) {
         message = hard
-            ? `${commandId} needs the ${name}, but this net has ${gating.join('; ')}: constraints that only exist at a firing instant, which the ${name} does not have, so it would silently model an unconstrained system (${RULES.firing.id}: ${RULES.firing.title}). Nothing ran. The engine recommends the ${rec}. ${use}`
-            : `${commandId} gives its answer on the ${name}, and the engine recommends the ${rec} for this net${tokensNote(recommendation)}: at counts this small the ${name}'s mean-field answer can mislead, and a ranking can call a knob that matters irrelevant (${RULES.population.id}: ${RULES.population.title}). Nothing ran. ${use}`;
+            ? `${commandId} needs the ${name}, but this net has ${gating.join('; ')}: constraints that only exist at a firing instant, which the ${name} does not have, so it would silently model an unconstrained system (${RULES.firing.id}: ${RULES.firing.title}). Nothing ran. The engine recommends the ${rec}.${use}`
+            : `${commandId} gives its answer on the ${name}, and the engine recommends the ${rec} for this net${tokensNote(recommendation)}: at counts this small the ${name}'s mean-field answer can mislead, and a ranking can call a knob that matters irrelevant (${RULES.population.id}: ${RULES.population.title}). Nothing ran.${use}`;
     } else {
         // Runs, with the chip: either a soft rule that only warns, or an override that was used.
         verdict = 'warn';
@@ -299,5 +299,5 @@ export function refusalText(verdict, { canOverride = false } = {}) {
     const name = label(verdict.needs);
     return `refused: ${verdict.message} ` + (canOverride
         ? `If the person explicitly asked for the ${name}, call again with engine_override: "${verdict.needs}"; it is honoured only when their own message names the engine, and the answer then carries a warning chip.`
-        : `This tool has no override, so the refusal is final here. If the person explicitly wants the ${name}, they can run it themselves from the command palette or the classic dialogs; do not retry.`);
+        : `This tool has no override, so the refusal is final here. If the person explicitly wants the ${name}, they can run it themselves from the classic dialogs in the menus (or the command palette, where there is one); do not retry.`);
 }

@@ -10,13 +10,17 @@
 //   - queries and analyses run in the sandbox too, so the model can check its
 //     own edits before the person applies them;
 //   - view commands (highlight, show a set, fit) act on the live canvas;
-//   - artifacts land in the editor's own store, so they show up in Results.
+//   - artifacts land in the editor's own store, so they show up in Results;
+//   - a command whose answer depends on the engine is checked against the
+//     net's own recommendation first (petri-engine-guard.js): a refusal is
+//     the tool's error answer, so the model reads why and nothing ran.
 //
 // post(body) is injected: the UI passes a fetch to /api/llm/turn, tests a
 // scripted model.
 import { Registry, createHeadlessHost } from './petri-commands.js';
 import { decodeCall, summarizeResult } from './petri-tools.js';
 import { NATIVE_COMMANDS } from './vendor/pflow-native-wasm/commands.js';
+import { EngineGuard, engineNeeded, refusalText } from './petri-engine-guard.js';
 
 // Commands that change the document (or the token game's marking, which
 // lives in it): they make the sandbox differ from the live net.
@@ -28,7 +32,7 @@ const EDITS = new Set(['file.new', 'edit.undo', 'edit.redo', 'edit.delete', 'sim
 const NATIVE_EDITS = new Set(NATIVE_COMMANDS.filter((s) => s.edits || s.setsMarking).map((s) => s.id));
 const NATIVE_EDITS_ON_APPLY = new Set(NATIVE_COMMANDS.filter((s) => s.editsOnApply).map((s) => s.id));
 const NATIVE_EDITS_ON_CURRENT = new Map(NATIVE_COMMANDS.filter((s) => s.editsOnCurrent).map((s) => [s.id, s.editsOnCurrent]));
-const isEdit = (id, args) => EDITS.has(id) || (id.startsWith('net.') && id !== 'net.info') || NATIVE_EDITS.has(id)
+export const isEdit = (id, args) => EDITS.has(id) || (id.startsWith('net.') && id !== 'net.info') || NATIVE_EDITS.has(id)
     || (NATIVE_EDITS_ON_APPLY.has(id) && !!args?.apply)
     || (NATIVE_EDITS_ON_CURRENT.has(id) && [undefined, 'current'].includes(args?.[NATIVE_EDITS_ON_CURRENT.get(id)]));
 // Commands that act on the canvas: always the live registry.
@@ -90,6 +94,8 @@ export class ChatSession {
         this.resolved = null;
         this.step = step;
         this.maxRounds = maxRounds;
+        /** The engine guard, over whichever sandbox is current. */
+        this.guard = new EngineGuard(() => this.sandbox);
         this.messages = [];
         /** {round, name, command, args, ok, result?, error?, artifacts: string[], ms} */
         this.calls = [];
@@ -149,8 +155,34 @@ export class ChatSession {
         }
     }
 
-    /** Run one model call's tool call. Never throws: a failure is the tool's answer. */
-    async runCall(call, round = 0) {
+    /** The person's latest typed message (not a tool answer), or ''. */
+    _lastUserText() {
+        for (let i = this.messages.length - 1; i >= 0; i--) {
+            const m = this.messages[i];
+            if (m.role !== 'user' || (m.parts || []).some((p) => p.functionResponse)) continue;
+            const text = (m.parts || []).filter((p) => typeof p.text === 'string').map((p) => p.text).join('\n');
+            if (text) return text;
+        }
+        return '';
+    }
+
+    /**
+     * Run one model call's tool call. Never throws: a failure is the tool's
+     * answer. A command whose answer depends on the engine goes through the
+     * engine guard first: when the net's recommendation rules the engine out,
+     * the answer is "refused: <why>" and nothing runs; when it runs on a
+     * caution, entry.warning carries the chip's text.
+     * @param {{name: string, args?: Object}} call
+     * @param {number} [round]
+     * @param {Object} [opts]
+     * @param {string} [opts.override]  the engine the model asks for against the recommendation (a run_goal / run_command
+     *   engine_override); honoured only when the person's latest message names that engine
+     * @param {boolean} [opts.canOverride]  the interface this call came through offers an engine_override, so the refusal
+     *   tells the model it can pass one. The plain tools have none: there the refusal is final
+     * @param {string} [opts.userText]  the person's words, when not their latest message (a rerun)
+     * @returns {Promise<any>} the logged call: {round, name, command, args, ok, result?, error?, refused?, warning?, override?, artifacts, ms}
+     */
+    async runCall(call, round = 0, opts = {}) {
         const t0 = Date.now();
         const entry = { round, name: call.name, args: call.args || {}, ok: false, artifacts: [] };
         try {
@@ -159,6 +191,21 @@ export class ChatSession {
             entry.args = args;
             if (this.effectiveMode === 'explain' && isEdit(id, args)) throw new Error('explain mode does not edit; switch to build to change the net');
             if (!this.pending && !VIEW.has(id)) this._reseed();
+            if (!VIEW.has(id) && engineNeeded(id, args)) {
+                const userText = opts.userText ?? this._lastUserText();
+                const v = await this.guard.check(id, args, { override: opts.override, userText });
+                if (v.verdict === 'refuse') {
+                    entry.refused = { rule: v.rule, message: v.message, recommended: v.recommended };
+                    throw new Error(refusalText(v, { canOverride: !!opts.canOverride }));
+                }
+                if (v.verdict === 'warn') {
+                    entry.warning = v.message;
+                    if (v.overridden) {
+                        entry.override = v.needs;
+                        entry.overrideText = userText;
+                    }
+                }
+            }
             const reg = VIEW.has(id) ? this.live : this.sandbox;
             const before = new Set(reg.artifacts().map((a) => a.id));
             entry.result = await reg.execute(id, args);
@@ -177,6 +224,7 @@ export class ChatSession {
         if (!entry.ok) return { name: entry.name, response: { error: entry.error } };
         const arts = entry.artifacts.map((id) => this.live._store.items.find((a) => a.id === id)).filter(Boolean);
         const payload = summarizeResult(entry.result, arts);
+        if (entry.warning) payload.warning = `${entry.warning}. Say so when you report this result.`;
         if (this.pending && isEdit(entry.command, entry.args)) payload.note = 'previewed in the sandbox; the person applies or discards it';
         return { name: entry.name, response: payload };
     }
@@ -276,7 +324,9 @@ export class ChatSession {
 
     /** Re-run one logged call by hand (the Tools panel's Rerun). */
     rerun(entry) {
-        return this.runCall({ name: entry.name, args: entry.args }, entry.round);
+        // An override the person's words once earned (entry.override) is theirs still.
+        const again = entry.override ? { override: entry.override, userText: entry.overrideText } : {};
+        return this.runCall({ name: entry.name, args: entry.args }, entry.round, again);
     }
 }
 
