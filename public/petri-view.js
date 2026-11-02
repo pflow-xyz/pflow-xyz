@@ -72,7 +72,7 @@ PetriView = class PetriView extends HTMLElement {
     // would claim the whole root and push the bar off the bottom of the screen.
     static DIVIDER_KEY = 'pv-divider-position-v3';
 
-    // Shown in the hamburger menu footer. Must match "version" in package.json,
+    // Shown at the foot of the Help menu (and of the classic hamburger). Must match "version" in package.json,
     // which a release commit bumps alongside the annotated git tag — there is no
     // build step for this file, so the value cannot be injected. `make
     // test-version` fails the build if the two ever drift.

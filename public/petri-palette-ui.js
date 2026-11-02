@@ -66,7 +66,8 @@ const CLASSIC = [
     ['classic.analysis', 'Analysis (ODE, scans, phase)', '_showSimulationDialog', ['ode', 'rate scan', 'sweep', 'phase plot']],
     ['classic.simulate', 'Simulate (stochastic, influence, what-if)', '_openWorkbench', ['ssa', 'sde', 'influence', 'heatmap', 'optimize']],
     ['classic.structure', 'Structure (invariants, verify, reach)', '_openStructureDialog', ['invariants', 'siphons', 'reachability graph']],
-    ['classic.check', 'Check net', '_showCheckDialog', ['validate', 'problems']],
+    // Check net itself is the problems chip now; this is the full report behind its Details button.
+    ['classic.check', 'Check net details', '_showCheckDialog', ['check net', 'validate', 'problems', 'report']],
     ['classic.results', 'Results', '_showResultsDialog', ['artifacts', 'export', 'csv']],
     ['classic.components', 'Components', '_openComponents', ['palette', 'fuse']],
     ['classic.goals', 'What do you want to know?', '_openGoals', ['questions', 'goals']],

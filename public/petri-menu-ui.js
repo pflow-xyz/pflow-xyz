@@ -83,7 +83,7 @@ export function mountAppBar(view) {
     const bar = el('div', 'pv-appbar', { role: 'group', 'aria-label': 'Ask, menus and tools' });
 
     // ---- Ask ----
-    const form = el('form', 'pv-ask', { role: 'search' });
+    const form = el('form', 'pv-ask', { role: 'search', 'aria-label': 'Ask' });
     form.noValidate = true;
     const input = el('input', 'pv-ask-input', {
         type: 'text', autocomplete: 'off', spellcheck: 'false', enterkeyhint: 'send',

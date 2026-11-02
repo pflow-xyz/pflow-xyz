@@ -11,6 +11,8 @@ cat >"$tmp/deno" <<'STUB'
 echo "stand-in: $3"
 case "$3" in
   *landing*) echo "landing output"; exit "${LANDING_RC:-0}" ;;
+  *menu*) echo "menu output"; exit "${MENU_RC:-0}" ;;
+  *palette*) echo "palette output"; exit "${PALETTE_RC:-0}" ;;
   *) exit "${VIEWS_RC:-0}" ;;
 esac
 STUB
@@ -29,4 +31,9 @@ expect 1 "only the last smoke fails" VIEWS_RC=1
 expect 1 "a smoke crashes (any non-zero status)" LANDING_RC=134
 expect 2 "an unknown smoke" SMOKES=nonsense
 expect 1 "a failure is followed by a pass" LANDING_RC=1 VIEWS_RC=0
+expect 1 "the menu smoke fails" MENU_RC=1
+expect 1 "the palette smoke fails" PALETTE_RC=1
+expect 0 "the menu smoke alone, passing" SMOKES=menu
+expect 1 "the menu smoke alone, failing" SMOKES=menu MENU_RC=1
+expect 0 "the palette smoke alone, passing" SMOKES=palette
 [ "$fails" -eq 0 ] && echo "smoke-gate: ok" || exit 1

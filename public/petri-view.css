@@ -4314,10 +4314,12 @@ html:has(petri-view[data-ui="bar"]) .fixed-title {
 /* The account button is the last thing in the row, and gives way first if a user name is long */
 .pv-appbar > .pv-top-right-btn {
     position: static;
+    display: block; /* a block, so a long name ends in an ellipsis (a flex container's text cannot) */
     flex: 0 1 auto;
     min-width: 0;
     max-width: 180px;
     margin-left: auto;
+    line-height: 38px;
     overflow: hidden;
     text-overflow: ellipsis;
 }
@@ -4423,6 +4425,7 @@ html:has(petri-view[data-ui="bar"]) .fixed-title {
         top: -54px;
         right: 0;
         margin: 0;
+        max-width: min(180px, calc(100vw - 150px)); /* clear of the logo, which is 120px wide at the left edge */
     }
     /* While a docked panel is open it covers the bar's row, all but the 16px gutters beside it, where the Ask pill would
        peek out: hide the row. The account button (the logo's row) stays. */
@@ -4437,6 +4440,36 @@ html:has(petri-view[data-ui="bar"]) .fixed-title {
     .pv-appbar .pv-appbar-btn,
     .pv-appbar .pv-tools-btn {
         min-width: 44px;
+    }
+}
+/* The same two steps as the container queries above, by window width, for a browser without container queries (Safari
+   before 16): a phone's bar is under 760px wide, and a narrow phone's under 540. Where container queries work these
+   repeat what they already say. */
+@media (max-width: 760px) {
+    .pv-appbar-menus {
+        display: none;
+    }
+    .pv-appbar .pv-appmenu-more {
+        display: inline-flex;
+    }
+}
+@media (max-width: 560px) {
+    .pv-appbar .pv-tools-kbd,
+    .pv-appbar .pv-problems-label,
+    .pv-ask-go-text {
+        display: none;
+    }
+    .pv-appbar .pv-problems-chip {
+        padding: 0 10px;
+        gap: 0;
+    }
+    .pv-ask-go {
+        padding: 0;
+        width: 32px;
+    }
+    .pv-ask-go-icon {
+        display: inline;
+        font-size: 16px;
     }
 }
 /* A phone on its side: the page hides its logo to save the height, so the bar has the whole row */
