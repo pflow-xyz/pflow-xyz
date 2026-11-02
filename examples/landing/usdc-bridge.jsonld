@@ -1,0 +1,173 @@
+{
+  "@context": "https://pflow.xyz/schema",
+  "@id": "z4EBG9jC6HtPfeMtyA5yt6HuzDspMH2B15FQZ7mx3D2zeBwBU1f",
+  "@type": "PetriNet",
+  "@version": "1.1",
+  "arcs": [
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "USDC_Osmosis",
+      "target": "SendIBC_OsmosisToNoble",
+      "weight": [
+        4000000
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "SendIBC_OsmosisToNoble",
+      "target": "IBC_OsmosisToNoble_InFlight",
+      "weight": [
+        4000000
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "IBC_OsmosisToNoble_InFlight",
+      "target": "RecvIBC_OnNoble",
+      "weight": [
+        4000000
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "RecvIBC_OnNoble",
+      "target": "USDC_Noble",
+      "weight": [
+        4000000
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "USDC_Noble",
+      "target": "BurnForCCTP_OnNoble",
+      "weight": [
+        4000000
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "BurnForCCTP_OnNoble",
+      "target": "CCTP_NobleToBase_InFlight",
+      "weight": [
+        4000000
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "CCTP_NobleToBase_InFlight",
+      "target": "MintUSDC_OnBase",
+      "weight": [
+        4000000
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "MintUSDC_OnBase",
+      "target": "USDC_Base",
+      "weight": [
+        4000000
+      ]
+    }
+  ],
+  "author": {
+    "@type": "Person",
+    "id": "github:243500",
+    "identifier": "https://github.com/stackdump",
+    "name": "stackdump"
+  },
+  "places": {
+    "CCTP_NobleToBase_InFlight": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 1000,
+      "y": 450
+    },
+    "IBC_OsmosisToNoble_InFlight": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 400,
+      "y": 450
+    },
+    "USDC_Base": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 1300,
+      "y": 450
+    },
+    "USDC_Noble": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        0
+      ],
+      "offset": 0,
+      "x": 700,
+      "y": 450
+    },
+    "USDC_Osmosis": {
+      "@type": "Place",
+      "capacity": [
+        null
+      ],
+      "initial": [
+        4000000
+      ],
+      "offset": 0,
+      "x": 100,
+      "y": 450
+    }
+  },
+  "token": [
+    "https://pflow.xyz/tokens/black"
+  ],
+  "transitions": {
+    "BurnForCCTP_OnNoble": {
+      "@type": "Transition",
+      "x": 850,
+      "y": 450
+    },
+    "MintUSDC_OnBase": {
+      "@type": "Transition",
+      "x": 1150,
+      "y": 450
+    },
+    "RecvIBC_OnNoble": {
+      "@type": "Transition",
+      "x": 550,
+      "y": 450
+    },
+    "SendIBC_OsmosisToNoble": {
+      "@type": "Transition",
+      "x": 250,
+      "y": 450
+    }
+  }
+}

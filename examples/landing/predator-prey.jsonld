@@ -1,0 +1,130 @@
+{
+  "@context": "https://pflow.xyz/schema",
+  "@id": "z4EBG9j7s3ri1DFxbBYpxYUhKtZf8ngA3nfw9849upqeQj85z9J",
+  "@type": "PetriNet",
+  "@version": "1.1",
+  "arcs": [
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "Prey",
+      "target": "t_birth",
+      "weight": [
+        1,
+        0
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "t_birth",
+      "target": "Prey",
+      "weight": [
+        2,
+        0
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "Prey",
+      "target": "t_pred",
+      "weight": [
+        1,
+        0
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "Predator",
+      "target": "t_pred",
+      "weight": [
+        0,
+        1
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "t_pred",
+      "target": "Predator",
+      "weight": [
+        0,
+        2
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "Predator",
+      "target": "t_death",
+      "weight": [
+        0,
+        1
+      ]
+    }
+  ],
+  "author": {
+    "@type": "Person",
+    "id": "github:243500",
+    "identifier": "https://github.com/stackdump",
+    "name": "stackdump"
+  },
+  "places": {
+    "Predator": {
+      "@type": "Place",
+      "capacity": [
+        null,
+        null
+      ],
+      "initial": [
+        0,
+        8
+      ],
+      "label": "Predator",
+      "offset": 0,
+      "x": 930,
+      "y": 350
+    },
+    "Prey": {
+      "@type": "Place",
+      "capacity": [
+        null,
+        null
+      ],
+      "initial": [
+        40,
+        0
+      ],
+      "label": "Prey",
+      "offset": 0,
+      "x": 630,
+      "y": 350
+    }
+  },
+  "token": [
+    "https://pflow.xyz/tokens/blue",
+    "https://pflow.xyz/tokens/red"
+  ],
+  "transitions": {
+    "t_birth": {
+      "@type": "Transition",
+      "label": "prey_birth",
+      "x": 750,
+      "y": 290
+    },
+    "t_death": {
+      "@type": "Transition",
+      "label": "predator_death",
+      "x": 1050,
+      "y": 350
+    },
+    "t_pred": {
+      "@type": "Transition",
+      "label": "predation",
+      "x": 780,
+      "y": 410
+    }
+  }
+}

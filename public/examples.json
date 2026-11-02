@@ -1,0 +1,270 @@
+{
+  "generatedBy": "node scripts/record-example-views.mjs",
+  "about": "The curated view behind each landing-page example card. Do not edit by hand: re-record, and review every opensTo line, which is an editorial claim about the model.",
+  "examples": [
+    {
+      "id": "coffee-shop",
+      "title": "Coffee Shop",
+      "cid": "z4EBG9j3NhEnaxZBEpXXCvyMbR9utkgUZoPBQFxS99qSehUwuBL",
+      "file": "examples/landing/coffee-shop.jsonld",
+      "sha256": "c327bf83540cb130601758e652f256b055bdc1348323a912e1bdcf618bbe2b47",
+      "blurb": "Weighted arcs encode recipes, conservation laws guarantee you never oversell a latte.",
+      "opensTo": "it cannot get stuck: no deadlock in any of the 2,706 reachable states",
+      "goal": "stuck",
+      "spec": {
+        "@type": "ViewSpec",
+        "specVersion": 1,
+        "net": "z4EBG9j3NhEnaxZBEpXXCvyMbR9utkgUZoPBQFxS99qSehUwuBL",
+        "view": "stuck",
+        "calls": [
+          {
+            "command": "analysis.verify",
+            "args": {
+              "properties": [
+                {
+                  "kind": "deadlock-free"
+                }
+              ]
+            }
+          },
+          {
+            "command": "analysis.siphons",
+            "args": {}
+          }
+        ],
+        "engine": {
+          "registry": "pflow-native 0.8.0 wasm 89bce66",
+          "app": "unknown"
+        },
+        "expect": {
+          "artifacts": [
+            "sha256:ebf99f3fac2c3b2f3abc727ae6d720827062b8931fb91de78566cc6f334b7a29",
+            "sha256:67f3a08691736c1f4dc4f7d31e19315ff93dd37718b414d4ae6075034640a0fd",
+            "sha256:b876ae582a9aeab47a393aee8460e12f9b359d1e984397b00aacc8c31c48cca5"
+          ],
+          "rounding": 9
+        },
+        "note": null,
+        "parents": []
+      },
+      "payload": "bc7LjuIwEIXhV0G1TiPf4kseZDYjFuVymbYITmQHaITy7i1mNOrN7M__6bygr0y_uPWyVJjkAPfCD5igbze6wACE89xh-v0CWq5XrAkmwIrzs5d-vHMr-QkDYDt3mF6wtmXlthX-m1zKn31iTPNCl4_cmGE_7fvwX66X9XOp_cfb99MAXM-l8ltvfC59a0-YYM3z8viouJU7H8TRH8Xhgf168CESW_sm1hUmuNVLXR4V9gH4a2Xa3g62rWSk7X0S-ieq0U4ccwhZZyRFOqqsMZJTDtkmp4RXTlgVfdAyxyATOz9aS2Sz1iY6VAGGf5J1WaPwNkinLclsEpnskpYsg5ZjzkGnpJ2TPhppkkG2wo1CG2sEipx-pOidRR69woCM0TjUQSOzN1awVDlEPYYkOXijg4tCIBJ50pKMJ8IRTgO05VZTqWeYwr5_Aw"
+    },
+    {
+      "id": "tic-tac-toe",
+      "title": "Tic-Tac-Toe",
+      "cid": "z4EBG9j1YQFZEQBpCn3ZjdpAuXpPnrKSDF5YXsW3q86znPztEoh",
+      "file": "examples/landing/tic-tac-toe.jsonld",
+      "sha256": "fe0a80bc56ab5824a0e93940f4988a90faf7348e367bde02f3f1bcab042b8fbb",
+      "blurb": "Every board position is a place. ODE heatmaps reveal optimal play from network topology alone.",
+      "opensTo": "best play ends in a draw: exact search over 2,299 positions (a best-move report, not a heatmap)",
+      "goal": "best_play",
+      "spec": {
+        "@type": "ViewSpec",
+        "specVersion": 1,
+        "net": "z4EBG9j1YQFZEQBpCn3ZjdpAuXpPnrKSDF5YXsW3q86znPztEoh",
+        "view": "best_play",
+        "calls": [
+          {
+            "command": "game.move",
+            "args": {
+              "sides": {
+                "x_": 1,
+                "o_": -1
+              },
+              "reward": {
+                "win_x": 1,
+                "win_o": -1
+              },
+              "auto": [
+                "x_win_",
+                "o_win_"
+              ]
+            }
+          }
+        ],
+        "engine": {
+          "registry": "pflow-native 0.8.0 wasm 89bce66",
+          "app": "unknown"
+        },
+        "expect": {
+          "artifacts": [
+            "sha256:a0af27e8d11465e36fb90312e127898d063f833bee394de9f49003b0d70af4ef"
+          ],
+          "rounding": 9
+        },
+        "note": null,
+        "parents": []
+      },
+      "payload": "LY_RioMwEEV_pdxnW6KxVvMhfSlFRjNxw2oiia2W4r8vkX073MO9zHwRZ-7vHKL1DirP8La8QqHjuLTzSB9k6GkcI9Tji95PEzkNhYEmvkz-zchAYYhQX0Sr-YCtPaZ8C3XO9wyBVwo6mdW6djtkIv_v6bV4qAe2NqVIzQOe-_7MwG6wjlM78GDjEj5QmM3o17Ojxb75JC71RZxWitOpbrqeqypdNc9QeLlf51eHPQNvM_dL2qGwWEP9kp5C_KHiWikSZIob1zrPy-rKsjJdI2RecF7c6qbWopKmlrJjlk2puTFlI4TshL4JMiUbPDME_3LaugGq2fc_"
+    },
+    {
+      "id": "enzyme-kinetics",
+      "title": "Enzyme Kinetics",
+      "cid": "z4EBG9j1aMiBny6hgTAKFXfXxTASCD5vT6NVY3opfQx4FfBf42a",
+      "file": "examples/landing/enzyme-kinetics.jsonld",
+      "sha256": "68191be8ce080724419f5093a6b3436dea9533931ae5b1f3388526913ae90bce",
+      "blurb": "Four places, three transitions — mass-action kinetics produce Michaelis-Menten curves automatically.",
+      "opensTo": "substrate turning into product (ODE): the complex C peaks at 9.5 near t = 0.2; by t = 1, P is 9.3 and S has fallen from 50 to 31",
+      "goal": "average",
+      "spec": {
+        "@type": "ViewSpec",
+        "specVersion": 1,
+        "net": "z4EBG9j1aMiBny6hgTAKFXfXxTASCD5vT6NVY3opfQx4FfBf42a",
+        "view": "average",
+        "calls": [
+          {
+            "command": "sim.recommend",
+            "args": {}
+          },
+          {
+            "command": "sim.ode",
+            "args": {
+              "t_end": 1
+            }
+          }
+        ],
+        "engine": {
+          "registry": "pflow-native 0.8.0 wasm 89bce66",
+          "app": "unknown"
+        },
+        "expect": {
+          "artifacts": [
+            "sha256:7d46fff0fec4a5bcb7779dfeea7db7cfb0996f1105ed4c40273a0fdcd90cef35"
+          ],
+          "rounding": 9
+        },
+        "note": null,
+        "parents": []
+      },
+      "payload": "XY5BboMwFESvgmbtIpMADj5INlVUfexvajXYyCbQCvnuFatKXc7M09McyAubO6fsY4BuBDbPOzRo40QTQ8DQ85mh3w-YOM8ULDSyn-vEZ-ZgIUBpytBHKeI_FS3_7Vg_Tl43pTwEOEw-8Fknnnxe0w80FveM-1ug1W9cyfpWy2qnPFe3YTTc96drWaDxCl8h7gFFgL8XNuvpobR6R2Y97yJ_0qXrtbJt75yTjk1L3WhGpdRgHTMpOyrjRjkMvWsa2bFtTSsv6krSWWMHadhdOzwEUnwF68MEPZTyCw"
+    },
+    {
+      "id": "predator-prey",
+      "title": "Predator-Prey",
+      "cid": "z4EBG9j7s3ri1DFxbBYpxYUhKtZf8ngA3nfw9849upqeQj85z9J",
+      "file": "examples/landing/predator-prey.jsonld",
+      "sha256": "3a8ae61b182cbd439a2a5c7f2f2fb261f213cb8532a120f1d09eb0ae23bc0875",
+      "blurb": "Lotka-Volterra dynamics — two species, three reactions, and the ODE solver draws the phase portrait.",
+      "opensTo": "ODE trajectories, not a phase portrait: predators peak at 45 near t = 0.1 while prey fall from 40 to almost none",
+      "goal": "average",
+      "spec": {
+        "@type": "ViewSpec",
+        "specVersion": 1,
+        "net": "z4EBG9j7s3ri1DFxbBYpxYUhKtZf8ngA3nfw9849upqeQj85z9J",
+        "view": "average",
+        "calls": [
+          {
+            "command": "sim.recommend",
+            "args": {}
+          },
+          {
+            "command": "sim.ode",
+            "args": {
+              "t_end": 5
+            }
+          }
+        ],
+        "engine": {
+          "registry": "pflow-native 0.8.0 wasm 89bce66",
+          "app": "unknown"
+        },
+        "expect": {
+          "artifacts": [
+            "sha256:89f57cf40c105c4f4620fd2fb3491d5add07acdc815d69ccdac7772b8cd3d7da"
+          ],
+          "rounding": 9
+        },
+        "note": null,
+        "parents": []
+      },
+      "payload": "XY7NasMwEIRfJcxZDbbjXz1ILiWUze7KFY1lIzlxi9G7F58KPc7Mx8fsSIvyVWPyc4AtDV5eN1jQSyONCgOmxyPBvu_geZooCCySn85Rj6xBYEBxTLB7zuY_NYv-7Vg_Dt42Od8MNIw-6FFHHX1a4w8sFveYt7dAq3_pqTj35-K0UZpO_XBnbdvDtSyweIavMG8B2UC_F-X18FBcvSNej7tIn1Q1re0H13Ts6oLLouHa1W1VOKnc_VIPpTQkUnTEwn3ZSDswC3HXddW9Z7lIJ4SbQZyfQXwYYYecfwE"
+    },
+    {
+      "id": "producer-consumer",
+      "title": "Producer-Consumer",
+      "cid": "z4EBG9jDW9ike1veSLWu9Et2dMTiPEWTMkai8TkjUtEaUVtyrda",
+      "file": "examples/landing/producer-consumer.jsonld",
+      "sha256": "cce4b057884463e7c92242cba2abc5b294fbcb4b55adc175f59837186fe9ab3c",
+      "blurb": "Bounded buffer concurrency — capacity constraints prevent overflow, token counts prove correctness.",
+      "opensTo": "the buffer never holds more than 3: bounded is proved across all 10 reachable states",
+      "goal": "unbounded",
+      "spec": {
+        "@type": "ViewSpec",
+        "specVersion": 1,
+        "net": "z4EBG9jDW9ike1veSLWu9Et2dMTiPEWTMkai8TkjUtEaUVtyrda",
+        "view": "unbounded",
+        "calls": [
+          {
+            "command": "analysis.verify",
+            "args": {
+              "properties": [
+                {
+                  "kind": "bounded"
+                }
+              ]
+            }
+          },
+          {
+            "command": "analysis.reachability",
+            "args": {
+              "max_states": 2000
+            }
+          }
+        ],
+        "engine": {
+          "registry": "pflow-native 0.8.0 wasm 89bce66",
+          "app": "unknown"
+        },
+        "expect": {
+          "artifacts": [
+            "sha256:774a42d201e7f59b2618b2d89831432ebe875d30f9451e2723f498cae60f094d",
+            "sha256:ab229b160f08e9bbcb63a3076a0a34fe0f8c8e1a51bcecaf77bb82d44c55355a",
+            "sha256:32212fdd4d67480890a8c5cf34ae343df47649e64d2ce900f250d661ba16c604"
+          ],
+          "rounding": 9
+        },
+        "note": null,
+        "parents": []
+      },
+      "payload": "bdHJbuMwDADQXwl49gTaF39IL4OgoCQqFerIhuQmDQL_e-HOFO2hVy4PXB7QF4pP1HqZK4x8gGuhG4zwVsP8VhMlGCDiNHUY_z4gzpcL1gQjYMXp3ks_XqmVfIcBsJ07jA9Y2rxQWwv9a3ktn_Vf2nbatuFXqBHGFwxlKutP7oLvz33FdecEY2zbTgNQPZdKe7rRufS13WGEJU_z7U_FtVzpwI7uyA437JeD8yGSMbu5LJ-rvdb5VmEbgN4XiuvuYFtLxrjuQ0N_QaHNaK1CJZJgnGzWPgjDXRDJeSe5koICOauTZNkrzUlYIbPyLiIZlplX--n-SxiE8IHvcUc-hBiMRMmsQYZSZWLZRUccNQ-RImZrQ3AiKRW1llrjtySF4CKnpJKxyjHnGbqoY5YKSSqZsrJGeTIqiUiesSw0S8bwgNxEwxScBmj7L0o9w-i37QM"
+    },
+    {
+      "id": "usdc-bridge",
+      "title": "USDC Bridge",
+      "cid": "z4EBG9jC6HtPfeMtyA5yt6HuzDspMH2B15FQZ7mx3D2zeBwBU1f",
+      "file": "examples/landing/usdc-bridge.jsonld",
+      "sha256": "8df085328c314bd0b59382fccc5c1d610736aa6005fe74599bbf06cd830cd750",
+      "blurb": "Cross-chain token flow — IBC to Noble, CCTP burn-and-mint to Base, all as one net.",
+      "opensTo": "no USDC is created or lost in transit: all 5 places always sum to 4,000,000",
+      "goal": "conserved",
+      "spec": {
+        "@type": "ViewSpec",
+        "specVersion": 1,
+        "net": "z4EBG9jC6HtPfeMtyA5yt6HuzDspMH2B15FQZ7mx3D2zeBwBU1f",
+        "view": "conserved",
+        "calls": [
+          {
+            "command": "analysis.invariants",
+            "args": {
+              "kind": "p"
+            }
+          }
+        ],
+        "engine": {
+          "registry": "pflow-native 0.8.0 wasm 89bce66",
+          "app": "unknown"
+        },
+        "expect": {
+          "artifacts": [
+            "sha256:baaa6dcac429b7d56fbd3e4372d2719b74085ca388b82e5b575cfa5c6b1c4eae",
+            "sha256:0a5390123381121c7c86a78c2ca5befa0719b10dd268797f1a36313bb17e453c"
+          ],
+          "rounding": 9
+        },
+        "note": null,
+        "parents": []
+      },
+      "payload": "Nc7NboMwEATgV4n2TCNs4x_8IL1UOazXC7VCDLIJNIp494pKvc6MPs0b6sL0yaWmOYMXDWyJd_BAc65cNo7QAOE0VfBfb6D58cAcwQNmnF411WvKG5aEea3QAJaxgn_DPf2NFjiOWwOcx5T5zAuPqa7ldXbDNO8fGde08aW9umt72bE-Lq4PxMac2LKAh2e-53nPcDTAPwvTejpY1jQgrecrqN8otfEBEU0kpE72wUZthhAVd8rKKK3og-1apwmVc8FJ1kFbTQNqMkFQx8jQ_EstatW3QirlhJCCLDmD1pEk1IEHbE9OtDFK42xvB4HKKKFCEJY7rQhuDZT5mWPKI_j-OH4B"
+    }
+  ]
+}
