@@ -1573,8 +1573,9 @@ PetriView = class PetriView extends HTMLElement {
         if (!this.hasAttribute('data-backend')) return;
         if (!/(^#|&)view=/.test(location.hash || '')) return;
         try {
-            const L = await import('./petri-link-open.js');
             const V = await import('./petri-viewspec.js');
+            if (!V.parseLocation(location).viewPayload) return; // a compose-page hash (#view=cospan&ex=...) is not ours
+            const L = await import('./petri-link-open.js');
             const P = await import('./petri-provenance.js');
             this._showLinkNotice('Opening the saved view (no model call)…', { busy: true });
             const opening = await L.openLinkedView({

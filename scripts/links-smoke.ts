@@ -194,6 +194,17 @@ let baseline: string[] = [];
   await p.close();
 }
 
+// A compose-page hash is not a view link: the editor leaves it alone (no notice, not even a flash of one).
+{
+  const p = await open(hrefTo(`?cid=${coffee.cid}`, "#view=cospan&ex=orders"));
+  await editorUp(p);
+  await sleep(2000);
+  ok(!(await p.eval(`!!document.querySelector('.pv-result-dialog, [data-link-status], [data-link-notice]')`)), "#view=cospan&ex=orders: no pane, no notice");
+  same(await viewWorkers(p), 0, "#view=cospan&ex=orders: nothing was replayed");
+  same(await model(p), bareModel, "#view=cospan&ex=orders: the net alone");
+  await p.close();
+}
+
 // ---- 2. each card opens its view, from a click ----------------------------------------------------------------------------
 
 for (const e of examples) {
