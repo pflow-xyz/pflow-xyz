@@ -3654,3 +3654,73 @@ canvas.pv-canvas {
     padding: 0 8px;
     font-size: 0.9em;
 }
+
+/* ============================================
+   Provenance footer (petri-provenance.js footerHtml)
+   "How this was computed", under every result: collapsed by default.
+   ============================================ */
+.pv-prov {
+    border-top: 1px solid var(--pv-border);
+    margin-top: 10px;
+    padding-top: 6px;
+    font-size: 0.9em;
+}
+.pv-prov > summary {
+    cursor: pointer;
+    font-weight: 600;
+}
+.pv-prov-rows {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 3px 10px;
+    margin: 6px 0;
+}
+.pv-prov-rows dt {
+    color: var(--pv-ink-secondary);
+}
+.pv-prov-rows dd {
+    margin: 0;
+    overflow-wrap: anywhere;
+}
+.pv-prov-calls,
+.pv-prov-assumed {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+.pv-prov-call code,
+.pv-prov-args {
+    font-size: 0.85em;
+}
+.pv-prov-args {
+    color: var(--pv-ink-secondary);
+}
+.pv-prov-chip {
+    display: inline-block;
+    padding: 0 7px;
+    border: 1px solid var(--pv-border);
+    border-radius: 10px;
+    font-size: 0.85em;
+}
+.pv-prov-warn {
+    color: var(--pv-warning);
+    border-color: var(--pv-warning);
+}
+.pv-prov-ast {
+    background: var(--pv-surface-2);
+}
+.pv-prov-link {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--pv-accent);
+    font: inherit;
+    text-decoration: underline;
+    cursor: pointer;
+}
+.pv-prov-acts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 6px;
+}
