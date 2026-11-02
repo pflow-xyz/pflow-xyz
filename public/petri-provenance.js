@@ -18,20 +18,31 @@
 // the footer labels the assistant's. No DOM: footerHtml returns a string and
 // wireFooter takes any element-like root, so deno tests it directly.
 import { NATIVE_VERSION } from './vendor/pflow-native-wasm/commands.js';
+import { CDN } from './vendor/pflow-native-wasm/cdn.js';
 
 export const UNKNOWN_APP = 'unknown';
+
+/**
+ * The first 7 hex characters of the vendored engine's sha256 (cdn.js CDN.sha256,
+ * which petri-wasm_test.ts holds to the wasm and to pflow-native-wasm.lock):
+ * the build id a browser can read. NATIVE_VERSION alone cannot tell builds
+ * apart (it stayed "0.8.0" across many different wasm builds).
+ */
+export const WASM_BUILD = String(CDN?.sha256 ?? '').slice(0, 7);
 
 /**
  * The engine identity a record or a view spec is made with: pflow-native's
  * command registry (the vendored wasm, pflow-native-wasm.lock) and the app.
  * The browser cannot read the lock, so the registry is named by the version
- * commands.js carries; pass `commit` (and `app`, e.g. /health's
- * X-Build-Revision) when they are known.
+ * commands.js carries and the id of the wasm build ("pflow-native 0.8.0 wasm
+ * 89bce66"): a re-vendor changes the id, so a replay can say its engine
+ * differs. Pass `commit` (and `app`, e.g. /health's X-Build-Revision) when
+ * they are known.
  * @param {{registry?: string, commit?: string, app?: string}} [o]
  * @returns {{registry: string, app: string}}
  */
 export function defaultVersions({ registry, commit, app } = {}) {
-    const native = `pflow-native ${NATIVE_VERSION}${commit ? ` ${String(commit).slice(0, 7)}` : ''}`;
+    const native = `pflow-native ${NATIVE_VERSION}${commit ? ` ${String(commit).slice(0, 7)}` : ''}${WASM_BUILD ? ` wasm ${WASM_BUILD}` : ''}`;
     return { registry: registry ?? native, app: app ?? UNKNOWN_APP };
 }
 
@@ -62,7 +73,7 @@ const text = (v) => (v === undefined || v === null ? '' : String(v));
  * @param {Object} o
  * @param {{id: string, question: string}|null} [o.goal]
  * @param {Array<{command: string, args: Object}>} [o.calls] fully resolved, in run order
- * @param {{name: string, reason?: string, overridden?: boolean, warning?: string}|null} [o.engine]
+ * @param {{name: string, reason?: string, overridden?: boolean, recommendedOnly?: boolean, warning?: string}|null} [o.engine]
  * @param {Array<{key: string, text: string, change?: string}>} [o.assumed]
  * @param {string} [o.caveat]
  * @param {{cid?: string, revision?: number|string}} [o.net]
@@ -75,6 +86,7 @@ export function provenance({ goal = null, calls = [], engine = null, assumed = [
         ? {
             name: text(engine.name), reason: text(engine.reason),
             ...(engine.overridden ? { overridden: true } : {}),
+            ...(engine.recommendedOnly ? { recommendedOnly: true } : {}),
             ...(engine.warning ? { warning: text(engine.warning) } : {}),
         }
         : null;
@@ -97,11 +109,58 @@ export function provenance({ goal = null, calls = [], engine = null, assumed = [
 
 // ---- building records from what ran ----
 
-// Which engine a command runs on, where the command's own help says so.
+// Which engine a command runs on, where the command's own help says so. Every
+// command a link may replay (petri-viewspec.js REPLAY_ALLOWLIST) is here or in
+// ENGINE_FREE, which a test holds to the registry: a command that runs an engine
+// and is in neither would let the footer name the recommender's engine as the
+// one that ran.
 const ENGINE_OF = {
     'sim.ode': 'ODE', 'sim.ssa': 'SSA', 'sim.sde': 'SDE',
     'analysis.diagnose': 'ODE', 'analysis.diagnose_ssa': 'SSA', 'sim.what_if': 'SSA',
+    // the mass-action ODE (solveODE), whatever the recommendation says
+    'sim.equilibrium': 'ODE', 'opt.rate_scan': 'ODE', 'opt.sweep': 'ODE', 'opt.heatmap': 'ODE', 'opt.optimize': 'ODE', 'opt.fit': 'ODE',
+    // seeded SSA rollouts
+    'sim.evaluate': 'SSA', 'opt.distill': 'SSA',
+    // both, side by side
+    'sim.crosscheck': 'ODE+SSA',
 };
+
+/** Commands that run no ODE, SSA or SDE: structure, the token game, search, the view, the composition tools. */
+export const ENGINE_FREE = Object.freeze([
+    'analysis.validate', 'analysis.incidence', 'analysis.invariants', 'analysis.siphons', 'analysis.verify',
+    'analysis.reach', 'analysis.reachability', 'analysis.canonical', 'analysis.classify', 'analysis.roles',
+    'analysis.behaviour', 'analysis.defects', 'analysis.check',
+    'sim.enabled', 'sim.marking', 'sim.recommend',
+    'game.value', 'game.move',
+    'view.highlight', 'view.clear_highlight', 'view.fit',
+    'compose.components', 'compose.diff',
+    'plan.pieces', 'plan.check', 'plan.slot_candidates',
+    'bundle.ontology', 'bundle.instances', 'bundle.scenarios', 'bundle.example', 'bundle.validate',
+    'bundle.candidates', 'bundle.flatten', 'bundle.run', 'bundle.lens', 'bundle.incidence',
+]);
+
+const parseObj = (v) => {
+    if (typeof v === 'string') { try { v = JSON.parse(v); } catch { return null; } }
+    return v && typeof v === 'object' && !Array.isArray(v) ? v : null;
+};
+
+/**
+ * The engine a call runs on ('ODE', 'SSA', 'SDE', 'ODE+SSA'), or null when the
+ * command runs none (or is not known to). A scenario names its own engine
+ * (ssa by default); a comparison of scenarios runs each.
+ * @param {string} command
+ * @param {Object} [args]
+ * @returns {string|null}
+ */
+export function engineOf(command, args) {
+    if (command === 'sim.scenario' || command === 'sim.compare') {
+        const list = command === 'sim.scenario' ? [parseObj(args?.scenario)] : (Array.isArray(args?.scenarios) ? args.scenarios.map(parseObj) : []);
+        const names = new Set(list.map((sc) => (String(sc?.engine ?? 'ssa').toLowerCase() === 'ode' ? 'ODE' : 'SSA')));
+        if (!names.size) names.add('SSA');
+        return [...names].sort().join('+');
+    }
+    return Object.prototype.hasOwnProperty.call(ENGINE_OF, command) ? ENGINE_OF[command] : null;
+}
 
 const showValue = (v) => (typeof v === 'string' ? v : JSON.stringify(v));
 const stepRan = (s) => !!s && !!s.command && s.args !== undefined && !s.skipped && !s.refused && !s.error;
@@ -160,16 +219,22 @@ export function recordFromGoalRun(goal, run, { recommendation, inputs = {}, net,
     const steps = run?.steps || [];
     const calls = steps.filter(stepRan).map((s) => ({ command: s.command, args: s.args }));
     const rec = recommendation || steps.find((s) => s.command === 'sim.recommend' && s.result)?.result || null;
-    const used = calls.map((c) => ENGINE_OF[c.command]).find(Boolean) || null;
+    const used = calls.map((c) => engineOf(c.command, c.args)).find(Boolean) || null;
     const recName = rec?.engine ? String(rec.engine).toUpperCase() : null;
     const stepWarnings = steps.map((s) => s.warning).filter(Boolean);
     let engine = null;
-    if (used || recName) {
-        const overridden = !!(used && recName && used !== recName) || !!inputs?.engine_override || steps.some((s) => s.overridden);
-        engine = { name: used || recName, reason: rec?.why || '' };
+    if (used) {
+        const differs = !!recName && !used.split('+').includes(recName);
+        const overridden = differs || !!inputs?.engine_override || steps.some((s) => s.overridden);
+        // the reason is the recommender's: say so when it advised another engine
+        engine = { name: used, reason: differs && rec?.why ? `sim.recommend advised ${recName}: ${rec.why}` : (rec?.why || '') };
         if (overridden) engine.overridden = true;
-        const warning = stepWarnings[0] || (used && recName && used !== recName ? `ran ${used} although sim.recommend says ${recName}` : '');
+        const warning = stepWarnings[0] || (differs ? `ran ${used} although sim.recommend says ${recName}` : '');
         if (warning) engine.warning = warning;
+    } else if (recName) {
+        // No call that ran names an engine: the recommendation is advice, not what ran.
+        engine = { name: recName, reason: rec?.why || '', recommendedOnly: true };
+        if (stepWarnings[0]) engine.warning = stepWarnings[0];
     }
     const failed = steps.filter((s) => s.error).map((s) => `${s.command}: ${s.error}`);
     return provenance({
@@ -267,6 +332,7 @@ function callHtml(call) {
 function engineHtml(e) {
     const bits = [`<b>${esc(e.name)}</b>`];
     if (e.reason) bits.push(` — ${esc(e.reason)}`);
+    if (e.recommendedOnly) bits.push(' <span class="pv-prov-chip">recommended, not run</span>');
     if (e.overridden) bits.push(' <span class="pv-prov-chip">overridden</span>');
     if (e.warning) bits.push(` <span class="pv-prov-chip pv-prov-warn">${esc(e.warning)}</span>`);
     return bits.join('');
@@ -286,16 +352,30 @@ function versionHtml(r) {
 
 export const FOOTER_ACTS = [['rerun', 'Rerun'], ['edit', 'Edit settings'], ['mcp', 'Copy MCP call'], ['link', 'Copy link'], ['tools', 'Open in Tools']];
 
+// Each footer drawn carries an id (data-prov-id), so one listener on a pane
+// that holds several footers (a session's stack of results) answers only for
+// the footer a click came from. The id belongs to the record object: the same
+// record gives the same id to footerHtml and to wireFooter. A copy of a
+// record is another record; pass `id` to both to tie them by hand.
+const footerIds = new WeakMap();
+let footerSeq = 0;
+function footerId(record) {
+    if (record === null || typeof record !== 'object') return `pv-prov-${++footerSeq}`;
+    let id = footerIds.get(record);
+    if (!id) { id = `pv-prov-${++footerSeq}`; footerIds.set(record, id); }
+    return id;
+}
+
 /**
  * The "How this was computed" footer for a record, collapsed unless `open`
  * (the first result of a session). Every string in the record is escaped. The
  * assistant's note is labelled as the assistant's; everything else is the
  * engine's. `stale` adds the "net changed since" chip.
  * @param {Object} record
- * @param {{open?: boolean, stale?: boolean}} [o]
+ * @param {{open?: boolean, stale?: boolean, id?: string}} [o] `id`: this footer's id (default: the record's own, see footerId)
  * @returns {string}
  */
-export function footerHtml(record, { open = false, stale = false } = {}) {
+export function footerHtml(record, { open = false, stale = false, id } = {}) {
     const r = record || {};
     const rows = [];
     const row = (label, html) => rows.push(`<dt>${label}</dt><dd>${html}</dd>`);
@@ -307,7 +387,7 @@ export function footerHtml(record, { open = false, stale = false } = {}) {
     if (r.warnings?.length) row('Warnings', r.warnings.map((w) => `<div>${esc(w)}</div>`).join(''));
     if (r.note?.text) row('Note', `<span class="pv-prov-chip pv-prov-ast">assistant</span> ${esc(r.note.text)}`);
     row('Version', versionHtml(r));
-    return `<details class="pv-prov" data-prov${open ? ' open' : ''}>
+    return `<details class="pv-prov" data-prov data-prov-id="${esc(id ?? footerId(record))}"${open ? ' open' : ''}>
     <summary>How this was computed${stale ? ' <span class="pv-prov-chip pv-prov-warn">net changed since</span>' : ''}</summary>
     <dl class="pv-prov-rows">${rows.join('')}</dl>
     <div class="pv-prov-acts">${FOOTER_ACTS.map(([act, label]) => `<button type="button" class="pv-btn pv-btn-sm" data-act="${act}">${label}</button>`).join('')}</div>
@@ -319,21 +399,30 @@ export function footerHtml(record, { open = false, stale = false } = {}) {
  * {field, button})`; an absent handler is a no-op. One click listener on
  * `root` (delegation), and only buttons inside an element marked data-prov
  * count, so a root that holds other [data-act] buttons (the chat's own Rerun)
- * is not double-handled. Pass the footer element itself to bind one footer to
- * one record. Returns a function that unbinds.
+ * is not double-handled. `root` may hold several footers: a footer made by
+ * footerHtml carries the id of its record (or the `id` given to both), and a
+ * click answers only for the record whose footer it came from, so wiring each
+ * result of a stack with its own record runs one handler per click, not one
+ * per wired record. (A footer with no id, drawn by other code, is answered by
+ * every binding on the root: pass the footer element itself as `root` then.)
+ * Returns a function that unbinds.
  * @param {{addEventListener: Function, removeEventListener?: Function, contains?: Function}} root
  * @param {Object} record
  * @param {Object} [handlers]
+ * @param {{id?: string}} [o]
  * @returns {() => void}
  */
-export function wireFooter(root, record, handlers = {}) {
+export function wireFooter(root, record, handlers = {}, { id } = {}) {
     const acts = FOOTER_ACTS.map(([a]) => a);
+    const mine = id ?? (record !== null && typeof record === 'object' ? footerId(record) : null);
     const onClick = (ev) => {
         const btn = ev?.target?.closest?.('[data-act]');
         const act = btn?.dataset?.act;
         if (!act || !acts.includes(act)) return;
         const box = btn.closest('[data-prov]');
         if (!box || (typeof root.contains === 'function' && !root.contains(box))) return;
+        const boxId = box.dataset?.provId ?? box.getAttribute?.('data-prov-id');
+        if (mine !== null && boxId !== undefined && boxId !== null && boxId !== mine) return; // another footer's button
         const fn = handlers?.[act];
         if (typeof fn === 'function') fn(record, { field: btn.dataset.field ?? null, button: btn });
     };

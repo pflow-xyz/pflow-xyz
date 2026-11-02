@@ -1,10 +1,12 @@
 import { assert, assertEquals, assertNotEquals, assertStringIncludes, assertThrows } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import {
-    defaultVersions, footerHtml, isStale, mcpCallText, normalizeCalls, provenance, recordFromCall, recordFromGoalRun, rerun, shortCid, wireFooter, FOOTER_ACTS,
+    defaultVersions, footerHtml, isStale, mcpCallText, normalizeCalls, provenance, recordFromCall, recordFromGoalRun, rerun, shortCid, wireFooter, FOOTER_ACTS, WASM_BUILD, ENGINE_FREE, engineOf,
 } from "./petri-provenance.js";
 import { runGoal } from "./petri-goals.js";
+import { REPLAY_ALLOWLIST } from "./petri-viewspec.js";
 import { Registry, createHeadlessHost } from "./petri-commands.js";
 import { NATIVE_VERSION } from "./vendor/pflow-native-wasm/commands.js";
+import { CDN } from "./vendor/pflow-native-wasm/cdn.js";
 
 const catalog = JSON.parse(await Deno.readTextFile(new URL("./goals.json", import.meta.url)));
 const goalById = (id: string) => catalog.goals.find((g: any) => g.id === id);
@@ -43,7 +45,7 @@ Deno.test("provenance: a plain record with every field, args copied, defaults fi
     assertEquals(r.engine, { name: "SSA", reason: "capacities" });
     assertEquals(r.assumed, [{ key: "runs", text: "runs = 20", change: "runs" }]);
     assertEquals(r.net, { cid: "zb2rhk3abcdefg", revision: 4 });
-    assertEquals(r.versions, { registry: `pflow-native ${NATIVE_VERSION}`, app: "unknown" });
+    assertEquals(r.versions, { registry: `pflow-native ${NATIVE_VERSION} wasm ${CDN.sha256.slice(0, 7)}`, app: "unknown" });
     assertEquals(r.note, { by: "assistant", text: "It overflows in 7 of 20." });
     assertEquals(JSON.parse(JSON.stringify(r)), r, "plain data: JSON round trip is the identity");
 
@@ -58,15 +60,20 @@ Deno.test("provenance: calls accept id for command, refuse a call with neither",
     assertThrows(() => normalizeCalls([{ args: {} }]), TypeError, "no command");
 });
 
-Deno.test("defaultVersions names pflow-native by the version commands.js carries, and takes a commit and the app", () => {
-    assertEquals(defaultVersions(), { registry: `pflow-native ${NATIVE_VERSION}`, app: "unknown" });
-    assertEquals(defaultVersions({ commit: "d0f4a477c0e0e2c861363b7b4c53bc9388b82d84", app: "abc123" }), { registry: `pflow-native ${NATIVE_VERSION} d0f4a47`, app: "abc123" });
+Deno.test("defaultVersions names pflow-native by its version and the wasm build, and takes a commit and the app", () => {
+    const wasm = CDN.sha256.slice(0, 7);
+    assertEquals(WASM_BUILD, wasm);
+    assertEquals(defaultVersions(), { registry: `pflow-native ${NATIVE_VERSION} wasm ${wasm}`, app: "unknown" });
+    assertEquals(defaultVersions({ commit: "d0f4a477c0e0e2c861363b7b4c53bc9388b82d84", app: "abc123" }), { registry: `pflow-native ${NATIVE_VERSION} d0f4a47 wasm ${wasm}`, app: "abc123" });
     assertEquals(defaultVersions({ registry: "js" }).registry, "js");
 });
 
-Deno.test("the registry version the footer reports is the one pflow-native-wasm.lock pins", async () => {
+Deno.test("the registry version the footer reports is the one pflow-native-wasm.lock pins, down to the wasm build", async () => {
     const lock = JSON.parse(await Deno.readTextFile(new URL("../pflow-native-wasm.lock", import.meta.url)));
     assertEquals(lock.version, NATIVE_VERSION);
+    // NATIVE_VERSION stayed "0.8.0" across many wasm builds; the build id is what changes on a re-vendor
+    assertEquals(lock.files["pflow_native_wasm_bg.wasm"], CDN.sha256);
+    assertEquals(defaultVersions().registry.split(" ").at(-1), lock.files["pflow_native_wasm_bg.wasm"].slice(0, 7), "the id the footer carries is the locked wasm's");
     const head = (await Deno.readTextFile(new URL("./vendor/pflow-native-wasm/commands.js", import.meta.url))).split("\n")[0];
     assertStringIncludes(head, lock.commit, "commands.js was generated from the locked commit");
 });
@@ -90,7 +97,7 @@ Deno.test("footerHtml: collapsed by default, open on request; the rows of the de
     assertStringIncludes(closed, "<code>sim.ssa</code>");
     assertStringIncludes(closed, "Twenty runs give a spread, not a tail probability.");
     assertStringIncludes(closed, "zb2rh…k3");
-    assertStringIncludes(closed, `pflow-native ${NATIVE_VERSION}`);
+    assertStringIncludes(closed, `pflow-native ${NATIVE_VERSION} wasm ${WASM_BUILD}`);
     const acts = [...closed.matchAll(/<button[^>]*data-act="([a-z]+)"[^>]*>([^<]+)</g)].map((m) => [m[1], m[2]]);
     assertEquals(acts, [["rerun", "Rerun"], ["edit", "Edit settings"], ["mcp", "Copy MCP call"], ["link", "Copy link"], ["tools", "Open in Tools"]]);
     assertEquals(FOOTER_ACTS.map(([a]) => a), ["rerun", "edit", "mcp", "link", "tools"]);
@@ -200,7 +207,7 @@ Deno.test("recordFromGoalRun: an engine that differs from the recommendation is 
         ],
     };
     const r = recordFromGoalRun(goal, run);
-    assertEquals(r.engine, { name: "ODE", reason: "capacities", overridden: true, warning: "ran ODE although sim.recommend says SSA" });
+    assertEquals(r.engine, { name: "ODE", reason: "sim.recommend advised SSA: capacities", overridden: true, warning: "ran ODE although sim.recommend says SSA" });
     const run2 = {
         ok: false,
         steps: [
@@ -307,4 +314,104 @@ Deno.test("wireFooter works with no handlers at all", () => {
     const { root, button, click } = fakeFooter();
     wireFooter(root, provenance());
     click(button("rerun"));
+});
+
+// ---- review round: the engine named is the engine that ran; one click, one handler ----
+
+Deno.test("best_setting runs the ODE; the footer says ODE and that the recommender advised SSA, not the other way round", async () => {
+    const reg = registry();
+    const goal = goalById("best_setting");
+    const inputs = { observable: "R", transition: "recover" };
+    const run = await runGoal(reg, goal, inputs);
+    assert(run.ok);
+    assertEquals(run.steps.map((s: any) => s.command), ["sim.recommend", "opt.rate_scan"]);
+    assertEquals(run.steps[0].result.engine, "ssa", "50 tokens: the recommender says SSA");
+    const r = recordFromGoalRun(goal, run, { inputs });
+    assertEquals(r.engine?.name, "ODE", "opt.rate_scan integrates the mass-action ODE");
+    assertEquals(r.engine?.overridden, true);
+    assertEquals(r.engine?.warning, "ran ODE although sim.recommend says SSA");
+    assertStringIncludes(r.engine?.reason ?? "", "sim.recommend advised SSA");
+    const row = footerHtml(r).match(/<dt>Engine<\/dt><dd>(.*?)<\/dd>/s)?.[1] ?? "";
+    assertStringIncludes(row, "<b>ODE</b>");
+    assertStringIncludes(row, "overridden");
+    assert(!row.includes("<b>SSA</b>"), row);
+});
+
+Deno.test("every command a link may replay either names the engine it runs or is listed as running none", () => {
+    for (const id of REPLAY_ALLOWLIST) {
+        const named = engineOf(id, {});
+        const free = ENGINE_FREE.includes(id);
+        assert(named !== null || free, `${id}: add it to ENGINE_OF or ENGINE_FREE (petri-provenance.js), or the footer will name the recommender's engine for it`);
+        assert(!(named !== null && free), `${id} is in both`);
+    }
+    for (const id of ENGINE_FREE) assert(REPLAY_ALLOWLIST.includes(id), `${id} is in ENGINE_FREE and not replayable`);
+    assertEquals(engineOf("opt.rate_scan"), "ODE");
+    assertEquals(engineOf("opt.heatmap"), "ODE");
+    assertEquals(engineOf("sim.equilibrium"), "ODE");
+    assertEquals(engineOf("sim.crosscheck"), "ODE+SSA");
+    assertEquals([engineOf("sim.scenario", { scenario: {} }), engineOf("sim.scenario", { scenario: '{"engine":"ode"}' })], ["SSA", "ODE"], "a scenario names its own engine, ssa by default");
+    assertEquals(engineOf("sim.compare", { scenarios: [{ engine: "ode" }, { engine: "ssa" }] }), "ODE+SSA");
+    assertEquals(engineOf("analysis.verify"), null);
+    assertEquals(engineOf("constructor"), null);
+    assertEquals(engineOf("toString"), null, "a name on Object.prototype is not an engine");
+});
+
+Deno.test("recordFromGoalRun: the engine of a call is the engine used, including a two-engine call, and none when no call runs one", () => {
+    const goal = goalById("average");
+    const rec = { index: 0, command: "sim.recommend", args: {}, result: { engine: "ssa", why: "50 tokens", t_end: 10, seed: 1 } };
+    // crosscheck runs both: the recommended one is among them, so nothing is overridden
+    const both = recordFromGoalRun(goal, { ok: true, steps: [rec, { index: 1, command: "sim.crosscheck", args: {}, result: {}, artifacts: [] }] });
+    assertEquals(both.engine, { name: "ODE+SSA", reason: "50 tokens" });
+    // no call runs an engine: the recommendation is shown as advice, labelled, never as what ran
+    const none = recordFromGoalRun(goal, { ok: true, steps: [rec, { index: 1, command: "analysis.verify", args: {}, result: {}, artifacts: [] }] });
+    assertEquals(none.engine, { name: "SSA", reason: "50 tokens", recommendedOnly: true });
+    assertEquals(JSON.parse(JSON.stringify(none)), none);
+    const html = footerHtml(none);
+    assertStringIncludes(html, "recommended, not run");
+    assertStringIncludes(footerHtml(both), "<b>ODE+SSA</b>");
+    assert(!footerHtml(both).includes("overridden"));
+    // nothing recommended and nothing run: no engine row at all
+    const bare = recordFromGoalRun(goal, { ok: true, steps: [{ index: 0, command: "analysis.verify", args: {}, result: {}, artifacts: [] }] });
+    assertEquals(bare.engine, null);
+    assert(!footerHtml(bare).includes("<dt>Engine</dt>"));
+});
+
+Deno.test("wireFooter: a pane that holds several footers answers a click once, for the footer it came from", () => {
+    const recA = provenance({ calls: [{ command: "sim.ode", args: { t_end: 1 } }] });
+    const recB = provenance({ calls: [{ command: "sim.ssa", args: { seed: 7 } }] });
+    const idOf = (html: string) => /data-prov-id="([^"]+)"/.exec(html)?.[1];
+    const a = idOf(footerHtml(recA));
+    const b = idOf(footerHtml(recB));
+    assert(a && b && a !== b, "each record's footer has its own id");
+    assertEquals(idOf(footerHtml(recA)), a, "and the same record keeps it");
+    assertEquals(idOf(footerHtml(recA, { id: "mine" })), "mine");
+
+    const { root, click, listeners } = fakeFooter();
+    const boxes: Record<string, any> = { [a!]: { dataset: { provId: a } }, [b!]: { dataset: { provId: b } } };
+    root.contains = (n: any) => n === root || Object.values(boxes).includes(n);
+    const button = (act: string, id: string) => {
+        const btn: any = { dataset: { act }, closest: (sel: string) => (sel === "[data-act]" ? btn : sel === "[data-prov]" ? boxes[id] : null) };
+        return btn;
+    };
+    const seen: string[] = [];
+    wireFooter(root, recA, { rerun: (r: any) => seen.push("A:" + r.calls[0].command) });
+    wireFooter(root, recB, { rerun: (r: any) => seen.push("B:" + r.calls[0].command), mcp: (r: any) => seen.push("B-mcp") });
+    assertEquals(listeners.length, 2);
+    click(button("rerun", b!));
+    assertEquals(seen, ["B:sim.ssa"], "Rerun in footer B runs B's calls only");
+    click(button("rerun", a!));
+    assertEquals(seen, ["B:sim.ssa", "A:sim.ode"]);
+    click(button("mcp", a!));
+    assertEquals(seen.length, 2, "A has no mcp handler: B's is not borrowed");
+
+    // by hand: an id given to both ties a footer to a copy of its record
+    const copy = JSON.parse(JSON.stringify(recA));
+    const { root: root2, click: click2 } = fakeFooter();
+    const box2: any = { dataset: { provId: "card-7" } };
+    root2.contains = (n: any) => n === root2 || n === box2;
+    const hits: string[] = [];
+    wireFooter(root2, copy, { rerun: () => hits.push("copy") }, { id: "card-7" });
+    wireFooter(root2, recB, { rerun: () => hits.push("B") });
+    click2({ dataset: { act: "rerun" }, closest: (sel: string) => (sel === "[data-act]" ? { dataset: { act: "rerun" }, closest: (x: string) => (x === "[data-prov]" ? box2 : null) } : sel === "[data-prov]" ? box2 : null) });
+    assertEquals(hits, ["copy"]);
 });

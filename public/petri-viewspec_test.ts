@@ -1,9 +1,9 @@
 import { assert, assertEquals, assertNotEquals, assertStringIncludes, assertThrows } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import {
-    BOUNDS, DEFAULT_ROUNDING, MAX_LINK_CHARS, REPLAY_ALLOWLIST, SPEC_VERSION, artifactDigest, buildViewSpec, checkBounds, decodePermalinkData, decodeView, editsNet,
-    encodeView, expectFor, linkFits, linkFor, parseLocation, permalinkData, replayAllowed, replayViewSpec, sandboxRegistry, specFromRecord, validateViewSpec, writesState,
+    BOUNDS, DEFAULT_ROUNDING, MAX_LINK_CHARS, REPLAY_ALLOWLIST, SPEC_VERSION, WORKER_NAME, artifactDigest, buildViewSpec, checkBounds, checkNet, decodePermalinkData, decodeView, editsNet,
+    encodeView, expectFor, linkFits, linkFor, parseLocation, permalinkData, replayAllowed, replayInWorker, replayViewSpec, sandboxRegistry, specFromRecord, validateViewSpec, viewLink, writesState,
 } from "./petri-viewspec.js";
-import { defaultVersions, footerHtml, provenance, recordFromGoalRun } from "./petri-provenance.js";
+import { defaultVersions, footerHtml, provenance, recordFromCall, recordFromGoalRun } from "./petri-provenance.js";
 import { runGoal } from "./petri-goals.js";
 import { Registry, createHeadlessHost } from "./petri-commands.js";
 import { NATIVE_COMMANDS } from "./vendor/pflow-native-wasm/commands.js";
@@ -131,13 +131,14 @@ Deno.test("replayAllowed: the full sweep over the live registry, with the edit-d
 
 Deno.test("bounds: the numbers are /mcp's, and a typical view is inside them", () => {
     assertEquals(BOUNDS.ceilings.runs, 200);
+    assertEquals(BOUNDS.commandCeilings["opt.optimize"].samples, 500);
     assertEquals(BOUNDS.ceilings.t_end, 10000);
     assertEquals(BOUNDS.ceilings.max_states, 20000);
     assertEquals(BOUNDS.ceilings.nodes, 10_000_000);
     assertEquals(BOUNDS.ceilings.memo, 1 << 21);
     assertEquals([BOUNDS.maxCalls, BOUNDS.callTimeoutMs, BOUNDS.minTolerance, BOUNDS.maxSDESteps, BOUNDS.totalSteps], [12, 60_000, 1e-12, 50_000, 1_000_000]);
     const ok = checkBounds([call("sim.recommend"), call("sim.ssa", { t_end: 42, runs: 20, seed: 1 })]);
-    assertEquals([ok.ok, ok.errors, ok.work], [true, [], 21]);
+    assertEquals([ok.ok, ok.errors, ok.work], [true, [], 1 + 20 * 101], "sim.recommend counts 1; 20 runs x the default 101 points");
     // exactly at each ceiling is allowed, one past is not
     for (const [k, cap] of Object.entries(BOUNDS.ceilings)) {
         assert(checkBounds([call("sim.ssa", { [k]: cap })]).errors.filter((e) => e.includes("over the limit")).length === 0, `${k} = ${cap} is allowed`);
@@ -164,8 +165,8 @@ Deno.test("bounds: tolerance floor, SDE steps, call count, argument size, nestin
     assert(checkBounds(Array.from({ length: 10 }, heavy)).ok);
     const over = checkBounds(Array.from({ length: 11 }, heavy));
     assert(!over.ok && over.errors.some((e) => e.includes("budget")), over.errors.join());
-    assertEquals(checkBounds([call("opt.heatmap", { steps: 40 })]).work, 1600);
-    assertEquals(checkBounds([call("opt.heatmap", { x_steps: 10, y_steps: 20 })]).work, 200);
+    assertEquals(checkBounds([call("opt.heatmap", { steps: 40 })]).work, 1600 * 100, "a cell is an ODE solve: 100 steps");
+    assertEquals(checkBounds([call("opt.heatmap", { x_steps: 10, y_steps: 20 })]).work, 200 * 100);
 });
 
 Deno.test("bounds: a limit hidden in an argument that holds JSON text, or nested, is found", () => {
@@ -193,8 +194,10 @@ Deno.test("validateViewSpec: a good spec; unknown commands are not errors, refus
     assertEquals([u.ok, u.errors, u.refused, u.unknown], [true, [], [], ["bundle.flatten"]]);
     const refusing = { ...spec2(), calls: [call("sim.ssa", { seed: 1 }), call("net.add_place", { x: 1, y: 1 }), call("file.save", { name: "a.json" }), call("edit.nope")] };
     const r = validateViewSpec(refusing, reg);
-    assertEquals([r.ok, r.errors, r.refused, r.unknown], [false, [], ["net.add_place", "file.save", "edit.nope"], []]);
+    assertEquals([r.ok, r.errors, r.refused, r.unknown], [false, [], ["net.add_place", "file.save"], ["edit.nope"]], "commands the registry has and a link may not run are refused; one it lacks is unknown");
     assertEquals(validateViewSpec(spec2()).unknown, [], "no registry: nothing to compare with");
+    // without a registry nothing can be told apart, and what is not on the allowlist is refused
+    assertEquals(validateViewSpec(refusing).refused, ["net.add_place", "file.save", "edit.nope"]);
 });
 
 Deno.test("validateViewSpec: shape errors, each named", () => {
@@ -550,13 +553,13 @@ Deno.test("a rounding stated in expect is the one used", async () => {
 Deno.test("an unknown command is not reproducible here: listed, skipped, the rest runs, nothing crashes", async () => {
     const spec = buildViewSpec({ view: "v", calls: [call("bundle.flatten", {}), call("sim.ssa", { t_end: 5, seed: 1 }), call("sim.removed_in_2027", {})] });
     const v = validateViewSpec(spec, sandboxRegistry(sir()));
-    assertEquals([v.unknown, v.refused], [["bundle.flatten"], ["sim.removed_in_2027"]], "the second is not on the allowlist, so it is refused, not unknown");
+    assertEquals([v.unknown, v.refused, v.ok], [["bundle.flatten", "sim.removed_in_2027"], [], true], "a command this app lacks is unknown whether or not it is on the allowlist");
     const r = await replay(spec, sandboxRegistry(sir()));
-    assertEquals(r.notReproducible, ["bundle.flatten"]);
-    assertEquals(r.refused, ["sim.removed_in_2027"]);
+    assertEquals(r.notReproducible, ["bundle.flatten", "sim.removed_in_2027"]);
+    assertEquals(r.refused, []);
     assertEquals(r.partial, true);
     assertEquals(r.ok, false);
-    assertEquals(r.steps.map((s: any) => [s.command, !!s.skipped, !!s.refused, !!s.error]), [["bundle.flatten", true, false, false], ["sim.ssa", false, false, false], ["sim.removed_in_2027", false, true, false]]);
+    assertEquals(r.steps.map((s: any) => [s.command, !!s.skipped, !!s.refused, !!s.error]), [["bundle.flatten", true, false, false], ["sim.ssa", false, false, false], ["sim.removed_in_2027", true, false, false]]);
     assertEquals(r.artifacts.length, 1, "the call that could run, ran");
     assertStringIncludes(r.steps[0].skipped, "not reproducible here");
     // an expectation after a call that did not run cannot be matched to an artifact: unchecked, not differed
@@ -651,7 +654,7 @@ function fakeRegistry(over: { execute: (id: string, a: any) => Promise<any>; mod
     } as any;
 }
 
-Deno.test("replay: a call that does not settle in time is given up on, and the rest goes on", async () => {
+Deno.test("replay: a call that is WAITING past the timeout is given up on, and the rest goes on (computing is the worker's job)", async () => {
     const spec = buildViewSpec({ view: "v", calls: [call("sim.ode"), call("sim.ssa")] });
     let n = 0;
     const reg = fakeRegistry({ execute: () => (n++ === 0 ? new Promise(() => {}) : Promise.resolve({ ok: true })) });
@@ -685,4 +688,318 @@ Deno.test("replay: errors from a command are the registry's own, and a link cann
     assertEquals(r.steps.map((s: any) => !!s.error), [true, true, true]);
     assertStringIncludes(r.steps[1].error, 'unknown argument "nope"');
     assertEquals(r.partial, true);
+});
+
+// ---------------------------------------------------------------------------
+// review round: cost, Classic calls, unknown vs refused, the worker, links
+// ---------------------------------------------------------------------------
+
+const engineBytes = new Uint8Array(await new Response(new Blob([gz as BufferSource]).stream().pipeThrough(new DecompressionStream("gzip"))).arrayBuffer());
+const inWorker: (spec: any, model: any, o?: any) => Promise<any> = replayInWorker;
+const link: (spec: any, o?: any) => Promise<any> = viewLink;
+const bigSir = (tokens: number): any => { const m = sir(); m.places.S.initial = [tokens]; return m; };
+
+// A Worker stand-in: `script(w, message)` plays the worker's side after the page posts its job.
+function fakeWorker(script: (w: any, msg: any) => void) {
+    const w: any = {
+        terminated: false, onmessage: null, onerror: null, onmessageerror: null,
+        postMessage(msg: any) { queueMicrotask(() => script(w, msg)); },
+        terminate() { w.terminated = true; },
+        say(data: any) { if (!w.terminated) w.onmessage?.({ data }); },
+    };
+    return w;
+}
+
+Deno.test("replayInWorker: a heavy call inside every bound is stopped by the timeout, and the page's thread keeps running", async () => {
+    // 20,000 susceptibles, 100 runs to t = 10,000: 4 s of SSA in this thread (about 40 s with 100,000 susceptibles and 200 runs).
+    const model = bigSir(20_000);
+    const spec = buildViewSpec({ view: "v", calls: [call("sim.ssa", { t_end: 10_000, runs: 100, points: 500, seed: 1 })] });
+    assertEquals(validateViewSpec(spec, sandboxRegistry(model)), { ok: true, errors: [], refused: [], unknown: [] }, "it is inside every bound: the clock is what stops it");
+    assertEquals(checkBounds(spec.calls, { model }).work, 100 * 500);
+    let ticks = 0;
+    const tick = setInterval(() => ticks++, 20);
+    const t0 = performance.now();
+    const r = await inWorker(spec, model, { timeoutMs: 600, engineBytes });
+    const took = performance.now() - t0;
+    clearInterval(tick);
+    assertEquals([r.ok, r.partial, r.artifacts, r.steps], [false, true, [], []]);
+    assertEquals(r.timedOut, { scope: "call", ms: 600, index: 0, command: "sim.ssa" });
+    assertStringIncludes(r.errors[0], "sim.ssa did not finish in 1 s; stopped");
+    assert(took < 2500, `stopped after ${Math.round(took)} ms; the run itself takes about 4000`);
+    assert(ticks >= 15, `the page's timers kept firing (${ticks} ticks in ${Math.round(took)} ms): its thread was never blocked`);
+});
+
+Deno.test("replayInWorker: the same replay as in this thread, with the artifacts' data carried back", async () => {
+    const { spec, arts } = await recorded("risk");
+    const here = await replay(spec, sandboxRegistry(sir()));
+    const seen: string[] = [];
+    const r = await inWorker(spec, sir(), { engineBytes, onStep: (s: any) => seen.push(s.command) });
+    assertEquals([r.ok, r.errors, r.timedOut, r.mutated], [true, [], null, false]);
+    assertEquals(seen, ["sim.recommend", "sim.ssa"]);
+    assertEquals(r.artifacts.map((a: any) => a.digest), here.artifacts.map((a: any) => a.digest), "the worker's engine gives the digests this thread's does");
+    assertEquals(r.artifacts.map((a: any) => a.digest), spec.expect.artifacts);
+    assertEquals([r.drift.matched.length, r.drift.differed, r.drift.unchecked], [arts.length, [], []]);
+    assertEquals(r.artifactData.length, arts.length);
+    assertEquals(await artifactDigest(r.artifactData[0]), r.artifacts[0].digest, "artifactData is the data the digest was taken from");
+    assertEquals(r.artifactData[0].data.kind, "timeseries");
+    assertEquals(r.steps.map((s: any) => s.command), ["sim.recommend", "sim.ssa"]);
+});
+
+Deno.test("replayInWorker: a spec that fails the checks starts no worker", async () => {
+    const boom = () => { throw new Error("must not start"); };
+    const over = buildViewSpec({ view: "v", calls: [call("sim.ssa", { runs: 5000 })] });
+    const r1 = await inWorker(over, sir(), { makeWorker: boom as any });
+    assertEquals([r1.ok, r1.steps], [false, []]);
+    assert(r1.errors.some((e: string) => e.includes("runs")), r1.errors.join());
+    const fat = await inWorker(buildViewSpec({ view: "v", calls: [call("sim.ssa", { t_end: 5 })] }), bigSir(2_000_000), { makeWorker: boom as any });
+    assert(fat.errors.some((e: string) => e.includes("net:") && e.includes("2000000")), fat.errors.join());
+    const junk = await inWorker({ specVersion: 9 }, sir(), { makeWorker: boom as any });
+    assertEquals(junk.ok, false);
+    // and a thrown constructor is an error result, not an exception
+    const spec = buildViewSpec({ view: "v", calls: [call("sim.ode")] });
+    const failed = await inWorker(spec, sir(), { makeWorker: boom as any });
+    assertEquals(failed.ok, false);
+    assertStringIncludes(failed.errors[0], "could not start the replay worker");
+});
+
+Deno.test("replayInWorker: the clocks, the worker's failures, and that the worker is always terminated", async () => {
+    const spec = buildViewSpec({ view: "v", calls: [call("sim.ode"), call("sim.ssa")] });
+    const step = (i: number, command: string) => ({ index: i, command, args: {}, artifacts: [] });
+
+    // a worker that never says anything: the start clock
+    let w = fakeWorker(() => {});
+    let r = await inWorker(spec, sir(), { makeWorker: () => w, startMs: 40 });
+    assertEquals(r.timedOut?.scope, "start");
+    assertStringIncludes(r.errors[0], "starting");
+    assert(w.terminated);
+
+    // one call done, the next never finishes: the call clock names it, and what finished is kept
+    w = fakeWorker((x) => { x.say({ type: "start", index: 0, command: "sim.ode" }); x.say({ type: "step", step: step(0, "sim.ode") }); x.say({ type: "start", index: 1, command: "sim.ssa" }); });
+    r = await inWorker(spec, sir(), { makeWorker: () => w, timeoutMs: 40 });
+    assertEquals(r.timedOut, { scope: "call", ms: 40, index: 1, command: "sim.ssa" });
+    assertEquals(r.steps.map((s: any) => s.command), ["sim.ode"]);
+    assert(w.terminated);
+
+    // a worker that keeps every call under its limit but never ends: the whole-replay clock
+    let n = 0;
+    w = fakeWorker((x) => { const t = setInterval(() => { if (x.terminated) clearInterval(t); else { x.say({ type: "start", index: n, command: "sim.ode" }); x.say({ type: "step", step: step(n++, "sim.ode") }); } }, 5); });
+    r = await inWorker(spec, sir(), { makeWorker: () => w, timeoutMs: 1000, totalMs: 80 });
+    assertEquals(r.timedOut?.scope, "total");
+    assert(r.steps.length > 3 && w.terminated);
+
+    // the worker's own failures
+    w = fakeWorker((x) => x.onerror?.({ message: "boom", preventDefault() {} }));
+    r = await inWorker(spec, sir(), { makeWorker: () => w });
+    assertStringIncludes(r.errors[0], "the replay worker failed: boom");
+    assert(w.terminated);
+    w = fakeWorker((x) => x.say({ type: "fatal", error: "engine would not load" }));
+    r = await inWorker(spec, sir(), { makeWorker: () => w });
+    assertEquals([r.ok, r.errors], [false, ["engine would not load"]]);
+    w = fakeWorker((x) => x.onmessageerror?.({}));
+    r = await inWorker(spec, sir(), { makeWorker: () => w });
+    assertEquals(r.ok, false);
+
+    // done: the result is the worker's, and the worker is gone
+    w = fakeWorker((x) => x.say({ type: "done", result: { ok: true, errors: [], steps: [], artifacts: [] }, artifactData: [{ id: "a1" }] }));
+    r = await inWorker(spec, sir(), { makeWorker: () => w });
+    assertEquals([r.ok, r.artifactData, r.timedOut], [true, [{ id: "a1" }], null]);
+    assert(w.terminated);
+
+    // a message after it settled is ignored; a throwing listener is not the replay's failure
+    w = fakeWorker((x) => { x.say({ type: "start", index: 0, command: "sim.ode" }); x.say({ type: "step", step: step(0, "sim.ode") }); x.say({ type: "done", result: { ok: true }, artifactData: [] }); });
+    r = await inWorker(spec, sir(), { makeWorker: () => w, onStep: () => { throw new Error("listener"); } });
+    assertEquals(r.ok, true);
+});
+
+Deno.test("checkNet: /mcp's net caps, on the commands /mcp applies them to", () => {
+    const ssa = [call("sim.ssa")];
+    const ode = [call("sim.ode"), call("analysis.verify")];
+    const big = bigSir(1_000_001);
+    assertEquals(checkNet(big, ssa).ok, false);
+    assertStringIncludes(checkNet(big, ssa).errors[0], "a place holds 1000001 tokens");
+    assertEquals(checkNet(bigSir(1_000_000), ssa).ok, true, "exactly the cap is allowed");
+    assertEquals(checkNet(big, ode).ok, true, "the ODE does not depend on the count of tokens");
+    // 5 places of 900,000 are under the per-place cap and over the total
+    const many: any = sir();
+    many.places = Object.fromEntries(["a", "b", "c", "d", "e"].map((k) => [k, { initial: [900_000], capacity: [0], x: 0, y: 0 }]));
+    const total = checkNet(many, ssa);
+    assertEquals(total.ok, false);
+    assertStringIncludes(total.errors[0], "4500000 tokens in all");
+    // places and transitions: 300, colours unfolded
+    const wide: any = sir();
+    wide.places = Object.fromEntries(Array.from({ length: 301 }, (_, i) => [`p${i}`, { initial: [0], capacity: [0], x: 0, y: 0 }]));
+    assertStringIncludes(checkNet(wide, ssa).errors[0], "301 token places");
+    const colours: any = sir();
+    colours.places = { p: { initial: Array(301).fill(0), capacity: Array(301).fill(0), x: 0, y: 0 } };
+    assertStringIncludes(checkNet(colours, ssa).errors[0], "301 token places (colours unfolded)");
+    const long: any = sir();
+    long.transitions = Object.fromEntries(Array.from({ length: 301 }, (_, i) => [`t${i}`, { x: 0, y: 0, rate: 1 }]));
+    assertStringIncludes(checkNet(long, ssa).errors[0], "301 transitions");
+    assertEquals(checkNet(long, ode).ok, true);
+    for (const junk of [null, 5, "x", [], {}]) assertEquals(checkNet(junk as any, ssa).ok, true);
+    assertEquals(checkNet(big, "nope" as any).ok, true);
+});
+
+Deno.test("a net over the caps: validated as an error against the sandbox's net, and replay runs nothing", async () => {
+    const spec = buildViewSpec({ view: "v", calls: [call("sim.ssa", { t_end: 5, seed: 1 })] });
+    const reg = sandboxRegistry(bigSir(2_000_000));
+    const v = validateViewSpec(spec, reg);
+    assertEquals(v.ok, false);
+    assertStringIncludes(v.errors[0], "net:");
+    const r = await replay(spec, reg);
+    assertEquals([r.ok, r.steps, reg.artifacts().length], [false, [], 0]);
+    assertEquals((await replay(spec, sandboxRegistry(bigSir(1000)))).ok, true);
+    assertEquals(validateViewSpec(spec, sandboxRegistry(bigSir(2_000_000)), { model: sir() }).ok, true, "a model given is the net judged");
+});
+
+Deno.test("the work estimate counts the defaults a call leaves out, and the net's size where the cost grows with it", () => {
+    const work = (c: any, model?: any) => checkBounds([c], { model }).work;
+    assertEquals(work(call("sim.ode")), 200, "points default 200");
+    assertEquals(work(call("sim.ssa")), 101, "points default 101");
+    assertEquals(work(call("sim.ssa", { runs: 200, points: 5000 })), 1_000_000, "the registry's own largest SSA is one whole budget");
+    assertEquals(work(call("sim.crosscheck")), 24 * 101);
+    assertEquals(work(call("sim.what_if", { place: "S" })), 2 * 16 * 60);
+    assertEquals(work(call("opt.optimize")), 100 * 100, "100 samples, each an ODE run");
+    assertEquals(work(call("opt.fit")), 1000 * 100, "max_iters 1000 by default");
+    assertEquals(work(call("opt.fit", { max_iters: 5000 })), 5000 * 100);
+    assertEquals(work(call("opt.rate_scan")), 9 * 100);
+    assertEquals(work(call("opt.sweep", { points: 600 })), 9 * (100 + 600));
+    assertEquals(work(call("opt.distill")), 20 + 40 * 40 * 40, "games + iters x positions x realizations");
+    assertEquals(work(call("opt.distill", { games: 100, iters: 100, positions: 100, realizations: 200 })), 100 + 100 * 100 * 200);
+    assertEquals(work(call("sim.scenario", { scenario: JSON.stringify({ realizations: 10, samples: 30 }) })), 300);
+    assertEquals(work(call("sim.compare", { scenarios: [{ realizations: 4, samples: 10 }, { realizations: 6 }] })), 40 + 6 * 60);
+    // the cost grows with the net: a diagnosis probes each rate twice and each place once, a play evaluation scores each move
+    const wide: any = sir();
+    wide.transitions = Object.fromEntries(Array.from({ length: 100 }, (_, i) => [`t${i}`, { x: 0, y: 0, rate: 1 }]));
+    wide.places = Object.fromEntries(Array.from({ length: 100 }, (_, i) => [`p${i}`, { initial: [1], capacity: [0], x: 0, y: 0 }]));
+    assertEquals(work(call("analysis.diagnose_ssa", { runs: 200 }), sir()), 200 * (2 * 2 + 3 + 1) * 101);
+    assertEquals(work(call("analysis.diagnose_ssa", { runs: 200 }), wide), 200 * (2 * 100 + 100 + 1) * 101);
+    assertEquals(work(call("analysis.diagnose"), wide), (2 * 100 + 100 + 1) * 100);
+    assertEquals(work(call("sim.evaluate", { rollouts: 200, depth: 10_000 }), wide), 200 * 100 * 10_000);
+    const heavyDiag = checkBounds([call("analysis.diagnose_ssa", { runs: 200 })], { model: wide });
+    assert(!heavyDiag.ok && heavyDiag.errors.some((e) => e.includes("budget")), "200 runs of every probe of a 100-transition net is over the budget");
+    assert(checkBounds([call("analysis.diagnose_ssa", { runs: 200 })], { model: sir() }).ok, "and on a small net it is not");
+    assert(!checkBounds([call("opt.distill", { games: 100, iters: 100, positions: 100, realizations: 200 })]).ok);
+    // validateViewSpec passes the sandbox's net to the estimate
+    const v = validateViewSpec(buildViewSpec({ view: "v", calls: [call("analysis.diagnose_ssa", { runs: 200 })] }), sandboxRegistry(wide));
+    assert(v.errors.some((e) => e.includes("budget")), v.errors.join());
+});
+
+Deno.test("the editor's own calls are inside the bounds: the Classic dialog's, and every points literal in petri-view.js", async () => {
+    // the arguments petri-view.js builds in its Classic Simulate dialog (runners.simulate, scan, sweep, phase)
+    const odeArgs = { dt: 0.01, abstol: 1e-6, reltol: 1e-3 };
+    const range = { from: 0.01, to: 0.5, steps: 9 };
+    const classic = [
+        { command: "sim.ode", args: { t_end: 50, points: 600, places: ["S", "I"], ...odeArgs } },
+        { command: "opt.rate_scan", args: { transition: "recover", ...range, t_end: 50, places: ["S", "I"], ...odeArgs } },
+        { command: "opt.sweep", args: { transition: "recover", place: "I", ...range, t_end: 50, points: 600, ...odeArgs } },
+        { command: "sim.ode", args: { t_end: 50, points: 600, places: ["S"], ...odeArgs } },
+    ];
+    for (const entry of classic) {
+        const rec = recordFromCall(entry, { net: { cid: "zb2rhclassic", revision: 1 } });
+        const spec = specFromRecord(rec);
+        assertEquals(validateViewSpec(spec, live()), { ok: true, errors: [], refused: [], unknown: [] }, entry.command);
+        // the link made from it opens
+        const back = await decodeView(await encodeView(spec), { net: "zb2rhclassic" });
+        assert(back.ok);
+        assertEquals(validateViewSpec((back as any).spec, live()).ok, true, `${entry.command} from a link`);
+        const offered = await link(spec, { origin: "https://pflow.xyz", cid: "zb2rhclassic", registry: live() });
+        assert(offered.ok, JSON.stringify(offered));
+        const r = await replay((back as any).spec, sandboxRegistry(sir()));
+        assertEquals([r.ok, r.errors, r.artifacts.length], [true, [], 1], entry.command);
+    }
+    // and any other number the editor passes as `points`, found in its source, stays openable
+    const src = await Deno.readTextFile(new URL("./petri-view.js", import.meta.url));
+    const literals = [...src.matchAll(/\bpoints:\s*(\d+)/g)].map((m) => +m[1]);
+    assert(literals.length >= 3 && literals.includes(600), `found points literals ${literals}`);
+    for (const n of literals) assertEquals(checkBounds([call("sim.ode", { points: n })]).ok, true, `points: ${n}`);
+});
+
+Deno.test("a command this app does not have is not reproducible here, whatever its name; one it has and a link may not run is refused", async () => {
+    const spec = buildViewSpec({ view: "v", calls: [call("analysis.validate_v1"), call("sim.nonexistent"), call("sim.ode", { t_end: 1 }), call("net.add_place", { x: 1, y: 1 })] });
+    const reg = sandboxRegistry(sir());
+    const v = validateViewSpec(spec, reg);
+    assertEquals([v.unknown, v.refused, v.ok], [["analysis.validate_v1", "sim.nonexistent"], ["net.add_place"], false]);
+    const r = await replay(spec, reg);
+    assertEquals(r.notReproducible, ["analysis.validate_v1", "sim.nonexistent"]);
+    assertEquals(r.refused, ["net.add_place"]);
+    assertStringIncludes(r.steps[0].skipped, "not reproducible here");
+    assertStringIncludes(r.steps[3].refused, "may not run");
+    assertEquals(r.steps[2].error, undefined, "the call that could run, ran");
+    const onlyUnknown = await replay(buildViewSpec({ view: "v", calls: [call("analysis.validate_v1"), call("sim.ode", { t_end: 1 })] }), sandboxRegistry(sir()));
+    assertEquals([onlyUnknown.refused, onlyUnknown.notReproducible, onlyUnknown.partial], [[], ["analysis.validate_v1"], true]);
+});
+
+Deno.test("viewLink: a link is offered only if it opens", async () => {
+    const reg = live();
+    const spec = spec2();
+    const ok = await link(spec, { origin: "https://pflow.xyz", cid: "zb2rhk3", registry: reg });
+    assert(ok.ok);
+    if (ok.ok) {
+        assert(ok.url.startsWith("https://pflow.xyz/?cid=zb2rhk3#view="));
+        const loc = parseLocation({ search: "?cid=zb2rhk3", hash: ok.url.slice(ok.url.indexOf("#")) });
+        const back: any = await decodeView(loc.viewPayload!, { net: loc.cid });
+        assertEquals(validateViewSpec(back.spec, reg).ok, true);
+        assertEquals(back.spec.calls, spec.calls);
+    }
+    const unsaved = await link(spec, { origin: "https://pflow.xyz", data: permalinkData(sir()), registry: reg });
+    assert(unsaved.ok && unsaved.url.includes("/?data="));
+    // over the bounds: no link, and the reason names the limit
+    const heavy = await link(buildViewSpec({ view: "v", calls: [call("sim.ssa", { runs: 5000 })] }), { cid: "zb2rhk3", registry: reg });
+    assert(!heavy.ok);
+    if (!heavy.ok) { assertStringIncludes(heavy.reason, "runs"); assert(heavy.errors.length >= 1); }
+    // a command a link may not run
+    const edit = await link(buildViewSpec({ view: "v", calls: [call("net.add_place", { x: 1, y: 1 })] }), { cid: "zb2rhk3", registry: reg });
+    assert(!edit.ok);
+    if (!edit.ok) assertStringIncludes(edit.errors.join(), "net.add_place");
+    // the net's own size
+    const fat = await link(spec, { cid: "zb2rhk3", registry: sandboxRegistry(bigSir(2_000_000)) });
+    assert(!fat.ok);
+    // no net to name
+    const none = await link(spec, { registry: reg });
+    assert(!none.ok);
+    // too long to share
+    let seed = 12345;
+    const hex = () => { seed = (seed * 1103515245 + 12345) % 2147483648; return seed.toString(16).padStart(8, "0"); };
+    const bulky = buildViewSpec({ view: "v", calls: [call("sim.ode", { places: Array.from({ length: 1000 }, () => `p${hex()}${hex()}`.slice(0, 11)) })] });
+    assert(JSON.stringify(bulky.calls[0].args).length < BOUNDS.maxArgBytes, "the arguments themselves are inside the bound");
+    const long = await link(bulky, { origin: "https://pflow.xyz", cid: "zb2rhk3", registry: reg });
+    assert(!long.ok);
+    if (!long.ok) assertStringIncludes(long.reason, "characters");
+});
+
+Deno.test("the module serves replays only as a worker's script: not in a page, even one whose window.name is the worker's", async () => {
+    assertEquals(WORKER_NAME, "pflow-viewspec-replay");
+    const g: any = globalThis;
+    const had = { name: g.name, window: g.window, document: g.document, postMessage: g.postMessage };
+    const posted: any[] = [];
+    const ask = async () => {
+        dispatchEvent(new MessageEvent("message", { data: { type: "replay", spec: { specVersion: 1, view: "v", calls: [] }, model: {}, engineBytes } }));
+        await new Promise((r) => setTimeout(r, 300));
+    };
+    try {
+        g.name = WORKER_NAME;
+        g.postMessage = (m: any) => posted.push(m);
+        // a page: window and document exist (window.name survives navigation, so a page can be given the worker's name)
+        g.window = g;
+        g.document = {};
+        await import("./petri-viewspec.js?as-a-page");
+        await ask();
+        assertEquals(posted, [], "a page answers no replay message");
+        // a worker: neither exists
+        delete g.window;
+        delete g.document;
+        await import("./petri-viewspec.js?as-a-worker");
+        await ask();
+        assertEquals(posted.map((m) => m.type), ["done"], "a worker of that name answers it");
+        assert(posted[0].result.errors.length > 0, "an empty spec is an error result, not a crash");
+        // and with another name, it does not
+        posted.length = 0;
+        g.name = "something-else";
+        await import("./petri-viewspec.js?other-name");
+        await ask();
+        assertEquals(posted.length, 1, "only the listener installed above answered (the new import added none)");
+    } finally {
+        for (const [k, v] of Object.entries(had)) { if (v === undefined) delete g[k]; else g[k] = v; }
+    }
 });
