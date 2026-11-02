@@ -437,16 +437,15 @@ Deno.test("askSubmit: the words go to the Ask pane with the intent left to the s
     assertEquals(ASK_PLACEHOLDER, "Ask about this net, or say what to change...");
 });
 
-Deno.test("askTaken: the input lets go of the words only when the person can send them from the pane", () => {
+Deno.test("askTaken: the input lets go of the words once the pane has them, which it does in every state it knows", () => {
     assertEquals(askTaken({ enabled: true, chat: true, signed_in: true, allowed: true }), true);
-    // signed out: the pane shows the sign-in note and hides its form, so the words would be out of sight
-    assertEquals(askTaken({ enabled: true, chat: true, signed_in: false }), false);
-    // a server with no chat, or with the assistant off, has no form to send from
-    assertEquals(askTaken({ enabled: true, chat: false, signed_in: true }), false);
-    assertEquals(askTaken({ enabled: false, chat: true, signed_in: true }), false);
-    assertEquals(askTaken({ enabled: false }), false);
+    // signed out, off the allow-list, no chat, assistant off: the pane routes the words to goal cards, so it has them
+    assertEquals(askTaken({ enabled: true, chat: true, signed_in: false }), true);
+    assertEquals(askTaken({ enabled: true, chat: true, signed_in: true, allowed: false }), true);
+    assertEquals(askTaken({ enabled: true, chat: false, signed_in: true }), true);
+    assertEquals(askTaken({ enabled: false }), true);
     // not knowing is not a yes: the words stay where the person can read them
-    for (const unknown of [undefined, null, {}, "ok", 1, []]) assertEquals(askTaken(unknown as any), false, JSON.stringify(unknown));
+    for (const unknown of [undefined, null, {}, "ok", 1, [], { enabled: "yes" }]) assertEquals(askTaken(unknown as any), false, JSON.stringify(unknown));
 });
 
 // ---- a menu's keyboard ----

@@ -7,9 +7,9 @@
 //   Ask        one input. Enter (or the button) hands the words to view._openChat({mode: 'auto', message}); the Ask pane
 //              (petri-chat-ui.js) does the rest, and what it does for a person who cannot chat (signed out, not allowed,
 //              no chat: design section 9) is its own. Focusing the input opens nothing, and nothing is sent from here,
-//              so there is no request for a signed-out person to be refused. The input lets go of the words only once
-//              the pane has them in a form it can send (petri-menu.js askTaken): a person who cannot chat keeps what they
-//              typed where they can see it.
+//              so there is no request for a signed-out person to be refused. The input lets go of the words once
+//              the pane has them (petri-menu.js askTaken): it routes them to goal cards when the person cannot chat, so
+//              they are in its log in every state it knows; if the pane did not open they stay where they were typed.
 //   File View Help
 //              real menus (the ARIA menu button pattern): a button with aria-haspopup and aria-expanded, a popover with
 //              role=menu whose rows take focus one at a time (arrow keys, Home, End, type-ahead), Escape closes and
@@ -103,9 +103,9 @@ export function mountAppBar(view) {
     go.innerHTML = '<span class="pv-ask-go-text">Ask</span><span class="pv-ask-go-icon" aria-hidden="true">→</span>';
     form.append(input, go);
     let asking = false;
-    // Did the pane take the words? Only if the person can send them (askTaken): a signed-out person's pane has a hidden form,
-    // and the words in it are out of sight. /api/llm/status is the answer the pane has: a pane being opened fetches it afresh,
-    // one already open has the last.
+    // Did the pane take the words? A pane that opened has them in every state (the agent, or the router's cards when the
+    // person cannot chat), as long as its state is known (askTaken): /api/llm/status is the answer the pane has, and a
+    // pane being opened fetches it afresh.
     const paneTookWords = async () => {
         try { return askTaken(await view._llmStatus?.()); } catch { return false; }
     };

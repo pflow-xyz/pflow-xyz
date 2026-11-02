@@ -234,17 +234,17 @@ export function askSubmit(value) {
 }
 
 /**
- * Whether the Ask pane took the words it was handed, so the input may let go of them. The pane has them only if the
- * person can send them: the assistant is on, the server has chat, and they are signed in. A signed-out person's pane
- * shows the sign-in note with its form hidden (the words wait in a box nobody can see), a server with no chat has no
- * form to send from; for both the words stay in the Ask input, where the person can still read, edit and copy them. The
- * cost of keeping words that did land is a duplicate on screen; the cost of dropping words that did not is a lost
- * question, so anything but a clear yes keeps them.
+ * Whether the Ask pane took the words it was handed, so the input may let go of them. Since the Ask pane routes the words
+ * in every state (the agent when the person can chat; the keyword router and its goal cards when signed out, off the
+ * allow-list, out of quota or with no chat on the server: design section 9), a pane that opened has them, and they are
+ * in its log. What is left to ask is whether the pane's state is KNOWN: /api/llm/status answered with an object. Not
+ * knowing is not a yes: the cost of keeping words that did land is a duplicate on screen, the cost of dropping words
+ * that did not is a lost question, so anything but a clear yes keeps them.
  * @param {*} status /api/llm/status ({enabled, chat, signed_in, ...}), or nothing when it is not known
  * @returns {boolean}
  */
 export function askTaken(status) {
-    return !!(status && status.enabled && status.chat && status.signed_in);
+    return !!status && typeof status === 'object' && !Array.isArray(status) && typeof status.enabled === 'boolean';
 }
 
 // ---------------------------------------------------------------------------
