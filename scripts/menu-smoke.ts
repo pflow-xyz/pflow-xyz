@@ -21,8 +21,9 @@
 //                      and after each command), Describe and the Assistant as the Ask input (Enter calls _openChat with
 //                      the words, mode auto; focusing opens nothing; a pane that will not open keeps the words; the pane
 //                      takes the words whoever sends them: signed in they go to the model and the input is empty; signed
-//                      out, or on a server with no chat, they become the keyword router's cards (`.pv-ask-route`) in the pane
-//                      and nothing is requested from the model; words typed while the pane was opening are not wiped),
+//                      out, or on a server with no chat, they become the keyword router's cards (`.pv-ask-route`) in the pane,
+//                      the input is emptied the same, words typed while the pane was opening are not wiped, and nothing is
+//                      requested from the model),
 //                      the empty-canvas prompt opening the Ask pane in build
 //   Tools              the button and Cmd-K (also from the Ask input); a run lands in the results place, a card in the docked
 //                      Ask pane (not a dialog: results accumulate, a second run is a second card) with its five-action footer,
@@ -516,6 +517,9 @@ try {
     ok(await p.eval(`document.querySelector('.pv-chat-form').hidden === false && document.querySelector('.pv-chat-input').value === ''`), "signed out: the pane has its form and its own box is empty: the words were taken, not left in it");
     ok(await p.eval(`/Sign in to ask in your own words/.test(document.querySelector('.pv-ask-state').textContent) && !document.querySelector('.pv-ask-state').hidden`), "signed out: one quiet line offers the sign-in", await p.eval(`document.querySelector('.pv-ask-state').textContent`));
     ok(await p.eval(`!window.__reqs.some((r) => r.path === '/api/llm/turn')`), "signed out: nothing was requested from the model");
+    // (the pane has the words, so the bar lets go of them. petri-menu-ui.js decides that with askTaken, which still counts only a
+    // signed-in person with chat as "taken" and so keeps the words of a signed-out one, now that the pane routes them to cards)
+    ok(await p.waitFor(`document.querySelector('.pv-ask-input').value === ''`, 3000), "signed out: the words are in the pane, so the Ask input is empty", await p.eval(`document.querySelector('.pv-ask-input').value`));
     await p.close();
   }
   {
@@ -551,6 +555,7 @@ try {
       ok(await p.waitFor("document.querySelectorAll('.pv-chat-log .pv-ask-route .pv-ask-rcard').length >= 1", 15000), "no chat on the server: the pane routes the words to cards", await p.eval(`document.querySelector('.pv-chat-log')?.textContent.slice(0, 200)`));
       ok(await p.eval(`!document.querySelector('.pv-ask-state').textContent.includes('Sign in')`), "no chat on the server: with no sign-in nag", await p.eval(`document.querySelector('.pv-ask-state').textContent`));
       ok(await p.eval(`!window.__reqs.some((r) => r.path === '/api/llm/turn')`), "no chat on the server: nothing was requested from the model");
+      ok(await p.waitFor(`document.querySelector('.pv-ask-input').value === ''`, 3000), "no chat on the server: the words are in the pane, so the Ask input is empty", await p.eval(`document.querySelector('.pv-ask-input').value`));
       await p.close();
     }
   }
