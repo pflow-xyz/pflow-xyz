@@ -80,8 +80,8 @@ Deno.test("buildIndex: unavailable commands and ones a goal covers stay listed, 
     }
     assertEquals(find("sim.ssa").available, true);
     assertEquals(find("analysis.verify").coveredBy, ["stuck", "unbounded"]);
-    assertEquals(find("sim.ssa").coveredBy, ["risk"]);
-    assert(find("sim.recommend").coveredBy.length >= 4);
+    assertEquals(find("sim.ssa").coveredBy, ["average", "risk"]);
+    assert(find("sim.recommend").coveredBy.length >= 5);
     assertEquals(find("net.add_place").coveredBy, []);
     // a covered command finds its goal's words
     assert(find("sim.ssa").keywords.includes("worst case"));

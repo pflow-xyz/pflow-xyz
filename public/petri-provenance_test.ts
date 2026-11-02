@@ -318,11 +318,19 @@ Deno.test("wireFooter works with no handlers at all", () => {
 
 // ---- review round: the engine named is the engine that ran; one click, one handler ----
 
-Deno.test("best_setting runs the ODE; the footer says ODE and that the recommender advised SSA, not the other way round", async () => {
+Deno.test("a plan that ran the ODE although the recommender advised SSA: the footer says ODE, flags it, and keeps the recommender's advice apart", async () => {
     const reg = registry();
-    const goal = goalById("best_setting");
+    // The shipped best_setting routes by engine since the engine guard (an SSA comparison on a 50-token net); this is
+    // the plan it replaced, run unguarded, because it is the case the footer has to be honest about.
+    const goal = {
+        id: "best_setting", question: "What's the best setting for a rate?", inputs: [],
+        plan: [
+            { command: "sim.recommend", args: {} },
+            { command: "opt.rate_scan", args: { transition: "$input.transition", from: 0, to: 2, steps: 13, t_end: "$step0.t_end" } },
+        ],
+    };
     const inputs = { observable: "R", transition: "recover" };
-    const run = await runGoal(reg, goal, inputs);
+    const run = await runGoal(reg, goal, inputs, undefined, { guard: false });
     assert(run.ok);
     assertEquals(run.steps.map((s: any) => s.command), ["sim.recommend", "opt.rate_scan"]);
     assertEquals(run.steps[0].result.engine, "ssa", "50 tokens: the recommender says SSA");
@@ -335,6 +343,17 @@ Deno.test("best_setting runs the ODE; the footer says ODE and that the recommend
     assertStringIncludes(row, "<b>ODE</b>");
     assertStringIncludes(row, "overridden");
     assert(!row.includes("<b>SSA</b>"), row);
+});
+
+Deno.test("the shipped average goal on that net runs the SSA (the guard routes it), and the footer says SSA, not overridden", async () => {
+    const reg = registry();
+    const goal = goalById("average");
+    const run = await runGoal(reg, goal, {});
+    assert(run.ok, JSON.stringify(run.steps.map((s: any) => s.error || s.refused || s.skipped || s.command)));
+    assertEquals(run.steps.filter((s: any) => !s.skipped).map((s: any) => s.command), ["sim.recommend", "sim.ssa"]);
+    const r = recordFromGoalRun(goal, run, { inputs: {} });
+    assertEquals(r.engine?.name, "SSA");
+    assert(!r.engine?.overridden);
 });
 
 Deno.test("every command a link may replay either names the engine it runs or is listed as running none", () => {
