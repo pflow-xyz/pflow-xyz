@@ -193,8 +193,10 @@ export function cardModel(result, { catalog = null, stale = false, latest = fals
     const engine = result?.record?.engine || null;
     const chips = [];
     if (engine?.overridden) chips.push({ kind: 'override', text: 'engine override', title: engine.warning || engine.reason || '' });
-    for (const w of result?.warnings || []) chips.push({ kind: 'warn', text: String(w) });
-    if (result?.answer?.stray?.length) chips.push({ kind: 'stray', text: STRAY_CHIP, title: `Not in the results: ${result.answer.stray.join(', ')}` });
+    const stray = result?.answer?.stray?.length ? result.answer.stray : null;
+    // (ChatSession also words the stray numbers as a warning on the result; the card says it once, as the chip)
+    for (const w of result?.warnings || []) if (!(stray && String(w).startsWith("The assistant's text has "))) chips.push({ kind: 'warn', text: String(w) });
+    if (stray) chips.push({ kind: 'stray', text: STRAY_CHIP, title: `Not in the results: ${stray.join(', ')}` });
     const chosenByModel = result?.pickedBy === 'assistant';
     return {
         id: result?.id || '',

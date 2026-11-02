@@ -465,7 +465,8 @@ class AskPane {
     // ---- the intent chip ----
 
     updateIntent() {
-        const mode = this.chat.intent || this.shownIntent;
+        // (a described net's label is the person's own, and newer than whatever the server last said)
+        const mode = this.shownIntent || this.chat.intent;
         const chip = intentChip(mode);
         const wrap = this.$('.pv-ask-intent');
         const started = this.chat.messages.length > 0;

@@ -165,6 +165,9 @@ Deno.test("cardModel: who said what; 'I answered' and Not that only for a goal t
     assert(m.notThat);
     assertEquals(m.answer, { by: "assistant", text: "The infection rate matters most." });
     assert(m.chips.some((c: any) => c.kind === "stray" && c.text === "a number in this reply is not in the results" && c.title.includes("42")));
+    // ChatSession's own warning about the same numbers is not a second chip
+    const withWarning = cardModel({ ...asModel, warnings: ["The assistant's text has a number that is in none of the results: 42.", "another"] }, { catalog });
+    assertEquals(withWarning.chips.map((c: any) => [c.kind, c.text]), [["warn", "another"], ["stray", "a number in this reply is not in the results"]]);
     assertEquals(m.followUps.map((f: any) => f.id), result.followUps.slice(0, 3));
     assert(m.followUps.every((f: any) => f.question.length > 3));
     assertEquals(m.engine?.name, result.record.engine?.name);

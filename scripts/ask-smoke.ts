@@ -516,6 +516,23 @@ try {
   }
 
 
+  heading("Build instead, on a first message on an empty canvas, is a Describe");
+  {
+    const p = await open({ status: SIGNED_IN_STATUS }, { net: EMPTY });
+    await openPane(p, { mode: "auto" });
+    await script(p, say("A Petri net has places and transitions.", [], CHIP_REPLY("explain")));
+    await p.eval(`window.__draft = { status: 200, body: { draft: ${JSON.stringify(DRAFT)}, remaining_today: 5 } }`);
+    await type(p, "A coffee shop with two baristas");
+    ok(await p.waitFor(`document.querySelectorAll('.pv-chat-assistant').length === 1 && ${text(".pv-ask-chip")} === 'Explaining'`, 30000), "the server labelled it explain, and answered", problemsOf(p).join(" | "));
+    await p.eval(`document.querySelector('.pv-ask-notmeant').click()`);
+    await p.eval(`document.querySelector('.pv-ask-menu [data-intent="build"]').click()`);
+    ok(await p.waitFor(`!document.querySelector('.pv-chat-pending').hidden`, 30000), "Build instead drafts the net: a pending change", problemsOf(p).join(" | "));
+    ok((await p.eval(`window.__drafts.length`)) === 1 && (await p.eval(`window.__turns.length`)) === 1, "through /api/llm/draft, with no second turn call");
+    ok(await p.eval(`document.querySelectorAll('.pv-chat-assistant').length === 0 && document.querySelectorAll('.pv-chat-user').length === 1 && document.querySelector('petri-view')._askPane.chat.messages.length === 0`), "and the explanation it replaces is out of the log and the conversation");
+    ok(await p.eval(`${text(".pv-ask-chip")} === 'Building' && document.querySelector('.pv-ask-notmeant').hidden`), "the chip says Building; there is no model turn to send again");
+    await p.close();
+  }
+
   heading("signed out: the router, one quiet line, the words kept");
   {
     const p = await open({ status: SIGNED_OUT_STATUS, signedIn: false });
