@@ -44,6 +44,12 @@
 // answer}), never a block. The reply is kept as result.answer, labelled the
 // assistant's.
 //
+// Around the loop (design 4.1, 4.6 and 6):
+//   force(mode), intent, resend(mode)   the intent chip: the person's own label for
+//                   the next message, the label in force, "Not what I meant"
+//   proposeNet(net, {notes, assumptions})   a described net as the pending change
+//   rerunResult(result, {args})   the footer's Rerun / Edit settings, unguarded
+//
 // The twelve direct tools (net_add_place ... view_fit) are plain commands.
 // A server that does not know the goals toolset answers 400 "toolset goals is
 // not available"; the session then falls back to 'all' once
@@ -228,7 +234,7 @@ const clipValue = (v, n) => {
  * scripted eval (petri-ask-eval_test.ts) measures the 44 cases against it;
  * goalAnswer shrinks an answer that would exceed it, so it is a guarantee.
  */
-export const GOAL_ANSWER_MAX = 8000;
+export const GOAL_ANSWER_MAX = 6000;
 
 /**
  * What goes back to the model after run_goal: compact, and only the evidence.
@@ -269,7 +275,7 @@ export function goalAnswer({ goal, record, steps, artifact, warnings = [], assum
         return { command: s.command, args: clipValue(s.args, 300), ...sum };
     });
     if (assumed.length) out.assumed = assumed.map((a) => a.text);
-    if (warnings.length) out.warnings = warnings;
+    if (warnings.length) out.warnings = [...warnings]; // (a copy: the result's own list gets more later, and this one is in the conversation)
     if (notes.length) out.notes = notes;
     const size = () => JSON.stringify(out).length;
     if (size() > max) for (const s of out.steps) delete s.args;
@@ -651,11 +657,23 @@ export class ChatSession {
             }
             const blank = (goal.inputs || []).filter((i) => i.kind === 'place' && prep.inputs[i.name] === undefined);
             const hint = blank.length ? ` Pass ${blank.map((i) => `inputs.${i.name}`).join(' and ')} (a place of the net: ${listIds(Object.keys(model.places || {}))}), or ask the person with ask_user.` : '';
-            throw new Error(`${failed.command}: ${failed.error}.${hint} Nothing was shown.`);
+            // optional inputs that were left out may be what the plan needs (best_play's `auto`: win claims that fire on their own)
+            const unset = (goal.inputs || []).filter((i) => i.optional && i.kind !== 'place' && prep.filled[i.name] === undefined);
+            const optional = unset.length ? ` Optional inputs you did not pass: ${unset.map((i) => `${i.name} (${String(i.label || '').split(/[,:(]/)[0].trim()}${i.example ? `, e.g. ${i.example}` : ''})`).join('; ')}.` : '';
+            throw new Error(`${failed.command}: ${failed.error}.${hint}${optional} Nothing was shown.`);
         }
 
         const rec = honoured === 'ode' ? await this.guard.recommendation() : undefined;
         const record = recordFromGoalRun(goal, run, { recommendation: rec, inputs: prep.inputs, net: this._netRef(), versions: this.versions || undefined });
+        // A plan that always runs the SSA (risk, one_more) on a net the recommender gave to the ODE is not an override: the
+        // SSA reads every net, and the goal asks for runs. recordFromGoalRun flags any engine that differs from the
+        // recommendation; only a guard warning (an override the person earned) is kept as such.
+        const e = record.engine;
+        if (e && e.overridden && !honoured && !run.steps.some((x) => x.warning)) {
+            delete e.overridden;
+            delete e.warning;
+            e.reason = `The ${goal.id} goal runs the ${e.name} by design. ${e.reason}`.trim();
+        }
         // the plan's own assumptions get a Change where the value came from an input; the code's own are added
         const refs = inputOfArg(goal, run.steps);
         const declared = new Map((goal.inputs || []).map((i) => [i.name, i]));
@@ -830,9 +848,9 @@ export class ChatSession {
      * Send the person's message and run the loop until the model answers
      * without tools, asks the person a question, or maxRounds model calls.
      * onEvent receives {type: 'reply' | 'call' | 'round' | 'quota' | 'auto' | 'wait' | 'step' | 'checks' | 'intent'
-     * | 'toolset' | 'goal' | 'command' | 'ask' | 'answered' | 'answer' | 'open_view' | 'composed', ...} as it happens (the goals
-     * toolset's events are described on the pseudo-tools in the header: goal {entry}, command {entry}, ask {card}, answered
-     * {answer}, answer {result, answer} (the model's reply attached to the goal result it follows), open_view {view}, composed
+     * | 'toolset' | 'goal' | 'command' | 'ask' | 'choice' | 'answer' | 'open_view' | 'composed', ...} as it happens (the goals
+     * toolset's events are described on the pseudo-tools in the header: goal {entry}, command {entry}, ask {card}, choice
+     * {answer} (the person's pick on a card), answer {result, answer} (the model's reply attached to the goal result it follows), open_view {view}, composed
      * {ids}, toolset {toolset}; intent {mode, forced, sentiment?, confidence?} when a message's intent is known).
      * A message typed while a question card is open is the card's "Other…" answer (see answer).
      * @param {string} text
@@ -976,7 +994,7 @@ export class ChatSession {
         a.entry.answer = response;
         a.parts[a.index] = { functionResponse: { name: a.entry.name, response } };
         this.messages.push({ role: 'user', parts: a.parts });
-        onEvent({ type: 'answered', answer: response });
+        onEvent({ type: 'choice', answer: response });
         return this._loop(onEvent, false);
     }
 

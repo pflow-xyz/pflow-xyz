@@ -697,6 +697,21 @@ Deno.test("run_goal: a required input the words cannot supply is the tool's erro
     assertEquals(reg.artifacts().length, 0);
 });
 
+Deno.test("run_goal: a plan step that fails names the optional inputs the model left out (best_play needs `auto` on tic-tac-toe)", async () => {
+    const ttt = JSON.parse(await Deno.readTextFile(new URL("../parity/native/fixtures/tic-tac-toe.json", import.meta.url)));
+    const { chat } = goalSession(ttt, []);
+    const sides = { x_: 1, o_: -1 }, reward = { win_x: 1, win_o: -1 };
+    const bad = await chat.runCall(run("best_play", { sides, reward }));
+    assertFalse(bad.ok);
+    assert(bad.error.includes("do not all belong to one side") && bad.error.includes("Optional inputs you did not pass: auto (transition-id prefixes that fire on their own as soon as enabled"), bad.error);
+    assert(bad.error.includes('e.g. ["x_win_", "o_win_"]') && bad.error.includes("plan (") && bad.error.includes("nodes ("), bad.error);
+    const good = await chat.runCall(run("best_play", { sides, reward, auto: ["x_win_", "o_win_"] }));
+    assert(good.ok, good.error);
+    assertEquals(good.result.record.calls[0].command, "game.move");
+    assertEquals(good.result.record.engine, null);
+    assertEquals(good.result.steps[0].result.value, 0, "tic-tac-toe is a draw");
+});
+
 Deno.test("run_goal: defaults the goal fills are assumptions with a Change that names the input", async () => {
     const { chat } = goalSession(smallNet(), []);
     const e = await chat.runCall(run("best_setting", { transition: "infect" }));
@@ -806,6 +821,23 @@ Deno.test("run_goal: an override that changes nothing in the plan says so (no go
     assert(e.result.record.warnings.includes(e.result.warnings[0]), "the footer says it too");
 });
 
+Deno.test("run_goal: a goal that always runs the SSA on a net the recommender gave to the ODE says 'by design', not 'overridden'", async () => {
+    const { chat } = goalSession(largeNet(), []);
+    assertEquals((await chat.guard.recommendation()).engine, "ode");
+    const risk = await chat.runCall(run("risk"));
+    assert(risk.ok, risk.error);
+    const e = risk.result.record.engine;
+    assertEquals(e.name, "SSA");
+    assertEquals([e.overridden, e.warning, risk.result.warnings, risk.warning], [undefined, undefined, [], undefined]);
+    assert(e.reason.startsWith("The risk goal runs the SSA by design. sim.recommend advised ODE:"), e.reason);
+    assertEquals(risk.result.record.warnings, []);
+    // what the model reads is that too, without the chip it would repeat
+    assertEquals(risk.response.engine.overridden, undefined);
+    // a plan that follows the recommendation says nothing of the kind
+    const avg = await chat.runCall(run("average"));
+    assertEquals([avg.result.record.engine.name, avg.result.record.engine.reason.includes("by design")], ["ODE", false]);
+});
+
 Deno.test("run_goal: a goal with no engine step has no engine row; a pending sandbox is what the plan runs on", async () => {
     const { chat } = goalSession(smallNet(), []);
     const stuck = await chat.runCall(run("stuck"));
@@ -849,7 +881,7 @@ Deno.test("ask_user: ends the loop on a card; answer() posts the choice as the t
     assertEquals(resumed[0].functionResponse, { name: "ask_user", response: { answer: "S" } });
     assertEquals(sent[1].toolset, "goals");
     assertEquals(sent[1].mode, "analyse");
-    assert(events.some((e) => e.type === "answered" && e.answer.answer === "S"));
+    assert(events.some((e) => e.type === "choice" && e.answer.answer === "S"));
     assertEquals(chat.calls.map((c: any) => c.name), ["ask_user", "run_goal"]);
     assertEquals(chat.calls[0].answer, { answer: "S" });
     await assertRejects(() => chat.answer("S"), Error, "no question is waiting");
@@ -1334,4 +1366,26 @@ Deno.test("R3: numbers the evidence holds (a run count, the seed, a value of the
     const ev: any[] = [];
     await none.chat.send("hi", (e: any) => ev.push(e));
     assertFalse(ev.some((e) => e.type === "answer"));
+});
+
+Deno.test("run_goal: the Tools panel's Rerun of a goal entry runs it again; the override the person's words earned is theirs still", async () => {
+    const { chat } = goalSession(gatedNet(), []);
+    chat.messages.push({ role: "user", parts: [{ text: "Use the ODE to show me the typical behaviour." }] });
+    const entry = await chat.runCall(run("average", undefined, { engine_override: "ode" }));
+    assert(entry.ok && entry.override === "ode", entry.error);
+    chat.messages.push({ role: "user", parts: [{ text: "something else" }] });
+    const again = await chat.rerun(entry);
+    assert(again.ok && again !== entry, again.error);
+    assert(again.result.id !== entry.result.id);
+    assertEquals(again.result.record.calls, entry.result.record.calls);
+    assertEquals(again.result.record.engine.name, "ODE");
+    // without the override earned, the same entry's call is the plain plan
+    const plain = await chat.runCall(run("average", undefined, { engine_override: "ode" }));
+    assertEquals(plain.result.record.engine.name, "SSA", "'something else' does not name the ODE");
+    // the stray-number warning added later does not leak into what the model was sent
+    const sent = goalSession(gatedNet(), [{ tool_calls: [run("average", undefined, { engine_override: "ode" })] }, { reply: "It reaches 987.654." }]);
+    await sent.chat.send("Use the ODE for the average.");
+    const response = sent.chat.messages.find((m: any) => m.parts?.some((p: any) => p.functionResponse?.name === "run_goal")).parts[0].functionResponse.response;
+    assertEquals(response.warnings.length, 1, "the chip, as it went to the model");
+    assertEquals(sent.chat.calls[0].result.warnings.length, 2, "the chip and the stray number");
 });
