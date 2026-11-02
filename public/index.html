@@ -171,9 +171,7 @@
             padding: 10px 12px;
             resize: vertical;
         }
-        .landing-chat-routes { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 14px; border: 0; margin: 0; padding: 0; }
-        .landing-chat-routes label { cursor: pointer; font-size: 0.95rem; }
-        .landing-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+        .landing-chat [hidden] { display: none; } /* no chat for this visitor: no box (petri-landing.js) */
         .landing-chat a { color: var(--pf-accent); }
         .landing-hero-buttons {
             display: flex;
@@ -542,14 +540,7 @@
                 <h1 id="landing-chat-q">Explanations you can run.</h1>
                 <p>LLM-written code got good in the last year. Understanding it didn't get faster. You can only move as fast as you comprehend what you've built. pflow turns each model into something you can see, run and check. <span id="landing-chat-ask">What are you working on?</span></p>
                 <textarea id="landing-chat-input" rows="2" aria-labelledby="landing-chat-ask" placeholder="A coffee shop with one barista and a queue. Where does it jam?"></textarea>
-                <fieldset class="landing-chat-routes">
-                    <legend class="landing-sr">Optional: force one kind of session</legend>
-                    <label><input type="radio" name="route" value="build"/> Build</label>
-                    <label><input type="radio" name="route" value="analyse"/> Analyse</label>
-                    <label><input type="radio" name="route" value="explain"/> Explain</label>
-                </fieldset>
-                <p id="landing-chat-hint" class="landing-chat-small"></p>
-                <button type="submit" id="landing-chat-send" class="btn-primary">Start</button>
+                <button type="submit" id="landing-chat-send" class="btn-primary">Ask</button>
                 <p id="landing-chat-state" class="landing-chat-small" role="status"></p>
                 <p id="landing-chat-connector" class="landing-chat-small" hidden>Using Claude or another MCP client? <a href="/mcp.html">Add pflow as a connector</a> and chat there.</p>
             </form>

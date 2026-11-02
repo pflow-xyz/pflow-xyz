@@ -3,23 +3,25 @@
 // GitHub-gated Gemini proxy) docked beside the canvas. The chat is the existing one: nothing here talks to
 // a model. Pairing an MCP client with a tab is a later slice.
 //
-// The vocabulary is Build, Analyse, Explain (docs/design/agent-first-analysis.md section 16.1): the
-// Assistant's modes and the server's labels, so nothing is translated. The route is a suggestion, never a
-// lock. Forcing nothing is not a mode: it is `auto`, where the server labels the message. Compose is a
-// destination (the composition page, no sign-in), a plain link, not a route. A person who cannot chat is told
-// so before typing, and shown the connector instead of a chat that would answer 401.
+// The hero is one input and one button (docs/design/agent-first-analysis.md section 16.1). It forces nothing:
+// the server labels the message (mode `auto`) and the Assistant shows what it chose. The vocabulary is Build,
+// Analyse, Explain, the Assistant's modes and the server's labels, so nothing is translated; a mode is stated by
+// the person in one place only, a /?route=build|analyse|explain link, which nothing on the page advertises.
+// Compose is a destination (the composition page, no sign-in), a plain link, not a route. A person who cannot
+// chat gets no input: the page says so before they type, and offers the editor and the connector instead of a
+// chat that would answer 401.
 
 /**
- * The sessions a link or the page can name. `mode` is the Assistant's (petri-chat-ui.js). `auto` is what
- * happens when nothing is forced (the default, and never advertised as a choice). `design` is the old name of
- * `build`, kept as an alias because /?route=design links exist in the wild.
+ * The sessions a link can name. `mode` is the Assistant's (petri-chat-ui.js). `auto` is what happens when nothing
+ * is forced: the hero's only route, and not a mode anyone is offered. `design` is the old name of `build`, kept
+ * as an alias because /?route=design links exist in the wild.
  */
 export const ROUTES = [
-  { id: 'auto', label: 'Ask', mode: 'auto', hint: 'Picks build, analyse or explain from what you say. Choose one only to force it.' },
-  { id: 'build', label: 'Build', mode: 'build', hint: 'Build a net with the assistant, beside the canvas. Edits wait for your Apply.' },
+  { id: 'auto', label: 'Ask', mode: 'auto' },
+  { id: 'build', label: 'Build', mode: 'build' },
   { id: 'design', alias: 'build' },
-  { id: 'analyse', label: 'Analyse', mode: 'analyse', hint: 'Ask what a net does. Results come from the engines, and the replies are the assistant\'s.' },
-  { id: 'explain', label: 'Explain', mode: 'explain', hint: 'Ask about Petri nets or this net. It does not edit.' },
+  { id: 'analyse', label: 'Analyse', mode: 'analyse' },
+  { id: 'explain', label: 'Explain', mode: 'explain' },
 ];
 
 /** A route by id, an alias resolved to the route it names; null for an id that is neither. */
@@ -40,8 +42,9 @@ export function landingState(status) {
 }
 
 /**
- * What a submit does. A route that opens the Assistant needs a chat, or a sign-in first (the words wait in the
- * tab), or falls back to the editor, carrying nothing. An unknown or missing route is `auto`.
+ * What a submit does. The hero forces no route (`auto`), a link may (`build`, `analyse`, `explain`). Either needs a
+ * chat, or a sign-in first (the words wait in the tab), or falls back to the editor, carrying nothing. An unknown
+ * or missing route is `auto`.
  *   {do: 'chat', mode, message} | {do: 'login', pending: {route, message}} | {do: 'editor'}
  */
 export function planSubmit(routeId, text, status) {
@@ -54,19 +57,26 @@ export function planSubmit(routeId, text, status) {
   }
 }
 
-/** What the page says under the prompt, for a state: {text, send (the button), connector (show the connector link)}. */
+/**
+ * What the hero says for a state: {text (under the prompt), send (the button), connector (show the connector link),
+ * input (offer the box to type in)}. `checking` is the moment before /api/llm/status answers: the box is there, no
+ * words yet, so the page does not announce "not available" to someone who is about to be offered a chat. Where no
+ * chat can happen (`not-allowed`, `off`) there is no box: it would be an input that goes nowhere.
+ */
 export function stateWords(state, status) {
   switch (state) {
     case 'chat': {
       const left = status?.remaining_today;
-      return { text: `${left === undefined ? 'Signed in.' : `${left} model calls left today.`} Replies are Gemini's; results are the engines'.`, send: 'Start', connector: false };
+      return { text: `${left === undefined ? 'Signed in.' : `${left} model calls left today.`} Replies are Gemini's; results are the engines'.`, send: 'Ask', connector: false, input: true };
     }
     case 'sign-in':
-      return { text: 'The assistant uses Gemini, so it needs a GitHub sign-in for a fair-use limit. What you typed waits in this tab.', send: 'Sign in with GitHub and start', connector: true };
+      return { text: 'The assistant uses Gemini, so it needs a GitHub sign-in for a fair-use limit. What you typed waits in this tab.', send: 'Sign in with GitHub and ask', connector: true, input: true };
     case 'not-allowed':
-      return { text: 'The assistant is limited to a list of accounts for now, and this one is not on it. The editor and your own client still work.', send: 'Open the editor', connector: true };
+      return { text: 'The assistant is limited to a list of accounts for now, and this one is not on it. The editor and your own client still work.', send: 'Open the editor', connector: true, input: false };
+    case 'checking':
+      return { text: '', send: 'Ask', connector: false, input: true };
     default:
-      return { text: 'The assistant is not available here. The editor and your own client still work.', send: 'Open the editor', connector: true };
+      return { text: 'The assistant is not available here. The editor and your own client still work.', send: 'Open the editor', connector: true, input: false };
   }
 }
 
@@ -123,29 +133,22 @@ export async function initLanding({ doc = document, win = window } = {}) {
   const form = doc.getElementById('landing-chat');
   if (!form || form.closest('#landing')?.style.display === 'none') return;
   const input = doc.getElementById('landing-chat-input');
+  const ask = doc.getElementById('landing-chat-ask'); // "What are you working on?", the box's question
   const say = doc.getElementById('landing-chat-state');
   const send = doc.getElementById('landing-chat-send');
-  const hint = doc.getElementById('landing-chat-hint');
   const connector = doc.getElementById('landing-chat-connector');
-  // Nothing chosen is `auto`. A radio cannot be un-chosen by the browser, so choosing the same one again clears it.
-  const chosen = () => form.querySelector('input[name="route"]:checked')?.value || 'auto';
-  let last = null;
 
+  let state = 'checking';
   let status = null;
   const paint = () => {
-    const words = stateWords(landingState(status), status);
-    hint.textContent = routeById(chosen()).hint;
+    const words = stateWords(state, status);
+    form.dataset.state = state;
+    input.hidden = !words.input;
+    ask.hidden = !words.input;
     say.textContent = words.text;
     send.textContent = words.send;
     connector.hidden = !words.connector;
   };
-  form.addEventListener('change', paint);
-  form.addEventListener('click', (e) => {
-    const r = e.target;
-    if (r?.name !== 'route' || r.type !== 'radio') return;
-    if (last === r.value) { r.checked = false; last = null; } else last = r.value;
-    paint();
-  });
   paint();
 
   input.addEventListener('keydown', (e) => {
@@ -153,10 +156,10 @@ export async function initLanding({ doc = document, win = window } = {}) {
   });
   // Bound before the status is asked for: a submit never falls through to the browser's own, and one made
   // before the status answers waits for it.
-  const asked = readStatus(view).then((s) => { status = s; paint(); return s; });
+  const asked = readStatus(view).then((s) => { status = s; state = landingState(s); paint(); return s; });
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const plan = planSubmit(chosen(), input.value, await asked);
+    const plan = planSubmit('auto', input.value, await asked);
     if (plan.do === 'login') {
       keepPending(win.sessionStorage, plan.pending);
       view._loginWithGitHub();
