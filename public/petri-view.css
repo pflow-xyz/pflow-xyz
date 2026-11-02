@@ -3723,7 +3723,8 @@ canvas.pv-canvas {
     flex-wrap: wrap;
     gap: 6px;
     margin-top: 6px;
-=======
+}
+
 /* ============================================================
    Command palette and schema forms
    (petri-palette-ui.js, petri-schema-form.js)
@@ -3962,7 +3963,8 @@ canvas.pv-canvas {
     .pv-palette-list {
         max-height: 45vh;
     }
-=======
+}
+
 /* ============================================================
    Problems indicator (petri-problems.js)
    The "N problems" chip by the title, and the list it opens. It replaces the
