@@ -1249,6 +1249,8 @@ PetriView = class PetriView extends HTMLElement {
     // ---------------- lifecycle ----------------
     async connectedCallback() {
         if (this._root) return;
+        // The URL as the page was opened: _updatePermalinkURL rewrites ?data= on every sync, so a #view= link is read now.
+        const bootLocation = { search: window.location.search, hash: window.location.hash };
         this._buildRoot();
         this._ldScript = this.querySelector('script[type="application/ld+json"]');
         await this._loadModelFromScriptOrAutosave();
@@ -1281,6 +1283,7 @@ PetriView = class PetriView extends HTMLElement {
 
         window.addEventListener('load', () => this._onResize());
         this._wireRootEvents();
+        this._openLinkedView(bootLocation); // /?cid=<net>#view=<payload>: backend mode only, no model call (design 14.3)
     }
 
     disconnectedCallback() {
@@ -1496,7 +1499,9 @@ PetriView = class PetriView extends HTMLElement {
     /** Show a result (the shape is documented in petri-results-pane.js): the Ask pane, the Tools palette and an opened link all end here. */
     async _showResult(result) {
         const ui = await import('./petri-results-pane.js');
-        return ui.showResult(this, result);
+        const handle = await ui.showResult(this, result);
+        this._lastResult = { result, handle }; // _currentResult(): the Share dialog offers "Share this view" while one is open
+        return handle;
     }
 
     /** Copy the MCP tools/call params that re-run an artifact's command. */
@@ -1504,6 +1509,106 @@ PetriView = class PetriView extends HTMLElement {
         if (!art) return;
         const text = JSON.stringify({ name: art.source.command, arguments: art.source.args || {} }, null, 2);
         this._copyToClipboard(text, () => this._toast('MCP call copied'), () => this._toast(text));
+    }
+
+    // ---------------- linkable views (docs/design/agent-first-analysis.md section 14) ----------------
+    // A link is /?cid=<net>#view=<payload>: a net and a view of it. Opening one runs the view's calls on a sandbox
+    // (in a Worker, petri-viewspec.js replayInWorker) and shows what comes back in the results pane; it never calls
+    // a model, so it spends no quota. The decisions are petri-link-open.js's; this is the DOM around them. Backend
+    // mode only: a standalone component has no server to name a net on.
+
+    /** The result the results pane is showing now, or null. */
+    _currentResult() {
+        const r = this._lastResult;
+        return r && r.handle && r.handle.element && r.handle.element.isConnected ? r.result : null;
+    }
+
+    /** The build revision /health reports, for the `app` in a spec's engine ('unknown' when it cannot be read). */
+    _appRevision() {
+        this._appRevisionPromise ||= import('./petri-link-open.js').then((L) => L.appRevision());
+        return this._appRevisionPromise;
+    }
+
+    /** The catalog of goals (their questions title a link's result); null when it cannot be read. */
+    async _goalsCatalog() {
+        try { return await (await import('./petri-goals.js')).loadGoals(); } catch { return null; }
+    }
+
+    /** One line over the canvas: why a link's view was not run, or that it is being opened. Cleared by the next call. */
+    _showLinkNotice(text, { busy = false } = {}) {
+        this._hideLinkNotice();
+        if (!this._root) return;
+        const el = document.createElement('div');
+        el.className = 'pv-link-notice' + (busy ? ' pv-link-notice-busy' : '');
+        el.setAttribute('role', 'status');
+        el.dataset.linkNotice = busy ? 'busy' : 'info';
+        const span = document.createElement('span');
+        span.textContent = text;
+        el.appendChild(span);
+        if (!busy) {
+            const x = document.createElement('button');
+            x.type = 'button';
+            x.className = 'pv-link-notice-close';
+            x.title = 'Dismiss';
+            x.setAttribute('aria-label', 'Dismiss');
+            x.textContent = '×';
+            x.addEventListener('click', () => this._hideLinkNotice());
+            el.appendChild(x);
+        }
+        this._root.appendChild(el);
+        this._linkNotice = el;
+    }
+
+    _hideLinkNotice() {
+        if (this._linkNotice) this._linkNotice.remove();
+        this._linkNotice = null;
+    }
+
+    /**
+     * Open the view a location's #view= names, if it names one. Never throws and never calls /api/llm/*. A link
+     * that cannot be used leaves the net open on its own with one line saying why; a link with no #view= does
+     * nothing, so /?cid= and /?data= open exactly as they always have.
+     */
+    async _openLinkedView(location) {
+        if (!this.hasAttribute('data-backend')) return;
+        if (!/(^#|&)view=/.test(location.hash || '')) return;
+        try {
+            const L = await import('./petri-link-open.js');
+            const V = await import('./petri-viewspec.js');
+            const P = await import('./petri-provenance.js');
+            this._showLinkNotice('Opening the saved view (no model call)…', { busy: true });
+            const opening = await L.openLinkedView({
+                location, model: this._model, netCid: this._originalCid,
+                registry: await this.commands(), replay: V.replayInWorker,
+                getVersions: async () => P.defaultVersions({ app: await this._appRevision() }),
+                goals: await this._goalsCatalog(),
+            });
+            this._hideLinkNotice();
+            if (opening.kind === 'none') return;
+            if (opening.kind === 'notice') { this._showLinkNotice(opening.text); return; }
+            // The result's registry is a sandbox over a copy of the net, holding the artifacts: what a click on the
+            // result runs never reaches the canvas (Apply is the only way to change it).
+            const { Registry, createHeadlessHost } = await import('./petri-commands.js');
+            const arts = opening.result.artifacts;
+            opening.result.registry = new Registry(createHeadlessHost(structuredClone(this._model)), undefined, { store: { items: arts.slice(), next: arts.length + 1 } });
+            const handle = await this._showResult(opening.result);
+            this._decorateLinkResult(handle, opening.opening, L);
+        } catch (e) {
+            this._showLinkNotice(`This link's view could not be opened (${e && e.message ? e.message : e}); the net is open on its own.`);
+        }
+    }
+
+    /** Draw the link's own strip (status chips, the assistant's note under its label) at the top of the result. */
+    _decorateLinkResult(handle, opening, L) {
+        const el = handle && handle.element;
+        if (!el) return;
+        const holder = document.createElement('div');
+        holder.innerHTML = L.linkStripHtml(opening);
+        const strip = holder.firstElementChild;
+        const head = el.querySelector('.pv-dialog-header');
+        if (head) head.after(strip); else el.prepend(strip);
+        const alone = strip.querySelector('[data-act="net-alone"]');
+        if (alone) alone.addEventListener('click', () => handle.close());
     }
 
     // ---------------- public API ----------------

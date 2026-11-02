@@ -4121,3 +4121,62 @@ canvas.pv-canvas {
     flex-basis: 100%;
     overflow-wrap: anywhere;
 }
+
+/* ============================================================
+   Linkable views (petri-link-open.js, petri-view.js _openLinkedView)
+   An opened link's status strip over the result, and the one-line notice when a link's view was not run.
+   ============================================================ */
+.pv-link-status {
+    margin: 6px 0 10px;
+}
+.pv-link-chips {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+}
+.pv-link-ok {
+    color: var(--pv-success-strong);
+    border-color: var(--pv-success);
+}
+.pv-link-note {
+    margin: 8px 0 0;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+.pv-link-net {
+    margin: 6px 0 0;
+}
+.pv-link-notice {
+    position: absolute;
+    top: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 6;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    max-width: min(640px, calc(100% - 32px));
+    padding: 8px 12px;
+    border: 1px solid var(--pv-border);
+    border-left: 4px solid var(--pv-warning);
+    border-radius: 8px;
+    background: var(--pv-surface);
+    color: var(--pv-ink);
+    box-shadow: 0 4px 16px var(--pv-shadow-md);
+    font-size: 0.9em;
+    line-height: 1.4;
+}
+.pv-link-notice-busy {
+    border-left-color: var(--pv-accent);
+}
+.pv-link-notice-close {
+    flex: none;
+    min-width: 28px;
+    min-height: 28px;
+    border: 0;
+    background: none;
+    color: var(--pv-ink-secondary);
+    font-size: 1.2em;
+    cursor: pointer;
+}
