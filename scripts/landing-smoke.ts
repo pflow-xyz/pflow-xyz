@@ -267,20 +267,21 @@ try {
     // what is typed waits in the tab; the redirect itself is GitHub's
     await p.eval(`document.querySelector('petri-view')._loginWithGitHub = () => { window.__login = true; }`);
     await p.eval(`document.querySelector('#landing-chat-input').value = 'a coffee shop'`);
-    await p.eval(`document.querySelector('input[value="design"]').click()`);
+    await p.eval(`document.querySelector('input[value="build"]').click()`);
     await p.eval(`document.querySelector('#landing-chat-send').click()`);
     ok(await p.waitFor(`window.__login === true`, 5000), "submitting starts the sign-in");
-    ok((await p.eval(`sessionStorage.getItem('pflow_landing_pending')`)) === JSON.stringify({ route: "design", message: "a coffee shop" }), "the words and the route wait in the tab");
+    ok((await p.eval(`sessionStorage.getItem('pflow_landing_pending')`)) === JSON.stringify({ route: "build", message: "a coffee shop" }), "the words and the route wait in the tab");
     await p.close();
   }
   {
     const p = await open("/");
     await routed(p);
-    await p.eval(`document.querySelector('input[value="explore"]').click()`);
-    ok(await p.waitFor(`${text("#landing-chat-send")} === 'Explore'`, 5000), "Explore needs no sign-in");
-    await p.eval(`document.querySelector('#landing-chat-send').click()`);
-    ok(await p.waitFor(`location.pathname === '/compose.html'`, 15000), "Explore opens the composition page");
-    ok(await p.waitFor(`!!document.querySelector('a[href="/?route=design"]')`, 45000), "and it links back to a design session");
+    ok(await p.eval(`document.querySelectorAll('input[name="route"]').length === 3 && [...document.querySelectorAll('input[name="route"]')].every((r) => !r.checked)`), "the modes are Build, Analyse, Explain and none is chosen: nothing forced is the default");
+    ok(await p.eval(`!/Design|Explore|Let it decide/.test(document.querySelector('.landing-hero').textContent)`), "the hero does not use the old names");
+    ok(await p.eval(`!!document.querySelector('.landing-hero-buttons a[href="/compose.html"]')`), "Compose is a plain link beside the editor");
+    await p.eval(`document.querySelector('.landing-hero-buttons a[href="/compose.html"]').click()`);
+    ok(await p.waitFor(`location.pathname === '/compose.html'`, 15000), "Compose opens the composition page, with no sign-in");
+    ok(await p.waitFor(`!!document.querySelector('a[href="/?route=design"]')`, 45000), "and it links back to a build session (by the old name, which still works)");
     await p.close();
   }
   {
@@ -293,11 +294,11 @@ try {
   }
 
   console.log("signed in, on the page");
-  for (const [route, mode] of [["auto", "auto"], ["design", "build"], ["analyse", "analyse"], ["explain", "explain"]]) {
+  for (const [route, mode] of [["auto", "auto"], ["build", "build"], ["analyse", "analyse"], ["explain", "explain"]]) {
     const p = await open("/", SIGNED_IN());
     await routed(p);
     ok(await p.waitFor(`${text("#landing-chat-state")}.includes('7 model calls left today')`, 15000), `${route}: the quota line`);
-    await p.eval(`document.querySelector('input[value=${q(route)}]').click()`);
+    if (route !== "auto") await p.eval(`document.querySelector('input[value=${q(route)}]').click()`); // auto: nothing forced
     await p.eval(`document.querySelector('#landing-chat-input').value = 'where does it jam?'`);
     await p.eval(`document.querySelector('#landing-chat-send').click()`);
     ok(await p.waitFor(`document.querySelector('.pv-chat-user')?.textContent === 'where does it jam?'`, 20000), `${route}: the message opens the session`, problemsOf(p).join(" | "));
@@ -315,7 +316,7 @@ try {
     const p = await open("/", SIGNED_IN("", 2500));
     await p.waitFor(`document.querySelector('#landing-chat-hint')?.textContent.length > 0`, 20000);
     await p.eval(`document.querySelector('#landing-chat-input').value = 'too quick'`);
-    await p.eval(`document.querySelector('input[value="design"]').click()`);
+    await p.eval(`document.querySelector('input[value="build"]').click()`);
     await p.eval(`document.querySelector('#landing-chat-send').click()`);
     ok(await p.waitFor(`document.querySelector('.pv-chat-user')?.textContent === 'too quick'`, 20000), "it waits, and then opens the session");
     ok((await p.eval(`window.__turns[0]?.mode`)) === "build", "in the route chosen");
@@ -325,6 +326,7 @@ try {
 
   console.log("back from the sign-in, and links");
   {
+    // Written under the old name (a tab open across the rename): still sent, as Build.
     const seed = `sessionStorage.setItem('pflow_landing_pending', ${q(JSON.stringify({ route: "design", message: "a queue" }))});`;
     const p = await open("/", SIGNED_IN(seed));
     ok(await p.waitFor(`document.querySelector('.pv-chat-user')?.textContent === 'a queue'`, 20000), "what was typed before the sign-in is sent after it");
@@ -332,10 +334,12 @@ try {
     ok((await p.eval(`sessionStorage.getItem('pflow_landing_pending')`)) === null, "once");
     await p.close();
   }
-  {
-    const p = await open("/?route=analyse", SIGNED_IN());
-    ok(await p.waitFor(`document.querySelector('.pv-chat-mode.pv-active')?.dataset.mode === 'analyse'`, 20000), "?route= opens the Assistant in that mode");
-    ok((await p.eval(`window.__turns.length`)) === 0, "and sends nothing by itself");
+  for (const [route, mode] of [["analyse", "analyse"], ["build", "build"], ["design", "build"], ["explain", "explain"]]) {
+    // design is build's old name: links in the wild keep forcing it.
+    const p = await open(`/?route=${route}`, SIGNED_IN());
+    ok(await p.waitFor(`document.querySelector('.pv-chat-mode.pv-active')?.dataset.mode === ${q(mode)}`, 20000), `?route=${route} opens the Assistant in ${mode}`);
+    ok((await p.eval(`window.__turns.length`)) === 0, `?route=${route} sends nothing by itself`);
+    ok(await p.eval(`document.getElementById('editor-wrapper').style.display === 'block'`), `?route=${route} skips the landing`);
     await p.close();
   }
   {
@@ -375,7 +379,7 @@ try {
       await p.eval(`document.querySelector(${q(s)}).scrollIntoView({ block: 'center' })`);
       ok((await p.eval(`(() => { const r = document.querySelector(${q(s)}).getBoundingClientRect(); return r.top >= 0 && r.bottom <= innerHeight && r.left >= 0 && r.right <= innerWidth; })()`)), `${label}: ${s} scrolls into view`);
     }
-    await p.eval(`document.querySelector('input[value="design"]').click()`);
+    await p.eval(`document.querySelector('input[value="build"]').click()`);
     await p.eval(`document.querySelector('#landing-chat-input').value = 'a coffee shop'`);
     await p.eval(`document.querySelector('#landing-chat-send').click()`);
     ok(await p.waitFor(`!!document.querySelector('.pv-chat-assistant')`, 20000), `${label}: the session opens`, problemsOf(p).join(" | "));

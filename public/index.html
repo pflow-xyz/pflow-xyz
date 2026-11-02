@@ -543,11 +543,9 @@
                 <p>LLM-written code got good in the last year. Understanding it didn't get faster. You can only move as fast as you comprehend what you've built. pflow turns each model into something you can see, run and check. <span id="landing-chat-ask">What are you working on?</span></p>
                 <textarea id="landing-chat-input" rows="2" aria-labelledby="landing-chat-ask" placeholder="A coffee shop with one barista and a queue. Where does it jam?"></textarea>
                 <fieldset class="landing-chat-routes">
-                    <legend class="landing-sr">What kind of session</legend>
-                    <label><input type="radio" name="route" value="auto" checked/> Let it decide</label>
-                    <label><input type="radio" name="route" value="design"/> Design</label>
+                    <legend class="landing-sr">Optional: force one kind of session</legend>
+                    <label><input type="radio" name="route" value="build"/> Build</label>
                     <label><input type="radio" name="route" value="analyse"/> Analyse</label>
-                    <label><input type="radio" name="route" value="explore"/> Explore</label>
                     <label><input type="radio" name="route" value="explain"/> Explain</label>
                 </fieldset>
                 <p id="landing-chat-hint" class="landing-chat-small"></p>
@@ -557,6 +555,7 @@
             </form>
             <div class="landing-hero-buttons">
                 <a class="btn-secondary" href="#" id="open-editor-btn">Open the editor</a>
+                <a class="btn-secondary" href="/compose.html">Compose</a>
                 <a class="btn-secondary" href="https://sim.pflow.xyz">Describe it instead (sim)</a>
             </div>
         </div>
@@ -859,7 +858,7 @@
     }
 
     // Deep link: skip landing if ?cid= or ?data= present, or the URL names a chat session (petri-landing.js)
-    if (params.has('cid') || params.has('data') || ['auto', 'design', 'analyse', 'explain'].includes(params.get('route'))) {
+    if (params.has('cid') || params.has('data') || ['auto', 'build', 'design', 'analyse', 'explain'].includes(params.get('route'))) {
         showEditor();
         return;
     }

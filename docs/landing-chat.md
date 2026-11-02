@@ -6,19 +6,26 @@ no new server state and no pairing, only what was already shipped put at the fro
 
 ## What it does
 
-`public/petri-landing.js`, on the hero of `public/index.html`:
+`public/petri-landing.js`, on the hero of `public/index.html`. One vocabulary on the page, in the Assistant and in
+the server's labels: **Build, Analyse, Explain** (decided in `docs/design/agent-first-analysis.md` section 16.1;
+"Design" is now Build). Forcing nothing is not a mode: the server labels the message (`auto`).
 
-| route | goes to | needs |
+| session | goes to | needs |
 |---|---|---|
-| Let it decide | the Assistant, mode `auto` (the server labels the message) | GitHub sign-in |
-| Design | the Assistant, mode `build`, beside the canvas; edits wait for Apply | GitHub sign-in |
+| nothing forced (the default) | the Assistant, mode `auto` (the server labels the message) | GitHub sign-in |
+| Build | the Assistant, mode `build`, beside the canvas; edits wait for Apply | GitHub sign-in |
 | Analyse | the Assistant, mode `analyse` | GitHub sign-in |
 | Explain | the Assistant, mode `explain`; it does not edit | GitHub sign-in |
-| Explore | `/compose.html`; it links back to `/?route=design` to build | nothing |
+
+Compose is a destination, not a mode: a plain `Compose` link next to `Open the editor` (and in the nav) to
+`/compose.html`, which needs no sign-in and links back to a build session (`/?route=design`, the old name, which
+still works).
 
 The chat is `petri-chat-ui.js` and the proxy is `/api/llm/turn`, unchanged: no second chat, and the route is a
-suggestion, because a session can change mode on any message. `/?route=design` (also with `?cid=`) opens the
-editor with the Assistant in that mode and sends nothing by itself.
+suggestion, because a session can change mode on any message. `/?route=build` (also with `?cid=`) opens the
+editor with the Assistant in that mode and sends nothing by itself. `/?route=design` is the old name of `build`
+and stays as an alias, because those links exist in the wild; so do `analyse`, `explain` and `auto`. An unknown
+route, `explore` and `compose` included, shows the landing as usual.
 
 `/api/llm/status` decides what is offered, before anyone types: signed in and allowed gets the quota line;
 signed out gets a sign-in button that keeps the words in `sessionStorage` across the GitHub round trip and sends
@@ -33,8 +40,8 @@ The static landing content below the hero is unchanged, so what a crawler reads 
   is as it was, and the editor is one click away (design question 5).
 - **Returning visitors still land in the editor** (`pflow_skip_landing`), as before; the logo brings them back
   (question 5, the conservative answer).
-- **Explore then build is a link, not a handoff.** No composition travels to the design tab yet (Phase 3).
-- **Auto does not pick Explore.** The server's classifier has three labels; a fourth is a prompt change (Phase 3).
+- **Compose then build is a link, not a handoff.** No composition travels to the build tab yet (Phase 3).
+- **Auto does not pick Compose.** The server's classifier has three labels; a fourth is a prompt change (Phase 3).
 - **Quota stays as it was:** GitHub-keyed, `PFLOW_LLM_ALLOW`-gated (question 6).
 
 ## Later slices
