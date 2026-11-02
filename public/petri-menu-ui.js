@@ -18,6 +18,9 @@
 //   problems   a host element: petri-view.js _mountProblems puts the "N problems" chip in it.
 //   account    petri-view.js _createTopRightButton puts the Login / user button last in the bar.
 //
+// The view builds the bar once the editor is on screen (petri-view.js _createAppBar), not at page load: pflow.xyz holds the
+// editor hidden behind the landing page, and a visitor who only reads that fetches none of this and has no Cmd-K.
+//
 // The popovers hang off <body>, not the bar: the Ask pane and the dialogs are stacked above the bar, and a menu opened
 // from it must be above them. They are fixed to the viewport and placed from the button's rectangle on open.
 //
@@ -25,6 +28,7 @@
 
 import { ASK_PLACEHOLDER, MENU_LABELS, MENU_ORDER, askSubmit, classicHref, flattenMenus, isFocusable, menuModel, menuStep, triggerKey, typeahead } from './petri-menu.js';
 import { bindPaletteKey, toolsButton } from './petri-palette-ui.js';
+import { isPaletteChord } from './petri-palette.js';
 
 const esc = (s) => String(s)
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -224,6 +228,10 @@ export function mountAppBar(view) {
         button.setAttribute('aria-controls', pop.id);
 
         const onKey = (e) => {
+            if (isPaletteChord(e)) {
+                close(true); // Tools opens over where the menu was: focus goes back to its button first (the chord goes on up to bindPaletteKey)
+                return;
+            }
             e.stopPropagation(); // the editor's own keys (1-9, x, Space, Delete) stay out of a menu
             const mine = openMenu?.rows || [];
             const at = mine.indexOf(document.activeElement);

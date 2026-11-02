@@ -56,11 +56,11 @@ const NET = {
 const BAD_NET = { ...NET, arcs: [...NET.arcs, { "@type": "Arrow", source: "S", target: "nowhere", weight: [1] }] };
 
 /** Before any script: the account, the files and the model's route answered here, and what was asked of them kept. */
-const STUB = (o: { signedIn?: boolean; files?: boolean; chat?: boolean; llm503?: boolean; llm401?: boolean } = {}) => `
+const STUB = (o: { signedIn?: boolean; files?: boolean; chat?: boolean; llm503?: boolean; llm401?: boolean; landing?: boolean } = {}) => `
   window.__reqs = [];
   window.__opened = [];
   window.open = (...a) => { window.__opened.push(a); return null; };
-  try { localStorage.clear(); sessionStorage.clear(); localStorage.setItem('pflow_skip_landing', '1'); ${o.signedIn ? "localStorage.setItem('pflow_auth_token', 'smoke-token');" : ""} } catch {}
+  try { localStorage.clear(); sessionStorage.clear(); ${o.landing ? "" : "localStorage.setItem('pflow_skip_landing', '1');"} ${o.signedIn ? "localStorage.setItem('pflow_auth_token', 'smoke-token');" : ""} } catch {}
   const real = window.fetch;
   const json = (obj, status = 200) => new Response(JSON.stringify(obj), { status, headers: { 'Content-Type': 'application/json' } });
   window.fetch = async (u, opts) => {
@@ -154,6 +154,28 @@ try {
   }
 
   // =========================================================================================================
+  console.log("behind the landing page: the editor is hidden, so the bar waits");
+  {
+    const p = await open("/", { landing: true });
+    ok(await p.waitFor("getComputedStyle(document.getElementById('landing')).display !== 'none'", 15000), "the landing page is showing");
+    await sleep(1500);
+    ok(await p.eval(`!document.querySelector('.pv-appbar') && !document.querySelector('petri-view')._appBar`), "the bar is not built behind it");
+    ok(await p.eval(`!performance.getEntriesByType('resource').some((r) => /petri-menu-ui|petri-palette-ui|petri-problems/.test(r.name))`), "and the palette's modules are not fetched for a visitor who only reads it");
+    ok(await p.eval(`!document.querySelector('petri-view')._unbindPaletteKey`), "Cmd-K is not bound");
+    await chord(p);
+    await sleep(300);
+    ok(await p.eval(`!document.querySelector('.pv-palette')`), "and opens nothing over the landing page");
+    ok(await p.eval(`document.querySelector('petri-view').dataset.ui === 'bar'`), "(the view still knows which menu it will have)");
+    await p.eval(`window.pflowShowEditor()`);
+    ok(await barUp(p), "Open the editor: the bar is built and its chip answers");
+    ok(await p.eval(`performance.getEntriesByType('resource').some((r) => /petri-menu-ui/.test(r.name)) && !!document.querySelector('petri-view')._unbindPaletteKey`), "and now the modules are in and Cmd-K is bound");
+    await chord(p);
+    ok(await p.waitFor("!!document.querySelector('.pv-palette')", 10000), "Cmd-K opens Tools");
+    await press(p, "Escape");
+    await p.close();
+  }
+
+  // =========================================================================================================
   for (const [w, h] of [[390, 844], [320, 568], [430, 739]]) {
     console.log(`the bar on a phone, ${w}x${h}`);
     const p = await open("/", {}, w, h, true);
@@ -243,6 +265,13 @@ try {
     await key(p, "x", "KeyX", 88, 0, "x");
     ok((await p.eval(`document.querySelector('petri-view')._mode`)) === mode0, "the digit keys do not change the editor's mode while a menu has focus", `${mode0} -> ${await p.eval(`document.querySelector('petri-view')._mode`)}`);
     ok(await p.eval(`!document.querySelector('petri-view')._simRunning`), "and x does not start the simulation");
+    // Cmd-K from inside a menu: the menu closes and Tools opens
+    await chord(p);
+    ok(await p.waitFor("!!document.querySelector('.pv-palette')", 10000) && !(await popOpen(p)), "Ctrl-K inside an open menu closes the menu and opens Tools");
+    await press(p, "Escape");
+    ok(await p.eval(`document.activeElement === document.querySelector('[data-menu=view]')`), "and focus comes back to the button the menu was opened from", await p.eval(`document.activeElement.className + ' ' + document.activeElement.dataset.menu`));
+    await p.eval(`document.querySelector('[data-menu=view]').click()`);
+    await p.waitFor("!!document.querySelector('.pv-appmenu-pop')", 3000);
     // a click outside closes
     await p.click(640, 300);
     ok(!(await popOpen(p)), "a click outside closes it");

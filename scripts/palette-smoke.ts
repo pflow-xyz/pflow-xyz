@@ -51,7 +51,9 @@ try {
   const page = await newPage(1280, 900);
   await page.goto(url);
   await page.waitFor("!!customElements.get('petri-view') && !!document.querySelector('petri-view')");
-  await page.waitFor("!!document.querySelector('.pv-appbar-tools')");
+  // The editor is behind the landing page until it is opened, and the bar (with Tools and the chord) is built when it shows.
+  await page.eval(`window.pflowShowEditor()`);
+  ok(await page.waitFor("!!document.querySelector('.pv-appbar-tools')"), "the bar's Tools button is there once the editor is shown");
   await page.eval(`(async () => {
     const el = document.querySelector('petri-view');
     el.setModel(${JSON.stringify(SIR)});

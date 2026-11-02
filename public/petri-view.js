@@ -1507,11 +1507,18 @@ PetriView = class PetriView extends HTMLElement {
         return new URLSearchParams(window.location.search).get('ui') === 'classic' ? 'classic' : 'bar';
     }
 
+    // The bar is built once the editor is on screen: pflow.xyz's page holds the editor hidden behind the landing page, and
+    // a visitor who only reads that should not fetch the palette's modules, nor have Cmd-K open a dialog over it.
     _createAppBar() {
         if (this._appBar || this._appBarPending) return;
         this.dataset.ui = 'bar'; // at once: the page's logo moves into the hamburger's place by it (petri-view.css)
-        this._appBarPending = import('./petri-menu-ui.js').then((ui) => {
-            if (!this.isConnected || !this._root || this._appBar || this._uiMode() !== 'bar') return;
+        const gen = this._appBarGen = (this._appBarGen || 0) + 1;
+        const stale = () => gen !== this._appBarGen || !this.isConnected || !this._root || this._appBar || this._uiMode() !== 'bar';
+        this._appBarPending = this._whenShown().then(() => {
+            if (stale()) return null;
+            return import('./petri-menu-ui.js');
+        }).then((ui) => {
+            if (!ui || stale()) return;
             this._appBar = ui.mountAppBar(this);
             if (this._topRightButton) this._appBar.element.appendChild(this._topRightButton);
             this._llmStatus(); // the empty-canvas prompt needs to know whether the assistant is on
@@ -1522,10 +1529,29 @@ PetriView = class PetriView extends HTMLElement {
             this._forceClassic = true;
             this._destroyAppBar();
             this._createHamburgerMenu();
-        }).finally(() => { this._appBarPending = null; });
+        }).finally(() => { if (gen === this._appBarGen) this._appBarPending = null; });
+    }
+
+    // Resolves once the editor has a box (it is not under a display: none ancestor).
+    _whenShown() {
+        const shown = () => !!this._root && this._root.getClientRects().length > 0;
+        if (shown() || typeof ResizeObserver === 'undefined') return Promise.resolve();
+        return new Promise((resolve) => {
+            const ro = this._appBarWait = new ResizeObserver(() => {
+                if (!shown()) return;
+                ro.disconnect();
+                if (this._appBarWait === ro) this._appBarWait = null;
+                resolve();
+            });
+            ro.observe(this._root);
+        });
     }
 
     _destroyAppBar() {
+        this._appBarGen = (this._appBarGen || 0) + 1; // whatever is still waiting to build the bar will not
+        this._appBarWait?.disconnect();
+        this._appBarWait = null;
+        this._appBarPending = null;
         this._problemsChip?.destroy();
         this._problemsChip = null;
         this._problemsMonitor?.destroy();
