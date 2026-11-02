@@ -820,6 +820,42 @@ canvas.pv-canvas {
     color: var(--pv-ink-secondary);
 }
 
+/* Body of an xl dialog: the dialog has no padding of its own (the header
+   spans edge to edge), so everything under the header gets the header's 24px
+   inset here, once, for every xl dialog (goals, structure, workbench,
+   components, results) rather than per dialog. Long words and wide tables
+   wrap instead of pushing a horizontal scrollbar onto the whole dialog. */
+.pv-modal-dialog-xl > :not(.pv-dialog-header) {
+    margin-left: 24px;
+    margin-right: 24px;
+    min-width: 0;
+    max-width: calc(100% - 48px);
+    box-sizing: border-box;
+    overflow-wrap: anywhere;
+}
+.pv-modal-dialog-xl > .pv-dialog-header + * {
+    margin-top: 16px;
+}
+.pv-modal-dialog-xl > :last-child {
+    margin-bottom: 20px;
+}
+.pv-modal-dialog-xl table {
+    max-width: 100%;
+    border-collapse: collapse;
+}
+.pv-modal-dialog-xl td,
+.pv-modal-dialog-xl th {
+    overflow-wrap: anywhere;
+    vertical-align: top;
+    padding: 2px 8px 2px 0;
+    text-align: left;
+}
+.pv-modal-dialog-xl pre {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    max-width: 100%;
+}
+
 /* ============================================
    Dialog Headers
    ============================================ */
@@ -3149,7 +3185,8 @@ canvas.pv-canvas {
 }
 .pv-structure-results {
     max-height: 55vh;
-    overflow: auto;
+    overflow-x: hidden;
+    overflow-y: auto;
 }
 .pv-result-dim {
     opacity: 0.7;
@@ -3259,6 +3296,7 @@ canvas.pv-canvas {
 }
 .pv-chat-msg {
     white-space: pre-wrap;
+    overflow-wrap: anywhere;
     padding: 6px 8px;
     border-radius: 6px;
     max-width: 92%;
@@ -3272,6 +3310,18 @@ canvas.pv-canvas {
     align-self: flex-start;
     background: var(--pv-panel);
 }
+/* Rendered markdown in an assistant reply: block tags carry their own breaks */
+.pv-chat-assistant { white-space: normal; }
+.pv-chat-assistant p,
+.pv-chat-assistant ul,
+.pv-chat-assistant ol,
+.pv-chat-assistant pre,
+.pv-chat-assistant h4 { margin: 0 0 6px; }
+.pv-chat-assistant > :last-child { margin-bottom: 0; }
+.pv-chat-assistant ul,
+.pv-chat-assistant ol { padding-left: 1.4em; }
+.pv-chat-assistant pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+.pv-chat-assistant code { font-size: 0.92em; }
 .pv-chat-note {
     align-self: center;
     opacity: 0.75;

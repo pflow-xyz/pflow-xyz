@@ -235,3 +235,33 @@ Deno.test("chat: the tools a mode can use, as the panel counts them", async () =
     for (const edit of ["net.add_place", "sim.fire", "edit.undo", "file.new"]) assert(!explain.includes(edit), edit);
     for (const read of ["net.info", "analysis.check", "sim.ode", "view.highlight"]) assert(explain.includes(read), read);
 });
+
+Deno.test("chat: a short 429 after tools ran is waited out and retried with the same messages (no 'continue' needed)", async () => {
+    const reg = live();
+    const replies: any[] = [{ tool_calls: [{ name: "analysis_verify", args: { properties: [{ kind: "deadlock-free" }] } }] }, "limit", { reply: "Deadlock-free." }];
+    const sent: any[] = [];
+    const post = async (body: any) => {
+        sent.push(structuredClone(body));
+        const r = replies.shift();
+        if (r === "limit") throw Object.assign(new Error("too many requests; slow down (try again in 17 s)"), { status: 429, retryAfter: 17 });
+        return r;
+    };
+    const slept: number[] = [];
+    const events: any[] = [];
+    const chat = new ChatSession({ live: reg, manifest, post, mode: "analyse", sleep: async (ms: number) => { slept.push(ms); } });
+    const out = await chat.send("is it safe?", (e: any) => events.push(e));
+    assertEquals(out.reply, "Deadlock-free.");
+    assertEquals(slept, [18000]);
+    assert(events.some((e) => e.type === "wait" && e.seconds === 17));
+    // the retry carries the tool result the failed call was about to send
+    assertEquals(sent[2].messages.length, sent[1].messages.length);
+    assertEquals(chat.calls.length, 1, "the tool did not run twice");
+});
+
+Deno.test("chat: a daily 429 (hours) is not waited out", async () => {
+    const post = async () => { throw Object.assign(new Error("daily limit"), { status: 429, retryAfter: 7200 }); };
+    const chat = new ChatSession({ live: live(), manifest, post, mode: "analyse", sleep: async () => { throw new Error("must not sleep"); } });
+    let err: any;
+    try { await chat.send("hi"); } catch (e) { err = e; }
+    assertEquals(err?.status, 429);
+});

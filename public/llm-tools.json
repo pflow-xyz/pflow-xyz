@@ -753,6 +753,46 @@
       "description": "Which engine?. Which engine to run this net with, and why (docs/engine-selection.md): constraints the ODE cannot see (inhibitor or read arcs, capacities) need the SSA; small token counts make the ODE's mean misleading and the SSA's spread matter; large unconstrained populations suit the ODE (and the SDE for noise). Also proposes a horizon, a seed and a run count."
     },
     {
+      "name": "analysis_diagnose_ssa",
+      "command": "analysis.diagnose_ssa",
+      "description": "Diagnose (Influence, SSA). Which knobs move the outcome, measured on the SSA (the stochastic engine) instead of the ODE: each transition's rate at rate·(1 ± delta) and +1 initial token on each place, against the observable's mean at t_end over `runs` seeded runs that share one seed, so the difference measures the knob, not the dice. Use this, not analysis.diagnose, when sim.recommend says ssa: a net with a resource pool (a token count of 2) or constraints only makes sense at firing instants, which the ODE does not have, so analysis.diagnose can rank a knob that matters (+1 baristas_free) as irrelevant. Stores a tornado chart (bars centred on the baseline) and reports the SSA noise floor (spread of the baseline across three seeds).",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "observable": {
+            "description": "place; default: the first sink (produced, never consumed)",
+            "type": "string"
+          },
+          "t_end": {
+            "description": "horizon (default 10)",
+            "type": "number",
+            "minimum": 1e-9
+          },
+          "delta": {
+            "description": "relative rate perturbation in (0, 1] (default 0.5)",
+            "type": "number",
+            "minimum": 0.000001,
+            "maximum": 1
+          },
+          "runs": {
+            "description": "realizations per probe (default 40, ≤ 200)",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 200
+          },
+          "seed": {
+            "description": "shared seed (default 1)",
+            "type": "integer",
+            "minimum": 0
+          },
+          "noise": {
+            "description": "estimate the noise floor (default true)",
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    {
       "name": "net_set_goals",
       "command": "net.set_goals",
       "description": "Set goals. Declare the net's reachability goals: markings it should be able to reach, e.g. [{\"label\": \"everyone served\", \"to\": {\"served\": 10}}]. \"to\" constrains only the places it names. The refinement gate (analysis.defects) counts a goal analysis.reach answers \"no\" to. An empty list removes them.",

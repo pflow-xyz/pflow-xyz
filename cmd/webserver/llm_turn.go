@@ -41,9 +41,11 @@ const (
 // phase 6 build with the interview steps.
 var modeGuidance = map[string]string{
 	"build": "Mode: build. The person is building or changing the net. Make the edits through the tools, a few at a time, " +
-		"and check the result with analysis_check before saying it is done.",
+		"and check the result with analysis_check before saying it is done. " +
+		"Your edits are only a preview until the person clicks Apply: say \"I've proposed\" or \"the pending change\", never \"I updated the model\" or \"I've changed it\", and tell them to Apply or Discard.",
 	"analyse": "Mode: analyse. The person wants to know something about the net. Find out what (one question if it is unclear), " +
-		"run the analysis that answers it, and answer in plain language with the evidence.",
+		"run the analysis that answers it, and answer in plain language with the evidence. " +
+		"Reading tools (analysis_*, sim_*, opt_*) just run: never ask \"shall I go ahead?\" before one. Ask first only for an edit that replaces or alters the net.",
 	"explain": "Mode: explain. The person wants to understand the net or a result. Explain with the net's own labels; " +
 		"use tools only to look things up. Do not edit.",
 }
