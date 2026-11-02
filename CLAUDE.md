@@ -168,8 +168,8 @@ GITHUB_CLIENT_SECRET    # GitHub OAuth App client secret
 GEMINI_API_KEY          # Gemini API key; unset = LLM drafting off (the routes report disabled)
 PFLOW_LLM_MODEL         # default gemini-3.8-flash
 PFLOW_LLM_ALLOW         # comma-separated GitHub logins allowed to draft; unset = every signed-in user
-PFLOW_LLM_DAILY_LIMIT   # per user per UTC day (default 500); also PFLOW_LLM_GLOBAL_DAILY_LIMIT (5000),
-                        # PFLOW_LLM_BURST (30) and PFLOW_LLM_REFILL_S (2). Policy (internal/llm/limits.go): limits are a clamp-down lever, not pacing; generous by design, tighten via these env vars
+PFLOW_LLM_DAILY_LIMIT   # per user per UTC day (default 30); also PFLOW_LLM_GLOBAL_DAILY_LIMIT (500),
+                        # PFLOW_LLM_BURST (3) and PFLOW_LLM_REFILL_S (20)
 ```
 
 The LLM usage log is `data/llm/usage-YYYY-MM.jsonl` (one `start` line per upstream call, which is what the
