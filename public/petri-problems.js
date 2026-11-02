@@ -273,8 +273,8 @@ export class ProblemsMonitor {
      * @param {{full?: boolean}} [o]
      * @returns {Promise<ProblemsSummary|null>}
      */
-    async run({ full = true } = {}) {
-        if (this._destroyed) return this._summary;
+    run({ full = true } = {}) {
+        if (this._destroyed) return Promise.resolve(this._summary);
         this._cancelTimer(); // this check covers the one that was waiting
         return this._ask(full !== false);
     }
