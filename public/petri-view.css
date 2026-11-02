@@ -4490,7 +4490,9 @@ html:has(petri-view[data-ui="bar"]) .fixed-title {
     .pv-appbar {
         left: 10px;
     }
+}
 
+/* ============================================================
    Linkable views (petri-link-open.js, petri-view.js _openLinkedView)
    An opened link's status strip over the result, and the one-line notice when a link's view was not run.
    ============================================================ */
