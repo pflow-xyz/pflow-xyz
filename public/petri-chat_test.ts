@@ -442,3 +442,86 @@ Deno.test("chat: isEdit is exported, for the packages that gate on it", () => {
     assertEquals(isEdit("sim.ode", {}), false);
     assertEquals(isEdit("net.info", {}), false);
 });
+
+// ---- macro.play goes through the guard like the commands it holds ----
+//
+// The review finding: macro.play replays stored command steps inside the
+// native engine, so a stored analysis.diagnose ran on the gated net past the
+// guard. macro_play is in the model's manifest (the person's macros, replayed).
+
+async function withMacros(reg: any, defs: Record<string, any[]>, fn: () => Promise<void>) {
+    for (const [name, steps] of Object.entries(defs)) await reg.execute("macro.define", { name, steps });
+    try { await fn(); } finally { for (const name of Object.keys(defs)) await reg.execute("macro.delete", { name }).catch(() => {}); }
+}
+const diagStep = { command: "analysis.diagnose", args: { observable: "I", t_end: 5, noise: false } };
+const odeStep = { command: "sim.ode", args: { t_end: 5 } };
+
+Deno.test("chat guard: macro_play of a stored analysis.diagnose is refused on a gated net, and the refusal reaches the model", async () => {
+    const reg: any = new Registry(createHeadlessHost(gatedNet()));
+    await withMacros(reg, { rank: [diagStep] }, async () => {
+        const { post, sent } = scripted([{ tool_calls: [{ name: "macro_play", args: { name: "rank" } }] }, { reply: "I need the SSA for this." }]);
+        const chat = new ChatSession({ live: reg, manifest, post, mode: "build" });
+        let out: any;
+        const ids = await recording(async () => { out = await chat.send("replay my rank macro"); });
+        assertEquals(out.reply, "I need the SSA for this.");
+        const [entry] = chat.calls;
+        assertEquals([entry.command, entry.ok], ["macro.play", false]);
+        assert(entry.error.startsWith("refused: macro.play"), entry.error);
+        assert(entry.error.includes('step 1 of macro "rank" (analysis.diagnose)') && entry.error.includes("capacity on I") && entry.error.includes("Nothing ran"), entry.error);
+        assert(entry.refused.rule.includes("Rule 1"), entry.refused.rule);
+        assertEquals(entry.refused.recommended, "ssa");
+        assert(entry.error.includes("no override") && !entry.error.includes("engine_override"), "the plain tool is final");
+        assertFalse(ids.includes("macro.play") || ids.includes("analysis.diagnose"), `the engine never ran it: ${ids}`);
+        assertEquals(reg.artifacts().length, 0);
+        assertFalse(chat.pending, "nothing was applied");
+        const answer = sent[1].messages.at(-1).parts[0].functionResponse;
+        assertEquals(answer.name, "macro_play");
+        assert(answer.response.error.startsWith("refused: macro.play"), answer.response.error);
+    });
+});
+
+Deno.test("chat guard: macro_play runs on a large net, warns on a small one, and the person's words lift a refusal", async () => {
+    await withMacros(new Registry(createHeadlessHost(largeNet())) as any, { rank: [diagStep], curve: [odeStep] }, async () => {
+        const large: any = new Registry(createHeadlessHost(largeNet()));
+        const chat = new ChatSession({ live: large, manifest, post: async () => ({}), mode: "analyse" });
+        for (const name of ["rank", "curve"]) {
+            const e = await chat.runCall({ name: "macro_play", args: { name } });
+            assert(e.ok && e.warning === undefined && e.refused === undefined, `${name}: ${e.error}`);
+        }
+        const small: any = new Registry(createHeadlessHost(smallNet()));
+        const soft = new ChatSession({ live: small, manifest, post: async () => ({}), mode: "build" });
+        const curve = await soft.runCall({ name: "macro_play", args: { name: "curve" } });
+        assert(curve.ok && curve.warning.startsWith('step 1 of macro "curve" (sim.ode): ODE on a net where the engine recommends SSA'), `${curve.warning} ${curve.error}`);
+        assert((soft._responseFor(curve).response as any).warning.includes("Say so"));
+        const rank = await soft.runCall({ name: "macro_play", args: { name: "rank" } });
+        assert(!rank.ok && rank.refused.rule.includes("Rule 2"), rank.error);
+
+        const gated: any = new Registry(createHeadlessHost(gatedNet()));
+        const hard = new ChatSession({ live: gated, manifest, post: async () => ({}), mode: "build" });
+        hard.messages.push({ role: "user", parts: [{ text: "replay the curve with the ODE, I know the net has a capacity" }] });
+        const yes = await hard.runCall({ name: "macro_play", args: { name: "curve" } }, 1, { override: "ode", canOverride: true });
+        assert(yes.ok, yes.error);
+        assertEquals(yes.override, "ode");
+        assert(yes.warning.includes("ODE on a net with capacity on I"), yes.warning);
+        hard.messages.push({ role: "user", parts: [{ text: "now the other one" }] });
+        const no = await hard.runCall({ name: "macro_play", args: { name: "curve" } }, 1, { override: "ode", canOverride: true });
+        assert(!no.ok && no.error.includes("was not applied") && no.error.includes('engine_override: "ode"'), no.error);
+    });
+});
+
+Deno.test("chat guard: a macro the guard cannot read is refused, with no override on offer; macro_list and macro_get are not guarded", async () => {
+    const reg: any = new Registry(createHeadlessHost(largeNet()));
+    await withMacros(reg, { loop: [{ command: "macro.play", args: { name: "loop" } }] }, async () => {
+        const chat = new ChatSession({ live: reg, manifest, post: async () => ({}), mode: "build" });
+        for (const [name, why] of [["loop", "plays itself"], ["nope", 'macro.get "nope" failed']]) {
+            const e = await chat.runCall({ name: "macro_play", args: { name } }, 1, { canOverride: true });
+            assertFalse(e.ok, name);
+            assert(e.error.startsWith("refused: macro.play") && e.error.includes(why) && e.error.includes("Nothing ran"), e.error);
+            assert(!e.error.includes('engine_override: "'), e.error);
+        }
+        const ids = await recording(async () => {
+            for (const c of [{ name: "macro_list", args: {} }, { name: "macro_get", args: { name: "loop" } }]) assert((await chat.runCall(c)).ok, c.name);
+        });
+        assertEquals(ids.filter((id) => id === "sim.recommend").length, 0);
+    });
+});

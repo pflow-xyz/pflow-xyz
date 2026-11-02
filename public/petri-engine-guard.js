@@ -21,6 +21,16 @@
 //   EngineGuard       checkEngine plus sim.recommend, run once per net
 //                     revision however many guarded calls follow
 //   refusalText       the words a refusal puts in front of the model
+//   needsGuard        whether a call has anything for the guard to look at
+//                     (a command in the table, or macro.play)
+//   isEdit            whether a command changes the net (the chat's sandbox
+//                     rule, kept here so the macro check reads the same one)
+//
+// A stored macro is a plan the engine runs by itself: macro.play replays
+// its steps inside the native engine, past anything a caller could check. So
+// the guard reads the macro first (macro.get, nested macro.play steps
+// expanded) and holds every step to the same rules, refusing the whole play
+// when one step is refused, with nothing run. See EngineGuard.check.
 //
 // Two rules, both from the recommendation:
 //
@@ -39,6 +49,8 @@
 // purpose: a dialog or the palette naming an engine is the person's own
 // choice. The guard sits in front of plans (petri-goals.js runGoal) and the
 // model's tool calls (petri-chat.js ChatSession.runCall).
+
+import { NATIVE_COMMANDS } from './vendor/pflow-native-wasm/commands.js';
 
 export const ENGINES = Object.freeze({ ode: 'ODE', sde: 'SDE', ssa: 'SSA' });
 
@@ -94,6 +106,8 @@ export const ENGINE_NEEDS = Object.freeze({
     // Considered and left out (see the package report): sim.what_if / sim.ssa / analysis.diagnose_ssa / sim.evaluate / opt.distill / data.generate
     // are SSA (valid on every net); sim.crosscheck compares the engines and skips the ODE half itself on a gated net; system.run runs library
     // models, not the open net the recommendation is about; analysis.check's ODE smoke test validates, it does not answer.
+    // macro.play is not in the table because it needs no single engine: it runs stored command steps inside the native engine,
+    // so EngineGuard.check expands the macro and holds each step to this table (nested macros included).
 });
 
 const hasOwn = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
@@ -112,6 +126,54 @@ export function engineNeeded(commandId, args) {
     if (args !== undefined && e.when && !e.when(args || {})) return null;
     return { needs: e.needs, onSoft: e.onSoft };
 }
+
+/** The command that replays stored command steps: the one indirection the table cannot see through. */
+export const MACRO_PLAY = 'macro.play';
+
+/**
+ * Does this call have anything for the guard to look at: a command in the
+ * table whose engine this call uses, or macro.play (whose steps are).
+ * @param {string} commandId
+ * @param {Object} [args]
+ */
+export function needsGuard(commandId, args) {
+    return commandId === MACRO_PLAY || engineNeeded(commandId, args) !== null;
+}
+
+// ---- which commands change the net ----
+
+// Commands that change the document (or the token game's marking, which
+// lives in it): they make the chat's sandbox differ from the live net, and a
+// step of a macro that is one of them can change what sim.recommend says
+// about the steps after it.
+const EDITS = new Set(['file.new', 'edit.undo', 'edit.redo', 'edit.delete', 'sim.fire', 'sim.reset', 'sim.set_rate', 'sim.goto']);
+// pflow-native's commands that edit the net or move its marking (compose.fuse,
+// file.open_example, sim.run, data.discover …), the ones that edit it only
+// when called with apply (opt.fit, opt.distill, data.calibrate), and the one
+// that edits it only when its `model` names the open net (system.set_port).
+const NATIVE_EDITS = new Set(NATIVE_COMMANDS.filter((s) => s.edits || s.setsMarking).map((s) => s.id));
+const NATIVE_EDITS_ON_APPLY = new Set(NATIVE_COMMANDS.filter((s) => s.editsOnApply).map((s) => s.id));
+const NATIVE_EDITS_ON_CURRENT = new Map(NATIVE_COMMANDS.filter((s) => s.editsOnCurrent).map((s) => [s.id, s.editsOnCurrent]));
+
+/**
+ * Does this call change the net (or move its marking)?
+ * @param {string} id
+ * @param {Object} [args]
+ * @returns {boolean}
+ */
+export const isEdit = (id, args) => EDITS.has(id) || (id.startsWith('net.') && id !== 'net.info') || NATIVE_EDITS.has(id)
+    || (NATIVE_EDITS_ON_APPLY.has(id) && !!args?.apply)
+    || (NATIVE_EDITS_ON_CURRENT.has(id) && [undefined, 'current'].includes(args?.[NATIVE_EDITS_ON_CURRENT.get(id)]));
+
+// Edits that cannot change what sim.recommend says, which reads the arcs
+// (inhibitor and read), the capacities and the token counts: rates, labels,
+// positions, names, and the fits that only write rates. Every other edit
+// might, so a macro that makes one is not trusted to leave the net as the
+// guard saw it.
+const KEEPS_RECOMMENDATION = new Set([
+    'sim.set_rate', 'net.set_label', 'net.move', 'net.rename', 'net.layout', 'net.set_details', 'net.set_goals', 'net.set_views',
+    'file.seal', 'opt.fit', 'opt.distill', 'data.calibrate',
+]);
 
 const label = (engine) => ENGINES[engine] || String(engine || '?').toUpperCase();
 const tokensNote = (rec) => (Number.isFinite(rec.tokens) ? ` (only ${rec.tokens} token${rec.tokens === 1 ? '' : 's'} in all)` : '');
@@ -225,6 +287,12 @@ export function modelKey(model) {
     return `${s.length}:${a.toString(36)}${b.toString(36)}`;
 }
 
+const MAX_MACRO_DEPTH = 6;
+const MAX_MACRO_STEPS = 200;
+
+/** A macro whose steps the guard cannot list for certain. */
+class Unreadable extends Error {}
+
 export class EngineGuard {
     /**
      * @param {Object|(() => Object)} registry  the registry whose net is guarded,
@@ -267,23 +335,118 @@ export class EngineGuard {
      * lookup. override is what the caller (the model, a plan) asked for;
      * userText is the person's message, and the override counts only when it
      * names the engine.
+     *
+     * macro.play is checked through its steps: the macro is read (macro.get,
+     * nested macro.play steps expanded), and every step the table guards is
+     * held to the same rules against the net's recommendation. One refused
+     * step refuses the whole play (nothing runs); otherwise the play carries
+     * a warning if any step warns. A macro the guard cannot read to the end
+     * (unknown name, plays itself, nests too deep, is too long, rewrites the
+     * macro table and then plays one) is refused too: it is not trusted
+     * unseen. A guarded step that follows a step that may change the net's
+     * arcs, capacities or token counts is refused as well, because the
+     * recommendation was made for the net as it is now, not as the earlier
+     * step leaves it; the override, when the person's words name the engine,
+     * lifts that like any other refusal.
      * @param {string} commandId
      * @param {Object} [args]
      * @param {{override?: string, userText?: string}} [opts]
      * @returns {Promise<Verdict>} checkEngine's verdict, plus overrideIgnored when an override was passed and not honoured
      */
     async check(commandId, args = {}, { override, userText } = {}) {
-        const entry = engineNeeded(commandId, args);
-        if (!entry || entry.needs === 'ssa') return verdictOf({ needs: entry ? entry.needs : null });
+        const macro = commandId === MACRO_PLAY;
+        const entry = macro ? null : engineNeeded(commandId, args);
+        if (!macro && (!entry || entry.needs === 'ssa')) return verdictOf({ needs: entry ? entry.needs : null });
         const asked = typeof override === 'string' && override ? override.toLowerCase() : undefined;
         const honoured = asked !== undefined && overrideAllowed(userText, asked) ? asked : undefined;
-        const rec = await this.recommendation();
-        const v = checkEngine(commandId, rec, { override: honoured, args });
-        if (asked !== undefined && honoured === undefined) {
+        let v;
+        if (macro) {
+            v = await this._checkMacro(args, honoured);
+            if (v.verdict === 'ok') return v;
+        } else {
+            const rec = await this.recommendation();
+            v = checkEngine(commandId, rec, { override: honoured, args });
+        }
+        // (a refusal with no engine behind it, a macro that could not be read, is not one an override would have changed)
+        if (asked !== undefined && honoured === undefined && v.needs) {
             v.overrideIgnored = asked;
             if (v.verdict === 'refuse') v.message += ` The engine_override "${asked}" was not applied: the person's own message does not name that engine.`;
         }
         return v;
+    }
+
+    /**
+     * Every step macro.play would run, in order, nested macros expanded in
+     * place: [{command, args, macro, n}] (n: the step's place in its macro).
+     * Throws Unreadable when the steps cannot be listed for certain.
+     */
+    async _expandMacro(name, st, trail) {
+        if (trail.includes(name)) throw new Unreadable(`macro "${name}" plays itself (${[...trail, name].join(' → ')})`);
+        if (trail.length >= MAX_MACRO_DEPTH) throw new Unreadable(`macros nest more than ${MAX_MACRO_DEPTH} deep (${[...trail, name].join(' → ')})`);
+        let steps;
+        try {
+            steps = await this.registry.execute('macro.get', { name });
+        } catch (e) {
+            throw new Unreadable(`macro.get "${name}" failed: ${e?.message || e}`);
+        }
+        if (!Array.isArray(steps)) throw new Unreadable(`macro.get "${name}" did not return a list of steps`);
+        for (let i = 0; i < steps.length; i++) {
+            const s = steps[i];
+            if (!s || typeof s.command !== 'string' || !s.command) throw new Unreadable(`step ${i + 1} of macro "${name}" names no command`);
+            const args = s.args && typeof s.args === 'object' ? s.args : {};
+            if (s.command === MACRO_PLAY) {
+                // The macro table is read once, up front: a play that follows a write to it may not play what was read.
+                if (st.macroWrite) throw new Unreadable(`macro "${name}" changes the macro table (macro.define or macro.delete) before playing another macro`);
+                await this._expandMacro(typeof args.name === 'string' && args.name ? args.name : 'last', st, [...trail, name]);
+                continue;
+            }
+            if (s.command === 'macro.define' || s.command === 'macro.delete') st.macroWrite = true;
+            if (st.steps.length >= MAX_MACRO_STEPS) throw new Unreadable(`it runs more than ${MAX_MACRO_STEPS} steps`);
+            st.steps.push({ command: s.command, args, macro: name, n: i + 1 });
+        }
+    }
+
+    async _checkMacro(args, honoured) {
+        const name = typeof args?.name === 'string' && args.name ? args.name : 'last';
+        const st = { steps: [], macroWrite: false };
+        try {
+            await this._expandMacro(name, st, []);
+        } catch (e) {
+            if (!(e instanceof Unreadable)) throw e;
+            return verdictOf({ verdict: 'refuse', message: `macro.play "${name}" cannot be checked against the engine rules, so it is not run: ${e.message}. Nothing ran.` });
+        }
+        if (!st.steps.some((s) => { const n = engineNeeded(s.command, s.args); return n && n.needs !== 'ssa'; })) return verdictOf();
+        const rec = await this.recommendation();
+        const known = new Set(this.registry.list().map((c) => c.id));
+        const where = (s) => `step ${s.n} of macro "${s.macro}" (${s.command})`;
+        let changedBy = null; // the first earlier step that may change what the recommendation is about
+        const warns = [];
+        for (const s of st.steps) {
+            const need = engineNeeded(s.command, s.args);
+            if (need && need.needs !== 'ssa') {
+                let v = checkEngine(s.command, rec, { override: honoured, args: s.args });
+                if (changedBy) {
+                    const after = `${where(changedBy)} can change the net before ${s.command} runs`;
+                    if (honoured === need.needs) {
+                        if (v.verdict === 'ok') v = verdictOf({ verdict: 'warn', needs: need.needs, recommended: rec?.engine ?? null, message: `${label(need.needs)} was asked for, and ${after}: checked against the net as it is now` });
+                    } else if (v.verdict !== 'refuse') {
+                        v = verdictOf({
+                            verdict: 'refuse', needs: need.needs, recommended: rec?.engine ?? null,
+                            message: `${s.command} needs the ${label(need.needs)}, and ${after}: the engine's recommendation was made for the net as it is now, not as that step leaves it (${RULES.firing.id}, ${RULES.population.id}). Nothing ran. Run the macro's steps one at a time, so each is checked against the net it will see.`,
+                        });
+                    }
+                }
+                if (v.verdict === 'refuse') return { ...v, message: `macro.play "${name}" would run ${where(s)}. ${v.message}` };
+                if (v.verdict === 'warn') warns.push({ ...v, message: `${where(s)}: ${v.message}` });
+            }
+            if (!changedBy && !KEEPS_RECOMMENDATION.has(s.command) && (isEdit(s.command, s.args) || !known.has(s.command))) changedBy = s;
+        }
+        if (!warns.length) return verdictOf();
+        const [first] = warns;
+        return verdictOf({
+            verdict: 'warn', needs: first.needs, recommended: first.recommended, rule: first.rule,
+            message: warns.map((w) => w.message).join('; '), overridden: warns.some((w) => w.overridden),
+        });
     }
 }
 
@@ -296,6 +459,8 @@ export class EngineGuard {
  * @param {{canOverride?: boolean}} [opts]
  */
 export function refusalText(verdict, { canOverride = false } = {}) {
+    // No engine behind the refusal (a macro the guard could not read): there is nothing to override.
+    if (!verdict.needs) return `refused: ${verdict.message} This is not an engine choice, so engine_override does not apply; if the macro's name or steps are wrong, fix those, or run its steps one at a time.`;
     const name = label(verdict.needs);
     return `refused: ${verdict.message} ` + (canOverride
         ? `If the person explicitly asked for the ${name}, call again with engine_override: "${verdict.needs}"; it is honoured only when their own message names the engine, and the answer then carries a warning chip.`

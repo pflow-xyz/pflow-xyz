@@ -1,5 +1,5 @@
 import { assert, assertEquals, assertFalse } from "https://deno.land/std@0.224.0/assert/mod.ts";
-import { ENGINE_NEEDS, EngineGuard, checkEngine, engineNeeded, modelKey, overrideAllowed, refusalText } from "./petri-engine-guard.js";
+import { ENGINE_NEEDS, EngineGuard, checkEngine, engineNeeded, isEdit, modelKey, needsGuard, overrideAllowed, refusalText } from "./petri-engine-guard.js";
 import { Registry, createHeadlessHost } from "./petri-commands.js";
 import { loadEngine } from "./petri-wasm.js";
 
@@ -373,4 +373,240 @@ Deno.test("each guarded command: with the person's override on the gated net it 
         assertEquals(v.verdict, "warn", id);
         assert(v.message.includes("the engine recommends SSA"), id);
     }
+});
+
+// ---- macro.play: the engine runs stored command steps by itself, so the guard reads them first ----
+//
+// The review finding: macro.define + macro.play ran analysis.diagnose on the
+// SIR-with-capacity net inside the native engine, past the guard (it logged
+// only macro.define and macro.play, and the verdict was ok with needs null).
+
+/** Define a macro, run fn, and forget it (macros are session state of the shared engine). */
+async function withMacros(r: any, defs: Record<string, any[]>, fn: () => Promise<void>) {
+    for (const [name, steps] of Object.entries(defs)) await r.execute("macro.define", { name, steps });
+    try { await fn(); } finally { for (const name of Object.keys(defs)) await r.execute("macro.delete", { name }).catch(() => {}); }
+}
+const diag = { command: "analysis.diagnose", args: { observable: "R", t_end: 5, noise: false } };
+const ode = { command: "sim.ode", args: { t_end: 5 } };
+const ssa = { command: "sim.ssa", args: { t_end: 5, runs: 2 } };
+// A macro's steps are the engine's own commands (macro.define refuses a JS-only id such as analysis.diagnose_ssa).
+/** Did the engine really run the one step (a curve stores an artifact, a ranking returns its knobs)? */
+const ranOnce = (out: any) => out?.results?.length === 1 && !!(out.results[0].artifact || out.results[0].knobs);
+
+Deno.test("macro.play: the audit says it is checked through its steps, not listed in the table", () => {
+    assert(needsGuard("macro.play", { name: "m" }));
+    assert(needsGuard("macro.play"));
+    assert(needsGuard("sim.ode") && needsGuard("sim.scenario", { scenario: { engine: "ode" } }));
+    assertFalse(needsGuard("sim.ssa") || needsGuard("net.info") || needsGuard("sim.scenario", { scenario: { hours: 5 } }));
+    assertEquals(engineNeeded("macro.play"), null, "it needs no single engine; its steps do");
+    assert(isEdit("macro.play", {}) && isEdit("net.add_arc", {}) && !isEdit("sim.ode", {}));
+});
+
+Deno.test("macro.play: a stored analysis.diagnose is refused on the gated net, with nothing run (the review's repro)", async () => {
+    const r = reg(gated());
+    await withMacros(r, { m: [diag] }, async () => {
+        const ran = counted(r);
+        const g = new EngineGuard(r);
+        const v = await g.check("macro.play", { name: "m" });
+        assertEquals(v.verdict, "refuse");
+        assertEquals([v.needs, v.recommended], ["ode", "ssa"]);
+        assert(v.rule?.includes("Rule 1"), String(v.rule));
+        assert(v.message.includes('macro.play "m"') && v.message.includes('step 1 of macro "m"') && v.message.includes("analysis.diagnose"), v.message);
+        assert(v.message.includes("capacity on I") && v.message.includes("Nothing ran") && v.message.includes("analysis.diagnose_ssa"), v.message);
+        assertFalse(ran.includes("macro.play") || ran.includes("analysis.diagnose"), `the guard only read: ${ran}`);
+        assertEquals(ran, ["macro.get", "sim.recommend"]);
+        // the control: the engine itself is not guarded, and it ranks on the ODE (the bug the guard closes)
+        const out = await r.execute("macro.play", { name: "m" });
+        assert(ranOnce(out) && out.results[0].baseline !== undefined, "the unguarded play ran the ODE ranking");
+    });
+});
+
+Deno.test("macro.play: a macro with no engine-dependent step is ok, and asks for no recommendation", async () => {
+    const r = reg(gated());
+    await withMacros(r, { quiet: [ssa, ssa], empty: [] }, async () => {
+        const ran = counted(r);
+        const g = new EngineGuard(r);
+        for (const name of ["quiet", "empty"]) {
+            const v = await g.check("macro.play", { name });
+            assertEquals(v.verdict, "ok", name);
+            assertEquals(v.needs, null);
+        }
+        assertEquals(ran.filter((id) => id === "sim.recommend").length, 0);
+    });
+});
+
+Deno.test("macro.play: on a large net the same macro is ok and runs; on the small net the ranking is refused and the curve warns", async () => {
+    await withMacros(reg(large()), { rank: [diag], curve: [ode] }, async () => {
+        const r = reg(large());
+        const g = new EngineGuard(r);
+        for (const name of ["rank", "curve"]) {
+            assertEquals((await g.check("macro.play", { name })).verdict, "ok", name);
+            assert(ranOnce(await r.execute("macro.play", { name })), name);
+        }
+    });
+    const r = reg(small());
+    await withMacros(r, { rank: [diag], curve: [ode], both: [ode, diag] }, async () => {
+        const g = new EngineGuard(r);
+        const curve = await g.check("macro.play", { name: "curve" });
+        assertEquals(curve.verdict, "warn");
+        assert(curve.message.startsWith('step 1 of macro "curve" (sim.ode): ODE on a net where the engine recommends SSA'), curve.message);
+        assert(curve.rule?.includes("Rule 2"));
+        const rank = await g.check("macro.play", { name: "rank" });
+        assertEquals(rank.verdict, "refuse");
+        assert(rank.rule?.includes("Rule 2") && rank.message.includes("analysis.diagnose_ssa"), rank.message);
+        // one refused step refuses the whole play, wherever it is
+        const both = await g.check("macro.play", { name: "both" });
+        assertEquals(both.verdict, "refuse");
+        assert(both.message.includes('step 2 of macro "both" (analysis.diagnose)'), both.message);
+    });
+});
+
+Deno.test("macro.play: every guarded command in a macro is held to the table, as a direct call is", async () => {
+    const r = reg(gated());
+    const args = await samples(reg(large()));
+    const defs: Record<string, any[]> = {};
+    for (const id of Object.keys(ENGINE_NEEDS)) defs[`m_${id.replace(".", "_")}`] = [{ command: id, args: args[id] }];
+    await withMacros(r, defs, async () => {
+        const g = new EngineGuard(r);
+        for (const id of Object.keys(ENGINE_NEEDS)) {
+            const v = await g.check("macro.play", { name: `m_${id.replace(".", "_")}` });
+            assertEquals(v.verdict, "refuse", id);
+            assertEquals(v.needs, (ENGINE_NEEDS as any)[id].needs, id);
+            assert(v.message.includes(id) && v.message.includes("Nothing ran"), id);
+        }
+    });
+});
+
+Deno.test("macro.play: a nested macro.play is expanded, the default macro is \"last\", and the recommendation is asked once", async () => {
+    const r = reg(gated());
+    await withMacros(r, { inner: [ssa, diag], outer: [ssa, { command: "macro.play", args: { name: "inner" } }], last: [ode, ode, ode] }, async () => {
+        const ran = counted(r);
+        const g = new EngineGuard(r);
+        const v = await g.check("macro.play", { name: "outer" });
+        assertEquals(v.verdict, "refuse");
+        assert(v.message.includes('macro.play "outer"') && v.message.includes('step 2 of macro "inner" (analysis.diagnose)'), v.message);
+        const d = await g.check("macro.play", {});
+        assertEquals(d.verdict, "refuse", "no name: the macro named last");
+        assert(d.message.includes('macro.play "last"'), d.message);
+        assertEquals(ran.filter((id) => id === "sim.recommend").length, 1);
+    });
+});
+
+Deno.test("macro.play: a macro the guard cannot read to the end is refused, not trusted unseen", async () => {
+    const r = reg(large()); // a net where every engine is fine: only the unreadable macro can be the reason
+    const deep: Record<string, any[]> = {};
+    for (let i = 0; i < 8; i++) deep[`d${i}`] = [i < 7 ? { command: "macro.play", args: { name: `d${i + 1}` } } : ode];
+    const long = Array.from({ length: 201 }, () => ssa);
+    await withMacros(r, {
+        loop: [{ command: "macro.play", args: { name: "loop" } }],
+        a: [{ command: "macro.play", args: { name: "b" } }], b: [{ command: "macro.play", args: { name: "a" } }],
+        rewrite: [{ command: "macro.define", args: { name: "late", steps: [ode] } }, { command: "macro.play", args: { name: "late" } }],
+        long, ...deep,
+    }, async () => {
+        const g = new EngineGuard(r);
+        const refused = async (name: string, why: string) => {
+            const v = await g.check("macro.play", { name });
+            assertEquals(v.verdict, "refuse", name);
+            assertEquals([v.needs, v.rule], [null, null], name);
+            assert(v.message.includes("cannot be checked") && v.message.includes(why) && v.message.includes("Nothing ran"), `${name}: ${v.message}`);
+        };
+        await refused("loop", "plays itself");
+        await refused("a", "a → b → a");
+        await refused("d0", "nest more than");
+        await refused("long", "more than 200 steps");
+        await refused("rewrite", "changes the macro table");
+        await refused("nope", 'macro.get "nope" failed');
+        // an override would not have changed it, so none is said to have been ignored
+        const asked = await g.check("macro.play", { name: "loop" }, { override: "ode", userText: "go on" });
+        assertEquals(asked.overrideIgnored, undefined);
+        assertFalse(asked.message.includes("engine_override"));
+        assertEquals((await g.check("macro.play", { name: "loop" }, { override: "ode", userText: "use the ODE" })).verdict, "refuse", "naming the engine does not make a macro readable");
+    });
+    // the same macro list on a net where it is fine: a macro that only reads is ok even when it plays another
+    await withMacros(r, { one: [ssa], two: [{ command: "macro.play", args: { name: "one" } }, ssa] }, async () => {
+        assertEquals((await new EngineGuard(r).check("macro.play", { name: "two" })).verdict, "ok");
+    });
+});
+
+Deno.test("macro.play: a step that may change the net's gating before a guarded step is refused, because the recommendation is for the net as it is now", async () => {
+    // the hole: on a net where the ODE is right, a macro adds an inhibitor arc and then runs sim.ode on a net it has just gated
+    const addGate = { command: "net.add_arc", args: { source: "S", target: "recover", inhibit: true } };
+    const probe = reg(large());
+    await withMacros(probe, { sneaky: [addGate, ode] }, async () => {
+        await probe.execute("macro.play", { name: "sneaky" });
+        assert((await probe.execute("sim.recommend")).gating.length > 0, "the unguarded play left the net gated and ran the ODE on it");
+    });
+
+    const r = reg(large());
+    const setRate = { command: "sim.set_rate", args: { id: "recover", rate: 0.2 } };
+    await withMacros(r, {
+        sneaky: [addGate, ode],
+        rank: [{ command: "net.add_tokens", args: { id: "S", delta: -890 } }, diag],
+        tame: [setRate, ode],
+        label: [{ command: "net.set_label", args: { id: "S", label: "susceptible" } }, { command: "net.move", args: { id: "S", x: 5, y: 5 } }, diag],
+        ssaOnly: [addGate, ssa],
+        later: [ode, addGate],
+        fit: [{ command: "opt.fit", args: { data: "a1", parameters: ["recover"], apply: true } }, ode],
+        unknown: [{ command: "edit.select_all", args: {} }, ode], // the engine's own command, one the page's registry does not have
+    }, async () => {
+        const g = new EngineGuard(r);
+        const sneaky = await g.check("macro.play", { name: "sneaky" });
+        assertEquals(sneaky.verdict, "refuse");
+        assertEquals(sneaky.needs, "ode");
+        assert(sneaky.message.includes('step 1 of macro "sneaky" (net.add_arc) can change the net before sim.ode runs'), sneaky.message);
+        assert(sneaky.message.includes("one at a time") && sneaky.message.includes("Nothing ran"), sneaky.message);
+        // tokens decide Rule 2 as the arcs decide Rule 1
+        assertEquals((await g.check("macro.play", { name: "rank" })).verdict, "refuse");
+        // a rate, a label or a position cannot change the recommendation, and neither can a fit that writes rates
+        for (const name of ["tame", "label", "fit"]) assertEquals((await g.check("macro.play", { name })).verdict, "ok", name);
+        // no guarded step after the edit, or only before it: nothing to doubt
+        for (const name of ["ssaOnly", "later"]) assertEquals((await g.check("macro.play", { name })).verdict, "ok", name);
+        // a command the registry does not know may be an engine-only edit
+        const unknown = await g.check("macro.play", { name: "unknown" });
+        assertEquals(unknown.verdict, "refuse");
+        assert(unknown.message.includes('step 1 of macro "unknown" (edit.select_all) can change the net'), unknown.message);
+        // the person naming the engine lifts it, as for any refusal: a chip, not silence
+        const asked = await g.check("macro.play", { name: "sneaky" }, { override: "ode", userText: "run the ODE" });
+        assertEquals(asked.verdict, "warn");
+        assert(asked.message.includes("ODE was asked for") && asked.message.includes("net.add_arc"), asked.message);
+        // the model's override alone does not
+        assertEquals((await g.check("macro.play", { name: "sneaky" }, { override: "ode", userText: "go on" })).verdict, "refuse");
+    });
+});
+
+Deno.test("macro.play: the override works through a macro as for a direct call, and an ignored one is said", async () => {
+    const r = reg(gated());
+    await withMacros(r, { m: [ode, diag] }, async () => {
+        const g = new EngineGuard(r);
+        const yes = await g.check("macro.play", { name: "m" }, { override: "ode", userText: "please use the ODE" });
+        assertEquals(yes.verdict, "warn");
+        assert(yes.overridden);
+        assert(yes.message.includes('step 1 of macro "m" (sim.ode): ODE on a net with capacity on I') && yes.message.includes('step 2 of macro "m" (analysis.diagnose): ODE on a net with'), yes.message);
+        const no = await g.check("macro.play", { name: "m" }, { override: "ode", userText: "run the simulation" });
+        assertEquals(no.verdict, "refuse");
+        assertEquals(no.overrideIgnored, "ode");
+        assert(no.message.includes("was not applied"));
+        // the wrong engine does not unlock it
+        assertEquals((await g.check("macro.play", { name: "m" }, { override: "sde", userText: "use the SDE" })).verdict, "refuse");
+    });
+});
+
+Deno.test("macro.play: a refusal with no engine behind it offers no engine_override", () => {
+    const v = { verdict: "refuse", needs: null, message: 'macro.play "m" cannot be checked against the engine rules, so it is not run: it plays itself. Nothing ran.' };
+    for (const canOverride of [false, true]) {
+        const t = refusalText(v as any, { canOverride });
+        assert(t.startsWith("refused: macro.play") && t.includes("Nothing ran"), t);
+        assertFalse(t.includes('engine_override: "') || t.includes("?"), t);
+    }
+});
+
+Deno.test("macro.play: a recommend that fails is the call's error, as for a direct call", async () => {
+    const r = reg(gated());
+    await withMacros(r, { m: [ode] }, async () => {
+        const real = r.execute.bind(r);
+        r.execute = (id: string, a: any) => (id === "sim.recommend" ? Promise.reject(new Error("recommend down")) : real(id, a));
+        let msg = "";
+        try { await new EngineGuard(r).check("macro.play", { name: "m" }); } catch (e) { msg = (e as Error).message; }
+        assertEquals(msg, "recommend down");
+    });
 });

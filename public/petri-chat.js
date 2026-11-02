@@ -19,22 +19,13 @@
 // scripted model.
 import { Registry, createHeadlessHost } from './petri-commands.js';
 import { decodeCall, summarizeResult } from './petri-tools.js';
-import { NATIVE_COMMANDS } from './vendor/pflow-native-wasm/commands.js';
-import { EngineGuard, engineNeeded, refusalText } from './petri-engine-guard.js';
+import { EngineGuard, isEdit, needsGuard, refusalText } from './petri-engine-guard.js';
 
-// Commands that change the document (or the token game's marking, which
-// lives in it): they make the sandbox differ from the live net.
-const EDITS = new Set(['file.new', 'edit.undo', 'edit.redo', 'edit.delete', 'sim.fire', 'sim.reset', 'sim.set_rate', 'sim.goto']);
-// pflow-native's commands that edit the net or move its marking (compose.fuse,
-// file.open_example, sim.run, data.discover …), the ones that edit it only
-// when called with apply (opt.fit, opt.distill, data.calibrate), and the one
-// that edits it only when its `model` names the open net (system.set_port).
-const NATIVE_EDITS = new Set(NATIVE_COMMANDS.filter((s) => s.edits || s.setsMarking).map((s) => s.id));
-const NATIVE_EDITS_ON_APPLY = new Set(NATIVE_COMMANDS.filter((s) => s.editsOnApply).map((s) => s.id));
-const NATIVE_EDITS_ON_CURRENT = new Map(NATIVE_COMMANDS.filter((s) => s.editsOnCurrent).map((s) => [s.id, s.editsOnCurrent]));
-export const isEdit = (id, args) => EDITS.has(id) || (id.startsWith('net.') && id !== 'net.info') || NATIVE_EDITS.has(id)
-    || (NATIVE_EDITS_ON_APPLY.has(id) && !!args?.apply)
-    || (NATIVE_EDITS_ON_CURRENT.has(id) && [undefined, 'current'].includes(args?.[NATIVE_EDITS_ON_CURRENT.get(id)]));
+// isEdit (which commands change the document, or the token game's marking,
+// which lives in it: they make the sandbox differ from the live net) lives in
+// the engine guard, which reads the same rule to judge a macro's steps; it is
+// exported from here too, for the packages that gate on it.
+export { isEdit };
 // Commands that act on the canvas: always the live registry.
 const VIEW = new Set(['view.highlight', 'view.clear_highlight', 'view.fit', 'artifact.show_set']);
 
@@ -191,7 +182,7 @@ export class ChatSession {
             entry.args = args;
             if (this.effectiveMode === 'explain' && isEdit(id, args)) throw new Error('explain mode does not edit; switch to build to change the net');
             if (!this.pending && !VIEW.has(id)) this._reseed();
-            if (!VIEW.has(id) && engineNeeded(id, args)) {
+            if (!VIEW.has(id) && needsGuard(id, args)) {
                 const userText = opts.userText ?? this._lastUserText();
                 const v = await this.guard.check(id, args, { override: opts.override, userText });
                 if (v.verdict === 'refuse') {

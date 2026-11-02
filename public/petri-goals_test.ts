@@ -383,3 +383,36 @@ Deno.test("goals: a reference to a number may be scaled, and an object key may b
     try { resolveArgs({ a: "$nope.x*2" }, ctx); } catch (e) { msg = (e as Error).message; }
     assert(msg.includes("unknown reference"), msg);
 });
+
+Deno.test("guard: a plan step that replays a stored macro is held to the table's rules, and nothing ran (macro.play is not a way around the guard)", async () => {
+    const rank = { name: "goal_rank", steps: [{ command: "analysis.diagnose", args: { observable: "R", t_end: 5, noise: false } }] };
+    const plan = (name: string) => ({ id: "replay", question: "?", inputs: [], plan: [{ command: "sim.recommend", args: {} }, { command: "macro.play", args: { name } }] });
+    const r: any = new Registry(createHeadlessHost(gatedSir()));
+    await r.execute("macro.define", rank);
+    try {
+        const ran = ranOn(r);
+        const seen: any[] = [];
+        const out = await runGoal(r, plan("goal_rank"), {}, (s: any) => seen.push(s));
+        assertEquals(out.ok, false);
+        const refused = out.steps[1];
+        assertEquals(refused.command, "macro.play");
+        assert(refused.refused.rule.includes("Rule 1") && refused.refused.message.includes('step 1 of macro "goal_rank" (analysis.diagnose)'), refused.refused.message);
+        assertEquals(refused.refused.recommended, "ssa");
+        assert(refused.error.startsWith("refused: "));
+        assertEquals(refused.result, undefined);
+        assertEquals(seen.at(-1), refused, "reported through onStep");
+        assert(!ran.includes("macro.play") && !ran.includes("analysis.diagnose"), `ran: ${ran}`);
+        assertEquals(r.artifacts().length, 0);
+        // the control: the unguarded plan replays the macro, which is the bypass
+        const r2: any = new Registry(createHeadlessHost(gatedSir()));
+        const unguarded = await runGoal(r2, plan("goal_rank"), {}, () => {}, { guard: false });
+        assert(unguarded.ok && unguarded.steps[1].result.results[0].baseline !== undefined);
+        // a large net replays it, with no chip
+        const big: any = new Registry(createHeadlessHost(largeSir()));
+        const fine = await runGoal(big, plan("goal_rank"), {});
+        assert(fine.ok, JSON.stringify(fine.steps.at(-1)));
+        assertEquals(fine.steps.filter((s: any) => s.refused || s.warning).length, 0);
+    } finally {
+        await r.execute("macro.delete", { name: "goal_rank" });
+    }
+});
