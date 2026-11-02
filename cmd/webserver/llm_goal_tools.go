@@ -48,6 +48,7 @@ type goalToolset struct {
 	names    map[string]bool
 	decls    []llm.FunctionDecl
 	goalIDs  map[string]bool                       // run_goal's goal_id enum: what a stats key may be
+	commands map[string]bool                       // the command ids run_command and command_schema accept: the index and the direct tools' commands
 	enums    map[string]map[string]map[string]bool // tool -> parameter -> allowed values
 	required map[string][]string
 	lead     string // the guidance: rules, brief catalog and command index
@@ -56,6 +57,14 @@ type goalToolset struct {
 // goalPseudoTools are the tools the interface answers itself; a manifest
 // without them is not a goal toolset.
 var goalPseudoTools = []string{"run_goal", "ask_user", "command_schema", "run_command", "open_view"}
+
+// goalCommandTools are the pseudo-tools that take a registry command's id as a
+// free string. Under "all" a command is a tool of its own, so the server's
+// allowlist refuses by name what the editor must not run (store.license,
+// model.save, file.load_json: the person's library and store). Here the id
+// travels as an argument, so the same allowlist is the set of ids the manifest
+// declares: the index and the direct tools' commands, nothing else.
+var goalCommandTools = map[string]bool{"run_command": true, "command_schema": true}
 
 // loadGoalToolset reads public/llm-goal-tools.json (scripts/gen-llm-tools.mjs)
 // and builds the lead text from it and goals.json. A missing file is the
@@ -72,6 +81,7 @@ func loadGoalToolset(public fs.FS) (*goalToolset, error) {
 		Version string `json:"version"`
 		Tools   []struct {
 			Name        string         `json:"name"`
+			Command     string         `json:"command"`
 			Ask         bool           `json:"ask"`
 			Description string         `json:"description"`
 			Parameters  map[string]any `json:"parameters,omitempty"`
@@ -88,6 +98,7 @@ func loadGoalToolset(public fs.FS) (*goalToolset, error) {
 		Version:  m.Version,
 		names:    map[string]bool{},
 		goalIDs:  map[string]bool{},
+		commands: map[string]bool{},
 		enums:    map[string]map[string]map[string]bool{},
 		required: map[string][]string{},
 	}
@@ -96,6 +107,9 @@ func loadGoalToolset(public fs.FS) (*goalToolset, error) {
 			return nil, fmt.Errorf("llm-goal-tools.json: tool %s twice", t.Name)
 		}
 		ts.names[t.Name] = true
+		if t.Command != "" {
+			ts.commands[t.Command] = true
+		}
 		ts.decls = append(ts.decls, llm.FunctionDecl{Name: t.Name, Description: t.Description, Parameters: t.Parameters})
 		props, _ := t.Parameters["properties"].(map[string]any)
 		for p, v := range props {
@@ -132,20 +146,29 @@ func loadGoalToolset(public fs.FS) (*goalToolset, error) {
 	if err != nil {
 		return nil, fmt.Errorf("goal catalog: %w", err)
 	}
-	// the two files are generated apart: a goal the tool offers must be in the brief
+	// the two files are generated apart, so the two sets must be the same, both
+	// ways: a goal the tool offers must be in the brief (else the model calls
+	// what the person is not told it can), and a goal the brief advertises must
+	// be in the tool's enum (else the model is told of a goal it cannot call)
 	inBrief := map[string]bool{}
 	for _, id := range ids {
 		inBrief[id] = true
 	}
-	for id := range ts.goalIDs {
+	for _, id := range sortedKeys(ts.goalIDs) {
 		if !inBrief[id] {
 			return nil, fmt.Errorf("llm-goal-tools.json offers goal %q, which goals.json does not have (run scripts/gen-llm-tools.mjs)", id)
+		}
+	}
+	for _, id := range ids {
+		if !ts.goalIDs[id] {
+			return nil, fmt.Errorf("goals.json has the available goal %q, which the goal_id enum of run_goal in llm-goal-tools.json lacks (run scripts/gen-llm-tools.mjs)", id)
 		}
 	}
 
 	var idx strings.Builder
 	idx.WriteString("Other commands (give the id to command_schema, then run_command; an id with no arguments needs no schema):\n")
 	for _, e := range m.CommandIndex {
+		ts.commands[e.ID] = true
 		fmt.Fprintf(&idx, "%s: %s\n", e.ID, e.Help)
 	}
 	ts.lead = goalRules + "\n\n" + brief + "\n\n" + strings.TrimRight(idx.String(), "\n")
@@ -165,9 +188,11 @@ func anyStrings(v any) []string {
 
 // problem is why a call of this toolset cannot be accepted ("" when it can):
 // a missing required argument, a value outside a declared enum (a goal id the
-// catalog does not have, an engine that is not ode or sde), or an ask_user
-// card that is not 2 to 4 options. The model is told (a refused call comes
-// back as the tool's error) and may call again; nothing reaches the browser.
+// catalog does not have, an engine that is not ode or sde), a command id that is
+// not one the manifest declares, or an ask_user card that is not 2 to 4
+// options. The model is told (a refused call comes back as the tool's error)
+// and may call again; nothing reaches the browser. The browser's registry
+// checks again, as the second layer; this one does not rely on it.
 func (ts *goalToolset) problem(name string, args map[string]any) string {
 	for _, r := range ts.required[name] {
 		if v, ok := args[r]; !ok || v == nil || v == "" {
@@ -183,6 +208,11 @@ func (ts *goalToolset) problem(name string, args map[string]any) string {
 			return fmt.Sprintf("%s must be one of %s", p, strings.Join(sortedKeys(ts.enums[name][p]), ", "))
 		}
 	}
+	if goalCommandTools[name] {
+		if why := ts.commandProblem(args["id"]); why != "" {
+			return why
+		}
+	}
 	if name == "ask_user" {
 		opts, _ := args["options"].([]any)
 		if len(opts) < 2 || len(opts) > 4 {
@@ -195,6 +225,27 @@ func (ts *goalToolset) problem(name string, args map[string]any) string {
 		}
 	}
 	return ""
+}
+
+// commandProblem is why v cannot be the id argument of run_command or
+// command_schema: not a string, or not one of the commands the manifest
+// declares (the index and the direct tools'). The reason says what to give
+// instead, and names the command when the model wrote the underscore form a
+// tool name would have (sim_ode for sim.ode).
+func (ts *goalToolset) commandProblem(v any) string {
+	id, ok := v.(string)
+	if !ok {
+		return "id must be a command id from the command index, a string such as sim.ode"
+	}
+	if ts.commands[id] {
+		return ""
+	}
+	for _, c := range sortedKeys(ts.commands) {
+		if strings.ReplaceAll(c, ".", "_") == id {
+			return fmt.Sprintf("id %.64q is not a command id: did you mean %s?", id, c)
+		}
+	}
+	return fmt.Sprintf("id %.64q is not a command of the command index; give an id from the index, such as sim.ode", id)
 }
 
 // goalOf is the goal a goals-toolset call is charged to in data/llm/goal-stats.json:

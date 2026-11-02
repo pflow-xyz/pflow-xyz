@@ -484,6 +484,125 @@ func TestGoalsToolsetUnavailableWithoutItsManifest(t *testing.T) {
 	}
 }
 
+// Under "all" a command is a tool of its own and the allowlist refuses by name
+// what the editor must not run. Under "goals" the command id is an argument of
+// run_command and command_schema, so the allowlist has to be the ids the
+// manifest declares (the index and the direct tools' commands): the browser's
+// refusal is the second layer, not the only one.
+func TestGoalsToolsetRefusesCommandIDsItDoesNotDeclare(t *testing.T) {
+	refusedIDs := []any{
+		"store.license", "file.load_json", "model.save", "model.delete", "store.put", "file.save", // the person's library and store
+		"../../etc/passwd", "nope", "", "sim.ode ", "SIM.ODE", "sim_ode", "net_add_place", "run_goal",
+		12, 1.5, true, nil, []any{"sim.ode"}, map[string]any{"id": "sim.ode"},
+	}
+	s := goalServer(t, &turnClient{})
+	gt := s.llm.goalTools
+	for _, tool := range []string{"run_command", "command_schema"} {
+		for _, id := range refusedIDs {
+			if why := gt.problem(tool, map[string]any{"id": id, "args": `{}`}); why == "" || !strings.Contains(why, "id") {
+				t.Errorf("%s id %#v: %q, want a refusal that names the id", tool, id, why)
+			}
+		}
+	}
+
+	// end to end, as the tool calls the interface would otherwise receive: the
+	// long tail that "all" refused by name is refused as an argument too
+	s.llm.client = &turnClient{resp: ok("x",
+		llm.FunctionCall{Name: "run_command", Args: map[string]any{"id": "store.license"}},
+		llm.FunctionCall{Name: "run_command", Args: map[string]any{"id": "file.load_json", "args": `{"json": "{}"}`}},
+		llm.FunctionCall{Name: "run_command", Args: map[string]any{"id": "model.save"}},
+		llm.FunctionCall{Name: "run_command", Args: map[string]any{"id": "../../etc/passwd"}},
+		llm.FunctionCall{Name: "command_schema", Args: map[string]any{"id": "nope"}},
+		llm.FunctionCall{Name: "command_schema", Args: map[string]any{"id": "store.license"}},
+		llm.FunctionCall{Name: "run_command", Args: map[string]any{"id": 12.0}},
+		llm.FunctionCall{Name: "run_command", Args: map[string]any{"id": "sim.ode", "args": `{"t_end": 5}`}},
+	)}
+	_, out, _ := post(t, s, turnBody("goals", "analyse", "hi"))
+	if len(out.Calls) != 1 || out.Calls[0].Args["id"] != "sim.ode" || len(out.Refused) != 7 {
+		t.Fatalf("accepted %+v refused %+v", out.Calls, out.Refused)
+	}
+	for _, r := range out.Refused {
+		if !strings.Contains(r.Reason, "id") {
+			t.Errorf("the model is told why: %+v", r)
+		}
+	}
+
+	// what the model hears: the id it wrote, cut short, and the id it probably meant
+	for id, want := range map[any]string{
+		"sim_ode":                "did you mean sim.ode?",
+		"net_add_place":          "did you mean net.add_place?",
+		"store.license":          `"store.license" is not a command of the command index`,
+		12:                       "a string such as sim.ode",
+		strings.Repeat("x", 500): `"` + strings.Repeat("x", 64) + `"`,
+	} {
+		got := gt.problem("run_command", map[string]any{"id": id})
+		if !strings.Contains(got, want) || len(got) > 250 {
+			t.Errorf("id %v: %q, want %q", id, got, want)
+		}
+	}
+	// a missing id is still the required-argument message
+	if got := gt.problem("run_command", map[string]any{}); got != "missing id" {
+		t.Errorf("%q", got)
+	}
+
+	// the ids the manifest declares are accepted by both tools: an index
+	// command, a direct tool's command (also reachable through run_command),
+	// and one the lead's own example names
+	for _, id := range []string{"sim.ode", "compose.fuse", "file.new", "net.add_place", "net.info", "edit.undo", "view.fit", "game.move"} {
+		for _, tool := range []string{"run_command", "command_schema"} {
+			if got := gt.problem(tool, map[string]any{"id": id}); got != "" {
+				t.Errorf("%s %s: %q", tool, id, got)
+			}
+		}
+	}
+	// other tools carry no command id of their own to check: an id there is not this allowlist's business
+	if got := gt.problem("net_info", map[string]any{"id": "p1"}); got != "" {
+		t.Errorf("net_info: %q", got)
+	}
+}
+
+// The set run_command accepts is the set of commands "all" declares as tools,
+// exactly: no command the editor does not already reach through its tools
+// (the excluded and the session-writing ones), and none of them dropped.
+func TestGoalsToolsetCommandIDsAreExactlyTheFullManifests(t *testing.T) {
+	raw, err := os.ReadFile("../../public/llm-tools.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var full struct {
+		Tools []struct {
+			Name    string `json:"name"`
+			Command string `json:"command"`
+		} `json:"tools"`
+	}
+	if err := json.Unmarshal(raw, &full); err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]bool{}
+	for _, tl := range full.Tools {
+		want[tl.Command] = true
+	}
+	gt := goalServer(t, &turnClient{}).llm.goalTools
+	for id := range gt.commands {
+		if !want[id] {
+			t.Errorf("run_command accepts %s, which the full manifest does not declare", id)
+		}
+	}
+	for id := range want {
+		if !gt.commands[id] {
+			t.Errorf("run_command cannot reach %s, which the full manifest declares", id)
+		}
+	}
+	for _, id := range []string{"store.license", "file.load_json", "model.save"} {
+		if gt.commands[id] || want[id] {
+			t.Errorf("%s is declared", id)
+		}
+	}
+	if len(gt.commands) < 50 {
+		t.Errorf("only %d commands", len(gt.commands))
+	}
+}
+
 func TestLoadGoalToolsetIsStrictAboutItsFiles(t *testing.T) {
 	good, _ := os.ReadFile("../../public/llm-goal-tools.json")
 	goals, _ := os.ReadFile("../../public/goals.json")
@@ -497,6 +616,30 @@ func TestLoadGoalToolsetIsStrictAboutItsFiles(t *testing.T) {
 	if _, err := loadGoalToolset(files(string(good), goals)); err != nil {
 		t.Fatalf("the shipped files: %v", err)
 	}
+	// the manifest with one goal taken out of run_goal's enum: goals.json still
+	// advertises it in the brief, so the model would be told of a goal it cannot call
+	var doc map[string]any
+	if err := json.Unmarshal(good, &doc); err != nil {
+		t.Fatal(err)
+	}
+	var kept []any
+	for _, tl := range doc["tools"].([]any) {
+		tool := tl.(map[string]any)
+		if tool["name"] != "run_goal" {
+			continue
+		}
+		enum := tool["parameters"].(map[string]any)["properties"].(map[string]any)["goal_id"].(map[string]any)
+		for _, g := range enum["enum"].([]any) {
+			if g != "stuck" {
+				kept = append(kept, g)
+			}
+		}
+		if len(kept) != len(enum["enum"].([]any))-1 {
+			t.Fatal("stuck is not in the shipped enum")
+		}
+		enum["enum"] = kept
+	}
+	withoutStuck, _ := json.Marshal(doc)
 	if _, err := loadGoalToolset(nil); err == nil {
 		t.Error("no public filesystem")
 	}
@@ -505,12 +648,13 @@ func TestLoadGoalToolsetIsStrictAboutItsFiles(t *testing.T) {
 		goals    []byte
 		want     string
 	}{
-		"missing manifest":    {"", goals, "file does not exist"},
-		"not json":            {"{", goals, "llm-goal-tools.json"},
-		"no goal catalog":     {string(good), []byte("nope"), "goal catalog"},
-		"no pseudo-tools":     {`{"version":"x","tools":[{"name":"net_info","description":"d"}]}`, goals, "no run_goal tool"},
-		"a goal not in goals": {strings.Replace(string(good), `"stuck",`, `"stuck", "vanished",`, 1), goals, `"vanished"`},
-		"twice":               {strings.Replace(string(good), `"name": "ask_user"`, `"name": "run_goal"`, 1), goals, "twice"},
+		"missing manifest":       {"", goals, "file does not exist"},
+		"not json":               {"{", goals, "llm-goal-tools.json"},
+		"no goal catalog":        {string(good), []byte("nope"), "goal catalog"},
+		"no pseudo-tools":        {`{"version":"x","tools":[{"name":"net_info","description":"d"}]}`, goals, "no run_goal tool"},
+		"a goal not in goals":    {strings.Replace(string(good), `"stuck",`, `"stuck", "vanished",`, 1), goals, `"vanished"`},
+		"a goal not in the enum": {string(withoutStuck), goals, `goals.json has the available goal "stuck"`},
+		"twice":                  {strings.Replace(string(good), `"name": "ask_user"`, `"name": "run_goal"`, 1), goals, "twice"},
 	} {
 		if _, err := loadGoalToolset(files(tc.manifest, tc.goals)); err == nil || !strings.Contains(err.Error(), tc.want) {
 			t.Errorf("%s: %v, want an error with %q", name, err, tc.want)
