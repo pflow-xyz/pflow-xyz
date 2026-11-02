@@ -4431,6 +4431,11 @@ canvas.pv-canvas {
 .pv-ask-note[data-kind="error"] {
     color: var(--pv-danger);
 }
+/* New and Send wait for the answer that is coming */
+.pv-ask .pv-btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
 .pv-ask-follow {
     display: flex;
     flex-wrap: wrap;

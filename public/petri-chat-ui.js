@@ -4,6 +4,12 @@
 // message, the head shows the label as a chip ("Analysing") and "Not what I meant" opens a small menu to send the message
 // again as Build, Analyse or Explain (ChatSession.resend). Explain never edits (ChatSession enforces it).
 //
+// Describe is the first turn of a build conversation on an empty canvas (design 4.6). The server labels a message in the
+// call that answers it, so in auto mode there is no label before the first message: on an empty canvas the words decide
+// (petri-ask-pane.js sendPlan: a description is drafted, a question goes to the model), and "Not what I meant" corrects
+// either way (a described net is withdrawn and its words sent as Analyse or Explain; a question can be drafted by Build
+// instead). A message after a described net refines the pending net; Regenerate is the only way to draft again.
+//
 // What the pane is made of:
 //   the head          the title, the intent chip with its menu, New, close
 //   the state line    why the model cannot be asked, when it cannot (askState: the five states below), with the one
@@ -324,6 +330,7 @@ class AskPane {
     }
 
     newConversation() {
+        if (this.busy) return; // a turn still running would land its answer in the new conversation
         const mode = 'auto';
         this.session(mode);
         this.draft = null;
@@ -332,12 +339,23 @@ class AskPane {
         this.retried = false;
         this.quotaLeft = undefined;
         this.openCard = null;
-        this.results.items.clear();
+        this.results.reset();
         this.log.innerHTML = '';
         this.$('.pv-chat-calls').innerHTML = '';
         this.toolsListed = null;
         this.paintAll();
         this.view._chatKeep = { chat: this.chat };
+    }
+
+    /** A turn (or a draft) is under way: the box and New wait for it; nothing else about the pane changes. */
+    setBusy(on) {
+        this.busy = on;
+        this.sendBtn.disabled = on;
+        const fresh = this.$('[data-act="new"]');
+        fresh.disabled = on;
+        fresh.title = on ? 'Available when the answer has finished' : 'Start a new conversation';
+        if (on) this.panel.setAttribute('aria-busy', 'true');
+        else this.panel.removeAttribute('aria-busy');
     }
 
     // ---- the state ----
@@ -428,14 +446,16 @@ class AskPane {
 
     // ---- the empty log: suggested questions and the goal cards ----
 
+    /** The conversation has begun: the empty state goes, and one still being made (it awaits the suggestions) is not wanted any more. */
     hideEmpty() {
+        this.emptyToken++;
         this.log.querySelector('.pv-ask-empty')?.remove();
     }
 
     /** The empty state, while the log holds nothing else: suggestions for this net (changing with it) and the goal cards. */
     async refreshEmpty() {
-        const fresh = [...this.log.children].every((c) => c.classList.contains('pv-ask-empty'));
-        if (!fresh) return;
+        const fresh = () => [...this.log.children].every((c) => c.classList.contains('pv-ask-empty'));
+        if (!fresh()) return;
         const token = ++this.emptyToken;
         const model = this.view.getModel();
         const a = this.ask;
@@ -456,7 +476,8 @@ class AskPane {
                 <div class="pv-ask-label">All the questions</div>
                 <div class="pv-ask-grid" role="list">${goals.map((g) => `<button type="button" class="pv-ask-goalcard" role="listitem" data-pane="goal" data-goal="${esc(g.id)}"><b>${esc(g.question)}</b><span class="pv-result-dim">${esc(firstSentence(g.answer))}</span></button>`).join('')}</div>`;
         }
-        if (token !== this.emptyToken) return;
+        // (the suggestions take a moment: a message sent meanwhile, or a card that landed, means the log is not empty any more)
+        if (token !== this.emptyToken || !fresh()) return;
         const old = this.log.querySelector('.pv-ask-empty');
         if (old) old.replaceWith(box);
         else this.log.appendChild(box);
@@ -469,7 +490,7 @@ class AskPane {
         const mode = this.shownIntent || this.chat.intent;
         const chip = intentChip(mode);
         const wrap = this.$('.pv-ask-intent');
-        const started = this.chat.messages.length > 0;
+        const started = this.chat.messages.length > 0 || !!this.draft; // (a described net is a message sent, with no model turn)
         const show = !!chip && (this.chat.mode !== 'auto' || started || !!this.shownIntent);
         wrap.hidden = !show;
         if (chip) {
@@ -499,8 +520,10 @@ class AskPane {
         if (this.busy) return;
         const to = normalizeIntent(intent);
         if (!to) return;
+        if (this.draft && !this.chat.messages.length) return this.resendDescribed(to);
         const started = this.chat.messages.filter((m) => m.role === 'user' && !m.parts?.some((p) => p.functionResponse)).length;
-        if (to === 'build' && started === 1 && emptyCanvas(this.view.getModel()) && this.ask.canAsk) {
+        // (not with a described net pending: a message after it refines that net, and drafting it again would replace the net)
+        if (to === 'build' && started === 1 && !this.draft && emptyCanvas(this.view.getModel()) && this.ask.canAsk) {
             const text = this.chat.rewind();
             this.dropTurnFromLog();
             this.markTurn();
@@ -517,6 +540,25 @@ class AskPane {
             if (this.chat.mode !== 'auto') this.chat.setMode(to); // a session that was stated stays as it was corrected
             return out;
         });
+    }
+
+    /** "Not what I meant" on a described message (it has no model turn to rewind): the draft is withdrawn and the same words go to the model as the other intent. */
+    async resendDescribed(to) {
+        const text = this.draft.description;
+        this.chat.discard();
+        this.draft = null;
+        this.shownIntent = null;
+        this.dropTurnFromLog();
+        this.renderPending();
+        this.markTurn();
+        this.userBubble = this.say('user', text);
+        this.lastText = text;
+        this.chat.force(to);
+        await this.runTurn(async () => {
+            const out = await this.chat.send(text, (ev) => this.onEvent(ev));
+            if (this.chat.mode !== 'auto') this.chat.setMode(to);
+            return out;
+        }, text);
     }
 
     /** A marker in the log where a turn begins, so that "Not what I meant" can take the whole turn out of it. */
@@ -555,7 +597,7 @@ class AskPane {
         if (!text || this.busy) return;
         const plan = sendPlan({
             ask: this.ask, intent: as ? normalizeIntent(as) : this.chat.intent, canvasEmpty: emptyCanvas(this.view.getModel()),
-            started: this.chat.messages.length > 0, text,
+            started: this.chat.messages.length > 0, pending: !!(this.draft || this.chat.pending), text,
         });
         if (plan.do === 'nothing') return;
         this.input.value = '';
@@ -575,9 +617,7 @@ class AskPane {
 
     /** One turn of the model, however it was started (send, answer, resend): the busy state around it, and what a failure does. */
     async runTurn(fn, text = this.lastText, { fresh = true, rewind = true } = {}) {
-        this.busy = true;
-        this.sendBtn.disabled = true;
-        this.panel.setAttribute('aria-busy', 'true');
+        this.setBusy(true);
         if (fresh) this.results.beginTurn();
         this.retried = false;
         // On a phone an open Tools section stands in for the log (petri-view.css): the answer has to be in sight.
@@ -589,9 +629,7 @@ class AskPane {
         } catch (err) {
             this.failed(err, text, { rewind });
         } finally {
-            this.busy = false;
-            this.sendBtn.disabled = false;
-            this.panel.removeAttribute('aria-busy');
+            this.setBusy(false);
             this.setStatusLine('');
             this.paintState();
             this.updateIntent();
@@ -694,8 +732,10 @@ class AskPane {
         const btn = formEl?.querySelector('button[type="submit"]');
         btn?.setAttribute('aria-disabled', 'true');
         this.setStatusLine(`Running “${goal.question}”…`);
+        const epoch = this.results.epoch;
         try {
             const entry = await this.runner.runCall({ name: 'run_goal', args: { goal_id: goal.id, inputs: JSON.stringify(inputs) } }, 0, { userText });
+            if (epoch !== this.results.epoch) return; // New was pressed while it ran: this card belongs to the old conversation
             this.renderCall(entry);
             if (!entry.ok) {
                 if (summary) { summary.hidden = false; summary.textContent = entry.error; }
@@ -809,11 +849,10 @@ class AskPane {
 
     /** The first message on an empty canvas as a build: /api/llm/draft, the gate, and the net as the pending change. */
     async describe(description) {
-        const D = await import('./petri-draft-ui.js');
-        this.busy = true;
-        this.sendBtn.disabled = true;
+        this.setBusy(true);
         this.setStatusLine('Asking Gemini for a draft…');
         try {
+            const D = await import('./petri-draft-ui.js');
             let got = await D.requestDraft(this.view, description);
             if (!got.ok && !got.aborted && got.status !== 429 && isTransient(draftError(got))) {
                 this.retried = true;
@@ -837,8 +876,7 @@ class AskPane {
             this.shownIntent = 'build';
             this.say('note', `Drafted a net from your description. It is a pending change: read it, edit the rates, then Apply.`);
         } finally {
-            this.busy = false;
-            this.sendBtn.disabled = false;
+            this.setBusy(false);
             this.setStatusLine('');
             this.updateIntent();
             await this.renderPending();
@@ -932,10 +970,14 @@ class AskPane {
         if (!p || (!p.notes?.length && !p.assumptions?.length)) return '';
         const summary = p.notes.find((n) => n.kind === 'summary');
         const legend = p.notes.filter((n) => n.kind !== 'summary');
+        // The rates are the pending net's own: a refinement the assistant made after the draft (a rate changed, a transition gone) shows here.
+        const live = this.chat.model().transitions || {};
+        const assumptions = p.assumptions.filter((a) => a.kind !== 'rate' || live[a.transition])
+            .map((a) => (a.kind === 'rate' && Number.isFinite(live[a.transition].rate) ? { ...a, value: live[a.transition].rate } : a));
         return `<div class="pv-ask-proposal">
             <div class="pv-ask-label">Assumptions <span class="pv-result-dim">(Gemini's draft notes)</span></div>
             ${summary ? `<p>${esc(summary.text)}</p>` : ''}
-            <ul class="pv-ask-assume">${p.assumptions.map((a) => (a.kind === 'rate'
+            <ul class="pv-ask-assume">${assumptions.map((a) => (a.kind === 'rate'
                 ? `<li class="pv-ask-rate"><label>Rate of <b>${esc(a.label)}</b> <input type="text" inputmode="decimal" autocomplete="off" spellcheck="false" data-rate="${esc(a.transition)}" value="${esc(a.value)}" aria-label="Rate of ${esc(a.label)}"></label><span class="pv-form-err" role="alert" hidden></span></li>`
                 : `<li>${esc(a.text)}</li>`)).join('') || '<li>None stated.</li>'}</ul>
             ${legend.length ? `<details><summary>What each part stands for (${legend.length})</summary><ul>${legend.map((n) => `<li><strong>${esc(n.label || n.id)}</strong> <span class="pv-result-dim">${esc(n.kind)}</span> ${esc(n.text)}</li>`).join('')}</ul></details>` : ''}
@@ -1070,7 +1112,9 @@ class AskPane {
             R.wireArtifact(box, art, (cid, cargs) => this.live.execute(cid, cargs), (m) => this.say('note', m));
         }));
         li.querySelector('[data-act="rerun"]')?.addEventListener('click', async () => {
+            const epoch = this.results.epoch;
             const again = await this.chat.rerun(entry);
+            if (epoch !== this.results.epoch) return;
             this.renderCall(again);
             if (again.ok && again.kind === 'goal') this.results.add(again.result, { pickedBy: 'you' });
             this.renderPending();

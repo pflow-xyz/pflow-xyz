@@ -1,5 +1,5 @@
 import { assert, assertEquals, assertFalse, assertRejects } from "https://deno.land/std@0.224.0/assert/mod.ts";
-import { ChatSession, GOAL_ANSWER_MAX, ODE_BOUND_RULE, ODE_TRIAL, diffNets, goalAnswer, isEdit, isGoalManifest, odeFinishes, prepareGoalInputs, toolsFor } from "./petri-chat.js";
+import { ChatSession, GOAL_ANSWER_MAX, ODE_BOUND_RULE, ODE_TRIAL, diffNets, goalAnswer, isEdit, isGoalManifest, netRevision, odeFinishes, prepareGoalInputs, toolsFor } from "./petri-chat.js";
 import { assumptionLines, taggedLines } from "./petri-ask.js";
 import { artifactDigest } from "./petri-viewspec.js";
 import { panelFrame } from "./petri-panel-frame.js";
@@ -1370,6 +1370,27 @@ Deno.test("rerunResult: edited settings run unguarded, are recorded as the perso
     const later = await chat.rerunResult(first);
     assert(later.record.assumed.some((a: any) => a.text.includes("net has changed since")), JSON.stringify(later.record.assumed));
     assert(later.record.net.revision !== first.record.net.revision);
+});
+
+Deno.test("a result's revision leaves the layout out: dragging a node (or laying the net out) is not a change, and a rerun after it says nothing of the sort", async () => {
+    const { chat } = goalSession(smallNet(), []);
+    const first = (await chat.runCall(run("risk"))).result;
+    assertEquals(first.record.net.revision, netRevision((chat.live as any).host.getModel()), "the result carries the revision of the net it ran on, layout aside");
+    const host = (chat.live as any).host;
+    const moved = structuredClone(host.getModel());
+    for (const p of Object.values(moved.places) as any[]) { p.x += 40; p.y += 25; }
+    for (const t of Object.values(moved.transitions) as any[]) { t.x -= 10; }
+    host.commit(moved, "drag");
+    const again = await chat.rerunResult(first);
+    assertEquals(again.record.net.revision, first.record.net.revision, "a drag is the same revision");
+    assertFalse(again.record.assumed.some((a: any) => a.text.includes("net has changed since")), JSON.stringify(again.record.assumed));
+    // a rate is not layout
+    const edited = structuredClone(host.getModel());
+    edited.transitions[Object.keys(edited.transitions)[0]].rate = 3.25;
+    host.commit(edited, "rate");
+    const later = await chat.rerunResult(first);
+    assert(later.record.net.revision !== first.record.net.revision);
+    assert(later.record.assumed.some((a: any) => a.text.includes("net has changed since")));
 });
 
 Deno.test("rerunResult: unguarded, but an engine the net's recommendation advises against still carries the guard's chip", async () => {

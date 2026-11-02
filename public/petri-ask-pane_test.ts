@@ -1,10 +1,11 @@
 import { assert, assertEquals, assertFalse, assertRejects } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import {
     announcement, availableGoals, cardForm, cardModel, changeControl, digestsOf, draftError, editSettings, emptyCanvas, goalCard, isStaleResult,
-    notThatText, patchForChange, patchFromEdit, proposalFromDraft, retryingPoster, routeCards, sameEvidence, sendPlan, setRate, toolsInfo, withChange, gateOf,
+    notThatText, patchForChange, patchFromEdit, proposalFromDraft, readsAsQuestion, retryingPoster, routeCards, sameEvidence, sendPlan, setRate, toolsInfo, withChange, gateOf,
 } from "./petri-ask-pane.js";
+import { netKey } from "./petri-results-pane.js";
 import { askState } from "./petri-ask.js";
-import { ChatSession } from "./petri-chat.js";
+import { ChatSession, netRevision } from "./petri-chat.js";
 import { modelKey } from "./petri-engine-guard.js";
 import { Registry, createHeadlessHost } from "./petri-commands.js";
 import { readValues } from "./petri-schema-form.js";
@@ -62,8 +63,32 @@ Deno.test("sendPlan: the agent when it can be asked, the router when not, Descri
     assertEquals(sendPlan({ ...base, intent: "analyse", canvasEmpty: true }).do, "agent");
     assertEquals(sendPlan({ ...base, intent: "build", canvasEmpty: true, started: true }).do, "agent");
     assertEquals(sendPlan({ ...base, intent: "build", canvasEmpty: true, ask: signedOut }).do, "route");
-    // the intent is not known before the message in auto mode (the server labels it in the same call): the agent builds
-    assertEquals(sendPlan({ ...base, intent: null, canvasEmpty: true }).do, "agent");
+    // the intent is not known before the message in auto mode (the server labels it in the same call): the words decide.
+    // A description is drafted, a question goes to the model; "Not what I meant" corrects either
+    assertEquals(sendPlan({ ...base, intent: null, canvasEmpty: true, text: "A coffee shop with two baristas" }).do, "draft");
+    assertEquals(sendPlan({ ...base, intent: null, canvasEmpty: true }).do, "agent", "how bad can it get? is a question");
+    assertEquals(sendPlan({ ...base, intent: null, canvasEmpty: true, started: true, text: "A coffee shop with two baristas" }).do, "agent");
+    assertEquals(sendPlan({ ...base, intent: null, canvasEmpty: false, text: "A coffee shop with two baristas" }).do, "agent", "on a net that has something it is a question about that net");
+    assertEquals(sendPlan({ ...base, intent: "analyse", canvasEmpty: true, text: "A coffee shop with two baristas" }).do, "agent", "a stated intent is not overruled");
+});
+
+Deno.test("sendPlan: with a described net pending, a message is a refinement of it, never a second draft (build or auto)", () => {
+    const base = { ask: agent, canvasEmpty: true, started: false, text: "make it three baristas" };
+    // the state the pane is in after Describe: the canvas is still empty and the conversation has no model message yet (describe() adds none)
+    assertEquals(sendPlan({ ...base, intent: "build" }).do, "draft", "(nothing pending: the first description)");
+    assertEquals(sendPlan({ ...base, intent: "build", pending: true }).do, "agent");
+    assertEquals(sendPlan({ ...base, intent: null, pending: true, text: "A coffee shop with three baristas" }).do, "agent");
+    assertEquals(sendPlan({ ...base, intent: "build", pending: false, started: true }).do, "agent");
+});
+
+Deno.test("readsAsQuestion: a build request is not a question, even phrased as one; a description is not; questions are", () => {
+    for (const t of ["How bad can it get?", "What is a Petri net", "why does the queue grow", "Is it deadlock free?", "Explain places and transitions", "tell me about tokens", "What is a Petri net model?", "How does the model react?"]) {
+        assert(readsAsQuestion(t), t);
+    }
+    for (const t of ["A coffee shop with two baristas", "Customers arrive, queue, order, and leave once served.", "Build a queue with two servers", "can you build a bakery with an oven?", "Please model an SIR epidemic", "make it three baristas", "Describe a process: orders are paid and shipped", "an SIR epidemic in a town of 1000", "simulate a traffic light"]) {
+        assertFalse(readsAsQuestion(t), t);
+    }
+    assertFalse(readsAsQuestion("   "));
 });
 
 Deno.test("emptyCanvas: no places and no transitions", () => {
@@ -228,12 +253,47 @@ Deno.test("isStaleResult: the revision against the net now; a pending result aga
 Deno.test("isStaleResult: a real result is fresh on the net it ran on and stale after an edit", async () => {
     const { chat, live } = session();
     const result = await runGoal(chat, "average", {});
-    const key = () => modelKey(createHeadlessHost(structuredClone(live.host.getModel())).getModel());
+    const key = () => netKey(live.host.getModel());
     assertFalse(isStaleResult(result, { liveKey: key() }), "the key the pane computes is the key the result carries");
     const edited = structuredClone(live.host.getModel());
     edited.transitions.infect.rate = 0.5;
     live.host.commit(edited, "edit");
     assert(isStaleResult(result, { liveKey: key() }));
+});
+
+Deno.test("isStaleResult: moving a node, or the layout a described net gets on Apply, does not make a result stale; a rate, a token, a capacity or an arc does", async () => {
+    const { chat, live } = session();
+    const result = await runGoal(chat, "average", {});
+    const change = (edit: (m: any) => void) => {
+        const m = structuredClone(live.host.getModel());
+        edit(m);
+        live.host.commit(m, "edit");
+        return isStaleResult(result, { liveKey: netKey(live.host.getModel()) });
+    };
+    assertFalse(change((m) => { m.places.susceptible.x += 30; m.places.susceptible.y -= 12; m.transitions.infect.x += 5; }), "a drag");
+    assertFalse(change((m) => { for (const p of Object.values(m.places) as any[]) { p.x = p.x * 2 + 1; p.offset = 3; } for (const t of Object.values(m.transitions) as any[]) t.y = 400; }), "a layout");
+    assert(change((m) => { m.places.infected.initial = [5]; }), "a marking is an edit");
+    live.host.commit(structuredClone(chat.model()), "back"); // (the net the result ran on again: not stale)
+    assertFalse(isStaleResult(result, { liveKey: netKey(live.host.getModel()) }));
+    assert(change((m) => { m.places.infected.capacity = [4]; }), "a capacity is an edit");
+    live.host.commit(structuredClone(chat.model()), "back");
+    assert(change((m) => { m.arcs.pop(); }), "an arc is an edit");
+});
+
+Deno.test("netRevision: the same key for a net and the same net laid out elsewhere; a different one for any change an engine can see; modelKey (the guard's cache) still sees the layout", () => {
+    const net = sir();
+    const moved = structuredClone(net) as any;
+    for (const p of Object.values(moved.places) as any[]) { p.x += 17; p.y += 3; }
+    moved.transitions.infect.x = 999;
+    assertEquals(netRevision(moved), netRevision(net));
+    assert(netRevision(net).includes(":"));
+    for (const edit of [(m: any) => { m.transitions.recover.rate = 0.07; }, (m: any) => { m.places.recovered.initial = [1]; }, (m: any) => { m.arcs[0].weight = [2]; }, (m: any) => { delete m.transitions.recover; }]) {
+        const m = structuredClone(net) as any;
+        edit(m);
+        assert(netRevision(m) !== netRevision(net));
+    }
+    assert(modelKey(moved) !== modelKey(net), "the guard's cache key is not layout-free: it was not changed");
+    assertEquals(typeof netRevision({}), "string", "a net with nothing in it does not throw");
 });
 
 // ---- Change ----
@@ -274,6 +334,25 @@ Deno.test("patchForChange: a number goes in as a number, scaled where the plan s
     // a model the plan has no reference for
     assertEquals(patchForChange(result, goal, { input: "nonesuch", kind: "place" }, "R"), null);
     assertEquals(patchForChange({ record: { calls: [] } }, goal, { input: "x" }, 1), null);
+});
+
+Deno.test("patchForChange: a blank value (the optional input's '(the command picks)' option) takes the argument out; it is never an empty string for the command to refuse", async () => {
+    const { chat } = session();
+    const goal = catalog.goals.find((g: any) => g.id === "knob");
+    const result = await runGoal(chat, "knob", { observable: "infected" });
+    const patch = patchForChange(result, goal, { input: "observable", kind: "place" }, "")!;
+    const at = result.record.calls.findIndex((c: any) => c.command.startsWith("analysis.diagnose"));
+    assert("observable" in patch[at]! && patch[at]!.observable === undefined, JSON.stringify(patch));
+    // ... a rerun with it runs, with the key gone from the call; the empty string itself is what the command refuses
+    const ran = await chat.rerunResult(result, { args: patch });
+    assertFalse("observable" in ran.record.calls[at].args);
+    await assertRejects(() => chat.rerunResult(result, { args: patch.map((p: any) => (p ? { observable: "" } : p)) }), Error, "is not a place or transition");
+    // a blank number is not "not a number": it is no number
+    assertEquals((patchForChange({ record: { calls: [{ command: "sim.x", args: { a: 1 } }] } }, { plan: [{ command: "sim.x", args: { a: "$input.m" } }] }, { input: "m", kind: "number" }, "")![0] as any)?.a, undefined);
+    // withChange says so, and the inputs lose the key
+    const again = withChange({ inputs: { observable: "infected" }, assumed: [{ key: "observable", how: "unnamed", label: "outcome", text: "x" }] }, { key: "observable", how: "unnamed", label: "outcome", change: { input: "observable" } }, "");
+    assertFalse("observable" in again.inputs);
+    assertEquals(again.assumed[0].text, "outcome: left to the command (changed by you)");
 });
 
 Deno.test("patchForChange: a scaled reference ($input.max_rate*0.5) multiplies", () => {

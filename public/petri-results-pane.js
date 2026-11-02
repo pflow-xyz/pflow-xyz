@@ -42,16 +42,16 @@ import { footerHtml, mcpCallText, wireFooter } from './petri-provenance.js';
 import { renderMarkdown } from './petri-markdown.js';
 import { announcement, cardModel, editSettings, isStaleResult, patchForChange, patchFromEdit, sameEvidence, withChange } from './petri-ask-pane.js';
 import { readForm, renderFormHtml, showFormErrors } from './petri-schema-form.js';
-import { modelKey } from './petri-engine-guard.js';
+import { netRevision } from './petri-chat.js';
 import { createHeadlessHost } from './petri-commands.js';
 
 function esc(s) {
     return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
-/** modelKey of a net as the sessions' sandboxes hold it (normalized the way createHeadlessHost does), so a fresh result is not "stale" on sight. */
+/** The revision of a net as the sessions' sandboxes hold it (normalized the way createHeadlessHost does), so a fresh result is not "stale" on sight. Layout is not part of it (petri-chat.js netRevision). */
 export function netKey(model) {
-    return modelKey(createHeadlessHost(structuredClone(model)).getModel());
+    return netRevision(createHeadlessHost(structuredClone(model)).getModel());
 }
 
 let cardSeq = 0;
@@ -69,6 +69,14 @@ export class ResultsList {
         this.items = new Map();
         this.solver = null;
         this.R = null;
+        /** Bumped by reset(): a run still going for a card of an earlier conversation must not land in this one. */
+        this.epoch = 0;
+    }
+
+    /** A new conversation: the cards are gone, and what was still running for them is dropped when it finishes. */
+    reset() {
+        this.epoch++;
+        this.items.clear();
     }
 
     async load() {
@@ -231,7 +239,7 @@ export class ResultsList {
     refreshStale() {
         let live, sandbox;
         try { live = netKey(this.env.view.getModel()); } catch { live = undefined; }
-        try { sandbox = modelKey(this.env.chat.model()); } catch { sandbox = undefined; }
+        try { sandbox = netRevision(this.env.chat.model()); } catch { sandbox = undefined; }
         for (const item of this.items.values()) {
             const stale = isStaleResult(item.result, { liveKey: live, sandboxKey: sandbox });
             if (stale === item.stale) continue;
@@ -307,7 +315,9 @@ export class ResultsList {
     busy(item, on, text = '') {
         item.el.setAttribute('aria-busy', on ? 'true' : 'false');
         item.el.querySelectorAll('[data-ask="rerun"], [data-act="rerun"], [data-act="edit"], [data-ask="change"]').forEach((b) => { b.setAttribute('aria-disabled', on ? 'true' : 'false'); });
-        if (on) this.say(item, text);
+        if (on) this.say(item, text, 'running');
+        // a run that failed leaves its own error, not "Running…": only the running note goes (a result's own note stays)
+        else if (item.note?.kind === 'running') this.say(item, '');
     }
 
     // ---- Rerun ----
@@ -316,8 +326,10 @@ export class ResultsList {
     async rerun(item) {
         if (item.el.getAttribute('aria-busy') === 'true') return;
         this.busy(item, true, 'Rerunning…');
+        const epoch = this.epoch;
         try {
             const again = await this.env.chat.rerunResult(item.result);
+            if (epoch !== this.epoch) return; // New was pressed while it ran
             const same = !item.stale && await sameEvidence(item.result, again);
             if (same && (item.result.artifacts || []).length) {
                 this.say(item, 'Reproduced: the same calls gave the same artifacts, byte for byte at the footer\'s rounding.', 'ok');
@@ -374,8 +386,10 @@ export class ResultsList {
             if (!patches.some(Boolean)) { summary.hidden = false; summary.textContent = 'Nothing changed. Change a setting, or use Rerun to repeat the same calls.'; return; }
             summary.hidden = true;
             this.busy(item, true, 'Running with your settings…');
+            const epoch = this.epoch;
             try {
                 const next = await this.env.chat.rerunResult(item.result, { args: patches });
+                if (epoch !== this.epoch) return;
                 box.hidden = true;
                 box.innerHTML = '';
                 this.add(next, { pickedBy: 'you', after: item });
@@ -413,14 +427,17 @@ export class ResultsList {
         slot.querySelector('[data-do="cancel"]').addEventListener('click', () => { slot.hidden = true; slot.innerHTML = ''; button.focus(); });
         slot.querySelector('[data-do="go"]').addEventListener('click', async () => {
             err.hidden = true;
-            if (ctl.value === '' && !c.optional) { err.hidden = false; err.textContent = 'Give a value.'; return; }
+            // (the blank option of an input the words did not name is what already ran: running it again would only add a copy of this card)
+            if (ctl.value === '') { err.hidden = false; err.textContent = c.optional ? 'That is what ran: the command picked. Choose a value, or Cancel.' : 'Give a value.'; return; }
             this.busy(item, true, 'Running with your value…');
+            const epoch = this.epoch;
             try {
                 const next = await this.changeAndRun(item, a, ctl.value);
+                if (epoch !== this.epoch) return;
                 slot.hidden = true;
                 slot.innerHTML = '';
                 this.add(next, { pickedBy: 'you', after: item });
-                this.say(item, `Ran again with ${a.source.label || a.key} = ${ctl.value || 'the default'}: the new card is below.`, 'info');
+                this.say(item, `Ran again with ${a.source.label || a.key} = ${ctl.value}: the new card is below.`, 'info');
             } catch (e) {
                 err.hidden = false;
                 err.textContent = e.message || String(e);

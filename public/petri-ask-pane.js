@@ -4,7 +4,7 @@
 // module decides and call what it computes. Everything here is plain data in and out, so deno tests it directly, with
 // real ChatSession results where the shape matters.
 //
-//   sendPlan                  what a message does: the agent, the Describe draft, the router (no model), or nothing
+//   sendPlan, readsAsQuestion what a message does: the agent, the Describe draft, the router (no model), or nothing
 //   retryingPoster            the one retry of a transient failure (section 9), in front of the turn call
 //   routeCards, goalCard      the no-model path: a goal as a card with the inputs the words named (visible assumptions)
 //                             and a small form for the ones still missing
@@ -38,25 +38,46 @@ export function emptyCanvas(model) {
     return !Object.keys(model?.places || {}).length && !Object.keys(model?.transitions || {}).length;
 }
 
+// A first message on an empty canvas is a description of a process unless it reads as a question about something. Deterministic
+// (no model call): a build verb at its start, after the usual lead-in ("Can you build a queue?"), says build; else a question
+// mark or an opening question word says question. The Describe path has its escape ("Not what I meant": Analyse / Explain instead).
+const BUILD_REQUEST = /^(?:(?:please|can you|could you|would you|will you|i want to|i would like to|i'd like to|i need to|let's|lets|help me)\s+)*(?:build|make|create|model|draw|design|draft|sketch|generate|describe|simulate|set up)\b/i;
+const QUESTION_WORD = /^(?:what|what's|whats|why|how|when|where|who|which|is|are|was|were|does|do|did|can|could|should|would|will|explain|tell me|define)\b/i;
+
+/**
+ * Whether words read as a question rather than a description of something to build.
+ * @param {string} text
+ */
+export function readsAsQuestion(text) {
+    const t = String(text ?? '').trim();
+    if (!t || BUILD_REQUEST.test(t)) return false;
+    return t.endsWith('?') || QUESTION_WORD.test(t);
+}
+
 /**
  * What sending a message does (section 9 and 4.6):
  *   'nothing'  a blank message
  *   'route'    the model cannot be asked (askState says router): the keyword router and the cards
- *   'draft'    Describe, folded in: the canvas is empty, the intent is already build (a /?route=build link, the empty
- *              canvas's button, or "Build instead" on the first message) and this is the conversation's first message:
- *              the words go to /api/llm/draft and the gated net comes back as the pending change
- *   'agent'    the tool loop (ChatSession.send)
- * Where the intent is not known before the message (the hero's Ask on an empty canvas: the server labels it in the
- * same call that answers it), the agent builds in the sandbox exactly as the Assistant did, and "Build instead" takes the
- * Describe path for a first message.
- * @param {{ask: any, intent: string|null, canvasEmpty: boolean, started: boolean, text: string}} o
+ *   'draft'    Describe, folded in: the canvas is empty, this is the conversation's first message and nothing is pending,
+ *              and either the intent is already build (a /?route=build link, the empty canvas's button, "Build instead")
+ *              or it is not known yet (auto: the Ask bar, the hero) and the words do not read as a question. The words go
+ *              to /api/llm/draft and the gated net comes back as the pending change
+ *   'agent'    the tool loop (ChatSession.send). A message after a described net is a refinement of it: the sandbox holds
+ *              the draft, so the agent edits that, and Regenerate (a button) is the only way to draft again
+ * The server labels a message in the same call that answers it, so in auto mode there is no label before the message; the
+ * words decide, and "Not what I meant" sends them again as the other intent when they decided wrongly.
+ * @param {{ask: any, intent: string|null, canvasEmpty: boolean, started: boolean, pending?: boolean, text: string}} o
+ *   pending: a described net (or edits) wait as the pending change
  * @returns {{do: 'nothing'|'route'|'draft'|'agent', text: string}}
  */
-export function sendPlan({ ask, intent, canvasEmpty, started, text }) {
+export function sendPlan({ ask, intent, canvasEmpty, started, pending = false, text }) {
     const t = String(text ?? '').trim();
     if (!t) return { do: 'nothing', text: t };
     if (!ask?.canAsk) return { do: 'route', text: t };
-    if (intent === 'build' && canvasEmpty && !started) return { do: 'draft', text: t };
+    if (canvasEmpty && !started && !pending) {
+        if (intent === 'build') return { do: 'draft', text: t };
+        if (!intent && !readsAsQuestion(t)) return { do: 'draft', text: t };
+    }
     return { do: 'agent', text: t };
 }
 
@@ -246,18 +267,21 @@ const REF = /^\$input\.(\w+)(?:\*(-?\d+(?:\.\d+)?))?$/;
  * ("$input.observable", "$input.max_rate*0.25"). The calls are matched to the plan's steps in order by command, so a
  * rerun's result (whose steps no longer carry the plan's indices) works too. Null when no call that ran takes the input at
  * the top level (best_setting's scenarios hold it in a nested list): the caller runs the goal again instead.
+ * A blank value (the "(the command picks)" option of an input the words did not name) takes the argument out, as
+ * patchFromEdit does for a blanked field: the patch has the key with undefined, never an empty string for the command to refuse.
  * @param {any} result
  * @param {any} goal  the catalogue's goal
  * @param {{input: string, kind?: string}} change  an assumption's change
- * @param {any} value  a place or transition id, or a number (a numeric string is read)
+ * @param {any} value  a place or transition id, or a number (a numeric string is read), or '' for none
  * @returns {Array<Object|undefined>|null}
  */
 export function patchForChange(result, goal, change, value) {
     const calls = result?.record?.calls || [];
     const plan = goal?.plan || [];
     if (!change?.input || !calls.length || !plan.length) return null;
+    const blank = value === '';
     const v = change.kind === 'number' ? (typeof value === 'string' && value.trim() !== '' ? Number(value) : value) : value;
-    if (change.kind === 'number' && (typeof v !== 'number' || !Number.isFinite(v))) throw new Error(`${change.input}: ${JSON.stringify(value)} is not a number`);
+    if (!blank && change.kind === 'number' && (typeof v !== 'number' || !Number.isFinite(v))) throw new Error(`${change.input}: ${JSON.stringify(value)} is not a number`);
     const patches = calls.map(() => undefined);
     let cursor = 0;
     let hit = false;
@@ -268,7 +292,7 @@ export function patchForChange(result, goal, change, value) {
         for (const [arg, ref] of Object.entries(plan[at].args || {})) {
             const m = typeof ref === 'string' ? REF.exec(ref) : null;
             if (!m || m[1] !== change.input) continue;
-            patches[k] = { ...(patches[k] || {}), [arg]: m[2] !== undefined && typeof v === 'number' ? v * Number(m[2]) : v };
+            patches[k] = { ...(patches[k] || {}), [arg]: blank ? undefined : m[2] !== undefined && typeof v === 'number' ? v * Number(m[2]) : v };
             hit = true;
         }
     });
@@ -287,12 +311,14 @@ export function patchForChange(result, goal, change, value) {
 export function withChange(result, assumption, value) {
     const input = assumption?.change?.input;
     const label = assumption?.label || assumption?.key || input;
+    const blank = value === '';
     const shown = typeof value === 'string' ? value : JSON.stringify(value);
-    result.inputs = { ...(result.inputs || {}), ...(input ? { [input]: value } : {}) };
+    result.inputs = { ...(result.inputs || {}) };
+    if (input) { if (blank) delete result.inputs[input]; else result.inputs[input] = value; }
     result.assumed = (result.assumed || [])
         .filter((a) => !(a.how === 'edited' && a.key === 'settings'))
         .map((a) => (a.key === assumption?.key && a.how === assumption?.how
-            ? { ...a, how: 'edited', value, label, text: `${label} = ${shown} (changed by you)` }
+            ? { ...a, how: 'edited', value, label, text: blank ? `${label}: left to the command (changed by you)` : `${label} = ${shown} (changed by you)` }
             : a));
     return result;
 }

@@ -59,7 +59,7 @@ const OFF_STATUS = { enabled: false };
 
 /**
  * Before any script. `window.__script` is what the model says next, one entry per /api/llm/turn call: {reply, calls, auto, status,
- * body, remaining}; `window.__draft` what /api/llm/draft answers; `window.__turns` and `window.__drafts` are the bodies received.
+ * body, remaining, delay (ms before it answers)}; `window.__draft` what /api/llm/draft answers; `window.__turns` and `window.__drafts` are the bodies received.
  */
 const STUB = (cfg: Cfg) => `
   window.__turns = []; window.__drafts = []; window.__script = []; window.__draft = null; window.__logins = 0;
@@ -75,6 +75,7 @@ const STUB = (cfg: Cfg) => `
       const body = JSON.parse(opts.body);
       window.__turns.push(body);
       const r = window.__script.shift() || { reply: 'done' };
+      if (r.delay) await new Promise((done) => setTimeout(done, r.delay));
       if (r.status) return json(r.body || { error: 'failed' }, r.status);
       const parts = [...(r.reply ? [{ text: r.reply }] : []), ...(r.calls || []).map((c) => ({ functionCall: { name: c.name, args: c.args || {} } }))];
       return json({ reply: r.reply || '', tool_calls: r.calls || [], message: { role: 'model', parts: parts.length ? parts : [{ text: '' }] },
@@ -522,14 +523,154 @@ try {
     await openPane(p, { mode: "auto" });
     await script(p, say("A Petri net has places and transitions.", [], CHIP_REPLY("explain")));
     await p.eval(`window.__draft = { status: 200, body: { draft: ${JSON.stringify(DRAFT)}, remaining_today: 5 } }`);
-    await type(p, "A coffee shop with two baristas");
+    // (it reads as a question, so it goes to the model; a plain description would have been drafted at once)
+    await type(p, "Could a coffee shop with two baristas keep up?");
     ok(await p.waitFor(`document.querySelectorAll('.pv-chat-assistant').length === 1 && ${text(".pv-ask-chip")} === 'Explaining'`, 30000), "the server labelled it explain, and answered", problemsOf(p).join(" | "));
     await p.eval(`document.querySelector('.pv-ask-notmeant').click()`);
     await p.eval(`document.querySelector('.pv-ask-menu [data-intent="build"]').click()`);
     ok(await p.waitFor(`!document.querySelector('.pv-chat-pending').hidden`, 30000), "Build instead drafts the net: a pending change", problemsOf(p).join(" | "));
     ok((await p.eval(`window.__drafts.length`)) === 1 && (await p.eval(`window.__turns.length`)) === 1, "through /api/llm/draft, with no second turn call");
     ok(await p.eval(`document.querySelectorAll('.pv-chat-assistant').length === 0 && document.querySelectorAll('.pv-chat-user').length === 1 && document.querySelector('petri-view')._askPane.chat.messages.length === 0`), "and the explanation it replaces is out of the log and the conversation");
-    ok(await p.eval(`${text(".pv-ask-chip")} === 'Building' && document.querySelector('.pv-ask-notmeant').hidden`), "the chip says Building; there is no model turn to send again");
+    ok(await p.eval(`${text(".pv-ask-chip")} === 'Building'`), "the chip says Building");
+    ok(await p.eval(`!document.querySelector('.pv-ask-notmeant').hidden && [...document.querySelectorAll('.pv-ask-menu button')].map((b) => b.dataset.intent).join() === 'analyse,explain'`), "and Not what I meant is still there, offering the other two");
+    await p.close();
+  }
+
+  heading("Describe in auto mode: the words decide, a message after the draft refines it, Not what I meant corrects");
+  {
+    const p = await open({ status: SIGNED_IN_STATUS }, { net: EMPTY });
+    await openPane(p, { mode: "auto" });
+    await p.eval(`window.__draft = { status: 200, body: { draft: ${JSON.stringify(DRAFT)}, remaining_today: 5 } }`);
+    await type(p, "A coffee shop with two baristas");
+    ok(await p.waitFor(`!document.querySelector('.pv-chat-pending').hidden`, 30000), "on an empty canvas a description is drafted without being stated as a build", problemsOf(p).join(" | "));
+    ok((await p.eval(`window.__drafts.length`)) === 1 && (await p.eval(`window.__turns.length`)) === 0, "one draft call, no turn");
+    ok(await p.eval(`${text(".pv-ask-chip")} === 'Building' && !document.querySelector('.pv-ask-notmeant').hidden && [...document.querySelectorAll('.pv-ask-menu button')].map((b) => b.dataset.intent).join() === 'analyse,explain'`), "the chip says Building and offers Analyse / Explain instead");
+    // the refinement: the pending net is the assistant's to edit; it is not drafted again
+    await script(p, say("", [{ name: "net_add_place", args: { id: "extra", x: 640, y: 300, label: "Extra" } }]), say("Added a place."));
+    await type(p, "make it three baristas");
+    ok(await p.waitFor(`document.querySelector('.pv-chat-pending').textContent.includes('+ place extra')`, 30000), "a message after the draft is a turn that edits the pending net", problemsOf(p).join(" | "));
+    ok((await p.eval(`window.__drafts.length`)) === 1 && (await p.eval(`window.__turns.length`)) === 2, "no second draft call (so no second draft spent); the assistant was asked", `${await p.eval(`window.__drafts.length`)} drafts, ${await p.eval(`window.__turns.length`)} turns`);
+    ok(await p.eval(`['+ place queue', '+ transition serve', '+ place extra'].every((x) => document.querySelector('.pv-chat-pending').textContent.includes(x)) && !!document.querySelector('.pv-chat-pending [data-act="regenerate"]')`), "the draft is still the pending change, with the edit on it, and Regenerate is how to draft again");
+    ok(await p.eval(`document.querySelectorAll('.pv-ask-rate input').length === 2`), "and its rates are still lines to edit");
+    await p.eval(`document.querySelector('.pv-chat-pending [data-act="apply"]').click()`);
+    ok(await p.waitFor(`Object.keys(document.querySelector('petri-view').getModel().places).join() === 'queue,barista,served,extra'`, 20000), "Apply puts the draft and the edit on the canvas", problemsOf(p).join(" | "));
+    await p.close();
+  }
+  {
+    // "Not what I meant" on a described message: the draft is withdrawn and the same words go to the model as Explain
+    const p = await open({ status: SIGNED_IN_STATUS }, { net: EMPTY });
+    await openPane(p, { mode: "auto" });
+    await p.eval(`window.__draft = { status: 200, body: { draft: ${JSON.stringify(DRAFT)}, remaining_today: 5 } }`);
+    await type(p, "A coffee shop with two baristas");
+    ok(await p.waitFor(`!document.querySelector('.pv-chat-pending').hidden`, 30000), "a described net is pending");
+    await script(p, say("A coffee shop is a queue with servers.", [], CHIP_REPLY("explain")));
+    await p.eval(`document.querySelector('.pv-ask-notmeant').click()`);
+    await p.eval(`document.querySelector('.pv-ask-menu [data-intent="explain"]').click()`);
+    ok(await p.waitFor(`window.__turns.length === 1 && document.querySelectorAll('.pv-chat-assistant').length === 1`, 30000), "Explain instead sends the words to the model", problemsOf(p).join(" | "));
+    ok((await p.eval(`window.__turns[0].mode`)) === "explain" && (await p.eval(`window.__turns[0].messages[0].parts[0].text`)) === "A coffee shop with two baristas", "as Explain, the same words");
+    ok(await p.eval(`document.querySelector('.pv-chat-pending').hidden && !document.querySelector('petri-view')._askPane.draft && document.querySelectorAll('.pv-chat-user').length === 1`), "the draft is withdrawn and the log has the message once");
+    ok(await p.eval(`${text(".pv-ask-chip")} === 'Explaining'`), "and the chip says Explaining", await p.eval(text(".pv-ask-chip")));
+    await p.close();
+  }
+  {
+    // a question on an empty canvas goes to the model (nothing to draft from it)
+    const p = await open({ status: SIGNED_IN_STATUS }, { net: EMPTY });
+    await openPane(p, { mode: "auto" });
+    await script(p, say("A Petri net models how things move between places.", [], CHIP_REPLY("explain")));
+    await type(p, "How does a Petri net work?");
+    ok(await p.waitFor(`window.__turns.length === 1 && document.querySelectorAll('.pv-chat-assistant').length === 1`, 30000), "a question on an empty canvas is answered by the model", problemsOf(p).join(" | "));
+    ok((await p.eval(`window.__drafts.length`)) === 0 && await p.eval(`document.querySelector('.pv-chat-pending').hidden`), "and no draft is spent on it");
+    await p.close();
+  }
+
+  heading("opening the pane with a message: the empty state does not turn up under it");
+  {
+    const p = await open({ status: SIGNED_IN_STATUS });
+    await script(p, say("", [goal("risk")], CHIP_REPLY("analyse")), say("It can swing."));
+    await openPane(p, { mode: "auto", message: "How bad can it get?" });
+    ok(await waitCards(p, 1), "the message opened with the pane gets its answer", problemsOf(p).join(" | "));
+    await sleep(1500); // (the suggestions for the net take a moment to come back: that is when the box used to be added)
+    const kinds = () => p.eval(`[...document.querySelector('.pv-chat-log').children].map((c) => c.className.split(' ')[0]).join()`);
+    ok(await p.eval(`document.querySelectorAll('.pv-ask-empty').length === 0`), "no suggested questions or goal grid in the log", await kinds());
+    ok(await p.eval(`document.querySelector('.pv-chat-log').children[0].className.includes('pv-ask-turn') && document.querySelector('.pv-chat-log').children[1].className.includes('pv-chat-user')`), "the log begins with the person's message", await kinds());
+    await p.close();
+  }
+  {
+    const p = await open({ status: SIGNED_OUT_STATUS, signedIn: false });
+    await openPane(p, { mode: "auto", message: "which knob matters for recovered people?" });
+    ok(await p.waitFor(`!!document.querySelector('.pv-ask-rcard[data-goal="knob"]')`, 20000), "signed out, the words opened with the pane go to the router", problemsOf(p).join(" | "));
+    await sleep(1500);
+    ok(await p.eval(`document.querySelectorAll('.pv-ask-empty').length === 0 && document.querySelectorAll('.pv-ask-goalcard').length === 0`), "and the router's cards are not followed by the goal grid");
+    await p.close();
+  }
+
+  heading("New waits for the answer, and a run still going does not land in the new conversation");
+  {
+    const p = await open({ status: SIGNED_IN_STATUS });
+    await openPane(p, { mode: "auto" });
+    await script(p, say("", [goal("risk")], { ...CHIP_REPLY("analyse"), delay: 2500 }), say("It can swing."));
+    await type(p, "How bad can it get?");
+    await sleep(800);
+    ok(await p.eval(`document.querySelector('[data-act="new"]').disabled`), "New is not available while the answer is coming");
+    await p.eval(`document.querySelector('[data-act="new"]').click()`);
+    ok(await waitCards(p, 1), "the answer lands in the conversation it was asked in", problemsOf(p).join(" | "));
+    ok(await p.waitFor(`!document.querySelector('[data-act="new"]').disabled`, 10000), "and New is back once it has");
+    ok(await p.eval(`document.querySelectorAll('.pv-ask-empty').length === 0 && document.querySelectorAll('.pv-chat-user').length === 1`), "with no empty state above the card and the message still there");
+    // a card's own run that is still going when New is pressed (it is not the pane's turn, so New is allowed)
+    await p.eval(`document.querySelector('petri-view').execute('sim.set_rate', { id: 'infect', rate: 0.05 })`);
+    ok(await p.waitFor(`document.querySelectorAll('.pv-ask-card[data-stale="true"]').length === 1`, 5000), "an edit makes the card stale");
+    await p.eval(`(() => { const a = document.querySelector('petri-view')._askPane, orig = a.chat.rerunResult.bind(a.chat); a.chat.rerunResult = async (...x) => { await new Promise((r) => setTimeout(r, 1500)); return orig(...x); }; })()`);
+    await p.eval(`document.querySelector('.pv-ask-card .pv-ask-stale [data-ask="rerun"]').click()`);
+    await p.eval(`document.querySelector('[data-act="new"]').click()`);
+    await sleep(3000);
+    ok(await p.eval(`document.querySelectorAll('.pv-ask-card').length === 0 && document.querySelectorAll('.pv-ask-empty').length === 1`), "a Rerun still going when New is pressed adds no card to the new conversation", await p.eval(`document.querySelectorAll('.pv-ask-card').length + ' cards'`));
+    await p.close();
+  }
+
+  heading("moving a node does not make a result stale");
+  {
+    const p = await open({ status: SIGNED_IN_STATUS });
+    await openPane(p, { mode: "auto" });
+    await script(p, say("", [goal("risk")], CHIP_REPLY("analyse")), say("It can swing."));
+    await type(p, "How bad can it get?");
+    ok(await waitCards(p, 1), "a result", problemsOf(p).join(" | "));
+    await p.eval(`(() => { const v = document.querySelector('petri-view'); v.execute('net.move', { id: 'susceptible', x: 150, y: 260 }); v.execute('net.move', { id: 'infect', x: 230, y: 40 }); })()`);
+    await sleep(900); // (the pane looks again 250 ms after a change)
+    ok((await p.eval(notStale)) === "false", "dragging places and transitions leaves it current", await p.eval(notStale));
+    await p.eval(`document.querySelector('.pv-ask-card .pv-prov-acts [data-act="rerun"]').click()`);
+    ok(await p.waitFor(`/^Reproduced/.test(${text(".pv-ask-card .pv-ask-note")})`, 30000), "so Rerun can still say it reproduced the result", await p.eval(text(".pv-ask-card .pv-ask-note")));
+    ok((await cards(p)) === 1, "and adds no card");
+    await p.eval(`document.querySelector('petri-view').execute('sim.set_rate', { id: 'infect', rate: 0.05 })`);
+    ok(await p.waitFor(`document.querySelectorAll('.pv-ask-card[data-stale="true"]').length === 1`, 5000), "a rate is still a change");
+    await p.close();
+  }
+
+  heading("a run that fails leaves its error, not 'Running…'; the blank option is not a run");
+  {
+    const p = await open({ status: SIGNED_IN_STATUS });
+    await openPane(p, { mode: "auto" });
+    await script(p, say("", [goal("knob", {})], CHIP_REPLY("analyse")), say("The infection rate matters most."));
+    await type(p, "which knob matters?");
+    ok(await waitCards(p, 1), "a goal whose outcome the words did not name", problemsOf(p).join(" | "));
+    ok(await p.eval(`document.querySelectorAll('.pv-ask-card [data-ask="change"]').length >= 1`), "has an assumption to change", await p.eval(text(".pv-ask-card .pv-ask-assumed")));
+    await p.eval(`document.querySelector('.pv-ask-card [data-ask="change"]').click()`);
+    ok(await p.waitFor(`!!document.querySelector('.pv-ask-changer select')`, 3000), "Change opens a select");
+    ok(await p.eval(`document.querySelector('.pv-ask-changer select').value === ''`), "with the blank option (what ran) selected");
+    await p.eval(`document.querySelector('.pv-ask-changer [data-do="go"]').click()`);
+    ok(await p.eval(`!document.querySelector('.pv-ask-changer .pv-form-err').hidden && /That is what ran/.test(document.querySelector('.pv-ask-changer .pv-form-err').textContent)`), "Run with the blank option says that is what ran", await p.eval(text(".pv-ask-changer .pv-form-err")));
+    ok((await cards(p)) === 1 && await p.eval(`document.querySelector('.pv-ask-card .pv-ask-note').hidden`), "and runs nothing: no card, no note");
+    // a run that fails: the error is where the person typed, and the card does not stay 'Running with your value…'
+    await p.eval(`(() => { const a = document.querySelector('petri-view')._askPane; a.chat.rerunResult = async () => { throw new Error('boom: the engine refused'); }; })()`);
+    await p.eval(`(() => { const s = document.querySelector('.pv-ask-changer select'); s.value = 'infected'; s.closest('li').querySelector('[data-do="go"]').click(); })()`);
+    ok(await p.waitFor(`/boom: the engine refused/.test(${text(".pv-ask-changer .pv-form-err")})`, 10000), "a failed Change shows the failure", await p.eval(text(".pv-ask-changer .pv-form-err")));
+    ok(await p.eval(`document.querySelector('.pv-ask-card .pv-ask-note').hidden && !/Running/.test(${text(".pv-ask-card .pv-ask-note")})`), "and the card's note is not stuck at Running with your value", await p.eval(text(".pv-ask-card .pv-ask-note")));
+    ok(await p.eval(`document.querySelector('.pv-ask-card').getAttribute('aria-busy') === 'false'`), "the card is not busy any more");
+    // Edit settings that fails after it validated
+    await p.eval(`document.querySelector('.pv-ask-card .pv-prov-acts [data-act="edit"]:not([data-field])').click()`);
+    ok(await p.waitFor(`!!document.querySelector('.pv-ask-edit [data-field="runs"]')`, 5000), "Edit settings opens");
+    await p.eval(`(() => { document.querySelector('.pv-ask-edit [data-field="runs"]').value = '31'; document.querySelector('.pv-ask-editform').requestSubmit(); })()`);
+    ok(await p.waitFor(`/The run failed: boom/.test(${text(".pv-ask-edit .pv-form-summary")})`, 10000), "a failed Edit settings run shows the failure", await p.eval(text(".pv-ask-edit .pv-form-summary")));
+    ok(await p.eval(`document.querySelector('.pv-ask-card .pv-ask-note').hidden`), "and the note is not stuck at Running with your settings", await p.eval(text(".pv-ask-card .pv-ask-note")));
     await p.close();
   }
 
