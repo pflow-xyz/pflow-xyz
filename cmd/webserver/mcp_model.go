@@ -74,7 +74,7 @@ var (
 			"Give every arc an explicit weight: one with none fires as 1 but counts as 0 in the incidence matrix (and, for a lone subnet, in the flat arcs). " +
 			"A subnet that declares no ports has one per exported place, named for it (pflow_bundle_candidates alone does not derive them); a port on a transition has to be declared. A link in the document may also name {subnet, place} or {subnet, transition} for an end that has no port. " +
 			"Fields not named here are ignored without a word (`tokens` on a place does nothing, it is `initial`; `inhibit: true` on an arc does nothing, it is `type: \"inhibitor\"`); a misspelt net_type, place kind, port kind or target, link kind or arc_merge is refused. " +
-			"A bundle and the flat net it makes are not pflow.xyz nets: pflow_simulate, pflow_fire and the other net tools cannot read them.",
+			"A bundle and the flat net pflow_bundle_flatten returns are not pflow.xyz nets (pflow_simulate, pflow_fire and the other net tools cannot read them); pflow_bundle_net writes the flat net as one they can read.",
 		"properties": map[string]any{
 			"subnets": map[string]any{"type": "array", "minItems": 1, "maxItems": mbMaxSubnets, "items": map[string]any{"type": "object"}},
 			"links":   map[string]any{"type": "array", "maxItems": mbMaxLinks, "items": map[string]any{"type": "object"}},
@@ -138,7 +138,7 @@ func modelTools() []mcpTool {
 			Description: "Flatten a composition into one net (go-pflow's Bundle.FlattenWithMap): token and data links fuse places (named wire:<canonical member>), event links fuse transitions (named by the link's id, else fused:<members>), a guard link lowers to a read or inhibitor arc; elements are prefixed <subnet>/ unless the bundle sets namespace false. " +
 				"Returns the flat places, transitions (each with the members it came from), arcs and constraints, the wires and fused groups, the place and transition maps (subnet to local id to flat id), the warnings and each transition's enablement at the initial marking with go-pflow's reason. " +
 				"A bundle Validate refuses answers {ok: false, error}, not an error of the call; a flat net whose answer would pass about 2 MB (a fused name is repeated everywhere it is mentioned) is an error of the call. " +
-				"The flat net is not a pflow.xyz net: pflow_simulate, pflow_fire and the other net tools cannot read it, pflow_bundle_run fires it. Give every arc an explicit weight: an arc with none fires as 1, but a lone subnet is returned as written, with weight 0 (a `notes` entry says how many). " +
+				"This flat net is not a pflow.xyz net: pflow_simulate, pflow_fire and the other net tools cannot read it (pflow_bundle_net returns the same net in the format they read), pflow_bundle_run fires it. Give every arc an explicit weight: an arc with none fires as 1, but a lone subnet is returned as written, with weight 0 (a `notes` entry says how many). " +
 				"Two event links that share an id and fuse different transitions merge into one flat transition (the last class by smallest member names its fused group and description).",
 			InputSchema: obj(map[string]any{"bundle": bundleArg}, "bundle"),
 			run:         mcpBundleFlatten,

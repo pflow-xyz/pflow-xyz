@@ -140,9 +140,10 @@ func toolDescriptor(t mcpTool) map[string]any {
 }
 
 // allMCPTools is the original seven plus the registry, workbench, game,
-// composition and canvas tools.
+// composition and canvas tools (and the composition tools that read a composite
+// as a net: mcp_model_composite.go).
 func allMCPTools() []mcpTool {
-	return append(append(append(append(append(append(append(mcpTools(), registryTools()...), workbenchTools()...), gameTools()...), modelTools()...), canvasTools()...), skillTools()...), artifactTool())
+	return append(append(append(append(append(append(append(append(mcpTools(), registryTools()...), workbenchTools()...), gameTools()...), modelTools()...), compositeTools()...), canvasTools()...), skillTools()...), artifactTool())
 }
 
 // ---- protocol version and the tools a connection is offered ----

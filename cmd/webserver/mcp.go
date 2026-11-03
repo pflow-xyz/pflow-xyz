@@ -555,7 +555,8 @@ func (s *Server) mcpDispatch(r *http.Request, req rpcRequest) (rpcResponse, bool
 				"the ports on their boundaries and the typed links between them): pflow_bundle_example gives the catalog of parts and a " +
 				"composition of them; pflow_bundle_validate, _candidates and _add_link check and extend it, _flatten makes one net of it, " +
 				"_run fires a script on that net and _incidence gives its matrix (that net is not a pflow.xyz net: pflow_simulate and the " +
-				"other net tools cannot read it). pflow_canvas opens a composition for the person to join parts by hand. A single model is a Petri net in the pflow.xyz JSON-LD format: check, simulate and explore " +
+				"other net tools cannot read it; pflow_bundle_net writes the flat net as one they can). pflow_bundle_prove judges what each link does to " +
+				"the parts it joins and pflow_bundle_check_proof re-checks its record; pflow_bundle_parts is a 13-part catalog. pflow_canvas opens a composition for the person to join parts by hand. A single model is a Petri net in the pflow.xyz JSON-LD format: check, simulate and explore " +
 				"one on the server's go-pflow engines, and pflow_links opens it in the editor. pflow_cid gives a model's stable content ID " +
 				"and pflow_get the stored model. pflow_save needs the person signed in to pflow.xyz. " +
 				"When the person wants to see, play or share a model, call pflow_artifact and publish the HTML it returns as a page " +
