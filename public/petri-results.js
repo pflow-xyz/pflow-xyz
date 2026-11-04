@@ -105,11 +105,25 @@ function genericReportHtml(d) {
     const rows = [];
     for (const [k, v] of Object.entries(d)) {
         if (k === 'kind' || head.includes(k)) continue;
-        const shown = v !== null && typeof v === 'object' ? JSON.stringify(v) : v;
-        rows.push([k, shown]);
+        rows.push([k, v]);
     }
     return head.map((k) => `<p><strong>${escHtml(k)}:</strong> ${escHtml(d[k])}</p>`).join('')
-        + tableHtml(['Field', 'Value'], rows, { numeric: false });
+        + `<table class="pv-analysis-table"><thead><tr><th>Field</th><th>Value</th></tr></thead><tbody>${
+            rows.map(([k, v]) => `<tr><td>${escHtml(k)}</td><td>${fieldValueHtml(v)}</td></tr>`).join('')}</tbody></table>`;
+}
+
+// One report value as HTML. A missing value says so (a blank cell reads as a rendering bug), booleans print as
+// true/false, a list of strings is a list rather than raw JSON, anything else nested is compact JSON.
+function fieldValueHtml(v) {
+    if (v === null || v === undefined || v === '') return '<span class="pv-result-dim">unknown</span>';
+    if (typeof v === 'boolean') return v ? 'true' : 'false';
+    if (Array.isArray(v)) {
+        if (!v.length) return '<span class="pv-result-dim">none</span>';
+        if (v.every((x) => x === null || typeof x !== 'object')) return `<ul class="pv-result-list">${v.map((x) => `<li>${escHtml(fmt(x))}</li>`).join('')}</ul>`;
+        return `<code>${escHtml(JSON.stringify(v))}</code>`;
+    }
+    if (typeof v === 'object') return `<code>${escHtml(JSON.stringify(v))}</code>`;
+    return escHtml(fmt(v));
 }
 
 function matrixHtml(d) {
@@ -138,16 +152,29 @@ function traceHtml(d) {
 // A layered drawing of a reachability graph (nodes carry data.depth). Past
 // MAX_GRAPH states it lists the notable states instead.
 const MAX_GRAPH = 400;
+const SAMPLE_STATES = 60;
 
 function graphHtml(d) {
-    const nodes = d.nodes || [];
+    let nodes = d.nodes || [];
+    let edgesAll = d.edges || [];
+    let sampleNote = '';
+    if (nodes.length > MAX_GRAPH) {
+        // Too many to draw all of them: the first states by distance from the start (breadth-first), with the edges
+        // among them, and a line saying so. The full list stays in the artifact (CSV/JSON).
+        const byDepth = nodes.map((n, i) => ({ n, i })).sort((a, b) =>
+            ((a.n.data && a.n.data.depth) || 0) - ((b.n.data && b.n.data.depth) || 0) || a.i - b.i);
+        const keep = new Set(byDepth.slice(0, SAMPLE_STATES).map((x) => x.n.id));
+        sampleNote = `<p class="pv-result-dim">Drawing the ${SAMPLE_STATES} states nearest the start of ${nodes.length}; the rest are in the JSON.</p>`;
+        nodes = nodes.filter((n) => keep.has(n.id));
+        edgesAll = edgesAll.filter((e) => keep.has(e.source) && keep.has(e.target));
+    }
     const notable = nodes.filter((n) => n.data && (n.data.initial || n.data.deadlock || n.data.terminal));
-    const list = `<p class="pv-result-dim">${nodes.length} states, ${(d.edges || []).length} edges.</p>`
+    const list = `<p class="pv-result-dim">${(d.nodes || []).length} states, ${(d.edges || []).length} edges.</p>${sampleNote}`
         + (notable.length ? `<ul class="pv-result-states">${notable.slice(0, 50).map((n) => `
             <li><button type="button" class="pv-btn" data-goto-node="${escHtml(n.id)}">Go</button>
                 ${escHtml(n.id)} ${n.data.initial ? '<em>initial</em>' : ''} ${n.data.deadlock ? '<strong>deadlock</strong>' : n.data.terminal ? '<em>terminal</em>' : ''}
                 <span class="pv-result-dim">${escHtml(n.label)}</span></li>`).join('')}</ul>` : '');
-    if (nodes.length === 0 || nodes.length > MAX_GRAPH) return list;
+    if (nodes.length === 0) return list;
     const layers = new Map();
     for (const n of nodes) {
         const depth = n.data && Number.isFinite(n.data.depth) ? n.data.depth : 0;
@@ -161,7 +188,7 @@ function graphHtml(d) {
     for (const [depth, layer] of layers) {
         layer.forEach((n, i) => pos.set(n.id, { x: (i + 1) * dx - dx / 2 + (width - layer.length * dx) / 2, y: depth * dy + dy / 2 + 10 }));
     }
-    const edges = (d.edges || []).filter((e) => pos.has(e.source) && pos.has(e.target)).map((e) => {
+    const edges = edgesAll.filter((e) => pos.has(e.source) && pos.has(e.target)).map((e) => {
         const a = pos.get(e.source), b = pos.get(e.target);
         return `<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" class="pv-graph-edge"><title>${escHtml(e.label)}</title></line>`;
     }).join('');

@@ -21,11 +21,24 @@ export async function openComponents(view) {
     }
     const list = Array.isArray(comps) ? comps : comps.components || [];
     const places = () => Object.keys(view.getModel().places || {});
+    // Component text comes from sim's registry and names its tools (`sim_calibrate`, `diagnose`). Say what they do.
+    const PLAIN = { diagnose: 'the influence check', calibrate: 'calibration' };
+    const plain = (t) => String(t ?? '')
+        .replace(/`/g, '')
+        .replace(/\b(?:sim|mcp)_([a-z][a-z_]*)\b/g, (_, n) => PLAIN[n] || n.replace(/_/g, ' '))
+        .replace(/\bdiagnose\b/g, PLAIN.diagnose);
+    // The place a port most likely means: same name, then a name containing it, then one that names its role.
+    const norm = (x) => String(x).toLowerCase().replace(/[^a-z0-9]/g, '');
+    const guess = (port) => {
+        const all = places(), n = norm(port.name), r = norm(port.role || '');
+        return all.find((x) => norm(x) === n) || all.find((x) => n && (norm(x).includes(n) || n.includes(norm(x)) && norm(x).length > 2))
+            || (r && all.find((x) => norm(x).includes(r))) || '';
+    };
 
     const overlay = document.createElement('div');
     overlay.className = 'pv-modal-overlay';
     const dialog = document.createElement('div');
-    dialog.className = 'pv-modal-dialog pv-modal-dialog-wide pv-components-dialog';
+    dialog.className = 'pv-modal-dialog pv-modal-dialog-xl pv-components-dialog';
     dialog.setAttribute('role', 'dialog');
     dialog.setAttribute('aria-label', 'Components');
     dialog.innerHTML = `
@@ -34,7 +47,7 @@ export async function openComponents(view) {
             <button type="button" class="pv-dialog-close-icon" data-act="close" title="Close (Esc)">×</button>
         </div>
         <p class="pv-result-dim">Parts that already follow the modelling discipline. Fuse a port onto a place you have, or let it make a new one.</p>
-        <div class="pv-goals-list">${list.map((c) => `<button type="button" class="pv-btn" data-comp="${esc(c.name)}" title="${esc(c.description || '')}">${esc(c.name)}</button>`).join('')}</div>
+        <div class="pv-goals-list">${list.map((c) => `<button type="button" class="pv-btn" data-comp="${esc(c.name)}" title="${esc(plain(c.description))}">${esc(c.name)}</button>`).join('')}</div>
         <div class="pv-components-detail"></div>
         <div class="pv-structure-status" aria-live="polite"></div>
         <div class="pv-btn-container"><button type="button" class="pv-btn" data-act="close">Close</button></div>`;
@@ -46,12 +59,17 @@ export async function openComponents(view) {
     dialog.querySelectorAll('[data-act="close"]').forEach((b) => b.addEventListener('click', close));
 
     const show = (c) => {
+        dialog.querySelectorAll('[data-comp]').forEach((b) => {
+            const on = b.dataset.comp === c.name;
+            b.classList.toggle('pv-active', on);
+            b.setAttribute('aria-pressed', on ? 'true' : 'false');
+        });
         const box = dialog.querySelector('.pv-components-detail');
         box.innerHTML = `
-            <h3>${esc(c.name)}</h3><p>${esc(c.description || '')}</p>
-            ${(c.discipline || []).length ? `<ul class="pv-result-dim">${c.discipline.map((d) => `<li>${esc(d)}</li>`).join('')}</ul>` : ''}
+            <h3>${esc(c.name)}</h3><p>${esc(plain(c.description))}</p>
+            ${(c.discipline || []).length ? `<ul class="pv-result-dim">${c.discipline.map((d) => `<li>${esc(plain(d))}</li>`).join('')}</ul>` : ''}
             <div class="pv-goals-inputs">
-                ${(c.ports || []).map((p) => `<div><label>port <strong>${esc(p.name)}</strong> (${esc(p.role)}) <select data-port="${esc(p.name)}"><option value="">a new place</option>${places().map((x) => `<option>${esc(x)}</option>`).join('')}</select></label> <span class="pv-result-dim">${esc(p.description || '')}</span></div>`).join('')}
+                ${(c.ports || []).map((p) => `<div><label>port <strong>${esc(p.name)}</strong> (${esc(p.role)}) <select data-port="${esc(p.name)}"><option value="">a new place</option>${places().map((x) => `<option${x === guess(p) ? ' selected' : ''}>${esc(x)}</option>`).join('')}</select></label> <span class="pv-result-dim">${esc(plain(p.description))}</span></div>`).join('')}
                 ${(c.params || []).map((p) => `<div><label>${esc(p.name)} <input type="number" step="any" data-param="${esc(p.name)}" value="${esc(p.default)}"></label> <span class="pv-result-dim">${esc(p.description || '')}</span></div>`).join('')}
                 <div><label>prefix <input type="text" data-prefix value="${esc(c.name.replace(/[^a-z0-9_]/gi, '_'))}"></label></div>
             </div>
