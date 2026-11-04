@@ -82,6 +82,7 @@ td:first-child{white-space:nowrap}nav a{margin-right:1rem}.lede{font-size:1.1rem
 <tr><td><code>pflow_game_value</code></td><td>The exact value of a position of a two-sided game played on a net (tic-tac-toe, Connect-4, Nim, any net whose moves belong to two sides), by alpha-beta search over the firing rule. The net's marking is the position. A search plan picks the move order, filters and drivers, and a root estimate that ranks the first moves by solving the net's mass-action ODE; a net with several token colours is searched on its colour copies.</td></tr>
 <tr><td><code>pflow_game_move</code></td><td>A best move at such a position and its exact value.</td></tr>
 <tr><td><code>pflow_rate_scan</code></td><td>Sweep one rate and see how the outcome moves.</td></tr>
+<tr><td><code>pflow_artifact</code></td><td>A net as an interactive page to publish (a claude.ai Artifact, or any page host): the net drawn from its own layout, the token game (click or press Enter on an enabled transition, random step, reset), the reachability verdicts with a replay of the deadlock, the P-invariants re-checked after every firing, the ontology.pflow.xyz class the verdicts earn, the CID and an editor link. One self-contained HTML fragment that loads nothing from anywhere. <code>engine: "baked"</code> (default, about 40 KB) fixes the verdicts at the net's marking; <code>"wasm"</code> (about 470 KB) embeds the pflow-rs engine so the page can re-analyze an edited initial marking. Single-colour nets.</td></tr>
 <tr><td><code>pflow_export</code></td><td>The net as normalised JSON-LD or as an SVG drawing.</td></tr>
 <tr><td><code>pflow_cid</code></td><td>The content id a net seals to.</td></tr>
 <tr><td><code>pflow_links</code></td><td>Links to see a model: the editor, its SVG and its JSON-LD. A stored composition opens on the composition page.</td></tr>
@@ -94,7 +95,7 @@ td:first-child{white-space:nowrap}nav a{margin-right:1rem}.lede{font-size:1.1rem
 <li>Each tool call has 60 seconds.</li>
 <li>Up to 8 calls run at once across all users; past that you get a "busy" error to retry.</li>
 <li><code>pflow_save</code> stores one net. A composition is checked and run in the call, and the connector does not store it yet.</li>
-<li>Large results are cut down; ask for fewer samples, a shorter time span or a smaller net.</li>
+<li>Large results are cut down; ask for fewer samples, a shorter time span or a smaller net. <code>pflow_artifact</code>'s page is never cut: it is bounded at 1 MB and refused past that.</li>
 <li>A composition (a bundle) has at most 32 subnets, 1000 places, 1000 transitions, 4000 arcs, 512 ports, 200 links and 200 constraints; its names are at most 128 bytes and its counts and weights below 2<sup>53</sup>; a script is at most 1000 steps. A flat net whose answer would pass about 2 MB, or whose incidence matrices would pass 50000 cells, is refused rather than cut. A misspelt net type, place or port kind, link kind or merge policy is refused; fields a tool does not know are ignored.</li>
 </ul>
 

@@ -14,6 +14,7 @@ go_library(
         "llm_turn.go",
         "main.go",
         "mcp.go",
+        "mcp_artifact.go",
         "mcp_game.go",
         "mcp_model.go",
         "mcp_model_catalog.go",
@@ -81,6 +82,8 @@ go_library(
         "//conditions:default": [],
     }),
     embedsrcs = [
+        "artifact/engine.wasm",
+        "artifact/page.html",
         "prompts/classify-v1.md",
         "prompts/draft-net-v1.md",
         "prompts/turn-v1.md",
@@ -136,6 +139,7 @@ go_test(
         "llm_goals_test.go",
         "llm_test.go",
         "llm_turn_test.go",
+        "mcp_artifact_test.go",
         "mcp_directory_test.go",
         "mcp_game_parity_test.go",
         "mcp_game_test.go",
@@ -169,7 +173,10 @@ go_test(
     # and on the cafe showcase bundle (//examples/showcase), which mcp_model_test.go reads too.
     # keep: composition_test.go stores parity/model/fixtures and the coffee-shop net.
     # keep: mcp_directory_test.go holds docs/connector-directory/listing.json to the server.
+    # keep: mcp_artifact_test.go reads testdata/philosophers3.json and artifact/engine.lock.json.
     data = [
+        "artifact/engine.lock.json",
+        "testdata/philosophers3.json",
         "//:pflow-native-wasm.lock",
         "//docs/connector-directory:listing.json",
         "//examples",

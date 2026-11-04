@@ -1,0 +1,481 @@
+<title>__PFLOW_TITLE__</title>
+<style id="pflow-style">
+:root{--bg:#f7f7f4;--surface:#ffffff;--ink:#1d1d1b;--muted:#5f5f5a;--line:#d8d8d2;--arc:#6b6b66;--accent:#1f6feb;--accent-ink:#ffffff;--ok:#1a7f37;--bad:#c62828;--warn:#9a6700;--token:#1d1d1b;--focus:#f59e0b;color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#161615;--surface:#21211f;--ink:#ecece8;--muted:#a3a39c;--line:#3a3a36;--arc:#8f8f88;--accent:#58a6ff;--accent-ink:#0d1117;--ok:#3fb950;--bad:#f85149;--warn:#d29922;--token:#ecece8;--focus:#fbbf24;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#161615;--surface:#21211f;--ink:#ecece8;--muted:#a3a39c;--line:#3a3a36;--arc:#8f8f88;--accent:#58a6ff;--accent-ink:#0d1117;--ok:#3fb950;--bad:#f85149;--warn:#d29922;--token:#ecece8;--focus:#fbbf24;color-scheme:dark}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink)}
+body{font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.pf{max-width:960px;margin:0 auto;padding:16px}
+.pf h1{font-size:1.35rem;margin:0 0 4px}
+.pf h2{font-size:.95rem;margin:0 0 8px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+.pf .lede{color:var(--muted);margin:0 0 12px}
+.pf .card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px;margin:0 0 12px}
+.pf .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.pf button{font:inherit;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:8px;padding:6px 12px;cursor:pointer;min-height:36px}
+.pf button.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.pf button:disabled{opacity:.45;cursor:default}
+.pf button:focus-visible,.pf .tr:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+.pf svg.net{width:100%;height:auto;max-height:70vh;display:block;touch-action:manipulation}
+.pf .pl circle{fill:var(--surface);stroke:var(--ink);stroke-width:2}
+.pf .tok{fill:var(--token)}
+.pf .cnt{fill:var(--token);font-size:14px;font-weight:600;text-anchor:middle;dominant-baseline:central}
+.pf .lbl{fill:var(--muted);font-size:11px;text-anchor:middle}
+.pf .tr rect{fill:var(--surface);stroke:var(--ink);stroke-width:2}
+.pf .tr.on rect{fill:var(--accent);stroke:var(--accent)}
+.pf .tr.on{cursor:pointer}
+.pf .tr.hot rect{stroke:var(--focus);stroke-width:4}
+.pf .arc{stroke:var(--arc);stroke-width:1.6;fill:none}
+.pf .arc.read{stroke-dasharray:5 4}
+.pf .wt{fill:var(--muted);font-size:11px;text-anchor:middle}
+.pf .mk-arrow{fill:var(--arc)}
+.pf .mk-inhib{fill:var(--surface);stroke:var(--arc);stroke-width:1.6}
+.pf .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px}
+.pf .v{border:1px solid var(--line);border-radius:8px;padding:8px}
+.pf .v b{display:block;font-size:1.05rem}
+.pf .v small{color:var(--muted)}
+.pf .yes{color:var(--ok)}.pf .no{color:var(--bad)}.pf .unk{color:var(--warn)}
+.pf ul.inv{list-style:none;margin:0;padding:0}
+.pf ul.inv li{padding:4px 0;border-top:1px solid var(--line);font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;overflow-wrap:anywhere}
+.pf ul.inv li:first-child{border-top:0}
+.pf .tag{display:inline-block;border:1px solid var(--accent);color:var(--accent);border-radius:999px;padding:2px 10px;text-decoration:none;font-weight:600;margin:0 6px 6px 0}
+.pf code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;overflow-wrap:anywhere}
+.pf a{color:var(--accent)}
+.pf .log{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;color:var(--muted);overflow-wrap:anywhere;min-height:1.5em}
+.pf .status{font-weight:600}
+.pf table.mk{border-collapse:collapse;width:100%}
+.pf table.mk td{padding:3px 4px;border-top:1px solid var(--line)}
+.pf table.mk input{width:5em;font:inherit;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:2px 6px}
+.pf .muted{color:var(--muted)}
+.pf .mt8{margin-top:8px}.pf .note{margin:4px 0 0}.pf .intro{margin:0 0 6px}.pf .flush{margin:0}.pf #pf-engine{margin:8px 0 0}
+.pf svg.net{max-width:100%}.pf .card{min-width:0;overflow-wrap:anywhere}
+</style>
+<div class="pf">
+  <header>
+    <h1 id="pf-title"></h1>
+    <p class="lede" id="pf-lede"></p>
+  </header>
+  <section class="card" aria-labelledby="pf-game-h">
+    <h2 id="pf-game-h">Token game</h2>
+    <svg class="net" id="pf-svg" role="group" aria-label="The net: places are circles holding tokens, transitions are squares; a filled square is enabled and fires when you click it or press Enter on it."></svg>
+    <p class="status" id="pf-status" aria-live="polite"></p>
+    <div class="row" id="pf-enabled" aria-label="Enabled transitions"></div>
+    <div class="row mt8">
+      <button type="button" id="pf-step">Random step</button>
+      <button type="button" id="pf-reset">Reset</button>
+      <button type="button" id="pf-replay" class="primary" hidden></button>
+      <button type="button" id="pf-theme" aria-label="Switch colour theme">Theme: auto</button>
+    </div>
+    <p class="log" id="pf-log" aria-label="Firing sequence"></p>
+  </section>
+  <section class="card" aria-labelledby="pf-verdict-h">
+    <h2 id="pf-verdict-h">Verdicts</h2>
+    <div class="grid" id="pf-verdicts"></div>
+    <p class="muted" id="pf-engine"></p>
+  </section>
+  <section class="card" aria-labelledby="pf-class-h">
+    <h2 id="pf-class-h">Ontology class</h2>
+    <div id="pf-classes"></div>
+    <p class="muted note">From <a href="https://ontology.pflow.xyz/" target="_blank" rel="noopener">ontology.pflow.xyz</a>: LiveNet ⊂ DeadlockFreeNet ⊂ PetriNet, and BoundedNet ⊂ PetriNet. A class is earned by a verdict above, never assumed.</p>
+  </section>
+  <section class="card" aria-labelledby="pf-inv-h">
+    <h2 id="pf-inv-h">P-invariants</h2>
+    <p class="muted intro">Conservation laws, re-checked against the current marking after every firing.</p>
+    <ul class="inv" id="pf-inv"></ul>
+  </section>
+  <section class="card" id="pf-marking-card" aria-labelledby="pf-mk-h" hidden>
+    <h2 id="pf-mk-h">Initial marking</h2>
+    <p class="muted intro">The engine runs in this page (pflow-rs, WebAssembly). Change a place's starting tokens and analyze again.</p>
+    <table class="mk" id="pf-mk"></table>
+    <div class="row mt8"><button type="button" class="primary" id="pf-analyze">Analyze this marking</button><span class="muted" id="pf-analyze-msg" aria-live="polite"></span></div>
+  </section>
+  <footer class="card">
+    <h2>Model</h2>
+    <p class="intro">CID <code id="pf-cid"></code></p>
+    <p class="flush"><a id="pf-editor" target="_blank" rel="noopener">Open in the pflow.xyz editor</a> <span class="muted" id="pf-stored"></span></p>
+  </footer>
+</div>
+<script type="application/json" id="pflow-data">__PFLOW_DATA__</script>
+__PFLOW_ENGINE__<script>
+(() => {
+  "use strict";
+  // A host whose CSP has no style-src 'unsafe-inline' blocks the <style>
+  // above; the same rules then go in as a constructed stylesheet (CSSOM,
+  // which style-src does not govern).
+  const css = document.getElementById("pflow-style");
+  if (css && !css.sheet && "adoptedStyleSheets" in document) {
+    try {
+      const sheet = new CSSStyleSheet();
+      sheet.replaceSync(css.textContent);
+      document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet];
+    } catch (e) { /* unstyled, still usable */ }
+  }
+  const D = JSON.parse(document.getElementById("pflow-data").textContent);
+  const $ = (id) => document.getElementById(id);
+  const NS = "http://www.w3.org/2000/svg";
+  const ONTO = "https://ontology.pflow.xyz/ns#";
+  const net = D.net;
+  const P = new Map(net.places.map((p) => [p.id, p]));
+  const T = new Map(net.transitions.map((t) => [t.id, t]));
+  const tids = net.transitions.map((t) => t.id).sort();
+  let initial = Object.fromEntries(net.places.map((p) => [p.id, p.initial]));
+  let m = { ...initial };
+  let trace = [];
+  let analysis = D.analysis;
+  let invariants = D.invariants;
+  let replaying = false;
+  let engineCall = null;
+
+  // Firing rule: go-pflow reachability (graph.go isEnabled/Fire), the same
+  // contract as pflow-xyz public/petri-sim.js.
+  function isEnabled(t, mk) {
+    const consumed = {}, produced = {};
+    for (const a of net.arcs) {
+      if (a.target !== t || !P.has(a.source)) continue;
+      if (a.inhibit) { if (a.weight > 0 && mk[a.source] >= a.weight) return false; continue; }
+      consumed[a.source] = (consumed[a.source] || 0) + a.weight;
+    }
+    for (const p in consumed) if (mk[p] < consumed[p]) return false;
+    for (const a of net.arcs) {
+      if (a.source !== t || !P.has(a.target)) continue;
+      if (a.inhibit) { if (a.weight > 0 && mk[a.target] < a.weight) return false; continue; }
+      produced[a.target] = (produced[a.target] || 0) + a.weight;
+    }
+    for (const p in produced) {
+      const cap = P.get(p).capacity;
+      if (cap > 0 && mk[p] - (consumed[p] || 0) + produced[p] > cap) return false;
+    }
+    return true;
+  }
+  function fire(t, mk) {
+    const n = { ...mk };
+    for (const a of net.arcs) if (a.target === t && !a.inhibit && P.has(a.source)) n[a.source] = Math.max(0, n[a.source] - a.weight);
+    for (const a of net.arcs) if (a.source === t && !a.inhibit && P.has(a.target)) n[a.target] += a.weight;
+    return n;
+  }
+  const enabledIn = (mk) => tids.filter((t) => isEnabled(t, mk));
+  const name = (n) => n.label || n.id;
+
+  // ---- drawing ----
+  const R = 20, H = 15;
+  const el = (tag, attrs, parent) => {
+    const e = document.createElementNS(NS, tag);
+    for (const k in attrs) e.setAttribute(k, attrs[k]);
+    if (parent) parent.appendChild(e);
+    return e;
+  };
+  const svg = $("pf-svg");
+  const nodes = [...net.places, ...net.transitions];
+  const xs = nodes.map((n) => n.x), ys = nodes.map((n) => n.y);
+  const pad = 48;
+  const minX = Math.min(...xs) - pad, minY = Math.min(...ys) - pad;
+  const w = Math.max(Math.max(...xs) - Math.min(...xs) + 2 * pad, 160);
+  const h = Math.max(Math.max(...ys) - Math.min(...ys) + 2 * pad + 14, 120);
+  svg.setAttribute("viewBox", `${minX} ${minY} ${w} ${h}`);
+  const defs = el("defs", {}, svg);
+  const mA = el("marker", { id: "pf-arrow", viewBox: "0 0 10 10", refX: "9", refY: "5", markerWidth: "8", markerHeight: "8", orient: "auto-start-reverse" }, defs);
+  el("path", { d: "M0 0 L10 5 L0 10 z", class: "mk-arrow" }, mA);
+  const mI = el("marker", { id: "pf-inhib", viewBox: "0 0 10 10", refX: "9", refY: "5", markerWidth: "8", markerHeight: "8" }, defs);
+  el("circle", { cx: "5", cy: "5", r: "4", class: "mk-inhib" }, mI);
+
+  function trim(from, to, isPlace, extra) {
+    const dx = to.x - from.x, dy = to.y - from.y, len = Math.hypot(dx, dy) || 1;
+    let d = isPlace ? R : Math.min(H / (Math.abs(dx) / len || 1e-9), H / (Math.abs(dy) / len || 1e-9));
+    d += extra;
+    return { x: from.x + (dx / len) * d, y: from.y + (dy / len) * d };
+  }
+  const arcLayer = el("g", {}, svg);
+  for (const a of net.arcs) {
+    const src = P.get(a.source) || T.get(a.source);
+    const t = P.get(a.target) || T.get(a.target);
+    if (!src || !t) continue;
+    const sp = P.has(a.source), tp = P.has(a.target);
+    const p1 = trim(src, t, sp, 0), p2 = trim(t, src, tp, 2);
+    const read = a.inhibit && !sp; // transition -> place inhibit: the editor's read (test) arc
+    const line = el("line", { x1: p1.x, y1: p1.y, x2: p2.x, y2: p2.y, class: "arc" + (read ? " read" : "") }, arcLayer);
+    line.setAttribute("marker-end", a.inhibit && sp ? "url(#pf-inhib)" : "url(#pf-arrow)");
+    if (a.weight !== 1) {
+      const t2 = el("text", { x: (p1.x + p2.x) / 2 + 6, y: (p1.y + p2.y) / 2 - 6, class: "wt" }, arcLayer);
+      t2.textContent = String(a.weight);
+    }
+  }
+  const placeG = new Map(), transG = new Map();
+  for (const p of net.places) {
+    const g = el("g", { class: "pl" }, svg);
+    el("circle", { cx: p.x, cy: p.y, r: R }, g);
+    const tk = el("g", {}, g);
+    const lb = el("text", { x: p.x, y: p.y + R + 14, class: "lbl" }, g);
+    lb.textContent = name(p);
+    placeG.set(p.id, tk);
+  }
+  for (const t of net.transitions) {
+    const g = el("g", { class: "tr", tabindex: "-1", role: "button" }, svg);
+    el("rect", { x: t.x - H, y: t.y - H, width: 2 * H, height: 2 * H, rx: 3 }, g);
+    const lb = el("text", { x: t.x, y: t.y + H + 14, class: "lbl" }, g);
+    lb.textContent = name(t);
+    g.addEventListener("click", () => tryFire(t.id));
+    g.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); tryFire(t.id); } });
+    transG.set(t.id, g);
+  }
+  const DOTS = { 1: [[0, 0]], 2: [[-6, 0], [6, 0]], 3: [[-6, 5], [6, 5], [0, -6]], 4: [[-6, -6], [6, -6], [-6, 6], [6, 6]], 5: [[-7, -7], [7, -7], [0, 0], [-7, 7], [7, 7]] };
+  function drawTokens() {
+    for (const p of net.places) {
+      const g = placeG.get(p.id);
+      g.replaceChildren();
+      const n = m[p.id];
+      if (n > 0 && n <= 5) for (const [dx, dy] of DOTS[n]) el("circle", { cx: p.x + dx, cy: p.y + dy, r: 4, class: "tok" }, g);
+      else if (n > 5) el("text", { x: p.x, y: p.y, class: "cnt" }, g).textContent = String(n);
+    }
+  }
+
+  // ---- state ----
+  function render() {
+    drawTokens();
+    const en = enabledIn(m);
+    for (const [id, g] of transG) {
+      const on = en.includes(id);
+      g.classList.toggle("on", on);
+      g.setAttribute("tabindex", on && !replaying ? "0" : "-1");
+      g.setAttribute("aria-disabled", on ? "false" : "true");
+      g.setAttribute("aria-label", (on ? "Fire " : "Not enabled: ") + name(T.get(id)));
+    }
+    const box = $("pf-enabled");
+    box.replaceChildren();
+    for (const id of en) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.textContent = name(T.get(id));
+      b.disabled = replaying;
+      b.addEventListener("click", () => tryFire(id));
+      box.appendChild(b);
+    }
+    $("pf-status").textContent = en.length === 0
+      ? "Dead marking: nothing is enabled."
+      : `${en.length} enabled transition${en.length === 1 ? "" : "s"}. Click one to fire it.`;
+    $("pf-step").disabled = replaying || en.length === 0;
+    $("pf-reset").disabled = replaying;
+    $("pf-log").textContent = trace.length ? trace.join(" → ") : "No firings yet.";
+    renderInvariants();
+  }
+  function tryFire(id) {
+    if (replaying || !isEnabled(id, m)) return;
+    m = fire(id, m);
+    trace.push(id);
+    render();
+  }
+  function reset() { m = { ...initial }; trace = []; render(); }
+
+  // ---- verdicts ----
+  const fmt = (v) => v === true ? ["yes", "yes"] : v === false ? ["no", "no"] : ["unknown", "unk"];
+  function renderVerdicts() {
+    const a = analysis;
+    const box = $("pf-verdicts");
+    box.replaceChildren();
+    const items = [
+      ["States", a.states, a.complete ? "every reachable marking" : `stopped at ${a.max_states}`],
+      ["Edges", a.edges, "firings between them"],
+      ["Deadlock-free", a.deadlock_free, "no reachable marking has nothing enabled"],
+      ["Live (L4)", a.live, "every transition can still fire from every marking"],
+      ["Quasi-live (L1)", a.quasi_live, "every transition fires somewhere"],
+      ["Bounded", a.bounded, "every place has a finite maximum"],
+    ];
+    for (const [k, v, hint] of items) {
+      const d = document.createElement("div");
+      d.className = "v";
+      const b = document.createElement("b");
+      if (typeof v === "number") b.textContent = String(v);
+      else { const [txt, cls] = fmt(v); b.textContent = txt; b.className = cls; }
+      const s = document.createElement("small");
+      s.textContent = hint;
+      d.append(k, b, s);
+      box.appendChild(d);
+    }
+    const wit = a.witness && a.witness.trace ? a.witness : null;
+    const rb = $("pf-replay");
+    rb.hidden = !wit;
+    if (wit) rb.textContent = wit.kind === "livelock" ? "Replay the livelock" : "Replay the deadlock";
+    renderClasses();
+  }
+  function classesOf(a) {
+    const out = [];
+    if (!a.complete) out.push("PetriNet");
+    else if (a.live === true) out.push("LiveNet");
+    else if (a.deadlock_free === true) out.push("DeadlockFreeNet");
+    else out.push("PetriNet");
+    if (a.complete && a.bounded === true) out.push("BoundedNet");
+    return out;
+  }
+  function renderClasses() {
+    const box = $("pf-classes");
+    box.replaceChildren();
+    for (const c of classesOf(analysis)) {
+      const a = document.createElement("a");
+      a.className = "tag";
+      a.href = ONTO + c;
+      a.target = "_blank";
+      a.rel = "noopener";
+      a.textContent = c;
+      box.appendChild(a);
+    }
+    if (!analysis.complete) {
+      const p = document.createElement("p");
+      p.className = "muted";
+      p.textContent = "The search stopped at its state budget, so no behavioural class is earned.";
+      box.appendChild(p);
+    }
+  }
+  function renderInvariants() {
+    const ul = $("pf-inv");
+    ul.replaceChildren();
+    if (!invariants.length) {
+      const li = document.createElement("li");
+      li.textContent = "No semi-positive P-invariant: no weighted token count is conserved.";
+      ul.appendChild(li);
+      return;
+    }
+    for (const inv of invariants) {
+      let sum = 0;
+      for (const p in inv.coefficients) sum += inv.coefficients[p] * (m[p] || 0);
+      const ok = sum === inv.value;
+      const li = document.createElement("li");
+      const mark = document.createElement("span");
+      mark.className = ok ? "yes" : "no";
+      mark.textContent = ok ? "✓ " : "✗ ";
+      li.append(mark, `${inv.equation}  (now ${sum})`);
+      ul.appendChild(li);
+    }
+  }
+
+  // ---- witness replay ----
+  async function replay() {
+    const wit = analysis.witness;
+    if (!wit || replaying) return;
+    replaying = true;
+    m = { ...initial }; trace = [];
+    render();
+    for (const id of wit.trace) {
+      const g = transG.get(id);
+      g && g.classList.add("hot");
+      await new Promise((r) => setTimeout(r, 650));
+      g && g.classList.remove("hot");
+      if (!isEnabled(id, m)) break;
+      m = fire(id, m); trace.push(id);
+      render();
+    }
+    replaying = false;
+    render();
+    $("pf-status").textContent = enabledIn(m).length === 0
+      ? `Deadlock reached after ${trace.length} firing${trace.length === 1 ? "" : "s"}: nothing is enabled.`
+      : `Witness replayed: from here ${wit.never_fires.length} transition(s) can never fire again.`;
+  }
+
+  // ---- theme ----
+  const themes = ["auto", "light", "dark"];
+  let theme = 0;
+  $("pf-theme").addEventListener("click", () => {
+    theme = (theme + 1) % 3;
+    if (themes[theme] === "auto") delete document.documentElement.dataset.theme;
+    else document.documentElement.dataset.theme = themes[theme];
+    $("pf-theme").textContent = "Theme: " + themes[theme];
+  });
+
+  // ---- wasm engine (engine "wasm" only) ----
+  function normalize(a) {
+    return {
+      states: a.state_count, edges: a.edge_count, complete: a.complete,
+      bounded: a.complete ? a.bounded : "unknown",
+      deadlock_free: a.deadlock_free, live: a.live, quasi_live: a.quasi_live,
+      witness: a.witness, max_states: D.analysis.max_states,
+    };
+  }
+  async function loadEngine() {
+    const b64 = document.getElementById("pflow-engine").textContent.trim();
+    const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0)); // never fetch a data: URI
+    const { instance } = await WebAssembly.instantiate(bytes, {});
+    const x = instance.exports, enc = new TextEncoder(), dec = new TextDecoder();
+    return (fn, req) => {
+      const b = enc.encode(JSON.stringify(req)), p = x.alloc(b.length);
+      new Uint8Array(x.memory.buffer, p, b.length).set(b);
+      const r = x[fn](p, b.length), rp = Number(r >> 32n), rl = Number(r & 0xffffffffn);
+      const out = JSON.parse(dec.decode(new Uint8Array(x.memory.buffer, rp, rl)));
+      x.dealloc(rp, rl); x.dealloc(p, b.length);
+      if (out.error) throw new Error(out.error);
+      return out;
+    };
+  }
+  function netWith(mk) {
+    const src = JSON.parse(JSON.stringify(D.source));
+    for (const id in mk) if (src.places && src.places[id]) src.places[id].initial = [mk[id]];
+    return src;
+  }
+  function setupMarkingEditor() {
+    $("pf-marking-card").hidden = false;
+    const tb = $("pf-mk");
+    for (const p of net.places) {
+      const tr = document.createElement("tr");
+      const td1 = document.createElement("td"), td2 = document.createElement("td");
+      const lab = document.createElement("label");
+      lab.htmlFor = "pf-mk-" + p.id;
+      lab.textContent = name(p);
+      const inp = document.createElement("input");
+      inp.type = "number"; inp.min = "0"; inp.step = "1"; inp.id = "pf-mk-" + p.id; inp.value = String(initial[p.id]);
+      inp.dataset.place = p.id;
+      td1.appendChild(lab); td2.appendChild(inp);
+      tr.append(td1, td2);
+      tb.appendChild(tr);
+    }
+    $("pf-analyze").addEventListener("click", () => {
+      const mk = {};
+      for (const inp of tb.querySelectorAll("input")) {
+        const v = Number(inp.value);
+        if (!Number.isInteger(v) || v < 0) { $("pf-analyze-msg").textContent = `${inp.dataset.place}: a whole number, 0 or more`; return; }
+        mk[inp.dataset.place] = v;
+      }
+      try {
+        const t0 = performance.now();
+        const a = engineCall("analyze", { net: netWith(mk), max_states: D.analysis.max_states });
+        analysis = normalize(a);
+        invariants = (a.p_invariants || []).map((i) => ({ coefficients: i.coefficients, value: i.value, equation: i.render }));
+        initial = mk;
+        $("pf-engine").textContent = `Re-analyzed in this page by ${a.engine} in ${Math.round(performance.now() - t0)} ms.`;
+        $("pf-analyze-msg").textContent = "";
+        renderVerdicts();
+        reset();
+      } catch (e) {
+        $("pf-analyze-msg").textContent = "Engine error: " + e.message;
+      }
+    });
+  }
+  async function startWasm() {
+    try {
+      engineCall = await loadEngine();
+      const a = normalize(engineCall("analyze", { net: D.source, max_states: D.analysis.max_states }));
+      const keys = ["states", "edges", "complete", "deadlock_free", "live", "quasi_live", "bounded"];
+      const diff = keys.filter((k) => a[k] !== D.analysis[k]);
+      $("pf-engine").textContent = diff.length
+        ? `Verdicts by go-pflow on pflow.xyz. The in-page engine (pflow-rs, WebAssembly) disagrees on: ${diff.join(", ")}.`
+        : "Verdicts by go-pflow on pflow.xyz; the in-page engine (pflow-rs, WebAssembly) agrees on every one.";
+      setupMarkingEditor();
+    } catch (e) {
+      $("pf-engine").textContent = "Verdicts by go-pflow on pflow.xyz. The in-page engine did not start: " + e.message;
+    }
+  }
+
+  // ---- boot ----
+  $("pf-title").textContent = D.title;
+  $("pf-lede").textContent = `${net.places.length} places, ${net.transitions.length} transitions. Fire enabled transitions and watch the conservation laws hold.`;
+  $("pf-cid").textContent = D.cid;
+  $("pf-editor").href = D.editor;
+  $("pf-stored").textContent = D.stored ? "(stored on pflow.xyz)" : "(the net travels in the link)";
+  $("pf-engine").textContent = D.engine === "wasm" ? "Starting the in-page engine…" : "Verdicts by go-pflow on pflow.xyz, computed when this page was made.";
+  $("pf-step").addEventListener("click", () => {
+    const en = enabledIn(m);
+    if (en.length) tryFire(en[Math.floor(Math.random() * en.length)]);
+  });
+  $("pf-reset").addEventListener("click", reset);
+  $("pf-replay").addEventListener("click", replay);
+  renderVerdicts();
+  render();
+  if (D.engine === "wasm") startWasm();
+})();
+</script>

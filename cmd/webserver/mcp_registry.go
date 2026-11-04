@@ -107,6 +107,7 @@ var mcpAnnotations = map[string]mcpAnnotation{
 	"pflow_ssa":        {"Simulate a net (stochastic SSA)", true, false, true},
 	"pflow_rate_scan":  {"Scan one transition's rate", true, false, true},
 	"pflow_export":     {"Export a net (JSON-LD or SVG)", true, false, true},
+	"pflow_artifact":   {"Make an interactive page of a net", true, false, true},
 }
 
 // toolDescriptor is one entry of tools/list, with annotations.
@@ -136,7 +137,7 @@ func toolDescriptor(t mcpTool) map[string]any {
 // allMCPTools is the original seven plus the registry, workbench, game and
 // composition tools.
 func allMCPTools() []mcpTool {
-	return append(append(append(append(mcpTools(), registryTools()...), workbenchTools()...), gameTools()...), modelTools()...)
+	return append(append(append(append(append(mcpTools(), registryTools()...), workbenchTools()...), gameTools()...), modelTools()...), artifactTool())
 }
 
 // ---- protocol version and the tools a connection is offered ----

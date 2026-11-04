@@ -1,0 +1,6 @@
+{
+  "_comment": "engine.wasm is copied from experiments/artifact-wasm/engine.wasm (pflow-rs pflow-reachability as a raw wasm32 module, no imports; exports memory, alloc, dealloc, analyze, fire, JSON in and out). pflow_artifact embeds it for engine=wasm. TestArtifactEngineLock checks these bytes; re-copy and update the hash together.",
+  "source": "experiments/artifact-wasm/engine.wasm",
+  "sha256": "e8bdeed0081ba5811e4828b3788b41347a2a6eec0b1a6cf165d4af21c7e114f8",
+  "bytes": 317953
+}

@@ -216,7 +216,8 @@ curl -s https://pflow.xyz/mcp -H 'Content-Type: application/json' \
 **Nets:** pflow_edit, pflow_info, pflow_check, pflow_validate, pflow_verify,
 pflow_fire, pflow_reachability, pflow_invariants, pflow_incidence,
 pflow_simulate, pflow_ssa, pflow_sde, pflow_what_if, pflow_rate_scan,
-pflow_optimize, pflow_cid, pflow_get, pflow_export, pflow_links, pflow_save.
+pflow_optimize, pflow_cid, pflow_get, pflow_export, pflow_links, pflow_save,
+pflow_artifact (an interactive page of the net, to publish as an Artifact).
 
 **Two-sided games:** exact alpha-beta search over the firing rule, on a net whose
 moves belong to two sides. The net's marking is the position.
