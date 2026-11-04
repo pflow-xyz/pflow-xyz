@@ -648,3 +648,57 @@ func TestMCPBundleDocsAndInstructionsName(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+// The flat net is not a pflow.xyz net. go-pflow's reader skipped its list-shaped
+// places and transitions, so every net tool answered about an empty net (an
+// empty pflow_simulate, a reachability of one state) instead of refusing it.
+func TestMCPNetToolsRefuseTheFlatNet(t *testing.T) {
+	ex, errText := bundleRPC(t, "pflow_bundle_example", map[string]any{})
+	if errText != "" {
+		t.Fatal(errText)
+	}
+	f, errText := bundleRPC(t, "pflow_bundle_flatten", map[string]any{"bundle": ex["bundle"]})
+	if errText != "" {
+		t.Fatal(errText)
+	}
+	flat := map[string]any{"@context": "https://pflow.xyz/schema", "@type": "PetriNet",
+		"places": f["places"], "transitions": f["transitions"], "arcs": f["arcs"]}
+	_, out := mcpCall(t, &Server{}, `{"jsonrpc":"2.0","id":2,"method":"tools/list"}`)
+	n := 0
+	for _, raw := range out["result"].(map[string]any)["tools"].([]any) {
+		tool := raw.(map[string]any)
+		name := tool["name"].(string)
+		props, _ := tool["inputSchema"].(map[string]any)["properties"].(map[string]any)
+		if _, ok := props["net"]; !ok || name == "pflow_save" { // pflow_save asks for a sign-in first
+			continue
+		}
+		n++
+		args := map[string]any{"net": flat}
+		switch { // what each tool checks before the net
+		case strings.HasPrefix(name, "pflow_game_"):
+			args["sides"], args["reward"] = map[string]any{"orders/": 1}, map[string]any{"orders/items": 1}
+		case name == "pflow_what_if":
+			args["place"] = "orders/items"
+		case name == "pflow_optimize":
+			args["parameters"] = []any{map[string]any{"transition": "orders/enqueue", "min": 0.1, "max": 1}}
+			args["objectives"] = []any{map[string]any{"place": "orders/items"}}
+		}
+		if _, errText := bundleRPC(t, name, args); !strings.Contains(errText, "net.places: an object keyed by place id") ||
+			!strings.Contains(errText, "fire it with pflow_bundle_run") {
+			t.Errorf("%s: %q", name, errText)
+		}
+	}
+	if n < 20 {
+		t.Errorf("only %d tools take a net", n)
+	}
+	// Arcs written from/to are refused even when places and transitions are objects.
+	net := map[string]any{"places": map[string]any{"a": map[string]any{"initial": []any{1}}},
+		"transitions": map[string]any{"t": map[string]any{}}, "arcs": []any{map[string]any{"from": "a", "to": "t", "weight": 1}}}
+	if _, errText := bundleRPC(t, "pflow_simulate", map[string]any{"net": net}); !strings.Contains(errText, "net.arcs[0]: source") {
+		t.Errorf("from/to arcs: %q", errText)
+	}
+	// A composition has no places at all, and pflow_cid still reads it.
+	if _, errText := bundleRPC(t, "pflow_cid", map[string]any{"net": ex["bundle"]}); errText != "" {
+		t.Errorf("pflow_cid on a composition: %s", errText)
+	}
+}

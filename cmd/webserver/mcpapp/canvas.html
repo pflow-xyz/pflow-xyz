@@ -1,0 +1,568 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Composition canvas</title>
+<style>
+/* Self-contained on purpose: a host's default sandbox allows inline script and style and no other origin.
+   Colours come from the host's style variables, with fallbacks for a host that sends none. */
+:root {
+  color-scheme: light dark;
+  --fg: var(--color-text-primary, light-dark(#141413, #FAF9F5));
+  --fg2: var(--color-text-secondary, light-dark(#3D3D3A, #C2C0B6));
+  --fg3: var(--color-text-tertiary, light-dark(#73726C, #9C9A92));
+  --bg2: var(--color-background-secondary, light-dark(#F5F4ED, #262624));
+  --bg3: var(--color-background-tertiary, light-dark(#FAF9F5, #141413));
+  --line: var(--color-border-primary, light-dark(#1F1E1D66, #DEDCD166));
+  --line2: var(--color-border-tertiary, light-dark(#1F1E1D26, #DEDCD126));
+  --info: var(--color-text-info, light-dark(#3266AD, #80AADD));
+  --info-bg: var(--color-background-info, light-dark(#D6E4F6, #253E5F));
+  --ok: var(--color-text-success, light-dark(#265B19, #7AB948));
+  --bad: var(--color-text-danger, light-dark(#7F2C28, #EE8884));
+  --bad-bg: var(--color-background-danger, light-dark(#F7ECEC, #602A28));
+  --warn: var(--color-text-warning, light-dark(#5A4815, #D1A041));
+  --ring: var(--color-ring-info, light-dark(#3266AD80, #80AADD80));
+  --r-sm: var(--border-radius-sm, 6px);
+  --r-md: var(--border-radius-md, 8px);
+  --r-lg: var(--border-radius-lg, 10px);
+  --pad-t: 0px; --pad-r: 0px; --pad-b: 0px; --pad-l: 0px;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: transparent; }
+body {
+  color: var(--fg);
+  font-family: var(--font-sans, system-ui, sans-serif);
+  font-size: var(--font-text-sm-size, 14px);
+  line-height: var(--font-text-sm-line-height, 1.4);
+}
+main {
+  padding: calc(12px + var(--pad-t)) calc(12px + var(--pad-r)) calc(12px + var(--pad-b)) calc(12px + var(--pad-l));
+  display: flex; flex-direction: column; gap: 12px;
+}
+h1, h2, h3, p, ul { margin: 0; }
+h1 { font-size: var(--font-heading-md-size, 16px); font-weight: var(--font-weight-semibold, 600); }
+h2 { font-size: var(--font-heading-xs-size, 12px); font-weight: var(--font-weight-semibold, 600); color: var(--fg3); }
+ul { padding: 0; list-style: none; }
+button {
+  font: inherit; color: inherit; cursor: pointer; min-height: 44px; min-width: 44px; padding: 4px 10px;
+  background: transparent; border: 1px solid var(--line); border-radius: var(--r-md);
+}
+button:hover:not(:disabled) { background: var(--bg2); }
+button:focus-visible { outline: 2px solid var(--ring); outline-offset: 1px; }
+button:disabled { cursor: default; opacity: .5; }
+button[aria-pressed="true"] { background: var(--info-bg); border-color: var(--info); }
+.bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.bar h1 { margin-right: auto; }
+.status { min-height: 1.4em; color: var(--fg2); }
+.status[data-tone="bad"] { color: var(--bad); }
+.status[data-tone="warn"] { color: var(--warn); }
+.row { display: flex; flex-wrap: wrap; gap: 6px; }
+section { display: flex; flex-direction: column; gap: 6px; }
+section[hidden], [hidden] { display: none !important; }
+
+.board { position: relative; }
+.parts { display: grid; gap: 28px; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); align-items: start; }
+.wires { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; z-index: 2; }
+.wires path { fill: none; stroke: var(--info); stroke-width: 1.5; opacity: .8; }
+.wires path[data-kind="data"] { stroke-dasharray: 6 4; }
+.wires path[data-kind="guard"] { stroke: var(--warn); stroke-dasharray: 2 4; stroke-linecap: round; }
+.wires path[data-kind="token"] { stroke: var(--ok); stroke-width: 2.5; }
+.part { background: var(--bg3); border: 1px solid var(--line2); border-radius: var(--r-lg); padding: 8px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.part h3 { font-size: var(--font-text-sm-size, 14px); font-weight: var(--font-weight-semibold, 600); overflow-wrap: anywhere; }
+.part .sub { color: var(--fg3); font-size: var(--font-text-xs-size, 12px); }
+.ports { display: flex; flex-direction: column; gap: 4px; }
+.port { width: 100%; text-align: left; display: flex; align-items: center; gap: 6px; background: var(--bg2); border-color: var(--line2); position: relative; z-index: 3; }
+.port .name { overflow-wrap: anywhere; min-width: 0; flex: 1; }
+.port .meta { color: var(--fg3); font-size: var(--font-text-xs-size, 12px); white-space: nowrap; }
+.port .shape { flex: none; width: 10px; height: 10px; border: 1.5px solid var(--fg2); }
+.port .shape[data-target="place"] { border-radius: 50%; }
+.port[data-lit] { border-color: var(--info); border-width: 2px; background: var(--info-bg); }
+.port[data-lit] .meta { color: var(--fg); font-weight: var(--font-weight-semibold, 600); }
+.board[data-linking] .port:not([data-lit]):not([aria-pressed="true"]) { opacity: .45; }
+
+.links li { display: flex; align-items: center; gap: 8px; }
+.links .what { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.links .kind { color: var(--fg3); }
+.empty { color: var(--fg3); }
+.result { background: var(--bg3); border: 1px solid var(--line2); border-radius: var(--r-md); padding: 8px; display: flex; flex-direction: column; gap: 4px; }
+.result .pass { color: var(--ok); }
+.result .fail { color: var(--bad); }
+.result .note { color: var(--fg2); }
+.issues { background: var(--bad-bg); border-radius: var(--r-md); padding: 8px; }
+.skeleton { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+.skeleton div { height: 160px; background: var(--bg2); border-radius: var(--r-lg); }
+@media (prefers-reduced-motion: no-preference) { .skeleton div { animation: pulse 1.4s ease-in-out infinite; } }
+@keyframes pulse { 50% { opacity: .5; } }
+</style>
+</head>
+<body>
+<main id="app">
+  <div class="bar">
+    <h1 id="title">Composition canvas</h1>
+    <button id="fullscreen" type="button" hidden>Full screen</button>
+  </div>
+  <p id="status" class="status" role="status" aria-live="polite">Waiting for the composition…</p>
+  <div id="skeleton" class="skeleton" aria-hidden="true"><div></div><div></div><div></div></div>
+  <section id="palette" aria-labelledby="palette-h" hidden><h2 id="palette-h">Parts</h2><div id="palette-items" class="row"></div></section>
+  <div id="issues" class="issues" hidden></div>
+  <div id="board" class="board" hidden>
+    <svg id="wires" class="wires" aria-hidden="true"></svg>
+    <div id="parts" class="parts"></div>
+  </div>
+  <section id="links" class="links" aria-labelledby="links-h" hidden><h2 id="links-h">Links</h2><ul id="links-items"></ul></section>
+  <section id="scenarios" aria-labelledby="scenarios-h" hidden><h2 id="scenarios-h">Run a scenario</h2><div id="scenario-items" class="row"></div></section>
+  <div id="result" class="result" hidden></div>
+</main>
+<script>
+"use strict";
+// The page holds the composition and draws it. It decides nothing: which links are legal, adding one, whether the
+// composition validates and what a run does all come from the server's pflow_bundle_* tools, called through the host.
+// Everything from the composition reaches the DOM as text, never as markup: a composition can be written by anyone.
+
+const $ = (id) => document.getElementById(id);
+const SVG = "http://www.w3.org/2000/svg";
+const PROTOCOL = "2026-01-26";
+
+const state = {
+  bundle: null, validation: null, catalog: null, instances: null, scenarios: [],
+  from: null, candidates: null, result: null, host: {}, context: {}, generation: 0,
+};
+
+// ---- the bridge to the host: JSON-RPC over postMessage ----------------------------------------------------------
+
+let nextId = 1;
+const pending = new Map();
+
+function post(message) { window.parent.postMessage({ jsonrpc: "2.0", ...message }, "*"); }
+function notify(method, params = {}) { post({ method, params }); }
+function request(method, params = {}) {
+  const id = nextId++;
+  return new Promise((resolve, reject) => {
+    pending.set(id, { resolve, reject });
+    post({ id, method, params });
+  });
+}
+
+window.addEventListener("message", (event) => {
+  if (event.source !== window.parent) return;
+  const m = event.data;
+  if (!m || m.jsonrpc !== "2.0") return;
+  if (m.id !== undefined && !m.method) {
+    const waiting = pending.get(m.id);
+    if (!waiting) return;
+    pending.delete(m.id);
+    if (m.error) waiting.reject(new Error(m.error.message || "the host refused"));
+    else waiting.resolve(m.result);
+    return;
+  }
+  switch (m.method) {
+    case "ui/notifications/tool-result": onToolResult(m.params || {}); break;
+    case "ui/notifications/tool-cancelled": setStatus("The call that opens the canvas was cancelled.", "warn"); break;
+    case "ui/notifications/host-context-changed": applyContext(m.params || {}); break;
+    case "ui/resource-teardown": post({ id: m.id, result: {} }); break;
+    case "ping": post({ id: m.id, result: {} }); break;
+    default:
+      if (m.id !== undefined) post({ id: m.id, error: { code: -32601, message: `method ${m.method} not found` } });
+  }
+});
+
+/** A tool's answer as JSON; a refusal is an Error with the tool's own words. */
+function readResult(result) {
+  const text = (result.content || []).filter((c) => c.type === "text").map((c) => c.text).join("\n");
+  if (result.isError) throw new Error(text || "the tool failed");
+  const value = result.structuredContent || JSON.parse(text);
+  if (value.truncated) throw new Error("the composition is too large for one result");
+  return value;
+}
+
+async function tool(name, args) {
+  return readResult(await request("tools/call", { name, arguments: args }));
+}
+
+// ---- host context ------------------------------------------------------------------------------------------------
+
+function applyContext(ctx) {
+  Object.assign(state.context, ctx);
+  const root = document.documentElement;
+  if (ctx.theme) root.style.colorScheme = ctx.theme;
+  for (const [name, value] of Object.entries(ctx.styles?.variables || {})) {
+    if (typeof value === "string" && name.startsWith("--")) root.style.setProperty(name, value);
+  }
+  if (ctx.styles?.css?.fonts && !$("host-fonts")) {
+    const style = document.createElement("style");
+    style.id = "host-fonts";
+    style.textContent = ctx.styles.css.fonts;
+    document.head.append(style);
+  }
+  const inset = ctx.safeAreaInsets;
+  if (inset) {
+    for (const [side, key] of [["top", "t"], ["right", "r"], ["bottom", "b"], ["left", "l"]]) {
+      root.style.setProperty(`--pad-${key}`, `${Number(inset[side]) || 0}px`);
+    }
+  }
+  const button = $("fullscreen");
+  button.hidden = !(state.context.availableDisplayModes || []).includes("fullscreen");
+  const full = state.context.displayMode === "fullscreen";
+  button.textContent = full ? "Back to the conversation" : "Full screen";
+  document.body.dataset.displayMode = state.context.displayMode || "inline";
+  drawWires();
+  reportSize();
+}
+
+let lastSize = "";
+function reportSize() {
+  if (state.context.displayMode === "fullscreen") return;
+  const box = $("app").getBoundingClientRect();
+  const size = { width: Math.ceil(box.width), height: Math.ceil(box.height) };
+  const key = `${size.width}x${size.height}`;
+  if (key === lastSize) return;
+  lastSize = key;
+  notify("ui/notifications/size-changed", size);
+}
+
+// ---- small DOM helpers -------------------------------------------------------------------------------------------
+
+function el(tag, props = {}, ...kids) {
+  const node = document.createElement(tag);
+  for (const [key, value] of Object.entries(props)) {
+    if (value === undefined || value === null || value === false) continue;
+    if (key === "onclick") node.onclick = value;
+    else if (key === "class") node.className = value;
+    else if (key === "dataset") Object.assign(node.dataset, value);
+    else node.setAttribute(key, value === true ? "" : String(value));
+  }
+  node.append(...kids.filter((k) => k !== null && k !== undefined));
+  return node;
+}
+
+function setStatus(text, tone = "") {
+  const status = $("status");
+  status.textContent = text;
+  if (tone) status.dataset.tone = tone; else delete status.dataset.tone;
+}
+
+const refKey = (ref) => JSON.stringify([ref.subnet, ref.port]);
+const refText = (ref) => `${ref.subnet}.${ref.port}`;
+const linkText = (l) => `${refText(l.from)} to ${refText(l.to)}`;
+
+// ---- drawing -----------------------------------------------------------------------------------------------------
+
+function render() {
+  const focused = document.activeElement?.dataset?.key;
+  const b = state.bundle;
+  $("skeleton").hidden = true;
+  $("board").hidden = false;
+  $("title").textContent = b.name && b.name !== "composition" ? b.name : "Composition canvas";
+  renderPalette();
+  renderIssues();
+  renderParts();
+  renderLinks();
+  renderScenarios();
+  renderResult();
+  document.body.dataset.state = "ready";
+  if (focused) document.querySelector(`[data-key="${CSS.escape(focused)}"]`)?.focus();
+  drawWires();
+  reportSize();
+}
+
+function renderPalette() {
+  const show = !!state.catalog;
+  $("palette").hidden = !show;
+  if (!show) return;
+  $("palette-items").replaceChildren(...state.catalog.map((part) => {
+    const on = state.instances.includes(part.id);
+    return el("button", {
+      type: "button", class: "chip", "aria-pressed": String(on), disabled: !part.available,
+      title: part.reason || part.why || part.pattern, dataset: { key: `part:${part.id}`, part: part.id },
+      onclick: () => togglePart(part.id),
+    }, `${part.id} (${part.pattern})`);
+  }));
+}
+
+function renderIssues() {
+  const v = state.validation;
+  const issues = v ? [...(v.errors || []), ...(v.warnings || [])] : [];
+  $("issues").hidden = issues.length === 0;
+  $("issues").replaceChildren(...issues.map((i) => el("p", {}, typeof i === "string" ? i : i.message || JSON.stringify(i))));
+}
+
+function renderParts() {
+  const lit = new Map((state.candidates || []).map((c) => [refKey(c.ref), c]));
+  const linking = !!state.from;
+  if (linking) $("board").dataset.linking = ""; else delete $("board").dataset.linking;
+  $("parts").replaceChildren(...(state.bundle.subnets || []).map((subnet) => {
+    const ports = (subnet.ports || []).map((port) => {
+      const ref = { subnet: subnet.id, port: port.id };
+      const key = refKey(ref);
+      const candidate = lit.get(key);
+      const selected = linking && refKey(state.from) === key;
+      const target = port.target === "transition" || port.transition ? "transition" : "place";
+      const label = candidate ? candidate.link.kind : port.kind || "";
+      return el("button", {
+        type: "button", class: "port", "aria-pressed": selected ? "true" : "false",
+        "aria-label": `${port.id}, ${target} port of ${subnet.id}${candidate ? `, can take a ${candidate.link.kind} link` : ""}`,
+        dataset: { key: `port:${key}`, ref: key, ...(candidate ? { lit: candidate.link.kind } : {}) },
+        onclick: () => pickPort(ref),
+      }, el("span", { class: "shape", dataset: { target } }), el("span", { class: "name" }, port.id), el("span", { class: "meta" }, label));
+    });
+    return el("article", { class: "part", dataset: { subnet: subnet.id } },
+      el("h3", {}, subnet.id),
+      el("p", { class: "sub" }, subnet.net_type || ""),
+      ports.length ? el("div", { class: "ports" }, ...ports) : el("p", { class: "empty" }, "This part declares no ports yet."));
+  }));
+}
+
+function renderLinks() {
+  const links = state.bundle.links || [];
+  $("links").hidden = false;
+  $("links-items").replaceChildren(...(links.length ? links.map((link, i) => el("li", {},
+    el("span", { class: "what" }, linkText(link), " ", el("span", { class: "kind" }, `(${link.kind})`)),
+    el("button", { type: "button", "aria-label": `Remove the link ${linkText(link)}`, dataset: { key: `remove:${refKey(link.from)}:${refKey(link.to)}`, removeLink: String(i) }, onclick: () => removeLink(i) }, "Remove")))
+    : [el("li", { class: "empty" }, "No links yet. Pick a port to see where it can go.")]));
+}
+
+function renderScenarios() {
+  const list = state.scenarios || [];
+  $("scenarios").hidden = list.length === 0;
+  $("scenario-items").replaceChildren(...list.map((s) => el("button", {
+    type: "button", dataset: { key: `scenario:${s.id}`, scenario: s.id }, onclick: () => runScenario(s),
+  }, s.title || s.id)));
+}
+
+function renderResult() {
+  const r = state.result;
+  $("result").hidden = !r;
+  if (!r) return;
+  const kids = [el("h3", {}, r.title)];
+  kids.push(el("p", {}, r.completed ? "It ran to the end." : `It stopped at step ${r.stopped_at + 1}, ${r.stopped_step}${r.why ? `: ${r.why}` : "."}`));
+  for (const e of r.expect || []) {
+    kids.push(el("p", { class: e.pass ? "pass" : "fail" }, `${e.pass ? "Holds" : "Does not hold"}: ${e.says} (${e.place} is ${e.actual}, expected ${e.op} ${e.n})`));
+  }
+  if (r.note) kids.push(el("p", { class: "note" }, r.note));
+  $("result").replaceChildren(...kids);
+}
+
+function drawWires() {
+  const wires = $("wires");
+  if (!state.bundle || $("board").hidden) return;
+  const origin = $("board").getBoundingClientRect();
+  const buttons = new Map([...document.querySelectorAll(".port")].map((b) => [b.dataset.ref, b]));
+  const paths = [];
+  for (const link of state.bundle.links || []) {
+    const a = buttons.get(refKey(link.from));
+    const b = buttons.get(refKey(link.to));
+    if (!a || !b) continue;
+    const ra = a.getBoundingClientRect();
+    const rb = b.getBoundingClientRect();
+    const y1 = ra.top + ra.height / 2 - origin.top;
+    const y2 = rb.top + rb.height / 2 - origin.top;
+    let x1, x2, c1, c2;
+    if (rb.left >= ra.right) { x1 = ra.right; x2 = rb.left; const d = Math.max(14, (x2 - x1) / 2); c1 = x1 + d; c2 = x2 - d; }
+    else if (ra.left >= rb.right) { x1 = ra.left; x2 = rb.right; const d = Math.max(14, (x1 - x2) / 2); c1 = x1 - d; c2 = x2 + d; }
+    else { x1 = ra.right; x2 = rb.right; c1 = x1 + 10; c2 = x2 + 10; } // stacked: bow out through the margin
+    x1 -= origin.left; x2 -= origin.left; c1 -= origin.left; c2 -= origin.left;
+    const path = document.createElementNS(SVG, "path");
+    path.setAttribute("d", `M${x1} ${y1} C${c1} ${y1} ${c2} ${y2} ${x2} ${y2}`);
+    path.dataset.kind = link.kind;
+    paths.push(path);
+  }
+  wires.replaceChildren(...paths);
+}
+
+// ---- what the person does ----------------------------------------------------------------------------------------
+
+function fail(error) { setStatus(error.message, "bad"); }
+
+function cancelLinking() {
+  state.generation++;
+  state.from = null;
+  state.candidates = null;
+}
+
+async function pickPort(ref) {
+  const candidate = (state.candidates || []).find((c) => refKey(c.ref) === refKey(ref));
+  if (state.from && candidate) return addLink(candidate.link);
+  if (state.from && refKey(state.from) === refKey(ref)) {
+    cancelLinking();
+    setStatus("Pick a port to see where it can go.");
+    return render();
+  }
+  const generation = ++state.generation;
+  state.from = ref;
+  state.candidates = null;
+  setStatus(`Asking which links ${refText(ref)} can take…`);
+  render();
+  try {
+    const answer = await tool("pflow_bundle_candidates", { bundle: state.bundle, from: ref, only_ok: true });
+    if (generation !== state.generation) return; // the person has moved on
+    state.candidates = answer.candidates || [];
+    setStatus(state.candidates.length
+      ? `${refText(ref)} can take ${state.candidates.length} link${state.candidates.length === 1 ? "" : "s"}. Pick one of the lit ports.`
+      : `${refText(ref)} has no legal link in this composition.`);
+    render();
+  } catch (error) {
+    if (generation !== state.generation) return;
+    cancelLinking();
+    render();
+    fail(error);
+  }
+}
+
+async function addLink(link) {
+  const generation = ++state.generation;
+  setStatus(`Linking ${linkText(link)}…`);
+  try {
+    const answer = await tool("pflow_bundle_add_link", { bundle: state.bundle, kind: link.kind, from: link.from, to: link.to });
+    if (generation !== state.generation) return;
+    state.bundle.links = answer.links;
+    await afterEdit(`Linked ${linkText(link)} (${link.kind}).`, `added the ${link.kind} link ${linkText(link)}`);
+  } catch (error) {
+    if (generation !== state.generation) return;
+    cancelLinking();
+    render();
+    fail(error);
+  }
+}
+
+async function removeLink(index) {
+  const link = state.bundle.links[index];
+  state.bundle.links = state.bundle.links.filter((_, i) => i !== index);
+  await afterEdit(`Removed ${linkText(link)}.`, `removed the ${link.kind} link ${linkText(link)}`);
+}
+
+async function togglePart(id) {
+  const instances = state.instances.includes(id) ? state.instances.filter((x) => x !== id) : [...state.instances, id];
+  const generation = ++state.generation;
+  setStatus("Changing the parts…");
+  try {
+    const answer = await tool("pflow_bundle_example", { instances, links: state.bundle.links || [] });
+    if (generation !== state.generation) return;
+    state.bundle = answer.bundle;
+    state.catalog = answer.catalog;
+    state.instances = answer.instances;
+    state.scenarios = answer.scenarios || [];
+    const dropped = (answer.dropped_links || []).length;
+    const on = instances.includes(id);
+    const said = `${on ? "Added" : "Removed"} ${id}${dropped ? `, and ${dropped} link${dropped === 1 ? "" : "s"} that ended there` : ""}.`;
+    await afterEdit(said, `${on ? "added" : "removed"} the part ${id}`);
+  } catch (error) {
+    if (generation !== state.generation) return;
+    cancelLinking();
+    render();
+    fail(error);
+  }
+}
+
+/** Every edit: forget the linking gesture and the last run, ask the server whether the result is valid, tell Claude. */
+async function afterEdit(said, action) {
+  cancelLinking();
+  state.result = null;
+  setStatus(said);
+  render();
+  const generation = state.generation;
+  try {
+    const validation = await tool("pflow_bundle_validate", { bundle: state.bundle });
+    if (generation !== state.generation) return;
+    state.validation = validation;
+    render();
+    if (!validation.valid) setStatus(`${said} The composition does not validate.`, "warn");
+  } catch (error) {
+    if (generation === state.generation) fail(error);
+  }
+  tellTheModel(action);
+}
+
+function tellTheModel(action) {
+  if (!state.host.updateModelContext) return;
+  const text = `On the pflow canvas the person ${action}. The composition is now:\n${JSON.stringify(state.bundle)}`;
+  request("ui/update-model-context", { content: [{ type: "text", text }] }).catch(() => {});
+}
+
+async function runScenario(scenario) {
+  const generation = ++state.generation;
+  state.from = null;
+  state.candidates = null;
+  setStatus(`Running: ${scenario.title || scenario.id}…`);
+  render();
+  try {
+    const answer = await tool("pflow_bundle_run", { bundle: state.bundle, scenario: scenario.id });
+    if (generation !== state.generation) return;
+    const stopped = (answer.steps || [])[answer.stopped_at];
+    state.result = { ...answer, title: answer.title || scenario.title || scenario.id, note: scenario.note, why: stopped?.why };
+    const failed = (answer.expect || []).filter((e) => !e.pass).length;
+    setStatus(failed ? `${failed} expectation${failed === 1 ? "" : "s"} did not hold.` : answer.completed ? "Everything it expected held." : "It stopped early.", failed || !answer.completed ? "warn" : "");
+    render();
+  } catch (error) {
+    if (generation === state.generation) fail(error);
+  }
+}
+
+function onToolResult(result) {
+  try {
+    const value = readResult(result);
+    if (!value.bundle) throw new Error("the tool returned no composition");
+    state.bundle = value.bundle;
+    state.validation = value.validation || null;
+    state.catalog = value.catalog || null;
+    state.instances = value.instances || null;
+    state.scenarios = value.scenarios || [];
+    state.result = null;
+    cancelLinking();
+    setStatus(value.validation && !value.validation.valid ? "This composition does not validate." : "Pick a port to see where it can go.", value.validation && !value.validation.valid ? "warn" : "");
+    render();
+  } catch (error) {
+    $("skeleton").hidden = true;
+    document.body.dataset.state = "failed";
+    fail(error);
+    reportSize();
+  }
+}
+
+// ---- start -------------------------------------------------------------------------------------------------------
+
+$("fullscreen").onclick = async () => {
+  const next = state.context.displayMode === "fullscreen" ? "inline" : "fullscreen";
+  try {
+    const answer = await request("ui/request-display-mode", { mode: next });
+    applyContext({ displayMode: answer.mode });
+  } catch (error) { fail(error); }
+};
+
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && state.from) {
+    cancelLinking();
+    setStatus("Pick a port to see where it can go.");
+    render();
+  }
+});
+
+new ResizeObserver(() => { drawWires(); reportSize(); }).observe($("app"));
+
+(async () => {
+  if (window.parent === window) {
+    setStatus("This canvas opens inside an MCP host, through the pflow_canvas tool.", "warn");
+    $("skeleton").hidden = true;
+    return;
+  }
+  const noHost = setTimeout(() => setStatus("No answer from the host yet.", "warn"), 8000);
+  try {
+    const answer = await request("ui/initialize", {
+      protocolVersion: PROTOCOL,
+      appInfo: { name: "pflow canvas", version: "1" },
+      appCapabilities: { availableDisplayModes: ["inline", "fullscreen"] },
+    });
+    clearTimeout(noHost);
+    state.host = answer.hostCapabilities || {};
+    applyContext(answer.hostContext || {});
+    notify("ui/notifications/initialized");
+    reportSize();
+  } catch (error) {
+    clearTimeout(noHost);
+    fail(error);
+  }
+})();
+</script>
+</body>
+</html>

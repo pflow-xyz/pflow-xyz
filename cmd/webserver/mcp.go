@@ -65,6 +65,7 @@ type mcpTool struct {
 	Name        string         `json:"name"`
 	Description string         `json:"description"`
 	InputSchema map[string]any `json:"inputSchema"`
+	meta        map[string]any // the descriptor's _meta (an MCP App's ui link); most tools have none
 	run         func(s *Server, r *http.Request, args map[string]any) (any, error)
 }
 
@@ -139,8 +140,61 @@ func netBytes(args map[string]any) ([]byte, map[string]any, error) {
 	if !ok {
 		return nil, nil, errors.New("net: a JSON object (the editor's format) is required")
 	}
+	if err := netShape(n); err != nil {
+		return nil, nil, err
+	}
 	raw, err := json.Marshal(n)
 	return raw, n, err
+}
+
+// netShape refuses a net whose places, transitions or arcs are not in the
+// editor's shape. go-pflow's reader skips what it does not recognise, so the
+// flat net pflow_bundle_flatten returns (places and transitions as lists, arcs
+// with from/to) read as a net with no places, and every tool answered about an
+// empty net instead of refusing. A part that is absent is left to the tool (a
+// composition has none).
+func netShape(doc map[string]any) error {
+	flat := false
+	for _, k := range []string{"places", "transitions"} {
+		if _, ok := doc[k].([]any); ok {
+			flat = true
+		}
+	}
+	arcs, arcsOK := doc["arcs"].([]any)
+	for _, a := range arcs {
+		if m, ok := a.(map[string]any); ok && (m["from"] != nil || m["to"] != nil) {
+			flat = true
+		}
+	}
+	hint := ""
+	if flat {
+		hint = " (this looks like the flat net pflow_bundle_flatten returns, which the net tools cannot read: fire it with pflow_bundle_run)"
+	}
+	for _, k := range []string{"places", "transitions"} {
+		if v, ok := doc[k]; ok && v != nil {
+			if _, ok := v.(map[string]any); !ok {
+				return fmt.Errorf("net.%s: an object keyed by %s id%s", k, strings.TrimSuffix(k, "s"), hint)
+			}
+		}
+	}
+	if v, ok := doc["arcs"]; ok && v != nil {
+		if !arcsOK {
+			return errors.New("net.arcs: a list of {source, target, weight}")
+		}
+		for i, a := range arcs {
+			m, ok := a.(map[string]any)
+			if !ok {
+				return fmt.Errorf("net.arcs[%d]: an object {source, target, weight}", i)
+			}
+			if _, ok := m["source"].(string); !ok {
+				return fmt.Errorf("net.arcs[%d]: source, the id of a place or transition%s", i, hint)
+			}
+			if _, ok := m["target"].(string); !ok {
+				return fmt.Errorf("net.arcs[%d]: target, the id of a place or transition%s", i, hint)
+			}
+		}
+	}
+	return nil
 }
 
 func mcpCheck(_ *Server, _ *http.Request, args map[string]any) (any, error) {
@@ -355,9 +409,12 @@ func mcpLinks(s *Server, r *http.Request, args map[string]any) (any, error) {
 	if cid, _ := args["cid"].(string); cid != "" {
 		return map[string]any{"editor": base + "/?cid=" + url.QueryEscape(cid), "svg": base + "/img/" + cid + ".svg", "jsonld": base + "/o/" + cid}, nil
 	}
+	if args["net"] == nil {
+		return nil, errors.New("give a cid or a net")
+	}
 	raw, _, err := netBytes(args)
 	if err != nil {
-		return nil, errors.New("give a cid or a net")
+		return nil, err
 	}
 	// The editor reads only nets, so a ?data= link to anything else opens empty.
 	if k := model.KindOf(raw); k != model.KindNet {
@@ -486,21 +543,46 @@ func (s *Server) mcpDispatch(r *http.Request, req rpcRequest) (rpcResponse, bool
 		json.Unmarshal(req.Params, &p)
 		resp.Result = map[string]any{
 			"protocolVersion": negotiateProtocolVersion(p.ProtocolVersion),
-			"capabilities":    map[string]any{"tools": map[string]any{}},
-			"serverInfo":      map[string]any{"name": "pflow.xyz", "version": "workbench-1"},
+			"capabilities": map[string]any{
+				"tools":     map[string]any{},
+				"resources": map[string]any{},
+				// The MCP Apps spec asks only the client to declare this; hosts have been
+				// reported not to mount a server's UI unless the server declares it too.
+				"extensions": map[string]any{mcpUIExtension: map[string]any{"mimeTypes": []string{mcpAppMIMEType}}},
+			},
+			"serverInfo": map[string]any{"name": "pflow.xyz", "version": "workbench-1"},
 			"instructions": "pflow.xyz: snap parts together into a system you can run and check. Compositions (a PetriNetBundle: subnets, " +
 				"the ports on their boundaries and the typed links between them): pflow_bundle_example gives the catalog of parts and a " +
 				"composition of them; pflow_bundle_validate, _candidates and _add_link check and extend it, _flatten makes one net of it, " +
 				"_run fires a script on that net and _incidence gives its matrix (that net is not a pflow.xyz net: pflow_simulate and the " +
-				"other net tools cannot read it). A single model is a Petri net in the pflow.xyz JSON-LD format: check, simulate and explore " +
+				"other net tools cannot read it). pflow_canvas opens a composition for the person to join parts by hand. A single model is a Petri net in the pflow.xyz JSON-LD format: check, simulate and explore " +
 				"one on the server's go-pflow engines, and pflow_links opens it in the editor. pflow_cid gives a model's stable content ID " +
 				"and pflow_get the stored model. pflow_save needs the person signed in to pflow.xyz. " +
 				"When the person wants to see, play or share a model, call pflow_artifact and publish the HTML it returns as a page " +
 				"(an Artifact) as it is: it draws the net, plays the token game, shows the verdicts and invariants the engines computed " +
-				"and links the editor. Do not hand-roll such a page, whose verdicts would be your own rather than the engine's.",
+				"and links the editor. Do not hand-roll such a page, whose verdicts would be your own rather than the engine's. " +
+				"When the person wants to keep pflow's workflow across sessions, offer pflow_skill and save what it returns as a skill; never save it without asking.",
 		}
 	case "ping":
 		resp.Result = map[string]any{}
+	case "resources/list":
+		resp.Result = map[string]any{"resources": []map[string]any{canvasResource()}}
+	case "resources/templates/list":
+		resp.Result = map[string]any{"resourceTemplates": []any{}}
+	case "resources/read":
+		var p struct {
+			URI string `json:"uri"`
+		}
+		if err := json.Unmarshal(req.Params, &p); err != nil {
+			resp.Error = &rpcError{-32602, "params: {uri}"}
+			break
+		}
+		result, rerr := mcpReadResource(p.URI)
+		if rerr != nil {
+			resp.Error = rerr
+			break
+		}
+		resp.Result = result
 	case "tools/list":
 		tools := listedMCPTools(s, r)
 		list := make([]map[string]any, 0, len(tools))

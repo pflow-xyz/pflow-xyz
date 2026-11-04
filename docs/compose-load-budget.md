@@ -1,6 +1,6 @@
 # Composition page: what it loads, what it should cost
 
-**Current numbers: [Re-vendored at d0f4a47](#re-vendored-at-d0f4a47-2026-10-31) and the Budget below.**
+**Current numbers: [Re-vendored at d0f4a47](#re-vendored-at-d0f4a47-2026-10-31), [the Laws view on chyp-rs](#the-laws-view-on-chyp-rs-2026-11-01) and the Budget below.**
 The rest of this note is the record of the 2026-10-28 work, measured at the 1a13459 engine.
 
 `public/compose.html` is the page the models-first design would put in front of
@@ -524,15 +524,34 @@ offers `zstd`, which the server does not serve: a `.wasm.zst` is a possible
 follow-up (zstd compresses a little less than brotli q11 but decodes faster);
 no code here.
 
+## The Laws view on chyp-rs (2026-11-01)
+
+The Laws view no longer runs Python. Its live check is chyp-rs, a Rust port of Chyp's core, as WebAssembly from
+`vendor/chyp-rs-wasm/` on this site (`scripts/sync-chyp-wasm.mjs`, `chyp-rs-wasm.lock`), and the live layout is gone:
+in every run it had reproduced the exported layout number for number, so the page draws the export. Measured one
+after the other on valoper (Linux, headless Chrome, the local `bin/webserver`, unthrottled, `--views --runs 1`):
+
+| Opening the Laws view | Pyodide + PyPI | chyp-rs |
+|---|---:|---:|
+| new requests | 51 | 15 |
+| new wire KB | 23,914 | 112 |
+| third-party requests | 13 (cdn.jsdelivr.net, pypi.org, files.pythonhosted.org) | 0 |
+| live check finished, from opening the view | 46.8 s | 1.2 s (0.8 s of that is the script's settle wait) |
+| engine load | 9.9 s | 85 ms |
+| check (33 rewrites) | 2.4 s | 76 ms |
+| layout | 33.2 s | none: the export's |
+| verdicts against the export | 33/33 | 33/33 |
+
+The 15 requests are mostly the theories and their exports, as before; chyp-rs itself is the glue (15 KB raw) and
+76 KB of brotli wasm (92 KB gzip; 287 KB raw). `cmd/webserver/wasm.go` serves it as it serves pflow-native's.
+
+Nothing else is lost or changed: the verdicts are held to Chyp's by `compose/laws-live_test.ts` here and by chyp-rs's
+faithfulness tests there, and the export the page draws is still Chyp's own, made under CPython.
+
 ## Recommendations that need a decision (not done)
 
-- **Make the Laws view's live layout opt-in** (a button; the 17,489 KB, 72
-  percent of the view's bytes, 11 to 30 s) or self-host Pyodide's packages. It
-  reproduces numbers the page already has, and the review's privacy gap
-  (visitor IPs to jsdelivr/PyPI) is about exactly these fetches. Left as is:
-  it changes what the Laws view claims ("the layout drawn is the live one").
 - Strip the `name` section in pflow-native (item 2).
-- A `Content-Security-Policy` that names the three third-party hosts would turn
+- A `Content-Security-Policy` that names the page's one third-party engine host would turn
   the guard test's promise into the browser's.
 
 ## Re-measure
@@ -548,9 +567,8 @@ deno run -A scripts/measure-compose-load.ts --url http://127.0.0.1:8135/compose.
 deno run -A scripts/measure-compose-load.ts --profiles 4g --runs 1 --list --views
 ```
 
-It needs Chrome (`CHROME=...` overrides the path), and the internet for the
-Laws row of `--views` (Pyodide and PyPI). The guard test: `make test-js` (or
-`deno test --allow-read=docs,parity/composition-views,public,pflow-native-wasm.lock
+It needs Chrome (`CHROME=...` overrides the path). The guard test: `make test-js` (or
+`deno test --allow-read=docs,parity/composition-views,public,pflow-native-wasm.lock,chyp-rs-wasm.lock
 parity/composition-views/load_budget_test.ts`). To see the wasm forms:
 
 ```sh

@@ -27,6 +27,8 @@ review; it says how its cites are numbered (this section shifts the ROADMAP's li
 Pending item 17 below ("a push to `main` is a deploy") holds only for a commit signed
 with a key pflow.dev trusts; the design's section 5.1 has the details.
 
+*Planned view, 2026-11-02:* a reader-facing **statechart view** (states from the reachability graph or the `statemachine` regions, arrows in the reader's words, the deadlock witness as a highlighted path). Roadmap only, nothing built; see [Planned: a statechart view](public/compose/VIEWS.md#planned-a-statechart-view-roadmap-only-not-built).
+
 ## Guided modelling and simulation in the browser
 
 **Problem.** The editor can simulate, but only if you already know what you
@@ -584,7 +586,7 @@ The two are designed as one thing: you look up a verified part, and you snap it 
 
 **Where the gates stand (2026-11-01).**
 
-- **Canvas:** `/compose.html` draws one composition in many views, and the remote `/mcp` serves stateless tools. Nothing renders as an MCP App yet.
+- **Canvas:** `/compose.html` draws one composition in many views, and the remote `/mcp` serves stateless tools. `pflow_canvas` serves a smaller canvas as an MCP App, checked in Chrome under the default sandbox; it has not yet been seen in Claude.
 - **Library:** [ontology.pflow.xyz](https://ontology.pflow.xyz) is live with read-only MCP tools (`search_terms`, `describe_term`, `get_claim`, `sparql_query`). Its roadmap has one worked claim and marks the theorem layer as proposed, so returning a model with its invariants and theorem links for a concept is still to build.
 - **Listing paperwork:** `public/mcp.html`, `terms.html` and `privacy.html` are on `main`. The portal copy and the remaining gates are in [docs/connector-directory/](docs/connector-directory/checklist.md).
 

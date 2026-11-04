@@ -128,6 +128,9 @@ func runGame(id string, run func(*gamesearch.Net, map[string]any, gamesearch.Con
 	if !ok {
 		return nil, fmt.Errorf("%s: net: a JSON object (the editor's format) is required", id)
 	}
+	if err := netShape(doc); err != nil {
+		return nil, fmt.Errorf("%s: %v", id, err)
+	}
 	rest := make(map[string]any, len(args))
 	for k, v := range args {
 		if k != "net" {

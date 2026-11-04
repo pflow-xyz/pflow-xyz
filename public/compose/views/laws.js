@@ -7,10 +7,9 @@
 // view reads what chyp_headless exported (assets/chyp/index.json and
 // assets/chyp/<theory>.json) and the .chyp files themselves (chyp/<theory>.chyp,
 // fetched for their comments; nothing in a comment box here is written by this
-// view). When the view is opened in a browser it also runs Chyp's checker live
-// under Pyodide (../laws-live.js) and compares the verdicts with the exported
-// ones, then lays the diagrams out live and shows that layout; it always says
-// which one is shown. It draws a rewrite the way Chyp's editor shows one
+// view). When the view is opened in a browser it also checks the theories live
+// with chyp-rs, a Rust port of Chyp's core, in WebAssembly (../laws-live.js), and
+// compares the verdicts with the exported ones. It draws a rewrite the way Chyp's editor shows one
 // (pflow-views-prototype docs/chyp-notes.md §4.4): one string diagram per term, left to right, inputs on the left and
 // outputs on the right, boxes = generators (hyperedges), wires = vertices;
 // each "=" carries the rule, its direction and Chyp's verdict. Where Chyp's
@@ -88,8 +87,8 @@ const SEPW = 132;
 // --- module state ------------------------------------------------------------------
 
 const DATA = { state: 'idle', index: null, th: {}, src: {}, sha: {}, err: null, promise: null };
-// The live run (laws-live.js): idle → checking → checked → laying-out → live, or error.
-const freshLive = () => ({ state: 'idle', status: '', cmp: null, python: null, t: {}, err: null, shown: 'precomputed', preCheck: null, focusText: false, retried: false });
+// The live run (laws-live.js): idle → checking → checked, or error.
+const freshLive = () => ({ state: 'idle', status: '', cmp: null, upstream: null, t: {}, err: null, preCheck: null, focusText: false, retried: false });
 const LIVE = freshLive();
 const COMPOSE = new URL('../', import.meta.url); // public/compose/: the index's `source` paths are relative to it
 const headless = (ctx) => !!ctx.headless || typeof Deno !== 'undefined' || typeof document === 'undefined';
@@ -144,9 +143,10 @@ function load(ctx) {
 
 /**
  * The live check (browser only, once, when the view is first drawn with its
- * data): Chyp under Pyodide checks every theory, the verdicts are compared
- * with the exported ones, then the diagrams are laid out live and replace the
- * exported layout. Any failure leaves the precomputed display and says why.
+ * data): chyp-rs, in WebAssembly, checks every theory and the verdicts are
+ * compared with the exported ones. The diagrams drawn stay the exported ones,
+ * which are Chyp's own layout. Any failure leaves the precomputed display and
+ * says why.
  */
 function startLive(ctx) {
   if (LIVE.state !== 'idle' || headless(ctx) || DATA.state !== 'ready') return;
@@ -154,66 +154,40 @@ function startLive(ctx) {
   LIVE.preCheck = Object.fromEntries(Object.entries(DATA.th).map(([k, th]) => [k, th.check]));
   const status = (t) => { LIVE.status = t; paintLive(); };
   // After Retry the status line has focus and is read as it is: that is the one message, not a second one beside it.
-  if (!LIVE.retried) say(ctx, `Laws: running Chyp's checker live in your browser. This fetches Pyodide from cdn.jsdelivr.net and lark from PyPI (${live.DOWNLOAD_NOTE}) and can take several seconds; the precomputed result is shown meanwhile.`);
+  if (!LIVE.retried) say(ctx, `Laws: checking every rewrite live in your browser with chyp-rs, a Rust port of Chyp (${live.DOWNLOAD_NOTE}); the precomputed result is shown meanwhile.`);
   (async () => {
     try {
       const r = await live.check(THEORIES, status);
-      LIVE.python = r.python;
+      LIVE.upstream = r.upstream;
       LIVE.t.load = r.loadSeconds; LIVE.t.check = r.checkSeconds;
       LIVE.cmp = live.compare(r.results, LIVE.preCheck);
       LIVE.state = 'checked';
-      say(ctx, LIVE.cmp.differences.length ? `Laws: the live check differs from the precomputed one (${LIVE.cmp.differences.length} differences). Laying the diagrams out live.` : `Laws: the live check agrees with the precomputed one (${LIVE.cmp.agree} of ${LIVE.cmp.total} rewrites). Laying the diagrams out live.`);
-      redraw(ctx);
-      LIVE.state = 'laying-out';
-      const l = await live.layout(THEORIES, status);
-      LIVE.t.layout = l.layoutSeconds;
-      let numbers = 0, maxDiff = 0, shapeDiffers = false;
-      for (const [k, doc] of Object.entries(l.docs)) {
-        const pre = DATA.th[k];
-        if (pre) {
-          const c = live.compareLayout(doc.diagrams, pre.diagrams);
-          numbers += c.numbers; maxDiff = Math.max(maxDiff, c.maxDiff); shapeDiffers ||= c.shapeDiffers;
-          // In Pyodide chyp_headless cannot read the Chyp checkout's git commit or a
-          // dist version (it is the vendored copy): say which one it is.
-          doc.provenance.chyp = { ...pre.provenance.chyp, path: 'public/compose/chyp/py (vendored, unmodified)' };
-        }
-        doc.provenance.python_implementation = `CPython (Pyodide ${live.PYODIDE_VERSION})`;
-        DATA.th[k] = prepare(doc);
-      }
-      LIVE.layoutCmp = { numbers, maxDiff, shapeDiffers };
-      LIVE.shown = 'live';
-      LIVE.state = 'live';
-      say(ctx, 'Laws: the live layout is drawn.');
+      say(ctx, LIVE.cmp.differences.length ? `Laws: the live check differs from the precomputed one (${LIVE.cmp.differences.length} differences).` : `Laws: the live check agrees with the precomputed one (${LIVE.cmp.agree} of ${LIVE.cmp.total} rewrites).`);
       redraw(ctx);
     } catch (e) {
-      console.warn(e); // the page says one line (explain); the whole error, with a Python traceback, is for the console
+      console.warn(e); // the page says one line (explain); the whole error is for the console
       LIVE.err = live.explain(e);
-      LIVE.state = LIVE.cmp ? 'layout-error' : 'error';
-      say(ctx, `Laws: the live ${LIVE.cmp ? 'layout' : 'check'} did not run (${LIVE.err}); the precomputed result stays.`);
+      LIVE.state = 'error';
+      say(ctx, `Laws: the live check did not run (${LIVE.err}); the precomputed result stays.`);
       redraw(ctx);
     }
   })();
 }
 
 let liveBox = null;
-const fmt = (x) => (x == null ? '?' : `${x.toFixed(1)} s`);
+const fmt = (x) => (x == null ? '?' : x < 0.1 ? `${Math.round(x * 1000)} ms` : `${x.toFixed(1)} s`);
 function liveText() {
   const ix = DATA.index;
   const pre = `precomputed: chyp_headless export of ${ix?.generated_at || '?'} (Chyp ${String(ix?.chyp?.commit || '').slice(0, 7)}, CPython ${ix?.python}, lark ${ix?.lark}, cvxpy ${ix?.cvxpy})`;
-  const cmp = LIVE.cmp ? (LIVE.cmp.differences.length ? `live check DIFFERS from the precomputed one: ${LIVE.cmp.differences.join('; ')}` : `live check agrees (${LIVE.cmp.agree}/${LIVE.cmp.total} rewrites, every step's verdict)`) : null;
-  const t = `Pyodide ${live.PYODIDE_VERSION} + Python ${LIVE.python || '?'}: load ${fmt(LIVE.t.load)}, check ${fmt(LIVE.t.check)}${LIVE.t.layout != null ? `, layout ${fmt(LIVE.t.layout)}` : ''}`;
   switch (LIVE.state) {
     case 'idle': return [`Shown: ${pre}.`, 'lw-muted'];
-    case 'checking': return [`Shown: ${pre}. Running Chyp live: ${LIVE.status}`, 'lw-muted'];
-    case 'checked':
-    case 'laying-out': return [`Shown: ${pre}. ${cmp} (${t}). Laying the diagrams out live: ${LIVE.status}`, LIVE.cmp.differences.length ? 'warn' : 'ok'];
-    case 'live': {
-      const lc = LIVE.layoutCmp;
-      const lay = lc ? (lc.shapeDiffers ? 'the live layout\'s structure differs from the precomputed one' : lc.maxDiff === 0 ? `the live layout equals the precomputed one (${lc.numbers} numbers)` : `the live layout differs from the precomputed one by at most ${lc.maxDiff.toPrecision(3)} units over ${lc.numbers} numbers`) : '';
-      return [`Shown: the live result (Chyp 3d28483 under ${t}); ${cmp}; the layout drawn is the live one: ${lay}.`, LIVE.cmp.differences.length || (lc && lc.shapeDiffers) ? 'warn' : 'ok'];
+    case 'checking': return [`Shown: ${pre}. Checking live: ${LIVE.status}`, 'lw-muted'];
+    case 'checked': {
+      const t = `chyp-rs, a port of Chyp ${LIVE.upstream || '?'}: load ${fmt(LIVE.t.load)}, check ${fmt(LIVE.t.check)}`;
+      const cmp = LIVE.cmp.differences.length ? `live check DIFFERS from the precomputed one: ${LIVE.cmp.differences.join('; ')}` : `live check agrees (${LIVE.cmp.agree}/${LIVE.cmp.total} rewrites, every step's verdict)`;
+      return [`Shown: ${pre}; ${cmp} (${t}).`, LIVE.cmp.differences.length ? 'warn' : 'ok'];
     }
-    case 'layout-error': return [`Shown: ${pre}. ${cmp} (${t}). The live layout could not run (${LIVE.err}); the precomputed layout is the one shown.`, 'warn'];
-    case 'error': return [`Shown: ${pre}. The live check did not run (${LIVE.err}): Pyodide loads from cdn.jsdelivr.net and lark from PyPI, so it needs the network.`, 'warn'];
+    case 'error': return [`Shown: ${pre}. The live check did not run (${LIVE.err}).`, 'warn'];
     default: return [`Shown: ${pre}.`, 'lw-muted'];
   }
 }
@@ -225,9 +199,9 @@ function paintLive() {
 }
 
 /**
- * Run the live check again after it failed (offline, a CDN or PyPI blocked, a package that did not load):
+ * Run the live check again after it failed (offline, the engine could not be fetched):
  * a failure is not final, and leaving Laws and coming back would not retry it (startLive runs once per
- * page load). Everything the last run set is reset; Pyodide's own load clears itself on failure
+ * page load). Everything the last run set is reset; the engine's own load clears itself on failure
  * (laws-live.js), so this fetches again.
  */
 function retryLive(ctx) {
@@ -237,7 +211,7 @@ function retryLive(ctx) {
 
 function liveBar(ctx) {
   const [text, cls] = liveText();
-  const canRetry = LIVE.state === 'error' || LIVE.state === 'layout-error';
+  const canRetry = LIVE.state === 'error';
   // data-a11y-key: the page gives focus back to the element that had it when the stage is redrawn (a11y.js keyOf), and the
   // status line is redrawn every time the check moves on.
   const line = ctx.el('span', { class: 'lw-livetext', tabindex: '-1', 'data-a11y-key': 'laws-live-status' }, text);
@@ -247,7 +221,7 @@ function liveBar(ctx) {
   // The button that was pressed is gone with the old bar: keyboard focus goes to the new status line, which says what is
   // happening (the bar itself is a group named for the inspector, which reads none of it).
   if (LIVE.focusText) { LIVE.focusText = false; queueMicrotask(() => line.isConnected && line.focus?.({ preventScroll: true })); }
-  ctx.hover(liveBox, { title: 'which Chyp result is shown', definition: 'The page first shows the result chyp_headless exported under CPython (assets/chyp/). In a browser it then runs Chyp 3d28483 itself under Pyodide, compares every rewrite\'s and every step\'s verdict with the exported ones, and lays the diagrams out with Chyp\'s convex_layout (cvxpy, CLARABEL); once that finishes the live layout replaces the exported one.', facts: [['Pyodide', `${live.PYODIDE_VERSION} (${live.PYODIDE_URL})`], ['lark', `${live.LARK} (PyPI)`], ['Chyp', '3d28483, vendored unmodified in chyp/py/chyp (Apache-2.0)']], bib: ['chyp'] });
+  ctx.hover(liveBox, { title: 'which result is shown', definition: 'The verdicts and the diagrams shown are what chyp_headless exported from Chyp itself, under CPython (assets/chyp/). In a browser the page then runs chyp-rs, a Rust port of Chyp\'s core, as WebAssembly from this site, and compares every rewrite\'s and every step\'s verdict with the exported ones. The port does not lay the diagrams out here: the layout drawn is Chyp\'s own, from the export.', facts: [['chyp-rs', `${live.CHYP_RS_URL} (Apache-2.0), vendored in vendor/chyp-rs-wasm`], ['Chyp', '3d28483 (Apache-2.0), the upstream of the port and of the export']], bib: ['chyp'] });
   return liveBox;
 }
 

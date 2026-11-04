@@ -18,10 +18,10 @@
   "gates": [
     {
       "id": "canvas",
-      "status": "closed",
-      "evidence_tool": "",
+      "status": "building",
+      "evidence_tool": "pflow_canvas",
       "claim_markers": ["inline", "mcp app", "in the conversation"],
-      "copy_when_open": "Snap parts together on a canvas right in the conversation: drag from port to port, and every join is checked as you make it."
+      "copy_when_open": "Snap parts together on a canvas right in the conversation: pick a port, the legal joins light up, and every join is checked as you make it."
     },
     {
       "id": "library",

@@ -198,9 +198,9 @@ try {
   }
   for (const [where, ex] of [["another view is shown", "orders"], ["Laws itself is shown", "connect4"]]) {
     // the Laws view's live check ends while the person is linking: it must not redraw (and cancel the link) or speak
-    // about Laws in another view, and in Laws it waits for the link to end. Pyodide's CDN requests are held, then failed.
+    // about Laws in another view, and in Laws it waits for the link to end. The checker's requests are held, then failed.
     const p = await newPage(1280, 900);
-    await p.hold(["*cdn.jsdelivr.net*", "*pypi.org*", "*pythonhosted.org*"]);
+    await p.hold(["*vendor/chyp-rs-wasm/*"]);
     await p.goto(`${url}#view=laws&ex=${ex}`);
     await p.waitFor(`document.body.dataset.ready === '1' && !!document.querySelector('.lw-tab')`, 30000);
     await sleep(500);
@@ -235,7 +235,7 @@ try {
     // they do their own work and pin nothing. Retry leaves focus on the status line and one Laws message.
     const p = await newPage(1280, 900);
     p.failAll = true;
-    await p.hold(["*cdn.jsdelivr.net*", "*pypi.org*", "*pythonhosted.org*"]);
+    await p.hold(["*vendor/chyp-rs-wasm/*"]);
     await p.goto(`${url}#view=laws&ex=orders`);
     ok(await p.waitFor(`!!document.querySelector('.lw-retry')`, 30000), "the live check failed offline and Retry is offered");
     const pinned = `!!document.querySelector('#inspector-body .pinned')`;

@@ -1,0 +1,45 @@
+chyp-rs
+Copyright 2026 the chyp-rs contributors
+
+This product is an unofficial Rust port of part of Chyp, "an interactive
+theorem prover for string diagrams":
+
+  Chyp
+  Copyright (C) 2022-2023 Aleks Kissinger
+  https://github.com/akissinger/chyp
+  Ported from commit 3d28483 ("fixed some bugs in the docs").
+  Licensed under the Apache License, Version 2.0.
+
+It is not affiliated with or endorsed by Aleks Kissinger or the Chyp project.
+
+The files under src/ whose header contains "Derived from Chyp" (checker.rs,
+graph.rs, layout.rs, matcher.rs, parser.rs, parts.rs, proofstate.rs,
+rewrite.rs, rule.rs, state.rs) are modified translations of the Chyp source
+files named in that header, which also reproduces their copyright notices
+and lists what was changed. The other files are new.
+
+Test fixtures and law files:
+  - tests/fixtures/upstream/ holds Chyp's examples/frobenius.chyp, hopf.chyp,
+    module.chyp and smc.chyp, copied unmodified from commit 3d28483.
+  - tests/fixtures/derived/proof_test_explicit.chyp is derived from Chyp's
+    examples/proof_test.chyp, and tests/fixtures/derived/ssfa_inlined.chyp
+    from examples/frobenius.chyp and examples/ssfa.chyp; the changes are
+    listed at the top of each file.
+  - laws/sync_spiders.chyp adapts the Frobenius-algebra rules and the frobL
+    and frobR proofs of Chyp's examples/frobenius.chyp, as stated at its top.
+  - tests/fixtures/original/ and tests/fixtures/crash/ are original to
+    chyp-rs, as are laws/orderers.chyp, filters.chyp and drivers.chyp.
+  - tests/fixtures/pflow/ holds the theories of pflow.xyz's Laws view, copied
+    unmodified; sync-spiders.chyp there contains the frobL and frobR proofs
+    and the Frobenius axioms' presentation from Chyp's examples/frobenius.chyp.
+  - tests/fixtures/expected/ holds the results of running upstream Chyp
+    (commit 3d28483) on those files, produced by tools/upstream_expected.py.
+
+Chyp is by Aleks Kissinger and the Chyp contributors; Alexander Koziell-Pipe
+wrote much of its graph and matching code (chyp/graph.py, chyp/matcher.py).
+The theory it implements is from the "String Diagram Rewrite Theory" papers
+I-III by Bonchi, Gadducci, Kissinger, Sobocinski and Zanasi
+(arXiv:2012.01847, arXiv:2104.14686, arXiv:2109.06049).
+
+This port is licensed under the Apache License, Version 2.0 (see LICENSE).
+Third-party crates linked into its builds are listed in THIRD-PARTY-NOTICES.

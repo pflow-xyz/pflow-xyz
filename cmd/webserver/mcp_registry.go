@@ -108,6 +108,7 @@ var mcpAnnotations = map[string]mcpAnnotation{
 	"pflow_rate_scan":  {"Scan one transition's rate", true, false, true},
 	"pflow_export":     {"Export a net (JSON-LD or SVG)", true, false, true},
 	"pflow_artifact":   {"Make an interactive page of a net", true, false, true},
+	"pflow_skill":      {"Get a ready-to-save pflow skill", true, false, true},
 }
 
 // toolDescriptor is one entry of tools/list, with annotations.
@@ -116,7 +117,7 @@ func toolDescriptor(t mcpTool) map[string]any {
 	if !ok {
 		a = mcpAnnotation{title: t.Name, destructive: true}
 	}
-	return map[string]any{
+	d := map[string]any{
 		"name":        t.Name,
 		"title":       a.title,
 		"description": t.Description,
@@ -132,12 +133,16 @@ func toolDescriptor(t mcpTool) map[string]any {
 			"openWorldHint": false,
 		},
 	}
+	if t.meta != nil {
+		d["_meta"] = t.meta
+	}
+	return d
 }
 
-// allMCPTools is the original seven plus the registry, workbench, game and
-// composition tools.
+// allMCPTools is the original seven plus the registry, workbench, game,
+// composition and canvas tools.
 func allMCPTools() []mcpTool {
-	return append(append(append(append(append(mcpTools(), registryTools()...), workbenchTools()...), gameTools()...), modelTools()...), artifactTool())
+	return append(append(append(append(append(append(append(mcpTools(), registryTools()...), workbenchTools()...), gameTools()...), modelTools()...), canvasTools()...), skillTools()...), artifactTool())
 }
 
 // ---- protocol version and the tools a connection is offered ----
@@ -836,6 +841,9 @@ func mcpEdit(_ *Server, _ *http.Request, args map[string]any) (any, error) {
 		m, ok := n.(map[string]any)
 		if !ok {
 			return nil, errors.New("net: a JSON object (the editor's format)")
+		}
+		if err := netShape(m); err != nil {
+			return nil, err
 		}
 		doc = cloneDoc(m)
 	} else {

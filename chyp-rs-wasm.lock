@@ -1,0 +1,25 @@
+{
+  "_comment": "chyp-rs wasm bundle vendored by scripts/sync-chyp-wasm.mjs; checked by public/compose/chyp/files_test.ts",
+  "repo": "https://github.com/stackdump/chyp-rs",
+  "commit": "bc3a24e0346aeeedd557bb0663f9f1955ef5a5b8",
+  "upstream": {
+    "repo": "https://github.com/akissinger/chyp",
+    "commit": "3d2848361e261b07a86daaacf70b2b4b018affcf",
+    "license": "Apache-2.0"
+  },
+  "bytes": {
+    "wasm": 286961,
+    "gzip": 91977,
+    "brotli": 76160
+  },
+  "files": {
+    "chyp_rs_bg.wasm": "be0e13f3d406296f732b62606337afff8053133763dbdd54e1f65591e4fa59ae",
+    "chyp_rs_bg.wasm.gz": "2ae08460580920aa9c97485a1a6252714f846b580e7bba3892835359e1673912",
+    "chyp_rs_bg.wasm.br": "5e3ee198ddb5a51478ba095a0eaaf58b4be2cacadc787e829a43f1dee3e6122a",
+    "chyp_rs.js": "71b52d636390320a2d977f2a323d2179adc996c7e0186e5995744ba2c7a3e126",
+    "chyp_rs.d.ts": "81f315b81ea62ec732c09f7cb221c9c6c72b9e6d5854a073d9980329e3f4fcf2",
+    "LICENSE.txt": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+    "NOTICE.txt": "4a1ad08db0d0f1819f995b98d7b70c36c7262732477905fc169537a9e1e854a0",
+    "THIRD-PARTY-NOTICES.txt": "748cd7e222b81b40a88f9bcdd85ca2d7cce211db86a9c505fa225530dfda1d54"
+  }
+}

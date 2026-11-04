@@ -268,6 +268,8 @@ has lost. The side that moves first loses, so the value is -1:
 and typed links between them (token, data, event, guard). The bundle travels in
 the call and nothing is stored.
 
+- pflow_canvas: open a composition for a person to join parts by hand (an MCP
+  App on a host that can show one; the same result as text elsewhere)
 - pflow_bundle_example: a composition to start from (an order queue, a worker
   pool and a payment saga), with its catalog and four scenarios.
 - pflow_bundle_validate: check the subnets, then every link. Errors name the link

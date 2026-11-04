@@ -58,6 +58,7 @@ td:first-child{white-space:nowrap}nav a{margin-right:1rem}.lede{font-size:1.1rem
 
 <h2>Tools</h2>
 <table>
+<tr><td><code>pflow_canvas</code></td><td>Open a composition for a person to join parts by hand: each part's ports, the links a port could legally take, and scenario runs. A client that cannot show it reads the same result as text.</td></tr>
 <tr><td><code>pflow_bundle_example</code></td><td>The catalog of parts and a composition of them to start from: an order queue, a worker pool and a payment saga as one bundle of subnets, joined by the three idioms or by links you give, with the page's four scenarios. A composition is a PetriNetBundle: independently authored subnets, the ports on their boundaries and the typed links between them (token, data, event, guard).</td></tr>
 <tr><td><code>pflow_bundle_validate</code></td><td>Check a composition: its subnets, then every link (endpoints, net types, port schemas, direction), with errors and warnings that name the link. A subnet that declares no ports has one per exported place.</td></tr>
 <tr><td><code>pflow_bundle_candidates</code></td><td>The links a port could take: every other port (of the ports a subnet declares) judged as the far end, the first legal kind winning, each with its verdict; <code>only_ok</code> lists just the legal ones.</td></tr>
@@ -87,6 +88,7 @@ td:first-child{white-space:nowrap}nav a{margin-right:1rem}.lede{font-size:1.1rem
 <tr><td><code>pflow_cid</code></td><td>The content id a net seals to.</td></tr>
 <tr><td><code>pflow_links</code></td><td>Links to see a model: the editor, its SVG and its JSON-LD. A stored composition opens on the composition page.</td></tr>
 <tr><td><code>pflow_get</code></td><td>Fetch a stored model by its content id: a net, or a composition or plan as stored.</td></tr>
+<tr><td><code>pflow_skill</code></td><td>A ready-to-save Claude skill (SKILL.md) for modelling, checking and showing a process with pflow: the procedure, this server's tool list filled in live, and install notes for Claude Code, claude.ai or any client. Optional <code>client</code> and <code>focus</code> (artifact, verify, compose). Saved only if you agree.</td></tr>
 <tr><td><code>pflow_save</code></td><td>Store a net on pflow.xyz as yours (needs sign-in; stored nets are public).</td></tr>
 </table>
 

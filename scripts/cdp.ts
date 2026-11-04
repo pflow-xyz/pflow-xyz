@@ -95,11 +95,11 @@ export class Page {
 export const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /** Start Chrome: newPage(width, height) opens a page, stop() ends it all. */
-export async function startChrome(CHROME: string, prefix: string) {
+export async function startChrome(CHROME: string, prefix: string, flags: string[] = []) {
   const port = 9300 + Math.floor(Math.random() * 600);
   const profile = await Deno.makeTempDir({ prefix });
   const chrome = new Deno.Command(CHROME, {
-    args: ["--headless=new", `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`, "--no-first-run", "--disable-gpu", "--disable-extensions", "about:blank"],
+    args: ["--headless=new", `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`, "--no-first-run", "--disable-gpu", "--disable-extensions", ...flags, "about:blank"],
     stdout: "null", stderr: "null",
   }).spawn();
   // Chrome takes a moment to listen.

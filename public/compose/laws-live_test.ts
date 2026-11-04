@@ -1,15 +1,12 @@
-// laws-live_test.ts — compare() and compareLayout() in laws-live.js: the only
-// runtime check on what Chyp, run live under Pyodide, says about the theories.
+// laws-live_test.ts — what the Laws view's live check says, and that it says what Chyp says.
 //
-// The Laws view (views/laws.js startLive) runs Chyp's checker in the browser and
-// compares the verdicts with the precomputed ones (compare), then lays the
-// diagrams out and compares the numbers (compareLayout). The view prints
-// compare()'s `differences` verbatim when there are any, so the message text is
-// part of the contract and is asserted exactly. Pyodide itself is not loaded here
-// (no network); the inputs are the shapes check() returns, built by hand and
-// from the precomputed assets/chyp/*.json, which are CheckReport.to_dict()s.
+// The Laws view (views/laws.js startLive) runs chyp-rs in the browser and compares the verdicts with the precomputed
+// ones (compare). The view prints compare()'s `differences` verbatim when there are any, so the message text is part
+// of the contract and is asserted exactly. The inputs are the shapes check() returns, built by hand and from the
+// precomputed assets/chyp/*.json, which are Chyp's own CheckReport.to_dict()s; the parity tests below run the
+// vendored wasm on the theories and hold it to those.
 import { assert, assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
-import { compare, compareLayout, createShownGate } from "./laws-live.js";
+import { checkSource, compare, createShownGate, reportOf } from "./laws-live.js";
 
 const THEORIES = ["orderer-monoid", "filter-meet", "driver-wrap", "sync-spiders"];
 const asset = async (t: string) => JSON.parse(await Deno.readTextFile(new URL(`./assets/chyp/${t}.json`, import.meta.url)));
@@ -102,85 +99,80 @@ Deno.test("compare: a real verdict flipped in a real report is caught", async ()
     assertEquals([r.agree, r.total], [32, 33]);
 });
 
-// --- compareLayout ---------------------------------------------------------------
+// --- reportOf: chyp-rs's outline as the report compare() reads ------------------------------------
 
-const doc = () => ({
-    layout: { used: "chyp", engine: "chyp.layout convex_layout" },
-    gens: { f: { x: 1.5, y: -2, ports: [0, 0.5, 1] } },
-    rewrites: [{ id: 0, pos: [{ x: 0, y: 1 }, { x: 2, y: 3 }] }],
+const rw = (name: string, line: number, start: number, end: number, status: string) => ({ kind: "RewritePart", name, line, start, end, status });
+
+Deno.test("reportOf: consecutive steps of one statement are one rewrite; a parsed rule between them ends it", () => {
+    const r = reportOf({
+        errors: [],
+        parts: [
+            { kind: "GenPart", name: "f", line: 1, start: 0, end: 5, status: "unchecked" },
+            rw("a", 3, 10, 20, "valid"), rw("a", 4, 20, 30, "valid"),
+            { kind: "RulePart", name: "r", line: 5, start: 30, end: 40, status: "unchecked" },
+            rw("b", 7, 50, 60, "valid"), rw("b", 8, 60, 70, "invalid"),
+            rw("b", 9, 75, 80, "valid"), // the same name, not continuing the last one: another statement
+        ],
+    });
+    assertEquals(r.rewrites.map((x: any) => [x.name, x.status, x.steps.map((s: any) => s.status)]), [
+        ["a", "valid", ["valid", "valid"]],
+        ["b", "invalid", ["valid", "invalid"]],
+        ["b", "valid", ["valid"]],
+    ]);
 });
 
-Deno.test("compareLayout: identical documents agree to the last bit, every number counted", () => {
-    const r = compareLayout(doc(), doc());
-    assertEquals(r, { numbers: 10, maxDiff: 0, shapeDiffers: false });
+Deno.test("reportOf: a message on a step's line makes it an error, and an error outranks invalid", () => {
+    const r = reportOf({
+        errors: [{ line: 8, msg: "Rule x not defined." }],
+        parts: [rw("a", 7, 0, 10, "invalid"), rw("a", 8, 10, 20, "invalid"), rw("c", 9, 30, 40, "checking")],
+    });
+    assertEquals(r.rewrites.map((x: any) => [x.name, x.status]), [["a", "error"], ["c", "error"]]);
+    assertEquals(r.rewrites[0].steps[1].messages, ["Rule x not defined."]);
 });
 
-Deno.test("compareLayout: the largest difference between two numbers is reported, structure unchanged", () => {
-    const live: any = doc();
-    live.gens.f.x = 1.75; // 0.25
-    live.rewrites[0].pos[1].y = 3 - 1e-9; // tiny
-    const r = compareLayout(live, doc());
-    assertEquals(r.numbers, 10);
-    assertEquals(r.maxDiff, 0.25);
-    assertEquals(r.shapeDiffers, false);
-});
+// --- the vendored bundle against what Chyp itself decided --------------------------------------------------
 
-Deno.test("compareLayout: the live run having a list of another length, or a key the precomputed one lacks, is a different structure", () => {
-    const longer: any = doc();
-    longer.gens.f.ports.push(2);
-    const a = compareLayout(longer, doc());
-    assertEquals(a.shapeDiffers, true);
-    assertEquals(a.numbers, 10, "the common prefix of the lists is still compared");
+/** The vendored chyp-rs, instantiated from the .gz the server would decompress. */
+const engine = async () => {
+    const chyp = await import("../vendor/chyp-rs-wasm/chyp_rs.js");
+    const gz = await Deno.readFile(new URL("../vendor/chyp-rs-wasm/chyp_rs_bg.wasm.gz", import.meta.url));
+    const body = new Blob([gz]).stream().pipeThrough(new DecompressionStream("gzip"));
+    await chyp.default({ module_or_path: await new Response(body).arrayBuffer() });
+    return chyp;
+};
+const theory = (t: string) => Deno.readTextFile(new URL(`./chyp/${t}.chyp`, import.meta.url));
 
-    const shorter: any = doc();
-    shorter.rewrites[0].pos.pop();
-    assertEquals(compareLayout(shorter, doc()).shapeDiffers, true);
-
-    const extra: any = doc();
-    extra.gens.g = { x: 0, y: 0 };
-    assertEquals(compareLayout(extra, doc()).shapeDiffers, true);
-});
-
-Deno.test("compareLayout: a value of another kind is a different structure; two different strings are not", () => {
-    const wrongKind: any = doc();
-    wrongKind.gens.f.x = "1.5";
-    assertEquals(compareLayout(wrongKind, doc()).shapeDiffers, true);
-
-    const nulled: any = doc();
-    nulled.gens.f = null;
-    assertEquals(compareLayout(nulled, doc()).shapeDiffers, true);
-
-    // labels and engine names may legitimately differ between the exports (a Pyodide build
-    // names its own engine), so strings are not compared
-    const renamed: any = doc();
-    renamed.layout.engine = "chyp.layout (Pyodide)";
-    assertEquals(compareLayout(renamed, doc()), { numbers: 10, maxDiff: 0, shapeDiffers: false });
-});
-
-Deno.test("compareLayout: a real export agrees with itself, and a moved box shows as a difference", async () => {
+Deno.test("parity: the vendored chyp-rs gives every verdict Chyp gave under CPython (33 rewrites, every step)", async () => {
+    const chyp = await engine();
+    const pre = await precomputed();
+    const live = Object.fromEntries(await Promise.all(THEORIES.map(async (t) => [t, checkSource(chyp, await theory(t))])));
+    const r = compare(live, pre);
+    assertEquals(r.differences, []);
+    assertEquals([r.agree, r.total], [33, 33]);
+    // the must-fail controls are in there, failing: agreement is not everything passing
+    const statuses = Object.values(live).flatMap((rep: any) => rep.rewrites.map((x: any) => x.status));
+    assertEquals(statuses.filter((s) => s === "valid").length, 30);
+    assertEquals(statuses.filter((s) => s === "invalid").length, 3);
+    // and step by step, line by line, beyond what compare() prints
     for (const t of THEORIES) {
-        const { diagrams } = await asset(t);
-        const same = compareLayout(structuredClone(diagrams), diagrams);
-        assertEquals(same.shapeDiffers, false, t);
-        assertEquals(same.maxDiff, 0, t);
-        assert(same.numbers > 100, `${t}: only ${same.numbers} numbers compared`);
+        assertEquals(live[t].errors, []);
+        const steps = (rep: any) => rep.rewrites.flatMap((x: any) => x.steps.map((s: any) => [x.name, s.line, s.status]));
+        assertEquals(steps(live[t]), steps(pre[t]), t);
     }
-    const { diagrams } = await asset("orderer-monoid");
-    const moved = structuredClone(diagrams);
-    // nudge the first number found anywhere in the rewrites
-    let nudged = false;
-    const nudge = (o: any) => {
-        for (const k of Object.keys(o)) {
-            if (nudged) return;
-            if (typeof o[k] === "number") { o[k] += 0.5; nudged = true; return; }
-            if (o[k] && typeof o[k] === "object") nudge(o[k]);
-        }
-    };
-    nudge(moved.rewrites);
-    assert(nudged);
-    const r = compareLayout(moved, diagrams);
-    assertEquals(r.maxDiff, 0.5);
-    assertEquals(r.shapeDiffers, false);
+});
+
+Deno.test("parity: a theory with a proof changed is caught by the check, not only by a hash", async () => {
+    const chyp = await engine();
+    const pre = await precomputed();
+    const broken = (await theory("driver-wrap")).replace("= doc_solver by reads_nw_budget", "= doc_solver by reads_budget");
+    const live = { ...pre, "driver-wrap": checkSource(chyp, broken) };
+    assertEquals(compare(live, pre).differences, ["driver-wrap/doc_plan: live invalid, precomputed valid"]);
+});
+
+Deno.test("parity: a theory that does not parse is one report with no rewrites and its error", async () => {
+    const r = checkSource(await engine(), "gen f : 1 ->\n");
+    assertEquals(r.rewrites, []);
+    assertEquals(r.errors.length, 1);
 });
 
 // The Laws view's background work must not speak, or redraw, while another view is shown (views/laws.js).
