@@ -47,10 +47,8 @@ export async function openGoals(view) {
     $('[data-act="ask"]')?.addEventListener('click', async () => {
         const q = $('.pv-goals-search').value.trim();
         close();
-        const panel = await view._openChat({ mode: 'analyse' });
-        const input = document.querySelector('.pv-chat-input');
-        if (input && q) input.value = q;
-        return panel;
+        // The question goes straight in: the person already chose to ask. The conversation they had stays.
+        return view._openChat({ mode: 'analyse', message: q || undefined });
     });
 
     const inputHtml = (i) => {
@@ -81,6 +79,17 @@ export async function openGoals(view) {
                 <details><summary>The plan (${g.plan.length} command${g.plan.length === 1 ? '' : 's'})</summary><ol>${plan}</ol></details>
                 <button type="button" class="pv-btn pv-btn-primary" data-act="run">Run</button>`}`;
         $('[data-act="run"]')?.addEventListener('click', () => run(g));
+        // Read the outcome off the question: "walkouts" → abandoned
+        const typed = $('.pv-goals-search').value.trim();
+        if (typed) {
+            const found = goalsMod.inferPlace(m, typed);
+            for (const sel of dialog.querySelectorAll('select[data-in]')) {
+                if (found && places.includes(found) && [...sel.options].some((o) => o.value === found || o.textContent === found) && (g.inputs || []).find((i) => i.name === sel.dataset.in)?.kind === 'place') {
+                    sel.value = found;
+                    sel.insertAdjacentHTML('afterend', ' <span class="pv-result-dim">from your question</span>');
+                }
+            }
+        }
     };
 
     const run = async (g) => {
@@ -98,6 +107,7 @@ export async function openGoals(view) {
         $('.pv-structure-status').textContent = 'Running…';
         try {
             const out = await goalsMod.runGoal(reg, g, inputs, (step) => {
+                if (step.skipped) return; // a step the plan chose not to run (the other engine's diagnosis)
                 const sec = document.createElement('section');
                 if (step.error) {
                     sec.innerHTML = `<h4><code>${esc(step.command)}</code> failed</h4><p>${esc(step.error)}</p>`;
@@ -127,7 +137,7 @@ export async function openGoals(view) {
 
     const list = (goals) => {
         $('.pv-goals-list').innerHTML = goals.map((g) => `<button type="button" class="pv-btn pv-goals-item${g.available === false ? ' pv-goals-off' : ''}" data-goal="${esc(g.id)}">${esc(g.question)}</button>`).join('')
-            || '<p class="pv-result-dim">No goal matches those words; try fewer, or pick from the full list (clear the box).</p>';
+            || `<p class="pv-result-dim">No goal matches those words; try fewer, or pick from the full list (clear the box).${status.enabled && status.chat ? ' Or use “Ask the Assistant instead”, which reads the question in full.' : ''}</p>`;
         dialog.querySelectorAll('[data-goal]').forEach((b) => b.addEventListener('click', () => showGoal(catalog.goals.find((g) => g.id === b.dataset.goal))));
     };
     list(catalog.goals);

@@ -32,6 +32,10 @@ func goalCatalogText(public fs.FS) (string, int, error) {
 			Plan []struct {
 				Command string         `json:"command"`
 				Args    map[string]any `json:"args"`
+				When    *struct {
+					Ref    string `json:"ref"`
+					Equals any    `json:"equals"`
+				} `json:"when"`
 			} `json:"plan"`
 			Caveat string `json:"caveat"`
 		} `json:"goals"`
@@ -41,7 +45,9 @@ func goalCatalogText(public fs.FS) (string, int, error) {
 	}
 	var b strings.Builder
 	b.WriteString("Goal catalog. Map what the person wants to ONE of these goals (or say none fits). ")
-	b.WriteString("Unless they already asked you to run it, first state the goal and the plan in a sentence and ask to go ahead. ")
+	b.WriteString("Say in a sentence which goal you are answering and run its plan; these commands only read the net, so do not ask permission first (ask only before an edit that replaces or alters the net). ")
+	b.WriteString("Run a step marked [only if ...] only when the earlier result says so: analysis_diagnose ranks knobs on the ODE and is wrong for a small or constrained net, where sim_recommend says ssa and analysis_diagnose_ssa is the one to run. ")
+	b.WriteString("If the person's question names an outcome (walkouts, wait, throughput), pass the matching place as the observable. ")
 	b.WriteString("Run the plan's commands (tool name = command with its first '.' as '_'), then answer in plain language with the evidence, and always give the goal's caveat.\n")
 	for _, g := range cat.Goals {
 		if g.Available != nil && !*g.Available {
@@ -51,7 +57,11 @@ func goalCatalogText(public fs.FS) (string, int, error) {
 		steps := make([]string, 0, len(g.Plan))
 		for _, s := range g.Plan {
 			args, _ := json.Marshal(s.Args)
-			steps = append(steps, s.Command+" "+string(args))
+			step := s.Command + " " + string(args)
+			if s.When != nil { // run the step only when the earlier result says so
+				step += fmt.Sprintf(" [only if %s = %v]", s.When.Ref, s.When.Equals)
+			}
+			steps = append(steps, step)
 		}
 		fmt.Fprintf(&b, "- %s: %q plan: %s", g.ID, g.Question, strings.Join(steps, " → "))
 		if len(g.Inputs) > 0 {

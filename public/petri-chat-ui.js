@@ -12,6 +12,7 @@
 // the engines'. The panel never restyles a reply as a result.
 
 import { fitPanel } from './petri-panel-frame.js';
+import { renderMarkdown } from './petri-markdown.js';
 
 const MODES = [['auto', 'Auto'], ['build', 'Build'], ['analyse', 'Analyse'], ['explain', 'Explain']];
 
@@ -41,7 +42,10 @@ function turnPoster(view) {
         const out = await res.json().catch(() => ({}));
         if (!res.ok) {
             const wait = res.status === 429 && out.retry_after_s ? ` (try again in ${out.retry_after_s < 120 ? `${out.retry_after_s} s` : `${Math.round(out.retry_after_s / 3600)} h`})` : '';
-            throw new Error(`${out.error || `the assistant failed (${res.status})`}${wait}`);
+            const err = new Error(`${out.error || `the assistant failed (${res.status})`}${wait}`);
+            err.status = res.status;
+            err.retryAfter = out.retry_after_s; // ChatSession waits out a short 429 and retries
+            throw err;
         }
         return out;
     };
@@ -55,7 +59,10 @@ export async function openChat(view, { mode, message } = {}) {
     if (view._chatPanel?.isConnected) {
         if (mode) view._chatPanel._setMode(mode);
         const box = view._chatPanel.querySelector('.pv-chat-input');
-        if (message) box.value = message;
+        if (message) {
+            box.value = message;
+            if (!box.form.hidden) box.form.requestSubmit(); // the person asked: send it
+        }
         box.focus();
         return view._chatPanel;
     }
@@ -116,7 +123,13 @@ export async function openChat(view, { mode, message } = {}) {
     }
     if (status.remaining_today !== undefined) $('.pv-chat-quota').textContent = `${status.remaining_today} model calls left today`;
 
-    let chat = new ChatSession({ live: reg, manifest, post: turnPoster(view), mode: mode || 'auto' });
+    // The conversation outlives the panel: closing it, or reopening it from the goals dialog's "Ask the
+    // Assistant instead", keeps the messages (and the tools run) for this page's session. New starts afresh.
+    const kept = view._chatKeep;
+    let chat = kept?.chat || new ChatSession({ live: reg, manifest, post: turnPoster(view), mode: mode || 'auto' });
+    if (kept?.chat && mode) chat.setMode(mode);
+    view._chatKeep = { chat, logHtml: kept?.logHtml || '' };
+    if (kept?.logHtml && status.signed_in) log.innerHTML = kept.logHtml;
     // The count is of the tools there are, then of the calls made: a bare count of calls read 0 on every new conversation,
     // as if there were no tools at all.
     let listed = null;
@@ -182,9 +195,11 @@ export async function openChat(view, { mode, message } = {}) {
     const say = (who, text) => {
         const p = document.createElement('div');
         p.className = `pv-chat-msg pv-chat-${who}`;
-        p.textContent = text;
+        if (who === 'assistant') p.innerHTML = renderMarkdown(text);
+        else p.textContent = text;
         log.appendChild(p);
         log.scrollTop = log.scrollHeight;
+        view._chatKeep.logHtml = log.innerHTML;
     };
 
     const renderPending = async () => {
@@ -246,6 +261,7 @@ export async function openChat(view, { mode, message } = {}) {
     $('[data-act="new"]').addEventListener('click', () => {
         const m = chat.mode;
         chat = new ChatSession({ live: reg, manifest, post: turnPoster(view), mode: m });
+        view._chatKeep = { chat, logHtml: '' };
         $('.pv-chat-detected').hidden = true;
         log.innerHTML = '';
         $('.pv-chat-calls').innerHTML = '';
@@ -253,6 +269,7 @@ export async function openChat(view, { mode, message } = {}) {
         renderTools();
         renderPending();
     });
+    for (const e of chat.calls) renderCall(e); // a kept conversation's tools
     $('[data-act="close"]').addEventListener('click', () => panel.remove());
 
     const input = $('.pv-chat-input');
@@ -275,6 +292,7 @@ export async function openChat(view, { mode, message } = {}) {
                 if (ev.type === 'reply') say('assistant', ev.text);
                 if (ev.type === 'call') { renderCall(ev.entry); $('.pv-chat-status').textContent = `ran ${ev.entry.command || ev.entry.name}`; }
                 if (ev.type === 'auto') { showDetected(ev); renderSteps(); renderTools(); }
+                if (ev.type === 'wait') $('.pv-chat-status').textContent = `Rate limited; retrying in ${ev.seconds} s…`;
                 if (ev.type === 'quota') $('.pv-chat-quota').textContent = `${ev.remaining} model calls left today`;
                 if (ev.type === 'step') { renderSteps(); say('note', `Interview step: ${ev.step}`); }
                 if (ev.type === 'checks' && ev.report.findings.length) say('note', `Checks: ${ev.report.findings.map((f) => f.category).join(', ')}`);

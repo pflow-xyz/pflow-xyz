@@ -76,8 +76,12 @@ export class ChatSession {
      * @param {(body: Object) => Promise<Object>} o.post   one /api/llm/turn call
      * @param {string} [o.mode]
      * @param {number} [o.maxRounds] model calls per message at most (default 6)
+     * @param {(ms: number) => Promise<void>} [o.sleep] how a 429's wait is spent (tests pass a fake)
+     * @param {number} [o.maxWaitS] the longest 429 advice worth waiting out, in seconds (default 90)
      */
-    constructor({ live, manifest, post, mode = 'analyse', maxRounds = 6, step = 'describe' }) {
+    constructor({ live, manifest, post, mode = 'analyse', maxRounds = 6, step = 'describe', sleep = (ms) => new Promise((r) => setTimeout(r, ms)), maxWaitS = 90 }) {
+        this.sleep = sleep;
+        this.maxWaitS = maxWaitS;
         this.live = live;
         this.manifest = manifest;
         this.post = post;
@@ -125,6 +129,26 @@ export class ChatSession {
         return s.length <= 20000 ? info : { note: 'net too large to summarise in full', places: info.places.length, transitions: info.transitions.length, arcs: info.arcs.length };
     }
 
+    /**
+     * One /api/llm/turn call. A 429 that advises a short wait (the per-minute
+     * limit: "try again in 17 s") is waited out and retried here, with the
+     * same messages, so a turn whose tools already ran (and spent calls) is
+     * not dropped and the person does not have to type "continue". A daily
+     * limit (hours) is not waited out: it is thrown as is.
+     */
+    async _post(body, onEvent) {
+        for (let attempt = 0; ; attempt++) {
+            try {
+                return await this.post(body);
+            } catch (e) {
+                const s = e.retryAfter;
+                if (e.status !== 429 || !(s > 0) || s > this.maxWaitS || attempt >= 3) throw e;
+                onEvent({ type: 'wait', seconds: s, attempt: attempt + 1 });
+                await this.sleep((s + 1) * 1000);
+            }
+        }
+    }
+
     /** Run one model call's tool call. Never throws: a failure is the tool's answer. */
     async runCall(call, round = 0) {
         const t0 = Date.now();
@@ -160,7 +184,7 @@ export class ChatSession {
     /**
      * Send the person's message and run the loop until the model answers
      * without tools, or maxRounds model calls. onEvent receives
-     * {type: 'reply' | 'call' | 'round' | 'quota' | 'auto', ...} as it happens.
+     * {type: 'reply' | 'call' | 'round' | 'quota' | 'auto' | 'wait', ...} as it happens.
      * @param {string} text
      * @param {(e: Object) => void} [onEvent]
      * @returns {Promise<{reply: string, rounds: number, stopped?: string}>}
@@ -177,7 +201,7 @@ export class ChatSession {
             const body = { mode: labelling ? 'auto' : this.effectiveMode, net: await this._netSummary(), messages: this.messages };
             if (labelling && this.resolved) body.prev_mode = this.resolved;
             if (labelling || this.effectiveMode === 'build') body.step = this.step;
-            const resp = await this.post(body);
+            const resp = await this._post(body, onEvent);
             if (labelling && resp.auto) {
                 this.resolved = resp.auto.mode;
                 onEvent({ type: 'auto', ...resp.auto });
