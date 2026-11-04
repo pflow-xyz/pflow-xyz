@@ -1,0 +1,828 @@
+{
+  "version": "goal-tools-v1",
+  "tools": [
+    {
+      "name": "run_goal",
+      "ask": true,
+      "description": "Answer the person's question with one standard goal from the goal list in the instructions. The interface runs the goal's plan on the net and picks the engine, horizon, seed and run count itself, so never name them. Pass only the inputs that goal lists. Returns the evidence; the interface shows the goal's caveat.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "goal_id": {
+            "type": "string",
+            "enum": [
+              "stuck",
+              "can_happen",
+              "unbounded",
+              "conserved",
+              "average",
+              "risk",
+              "knob",
+              "one_more",
+              "best_setting",
+              "same_net",
+              "best_play"
+            ],
+            "description": "The goal's id."
+          },
+          "inputs": {
+            "type": "string",
+            "description": "The goal's inputs as a JSON object in a string, e.g. {\"observable\":\"I\"}; place and transition ids exactly as the net lists them. Omit when the goal has no inputs."
+          },
+          "engine_override": {
+            "type": "string",
+            "enum": [
+              "ode",
+              "sde"
+            ],
+            "description": "Only when the person named an engine (\"use the ODE\"). Otherwise leave out."
+          }
+        },
+        "required": [
+          "goal_id"
+        ]
+      },
+      "json_args": [
+        "inputs"
+      ]
+    },
+    {
+      "name": "ask_user",
+      "ask": true,
+      "description": "Ask the person ONE clarifying question as a card with 2 to 4 options, at most once per turn. Only when a required input has no value you can ground in the net, no safe default exists, and a wrong guess would give a plausible but misleading answer. Otherwise proceed and state your assumption.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "question": {
+            "type": "string",
+            "description": "The question, in the person's words."
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "2 to 4 short choices drawn from the net's own place or transition ids."
+          },
+          "default_option": {
+            "type": "string",
+            "description": "The option you would take if the person answers \"you decide\"; one of options."
+          }
+        },
+        "required": [
+          "question",
+          "options"
+        ]
+      }
+    },
+    {
+      "name": "command_schema",
+      "ask": true,
+      "description": "The JSON Schema of one command from the command index, to read before calling it with run_command. Not needed for a command that takes no arguments.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The command id, e.g. sim.ode."
+          }
+        },
+        "required": [
+          "id"
+        ]
+      }
+    },
+    {
+      "name": "run_command",
+      "ask": true,
+      "description": "Run one registry command from the command index: the long tail, for when no goal fits. Read its schema with command_schema first unless it takes no arguments.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The command id, e.g. sim.ode."
+          },
+          "args": {
+            "type": "string",
+            "description": "The command's arguments as a JSON object in a string. Omit when it takes none."
+          },
+          "engine_override": {
+            "type": "string",
+            "enum": [
+              "ode",
+              "sde"
+            ],
+            "description": "Only when the person named an engine. Otherwise leave out."
+          }
+        },
+        "required": [
+          "id"
+        ]
+      },
+      "json_args": [
+        "args"
+      ]
+    },
+    {
+      "name": "open_view",
+      "ask": true,
+      "description": "Open one of the editor's classic views for the person to explore themselves: analysis, simulate, structure, results, app, components, check.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "view": {
+            "type": "string",
+            "enum": [
+              "analysis",
+              "simulate",
+              "structure",
+              "results",
+              "app",
+              "components",
+              "check"
+            ],
+            "description": "Which view to open."
+          }
+        },
+        "required": [
+          "view"
+        ]
+      }
+    },
+    {
+      "name": "net_info",
+      "command": "net.info",
+      "description": "Net info. Counts, ids, labels and rates: a summary of the net."
+    },
+    {
+      "name": "analysis_check",
+      "command": "analysis.check",
+      "description": "Check net. The editor's strict check: every problem the editor would otherwise repair quietly, with a path, plus warnings. With engines (default true) and no errors, also runs the firing rule, the ODE solver's reading and CID sealing. Stores a report artifact.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "strict": {
+            "description": "a key the editor does not write is an error (default false)",
+            "type": "boolean"
+          },
+          "engines": {
+            "description": "run the engine checks too (default true)",
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    {
+      "name": "analysis_defects",
+      "command": "analysis.defects",
+      "description": "Defect weight. sim's refinement gate, engine-computed: dead transitions + unmarked siphons (that can empty and stop transitions for good) + declared goals analysis.reach answers \"no\" to + conservation laws of a baseline that no longer hold. 0 is clean. Pass baseline_laws (P-invariant coefficient maps, e.g. from the net before an edit) to count lost laws; leave it out to count none.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "baseline_laws": {
+            "description": "[{place: coefficient}] from an earlier net",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "max_states": {
+            "description": "budget for the exploration and each goal (default 2000)",
+            "type": "integer",
+            "minimum": 10,
+            "maximum": 50000
+          }
+        }
+      }
+    },
+    {
+      "name": "net_add_place",
+      "command": "net.add_place",
+      "description": "Add place. Add a place at (x, y).",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "x": {
+            "description": "x",
+            "type": "number"
+          },
+          "y": {
+            "description": "y",
+            "type": "number"
+          },
+          "id": {
+            "description": "id (default: the first free p0, p1, …)",
+            "type": "string"
+          },
+          "label": {
+            "description": "label",
+            "type": "string"
+          },
+          "initial": {
+            "description": "initial tokens (default 0)",
+            "type": "array",
+            "minimum": 0,
+            "items": {
+              "type": "integer"
+            }
+          },
+          "capacity": {
+            "description": "capacity; 0 or null = unbounded (default)",
+            "type": "array",
+            "nullable": true,
+            "minimum": 0,
+            "items": {
+              "type": "integer"
+            }
+          }
+        },
+        "required": [
+          "x",
+          "y"
+        ]
+      }
+    },
+    {
+      "name": "net_add_transition",
+      "command": "net.add_transition",
+      "description": "Add transition. Add a transition at (x, y).",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "x": {
+            "description": "x",
+            "type": "number"
+          },
+          "y": {
+            "description": "y",
+            "type": "number"
+          },
+          "id": {
+            "description": "id (default: the first free t0, t1, …)",
+            "type": "string"
+          },
+          "label": {
+            "description": "label",
+            "type": "string"
+          },
+          "rate": {
+            "description": "rate (default 1.0)",
+            "type": "number",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "x",
+          "y"
+        ]
+      }
+    },
+    {
+      "name": "net_add_arc",
+      "command": "net.add_arc",
+      "description": "Add arc. Add an arc between a place and a transition. inhibit on place→transition is an inhibitor arc; on transition→place it is a read arc (the editor's output-side inhibit).",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "source": {
+            "description": "source id",
+            "type": "string"
+          },
+          "target": {
+            "description": "target id",
+            "type": "string"
+          },
+          "weight": {
+            "description": "weight (default 1)",
+            "type": "array",
+            "minimum": 0,
+            "items": {
+              "type": "integer"
+            }
+          },
+          "inhibit": {
+            "description": "inhibitor / read arc (default false)",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "source",
+          "target"
+        ]
+      }
+    },
+    {
+      "name": "net_set_place",
+      "command": "net.set_place",
+      "description": "Set place. Set a place's initial marking and/or capacity (0 or null = unbounded). An initial marking over capacity is refused, not clamped.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "description": "place id",
+            "type": "string"
+          },
+          "initial": {
+            "description": "initial tokens",
+            "type": "array",
+            "minimum": 0,
+            "items": {
+              "type": "integer"
+            }
+          },
+          "capacity": {
+            "description": "capacity; 0 or null = unbounded",
+            "type": "array",
+            "nullable": true,
+            "minimum": 0,
+            "items": {
+              "type": "integer"
+            }
+          }
+        },
+        "required": [
+          "id"
+        ]
+      }
+    },
+    {
+      "name": "sim_set_rate",
+      "command": "sim.set_rate",
+      "description": "Set rate. Set a transition's rate (≥ 0; 0 disables it in the ODE). Rates are part of the document.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "description": "transition id",
+            "type": "string"
+          },
+          "rate": {
+            "description": "rate ≥ 0",
+            "type": "number",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "id",
+          "rate"
+        ]
+      }
+    },
+    {
+      "name": "edit_delete",
+      "command": "edit.delete",
+      "description": "Delete. Delete places and transitions, with every arc that touches them.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "ids": {
+            "description": "node ids",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "ids"
+        ]
+      }
+    },
+    {
+      "name": "edit_undo",
+      "command": "edit.undo",
+      "description": "Undo. Undo the last edit."
+    },
+    {
+      "name": "view_highlight",
+      "command": "view.highlight",
+      "description": "Highlight nodes. Mark places/transitions on the canvas, optionally with a number badge each (e.g. invariant coefficients).",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "nodes": {
+            "description": "place/transition ids",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "label": {
+            "description": "what the highlight means",
+            "type": "string"
+          },
+          "weights": {
+            "type": "string",
+            "description": "{node: number} badges (pass a JSON value as a string)"
+          }
+        },
+        "required": [
+          "nodes"
+        ]
+      },
+      "json_args": [
+        "weights"
+      ]
+    },
+    {
+      "name": "view_fit",
+      "command": "view.fit",
+      "description": "Fit to view. Frame the whole net."
+    }
+  ],
+  "command_index": [
+    {
+      "id": "file.new",
+      "help": "Replace the document with an empty net"
+    },
+    {
+      "id": "file.export_json",
+      "help": "The document as pflow.xyz JSON-LD…"
+    },
+    {
+      "id": "file.cid",
+      "help": "The CID the document seals…"
+    },
+    {
+      "id": "edit.redo",
+      "help": "Redo the last undone edit"
+    },
+    {
+      "id": "net.set_arc",
+      "help": "Change an arc's weight or whether it inhibits"
+    },
+    {
+      "id": "net.delete_arc",
+      "help": "Delete the arc(s) from source to target"
+    },
+    {
+      "id": "net.set_label",
+      "help": "Set a node's label (≤ 100 characters, one line)"
+    },
+    {
+      "id": "net.add_tokens",
+      "help": "Add (or with a negative delta, remove) tokens of one…"
+    },
+    {
+      "id": "net.move",
+      "help": "Move a node to (x, y)"
+    },
+    {
+      "id": "net.rename",
+      "help": "Change a node's id, updating every arc"
+    },
+    {
+      "id": "net.set_details",
+      "help": "Set the net's name and description…"
+    },
+    {
+      "id": "sim.enabled",
+      "help": "The transitions enabled at the current marking"
+    },
+    {
+      "id": "sim.marking",
+      "help": "The current marking, per place, per color"
+    },
+    {
+      "id": "sim.fire",
+      "help": "Fire one transition (the token game)"
+    },
+    {
+      "id": "sim.reset",
+      "help": "Back to the marking the run started from"
+    },
+    {
+      "id": "sim.ode",
+      "help": "Integrate the mass-action ODE from the current marking…"
+    },
+    {
+      "id": "opt.rate_scan",
+      "help": "Sweep one transition's rate and record each place's…"
+    },
+    {
+      "id": "opt.sweep",
+      "help": "One place's trajectory for each of several rates of one…"
+    },
+    {
+      "id": "sim.ssa",
+      "help": "Gillespie stochastic simulation from the current marking…"
+    },
+    {
+      "id": "sim.sde",
+      "help": "Chemical Langevin SDE (petri-sde.js) from the current…"
+    },
+    {
+      "id": "sim.what_if",
+      "help": "The same seeded stochastic runs with and without delta…"
+    },
+    {
+      "id": "sim.recommend",
+      "help": "Which engine to run this net with, and why…"
+    },
+    {
+      "id": "analysis.diagnose_ssa",
+      "help": "Which knobs move the outcome, measured on the SSA…"
+    },
+    {
+      "id": "net.set_goals",
+      "help": "Declare the net's reachability goals: markings it should…"
+    },
+    {
+      "id": "net.set_views",
+      "help": "Declare the net's app screens (sim's Model.View): each…"
+    },
+    {
+      "id": "file.export_sim",
+      "help": "The net in sim.pflow.xyz's model shape…"
+    },
+    {
+      "id": "analysis.roles",
+      "help": "What a console knows about the net before anyone runs it…"
+    },
+    {
+      "id": "analysis.behaviour",
+      "help": "sim's builder checks on the token game: parts of the net…"
+    },
+    {
+      "id": "sim.goto",
+      "help": "Load a marking from a result onto the net: a step…"
+    },
+    {
+      "id": "view.clear_highlight",
+      "help": "Remove the canvas highlight"
+    },
+    {
+      "id": "artifact.show_set",
+      "help": "Highlight one node set of a sets artifact…"
+    },
+    {
+      "id": "artifact.list",
+      "help": "The stored artifacts, newest last: id, title, kind…"
+    },
+    {
+      "id": "artifact.get",
+      "help": "One artifact in full"
+    },
+    {
+      "id": "analysis.validate",
+      "help": "pflow-validation's structural checks…"
+    },
+    {
+      "id": "analysis.incidence",
+      "help": "The incidence matrix C = post − pre…"
+    },
+    {
+      "id": "analysis.invariants",
+      "help": "Minimal semi-positive P-invariants…"
+    },
+    {
+      "id": "analysis.siphons",
+      "help": "Every minimal siphon and trap, from the arc structure…"
+    },
+    {
+      "id": "analysis.verify",
+      "help": "Check properties (sim_verify's JSON): deadlock-free…"
+    },
+    {
+      "id": "analysis.reach",
+      "help": "Is `to` reachable (sim_reach)"
+    },
+    {
+      "id": "analysis.reachability",
+      "help": "Explore every marking reachable from the initial…"
+    },
+    {
+      "id": "analysis.canonical",
+      "help": "An isomorphism-invariant id…"
+    },
+    {
+      "id": "analysis.classify",
+      "help": "Classes of nodes the net cannot tell apart, by colour…"
+    },
+    {
+      "id": "sim.equilibrium",
+      "help": "Integrate the ODE from the current marking and rates…"
+    },
+    {
+      "id": "sim.scenario",
+      "help": "A sim_scenario what-if from the current marking: {name…"
+    },
+    {
+      "id": "sim.compare",
+      "help": "Run several scenarios on one shared seed (sim_compare)…"
+    },
+    {
+      "id": "sim.crosscheck",
+      "help": "sim_crosscheck: SSA ensemble mean against…"
+    },
+    {
+      "id": "analysis.diagnose",
+      "help": "Which knobs move the outcome…"
+    },
+    {
+      "id": "opt.heatmap",
+      "help": "Vary two transitions' rates over a grid (≤ 40 × 40)…"
+    },
+    {
+      "id": "opt.optimize",
+      "help": "Monte Carlo over transition rates (seeded): one ODE run…"
+    },
+    {
+      "id": "compose.components",
+      "help": "The component library: sim.pflow.xyz's registry…"
+    },
+    {
+      "id": "compose.fuse",
+      "help": "Instantiate a library component into the open net…"
+    },
+    {
+      "id": "compose.extend",
+      "help": "Apply sim_extend's structural edit ops to the open net…"
+    },
+    {
+      "id": "sim.run",
+      "help": "Fire up to `steps` randomly chosen enabled transitions…"
+    },
+    {
+      "id": "sim.evaluate",
+      "help": "sim_evaluate (play method): fire each enabled move…"
+    },
+    {
+      "id": "opt.fit",
+      "help": "Fit transition rates so the mass-action ODE…"
+    },
+    {
+      "id": "opt.distill",
+      "help": "sim_distill: fit rate multipliers for transition groups…"
+    },
+    {
+      "id": "file.examples",
+      "help": "Names of the bundled example nets"
+    },
+    {
+      "id": "file.open_example",
+      "help": "Load a bundled example net"
+    },
+    {
+      "id": "file.seal",
+      "help": "Compute the CID and store it as the document's top-level…"
+    },
+    {
+      "id": "net.layout",
+      "help": "Rearrange every place and transition with one…"
+    },
+    {
+      "id": "net.set_colors",
+      "help": "Replace the token color list (`token[]`): names like…"
+    },
+    {
+      "id": "provenance.verify_receipt",
+      "help": "Check a run receipt two ways, as sim's…"
+    },
+    {
+      "id": "provenance.check_witness",
+      "help": "Re-check a witness without searching…"
+    },
+    {
+      "id": "data.load_log",
+      "help": "Load a CSV or JSONL event log…"
+    },
+    {
+      "id": "data.log_info",
+      "help": "Cases, events, activities, variants and timing…"
+    },
+    {
+      "id": "data.calibrate",
+      "help": "sim_calibrate: learn per-transition rates…"
+    },
+    {
+      "id": "data.conformance",
+      "help": "Token-replay conformance of an event-log artifact…"
+    },
+    {
+      "id": "data.replay",
+      "help": "Online conformance (sim_conformance_stream): replay…"
+    },
+    {
+      "id": "data.generate",
+      "help": "A synthetic event log from the current net…"
+    },
+    {
+      "id": "data.discover",
+      "help": "Process discovery with pflow-mining: REPLACES…"
+    },
+    {
+      "id": "model.list",
+      "help": "Names in the model library with their sizes"
+    },
+    {
+      "id": "model.get",
+      "help": "A library model (or \"current\") as pflow.xyz JSON-LD"
+    },
+    {
+      "id": "model.open",
+      "help": "Make a library model the open net…"
+    },
+    {
+      "id": "compose.diff",
+      "help": "Structural diff of two models (sim_diff): library names…"
+    },
+    {
+      "id": "system.ports",
+      "help": "Declared ports of a model, or (no model) of the open net…"
+    },
+    {
+      "id": "system.binding",
+      "help": "A binding by id with its check computed now…"
+    },
+    {
+      "id": "system.bindings",
+      "help": "Every binding (or those touching `model`),…"
+    },
+    {
+      "id": "system.show",
+      "help": "A stored system's view, computed now (sim_system {id})…"
+    },
+    {
+      "id": "system.list",
+      "help": "Stored systems with their models and bindings"
+    },
+    {
+      "id": "system.run",
+      "help": "Run a system (or a list of bindings) as a pipeline…"
+    },
+    {
+      "id": "note.list",
+      "help": "Every note, oldest first, with its target; `orphaned`…"
+    },
+    {
+      "id": "macro.list",
+      "help": "Macro names and step counts"
+    },
+    {
+      "id": "macro.get",
+      "help": "A macro's steps"
+    },
+    {
+      "id": "macro.play",
+      "help": "Replay a macro as one undo step…"
+    },
+    {
+      "id": "store.get",
+      "help": "A stored model's pflow.xyz JSON-LD (with @id = its CID)"
+    },
+    {
+      "id": "store.open",
+      "help": "Open a stored document by its kind (undoable)"
+    },
+    {
+      "id": "store.list",
+      "help": "Stored models, newest first, with title, kind…"
+    },
+    {
+      "id": "store.edges",
+      "help": "Every relation touching an entity, as subject or object…"
+    },
+    {
+      "id": "store.neighbors",
+      "help": "One hop from an entity through the registry…"
+    },
+    {
+      "id": "store.query",
+      "help": "Conjunctive pattern query over the edges (sim_query)…"
+    },
+    {
+      "id": "store.collection_list",
+      "help": "Collections with their member counts"
+    },
+    {
+      "id": "store.migration_offers",
+      "help": "What supersession does to each edge of a superseded…"
+    },
+    {
+      "id": "store.map_get",
+      "help": "A stored table's data by id"
+    },
+    {
+      "id": "store.map_list",
+      "help": "The id and key count of every stored table"
+    },
+    {
+      "id": "store.graph",
+      "help": "The store as a graph: models, collections and the edges…"
+    },
+    {
+      "id": "store.info",
+      "help": "Where the store lives, what it holds, and the predicate…"
+    },
+    {
+      "id": "game.value",
+      "help": "The exact value of the current position, from the +1…"
+    },
+    {
+      "id": "game.move",
+      "help": "A best move at the current position and its exact value…"
+    }
+  ]
+}

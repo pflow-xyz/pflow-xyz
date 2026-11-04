@@ -6,6 +6,7 @@ go_library(
         "autostats.go",
         "client.go",
         "gemini.go",
+        "goalstats.go",
         "limits.go",
     ],
     importpath = "github.com/pflow-xyz/pflow-xyz/internal/llm",
@@ -14,6 +15,9 @@ go_library(
 
 go_test(
     name = "llm_test",
-    srcs = ["llm_test.go"],
+    srcs = [
+        "goalstats_test.go",
+        "llm_test.go",
+    ],
     embed = [":llm"],
 )

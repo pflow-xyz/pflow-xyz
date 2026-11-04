@@ -188,9 +188,7 @@
             padding: 10px 12px;
             resize: vertical;
         }
-        .landing-chat-routes { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 14px; border: 0; margin: 0; padding: 0; }
-        .landing-chat-routes label { cursor: pointer; font-size: 0.95rem; }
-        .landing-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+        .landing-chat [hidden] { display: none; } /* no chat for this visitor: no box (petri-landing.js) */
         .landing-chat a { color: var(--pf-accent); }
         .landing-hero-buttons {
             display: flex;
@@ -264,16 +262,48 @@
             border: 1px solid var(--pf-border);
             border-radius: var(--pf-radius);
             overflow: hidden;
-            cursor: pointer;
             transition: border-color 0.2s, transform 0.15s;
-            text-decoration: none;
             color: var(--pf-text);
-            display: block;
+            display: flex;
+            flex-direction: column;
         }
 
-        .model-card:hover {
+        .model-card:hover,
+        .model-card:focus-within {
             border-color: var(--pf-accent);
             transform: translateY(-2px);
+        }
+
+        .model-card-main {
+            display: block;
+            flex: 1;
+            color: inherit;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        .model-card-opens {
+            display: inline-block;
+            margin-top: 10px;
+            padding: 3px 10px;
+            border: 1px solid var(--pf-accent);
+            border-radius: 12px;
+            font-size: 0.78rem;
+            line-height: 1.35;
+            color: var(--pf-text);
+        }
+
+        .model-card-canvas {
+            display: block;
+            padding: 10px 16px 14px;
+            font-size: 0.8rem;
+            color: var(--pf-text-muted);
+            text-decoration: none;
+        }
+
+        .model-card-canvas:hover {
+            color: var(--pf-accent);
+            text-decoration: underline;
         }
 
         .model-card-img {
@@ -566,29 +596,107 @@
                 <h1 id="landing-chat-q">Explanations you can run.</h1>
                 <p>LLM-written code got good in the last year. Understanding it didn't get faster. You can only move as fast as you comprehend what you've built. pflow turns each model into something you can see, run and check. <span id="landing-chat-ask">What are you working on?</span></p>
                 <textarea id="landing-chat-input" rows="2" aria-labelledby="landing-chat-ask" placeholder="A coffee shop with one barista and a queue. Where does it jam?"></textarea>
-                <fieldset class="landing-chat-routes">
-                    <legend class="landing-sr">What kind of session</legend>
-                    <label><input type="radio" name="route" value="auto" checked/> Let it decide</label>
-                    <label><input type="radio" name="route" value="design"/> Design</label>
-                    <label><input type="radio" name="route" value="analyse"/> Analyse</label>
-                    <label><input type="radio" name="route" value="explore"/> Explore</label>
-                    <label><input type="radio" name="route" value="explain"/> Explain</label>
-                </fieldset>
-                <p id="landing-chat-hint" class="landing-chat-small"></p>
-                <button type="submit" id="landing-chat-send" class="btn-primary">Start</button>
+                <button type="submit" id="landing-chat-send" class="btn-primary">Ask</button>
                 <p id="landing-chat-state" class="landing-chat-small" role="status"></p>
                 <p id="landing-chat-connector" class="landing-chat-small" hidden>Using Claude or another MCP client? <a href="/mcp.html">Add pflow as a connector</a> and chat there.</p>
             </form>
             <div class="landing-hero-buttons">
                 <a class="btn-secondary" href="#" id="open-editor-btn">Open the editor</a>
-                <a class="btn-secondary" href="https://sim.pflow.xyz">Describe it instead (sim)</a>
+                <a class="btn-secondary" href="/compose.html">Compose</a>
             </div>
         </div>
     </section>
 
-    <section class="landing-pipeline">
-        <h2>Or start from a description</h2>
-        <p class="landing-pipeline-sub">Describe a decision, process or mechanism to your AI assistant and get back a model you can run and check. Some to open on sim.pflow.xyz:</p>
+    <section class="landing-section">
+        <h2>Example models, open in the editor</h2>
+        <p class="landing-pipeline-sub" style="text-align:center;margin:-16px 0 32px">Each one is a saved net with a content-addressed ID. A card opens the net together with one recorded question about it, computed in your browser with no model call; <em>Open the canvas</em> opens the net alone. The same kind of model is what <a href="https://sim.pflow.xyz" style="color:var(--pf-accent)">sim.pflow.xyz</a> builds from a description.</p>
+        <div class="model-grid">
+            <!-- examples:cards:begin (generated by scripts/gen-example-cards.mjs from public/examples.json; do not edit by hand) -->
+            <div class="model-card" data-example="coffee-shop" data-cid="z4EBG9j3NhEnaxZBEpXXCvyMbR9utkgUZoPBQFxS99qSehUwuBL" data-title="Coffee Shop">
+                <a class="model-card-main" href="/?cid=z4EBG9j3NhEnaxZBEpXXCvyMbR9utkgUZoPBQFxS99qSehUwuBL&amp;title=Coffee+Shop#view=bc7LjuIwEIXhV0G1TiPf4kseZDYjFuVymbYITmQHaITy7i1mNOrN7M__6bygr0y_uPWyVJjkAPfCD5igbze6wACE89xh-v0CWq5XrAkmwIrzs5d-vHMr-QkDYDt3mF6wtmXlthX-m1zKn31iTPNCl4_cmGE_7fvwX66X9XOp_cfb99MAXM-l8ltvfC59a0-YYM3z8viouJU7H8TRH8Xhgf168CESW_sm1hUmuNVLXR4V9gH4a2Xa3g62rWSk7X0S-ieq0U4ccwhZZyRFOqqsMZJTDtkmp4RXTlgVfdAyxyATOz9aS2Sz1iY6VAGGf5J1WaPwNkinLclsEpnskpYsg5ZjzkGnpJ2TPhppkkG2wo1CG2sEipx-pOidRR69woCM0TjUQSOzN1awVDlEPYYkOXijg4tCIBJ50pKMJ8IRTgO05VZTqWeYwr5_Aw">
+                    <div class="model-card-img">
+                        <img alt="Coffee Shop" src="/img/z4EBG9j3NhEnaxZBEpXXCvyMbR9utkgUZoPBQFxS99qSehUwuBL.svg" loading="lazy"/>
+                    </div>
+                    <div class="model-card-body">
+                        <h3>Coffee Shop</h3>
+                        <p>Weighted arcs encode recipes, conservation laws guarantee you never oversell a latte.</p>
+                        <span class="model-card-opens">Opens to: it cannot get stuck: no deadlock in any of the 2,706 reachable states</span>
+                    </div>
+                </a>
+                <a class="model-card-canvas" href="/?cid=z4EBG9j3NhEnaxZBEpXXCvyMbR9utkgUZoPBQFxS99qSehUwuBL&amp;title=Coffee+Shop">Open the canvas</a>
+            </div>
+            <div class="model-card" data-example="tic-tac-toe" data-cid="z4EBG9j1YQFZEQBpCn3ZjdpAuXpPnrKSDF5YXsW3q86znPztEoh" data-title="Tic-Tac-Toe">
+                <a class="model-card-main" href="/?cid=z4EBG9j1YQFZEQBpCn3ZjdpAuXpPnrKSDF5YXsW3q86znPztEoh&amp;title=Tic-Tac-Toe#view=LY_RioMwEEV_pdxnW6KxVvMhfSlFRjNxw2oiia2W4r8vkX073MO9zHwRZ-7vHKL1DirP8La8QqHjuLTzSB9k6GkcI9Tji95PEzkNhYEmvkz-zchAYYhQX0Sr-YCtPaZ8C3XO9wyBVwo6mdW6djtkIv_v6bV4qAe2NqVIzQOe-_7MwG6wjlM78GDjEj5QmM3o17Ojxb75JC71RZxWitOpbrqeqypdNc9QeLlf51eHPQNvM_dL2qGwWEP9kp5C_KHiWikSZIob1zrPy-rKsjJdI2RecF7c6qbWopKmlrJjlk2puTFlI4TshL4JMiUbPDME_3LaugGq2fc_">
+                    <div class="model-card-img">
+                        <img alt="Tic-Tac-Toe" src="/img/z4EBG9j1YQFZEQBpCn3ZjdpAuXpPnrKSDF5YXsW3q86znPztEoh.svg" loading="lazy"/>
+                    </div>
+                    <div class="model-card-body">
+                        <h3>Tic-Tac-Toe</h3>
+                        <p>Every board position is a place. ODE heatmaps reveal optimal play from network topology alone.</p>
+                        <span class="model-card-opens">Opens to: best play ends in a draw: exact search over 2,299 positions (a best-move report, not a heatmap)</span>
+                    </div>
+                </a>
+                <a class="model-card-canvas" href="/?cid=z4EBG9j1YQFZEQBpCn3ZjdpAuXpPnrKSDF5YXsW3q86znPztEoh&amp;title=Tic-Tac-Toe">Open the canvas</a>
+            </div>
+            <div class="model-card" data-example="enzyme-kinetics" data-cid="z4EBG9j1aMiBny6hgTAKFXfXxTASCD5vT6NVY3opfQx4FfBf42a" data-title="Enzyme Kinetics">
+                <a class="model-card-main" href="/?cid=z4EBG9j1aMiBny6hgTAKFXfXxTASCD5vT6NVY3opfQx4FfBf42a&amp;title=Enzyme+Kinetics#view=XY5BboMwFESvgmbtIpMADj5INlVUfexvajXYyCbQCvnuFatKXc7M09McyAubO6fsY4BuBDbPOzRo40QTQ8DQ85mh3w-YOM8ULDSyn-vEZ-ZgIUBpytBHKeI_FS3_7Vg_Tl43pTwEOEw-8Fknnnxe0w80FveM-1ug1W9cyfpWy2qnPFe3YTTc96drWaDxCl8h7gFFgL8XNuvpobR6R2Y97yJ_0qXrtbJt75yTjk1L3WhGpdRgHTMpOyrjRjkMvWsa2bFtTSsv6krSWWMHadhdOzwEUnwF68MEPZTyCw">
+                    <div class="model-card-img">
+                        <img alt="Enzyme Kinetics" src="/img/z4EBG9j1aMiBny6hgTAKFXfXxTASCD5vT6NVY3opfQx4FfBf42a.svg" loading="lazy"/>
+                    </div>
+                    <div class="model-card-body">
+                        <h3>Enzyme Kinetics</h3>
+                        <p>Four places, three transitions — mass-action kinetics produce Michaelis-Menten curves automatically.</p>
+                        <span class="model-card-opens">Opens to: substrate turning into product (ODE): the complex C peaks at 9.5 near t = 0.2; by t = 1, P is 9.3 and S has fallen from 50 to 31</span>
+                    </div>
+                </a>
+                <a class="model-card-canvas" href="/?cid=z4EBG9j1aMiBny6hgTAKFXfXxTASCD5vT6NVY3opfQx4FfBf42a&amp;title=Enzyme+Kinetics">Open the canvas</a>
+            </div>
+            <div class="model-card" data-example="predator-prey" data-cid="z4EBG9j7s3ri1DFxbBYpxYUhKtZf8ngA3nfw9849upqeQj85z9J" data-title="Predator-Prey">
+                <a class="model-card-main" href="/?cid=z4EBG9j7s3ri1DFxbBYpxYUhKtZf8ngA3nfw9849upqeQj85z9J&amp;title=Predator-Prey#view=XY7NasMwEIRfJcxZDbbjXz1ILiWUze7KFY1lIzlxi9G7F58KPc7Mx8fsSIvyVWPyc4AtDV5eN1jQSyONCgOmxyPBvu_geZooCCySn85Rj6xBYEBxTLB7zuY_NYv-7Vg_Dt42Od8MNIw-6FFHHX1a4w8sFveYt7dAq3_pqTj35-K0UZpO_XBnbdvDtSyweIavMG8B2UC_F-X18FBcvSNej7tIn1Q1re0H13Ts6oLLouHa1W1VOKnc_VIPpTQkUnTEwn3ZSDswC3HXddW9Z7lIJ4SbQZyfQXwYYYecfwE">
+                    <div class="model-card-img">
+                        <img alt="Predator-Prey" src="/img/z4EBG9j7s3ri1DFxbBYpxYUhKtZf8ngA3nfw9849upqeQj85z9J.svg" loading="lazy"/>
+                    </div>
+                    <div class="model-card-body">
+                        <h3>Predator-Prey</h3>
+                        <p>Lotka-Volterra dynamics — two species, three reactions, and the ODE solver draws the phase portrait.</p>
+                        <span class="model-card-opens">Opens to: ODE trajectories, not a phase portrait: predators peak at 45 near t = 0.1 while prey fall from 40 to almost none</span>
+                    </div>
+                </a>
+                <a class="model-card-canvas" href="/?cid=z4EBG9j7s3ri1DFxbBYpxYUhKtZf8ngA3nfw9849upqeQj85z9J&amp;title=Predator-Prey">Open the canvas</a>
+            </div>
+            <div class="model-card" data-example="producer-consumer" data-cid="z4EBG9jDW9ike1veSLWu9Et2dMTiPEWTMkai8TkjUtEaUVtyrda" data-title="Producer-Consumer">
+                <a class="model-card-main" href="/?cid=z4EBG9jDW9ike1veSLWu9Et2dMTiPEWTMkai8TkjUtEaUVtyrda&amp;title=Producer-Consumer#view=bdHJbuMwDADQXwl49gTaF39IL4OgoCQqFerIhuQmDQL_e-HOFO2hVy4PXB7QF4pP1HqZK4x8gGuhG4zwVsP8VhMlGCDiNHUY_z4gzpcL1gQjYMXp3ks_XqmVfIcBsJ07jA9Y2rxQWwv9a3ktn_Vf2nbatuFXqBHGFwxlKutP7oLvz33FdecEY2zbTgNQPZdKe7rRufS13WGEJU_z7U_FtVzpwI7uyA437JeD8yGSMbu5LJ-rvdb5VmEbgN4XiuvuYFtLxrjuQ0N_QaHNaK1CJZJgnGzWPgjDXRDJeSe5koICOauTZNkrzUlYIbPyLiIZlplX--n-SxiE8IHvcUc-hBiMRMmsQYZSZWLZRUccNQ-RImZrQ3AiKRW1llrjtySF4CKnpJKxyjHnGbqoY5YKSSqZsrJGeTIqiUiesSw0S8bwgNxEwxScBmj7L0o9w-i37QM">
+                    <div class="model-card-img">
+                        <img alt="Producer-Consumer" src="/img/z4EBG9jDW9ike1veSLWu9Et2dMTiPEWTMkai8TkjUtEaUVtyrda.svg" loading="lazy"/>
+                    </div>
+                    <div class="model-card-body">
+                        <h3>Producer-Consumer</h3>
+                        <p>Bounded buffer concurrency — capacity constraints prevent overflow, token counts prove correctness.</p>
+                        <span class="model-card-opens">Opens to: the buffer never holds more than 3: bounded is proved across all 10 reachable states</span>
+                    </div>
+                </a>
+                <a class="model-card-canvas" href="/?cid=z4EBG9jDW9ike1veSLWu9Et2dMTiPEWTMkai8TkjUtEaUVtyrda&amp;title=Producer-Consumer">Open the canvas</a>
+            </div>
+            <div class="model-card" data-example="usdc-bridge" data-cid="z4EBG9jC6HtPfeMtyA5yt6HuzDspMH2B15FQZ7mx3D2zeBwBU1f" data-title="USDC Bridge">
+                <a class="model-card-main" href="/?cid=z4EBG9jC6HtPfeMtyA5yt6HuzDspMH2B15FQZ7mx3D2zeBwBU1f&amp;title=USDC+Bridge#view=Nc7NboMwEATgV4n2TCNs4x_8IL1UOazXC7VCDLIJNIp494pKvc6MPs0b6sL0yaWmOYMXDWyJd_BAc65cNo7QAOE0VfBfb6D58cAcwQNmnF411WvKG5aEea3QAJaxgn_DPf2NFjiOWwOcx5T5zAuPqa7ldXbDNO8fGde08aW9umt72bE-Lq4PxMac2LKAh2e-53nPcDTAPwvTejpY1jQgrecrqN8otfEBEU0kpE72wUZthhAVd8rKKK3og-1apwmVc8FJ1kFbTQNqMkFQx8jQ_EstatW3QirlhJCCLDmD1pEk1IEHbE9OtDFK42xvB4HKKKFCEJY7rQhuDZT5mWPKI_j-OH4B">
+                    <div class="model-card-img">
+                        <img alt="USDC Bridge" src="/img/z4EBG9jC6HtPfeMtyA5yt6HuzDspMH2B15FQZ7mx3D2zeBwBU1f.svg" loading="lazy"/>
+                    </div>
+                    <div class="model-card-body">
+                        <h3>USDC Bridge</h3>
+                        <p>Cross-chain token flow — IBC to Noble, CCTP burn-and-mint to Base, all as one net.</p>
+                        <span class="model-card-opens">Opens to: no USDC is created or lost in transit: all 5 places always sum to 4,000,000</span>
+                    </div>
+                </a>
+                <a class="model-card-canvas" href="/?cid=z4EBG9jC6HtPfeMtyA5yt6HuzDspMH2B15FQZ7mx3D2zeBwBU1f&amp;title=USDC+Bridge">Open the canvas</a>
+            </div>
+            <!-- examples:cards:end -->
+        </div>
+    </section>
+
+    <section class="landing-pipeline" id="calibrated-what-ifs">
+        <h2>Calibrated what-ifs (sim.pflow.xyz)</h2>
+        <p class="landing-pipeline-sub">Models already tuned to a known kind of system: open one, turn the knobs and see which one binds. No editor needed. To model your own, start at the top of the page.</p>
         <div class="pipeline-grid">
             <a href="https://sim.pflow.xyz/second-car/" class="pipeline-card"><h3>Second car or ride-share?</h3><p>A household decision with the spread shown, free with no sign-up.</p><span class="pipeline-link">Open &rarr;</span></a>
             <a href="https://sim.pflow.xyz/whatif/?id=7d736018c17edd5d7b083444" class="pipeline-card"><h3>Cold-chain attack</h3><p>How many technicians does it take to beat a freezer defrost attack?</p><span class="pipeline-link">Open &rarr;</span></a>
@@ -596,69 +704,8 @@
         </div>
     </section>
 
-    <section class="landing-section">
-        <h2>Example models, open in the editor</h2>
-        <p class="landing-pipeline-sub" style="text-align:center;margin:-16px 0 32px">Each one is a saved net with a content-addressed ID. Open it, change a weight, run it. The same kind of model is what <a href="https://sim.pflow.xyz" style="color:var(--pf-accent)">sim.pflow.xyz</a> builds from a description.</p>
-        <div class="model-grid">
-            <a class="model-card" href="/?cid=z4EBG9j3NhEnaxZBEpXXCvyMbR9utkgUZoPBQFxS99qSehUwuBL&amp;title=Coffee+Shop" data-cid="z4EBG9j3NhEnaxZBEpXXCvyMbR9utkgUZoPBQFxS99qSehUwuBL" data-title="Coffee Shop">
-                <div class="model-card-img">
-                    <img alt="Coffee Shop" src="/img/z4EBG9j3NhEnaxZBEpXXCvyMbR9utkgUZoPBQFxS99qSehUwuBL.svg" loading="lazy"/>
-                </div>
-                <div class="model-card-body">
-                    <h3>Coffee Shop</h3>
-                    <p>Weighted arcs encode recipes, conservation laws guarantee you never oversell a latte.</p>
-                </div>
-            </a>
-            <a class="model-card" href="/?cid=z4EBG9j1YQFZEQBpCn3ZjdpAuXpPnrKSDF5YXsW3q86znPztEoh&amp;title=Tic-Tac-Toe" data-cid="z4EBG9j1YQFZEQBpCn3ZjdpAuXpPnrKSDF5YXsW3q86znPztEoh" data-title="Tic-Tac-Toe">
-                <div class="model-card-img">
-                    <img alt="Tic-Tac-Toe" src="/img/z4EBG9j1YQFZEQBpCn3ZjdpAuXpPnrKSDF5YXsW3q86znPztEoh.svg" loading="lazy"/>
-                </div>
-                <div class="model-card-body">
-                    <h3>Tic-Tac-Toe</h3>
-                    <p>Every board position is a place. ODE heatmaps reveal optimal play from network topology alone.</p>
-                </div>
-            </a>
-            <a class="model-card" href="/?cid=z4EBG9j1aMiBny6hgTAKFXfXxTASCD5vT6NVY3opfQx4FfBf42a&amp;title=Enzyme+Kinetics" data-cid="z4EBG9j1aMiBny6hgTAKFXfXxTASCD5vT6NVY3opfQx4FfBf42a" data-title="Enzyme Kinetics">
-                <div class="model-card-img">
-                    <img alt="Enzyme Kinetics" src="/img/z4EBG9j1aMiBny6hgTAKFXfXxTASCD5vT6NVY3opfQx4FfBf42a.svg" loading="lazy"/>
-                </div>
-                <div class="model-card-body">
-                    <h3>Enzyme Kinetics</h3>
-                    <p>Four places, three transitions — mass-action kinetics produce Michaelis-Menten curves automatically.</p>
-                </div>
-            </a>
-            <a class="model-card" href="/?cid=z4EBG9j7s3ri1DFxbBYpxYUhKtZf8ngA3nfw9849upqeQj85z9J&amp;title=Predator-Prey" data-cid="z4EBG9j7s3ri1DFxbBYpxYUhKtZf8ngA3nfw9849upqeQj85z9J" data-title="Predator-Prey">
-                <div class="model-card-img">
-                    <img alt="Predator-Prey" src="/img/z4EBG9j7s3ri1DFxbBYpxYUhKtZf8ngA3nfw9849upqeQj85z9J.svg" loading="lazy"/>
-                </div>
-                <div class="model-card-body">
-                    <h3>Predator-Prey</h3>
-                    <p>Lotka-Volterra dynamics — two species, three reactions, and the ODE solver draws the phase portrait.</p>
-                </div>
-            </a>
-            <a class="model-card" href="/?cid=z4EBG9jDW9ike1veSLWu9Et2dMTiPEWTMkai8TkjUtEaUVtyrda&amp;title=Producer-Consumer" data-cid="z4EBG9jDW9ike1veSLWu9Et2dMTiPEWTMkai8TkjUtEaUVtyrda" data-title="Producer-Consumer">
-                <div class="model-card-img">
-                    <img alt="Producer-Consumer" src="/img/z4EBG9jDW9ike1veSLWu9Et2dMTiPEWTMkai8TkjUtEaUVtyrda.svg" loading="lazy"/>
-                </div>
-                <div class="model-card-body">
-                    <h3>Producer-Consumer</h3>
-                    <p>Bounded buffer concurrency — capacity constraints prevent overflow, token counts prove correctness.</p>
-                </div>
-            </a>
-            <a class="model-card" href="/?cid=z4EBG9jC6HtPfeMtyA5yt6HuzDspMH2B15FQZ7mx3D2zeBwBU1f&amp;title=USDC+Bridge" data-cid="z4EBG9jC6HtPfeMtyA5yt6HuzDspMH2B15FQZ7mx3D2zeBwBU1f" data-title="USDC Bridge">
-                <div class="model-card-img">
-                    <img alt="USDC Bridge" src="/img/z4EBG9jC6HtPfeMtyA5yt6HuzDspMH2B15FQZ7mx3D2zeBwBU1f.svg" loading="lazy"/>
-                </div>
-                <div class="model-card-body">
-                    <h3>USDC Bridge</h3>
-                    <p>Cross-chain token flow — IBC to Noble, CCTP burn-and-mint to Base, all as one net.</p>
-                </div>
-            </a>
-        </div>
-    </section>
-
     <section class="landing-pipeline">
-        <h2>Draw &rarr; Check &rarr; Prove</h2>
+        <h2>Draw &rarr; Run &rarr; Prove</h2>
         <p class="landing-pipeline-sub">One model, three questions: what is it, what does it do, can it be audited.</p>
         <div class="pipeline-grid">
             <a href="#" id="pipeline-draw" class="pipeline-card">
@@ -688,8 +735,8 @@
                         <line x1="24" y1="36" x2="24" y2="39" stroke="#EBFF00" stroke-width="2"/>
                     </svg>
                 </div>
-                <h3>Check</h3>
-                <p>Describe a decision or a process and get back a model that is seeded, repeatable and checked knob by knob, instead of a confident guess. Start from words, not from a canvas.</p>
+                <h3>Run</h3>
+                <p>Run a calibrated what-if and see which knob binds. The model is seeded and repeatable, so the answer is checked knob by knob instead of being a confident guess.</p>
                 <span class="pipeline-link">sim.pflow.xyz &rarr;</span>
             </a>
             <a href="https://blog.stackdump.com/posts/zk-petri-nets" class="pipeline-card">
@@ -883,7 +930,7 @@
     }
 
     // Deep link: skip landing if ?cid= or ?data= present, or the URL names a chat session (petri-landing.js)
-    if (params.has('cid') || params.has('data') || ['auto', 'design', 'analyse', 'explain'].includes(params.get('route'))) {
+    if (params.has('cid') || params.has('data') || ['auto', 'build', 'design', 'analyse', 'explain'].includes(params.get('route'))) {
         showEditor();
         return;
     }
@@ -917,19 +964,8 @@
         showEditor();
     });
 
-    // Model card clicks — navigate so petri-view can read the cid param on init
-    document.querySelectorAll('.model-card').forEach(function(card) {
-        card.addEventListener('click', function(e) {
-            e.preventDefault();
-            var cid = card.getAttribute('data-cid');
-            var title = card.getAttribute('data-title');
-            if (cid) {
-                var url = '/?cid=' + cid;
-                if (title) url += '&title=' + encodeURIComponent(title);
-                window.location.href = url;
-            }
-        });
-    });
+    // Model cards are plain links (/?cid=...#view=... and /?cid=...): the browser navigates and keeps the #view=
+    // the card carries, which a script that rebuilt the URL from data-cid dropped. Nothing to bind here.
 })();
 </script>
 

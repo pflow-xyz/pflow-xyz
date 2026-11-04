@@ -73,7 +73,7 @@ PetriView = class PetriView extends HTMLElement {
     // would claim the whole root and push the bar off the bottom of the screen.
     static DIVIDER_KEY = 'pv-divider-position-v3';
 
-    // Shown in the hamburger menu footer. Must match "version" in package.json,
+    // Shown at the foot of the Help menu (and of the classic hamburger). Must match "version" in package.json,
     // which a release commit bumps alongside the annotated git tag — there is no
     // build step for this file, so the value cannot be injected. `make
     // test-version` fails the build if the two ever drift.
@@ -211,6 +211,7 @@ PetriView = class PetriView extends HTMLElement {
                 this._hamburgerMenu = null;
                 this._hamburgerDropdown = null;
             }
+            this._destroyAppBar();
             this._createHamburgerMenu();
 
             // Initialize authentication if in backend mode
@@ -324,14 +325,19 @@ PetriView = class PetriView extends HTMLElement {
     }
 
     _updateMenuForAuth() {
-        // Re-create hamburger menu to reflect authentication state
-        if (this._hamburgerMenu) {
-            this._hamburgerMenu.remove();
-            this._hamburgerDropdown.remove();
-            this._hamburgerMenu = null;
-            this._hamburgerDropdown = null;
+        if (this._uiMode() === 'bar') {
+            // The bar's menus are built from the current sign-in state when they open; one that is open is redrawn.
+            this._appBar?.refresh();
+        } else {
+            // Re-create hamburger menu to reflect authentication state
+            if (this._hamburgerMenu) {
+                this._hamburgerMenu.remove();
+                this._hamburgerDropdown.remove();
+                this._hamburgerMenu = null;
+                this._hamburgerDropdown = null;
+            }
+            this._createHamburgerMenu();
         }
-        this._createHamburgerMenu();
 
         // Re-create top-right button to reflect authentication state
         if (this._topRightButton) {
@@ -1250,6 +1256,8 @@ PetriView = class PetriView extends HTMLElement {
     // ---------------- lifecycle ----------------
     async connectedCallback() {
         if (this._root) return;
+        // The URL as the page was opened: _updatePermalinkURL rewrites ?data= on every sync, so a #view= link is read now.
+        const bootLocation = { search: window.location.search, hash: window.location.hash };
         this._buildRoot();
         this._ldScript = this.querySelector('script[type="application/ld+json"]');
         await this._loadModelFromScriptOrAutosave();
@@ -1282,6 +1290,7 @@ PetriView = class PetriView extends HTMLElement {
 
         window.addEventListener('load', () => this._onResize());
         this._wireRootEvents();
+        this._openLinkedView(bootLocation); // /?cid=<net>#view=<payload>: backend mode only, no model call (design 14.3)
     }
 
     disconnectedCallback() {
@@ -1307,6 +1316,9 @@ PetriView = class PetriView extends HTMLElement {
             this._topRightButton.remove();
             this._topRightButton = null;
         }
+
+        // The bar, its Cmd-K chord and the problems chip
+        this._destroyAppBar();
     }
 
     // /api/files/status decides whether "Save to my account" is offered. A
@@ -1343,12 +1355,14 @@ PetriView = class PetriView extends HTMLElement {
         ui.openDraftDialog(this);
     }
 
+    // Resolves to false when the pane could not be opened (the Ask bar then keeps the person's words).
     async _openChat(opts) {
         try {
             const ui = await import('./petri-chat-ui.js');
             await ui.openChat(this, opts);
         } catch (e) {
             this._toast('The assistant is not available: ' + e.message, 'error');
+            return false;
         }
     }
 
@@ -1370,7 +1384,8 @@ PetriView = class PetriView extends HTMLElement {
             btn.type = 'button';
             btn.className = 'pv-btn pv-draft-prompt';
             btn.textContent = '✨ Describe a process in words → get a draft net';
-            btn.addEventListener('click', () => this._openDraftDialog());
+            // The Ask pane in build mode is where a description goes now; the old dialog stays behind ?ui=classic.
+            btn.addEventListener('click', () => (this._uiMode() === 'bar' ? this._openChat({mode: 'build'}) : this._openDraftDialog()));
             this._root.appendChild(btn);
             this._draftPromptBtn = btn;
         }
@@ -1485,6 +1500,176 @@ PetriView = class PetriView extends HTMLElement {
         }
     }
 
+    // ---------------- the top bar, the Tools palette and the problems chip ----------------
+    // petri-menu.js decides what the menus hold and petri-menu-ui.js draws the bar (Ask, File, View, Help, Tools, the
+    // problems chip). The old hamburger (_createHamburgerMenu) stays behind ?ui=classic for one release, and is what a
+    // component with no data-backend always has: the bar needs the server's Ask pane and results pane.
+
+    // 'bar' or 'classic': petri-menu.js uiMode in three lines (this file cannot import it before the page has chosen a menu).
+    _uiMode() {
+        if (this._forceClassic || !this.hasAttribute('data-backend')) return 'classic';
+        return new URLSearchParams(window.location.search).get('ui') === 'classic' ? 'classic' : 'bar';
+    }
+
+    // The bar is built once the editor is on screen: pflow.xyz's page holds the editor hidden behind the landing page, and
+    // a visitor who only reads that should not fetch the palette's modules, nor have Cmd-K open a dialog over it.
+    _createAppBar() {
+        if (this._appBar || this._appBarPending) return;
+        this.dataset.ui = 'bar'; // at once: the page's logo moves into the hamburger's place by it (petri-view.css)
+        const gen = this._appBarGen = (this._appBarGen || 0) + 1;
+        const stale = () => gen !== this._appBarGen || !this.isConnected || !this._root || this._appBar || this._uiMode() !== 'bar';
+        this._appBarPending = this._whenShown().then(() => {
+            if (stale()) return null;
+            return import('./petri-menu-ui.js');
+        }).then((ui) => {
+            if (!ui || stale()) return;
+            this._appBar = ui.mountAppBar(this);
+            if (this._topRightButton) this._appBar.element.appendChild(this._topRightButton);
+            this._llmStatus(); // the empty-canvas prompt needs to know whether the assistant is on
+            this._mountProblems(this._appBar.problemsHost);
+        }).catch((err) => {
+            // A copy of the component served without the bar's modules keeps the menu it always had.
+            console.warn('The editor bar could not be loaded; using the classic menu.', err);
+            this._forceClassic = true;
+            this._destroyAppBar();
+            this._createHamburgerMenu();
+        }).finally(() => { if (gen === this._appBarGen) this._appBarPending = null; });
+    }
+
+    // Resolves once the editor has a box (it is not under a display: none ancestor).
+    _whenShown() {
+        const shown = () => !!this._root && this._root.getClientRects().length > 0;
+        if (shown() || typeof ResizeObserver === 'undefined') return Promise.resolve();
+        return new Promise((resolve) => {
+            const ro = this._appBarWait = new ResizeObserver(() => {
+                if (!shown()) return;
+                ro.disconnect();
+                if (this._appBarWait === ro) this._appBarWait = null;
+                resolve();
+            });
+            ro.observe(this._root);
+        });
+    }
+
+    _destroyAppBar() {
+        this._appBarGen = (this._appBarGen || 0) + 1; // whatever is still waiting to build the bar will not
+        this._appBarWait?.disconnect();
+        this._appBarWait = null;
+        this._appBarPending = null;
+        this._problemsChip?.destroy();
+        this._problemsChip = null;
+        this._problemsMonitor?.destroy();
+        this._problemsMonitor = null;
+        if (this._appBar) {
+            // The account button lives in the bar; it goes back on the canvas when the bar goes.
+            if (this._topRightButton && this._appBar.element.contains(this._topRightButton)) this._root?.appendChild(this._topRightButton);
+            this._appBar.destroy();
+            this._appBar = null;
+        }
+        delete this.dataset.ui;
+    }
+
+    // The automatic "problems" indicator that replaces the Check net menu entry (petri-problems.js). It checks the net
+    // once the document has loaded and again after each burst of edits (_syncLD asks); a copy of the component served
+    // without petri-problems.js simply has no chip.
+    async _mountProblems(host) {
+        if (this._problemsMonitor || !host) return;
+        let mod;
+        try {
+            mod = await import('./petri-problems.js');
+        } catch {
+            return;
+        }
+        if (this._problemsMonitor || !this.isConnected || !host.isConnected) return;
+        const monitor = new mod.ProblemsMonitor({
+            getModel: () => this._model,
+            check: (m, o) => mod.checkModel(m, { ...o, loadCheck: this._loadCheck }),
+        });
+        this._problemsMod = mod;
+        this._problemsMonitor = monitor;
+        this._problemsChip = mod.mountProblemsChip(host, monitor, { onOpen: (summary) => this._showProblems(summary) });
+        await this._loadCheckReady; // _loadCheck is set asynchronously: the first check counts what the load repaired
+        if (this._problemsMonitor === monitor && !monitor.state.summary && !monitor.state.checking) monitor.run();
+    }
+
+    // What the chip opens: the list (petri-problems.js problemsListHtml), the MCP call that makes the same check, and
+    // the full report of the Check net dialog.
+    async _showProblems(summary) {
+        const mod = this._problemsMod || await import('./petri-problems.js');
+        const opener = document.activeElement;
+        const overlay = document.createElement('div');
+        overlay.className = 'pv-modal-overlay';
+        const dialog = document.createElement('div');
+        dialog.className = 'pv-modal-dialog pv-modal-dialog-wide';
+        dialog.setAttribute('role', 'dialog');
+        dialog.setAttribute('aria-label', 'Problems');
+        dialog.innerHTML = `
+            <div class="pv-dialog-header">
+                <h2 class="pv-dialog-header-title">Problems</h2>
+                <button type="button" class="pv-dialog-close-icon" data-act="close" aria-label="Close" title="Close (Esc)">×</button>
+            </div>
+            ${mod.problemsListHtml(summary)}
+            <div class="pv-btn-container">
+                <button type="button" class="pv-btn" data-act="mcp" title="Copy the tools/call that makes this check (analysis.check)">Copy MCP call</button>
+                <button type="button" class="pv-btn" data-act="details" title="The full report, as the Check net dialog shows it">Details</button>
+                <button type="button" class="pv-btn" data-act="close">Close</button>
+            </div>`;
+        overlay.appendChild(dialog);
+        document.body.appendChild(overlay);
+        const close = () => {
+            overlay.remove();
+            try { if (opener && opener.isConnected) opener.focus(); } catch { /* gone */ }
+        };
+        overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+        overlay.addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.stopPropagation(); close(); } });
+        dialog.querySelectorAll('[data-act="close"]').forEach(b => b.addEventListener('click', close));
+        dialog.querySelector('[data-act="mcp"]').addEventListener('click', () => this._copyMcpCall({ source: { command: 'analysis.check', args: {} } }));
+        dialog.querySelector('[data-act="details"]').addEventListener('click', () => { close(); this._showCheckDialog(); });
+        overlay.tabIndex = -1;
+        overlay.focus();
+    }
+
+    // What an Apply does about problems in the net it would apply (petri-problems.js applyGate): {block: false, warn,
+    // message}. The Ask pane calls it with its pending net; with no net it checks the one on the canvas.
+    async _problemsGate(model) {
+        const mod = this._problemsMod || await import('./petri-problems.js');
+        return mod.applyGate(await mod.checkModel(model ?? this._model));
+    }
+
+    /**
+     * Open the Tools palette (Cmd-K, the Tools button). A run lands in the results pane, as an Ask result does; pass
+     * onResult to take it yourself, and `open: {id, args}` to open straight on a form with its arguments filled in.
+     */
+    async _openPalette(opts = {}) {
+        try {
+            const ui = await import('./petri-palette-ui.js');
+            return await ui.openPalette(this, { onResult: (outcome) => this._showPaletteResult(outcome), ...opts });
+        } catch (e) {
+            this._toast('Tools are not available here: ' + e.message, 'error');
+        }
+    }
+
+    // A palette run as a result: the same shape, the same footer (petri-menu.js resultFromOutcome, petri-results-pane.js).
+    async _showPaletteResult(outcome) {
+        const [{ resultFromOutcome }, { modelKey }, registry] = await Promise.all([import('./petri-menu.js'), import('./petri-engine-guard.js'), this.commands()]);
+        const result = await resultFromOutcome(outcome, {
+            registry,
+            net: { ...(this._originalCid ? { cid: this._originalCid } : {}), revision: modelKey(this._model) },
+        });
+        return this._showResult(result);
+    }
+
+    /** "Open in Tools" on a result: the palette on the record's first call, with the arguments it ran with. */
+    async _openPaletteFor(record) {
+        const { openTargetFromRecord } = await import('./petri-menu.js');
+        const target = openTargetFromRecord(record);
+        if (!target) {
+            this._toast('This result has no call to open in Tools');
+            return;
+        }
+        return this._openPalette({ open: target });
+    }
+
     /** The command registry (petri-commands.js), loaded on first use. */
     async commands() {
         if (!this._registry) {
@@ -1494,11 +1679,352 @@ PetriView = class PetriView extends HTMLElement {
         return this._registry;
     }
 
+    /** Show a result (the shape is documented in petri-results-pane.js): the Ask pane, the Tools palette and an opened link all end here. */
+    async _showResult(result) {
+        const ui = await import('./petri-results-pane.js');
+        const handle = await ui.showResult(this, result);
+        // _recentResult(): the Share dialog offers "Share this view" for the last result shown, open or closed (the result's
+        // own pane covers the menu, so the menu is reached after it is closed)
+        this._lastResult = { result, handle, net: JSON.stringify(this._model) };
+        return handle;
+    }
+
     /** Copy the MCP tools/call params that re-run an artifact's command. */
     _copyMcpCall(art) {
         if (!art) return;
         const text = JSON.stringify({ name: art.source.command, arguments: art.source.args || {} }, null, 2);
         this._copyToClipboard(text, () => this._toast('MCP call copied'), () => this._toast(text));
+    }
+
+    // ---------------- linkable views (docs/design/agent-first-analysis.md section 14) ----------------
+    // A link is /?cid=<net>#view=<payload>: a net and a view of it. Opening one runs the view's calls on a sandbox
+    // (in a Worker, petri-viewspec.js replayInWorker) and shows what comes back in the results pane; it never calls
+    // a model, so it spends no quota. The decisions are petri-link-open.js's; this is the DOM around them. Backend
+    // mode only: a standalone component has no server to name a net on.
+
+    /**
+     * The last result shown, or null: {result, open, changed}. `open` is whether its pane is still up; `changed` whether
+     * the net is not the net the result was made on (an edit, another net loaded), in which case a link to the view shows
+     * the view on the net as it is now.
+     */
+    _recentResult() {
+        const r = this._lastResult;
+        if (!r || !r.result) return null;
+        const open = !!(r.handle && r.handle.element && r.handle.element.isConnected);
+        let changed = false;
+        try { changed = JSON.stringify(this._model) !== r.net; } catch { changed = true; }
+        return { result: r.result, open, changed };
+    }
+
+    /**
+     * The build revision /health reports, for the `app` in a spec's engine ('unknown' when it cannot be read or does not
+     * answer in time: appRevision gives up after a few seconds). Only an answer is remembered; an 'unknown' is asked again
+     * next time, since it may be only a bad moment.
+     */
+    _appRevision() {
+        if (!this._appRevisionPromise) {
+            const p = import('./petri-link-open.js').then((L) => L.appRevision());
+            this._appRevisionPromise = p;
+            const forget = () => { if (this._appRevisionPromise === p) this._appRevisionPromise = null; };
+            p.then((rev) => { if (rev === 'unknown') forget(); }, forget);
+        }
+        return this._appRevisionPromise;
+    }
+
+    /** The catalog of goals (their questions title a link's result); null when it cannot be read. */
+    async _goalsCatalog() {
+        try { return await (await import('./petri-goals.js')).loadGoals(); } catch { return null; }
+    }
+
+    /** One line over the canvas: why a link's view was not run, or that it is being opened. Cleared by the next call. */
+    _showLinkNotice(text, { busy = false } = {}) {
+        this._hideLinkNotice();
+        if (!this._root) return;
+        const el = document.createElement('div');
+        el.className = 'pv-link-notice' + (busy ? ' pv-link-notice-busy' : '');
+        el.setAttribute('role', 'status');
+        el.dataset.linkNotice = busy ? 'busy' : 'info';
+        const span = document.createElement('span');
+        span.textContent = text;
+        el.appendChild(span);
+        if (!busy) {
+            const x = document.createElement('button');
+            x.type = 'button';
+            x.className = 'pv-link-notice-close';
+            x.title = 'Dismiss';
+            x.setAttribute('aria-label', 'Dismiss');
+            x.textContent = '×';
+            x.addEventListener('click', () => this._hideLinkNotice());
+            el.appendChild(x);
+        }
+        this._root.appendChild(el);
+        this._linkNotice = el;
+    }
+
+    _hideLinkNotice() {
+        if (this._linkNotice) this._linkNotice.remove();
+        this._linkNotice = null;
+    }
+
+    /**
+     * Open the view a location's #view= names, if it names one. Never throws and never calls /api/llm/*. A link
+     * that cannot be used leaves the net open on its own with one line saying why; a link with no #view= does
+     * nothing, so /?cid= and /?data= open exactly as they always have.
+     */
+    async _openLinkedView(location) {
+        if (!this.hasAttribute('data-backend')) return;
+        if (!/(^#|&)view=/.test(location.hash || '')) return;
+        try {
+            const V = await import('./petri-viewspec.js');
+            if (!V.parseLocation(location).viewPayload) return; // a compose-page hash (#view=cospan&ex=...) is not ours
+            this._viewHashNet = JSON.stringify(this._model); // _updatePermalinkURL drops the #view= when the net stops being this one
+            this._appRevision(); // asked now, in parallel with loading the rest; a link never waits long for it
+            const L = await import('./petri-link-open.js');
+            const P = await import('./petri-provenance.js');
+            this._showLinkNotice('Opening the saved view (no model call)…', { busy: true });
+            const opening = await L.openLinkedView({
+                location, model: this._model, netCid: this._originalCid, netSource: this._netSource,
+                registry: await this.commands(), replay: V.replayInWorker,
+                getVersions: async () => P.defaultVersions({ app: await this._appRevision() }),
+                goals: await this._goalsCatalog(),
+            });
+            this._hideLinkNotice();
+            if (opening.kind === 'none') return;
+            if (opening.kind === 'notice') { this._showLinkNotice(opening.text); return; }
+            // The result's registry is a sandbox over a copy of the net, holding the artifacts: what a click on the
+            // result runs never reaches the canvas (Apply is the only way to change it).
+            const { Registry, createHeadlessHost } = await import('./petri-commands.js');
+            const arts = opening.result.artifacts;
+            opening.result.registry = new Registry(createHeadlessHost(structuredClone(this._model)), undefined, { store: { items: arts.slice(), next: arts.length + 1 } });
+            const handle = await this._showResult(opening.result);
+            this._decorateLinkResult(handle, opening.opening, L);
+        } catch (e) {
+            this._showLinkNotice(`This link's view could not be opened (${e && e.message ? e.message : e}); the net is open on its own.`);
+        }
+    }
+
+    /** Draw the link's own strip (status chips, the assistant's note under its label) at the top of the result. */
+    _decorateLinkResult(handle, opening, L) {
+        const el = handle && handle.element;
+        if (!el) return;
+        const holder = document.createElement('div');
+        holder.innerHTML = L.linkStripHtml(opening);
+        const strip = holder.firstElementChild;
+        const head = el.querySelector('.pv-dialog-header');
+        if (head) head.after(strip); else el.prepend(strip);
+        const alone = strip.querySelector('[data-act="net-alone"]');
+        if (alone) alone.addEventListener('click', () => handle.close());
+    }
+
+    /**
+     * The CID the net the editor holds is saved under, when it is saved and unchanged since. The URL says: ?cid= with
+     * no ?data= (the editor adds ?data= on the first edit, and the save paths write ?cid= alone). Null otherwise, which
+     * is the unsaved net: a view link then carries the net, or asks for a save first.
+     */
+    _savedNetCid() {
+        try {
+            const q = new URLSearchParams(window.location.search);
+            const cid = q.get('cid');
+            return cid && !q.has('data') ? cid : null;
+        } catch {
+            return null;
+        }
+    }
+
+    /**
+     * The link that reproduces a result's view (petri-link-open.js buildShareLink): /?cid=<net>#view=<payload> when the
+     * net is saved, /?data=...#view=... when it is small enough to travel, else {needsSave: true}. The digests in it
+     * come from a replay on a sandbox in a Worker, so the link is only handed out when it will open. Never throws.
+     */
+    async _viewLinkFor(record) {
+        try {
+            const L = await import('./petri-link-open.js');
+            const V = await import('./petri-viewspec.js');
+            const P = await import('./petri-provenance.js');
+            const versions = P.defaultVersions({ app: await this._appRevision() });
+            return await L.buildShareLink({ record, model: this._model, cid: this._savedNetCid(), origin: window.location.origin, replay: V.replayInWorker, versions });
+        } catch (e) {
+            return { ok: false, reason: `the link could not be made: ${e && e.message ? e.message : e}` };
+        }
+    }
+
+    /**
+     * "Copy link" on a result's footer: copy the link that reproduces the view. The net saved: the link names it. The
+     * net small and unsaved: it travels in the link. Neither: "Save to get a link", and when signed in one step,
+     * "Save and copy link". Toasts the outcome and never throws; resolves to what _viewLinkFor said.
+     */
+    async _copyViewLink(record) {
+        try {
+            this._toast('Preparing the link…');
+            const made = await this._viewLinkFor(record);
+            if (made.ok) {
+                this._copyToClipboard(made.url,
+                    () => this._toast(made.kind === 'saved'
+                        ? 'View link copied. It opens this net and this view, and runs no model.'
+                        : 'View link copied. The net travels inside it; save the net for a short link.'),
+                    () => this._toast(made.url, 'info', 12000));
+            } else if (made.needsSave) {
+                this._offerSaveForLink(record);
+            } else {
+                this._toast(made.reason.charAt(0).toUpperCase() + made.reason.slice(1), 'error', 9000);
+            }
+            return made;
+        } catch (e) {
+            this._toast('The link could not be made: ' + (e && e.message ? e.message : String(e)), 'error');
+            return { ok: false, reason: String(e && e.message ? e.message : e) };
+        }
+    }
+
+    // "Save to get a link": the net is not saved and too big to carry in a link. Signed in, one step does both; the
+    // save is the editor's own (_saveToPermalink), not a copy of it.
+    _offerSaveForLink(record) {
+        const { overlay, dialog } = this._createModalOverlay({});
+        const signedIn = !!(this._authInitialized && this._user);
+        const title = document.createElement('h3');
+        title.className = 'pv-modal-title';
+        title.textContent = 'Save to get a link';
+        const why = document.createElement('p');
+        why.className = 'pv-modal-description';
+        why.textContent = signedIn
+            ? 'This net is not saved, and it is too big to travel inside a link. Saving gives it an ID the link can name.'
+            : 'This net is not saved, and it is too big to travel inside a link. Sign in with GitHub, save it, and the link can name it.';
+        const privacy = document.createElement('p');
+        privacy.className = 'pv-result-dim';
+        privacy.textContent = 'Anyone who has the link can read the saved net: its ID is the only check.';
+        const row = document.createElement('div');
+        row.className = 'pv-btn-container';
+        const cancel = document.createElement('button');
+        cancel.type = 'button';
+        cancel.className = 'pv-btn';
+        cancel.textContent = signedIn ? 'Cancel' : 'Close';
+        const close = () => { if (overlay.parentNode) overlay.remove(); };
+        cancel.addEventListener('click', close);
+        overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+        overlay.addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.stopPropagation(); close(); } });
+        dialog.append(title, why, privacy, row);
+        if (signedIn) {
+            const go = document.createElement('button');
+            go.type = 'button';
+            go.className = 'pv-btn pv-btn-primary';
+            go.dataset.act = 'save-and-copy';
+            go.textContent = 'Save and copy link';
+            go.addEventListener('click', async () => {
+                go.disabled = true;
+                go.textContent = 'Saving…';
+                await this._saveToPermalink();
+                if (!this._savedNetCid()) { close(); return; } // the save path said why
+                const made = await this._viewLinkFor(record);
+                close();
+                if (made.ok) this._copyToClipboard(made.url, () => this._toast('Saved. The view link is copied.'), () => this._toast(made.url, 'info', 12000));
+                else this._toast(made.reason.charAt(0).toUpperCase() + made.reason.slice(1), 'error', 9000);
+            });
+            row.append(go);
+        }
+        row.append(cancel);
+        overlay.tabIndex = -1;
+        document.body.appendChild(overlay);
+        overlay.focus();
+    }
+
+    /**
+     * The Share dialog's "Share this view" block (design 14.7): once a result has been shown, a checkbox (on by default)
+     * that makes the shared link the view's, the view link and the net-only link side by side, and always the privacy
+     * line (14.6): possession of a net's CID is the only check on reading it, and nothing here implies more. The block
+     * is offered for the last result shown, open or closed (its own pane covers the menu, so the menu is reached once it
+     * is closed); when the net is not the net it was made on, the box starts off and says so.
+     *
+     * `onLink(url, waiting)` is told the link the snippet should point at: the view's while the box is on and the link is
+     * ready, null otherwise (the net-only link); `waiting` is true while the box is on and the link is still being made,
+     * so the dialog can hold its Copy button rather than hand out the net-only link as if it were the view's. A view that
+     * has no link (it cannot be reproduced, the net must be saved first) unchecks and disables the box and says why.
+     */
+    _shareViewSection(docUrl, onLink) {
+        const box = document.createElement('div');
+        box.className = 'pv-share-view';
+        box.dataset.shareView = '';
+        const recent = this._recentResult();
+        const current = recent && recent.result;
+        const privacy = document.createElement('p');
+        privacy.className = 'pv-result-dim pv-share-privacy';
+        privacy.dataset.sharePrivacy = '';
+        import('./petri-link-open.js').then((L) => { privacy.textContent = L.SHARE_PRIVACY; }).catch(() => {
+            privacy.textContent = 'Anyone who has a link can read the net it names: possessing its ID is the only check.';
+        });
+        if (!current || !current.record) { box.appendChild(privacy); return box; }
+
+        const label = document.createElement('label');
+        label.className = 'pv-share-view-check';
+        const check = document.createElement('input');
+        check.type = 'checkbox';
+        check.checked = !recent.changed;
+        check.disabled = true; // until the link is ready
+        check.dataset.shareViewCheck = '';
+        label.append(check, document.createTextNode(` Share this view: ${current.title || 'the last result'}`));
+        const note = document.createElement('p');
+        note.className = 'pv-result-dim';
+        note.textContent = 'The link opens the net with this result, computed again in the reader\u2019s browser: no model call, no sign-in.'
+            + (recent.changed ? ' The net has changed since this result was made, so the link shows this view on the net as it is now.' : '');
+        const state = document.createElement('p');
+        state.className = 'pv-result-dim';
+        state.dataset.shareViewState = 'preparing';
+        state.setAttribute('role', 'status');
+        state.textContent = 'Preparing the link to this view\u2026';
+        const link = (name, value, dataKey) => {
+            const row = document.createElement('div');
+            row.className = 'pv-share-link';
+            const text = document.createElement('span');
+            text.textContent = name;
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.readOnly = true;
+            input.value = value;
+            input.setAttribute('aria-label', name);
+            input.dataset[dataKey] = '';
+            const copy = document.createElement('button');
+            copy.type = 'button';
+            copy.className = 'pv-btn pv-btn-sm';
+            copy.textContent = 'Copy';
+            copy.addEventListener('click', () => {
+                if (!input.value || input.disabled) return;
+                this._copyToClipboard(input.value, () => this._toast('Link copied'), () => { input.select(); });
+            });
+            row.append(text, input, copy);
+            return { row, input };
+        };
+        const view = link('This view', 'Preparing the link\u2026', 'shareViewLink');
+        view.input.disabled = true;
+        const net = link('Net only', docUrl, 'shareNetLink');
+        let viewUrl = null;
+        let ready = false;
+        const apply = () => {
+            view.row.classList.toggle('pv-share-off', !check.checked);
+            onLink(check.checked && viewUrl ? viewUrl : null, check.checked && !ready);
+        };
+        check.addEventListener('change', apply);
+        box.append(label, note, state, view.row, net.row, privacy);
+        apply();
+        this._viewLinkFor(current.record).then((made) => {
+            ready = true;
+            if (made.ok) {
+                viewUrl = made.url;
+                view.input.disabled = false;
+                view.input.value = made.url;
+                check.disabled = false;
+                state.dataset.shareViewState = 'ready';
+                state.textContent = '';
+            } else {
+                // no link for this view: the box cannot be on, and the snippet says nothing about a view it cannot link to
+                check.checked = false;
+                check.disabled = true;
+                view.input.value = made.needsSave ? 'Save the net to get a view link' : 'No link for this view';
+                state.dataset.shareViewState = 'unavailable';
+                state.textContent = made.needsSave
+                    ? 'This view has no link yet: the net is not saved, and it is too big to travel inside a link. The snippet points at the net alone.'
+                    : `This view has no link: ${made.reason}. The snippet points at the net alone.`;
+            }
+            apply();
+        });
+        return box;
     }
 
     // ---------------- public API ----------------
@@ -1777,7 +2303,7 @@ PetriView = class PetriView extends HTMLElement {
         const currentUrl = window.location.origin;
         const svgUrl = `${currentUrl}/img/${cid}.svg`;
         const docUrl = `${currentUrl}/?cid=${cid}`;
-        const markdown = `[![pflow](${svgUrl})](${docUrl})`;
+        let markdown = `[![pflow](${svgUrl})](${docUrl})`; // the link target becomes the view's link while "Share this view" is on
 
         // Create modal overlay
         const { overlay, dialog } = this._createModalOverlay({});
@@ -1794,11 +2320,28 @@ PetriView = class PetriView extends HTMLElement {
         description.className = 'pv-modal-description';
         dialog.appendChild(description);
 
-        // Markdown textarea
+        // Markdown textarea (made before the block below, which tells it which link to point at)
         const textarea = document.createElement('textarea');
         textarea.value = markdown;
         textarea.readOnly = true;
         textarea.className = 'pv-share-textarea';
+
+        // "Share this view" (once a result has been shown) and what a link lets a reader do (design 14.6, 14.7). While the
+        // view's link is still being made the Copy button waits: the snippet would otherwise be the net's link, handed out
+        // as if it were the view's.
+        let copyButton = null;
+        let copyWaits = false;
+        const setCopyWaits = (waiting) => {
+            copyWaits = waiting;
+            if (!copyButton) return;
+            copyButton.disabled = waiting;
+            copyButton.textContent = waiting ? 'Preparing the link\u2026' : 'Copy to Clipboard';
+        };
+        dialog.appendChild(this._shareViewSection(docUrl, (url, waiting) => {
+            markdown = `[![pflow](${svgUrl})](${url || docUrl})`;
+            textarea.value = markdown;
+            setCopyWaits(!!waiting);
+        }));
         dialog.appendChild(textarea);
 
         // Image URL label
@@ -1870,10 +2413,12 @@ PetriView = class PetriView extends HTMLElement {
         buttonContainer.style.marginTop = '20px';
 
         // Copy button
-        const copyButton = document.createElement('button');
+        copyButton = document.createElement('button');
         copyButton.textContent = 'Copy to Clipboard';
         copyButton.type = 'button';
         copyButton.className = 'pv-btn pv-btn-primary';
+        copyButton.dataset.shareCopy = '';
+        setCopyWaits(copyWaits);
         copyButton.addEventListener('click', () => {
             textarea.select();
             const showCopied = () => {
@@ -2165,17 +2710,25 @@ PetriView = class PetriView extends HTMLElement {
     _checkIncoming(doc) {
         let snapshot;
         try { snapshot = structuredClone(doc); } catch { return; }
-        import('./petri-validate.js').then(({ validateNet }) => {
+        // _loadCheckReady settles once _loadCheck is set, which is asynchronous: the problems chip waits for it.
+        this._loadCheckReady = import('./petri-validate.js').then(({ validateNet }) => {
             const report = validateNet(snapshot);
             this._loadCheck = report;
             if (report.errors.length) {
                 const n = report.errors.length;
-                this._toast(`Check: this net had ${n} problem${n === 1 ? '' : 's'} the editor repaired on load. Menu → Check net shows them.`, 'error', 8000);
+                // Where the list is depends on the menu: the problems chip, or the old hamburger's Check net.
+                const where = this._uiMode() === 'bar' ? 'The problems chip lists them.' : 'Menu → Check net shows them.';
+                this._toast(`Check: this net had ${n} problem${n === 1 ? '' : 's'} the editor repaired on load. ${where}`, 'error', 8000);
             }
+            this._problemsMonitor?.run(); // a document arrived: what the chip says was about the one before
         }).catch(() => {});
+        return this._loadCheckReady;
     }
 
     async _loadModelFromScriptOrAutosave() {
+        // Where the net came from, for a #view= link to check: 'data' (the ?data= permalink decoded), 'cid' (fetched from
+        // ?cid=) or 'other' (neither: a ?data= that would not decode falls through to ?cid=, a saved draft or the default net).
+        this._netSource = 'other';
         // Check for permalink data first (highest priority)
         const urlParams = new URLSearchParams(window.location.search);
         const encodedData = urlParams.get('data');
@@ -2183,6 +2736,7 @@ PetriView = class PetriView extends HTMLElement {
             const permalinkData = this._decodePermalinkData(encodedData);
             if (permalinkData) {
                 this._model = permalinkData.data || {};
+                this._netSource = 'data';
                 return;
             }
         }
@@ -2197,6 +2751,7 @@ PetriView = class PetriView extends HTMLElement {
                     this._model = data || {};
                     // Store the original CID for revert functionality
                     this._originalCid = cid;
+                    this._netSource = 'cid';
                     return;
                 } else {
                     console.error(`Failed to load data from CID: ${response.status} ${response.statusText}`);
@@ -2275,6 +2830,12 @@ PetriView = class PetriView extends HTMLElement {
             const encodedData = encodeURIComponent(jsonString);
             const url = new URL(window.location.href);
             url.searchParams.set('data', encodedData);
+            // A #view= is a view of the net the link opened with. Once the net is another net the address must not keep
+            // it: shared as it stands, it would replay the view on the edited net and blame the engine for the difference.
+            if (this._viewHashNet && this._viewHashNet !== jsonString) {
+                this._viewHashNet = null;
+                if (/(^#|&)view=/.test(url.hash)) url.hash = '';
+            }
 
             // Update URL without reloading the page
             window.history.replaceState({}, '', url.toString());
@@ -2285,6 +2846,9 @@ PetriView = class PetriView extends HTMLElement {
 
     // ---------------- persistence & history ----------------
     _syncLD(force = false) {
+        // The one place every change of the document passes (an edit, undo and redo, a command, a new model, the
+        // JSON editor): the problems chip re-checks after the burst (petri-problems.js ProblemsMonitor.schedule).
+        this._problemsMonitor?.schedule();
         try {
             localStorage.setItem(this._getStorageKey(), this._stableStringify(this._model));
         } catch {
@@ -5358,6 +5922,26 @@ PetriView = class PetriView extends HTMLElement {
         const content = document.createElement('div');
         content.className = 'pv-help-content';
 
+        // Where things are depends on the menu: the bar (File, View, Help, Ask, Tools) or the old hamburger.
+        const bar = this._uiMode() === 'bar';
+        const where = bar ? `
+            <h3>Finding your way around</h3>
+            <ul>
+                <li><strong>Ask</strong> (the box at the top): say what you want to know about this net, or what to change.
+                Describe a process to get a first draft, ask whether it can get stuck, ask for an edit. The reply says which
+                analysis answered and how it was computed. Without the assistant (signed out, or over its limit), Tools and
+                the problems chip below still work: they need no model.</li>
+                <li><strong>Tools</strong> (<strong>Ctrl K</strong>, or <strong>⌘K</strong> on a Mac): every command the editor has,
+                each with a form for its arguments, and no model involved. Under <em>Classic tools</em> are the dialogs the
+                menu used to open: Analysis, Simulate, Structure, Components, Results and the full Check net report.</li>
+                <li><strong>The problems chip</strong>: the net is checked for you when it loads and after you edit. Click the
+                chip for the list; <em>Details</em> there opens the full report.</li>
+                <li><strong>File</strong>: save, open, share, download, and your account. <strong>View</strong>: layout,
+                display settings, the JSON editor, the App view and Compose. <strong>Help</strong>: this page and the links.
+                <em>Classic menu</em> in Help brings the old single menu back for this release.</li>
+            </ul>
+        ` : '';
+
         content.innerHTML = `
             <h3>What are Petri Nets?</h3>
             <p>
@@ -5365,6 +5949,7 @@ PetriView = class PetriView extends HTMLElement {
                 that hold tokens, <strong>transitions</strong> (rectangles) that fire to move tokens, and <strong>arcs</strong> (arrows)
                 that connect them. When a transition fires, it consumes tokens from input places and produces tokens in output places.
             </p>
+            ${where}
 
             <h3>📖 Book</h3>
             <p>
@@ -5451,6 +6036,7 @@ PetriView = class PetriView extends HTMLElement {
                 <li><strong>7:</strong> Toggle Label Edit mode</li>
                 <li><strong>8:</strong> Start/stop simulation (same as X)</li>
                 <li><strong>9:</strong> Open the Analysis workbench</li>
+                ${bar ? '<li><strong>Ctrl/Cmd + K:</strong> Open Tools (every command, no model needed); press it again to close</li>' : ''}
             </ul>
 
             <h4>Other Features:</h4>
@@ -5465,7 +6051,9 @@ PetriView = class PetriView extends HTMLElement {
             <p>
                 Continuous-time math tools for the current model, computed in the browser with the same
                 mass-action semantics and Tsit5 solver options as go-pflow.
-                Open it from the hamburger menu (<strong>🧮 Analysis</strong>) or press <strong>9</strong>.
+                ${bar
+        ? 'Open it from <strong>Tools</strong> (Ctrl K, or ⌘K) under <em>Classic tools</em> → <strong>Analysis</strong>, or press <strong>9</strong>.'
+        : 'Open it from the hamburger menu (<strong>🧮 Analysis</strong>) or press <strong>9</strong>.'}
             </p>
 
             <h4>Tabs:</h4>
@@ -5487,7 +6075,9 @@ PetriView = class PetriView extends HTMLElement {
 
             <h3>Layout Algorithms</h3>
             <p>
-                Use the <strong>🎨 Layout Algorithms</strong> menu to automatically arrange your Petri net nodes:
+                ${bar
+        ? 'Use <strong>View → Layout Algorithms</strong> to automatically arrange your Petri net nodes:'
+        : 'Use the <strong>🎨 Layout Algorithms</strong> menu to automatically arrange your Petri net nodes:'}
             </p>
 
             <h4>Available Layouts:</h4>
@@ -5628,7 +6218,9 @@ PetriView = class PetriView extends HTMLElement {
                     <span class="pv-results-name">${esc(a.title)}</span> <span class="pv-results-meta">${esc(a.data.kind)} · ${esc(when(a))}</span>
                 </button>`).join('')}</section>`).join('');
             })()}</div>`
-                : '<p>No results yet. Run an analysis (🧮) or a check (✅), or call a command with el.execute().</p>'}
+                : `<p>No results yet. ${this._uiMode() === 'bar'
+                    ? 'Ask a question in the Ask box, run something from Tools (Ctrl K, or ⌘K), or call a command with el.execute().'
+                    : 'Run an analysis (🧮) or a check (✅), or call a command with el.execute().'}</p>`}
             <div class="pv-results-view"></div>
             <div class="pv-btn-container">
                 <button type="button" class="pv-btn" data-act="csv" disabled>CSV</button>
@@ -7182,6 +7774,10 @@ PetriView = class PetriView extends HTMLElement {
     _createHamburgerMenu() {
         if (this._hamburgerMenu) return;
         if (!this._root) return; // Safety check
+        if (this._uiMode() === 'bar') {
+            this._createAppBar();
+            return;
+        }
 
         const isBackendMode = this.hasAttribute('data-backend');
 
@@ -7590,7 +8186,8 @@ PetriView = class PetriView extends HTMLElement {
             }
         });
 
-        this._root.appendChild(button);
+        // In the bar it is the last thing in the row (so a long user name cannot run under the menus); else on the canvas.
+        (this._appBar?.element || this._root).appendChild(button);
         this._topRightButton = button;
     }
 

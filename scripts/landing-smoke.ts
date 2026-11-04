@@ -2,10 +2,11 @@
 //
 //   deno run -A scripts/landing-smoke.ts http://127.0.0.1:8080/ [--chrome /path/to/chrome]
 //
-// In headless Chrome: what a signed-out visitor sees and where each route goes, and the sessions a signed-in
-// one gets. It cannot sign in to GitHub, so a signed-in page has its fetch of /api/llm/status, /api/llm/turn and
-// /auth/user answered in the page: this proves the route, the mode and the message reach the Assistant's
-// request, and says nothing about Gemini or the real sign-in.
+// In headless Chrome: the hero (one input and one Ask, no mode picker) for a signed-out visitor, a signed-in one,
+// one who is not allowed and one on a server with no chat, and the sessions a link forces (/?route=build|analyse|
+// explain, and design, the old name of build). It cannot sign in to GitHub, so a signed-in page has its fetch of
+// /api/llm/status, /api/llm/turn and /auth/user answered in the page: this proves the mode and the message reach
+// the Assistant's request, and says nothing about Gemini or the real sign-in.
 //
 // Also the editor's other docked panel, the App view, whose frame on a phone comes from the same place
 // (public/petri-panel-frame.js), and the Assistant's Tools section: what it counts, what it lists, where it sits.
@@ -30,7 +31,7 @@ const q = (s: string) => JSON.stringify(s);
 const text = (sel: string) => `(document.querySelector(${q(sel)})?.textContent || '')`;
 
 /** Before any script: a signed-in session, with the model's route answered here and the requests kept. */
-const SIGNED_IN = (seed = "", statusDelay = 0) => `
+const SIGNED_IN = (seed = "", statusDelay = 0, allowed = true) => `
   window.__turns = [];
   try { localStorage.setItem('pflow_auth_token', 'smoke-token'); ${seed} } catch {}
   const real = window.fetch;
@@ -40,7 +41,7 @@ const SIGNED_IN = (seed = "", statusDelay = 0) => `
     // As the server: signed in only with the token, so the page must have it by the time it asks.
     const bearer = new Headers(opts?.headers).get('Authorization') === 'Bearer smoke-token';
     if (path === '/api/llm/status' && ${statusDelay}) await new Promise((r) => setTimeout(r, ${statusDelay}));
-    if (path === '/api/llm/status') return json(bearer ? { enabled: true, chat: true, signed_in: true, allowed: true, model: 'smoke', remaining_today: 7 } : { enabled: true, chat: true, signed_in: false });
+    if (path === '/api/llm/status') return json(bearer ? { enabled: true, chat: true, signed_in: true, allowed: ${allowed}, model: 'smoke', remaining_today: 7 } : { enabled: true, chat: true, signed_in: false });
     if (path === '/auth/user') return bearer ? json({ user: { id: '1', email: '', user_name: 'smoke', full_name: 'Smoke' } }) : new Response('{}', { status: 401 });
     if (path === '/api/llm/turn') {
       if (!bearer) return new Response('{"error":"sign in"}', { status: 401 });
@@ -50,6 +51,12 @@ const SIGNED_IN = (seed = "", statusDelay = 0) => `
     }
     return real(u, opts);
   };`;
+
+// A server with no chat: the status says so.
+const NO_CHAT = `
+  const real = window.fetch;
+  window.fetch = async (u, opts) => new URL(String(u?.url ?? u), location.href).pathname === '/api/llm/status'
+    ? new Response(JSON.stringify({ enabled: false }), { status: 200, headers: { 'Content-Type': 'application/json' } }) : real(u, opts);`;
 
 // One Chrome profile serves every page here, and showEditor() remembers pflow_skip_landing: each page starts clean.
 const CLEAN = `try { localStorage.clear(); sessionStorage.clear(); } catch {}`;
@@ -67,7 +74,8 @@ async function open(path: string, before?: string, width = 1280, height = 900, p
   await p.goto(new URL(path, url).href);
   return p;
 }
-const routed = (p: any) => p.waitFor(`document.querySelector('#landing-chat-hint')?.textContent.length > 0`, 20000);
+// The page has wired the hero: it has painted a state (checking until the status answers).
+const routed = (p: any) => p.waitFor(`!!document.getElementById('landing-chat')?.dataset.state`, 20000);
 
 // iPhone-ish and Android sizes, with the browser's chrome taken off the screen.
 const PHONES = [[390, 664], [375, 553], [430, 739], [412, 732]];
@@ -107,6 +115,7 @@ const HEAD_FITS = (panel: string) => `(() => {
   if (!close.contains(at)) return 'close covered by ' + (at?.className || at?.tagName);
   for (const b of P.querySelectorAll('.pv-chat-head button')) {
     const r = b.getBoundingClientRect();
+    if (!r.width && !r.height) continue; // hidden: "Not what I meant" waits for a message
     if (r.left < c.left || r.right > c.right) return (b.dataset.act || b.textContent) + ' at ' + r.left + '..' + r.right + ' of panel ' + c.left + '..' + c.right;
   }
   const head = P.querySelector('.pv-chat-head');
@@ -133,7 +142,7 @@ const ON_TOP_OF_THE_EDITOR = (panel: string, controls: string[]) => `(() => {
     if (!at || !P.contains(at)) bad.push(Math.round(x) + ',' + Math.round(y) + ' is ' + (at?.className || at?.tagName));
   }
   // And anywhere in between: the slider and the toolbar each have their own rect to compare.
-  for (const s of ['.pv-scale-meter', '.pv-mode-menu', '.pv-top-right-btn', '.pv-hamburger-btn']) {
+  for (const s of ['.pv-scale-meter', '.pv-mode-menu', '.pv-top-right-btn', '.pv-hamburger-btn', '.pv-appbar']) {
     const e = document.querySelector(s); if (!e) continue;
     const r = e.getBoundingClientRect();
     const [x0, x1, y0, y1] = [Math.max(r.left, c.left + i), Math.min(r.right, c.right - i), Math.max(r.top, c.top + i), Math.min(r.bottom, c.bottom - i)];
@@ -193,18 +202,20 @@ const toolsAre = async (p: any, label: string) => {
   }
 };
 const toolCount = (p: any) => p.eval(`document.querySelector('.pv-chat-tools-count').textContent`);
-const TOOLS_IN_MANIFEST = `fetch('/llm-tools.json').then((r) => r.json()).then((m) => m.tools.length)`;
+const TOOLS_IN_MANIFEST = (file: string) => `fetch('/${file}').then((r) => r.json()).then((m) => m.tools.length)`;
+// A server that lists the goal toolset in /api/llm/status gets the Ask pane's goal tools; the stubbed pages below list none, so they keep the full set.
+const ALL_TOOLS = "llm-tools.json", GOAL_TOOLS = "llm-goal-tools.json";
 const LISTED = `[...document.querySelectorAll('.pv-chat-avail li code')].map((c) => c.textContent)`;
 /** The section's contents against the manifest: the number on it, the groups, and the tools in them. */
-const toolsListed = async (p: any, label: string, wants: RegExp) => {
-  const n = await p.eval(TOOLS_IN_MANIFEST);
+const toolsListed = async (p: any, label: string, wants: RegExp, file = ALL_TOOLS) => {
+  const n = await p.eval(TOOLS_IN_MANIFEST(file));
   ok(n > 0, `${label}: the manifest has tools`, String(n));
   const count = await toolCount(p);
   ok(wants.test(count) && parseInt(count) === n, `${label}: the count is of the tools there are`, `${count}, manifest ${n}`);
   ok(!/^\(?0\b/.test(count), `${label}: it does not read 0`, count);
   const listed = await p.eval(LISTED);
   ok(listed.length === n, `${label}: every tool is listed`, `${listed.length} of ${n}`);
-  ok(listed.includes("net.add_place") && listed.includes("analysis.check") && listed.includes("sim.ode"), `${label}: by the names they have`, listed.slice(0, 5).join());
+  ok(listed.includes("net.add_place") && listed.includes("analysis.check") && listed.includes(file === GOAL_TOOLS ? "run_goal" : "sim.ode"), `${label}: by the names they have`, listed.slice(0, 5).join());
   ok((await p.eval(`document.querySelectorAll('.pv-chat-avail-group').length`)) > 3, `${label}: in groups`);
   ok(await p.eval(`[...document.querySelectorAll('.pv-chat-avail li')].every((li) => li.textContent.length > li.querySelector('code').textContent.length + 3)`), `${label}: each says what it does`);
 };
@@ -241,12 +252,18 @@ const APP_NET = {
   arcs: [["arrive", "queue"], ["queue", "start"], ["baristas", "start"], ["start", "serving"], ["serving", "finish"], ["finish", "served"], ["finish", "baristas"], ["queue", "give_up"], ["give_up", "gone"]]
     .map(([source, target]) => ({ "@type": "Arrow", source, target, weight: [1] })),
 };
+// The Ask pane's one quiet line offering the sign-in (it was a button in the log, with no box to type in: signed out the words now go to the router).
+const SIGNIN_SEL = '.pv-ask-state [data-ask="signin"]';
+const SIGNIN = JSON.stringify(SIGNIN_SEL); // for inside the page's own script
 const SKIP_LANDING = `try { localStorage.setItem('pflow_skip_landing', '1'); } catch {}`;
-/** The editor with APP_NET, and the App view opened the way a visitor does: the menu's item. */
+/** The editor with APP_NET, and the App view opened the way a visitor does: View > Open as app. */
 const openAppView = async (p: any) => {
-  await p.waitFor(`!!document.querySelector('petri-view .pv-menu-item')`, 20000);
+  await p.waitFor(`!!document.querySelector('petri-view [data-menu]')`, 20000);
   await p.eval(`document.querySelector('petri-view').setModel(${JSON.stringify(APP_NET)})`);
-  await p.eval(`[...document.querySelectorAll('.pv-menu-item')].find((m) => m.textContent.includes('App view')).click()`);
+  // on a phone the three menus are folded into one button, whose menu holds the same entries
+  await p.eval(`(() => { const b = document.querySelector('[data-menu=view]'); (b.offsetParent ? b : document.querySelector('[data-menu=more]')).click(); })()`);
+  await p.waitFor(`!!document.querySelector('.pv-appmenu-pop')`, 5000);
+  await p.eval(`[...document.querySelectorAll('.pv-appmenu-pop [role=menuitem]')].find((m) => m.dataset.label === 'Open as app').click()`);
   return p.waitFor(`!!document.querySelector('.pv-appview [data-act="run"]')`, 20000);
 };
 
@@ -260,27 +277,31 @@ try {
     ok(await p.eval(`document.getElementById('landing').style.display !== 'none' && document.getElementById('editor-wrapper').style.display === 'none'`), "the landing is shown, the editor is not");
     ok(await p.eval(`document.getElementById('landing-chat-q').tagName === 'H1' && document.querySelector('#landing-chat-input').getAttribute('aria-labelledby') === 'landing-chat-ask' && ${text("#landing-chat-ask")} === 'What are you working on?'`), "the mission is the page's heading and the prompt names the box");
     ok(await p.waitFor(`${text("#landing-chat-state")}.includes('GitHub sign-in')`, 15000), "it says the chat needs a sign-in, before anyone types");
-    ok(await p.eval(`${text("#landing-chat-send")} === 'Sign in with GitHub and start'`), "the button says what it does");
+    ok(await p.eval(`${text("#landing-chat-send")} === 'Sign in with GitHub and ask'`), "the button says what it does");
     ok(await p.eval(`!document.getElementById('landing-chat-connector').hidden && !!document.querySelector('#landing-chat-connector a[href="/mcp.html"]')`), "the connector is offered");
+    ok(await p.eval(`document.querySelectorAll('.landing-hero input[type="radio"], .landing-hero fieldset').length === 0`), "there is no mode picker");
+    ok(await p.eval(`!/Design|Explore|Let it decide|Start/.test(document.querySelector('.landing-hero').textContent)`), "the hero does not use the old names");
+    ok(await p.eval(`document.querySelectorAll('.landing-hero textarea').length === 1 && document.querySelectorAll('.landing-hero button[type="submit"]').length === 1`), "the hero is one input and one button");
+    ok(await p.eval(`!document.querySelector('.landing-hero a[href*="sim.pflow.xyz"]') && !/Describe it instead/.test(document.body.textContent)`), "the hero has no second door to sim");
+    ok(await p.eval(`[...document.querySelectorAll('.landing-nav-links a')].some((a) => a.textContent === 'Sim' && a.href.startsWith('https://sim.pflow.xyz'))`), "Sim is still a link in the nav");
+    ok(await p.eval(`!document.getElementById('landing-chat-input').hidden && document.getElementById('landing-chat-input').getBoundingClientRect().height > 0`), "the box is there: what is typed is kept, not refused");
     ok(problemsOf(p).length === 0, "no console problems", problemsOf(p).join(" | "));
 
-    // what is typed waits in the tab; the redirect itself is GitHub's
+    // what is typed waits in the tab; the redirect itself is GitHub's. Nothing is forced, so nothing is chosen.
     await p.eval(`document.querySelector('petri-view')._loginWithGitHub = () => { window.__login = true; }`);
     await p.eval(`document.querySelector('#landing-chat-input').value = 'a coffee shop'`);
-    await p.eval(`document.querySelector('input[value="design"]').click()`);
     await p.eval(`document.querySelector('#landing-chat-send').click()`);
     ok(await p.waitFor(`window.__login === true`, 5000), "submitting starts the sign-in");
-    ok((await p.eval(`sessionStorage.getItem('pflow_landing_pending')`)) === JSON.stringify({ route: "design", message: "a coffee shop" }), "the words and the route wait in the tab");
+    ok((await p.eval(`sessionStorage.getItem('pflow_landing_pending')`)) === JSON.stringify({ route: "auto", message: "a coffee shop" }), "the words wait in the tab, with nothing forced");
     await p.close();
   }
   {
     const p = await open("/");
     await routed(p);
-    await p.eval(`document.querySelector('input[value="explore"]').click()`);
-    ok(await p.waitFor(`${text("#landing-chat-send")} === 'Explore'`, 5000), "Explore needs no sign-in");
-    await p.eval(`document.querySelector('#landing-chat-send').click()`);
-    ok(await p.waitFor(`location.pathname === '/compose.html'`, 15000), "Explore opens the composition page");
-    ok(await p.waitFor(`!!document.querySelector('a[href="/?route=design"]')`, 45000), "and it links back to a design session");
+    ok(await p.eval(`!!document.querySelector('.landing-hero-buttons a[href="/compose.html"]')`), "Compose is a plain link beside the editor");
+    await p.eval(`document.querySelector('.landing-hero-buttons a[href="/compose.html"]').click()`);
+    ok(await p.waitFor(`location.pathname === '/compose.html'`, 15000), "Compose opens the composition page, with no sign-in");
+    ok(await p.waitFor(`!!document.querySelector('a[href="/?route=design"]')`, 45000), "and it links back to a build session (by the old name, which still works)");
     await p.close();
   }
   {
@@ -292,39 +313,76 @@ try {
     await p.close();
   }
 
+  console.log("below the hero: sim is named once, and says what it is");
+  {
+    const p = await open("/");
+    await routed(p);
+    const h2s = await p.eval(`[...document.querySelectorAll('#landing h2')].map((h) => h.textContent)`);
+    ok(h2s.includes("Calibrated what-ifs (sim.pflow.xyz)") && !h2s.includes("Or start from a description"), "the sim gallery is titled as sim's", h2s.join(" | "));
+    ok(h2s.indexOf("Example models, open in the editor") < h2s.indexOf("Calibrated what-ifs (sim.pflow.xyz)"), "under the examples");
+    ok(await p.eval(`document.querySelectorAll('#calibrated-what-ifs a.pipeline-card[href^="https://sim.pflow.xyz/"]').length === 3`), "with its three cards, still going to sim");
+    ok(await p.eval(`/already tuned/.test(${text("#calibrated-what-ifs")}) && /turn the knobs/.test(${text("#calibrated-what-ifs")})`), "and a line saying what is different");
+    ok(await p.eval(`![...document.querySelectorAll('#landing h3')].some((h) => h.textContent === 'Check') && ${text("a.pipeline-card[href='https://sim.pflow.xyz']")}.includes('Run a calibrated what-if and see which knob binds')`), "the word Check no longer names the card that goes to sim");
+    ok(await p.eval(`document.documentElement.scrollWidth <= window.innerWidth`), "no sideways scroll");
+    await p.close();
+  }
+
+  console.log("not allowed, and no chat: no box that would answer 401");
+  for (const [label, before, says, connector] of [
+    ["not on the list", SIGNED_IN("", 0, false), "list of accounts", true],
+    ["no chat on this server", NO_CHAT, "not available here", true],
+  ] as const) {
+    const p = await open("/", before);
+    await routed(p);
+    ok(await p.waitFor(`${text("#landing-chat-state")}.includes(${q(says)})`, 15000), `${label}: it says why, before anyone types`);
+    ok(await p.eval(`document.getElementById('landing-chat-input').getBoundingClientRect().height === 0 && getComputedStyle(document.getElementById('landing-chat-input')).display === 'none'`), `${label}: there is no box to type in`);
+    ok(await p.eval(`${text("#landing-chat-send")} === 'Open the editor'`), `${label}: the button opens the editor`);
+    ok(await p.eval(`!document.getElementById('landing-chat-connector').hidden === ${connector}`), `${label}: the connector is offered`);
+    ok(await p.eval(`document.querySelectorAll('.landing-hero input[type="radio"]').length === 0`), `${label}: no mode picker`);
+    await p.eval(`document.querySelector('#landing-chat-send').click()`);
+    ok(await p.waitFor(`document.getElementById('editor-wrapper').style.display === 'block'`, 5000), `${label}: it opens the editor`);
+    await sleep(300);
+    ok(!(await p.eval(`!!document.querySelector('.pv-chat')`)), `${label}: with no chat, and no request that would answer 401`);
+    ok(problemsOf(p).length === 0, `${label}: no console problems`, problemsOf(p).join(" | "));
+    await p.close();
+  }
+
   console.log("signed in, on the page");
-  for (const [route, mode] of [["auto", "auto"], ["design", "build"], ["analyse", "analyse"], ["explain", "explain"]]) {
+  {
+    // The hero forces nothing: the server labels the message (mode auto), and the Assistant shows what it chose.
     const p = await open("/", SIGNED_IN());
     await routed(p);
-    ok(await p.waitFor(`${text("#landing-chat-state")}.includes('7 model calls left today')`, 15000), `${route}: the quota line`);
-    await p.eval(`document.querySelector('input[value=${q(route)}]').click()`);
+    ok(await p.waitFor(`${text("#landing-chat-state")}.includes('7 model calls left today')`, 15000), "the quota line");
+    ok(await p.eval(`${text("#landing-chat-send")} === 'Ask'`), "the button says Ask");
+    ok(await p.eval(`document.querySelectorAll('.landing-hero input[type="radio"]').length === 0`), "there is no mode picker");
     await p.eval(`document.querySelector('#landing-chat-input').value = 'where does it jam?'`);
     await p.eval(`document.querySelector('#landing-chat-send').click()`);
-    ok(await p.waitFor(`document.querySelector('.pv-chat-user')?.textContent === 'where does it jam?'`, 20000), `${route}: the message opens the session`, problemsOf(p).join(" | "));
-    ok(await p.waitFor(`window.__turns.length > 0`, 20000), `${route}: the Assistant asks the proxy`);
-    ok((await p.eval(`window.__turns[0].mode`)) === mode, `${route}: in mode ${mode}`, await p.eval(`window.__turns[0].mode`));
-    ok(await p.eval(`JSON.stringify(window.__turns[0].messages).includes('where does it jam?')`), `${route}: with the words`);
-    ok(await p.waitFor(`document.querySelector('.pv-chat-assistant')?.textContent === 'smoke reply'`, 10000), `${route}: the reply shows beside the canvas`);
-    ok(await p.eval(`document.getElementById('editor-wrapper').style.display === 'block' && document.getElementById('landing').style.display === 'none'`), `${route}: the canvas is there`);
-    ok(problemsOf(p).length === 0, `${route}: no console problems`, problemsOf(p).join(" | "));
+    ok(await p.waitFor(`document.querySelector('.pv-chat-user')?.textContent === 'where does it jam?'`, 20000), "the message opens the session", problemsOf(p).join(" | "));
+    ok(await p.waitFor(`window.__turns.length > 0`, 20000), "the Assistant asks the proxy");
+    ok((await p.eval(`window.__turns[0].mode`)) === "auto", "with nothing forced: mode auto", await p.eval(`window.__turns[0].mode`));
+    ok(await p.eval(`JSON.stringify(window.__turns[0].messages).includes('where does it jam?')`), "with the words");
+    ok(await p.waitFor(`document.querySelector('.pv-chat-assistant')?.textContent === 'smoke reply'`, 10000), "the reply shows beside the canvas");
+    ok(await p.eval(`document.getElementById('editor-wrapper').style.display === 'block' && document.getElementById('landing').style.display === 'none'`), "the canvas is there");
+    ok(problemsOf(p).length === 0, "no console problems", problemsOf(p).join(" | "));
     await p.close();
   }
 
   console.log("a submit before the status answers");
   {
     const p = await open("/", SIGNED_IN("", 2500));
-    await p.waitFor(`document.querySelector('#landing-chat-hint')?.textContent.length > 0`, 20000);
+    await routed(p);
+    ok(await p.eval(`${text("#landing-chat-send")} === 'Ask' && ${text("#landing-chat-state")} === '' && !document.getElementById('landing-chat-input').hidden`), "until the status answers, the hero is an Ask and says nothing yet");
     await p.eval(`document.querySelector('#landing-chat-input').value = 'too quick'`);
-    await p.eval(`document.querySelector('input[value="design"]').click()`);
     await p.eval(`document.querySelector('#landing-chat-send').click()`);
     ok(await p.waitFor(`document.querySelector('.pv-chat-user')?.textContent === 'too quick'`, 20000), "it waits, and then opens the session");
-    ok((await p.eval(`window.__turns[0]?.mode`)) === "build", "in the route chosen");
+    ok((await p.eval(`window.__turns[0]?.mode`)) === "auto", "with nothing forced");
     ok((await p.eval(`location.search`)) === "", "and what was typed never reaches the URL", await p.eval(`location.search`));
     await p.close();
   }
 
   console.log("back from the sign-in, and links");
   {
+    // Written under the old name (a tab open across the rename): still sent, as Build.
     const seed = `sessionStorage.setItem('pflow_landing_pending', ${q(JSON.stringify({ route: "design", message: "a queue" }))});`;
     const p = await open("/", SIGNED_IN(seed));
     ok(await p.waitFor(`document.querySelector('.pv-chat-user')?.textContent === 'a queue'`, 20000), "what was typed before the sign-in is sent after it");
@@ -332,15 +390,22 @@ try {
     ok((await p.eval(`sessionStorage.getItem('pflow_landing_pending')`)) === null, "once");
     await p.close();
   }
-  {
-    const p = await open("/?route=analyse", SIGNED_IN());
-    ok(await p.waitFor(`document.querySelector('.pv-chat-mode.pv-active')?.dataset.mode === 'analyse'`, 20000), "?route= opens the Assistant in that mode");
-    ok((await p.eval(`window.__turns.length`)) === 0, "and sends nothing by itself");
+  for (const [route, mode] of [["analyse", "analyse"], ["build", "build"], ["design", "build"], ["explain", "explain"]]) {
+    // design is build's old name: links in the wild keep forcing it.
+    const p = await open(`/?route=${route}`, SIGNED_IN());
+    ok(await p.waitFor(`document.querySelector('.pv-chat')?.dataset.intent === ${q(mode)}`, 20000), `?route=${route} opens the Ask pane as ${mode}`);
+    ok(await p.eval(`document.querySelectorAll('.pv-chat-mode').length === 0`), `?route=${route}: and there are no mode tabs to pick from`);
+    ok((await p.eval(`window.__turns.length`)) === 0, `?route=${route} sends nothing by itself`);
+    ok(await p.eval(`document.getElementById('editor-wrapper').style.display === 'block'`), `?route=${route} skips the landing`);
+    // The one place a mode is stated: what is then typed in the panel goes out in it.
+    await p.eval(`(() => { document.querySelector('.pv-chat-input').value = 'where does it jam?'; document.querySelector('.pv-chat-form').requestSubmit(); })()`);
+    ok(await p.waitFor(`window.__turns.length > 0`, 20000), `?route=${route}: the Assistant asks the proxy`);
+    ok((await p.eval(`window.__turns[0].mode`)) === mode, `?route=${route}: in mode ${mode}`, await p.eval(`window.__turns[0].mode`));
     await p.close();
   }
   {
     const p = await open("/?route=design");
-    ok(await p.waitFor(`document.querySelector('.pv-chat-log')?.textContent.includes('GitHub sign-in')`, 20000), "?route= signed out: the panel asks for the sign-in");
+    ok(await p.waitFor(`!!document.querySelector(${SIGNIN}) && ${text(".pv-ask-state")}.includes('Sign in to ask in your own words')`, 20000), "?route= signed out: the panel offers the sign-in, once, quietly");
     await p.close();
   }
   {
@@ -375,7 +440,6 @@ try {
       await p.eval(`document.querySelector(${q(s)}).scrollIntoView({ block: 'center' })`);
       ok((await p.eval(`(() => { const r = document.querySelector(${q(s)}).getBoundingClientRect(); return r.top >= 0 && r.bottom <= innerHeight && r.left >= 0 && r.right <= innerWidth; })()`)), `${label}: ${s} scrolls into view`);
     }
-    await p.eval(`document.querySelector('input[value="design"]').click()`);
     await p.eval(`document.querySelector('#landing-chat-input').value = 'a coffee shop'`);
     await p.eval(`document.querySelector('#landing-chat-send').click()`);
     ok(await p.waitFor(`!!document.querySelector('.pv-chat-assistant')`, 20000), `${label}: the session opens`, problemsOf(p).join(" | "));
@@ -385,7 +449,7 @@ try {
     ok((await p.eval(`document.documentElement.scrollWidth <= innerWidth && scrollY === 0`)), `${label}: the page itself does not scroll`);
     ok((await p.eval(`parseFloat(getComputedStyle(document.querySelector('.pv-chat-input')).fontSize)`)) >= 16, `${label}: the box is 16px or more`);
     ok(await p.eval(`(() => { const b = document.querySelector('.pv-run-bar').getBoundingClientRect(), c = document.querySelector('.pv-chat').getBoundingClientRect(); return !b.height || c.bottom <= b.top; })()`), `${label}: the panel stops above the run bar`);
-    ok(await p.eval(`(() => { const c = document.querySelector('.pv-chat').getBoundingClientRect(); return [...document.querySelectorAll('.pv-chat-head button')].every((b) => { const r = b.getBoundingClientRect(); return r.left >= c.left && r.right <= c.right; }); })()`), `${label}: the head's buttons are inside the panel`);
+    ok(await p.eval(`(() => { const c = document.querySelector('.pv-chat').getBoundingClientRect(); return [...document.querySelectorAll('.pv-chat-head button')].filter((b) => b.getBoundingClientRect().width > 0).every((b) => { const r = b.getBoundingClientRect(); return r.left >= c.left && r.right <= c.right; }); })()`), `${label}: the head's buttons are inside the panel`);
 
     // The message list scrolls by itself, by touch; the input row does not move with it.
     const scrolls = await p.eval(`(() => { const l = document.querySelector('.pv-chat-log'); return l.scrollHeight > l.clientHeight; })()`);
@@ -461,12 +525,12 @@ try {
 
     // Explain does not edit, so the section does not offer it.
     const all = await p.eval(`parseInt(document.querySelector('.pv-chat-tools-count').textContent)`);
-    await p.eval(`document.querySelector('.pv-chat-mode[data-mode="explain"]').click()`);
+    await p.eval(`document.querySelector('petri-view')._openChat({ mode: 'explain' })`);
     const fewer = await p.eval(`parseInt(document.querySelector('.pv-chat-tools-count').textContent)`);
     ok(fewer > 0 && fewer < all, `${label}: explain has fewer`, `${fewer} of ${all}`);
     ok(!(await p.eval(`${LISTED}.includes('net.add_place')`)) && await p.eval(`${LISTED}.includes('net.info')`), `${label}: explain lists the ones that read`);
     ok(await p.eval(`${text(".pv-chat-tools-note")}.includes('Explain mode does not edit')`), `${label}: and says why the rest are not there`);
-    await p.eval(`document.querySelector('.pv-chat-mode[data-mode="analyse"]').click()`);
+    await p.eval(`document.querySelector('petri-view')._openChat({ mode: 'analyse' })`);
     ok((await p.eval(`parseInt(document.querySelector('.pv-chat-tools-count').textContent)`)) === all, `${label}: leaving explain brings them back`);
     ok(await p.eval(`getComputedStyle(document.querySelector('.pv-chat-tools-note')).display === 'none'`), `${label}: and the note goes`);
 
@@ -524,8 +588,8 @@ try {
     // Signed out the tools exist and cannot run yet, so that is what it says.
     const label = `tools signed out ${w}x${h}`;
     const p = await open("/?route=design", undefined, w, h, phone);
-    ok(await p.waitFor(`document.querySelector('.pv-chat-log')?.textContent.includes('GitHub sign-in')`, 20000), `${label}: the panel asks for the sign-in`);
-    await toolsListed(p, label, /^\d+ after sign-in$/);
+    ok(await p.waitFor(`!!document.querySelector(${SIGNIN})`, 20000), `${label}: the panel offers the sign-in`);
+    await toolsListed(p, label, /^\d+ after sign-in$/, GOAL_TOOLS); // the real server lists the goal toolset, which is what a signed-out pane holds
     ok(await p.eval(`${text(".pv-chat-tools-note")}.includes('Sign in')`), `${label}: it says what they wait for`);
     await p.eval(`document.querySelector('.pv-chat-tools > summary').click()`);
     await sleep(200);
@@ -566,17 +630,17 @@ try {
   }
   {
     const p = await open("/?route=design", undefined, 375, 553, true);
-    ok(await p.waitFor(`document.querySelector('.pv-chat-log')?.textContent.includes('GitHub sign-in')`, 20000), "signed out on a phone: the panel asks for the sign-in");
-    ok((await p.eval(REACHABLE('.pv-chat-log [data-act="login"]'))) === "ok", "and the button can be reached", await p.eval(REACHABLE('.pv-chat-log [data-act="login"]')));
-    ok(await p.eval(`document.querySelector('.pv-chat-form').getBoundingClientRect().height === 0`), "and there is no box to type in yet");
+    ok(await p.waitFor(`!!document.querySelector(${SIGNIN})`, 20000), "signed out on a phone: the panel offers the sign-in");
+    ok((await p.eval(REACHABLE(SIGNIN_SEL))) === "ok", "and the button can be reached", await p.eval(REACHABLE(SIGNIN_SEL)));
+    ok((await p.eval(REACHABLE(".pv-chat-input"))) === "ok", "and the box is there to type in: the words go to the router, with no model", await p.eval(REACHABLE(".pv-chat-input")));
     await p.close();
   }
   {
     // [hidden] wins over the form's display:flex on a desktop too: nothing to type into until there is a sign-in.
     const p = await open("/?route=design");
-    ok(await p.waitFor(`document.querySelector('.pv-chat-log')?.textContent.includes('GitHub sign-in')`, 20000), "signed out on a desktop: the panel asks for the sign-in");
-    ok(await p.eval(`(() => { const f = document.querySelector('.pv-chat-form'), i = document.querySelector('.pv-chat-input'); return f.hidden && getComputedStyle(f).display === 'none' && i.getBoundingClientRect().height === 0; })()`), "and there is no box to type in yet", await p.eval(`getComputedStyle(document.querySelector('.pv-chat-form')).display`));
-    ok((await p.eval(REACHABLE('.pv-chat-log [data-act="login"]'))) === "ok", "and the button can be reached", await p.eval(REACHABLE('.pv-chat-log [data-act="login"]')));
+    ok(await p.waitFor(`!!document.querySelector(${SIGNIN})`, 20000), "signed out on a desktop: the panel offers the sign-in");
+    ok(await p.eval(`(() => { const f = document.querySelector('.pv-chat-form'), i = document.querySelector('.pv-chat-input'); return !f.hidden && getComputedStyle(f).display !== 'none' && i.getBoundingClientRect().height > 0; })()`), "and there is a box to type in: the words go to the router, with no model");
+    ok((await p.eval(REACHABLE(SIGNIN_SEL))) === "ok", "and the button can be reached", await p.eval(REACHABLE(SIGNIN_SEL)));
     await p.close();
   }
   // The steps row is build mode's, now that [hidden] means it everywhere: it has to follow the mode as soon as it changes.
@@ -586,9 +650,9 @@ try {
     ok(await p.waitFor(`!!document.querySelector('.pv-chat-input')`, 20000), `${label} steps: the panel opens`);
     const steps = `getComputedStyle(document.querySelector('.pv-chat-steps')).display`;
     ok((await p.eval(steps)) === "none", `${label} steps: not in Analyse`, await p.eval(steps));
-    await p.eval(`document.querySelector('.pv-chat-mode[data-mode="build"]').click()`);
+    await p.eval(`document.querySelector('petri-view')._openChat({ mode: 'build' })`);
     ok((await p.eval(steps)) === "flex", `${label} steps: choosing Build shows them`, await p.eval(steps));
-    await p.eval(`document.querySelector('.pv-chat-mode[data-mode="explain"]').click()`);
+    await p.eval(`document.querySelector('petri-view')._openChat({ mode: 'explain' })`);
     ok((await p.eval(steps)) === "none", `${label} steps: leaving Build hides them`, await p.eval(steps));
     await p.close();
   }
@@ -606,10 +670,10 @@ try {
   for (const [w, h] of DESKTOPS) {
     const label = `desktop ${w}x${h}`;
     const p = await open("/?route=design", undefined, w, h);
-    ok(await p.waitFor(`!!document.querySelector('.pv-chat-log [data-act="login"]')`, 20000), `${label}: the panel opens`, problemsOf(p).join(" | "));
+    ok(await p.waitFor(`!!document.querySelector(${SIGNIN})`, 20000), `${label}: the panel opens`, problemsOf(p).join(" | "));
     await sleep(300);
     await headFits(p, label, ".pv-chat");
-    const clear = await p.eval(ON_TOP_OF_THE_EDITOR(".pv-chat", ['.pv-chat-log [data-act="login"]']));
+    const clear = await p.eval(ON_TOP_OF_THE_EDITOR(".pv-chat", [SIGNIN_SEL]));
     ok(clear === "ok", `${label}: nothing from the editor is over the panel`, clear);
     ok(await p.eval(`document.querySelector('.pv-chat-head strong').scrollWidth <= document.querySelector('.pv-chat-head strong').clientWidth`), `${label}: the title has its room`);
 
@@ -655,7 +719,7 @@ try {
   {
     // A window this wide has room for all of it, so the toolbar and the slider's height do not move for the panel.
     const p = await open("/?route=design", undefined, 1920, 1080);
-    await p.waitFor(`!!document.querySelector('.pv-chat-log [data-act="login"]')`, 20000);
+    await p.waitFor(`!!document.querySelector(${SIGNIN})`, 20000);
     await sleep(300);
     const at = await p.eval(`(() => { const r = document.querySelector('.pv-mode-menu').getBoundingClientRect(); return r.left + r.width / 2; })()`);
     ok(Math.abs(at - 960) <= 1, "desktop 1920x1080: the toolbar stays centred", String(at));

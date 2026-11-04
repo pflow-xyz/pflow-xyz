@@ -97,7 +97,29 @@ type llmService struct {
 	toolsVersion  string
 	autoStats     *llm.AutoStats    // anonymous auto-mode label counts (nil = not recorded)
 	classifyModel string            // auto mode's labeller (PFLOW_LLM_CLASSIFIER_MODEL)
-	modeExtra     map[string]string // per-mode context appended to the guidance (phases 5, 6)
+	modeExtra     map[string]string // the "all" toolset's per-mode context appended to the guidance (phases 5, 6)
+
+	// The goals toolset (llm_goal_tools.go), beside the tools above: nil when
+	// public/llm-goal-tools.json is missing, which a request for it hears.
+	goalTools *goalToolset
+	goalStats *llm.GoalStats // anonymous cost per goal (nil = not recorded)
+	// goalModel (PFLOW_LLM_GOAL_MODEL) answers goals-toolset turns in analyse
+	// and explain mode when set; build turns, "all" turns and an unset value
+	// keep the main model. Matt's decision (design section 10): the cheaper
+	// model for goal turns, rather than a lower daily limit. It stays unset (the
+	// main model) until the goal eval (llm_goal_eval_test.go,
+	// parity/ask/goal-cases.json) shows goal-selection accuracy holds on it.
+	goalModel string
+}
+
+// turnModel is the model a turn runs on: "" for the client's own, or the goal
+// model for a goals-toolset turn in analyse or explain mode (resolved, so
+// auto's label has already been applied).
+func (s *llmService) turnModel(goals bool, mode string) string {
+	if goals && s.goalModel != "" && (mode == "analyse" || mode == "explain") {
+		return s.goalModel
+	}
+	return ""
 }
 
 // newLLMService builds the proxy from the environment. With no
@@ -115,8 +137,14 @@ func newLLMService(getenv func(string) string, dataDir string) (*llmService, err
 	if err != nil {
 		return nil, err
 	}
+	goalStats, err := llm.NewGoalStats(filepath.Join(dataDir, "llm"))
+	if err != nil {
+		return nil, err
+	}
 	svc := &llmService{
 		autoStats: stats,
+		goalStats: goalStats,
+		goalModel: strings.TrimSpace(getenv("PFLOW_LLM_GOAL_MODEL")),
 		client:    llm.NewGemini(key, getenv("PFLOW_LLM_MODEL")),
 		limiter:   lim,
 		verifier:  auth.NewCachingVerifier(auth.NewGitHubVerifier()),
@@ -186,6 +214,12 @@ func (s *Server) handleLLMStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	out := map[string]any{"enabled": true, "chat": svc.tools != nil, "signed_in": false, "model": svc.client.Model()}
+	if svc.tools != nil { // the toolsets a turn may ask for
+		out["toolsets"] = []string{toolsetAll}
+		if svc.goalTools != nil {
+			out["toolsets"] = []string{toolsetAll, toolsetGoals}
+		}
+	}
 	if token := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer "); strings.TrimSpace(token) != "" {
 		if u, err := svc.verifier.Verify(r.Context(), token); err == nil {
 			left, reset := svc.limiter.Remaining(u.ID)
@@ -348,6 +382,15 @@ func (s *Server) configureLLM(dataDir string) {
 			} else {
 				svc.modeExtra = map[string]string{"analyse": text}
 				log.Printf("LLM chat: %d goals for analyse mode", n)
+			}
+			if gt, err := loadGoalToolset(s.publicFS); err != nil {
+				log.Printf("LLM chat: goals toolset off (%v)", err)
+			} else {
+				svc.goalTools = gt
+				log.Printf("LLM chat: goals toolset: %d tools, %d goals (%s)", len(gt.decls), len(gt.goalIDs), gt.Version)
+				if svc.goalModel != "" {
+					log.Printf("LLM chat: goal turns in analyse and explain mode use %s", svc.goalModel)
+				}
 			}
 		}
 		who := "every signed-in user"

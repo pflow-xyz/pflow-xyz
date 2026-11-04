@@ -3743,3 +3743,1384 @@ canvas.pv-canvas {
 .pv-appview button, .pv-appview input, .pv-appview select, .pv-appview textarea { font: inherit; }
 .pv-workbench-form[hidden] { display: none; }
 .pv-workbench-field input[type="checkbox"] { justify-self: start; width: 18px; height: 18px; }
+
+
+/* ---- Engine guard (petri-engine-guard.js) ---- */
+/* The chip on a result that ran on an engine the net's own recommendation did not
+   pick: "ODE on a net with capacity on I; the engine recommends SSA". */
+.pv-engine-warn {
+    display: inline-block;
+    border: 1px solid var(--pv-warning);
+    border-radius: 10px;
+    padding: 0 8px;
+    font-size: 0.9em;
+}
+
+/* ==============================
+   Provenance footer (petri-provenance.js footerHtml)
+   "How this was computed", under every result: collapsed by default.
+   ============================================ */
+.pv-prov {
+    border-top: 1px solid var(--pv-border);
+    margin-top: 10px;
+    padding-top: 6px;
+    font-size: 0.9em;
+}
+.pv-prov > summary {
+    cursor: pointer;
+    font-weight: 600;
+}
+.pv-prov-rows {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 3px 10px;
+    margin: 6px 0;
+}
+.pv-prov-rows dt {
+    color: var(--pv-ink-secondary);
+}
+.pv-prov-rows dd {
+    margin: 0;
+    overflow-wrap: anywhere;
+}
+.pv-prov-calls,
+.pv-prov-assumed {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+.pv-prov-call code,
+.pv-prov-args {
+    font-size: 0.85em;
+}
+.pv-prov-args {
+    color: var(--pv-ink-secondary);
+}
+.pv-prov-chip {
+    display: inline-block;
+    padding: 0 7px;
+    border: 1px solid var(--pv-border);
+    border-radius: 10px;
+    font-size: 0.85em;
+}
+.pv-prov-warn {
+    color: var(--pv-warning);
+    border-color: var(--pv-warning);
+}
+.pv-prov-ast {
+    background: var(--pv-surface-2);
+}
+.pv-prov-link {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--pv-accent);
+    font: inherit;
+    text-decoration: underline;
+    cursor: pointer;
+}
+.pv-prov-acts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 6px;
+}
+
+
+/* ============================================================
+   Command palette and schema forms
+   (petri-palette-ui.js, petri-schema-form.js)
+
+   Cmd-K / Ctrl-K: search the questions and every registry command, then a form
+   generated from the command's JSON Schema. Tokens only, so both themes work.
+   ============================================================ */
+.pv-palette-search {
+    width: 100%;
+    box-sizing: border-box;
+    font: inherit;
+    padding: 8px 10px;
+    margin: 0 0 8px;
+    border: 1px solid var(--pv-border);
+    border-radius: 6px;
+    background: var(--pv-surface);
+    color: var(--pv-ink);
+}
+.pv-palette-list {
+    max-height: min(52vh, 440px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    border: 1px solid var(--pv-border);
+    border-radius: 6px;
+    background: var(--pv-surface);
+}
+.pv-palette-head {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    padding: 4px 10px;
+    font-size: 0.75em;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--pv-ink-muted);
+    background: var(--pv-surface-2);
+    border-bottom: 1px solid var(--pv-border);
+}
+.pv-palette-item {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 2px 10px;
+    padding: 6px 10px;
+    cursor: pointer;
+    scroll-margin-top: 28px;
+    border-left: 3px solid transparent;
+}
+.pv-palette-item[aria-selected="true"] {
+    background: var(--pv-surface-3);
+    border-left-color: var(--pv-accent);
+}
+.pv-palette-off .pv-palette-title {
+    color: var(--pv-ink-muted);
+}
+.pv-palette-title {
+    font-weight: 500;
+    color: var(--pv-ink);
+}
+.pv-palette-sub {
+    font-size: 0.85em;
+    color: var(--pv-ink-muted);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100%;
+    padding-bottom: 0.15em; /* the underscore of sim.what_if sits below the baseline, inside the clip */
+}
+.pv-palette-tag,
+.pv-palette-flag {
+    font-size: 0.72em;
+    padding: 0 6px;
+    border-radius: 8px;
+    border: 1px solid var(--pv-border);
+    color: var(--pv-ink-secondary);
+    white-space: nowrap;
+}
+.pv-palette-flag {
+    border-color: var(--pv-warning);
+}
+.pv-palette-empty,
+.pv-palette-hint {
+    margin: 8px 10px;
+}
+.pv-palette-hint {
+    margin-left: 0;
+    margin-right: 0;
+}
+.pv-palette:focus {
+    outline: none; /* the dialog takes focus when plain text in it is clicked (tabindex=-1), so keys stay in it */
+}
+/* Run is aria-disabled, never disabled: a focused button that becomes disabled drops focus to <body> */
+.pv-palette .pv-btn[aria-disabled="true"] {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+.pv-palette .pv-btn-primary[aria-disabled="true"]:hover {
+    background: var(--pv-accent);
+}
+.pv-palette > .pv-palette-pane {
+    margin-bottom: 20px; /* the xl dialog gives only its last child a bottom margin; the list pane is not last while the form is hidden */
+}
+.pv-palette-live {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+.pv-palette-form-title {
+    margin: 12px 0 2px;
+}
+.pv-palette-form-sub {
+    margin: 0 0 8px;
+    color: var(--pv-ink-muted);
+}
+
+/* The form the schema makes */
+.pv-form-field {
+    margin: 10px 0;
+    padding: 0;
+    border: 0;
+    min-width: 0;
+}
+.pv-form-label {
+    display: block;
+    margin-bottom: 2px;
+    font-weight: 500;
+    color: var(--pv-ink);
+}
+.pv-form-check {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.pv-form-check .pv-form-label {
+    display: inline;
+    margin: 0;
+}
+.pv-form-req {
+    color: var(--pv-danger);
+}
+.pv-form-key {
+    margin: 0;
+    font-size: 0.85em;
+    color: var(--pv-ink-muted);
+}
+.pv-form-field input[type="text"],
+.pv-form-field select,
+.pv-form-field textarea {
+    width: 100%;
+    box-sizing: border-box;
+    font: inherit;
+    padding: 6px 8px;
+    border: 1px solid var(--pv-border);
+    border-radius: 4px;
+    background: var(--pv-surface);
+    color: var(--pv-ink);
+}
+.pv-form-field textarea {
+    resize: vertical;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.9em;
+}
+.pv-form-field [aria-invalid="true"] {
+    border-color: var(--pv-danger);
+}
+.pv-form-help {
+    margin-top: 2px;
+    font-size: 0.85em;
+    color: var(--pv-ink-muted);
+}
+.pv-form-help:empty {
+    display: none;
+}
+.pv-form-err,
+.pv-form-summary {
+    margin-top: 2px;
+    font-size: 0.9em;
+    color: var(--pv-danger);
+}
+.pv-form-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 12px;
+}
+.pv-form-mark {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+.pv-form-mark input {
+    width: 5em;
+}
+.pv-form-more {
+    margin: 8px 0;
+}
+.pv-form-more > summary {
+    cursor: pointer;
+    color: var(--pv-ink-secondary);
+}
+.pv-form-noform {
+    border-left: 3px solid var(--pv-warning);
+    padding-left: 8px;
+}
+
+/* The Tools button and its shortcut */
+.pv-tools-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+.pv-tools-kbd {
+    font: inherit;
+    font-size: 0.8em;
+    padding: 0 5px;
+    border: 1px solid var(--pv-border);
+    border-radius: 4px;
+    color: var(--pv-ink-muted);
+}
+@media (max-width: 760px), (max-height: 520px) {
+    .pv-palette-search,
+    .pv-form-field input[type="text"],
+    .pv-form-field select,
+    .pv-form-field textarea {
+        font-size: 16px; /* under 16px, iOS zooms the page in on focus */
+    }
+    .pv-tools-kbd {
+        display: none; /* no keyboard shortcut on a phone */
+    }
+    .pv-palette-list {
+        max-height: 45vh;
+    }
+}
+
+
+/* ============================================================
+   Problems indicator (petri-problems.js)
+   The "N problems" chip by the title, and the list it opens. It replaces the
+   Check net menu entry (docs/design/agent-first-analysis.md, section 3).
+
+   Colour is never the only cue: the dot carries a glyph (check, !, x), the
+   label says how many, and the title names the first problem. A button does
+   not inherit the font, so it asks for it.
+   ============================================================ */
+.pv-problems {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+}
+.pv-problems-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 28px;
+    padding: 2px 10px 2px 8px;
+    border: 1px solid var(--pv-border);
+    border-radius: 999px;
+    background: var(--pv-surface);
+    color: var(--pv-ink-secondary);
+    font: inherit;
+    font-size: 0.85em;
+    line-height: 1.3;
+    white-space: nowrap;
+    cursor: pointer;
+}
+.pv-problems-chip:hover {
+    background: var(--pv-hover-soft);
+}
+.pv-problems-chip:focus-visible {
+    outline: 2px solid var(--pv-focus-ring);
+    outline-offset: 2px;
+}
+.pv-problems-chip[data-level="warn"] {
+    border-color: var(--pv-warning);
+    color: var(--pv-ink);
+}
+.pv-problems-chip[data-level="error"] {
+    border-color: var(--pv-danger);
+    color: var(--pv-ink);
+}
+.pv-problems-chip[data-level="pending"] {
+    color: var(--pv-ink-muted);
+}
+.pv-problems-dot {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--pv-neutral);
+    color: var(--pv-surface);
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1;
+}
+.pv-problems-chip[data-level="ok"] .pv-problems-dot {
+    background: var(--pv-success);
+}
+.pv-problems-chip[data-level="ok"] .pv-problems-dot::before {
+    content: "\2713";
+}
+.pv-problems-chip[data-level="warn"] .pv-problems-dot {
+    background: var(--pv-warning);
+}
+.pv-problems-chip[data-level="warn"] .pv-problems-dot::before {
+    content: "!";
+}
+.pv-problems-chip[data-level="error"] .pv-problems-dot {
+    background: var(--pv-danger);
+}
+.pv-problems-chip[data-level="error"] .pv-problems-dot::before {
+    content: "\00d7";
+    font-size: 12px;
+}
+.pv-problems-chip[data-level="pending"] .pv-problems-dot::before {
+    content: "\2026";
+}
+.pv-problems-label {
+    font-variant-numeric: tabular-nums;
+}
+/* The polite announcement: for screen readers only. */
+.pv-problems-live {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    border: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+}
+/* A finger needs more than 28px. */
+@media (pointer: coarse) {
+    .pv-problems-chip {
+        min-height: 40px;
+        padding: 4px 14px 4px 12px;
+    }
+}
+
+/* The list (problemsListHtml): kind and place on one line, the message under them. */
+.pv-problems-list {
+    font-size: 0.95em;
+}
+.pv-problems-summary,
+.pv-problems-none,
+.pv-problems-more {
+    margin: 4px 0 8px;
+    color: var(--pv-ink-secondary);
+}
+.pv-problems-items {
+    list-style: none;
+    margin: 0 0 8px;
+    padding: 0;
+    display: grid;
+    gap: 6px;
+}
+.pv-problem {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 2px 8px;
+    padding: 6px 10px;
+    border-left: 3px solid var(--pv-border);
+    border-radius: 4px;
+    background: var(--pv-hover-soft);
+    color: var(--pv-ink);
+}
+.pv-problem[data-severity="error"] {
+    border-left-color: var(--pv-danger);
+}
+.pv-problem[data-severity="repaired"] {
+    border-left-color: var(--pv-accent);
+}
+.pv-problem[data-severity="warning"] {
+    border-left-color: var(--pv-warning);
+}
+.pv-problem-kind {
+    font-size: 0.8em;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: var(--pv-ink-secondary);
+}
+.pv-problem-where {
+    overflow-wrap: anywhere;
+}
+.pv-problem-message {
+    flex-basis: 100%;
+    overflow-wrap: anywhere;
+}
+
+/* ============================================================
+   The editor bar (petri-menu-ui.js)
+   Ask input, File / View / Help, Tools, the problems chip and the account button, in one row over the canvas. It
+   replaces the hamburger (which stays behind ?ui=classic). docs/design/agent-first-analysis.md, section 3.
+
+   Where it goes: on a desktop, to the right of the page's logo, on the logo's row. On a phone, on its own row under the
+   logo (top: 64px) because the docked Ask pane starts at 64px and covers it whole when it is open, instead of leaving
+   a sliver of the bar above it (those panels are z-index 1000 there, so the bar is under them: 900). The account
+   button then takes the logo's row, at the right.
+
+   How it narrows: the bar is a size container, so what it drops depends on the room it has, not on the window.
+   Under 760px of bar the three menus fold into one "⋯" button; under 540px the Tools shortcut hint and the problems
+   label go (the chip keeps its mark and its accessible name) and the Ask button becomes an arrow. The Ask input takes
+   what is left and shrinks to 120px.
+
+   The menus' popovers hang off <body> (so they are above the Ask pane and the dialogs, which the bar is not), and are
+   placed from the button's rectangle when they open. Tokens only, so both themes work.
+   ============================================================ */
+.pv-sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    border: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+}
+
+/* The page's logo (index.html .fixed-title, left: 60px) sat to the right of the hamburger; without the hamburger it
+   goes to the left edge. data-ui is set the moment the bar is asked for, so the logo does not jump. */
+html:has(petri-view[data-ui="bar"]) .fixed-title {
+    left: 10px;
+}
+
+.pv-appbar {
+    position: absolute;
+    top: 10px;
+    left: 146px; /* clear of the logo: 10px + 120px + a gap */
+    right: 10px;
+    z-index: 1190; /* under the Ask pane (1250), which docks at 64px, and the popovers (1300) */
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    height: 40px;
+    font-family: var(--pv-font);
+    container: pv-appbar / inline-size;
+    pointer-events: none; /* the gaps between the controls are the canvas's */
+}
+.pv-appbar > * {
+    pointer-events: auto;
+    flex: none;
+}
+/* Side by side, the JSON editor is the pane to the right of the canvas, and the bar (which spans the whole editor) floats
+   over its top edge, above its toolbar: Find, Open URL, Download, Full, the toggle back to the stacked layout, Close. The
+   pane starts below the bar instead: 10px + 40px + a gap. Stacked, the editor is under the canvas and the bar is not over
+   it; on a phone the bar has a row of its own and the panes are stacked (the phone media query below). */
+@media (min-width: 761px) and (min-height: 521px) {
+    petri-view[data-ui="bar"] .pv-root.pv-layout-horizontal .pv-json-editor {
+        padding-top: 56px;
+    }
+}
+
+/* Ask: one pill, the input and its button inside it */
+.pv-appbar > .pv-ask {
+    flex: 1 1 220px;
+    min-width: 120px;
+    max-width: 640px;
+    display: flex;
+    align-items: center;
+    box-sizing: border-box;
+    height: 40px;
+    padding: 0 4px 0 16px;
+    border: 1px solid var(--pv-border);
+    border-radius: 20px;
+    background: var(--pv-panel-soft);
+    box-shadow: 0 2px 6px var(--pv-shadow);
+}
+.pv-ask:focus-within {
+    border-color: var(--pv-accent);
+    box-shadow: 0 0 0 3px var(--pv-focus-ring);
+}
+.pv-ask-input {
+    flex: 1 1 auto;
+    min-width: 0;
+    height: 100%;
+    padding: 0;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    color: var(--pv-ink);
+    font: inherit;
+    font-size: 14px;
+    text-overflow: ellipsis; /* a long placeholder ends in an ellipsis where the input ends */
+    /* .pv-root turns text selection off; an input inside it needs it back (iOS will not type into it otherwise) */
+    -webkit-user-select: text;
+    user-select: text;
+}
+.pv-ask-input::placeholder {
+    color: var(--pv-ink-muted);
+    opacity: 1;
+}
+.pv-ask-go {
+    flex: none;
+    height: 32px;
+    min-width: 32px;
+    padding: 0 14px;
+    border: 0;
+    border-radius: 16px;
+    background: var(--pv-accent);
+    color: var(--pv-accent-ink);
+    font: inherit;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+}
+.pv-ask-go:hover {
+    background: var(--pv-accent-strong);
+}
+.pv-ask-go:focus-visible {
+    outline: 2px solid var(--pv-accent-ink);
+    outline-offset: -4px;
+}
+.pv-ask-go-icon {
+    display: none;
+}
+
+/* The menu buttons and Tools: the same floating buttons the hamburger and the Login button were */
+.pv-appbar-menus {
+    display: flex;
+    gap: 6px;
+}
+.pv-appbar .pv-appbar-btn,
+.pv-appbar .pv-tools-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    box-sizing: border-box;
+    height: 40px;
+    padding: 0 12px;
+    border: 0;
+    border-radius: 6px;
+    background: var(--pv-panel-soft);
+    box-shadow: 0 2px 6px var(--pv-shadow);
+    color: var(--pv-ink);
+    font: inherit;
+    font-size: 14px;
+    font-weight: 400;
+    white-space: nowrap;
+    cursor: pointer;
+}
+.pv-appbar .pv-appbar-btn:hover,
+.pv-appbar .pv-tools-btn:hover {
+    background: var(--pv-panel);
+}
+.pv-appbar .pv-appbar-btn[aria-expanded="true"] {
+    background: var(--pv-panel);
+    box-shadow: inset 0 0 0 2px var(--pv-accent);
+}
+.pv-appbar .pv-appbar-btn:focus-visible,
+.pv-appbar .pv-tools-btn:focus-visible,
+.pv-appbar .pv-problems-chip:focus-visible,
+.pv-appbar .pv-top-right-btn:focus-visible {
+    outline: 2px solid var(--pv-accent);
+    outline-offset: 2px;
+}
+.pv-appbar-caret {
+    font-size: 0.8em;
+    color: var(--pv-ink-muted);
+}
+.pv-appbar .pv-appmenu-more {
+    display: none;
+    justify-content: center;
+    width: 40px;
+    padding: 0;
+    font-size: 20px;
+    line-height: 1;
+}
+.pv-appbar .pv-tools-kbd {
+    background: transparent;
+}
+
+/* The problems chip, at the bar's height (petri-problems.js draws it; Problems indicator, above) */
+.pv-appbar-problems {
+    display: inline-flex;
+}
+.pv-appbar .pv-problems-chip {
+    min-height: 40px;
+    padding: 0 14px 0 10px;
+    background: var(--pv-panel-soft);
+    box-shadow: 0 2px 6px var(--pv-shadow);
+    font-size: 14px;
+}
+.pv-appbar .pv-problems-chip:hover {
+    background: var(--pv-panel);
+}
+
+/* The account button is the last thing in the row, and gives way first if a user name is long */
+.pv-appbar > .pv-top-right-btn {
+    position: static;
+    display: block; /* a block, so a long name ends in an ellipsis (a flex container's text cannot) */
+    flex: 0 1 auto;
+    min-width: 0;
+    max-width: 180px;
+    margin-left: auto;
+    line-height: 38px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Narrow bar: one "⋯" for the three menus */
+@container pv-appbar (max-width: 759px) {
+    .pv-appbar-menus {
+        display: none;
+    }
+    .pv-appbar .pv-appmenu-more {
+        display: inline-flex;
+    }
+}
+/* Narrower still: the shortcut hint and the problems label go; the arrow stands for "Ask" */
+@container pv-appbar (max-width: 540px) {
+    .pv-appbar .pv-tools-kbd,
+    .pv-appbar .pv-problems-label {
+        display: none;
+    }
+    .pv-appbar .pv-problems-chip {
+        padding: 0 10px;
+        gap: 0;
+    }
+    .pv-ask-go {
+        padding: 0;
+        width: 32px;
+    }
+    .pv-ask-go-text {
+        display: none;
+    }
+    .pv-ask-go-icon {
+        display: inline;
+        font-size: 16px;
+    }
+    .pv-appbar > .pv-ask {
+        padding-left: 12px;
+    }
+    .pv-appbar .pv-tools-btn,
+    .pv-appbar .pv-appbar-btn {
+        padding: 0 10px;
+    }
+}
+
+/* The popover of a menu */
+.pv-appmenu-pop {
+    position: fixed;
+    z-index: 1300;
+    box-sizing: border-box;
+    min-width: 220px;
+    max-width: calc(100vw - 16px);
+    overflow-y: auto;
+    padding: 6px 0;
+    border: 1px solid var(--pv-border);
+    border-radius: 8px;
+    background: var(--pv-surface);
+    color: var(--pv-ink);
+    box-shadow: 0 4px 12px var(--pv-shadow-md);
+    font-family: var(--pv-font);
+    -webkit-user-select: none;
+    user-select: none;
+}
+.pv-appmenu-pop .pv-menu-item {
+    font-family: inherit;
+}
+.pv-appmenu-pop .pv-menu-item:focus {
+    outline: none;
+    background: var(--pv-surface-2);
+}
+.pv-appmenu-pop .pv-menu-item:focus-visible {
+    outline: 2px solid var(--pv-accent);
+    outline-offset: -2px;
+}
+.pv-appmenu-pop .pv-menu-version:focus-visible {
+    outline: 2px solid var(--pv-accent);
+    outline-offset: -2px;
+}
+.pv-appmenu-head {
+    padding: 10px 16px 4px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--pv-ink-muted);
+}
+.pv-appmenu-head:first-child {
+    padding-top: 4px;
+}
+
+/* A phone: the bar gets its own row under the logo's, and the account button takes the logo's row */
+@media (max-width: 760px) {
+    .pv-appbar {
+        top: 64px;
+        left: 10px;
+        right: 10px;
+        left: calc(10px + env(safe-area-inset-left, 0px));
+        right: calc(10px + env(safe-area-inset-right, 0px));
+        /* The docked panels (the Ask pane, the App view) are z-index 1000 on a phone, and start at 64px: they cover the
+           bar whole, which is what they are for. The popovers are on <body>, above them, so a menu is not affected. */
+        z-index: 900;
+    }
+    .pv-appbar > .pv-top-right-btn {
+        position: absolute;
+        top: -54px;
+        right: 0;
+        margin: 0;
+        max-width: min(180px, calc(100vw - 150px)); /* clear of the logo, which is 120px wide at the left edge */
+    }
+    /* While a docked panel is open it covers the bar's row, all but the 16px gutters beside it, where the Ask pill would
+       peek out: hide the row. The account button (the logo's row) stays. */
+    body:has(.pv-chat) .pv-appbar > :not(.pv-top-right-btn),
+    body:has(.pv-appview) .pv-appbar > :not(.pv-top-right-btn) {
+        visibility: hidden;
+    }
+    /* iOS zooms into a field under 16px */
+    .pv-ask-input {
+        font-size: 16px;
+    }
+    .pv-appbar .pv-appbar-btn,
+    .pv-appbar .pv-tools-btn {
+        min-width: 44px;
+    }
+}
+/* The same two steps as the container queries above, by window width, for a browser without container queries (Safari
+   before 16): a phone's bar is under 760px wide, and a narrow phone's under 540. Where container queries work these
+   repeat what they already say. */
+@media (max-width: 760px) {
+    .pv-appbar-menus {
+        display: none;
+    }
+    .pv-appbar .pv-appmenu-more {
+        display: inline-flex;
+    }
+}
+@media (max-width: 560px) {
+    .pv-appbar .pv-tools-kbd,
+    .pv-appbar .pv-problems-label,
+    .pv-ask-go-text {
+        display: none;
+    }
+    .pv-appbar .pv-problems-chip {
+        padding: 0 10px;
+        gap: 0;
+    }
+    .pv-ask-go {
+        padding: 0;
+        width: 32px;
+    }
+    .pv-ask-go-icon {
+        display: inline;
+        font-size: 16px;
+    }
+}
+/* A phone on its side: the page hides its logo to save the height, so the bar has the whole row */
+@media (max-height: 520px) and (orientation: landscape) and (pointer: coarse) {
+    .pv-appbar {
+        left: 10px;
+    }
+}
+
+/* ============================================================
+   Linkable views (petri-link-open.js, petri-view.js _openLinkedView)
+   An opened link's status strip over the result, and the one-line notice when a link's view was not run.
+   ============================================================ */
+.pv-link-status {
+    margin: 6px 0 10px;
+}
+.pv-link-chips {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+}
+.pv-link-ok {
+    color: var(--pv-success-strong);
+    border-color: var(--pv-success);
+}
+.pv-link-note {
+    margin: 8px 0 0;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+.pv-link-net {
+    margin: 6px 0 0;
+}
+.pv-link-notice {
+    position: absolute;
+    top: 64px; /* below the title bar and the menu button */
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 6;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: max-content; /* a box at left: 50% would otherwise shrink to half the canvas */
+    max-width: min(640px, calc(100% - 32px));
+    padding: 8px 12px;
+    border: 1px solid var(--pv-border);
+    border-left: 4px solid var(--pv-warning);
+    border-radius: 8px;
+    background: var(--pv-surface);
+    color: var(--pv-ink);
+    box-shadow: 0 4px 16px var(--pv-shadow-md);
+    font-size: 0.9em;
+    line-height: 1.4;
+}
+.pv-link-notice-busy {
+    border-left-color: var(--pv-accent);
+}
+.pv-link-notice-close {
+    flex: none;
+    min-width: 28px;
+    min-height: 28px;
+    border: 0;
+    background: none;
+    color: var(--pv-ink-secondary);
+    font-size: 1.2em;
+    cursor: pointer;
+}
+
+/* ---- Share this view (petri-view.js _shareViewSection) ---- */
+.pv-share-view {
+    margin: 8px 0 12px;
+}
+.pv-share-view-check {
+    display: block;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+.pv-share-link {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 6px 0;
+}
+.pv-share-link > span {
+    flex: none;
+    min-width: 5.5em;
+    color: var(--pv-ink-secondary);
+    font-size: 0.9em;
+}
+.pv-share-link > input {
+    flex: 1;
+    min-width: 0;
+    padding: 6px 8px;
+    border: 1px solid var(--pv-border);
+    border-radius: 4px;
+    background: var(--pv-surface);
+    color: var(--pv-ink);
+    font: inherit;
+    font-size: 0.85em;
+}
+.pv-share-link > input:disabled {
+    opacity: 0.6;
+}
+.pv-share-off > input {
+    opacity: 0.5;
+}
+.pv-share-privacy {
+    margin: 6px 0 0;
+}
+/* Copy waits for the view's link (petri-view.js _showShareDialog): a button that is waiting must look it */
+.pv-btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+/* ============================================================
+   Ask pane (petri-chat-ui.js, petri-results-pane.js)
+   One docked panel: the head with the intent chip, the state line, the session list
+   (messages, the router's cards, every result as a card), the pending card, Tools,
+   the input. It is the .pv-chat panel above; these rules are what is new in it.
+   Tokens only, so both themes work. Phone rules: the .pv-chat media queries above
+   place the panel above the run bar; these keep what is inside from overflowing it.
+   ============================================================ */
+.pv-ask-sr {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+}
+.pv-ask-turn {
+    display: none;
+}
+/* appended to <body>, outside .pv-root: the family has to be asked for (see --pv-font) */
+.pv-ask {
+    font-family: var(--pv-font);
+}
+.pv-ask .pv-chat-head [data-act="new"] {
+    margin-left: auto;
+}
+.pv-ask-intent {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    flex: 0 1 auto;
+}
+.pv-ask-chip {
+    display: inline-block;
+    padding: 1px 9px;
+    border: 1px solid var(--pv-accent);
+    border-radius: 12px;
+    color: var(--pv-accent);
+    font-size: 0.9em;
+    white-space: nowrap;
+}
+.pv-ask-menu {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    z-index: 3;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 4px;
+    min-width: 150px;
+    border: 1px solid var(--pv-border);
+    border-radius: 6px;
+    background: var(--pv-surface);
+    box-shadow: 0 4px 16px var(--pv-shadow-lg);
+}
+.pv-ask-menu button {
+    text-align: left;
+}
+.pv-ask-state {
+    margin: 0;
+    padding: 4px 8px;
+    border-left: 3px solid var(--pv-border);
+    border-radius: 4px;
+    background: var(--pv-hover-soft);
+    color: var(--pv-ink-secondary);
+    font-size: 0.92em;
+}
+.pv-ask-state[data-state="quota"],
+.pv-ask-state[data-state="upstream"] {
+    border-left-color: var(--pv-warning);
+}
+.pv-ask-state[data-state="signed-out"] {
+    border-left-color: var(--pv-accent);
+}
+
+/* The empty log: suggested questions and the goal cards */
+.pv-ask-hint {
+    margin: 0 0 6px;
+    color: var(--pv-ink-secondary);
+}
+.pv-ask-suggest {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 8px;
+}
+.pv-ask-label {
+    margin: 6px 0 3px;
+    font-size: 0.85em;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: var(--pv-ink-secondary);
+}
+.pv-ask-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 6px;
+}
+.pv-ask-goalcard {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 6px 8px;
+    min-width: 0;
+    border: 1px solid var(--pv-border);
+    border-radius: 6px;
+    background: var(--pv-surface);
+    color: var(--pv-ink);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+.pv-ask-goalcard:hover {
+    background: var(--pv-hover-soft);
+}
+.pv-ask-goalcard span {
+    font-size: 0.85em;
+    overflow-wrap: anywhere;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+    overflow: hidden;
+}
+
+/* The router's cards (no model) and the question the model asks */
+.pv-ask-route {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.pv-ask-rcard,
+.pv-ask-q {
+    padding: 8px 10px;
+    border: 1px solid var(--pv-border);
+    border-radius: 8px;
+    background: var(--pv-surface);
+    min-width: 0;
+}
+.pv-ask-q {
+    border-color: var(--pv-accent);
+}
+.pv-ask-q-done {
+    border-color: var(--pv-border);
+}
+.pv-ask-q-text {
+    margin: 0 0 4px;
+    overflow-wrap: anywhere;
+}
+.pv-ask-rcard p {
+    margin: 2px 0;
+}
+.pv-ask-opts,
+.pv-ask-acts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 6px;
+}
+.pv-ask-other {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 6px;
+}
+.pv-ask-other input {
+    flex: 1 1 140px;
+    min-width: 0;
+    font: inherit;
+}
+.pv-ask-q-why {
+    margin: 6px 0 0;
+    font-size: 0.85em;
+}
+
+/* A result: one card in the session list */
+.pv-chat-log > .pv-ask-card,
+.pv-chat-log > .pv-ask-route,
+.pv-chat-log > .pv-ask-q,
+.pv-chat-log > .pv-ask-empty {
+    align-self: stretch;
+    max-width: 100%;
+    min-width: 0;
+}
+.pv-ask-card {
+    flex: none;
+    box-sizing: border-box;
+    padding: 8px 10px;
+    border: 1px solid var(--pv-border);
+    border-radius: 8px;
+    background: var(--pv-surface);
+    overflow-wrap: anywhere;
+}
+.pv-ask-card[data-stale="true"] {
+    border-color: var(--pv-warning);
+}
+.pv-ask-card[data-aside="true"] {
+    opacity: 0.65;
+}
+.pv-ask-card:focus-visible {
+    outline: 2px solid var(--pv-focus-ring);
+    outline-offset: 2px;
+}
+.pv-ask-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+}
+.pv-ask-head .pv-btn {
+    flex: none;
+    white-space: nowrap;
+}
+.pv-ask-title {
+    margin: 0 0 4px;
+    font-size: 1em;
+    overflow-wrap: anywhere;
+}
+.pv-ask-warns {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+.pv-ask-warns:empty {
+    display: none;
+}
+.pv-ask-warns .pv-engine-warn {
+    margin-bottom: 4px;
+    overflow-wrap: anywhere;
+}
+.pv-ask-line {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    margin: 2px 0 4px;
+}
+.pv-ask-line > .pv-prov-chip {
+    flex: none;
+}
+.pv-ask-md {
+    min-width: 0;
+}
+.pv-ask-md p,
+.pv-ask-md ul,
+.pv-ask-md ol {
+    margin: 0 0 4px;
+}
+.pv-ask-eng {
+    background: var(--pv-info-surface);
+    color: var(--pv-info-ink);
+    border-color: var(--pv-info-border);
+}
+.pv-ask-art {
+    overflow-x: auto;
+    margin: 2px 0 6px;
+}
+.pv-ask-art svg {
+    max-width: 100%;
+    height: auto;
+}
+.pv-ask-caveat {
+    margin: 2px 0;
+    font-size: 0.92em;
+    color: var(--pv-ink-secondary);
+}
+.pv-ask-assumed-list {
+    margin: 0 0 4px;
+    padding-left: 18px;
+}
+.pv-ask-assumed-list li {
+    margin: 2px 0;
+}
+.pv-ask-changer {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+}
+.pv-ask-changer[hidden] {
+    display: none;
+}
+.pv-ask-changer select,
+.pv-ask-changer input {
+    font: inherit;
+    max-width: 100%;
+    min-width: 0;
+}
+.pv-ask-stale,
+.pv-ask-note {
+    margin: 4px 0;
+    font-size: 0.92em;
+}
+.pv-ask-note[data-kind="ok"] {
+    color: var(--pv-success-strong);
+}
+.pv-ask-note[data-kind="warn"] {
+    color: var(--pv-warning);
+}
+.pv-ask-note[data-kind="error"] {
+    color: var(--pv-danger);
+}
+/* New and Send wait for the answer that is coming */
+.pv-ask .pv-btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+.pv-ask-follow {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    margin-top: 8px;
+}
+.pv-ask-follow:empty {
+    display: none;
+}
+.pv-ask-edit {
+    margin-top: 8px;
+    padding: 8px;
+    border: 1px dashed var(--pv-border);
+    border-radius: 6px;
+}
+.pv-ask-callform {
+    min-width: 0;
+    margin: 0 0 8px;
+    padding: 6px 8px;
+    border: 1px solid var(--pv-border);
+    border-radius: 6px;
+}
+.pv-ask-callform legend {
+    padding: 0 4px;
+}
+.pv-ask-card [hidden] {
+    display: none;
+}
+
+/* The pending card: the diff, the draft's notes, assumptions and rates, the problems list */
+.pv-ask-diff {
+    margin: 4px 0;
+    padding-left: 18px;
+}
+.pv-ask .pv-chat-pending {
+    max-height: 42vh;
+}
+.pv-ask-pending-head {
+    margin-bottom: 2px;
+}
+.pv-ask-pending-head + .pv-ask-acts {
+    margin: 4px 0 6px;
+}
+.pv-ask-diffbox {
+    margin: 4px 0;
+}
+.pv-ask-diffbox > summary {
+    cursor: pointer;
+    color: var(--pv-ink-secondary);
+}
+.pv-ask-proposal {
+    margin: 6px 0;
+    padding-top: 4px;
+    border-top: 1px solid var(--pv-border);
+}
+.pv-ask-assume {
+    margin: 2px 0 4px;
+    padding-left: 18px;
+}
+.pv-ask-assume li {
+    margin: 3px 0;
+}
+.pv-ask-rate input {
+    width: 5.5em;
+    font: inherit;
+}
+.pv-ask-problems {
+    margin: 6px 0;
+    max-height: 22vh;
+    overflow: auto;
+}
+.pv-ask-checknote {
+    align-self: stretch;
+    max-width: 100%;
+    text-align: left;
+    opacity: 1;
+}
+.pv-ask-checknote ul {
+    margin: 4px 0;
+    padding-left: 18px;
+}
+
+@media (max-width: 760px), (max-height: 520px) {
+    .pv-ask .pv-chat-head {
+        gap: 4px;
+    }
+    .pv-ask-intent {
+        flex-wrap: wrap;
+    }
+    .pv-ask-menu {
+        left: auto;
+        right: 0;
+    }
+    .pv-ask-state {
+        font-size: 0.9em;
+    }
+    .pv-ask-opts .pv-btn,
+    .pv-ask-follow .pv-btn,
+    .pv-ask-suggest .pv-btn {
+        min-height: 36px;
+    }
+    .pv-ask-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+    .pv-ask-other input,
+    .pv-ask-rate input,
+    .pv-ask-changer select,
+    .pv-ask-changer input {
+        font-size: 16px;
+    }
+}

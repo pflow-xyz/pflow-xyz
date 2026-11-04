@@ -1,0 +1,226 @@
+{
+  "@context": "https://pflow.xyz/schema",
+  "@id": "z4EBG9j1aMiBny6hgTAKFXfXxTASCD5vT6NVY3opfQx4FfBf42a",
+  "@type": "PetriNet",
+  "@version": "1.1",
+  "arcs": [
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "S",
+      "target": "t_bind",
+      "weight": [
+        1,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "E",
+      "target": "t_bind",
+      "weight": [
+        0,
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "t_bind",
+      "target": "C",
+      "weight": [
+        0,
+        0,
+        1,
+        0
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "C",
+      "target": "t_unbind",
+      "weight": [
+        0,
+        0,
+        1,
+        0
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "t_unbind",
+      "target": "S",
+      "weight": [
+        1,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "t_unbind",
+      "target": "E",
+      "weight": [
+        0,
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "C",
+      "target": "t_cat",
+      "weight": [
+        0,
+        0,
+        1,
+        0
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "t_cat",
+      "target": "E",
+      "weight": [
+        0,
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "t_cat",
+      "target": "P",
+      "weight": [
+        0,
+        0,
+        0,
+        1
+      ]
+    }
+  ],
+  "author": {
+    "@type": "Person",
+    "id": "github:243500",
+    "identifier": "https://github.com/stackdump",
+    "name": "stackdump"
+  },
+  "places": {
+    "C": {
+      "@type": "Place",
+      "capacity": [
+        null,
+        null,
+        null,
+        null
+      ],
+      "initial": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "label": "Complex (C)",
+      "offset": 0,
+      "x": 370,
+      "y": 100
+    },
+    "E": {
+      "@type": "Place",
+      "capacity": [
+        null,
+        null,
+        null,
+        null
+      ],
+      "initial": [
+        0,
+        10,
+        0,
+        0
+      ],
+      "label": "Enzyme (E)",
+      "offset": 0,
+      "x": 280,
+      "y": 100
+    },
+    "P": {
+      "@type": "Place",
+      "capacity": [
+        null,
+        null,
+        null,
+        null
+      ],
+      "initial": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "label": "Product (P)",
+      "offset": 0,
+      "x": 500,
+      "y": 260
+    },
+    "S": {
+      "@type": "Place",
+      "capacity": [
+        null,
+        null,
+        null,
+        null
+      ],
+      "initial": [
+        50,
+        0,
+        0,
+        0
+      ],
+      "label": "Substrate (S)",
+      "offset": 0,
+      "x": 180,
+      "y": 110
+    }
+  },
+  "token": [
+    "https://pflow.xyz/tokens/blue",
+    "https://pflow.xyz/tokens/green",
+    "https://pflow.xyz/tokens/brown",
+    "https://pflow.xyz/tokens/red"
+  ],
+  "transitions": {
+    "t_bind": {
+      "@type": "Transition",
+      "label": "bind",
+      "x": 280,
+      "y": 0
+    },
+    "t_cat": {
+      "@type": "Transition",
+      "label": "catalyze",
+      "x": 390,
+      "y": 260
+    },
+    "t_unbind": {
+      "@type": "Transition",
+      "label": "unbind",
+      "x": 210,
+      "y": 260
+    }
+  }
+}

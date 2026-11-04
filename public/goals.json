@@ -1,6 +1,6 @@
 {
   "version": "goals-v1",
-  "_comment": "The goal advisor's catalog (ROADMAP phase 5): what people want to know, mapped to the registry commands that answer it. Data, not prompt: the 'What do you want to know?' picker runs these plans, and /api/llm/turn gives the catalog to the Assistant's analyse mode. A plan step's args may reference $input.<name> (asked of the person) and $stepN.<field> (an earlier step's result). Every available goal is run end to end by public/petri-goals_test.ts.",
+  "_comment": "The goal advisor's catalog (ROADMAP phase 5): what people want to know, mapped to the registry commands that answer it. Data, not prompt: the 'What do you want to know?' picker runs these plans, and /api/llm/turn gives the catalog to the Assistant's analyse mode. A plan step's args may reference $input.<name> (asked of the person) and $stepN.<field> (an earlier step's result). A step may carry a when: {ref, equals} to run only on one engine: every step that needs the ODE has an SSA twin chosen by sim.recommend's engine (average, knob, best_setting), and public/petri-engine-guard.js refuses any engine-dependent step the recommendation rules out. Every available goal is run end to end, on a net of each kind, by public/petri-goals_test.ts.",
   "goals": [
     {
       "id": "stuck",
@@ -12,7 +12,8 @@
         { "command": "analysis.siphons", "args": {} }
       ],
       "answer": "No (proved, or no deadlock within the states searched), or yes with a firing trace to a stuck marking you can replay with Go.",
-      "caveat": "A bounded search that finds no deadlock is not a proof unless it says exhaustive; siphons that can empty are where a deadlock would come from."
+      "caveat": "A bounded search that finds no deadlock is not a proof unless it says exhaustive; siphons that can empty are where a deadlock would come from.",
+      "followUps": ["conserved", "can_happen"]
     },
     {
       "id": "can_happen",
@@ -21,7 +22,8 @@
       "inputs": [{ "name": "to", "kind": "marking", "label": "the situation: target token counts (blank = any)" }],
       "plan": [{ "command": "analysis.reach", "args": { "to": "$input.to" } }],
       "answer": "Yes, with the shortest firing sequence that gets there; no, with a conservation law that rules it out; or unknown when the search budget ran out.",
-      "caveat": "Unknown is not no. Reachability here is untimed: rates play no part."
+      "caveat": "Unknown is not no. Reachability here is untimed: rates play no part.",
+      "followUps": ["stuck", "conserved"]
     },
     {
       "id": "unbounded",
@@ -33,7 +35,8 @@
         { "command": "analysis.reachability", "args": { "max_states": 2000 } }
       ],
       "answer": "The places that can grow without limit (marked ω in the coverability graph), or a proof that every place is bounded.",
-      "caveat": "Bounded from this marking is weaker than structurally bounded (from any marking); the verdict says which."
+      "caveat": "Bounded from this marking is weaker than structurally bounded (from any marking); the verdict says which.",
+      "followUps": ["conserved", "stuck"]
     },
     {
       "id": "conserved",
@@ -42,7 +45,8 @@
       "inputs": [],
       "plan": [{ "command": "analysis.invariants", "args": { "kind": "p" } }],
       "answer": "Each weighted sum of places that is the same at every reachable marking, with its value now; Show highlights it on the net.",
-      "caveat": "These come from the arc structure alone; they hold for any rates."
+      "caveat": "These come from the arc structure alone; they hold for any rates.",
+      "followUps": ["unbounded", "can_happen"]
     },
     {
       "id": "average",
@@ -51,10 +55,12 @@
       "inputs": [],
       "plan": [
         { "command": "sim.recommend", "args": {} },
-        { "command": "sim.ode", "args": { "t_end": "$step0.t_end" } }
+        { "command": "sim.ode", "when": { "ref": "$step0.engine", "equals": "ode" }, "args": { "t_end": "$step0.t_end" } },
+        { "command": "sim.ssa", "when": { "ref": "$step0.engine", "equals": "ssa" }, "args": { "t_end": "$step0.t_end", "runs": "$step0.runs", "seed": "$step0.seed" } }
       ],
-      "answer": "The mean-field trajectory of every place, and where each ends up.",
-      "caveat": "The ODE is mean-field: wrong at small token counts and blind to inhibitor or read arcs and capacities (the recommendation says so when it applies)."
+      "answer": "The average trajectory of every place and where each ends up, on the engine sim.recommend picks: the mean-field ODE for a large net with nothing constraining it; for a small net, or one with capacities, inhibitor or read arcs, the mean of 20 seeded stochastic runs with a ±1 standard-deviation band.",
+      "caveat": "The first step says which engine ran and why. The ODE is mean-field: wrong at small token counts and blind to inhibitor or read arcs and capacities, so it is not run on such a net. The stochastic mean is a sample of 20 runs: the same seed always gives the same answer, another seed moves it a little.",
+      "followUps": ["risk", "knob"]
     },
     {
       "id": "risk",
@@ -66,7 +72,8 @@
         { "command": "sim.ssa", "args": { "t_end": "$step0.t_end", "runs": 20, "seed": 1 } }
       ],
       "answer": "The mean of 20 seeded stochastic runs with a ±1 standard-deviation band; the same seed always gives the same answer.",
-      "caveat": "Twenty runs give a spread, not a tail probability; raise runs for rare events. The seed and run count are stated."
+      "caveat": "Twenty runs give a spread, not a tail probability; raise runs for rare events. The seed and run count are stated.",
+      "followUps": ["knob", "average"]
     },
     {
       "id": "knob",
@@ -79,7 +86,8 @@
         { "command": "analysis.diagnose_ssa", "when": { "ref": "$step0.engine", "equals": "ssa" }, "args": { "observable": "$input.observable", "t_end": "$step0.t_end", "runs": 40, "seed": "$step0.seed" } }
       ],
       "answer": "Every rate and every place's initial count ranked by its effect on the outcome, against a measured noise floor. Measured on the engine sim.recommend picks: the ODE for a large unconstrained net, the SSA for a small or constrained one (a pool of two baristas is only visible to the SSA).",
-      "caveat": "A knob under the noise floor has no measured effect, which is not the same as no effect. Name the outcome (a place) or it watches the sinks; the question's own words are used when they name a place or its transition."
+      "caveat": "A knob under the noise floor has no measured effect, which is not the same as no effect. Name the outcome (a place) or it watches the sinks; the question's own words are used when they name a place or its transition.",
+      "followUps": ["one_more", "best_setting"]
     },
     {
       "id": "one_more",
@@ -91,7 +99,8 @@
         { "command": "sim.what_if", "args": { "place": "$input.place", "delta": 1, "t_end": "$step0.t_end", "runs": 16, "seed": 7 } }
       ],
       "answer": "The same seeded runs with and without the extra token, overlaid, and the difference in every place's final mean.",
-      "caveat": "Both arms share the seed, so the difference measures the change, not the dice; it is still a sample of 16 runs."
+      "caveat": "Both arms share the seed, so the difference measures the change, not the dice; it is still a sample of 16 runs.",
+      "followUps": ["knob", "best_setting", "risk"]
     },
     {
       "id": "best_setting",
@@ -103,10 +112,25 @@
       ],
       "plan": [
         { "command": "sim.recommend", "args": {} },
-        { "command": "opt.rate_scan", "args": { "transition": "$input.transition", "from": 0, "to": "$input.max_rate", "steps": 13, "t_end": "$step0.t_end" } }
+        { "command": "opt.rate_scan", "when": { "ref": "$step0.engine", "equals": "ode" }, "args": { "transition": "$input.transition", "from": 0, "to": "$input.max_rate", "steps": 13, "t_end": "$step0.t_end" } },
+        {
+          "command": "sim.compare",
+          "when": { "ref": "$step0.engine", "equals": "ssa" },
+          "args": {
+            "seed": "$step0.seed",
+            "scenarios": [
+              { "name": "rate 0% of max", "hours": "$step0.t_end", "realizations": 16, "rates": { "$input.transition": "$input.max_rate*0" } },
+              { "name": "rate 25% of max", "hours": "$step0.t_end", "realizations": 16, "rates": { "$input.transition": "$input.max_rate*0.25" } },
+              { "name": "rate 50% of max", "hours": "$step0.t_end", "realizations": 16, "rates": { "$input.transition": "$input.max_rate*0.5" } },
+              { "name": "rate 75% of max", "hours": "$step0.t_end", "realizations": 16, "rates": { "$input.transition": "$input.max_rate*0.75" } },
+              { "name": "rate 100% of max", "hours": "$step0.t_end", "realizations": 16, "rates": { "$input.transition": "$input.max_rate*1" } }
+            ]
+          }
+        }
       ],
-      "answer": "Every place's value at the horizon against the rate, so you can read off where the outcome you care about peaks or levels off.",
-      "caveat": "The objective is yours to state: the scan shows every place, it does not pick one. For several rates at once, use Optimize."
+      "answer": "Every place's value at the horizon against the rate, so you can read off where the outcome you care about peaks or levels off. On a large net with nothing constraining it that is the ODE at 13 rates; on a small net, or one with capacities, inhibitor or read arcs, it is the mean of 16 seeded stochastic runs at five rates from 0 to the maximum, all on one seed so the differences are the rate's, not the dice's.",
+      "caveat": "The objective is yours to state: the scan shows every place, it does not pick one. For several rates at once, use Optimize. The stochastic version reads five rates, a coarser curve than the ODE's thirteen: narrow 'up to rate' around the region that matters and run again.",
+      "followUps": ["knob", "risk"]
     },
     {
       "id": "data_match",
@@ -116,7 +140,8 @@
       "inputs": [],
       "plan": [],
       "answer": "Fitness (how many recorded cases the net can replay), the worst traces, and rates learned from the timings.",
-      "caveat": "Not in the browser yet: conformance and calibration need an event-log import. pflow-native (data.conformance, data.calibrate) and sim.pflow.xyz (sim_conformance, sim_calibrate) have them."
+      "caveat": "Not in the browser yet: conformance and calibration need an event-log import. pflow-native (data.conformance, data.calibrate) and sim.pflow.xyz (sim_conformance, sim_calibrate) have them.",
+      "followUps": []
     },
     {
       "id": "same_net",
@@ -125,7 +150,8 @@
       "inputs": [],
       "plan": [{ "command": "analysis.canonical", "args": {} }],
       "answer": "An id that is equal for two nets exactly when they differ only by renaming, plus the net's symmetries.",
-      "caveat": "Compare the id with the other net's (run this on both); a structural diff of two nets is not in the browser yet."
+      "caveat": "Compare the id with the other net's (run this on both); a structural diff of two nets is not in the browser yet.",
+      "followUps": ["conserved", "stuck"]
     },
     {
       "id": "best_play",
@@ -142,7 +168,8 @@
         { "command": "game.move", "args": { "sides": "$input.sides", "reward": "$input.reward", "auto": "$input.auto", "plan": "$input.plan", "nodes": "$input.nodes" } }
       ],
       "answer": "The exact value of the current position from the +1 side's view (with rewards of +1 and -1: 1 a forced win, -1 a forced loss, 0 a draw) and a best move for the side to move, as a transition you can fire; or no answer (value and move null) when the search runs past its node budget, unless the plan's mode is \"play\", where the move is then an unproven guess (exact false).",
-      "caveat": "Exact and deterministic for a given plan and node budget: the same value, move and node count on every machine, except that a plan naming the \"ode\" root estimate can count nodes differently on another platform (and so, near the budget, finish on one and not the other). The search runs on the page's own thread (about a second or two per million nodes on connect-4): a large budget freezes the tab until it ends. It is a best move, not the best move: another plan may pick another, equally good one. The game is what sides, reward and auto say it is; the net's rates play no part, and the move is not fired."
+      "caveat": "Exact and deterministic for a given plan and node budget: the same value, move and node count on every machine, except that a plan naming the \"ode\" root estimate can count nodes differently on another platform (and so, near the budget, finish on one and not the other). The search runs on the page's own thread (about a second or two per million nodes on connect-4): a large budget freezes the tab until it ends. It is a best move, not the best move: another plan may pick another, equally good one. The game is what sides, reward and auto say it is; the net's rates play no part, and the move is not fired.",
+      "followUps": ["can_happen", "stuck"]
     }
   ]
 }
