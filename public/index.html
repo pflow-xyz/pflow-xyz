@@ -97,8 +97,8 @@
             font-weight: 500;
             padding: 6px 10px;
             border-radius: 6px;
-            background: rgba(0, 0, 0, 0.45);
-            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+            background: color-mix(in srgb, black 45%, transparent);
+            text-shadow: 0 1px 2px color-mix(in srgb, black 60%, transparent);
             transition: color 0.2s, background 0.2s;
         }
 
@@ -146,10 +146,10 @@
             position: absolute;
             inset: 0;
             background:
-                radial-gradient(ellipse 70% 60% at 50% 50%, rgba(0, 0, 0, 0.72) 0%, rgba(0, 0, 0, 0.55) 55%, rgba(0, 0, 0, 0) 100%),
-                linear-gradient(to bottom, rgba(0, 0, 0, 0.55) 0%, rgba(0, 0, 0, 0) 22%);
+                radial-gradient(ellipse 70% 60% at 50% 50%, color-mix(in srgb, black 72%, transparent) 0%, color-mix(in srgb, black 55%, transparent) 55%, transparent 100%),
+                linear-gradient(to bottom, color-mix(in srgb, black 55%, transparent) 0%, transparent 22%);
         }
-        .landing-hero-content p, .landing-hero-content label, .landing-hero-content small { text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7); }
+        .landing-hero-content p, .landing-hero-content label, .landing-hero-content small { text-shadow: 0 1px 3px color-mix(in srgb, black 70%, transparent); }
 
         .landing-hero-content {
             position: relative;
@@ -287,7 +287,7 @@
             border-bottom: 1px solid var(--pf-border);
         }
 
-        .model-card-img { padding: 10px; background: color-mix(in srgb, var(--pf-bg-card) 88%, #fff); }
+        .model-card-img { padding: 10px; background: color-mix(in srgb, var(--pf-bg-card) 88%, white); }
         .model-card-img img {
             width: 100%;
             height: 100%;

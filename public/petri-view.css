@@ -3680,7 +3680,7 @@ canvas.pv-canvas {
 .pv-simulating .pv-tool.pv-active { background: none; box-shadow: none; }
 .pv-simulating .pv-play {
     background: var(--pv-accent);
-    color: #fff;
+    color: white;
     box-shadow: 0 0 0 2px color-mix(in srgb, var(--pv-accent) 35%, transparent);
 }
 
