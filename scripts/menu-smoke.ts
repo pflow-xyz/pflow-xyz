@@ -851,8 +851,8 @@ try {
     const want = [
       "💾 Save Permalink", "🗑️ Delete", "☁️ Save to my account…", "🗂️ Open from my account…", "✨ Describe a process…", "💬 Assistant",
       "🧮 Analysis (ODE, scans, phase)", "📱 App view", "🧩 Components", "❓ What do you want to know?", "🎲 Simulate (stochastic, influence, what-if)",
-      "🔬 Structure (invariants, verify, reach)", "✅ Check net", "📊 Results", "🎨 Layout Algorithms", "📝 Toggle Editor", "⚙ Display Settings",
-      "📥 Download JSON", "❓ Help", "📊 Sim — Run & Check", "📖 Book", "🖥 Native App", "🧩 Composition Views", "GitHub",
+      "🔬 Structure (invariants, verify, reach)", "✅ Check net", "📊 Results", "🎨 Layout Algorithms", "📝 Toggle Editor", "⚙️ Display Settings",
+      "📥 Download JSON", "❓ Help", "📊 Sim — Run & Check", "📖 Book ↗", "🖥 Native App ↗", "🧩 Composition Views ↗", "GitHub",
     ];
     for (const w of want) ok(all.includes(w), `the old hamburger still has "${w}"`, all.join(" | "));
     ok(await p.eval(`!!document.querySelector('.pv-hamburger-content .pv-menu-version')`), "and its version footer");
@@ -895,7 +895,7 @@ try {
     const dd = await p.eval(`(() => { const d = document.querySelector('#solo .pv-hamburger-dropdown'); return d && getComputedStyle(d).display !== 'none' ? [...d.querySelectorAll('.pv-menu-item')].map((e) => e.textContent.trim()) : null; })()`);
     ok(dd, "it opens a dropdown (not the left-hand panel)");
     if (dd) {
-      for (const w of ["🧮 Analysis (ODE, scans, phase)", "📱 App view", "🧩 Components", "❓ What do you want to know?", "🎲 Simulate (stochastic, influence, what-if)", "🔬 Structure (invariants, verify, reach)", "✅ Check net", "📊 Results", "🎨 Layout Algorithms", "📝 Toggle Editor", "⚙ Display Settings", "📥 Download JSON", "❓ Help", "📊 Sim — Run & Check", "📖 Book", "🖥 Native App", "GitHub"]) ok(dd.includes(w), `standalone: "${w}"`, dd.join(" | "));
+      for (const w of ["🧮 Analysis (ODE, scans, phase)", "📱 App view", "🧩 Components", "❓ What do you want to know?", "🎲 Simulate (stochastic, influence, what-if)", "🔬 Structure (invariants, verify, reach)", "✅ Check net", "📊 Results", "🎨 Layout Algorithms", "📝 Toggle Editor", "⚙️ Display Settings", "📥 Download JSON", "❓ Help", "📊 Sim — Run & Check", "📖 Book ↗", "🖥 Native App ↗", "GitHub"]) ok(dd.includes(w), `standalone: "${w}"`, dd.join(" | "));
       ok(!dd.some((t: string) => /Save Permalink|Login|Composition Views/.test(t)), "and none of the server's entries (no account, no Compose)");
     }
     await p.eval(`[...document.querySelectorAll('#solo .pv-menu-item')].find((e) => e.textContent.includes('Help')).click()`);

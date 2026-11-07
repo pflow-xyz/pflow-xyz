@@ -550,6 +550,11 @@
                 grid-template-columns: 1fr;
             }
         }
+        /* The links carry a backing pill now (readable over the video): tighten it on a phone so the row still fits. */
+        @media (max-width: 480px) {
+            .landing-nav-links { gap: 6px; }
+            .landing-nav-links a { padding: 4px 6px; font-size: 14px; }
+        }
         /* The narrowest phones: the logo and four links are 331px of 288. Shrunk, they fit on a line; any narrower, they
            wrap, and two lines still clear the hero's 76px. */
         @media (max-width: 380px) {
@@ -561,10 +566,11 @@
                 height: 22px;
             }
             .landing-nav-links {
-                gap: 10px;
+                gap: 4px;
             }
             .landing-nav-links a {
                 font-size: 13px;
+                padding: 3px 4px;
             }
         }
         /* The prompt, its routes and its words are taller than the old hero: grow with them, below the nav. */
