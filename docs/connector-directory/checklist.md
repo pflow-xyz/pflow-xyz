@@ -92,8 +92,8 @@ declares no CSP exceptions. It is a new, smaller canvas: `/compose.html`'s ten v
 ## Already met
 
 - Remote HTTPS, Streamable HTTP, stateless: `https://pflow.xyz/mcp`.
-- 30 tools, each with a `title` and read-only and destructive hints; only `pflow_save` is destructive;
-  longest name 23 characters (`TestDirectoryToolRules`).
+- 36 tools, each with a `title` and read-only and destructive hints; only `pflow_save` is destructive;
+  longest name 24 characters (`pflow_bundle_check_proof`), checked by `TestDirectoryToolRules`.
 - Sign-in on demand: OAuth 2.0 with dynamic client registration, which accepts any https redirect, so
   `https://claude.ai/api/mcp/auth_callback` registers. Both discovery documents answer 200 live. A real
   sign-in from Claude is part of the tool run above.
