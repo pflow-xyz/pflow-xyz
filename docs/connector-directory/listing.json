@@ -20,7 +20,7 @@
       "id": "canvas",
       "status": "building",
       "evidence_tool": "pflow_canvas",
-      "claim_markers": ["inline", "mcp app", "in the conversation"],
+      "claim_markers": ["inline canvas", "canvas inline", "opens inline", "mcp app", "in the conversation"],
       "copy_when_open": "Snap parts together on a canvas right in the conversation: pick a port, the legal joins light up, and every join is checked as you make it."
     },
     {
