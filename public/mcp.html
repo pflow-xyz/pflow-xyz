@@ -27,7 +27,7 @@ td:first-child{white-space:nowrap}nav a{margin-right:1rem}.lede{font-size:1.1rem
 <ul>
 <li><b>Snap parts together.</b> Start from a catalog of parts (a bounded queue, a resource pool, a two-step saga) or your own models. Ask which connections are legal, join the parts, and run scenarios on the result.</li>
 <li><b>Find out whether it holds.</b> Can it deadlock? What does it conserve? What changes when one rate moves? The answers come from an engine, not an estimate, with a replayable counterexample when a property fails.</li>
-<li><b>Cite what you built.</b> Every model has a content ID (CID): the same model always gets the same ID.</li>
+<li><b>Cite what you built.</b> Every model has a content ID (CID): the same model always gets the same ID. The CID is computed from the model's content by <a href="https://github.com/pflow-xyz/pflow-xyz">open-source code</a>, so whoever you send it to can recompute it.</li>
 </ul>
 <p>Under the hood every model is a Petri net, so runs replay and proofs check. You don't need to know that to use it. The tools below say "net" for a single model and "composition" for parts joined together.</p>
 

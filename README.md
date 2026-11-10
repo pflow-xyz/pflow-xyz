@@ -28,7 +28,7 @@ Describe a decision, process or mechanism to your AI assistant and get back a mo
 | **[go-pflow](https://github.com/pflow-xyz/go-pflow)** | Core library — ODE/SSA/SDE engines, fitting, reachability & verification | Go |
 | **[pflow-rs](https://github.com/pflow-xyz/pflow-rs)** | Rust port — ODE solvers, token-model DSL, ZK provers | Rust |
 | **[pflow-jl](https://github.com/pflow-xyz/pflow-jl)** | Julia port, bridged to AlgebraicPetri.jl for categorical composition | Julia |
-| **[sim-pflow-xyz](https://sim.pflow.xyz)** | Describe a process, get a model you can run and check (hosted, MCP) | Go |
+| **[sim.pflow.xyz](https://sim.pflow.xyz)** | Describe a process, get a model you can run and check (hosted, MCP; source not public) | Go |
 | **[book-pflow-xyz](https://github.com/pflow-xyz/book-pflow-xyz)** | "Petri Nets as a Universal Abstraction" — practitioner's guide | mdBook |
 
 ```
@@ -121,6 +121,8 @@ const sol = Solver.solve(prob, Solver.Tsit5(), { dt: 0.01 });
 
 ## AI-Assisted Development (MCP)
 
+pflow.xyz serves its own MCP server at `https://pflow.xyz/mcp` (`pflow_*` tools: check, simulate, explore, prove and publish a net; see [pflow.xyz/mcp.html](https://pflow.xyz/mcp.html)). Its source is this repo (`cmd/webserver`, over go-pflow). The same tools run offline, with no account, as [`@pflow-xyz/pflow-mcp`](https://www.npmjs.com/package/@pflow-xyz/pflow-mcp) from pflow-rs.
+
 [sim.pflow.xyz](https://sim.pflow.xyz) provides an MCP server for AI assistants to build, run and check models. This repo ships a `.mcp.json` pointing at the hosted server, so Claude Code picks it up automatically (in the terminal and on the web). To add it to other clients:
 
 ```bash
@@ -164,6 +166,33 @@ pv.importJSON(jsonData);
 | **npm** | [@pflow-xyz/pflow-xyz](https://www.npmjs.com/package/@pflow-xyz/pflow-xyz) |
 | **Schema** | [pflow.xyz/schema](https://pflow.xyz/schema) |
 
+## Check it yourself
+
+The editor, the hosted MCP server, the engines and the saved nets are public, so
+a result from pflow.xyz can be re-run instead of trusted:
+
+- **A net and its CID.** `https://pflow.xyz/o/<cid>` returns a saved net as
+  JSON-LD, for anyone. Its CID is CIDv1 (dag-json, sha2-256, base58btc) over the
+  URDNA2015 canonical form of the net, computed by `internal/seal` (Go) and
+  `public/seal-cid.mjs` (browser), which `make test-parity` holds to
+  `parity/golden.json`; go-pflow and pflow-rs compute the same value. To recompute
+  one, drop the `@id` and the `author` that the store adds after sealing, and call
+  `computeCid` from `seal-cid.mjs`. Not every saved net passes: of the six landing
+  examples, coffee-shop and usdc-bridge do not recompute to the CID they are stored
+  under (checked 2026-11-10; cause not yet found).
+- **A seeded simulation.** The browser SSA is byte-exact with go-pflow and pflow-rs
+  at the same seed (`parity/ssa/`, from go-pflow's goldens); the ODE solver is held
+  to go-pflow's expected values (`parity/ode/`).
+- **A verdict on a page.** A `pflow_artifact` page carries the net, its CID and an
+  editor link. Its reachability verdicts come from the engine, and a deadlock comes
+  with a trace the page replays. With `engine: "wasm"` the page loads the pflow-rs
+  engine, `@pflow-xyz/engine`, pinned to an exact version with an SRI hash.
+- **A hosted answer.** The `pflow_*` tools are in `cmd/webserver`, over go-pflow;
+  pflow-rs replays captured answers from them in its tests.
+
+What this does not cover: sim.pflow.xyz, which this page links to, is a separate
+hosted service whose source is not public.
+
 ## Contributing
 
 We don't merge outside code, so pull requests won't be merged as-is.
@@ -172,4 +201,4 @@ Feature requests and bug reports are welcome: please open an
 
 ## License
 
-See [LICENSE](LICENSE) file for details.
+MIT. See [LICENSE](LICENSE).
