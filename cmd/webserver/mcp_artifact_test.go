@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto/sha256"
+	"crypto/sha512"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
@@ -204,13 +205,13 @@ func TestArtifactEngineLock(t *testing.T) {
 	}
 }
 
-// The wasm page embeds the engine as base64 (decoded with atob, never fetched)
+// The wasm-inline page embeds the engine as base64 (decoded with atob, never fetched)
 // and the source net for re-analysis. With node on the path, the page's own
 // script is syntax-checked and the embedded engine is run on the embedded net:
 // it must agree with go-pflow's baked verdicts, which is what the page checks
 // on load.
-func TestArtifactWasm(t *testing.T) {
-	sum, page := artifactCall(t, `{"net":`+philosophers3(t)+`,"engine":"wasm"}`)
+func TestArtifactWasmInline(t *testing.T) {
+	sum, page := artifactCall(t, `{"net":`+philosophers3(t)+`,"engine":"wasm-inline"}`)
 	if strings.Contains(page, `fetch("data:`) || !strings.Contains(page, "WebAssembly.instantiate(bytes") || !strings.Contains(page, "atob(") {
 		t.Error("the engine must be decoded with atob and instantiated from bytes")
 	}
@@ -223,10 +224,13 @@ func TestArtifactWasm(t *testing.T) {
 		t.Fatal("embedded engine is not artifact/engine.wasm")
 	}
 	d := pageData(t, page)
-	if d["source"] == nil || d["engine"] != "wasm" {
-		t.Error("wasm page needs the source net")
+	if d["source"] == nil || d["engine"] != "wasm-inline" {
+		t.Error("wasm-inline page needs the source net")
 	}
-	t.Logf("wasm philosophers page: %d bytes (summary says %v)", len(page), sum["html_bytes"])
+	if strings.Contains(page, "<script src=") {
+		t.Error("wasm-inline loads nothing")
+	}
+	t.Logf("wasm-inline philosophers page: %d bytes (summary says %v)", len(page), sum["html_bytes"])
 
 	node, err := exec.LookPath("node")
 	if err != nil {
@@ -271,10 +275,153 @@ process.exit(JSON.stringify(got) === JSON.stringify(want) ? 0 : 1);
 func TestArtifactSizes(t *testing.T) {
 	_, baked := artifactCall(t, `{"net":`+philosophers3(t)+`}`)
 	_, wasm := artifactCall(t, `{"net":`+philosophers3(t)+`,"engine":"wasm"}`)
+	_, inline := artifactCall(t, `{"net":`+philosophers3(t)+`,"engine":"wasm-inline"}`)
 	if len(baked) > 40<<10 {
 		t.Errorf("baked page is %d bytes", len(baked))
 	}
-	if len(wasm) > maxArtifactResultBytes || len(wasm) < len(artifactEngine) {
-		t.Errorf("wasm page is %d bytes", len(wasm))
+	// The point of engine "wasm": a page a chat client does not truncate.
+	if len(wasm) > 80<<10 {
+		t.Errorf("wasm page is %d bytes, over the 80 KB budget", len(wasm))
+	}
+	if len(inline) > maxArtifactResultBytes || len(inline) < len(artifactEngine) {
+		t.Errorf("wasm-inline page is %d bytes", len(inline))
+	}
+	t.Logf("philosophers3: baked %d B, wasm %d B, wasm-inline %d B", len(baked), len(wasm), len(inline))
+}
+
+// engine "wasm" loads @pflow-xyz/engine from jsDelivr, pinned to an exact
+// version with an SRI hash, before the page script and synchronously; the
+// page itself carries no engine bytes.
+var reExactSemver = regexp.MustCompile(`^[0-9]+\.[0-9]+\.[0-9]+$`)
+
+func TestArtifactEngineCDNPinned(t *testing.T) {
+	c := artifactCDN
+	if c.Package != "@pflow-xyz/engine" || c.File == "" {
+		t.Fatalf("lock names %q / %q", c.Package, c.File)
+	}
+	if !reExactSemver.MatchString(c.Version) {
+		t.Errorf("version %q is not an exact x.y.z (never a range, a tag or latest)", c.Version)
+	}
+	if !strings.HasPrefix(c.Integrity, "sha384-") {
+		t.Errorf("integrity %q is not an SRI sha384", c.Integrity)
+	}
+	sum, page := artifactCall(t, `{"net":`+philosophers3(t)+`,"engine":"wasm"}`)
+	want := `<script src="https://cdn.jsdelivr.net/npm/@pflow-xyz/engine@` + c.Version + "/" + c.File + `" integrity="` + c.Integrity + `" crossorigin="anonymous"></script>`
+	i, j := strings.Index(page, want), strings.Index(page, "<script>\n")
+	if i < 0 {
+		t.Fatalf("no pinned engine script; want %s", want)
+	}
+	if j < 0 || i > j {
+		t.Error("the engine script must come before the page script")
+	}
+	if n := strings.Count(page, "<script src="); n != 1 {
+		t.Errorf("the page loads %d scripts; only the engine script may load", n)
+	}
+	for _, bad := range []string{"@latest", "@^", "@~", `id="pflow-engine"`} {
+		if strings.Contains(page, bad) {
+			t.Errorf("page contains %q", bad)
+		}
+	}
+	if sum["engine"] != "wasm" || sum["engine_script"] != artifactCDN.URL() {
+		t.Errorf("summary: engine %v, engine_script %v", sum["engine"], sum["engine_script"])
+	}
+	d := pageData(t, page)
+	if d["source"] == nil || d["engine"] != "wasm" {
+		t.Error("wasm page needs the source net")
+	}
+	// The fallback: a missing PflowEngine keeps the baked verdicts and says so.
+	if !strings.Contains(page, `typeof PflowEngine === "undefined"`) || !strings.Contains(page, "did not load") {
+		t.Error("the page must fall back to the baked verdicts when the engine script does not load")
+	}
+	// With the built package at hand (PFLOW_ENGINE_JS=…/pflow-engine.js), its
+	// bytes must be the ones the integrity hash names.
+	if f := os.Getenv("PFLOW_ENGINE_JS"); f != "" {
+		b, err := os.ReadFile(f)
+		if err != nil {
+			t.Fatal(err)
+		}
+		h := sha512.Sum384(b)
+		if got := "sha384-" + base64.StdEncoding.EncodeToString(h[:]); got != c.Integrity {
+			t.Errorf("%s is %s, the lock pins %s", f, got, c.Integrity)
+		}
+		node, err := exec.LookPath("node")
+		if err != nil {
+			t.Skip("node not found: engine script not run")
+		}
+		// Run it as the page does (a classic script, then PflowEngine.load()) on
+		// the page's own net: it must agree with go-pflow's baked verdicts.
+		tmp := t.TempDir()
+		dataJSON, _ := json.Marshal(d)
+		os.WriteFile(filepath.Join(tmp, "data.json"), dataJSON, 0o644)
+		harness := `import { readFileSync } from "node:fs"; import vm from "node:vm";
+const [js, data] = process.argv.slice(2);
+const D = JSON.parse(readFileSync(data, "utf8"));
+const g = { atob, Blob, Response, DecompressionStream, TextEncoder, TextDecoder, WebAssembly, BigInt, Uint8Array, JSON, Number, Promise };
+g.globalThis = g; vm.createContext(g); vm.runInContext(readFileSync(js, "utf8"), g);
+const e = await g.PflowEngine.load();
+const a = e.analyze({ net: D.source, max_states: D.analysis.max_states }), w = D.analysis;
+const got = [a.state_count, a.edge_count, a.complete, a.deadlock_free, a.live, a.quasi_live, a.bounded, a.p_invariants.length, a.witness && a.witness.trace];
+const want = [w.states, w.edges, w.complete, w.deadlock_free, w.live, w.quasi_live, w.bounded, D.invariants.length, w.witness && w.witness.trace];
+console.log(JSON.stringify({ got, want }));
+process.exit(JSON.stringify(got) === JSON.stringify(want) ? 0 : 1);
+`
+		os.WriteFile(filepath.Join(tmp, "harness.mjs"), []byte(harness), 0o644)
+		if out, err := exec.Command(node, filepath.Join(tmp, "harness.mjs"), f, filepath.Join(tmp, "data.json")).CombinedOutput(); err != nil {
+			t.Fatalf("@pflow-xyz/engine disagrees with go-pflow: %v\n%s", err, out)
+		}
+	}
+}
+
+// A stored net by cid: same verdicts as passing it inline, and the editor
+// link is ?cid=, not the net inline.
+func TestArtifactByCID(t *testing.T) {
+	dir := t.TempDir()
+	s := &Server{storage: NewFSStorage(filepath.Join(dir, "store"))}
+	net := philosophers3(t)
+	var doc map[string]any
+	json.Unmarshal([]byte(net), &doc)
+	raw, _ := json.Marshal(doc)
+	const cid = "zb2rhTestPhilosophers3"
+	if err := s.storage.SaveObject(cid, raw, []byte("c")); err != nil {
+		t.Fatal(err)
+	}
+	call := func(args string) (map[string]any, string, map[string]any) {
+		_, out := mcpCall(t, s, toolCall("pflow_artifact", args))
+		res := out["result"].(map[string]any)
+		content := res["content"].([]any)
+		if res["isError"] == true {
+			return nil, "", map[string]any{"error": content[0].(map[string]any)["text"]}
+		}
+		var sum map[string]any
+		json.Unmarshal([]byte(content[0].(map[string]any)["text"].(string)), &sum)
+		return sum, content[1].(map[string]any)["text"].(string), nil
+	}
+	sum, page, e := call(`{"cid":"` + cid + `","engine":"wasm"}`)
+	if e != nil {
+		t.Fatalf("by cid: %v", e)
+	}
+	if sum["cid"] != cid || sum["stored"] != true {
+		t.Errorf("summary cid %v stored %v", sum["cid"], sum["stored"])
+	}
+	if ed, _ := sum["editor"].(string); !strings.HasSuffix(ed, "/?cid="+cid) {
+		t.Errorf("editor link %q, want ?cid=", ed)
+	}
+	if strings.Contains(page, "?data=") {
+		t.Error("a stored net's page must not carry the net inline in the editor link")
+	}
+	inlineSum, _ := artifactCall(t, `{"net":`+net+`,"engine":"wasm"}`)
+	a, _ := json.Marshal(sum["verdicts"])
+	b, _ := json.Marshal(inlineSum["verdicts"])
+	if string(a) != string(b) {
+		t.Errorf("by cid %s, inline %s", a, b)
+	}
+	if _, _, e := call(`{"cid":"` + cid + `","net":` + net + `}`); e == nil {
+		t.Error("net and cid together must be refused")
+	}
+	if _, _, e := call(`{"cid":"zNoSuchNet"}`); e == nil {
+		t.Error("an unknown cid must be refused")
+	}
+	if _, _, e := call(`{}`); e == nil {
+		t.Error("neither net nor cid must be refused")
 	}
 }

@@ -379,7 +379,7 @@ __PFLOW_ENGINE__<script>
     $("pf-theme").textContent = "Theme: " + themes[theme];
   });
 
-  // ---- wasm engine (engine "wasm" only) ----
+  // ---- wasm engine (engine "wasm" or "wasm-inline") ----
   function normalize(a) {
     return {
       states: a.state_count, edges: a.edge_count, complete: a.complete,
@@ -389,6 +389,15 @@ __PFLOW_ENGINE__<script>
     };
   }
   async function loadEngine() {
+    if (D.engine === "wasm") {
+      // @pflow-xyz/engine, loaded by the <script src> before this one (pinned
+      // version, cdn.jsdelivr.net). If it did not load, the baked verdicts stand.
+      if (typeof PflowEngine === "undefined" || !PflowEngine.load) {
+        throw new Error("its script (@pflow-xyz/engine from cdn.jsdelivr.net) did not load, so this page shows only the verdicts computed when it was made");
+      }
+      const eng = await PflowEngine.load();
+      return (fn, req) => eng.call(fn, req);
+    }
     const b64 = document.getElementById("pflow-engine").textContent.trim();
     const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0)); // never fetch a data: URI
     const { instance } = await WebAssembly.instantiate(bytes, {});
@@ -467,7 +476,8 @@ __PFLOW_ENGINE__<script>
   $("pf-cid").textContent = D.cid;
   $("pf-editor").href = D.editor;
   $("pf-stored").textContent = D.stored ? "(stored on pflow.xyz)" : "(the net travels in the link)";
-  $("pf-engine").textContent = D.engine === "wasm" ? "Starting the in-page engine…" : "Verdicts by go-pflow on pflow.xyz, computed when this page was made.";
+  const inPage = D.engine === "wasm" || D.engine === "wasm-inline";
+  $("pf-engine").textContent = inPage ? "Starting the in-page engine…" : "Verdicts by go-pflow on pflow.xyz, computed when this page was made.";
   $("pf-step").addEventListener("click", () => {
     const en = enabledIn(m);
     if (en.length) tryFire(en[Math.floor(Math.random() * en.length)]);
@@ -476,6 +486,6 @@ __PFLOW_ENGINE__<script>
   $("pf-replay").addEventListener("click", replay);
   renderVerdicts();
   render();
-  if (D.engine === "wasm") startWasm();
+  if (inPage) startWasm();
 })();
 </script>

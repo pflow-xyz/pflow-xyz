@@ -86,6 +86,7 @@ go_library(
         "//conditions:default": [],
     }),
     embedsrcs = [
+        "artifact/engine-cdn.lock.json",
         "artifact/engine.wasm",
         "artifact/page.html",
         "mcpapp/canvas.html",

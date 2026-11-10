@@ -1,0 +1,9 @@
+{
+  "_comment": "pflow_artifact engine \"wasm\" loads this script from jsDelivr before the page script: @pflow-xyz/engine (pflow-rs crates/pflow-artifact-engine, commit 44643a4), one UMD file that embeds the same reachability engine as artifact/engine.wasm and defines the global PflowEngine. Pinned to an exact version, never a range or latest; integrity is the SRI hash of that file as built and published, so a changed file refuses to run. TestArtifactEngineCDNPinned holds this. To move it: publish a new version, check `npm view`, then update version, integrity and sha256 together.",
+  "package": "@pflow-xyz/engine",
+  "version": "0.1.0",
+  "file": "pflow-engine.js",
+  "integrity": "sha384-GXS4iUtIz3QQD0nTey9Tn+JDYpEKSbYkiju5cjoLyiRaCW2LhVd00kOClPWNWgAN",
+  "sha256": "6d85c1936ad6fed05c837cda5cddb417983bbcc9c0e6825b95c331b67464e74f",
+  "bytes": 217963
+}

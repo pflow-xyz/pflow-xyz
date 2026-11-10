@@ -562,6 +562,8 @@ func (s *Server) mcpDispatch(r *http.Request, req rpcRequest) (rpcResponse, bool
 				"When the person wants to see, play or share a model, call pflow_artifact and publish the HTML it returns as a page " +
 				"(an Artifact) as it is: it draws the net, plays the token game, shows the verdicts and invariants the engines computed " +
 				"and links the editor. Do not hand-roll such a page, whose verdicts would be your own rather than the engine's. " +
+				"For a stored net pass its cid rather than the net. engine \"wasm\" lets the person re-analyze an edited marking in the page " +
+				"and stays about the size of the default; avoid \"wasm-inline\", which most chat clients truncate. " +
 				"When the person wants to keep pflow's workflow across sessions, offer pflow_skill and save what it returns as a skill; never save it without asking.",
 		}
 	case "ping":

@@ -8,15 +8,25 @@ package main
 // (graph.go isEnabled/Fire, the contract petri-sim.js and parity/sim hold)
 // and re-checks the P-invariants after every firing.
 //
-// engine "wasm" also embeds pflow-rs's reachability engine (artifact/
-// engine.wasm, from experiments/artifact-wasm; artifact/engine.lock.json) as
-// base64, decoded with atob and compiled with WebAssembly.instantiate — never
-// fetched, since an Artifact's CSP blocks fetch("data:…") — so the page can
-// re-analyze when the person edits the initial marking, and cross-checks the
-// server's verdicts on load.
+// engine "wasm" adds pflow-rs's reachability engine to the page as one
+// <script src> from jsDelivr: @pflow-xyz/engine (pflow-rs crates/
+// pflow-artifact-engine), pinned to an exact version with an SRI hash
+// (artifact/engine-cdn.lock.json). That script embeds the module and defines
+// PflowEngine, because an Artifact's CSP lets a page load a script from
+// cdn.jsdelivr.net/npm but blocks any other fetch, a .wasm from the same host
+// included. The page stays the size of a baked one, re-analyzes when the
+// person edits the initial marking, and cross-checks the server's verdicts on
+// load; if the script does not load, the baked verdicts stand and the page
+// says so.
+//
+// engine "wasm-inline" is the older form: the same engine (artifact/
+// engine.wasm, artifact/engine.lock.json) embedded as base64 in the page,
+// decoded with atob and compiled with WebAssembly.instantiate (never fetched).
+// It loads nothing, but the page is about 450 KB, which most chat clients
+// truncate as a tool result.
 //
 // The page is a fragment (no doctype, html, head or body): the client wraps
-// it. It loads nothing from anywhere.
+// it. Only engine "wasm" loads anything, and only that one script.
 
 import (
 	_ "embed"
@@ -39,9 +49,39 @@ var artifactPage string
 //go:embed artifact/engine.wasm
 var artifactEngine []byte
 
+//go:embed artifact/engine-cdn.lock.json
+var artifactEngineCDNLock []byte
+
+// engineCDN is the pinned @pflow-xyz/engine script engine "wasm" loads.
+type engineCDN struct {
+	Package   string `json:"package"`
+	Version   string `json:"version"`
+	File      string `json:"file"`
+	Integrity string `json:"integrity"`
+}
+
+var artifactCDN = func() engineCDN {
+	var c engineCDN
+	if err := json.Unmarshal(artifactEngineCDNLock, &c); err != nil {
+		panic("artifact/engine-cdn.lock.json: " + err.Error())
+	}
+	return c
+}()
+
+// URL is the jsDelivr URL of the pinned file.
+func (c engineCDN) URL() string {
+	return "https://cdn.jsdelivr.net/npm/" + c.Package + "@" + c.Version + "/" + c.File
+}
+
+// scriptTag is the <script> engine "wasm" puts before the page script. No
+// async or defer: it must have run (or failed) when the page script starts.
+func (c engineCDN) scriptTag() string {
+	return `<script src="` + c.URL() + `" integrity="` + c.Integrity + `" crossorigin="anonymous"></script>` + "\n"
+}
+
 // maxArtifactResultBytes bounds a pflow_artifact answer. It is over the
-// general ~60KB guard because the page is the point of the call: a baked page
-// is tens of KB, a wasm one about 450KB (the engine as base64).
+// general ~60KB guard because the page is the point of the call: a baked or
+// wasm page is tens of KB, a wasm-inline one about 450KB (the engine as base64).
 const maxArtifactResultBytes = 1 << 20
 
 const ontologyNS = "https://ontology.pflow.xyz/ns#"
@@ -52,14 +92,17 @@ func artifactTool() mcpTool {
 		Description: "One net as a self-contained interactive HTML page, for the person to see, play or share: publish the returned html as a page (an Artifact) as it is, without rewriting it. " +
 			"The page draws the net from its own x/y, plays the token game (click or press Enter on an enabled transition, random step, reset), shows the verdicts of pflow_reachability and the P-invariants of pflow_invariants (re-checked after every firing), " +
 			"replays the deadlock or livelock witness, tags the net with the ontology.pflow.xyz class its verdicts earn (LiveNet ⊂ DeadlockFreeNet ⊂ PetriNet, BoundedNet), and links the editor. " +
-			"The html is a fragment (no doctype/html/head/body: the host wraps it) and loads nothing from any host. " +
-			"engine \"baked\" (default, tens of KB) fixes the verdicts at the net's marking; \"wasm\" (about 450 KB, the pflow-rs engine embedded as base64) lets the person edit the initial marking and re-analyze in the page. Single-colour nets only.",
+			"The html is a fragment (no doctype/html/head/body: the host wraps it). Give the net inline as net, or a stored net by cid (then the editor link is ?cid= rather than the net inline, and the net need not pass through the conversation). " +
+			"engine \"baked\" (default, tens of KB, loads nothing) fixes the verdicts at the net's marking. " +
+			"\"wasm\" (about the size of baked) also loads the pflow-rs engine as one script pinned to an exact version on cdn.jsdelivr.net (@pflow-xyz/engine, " + artifactCDN.Version + "), so the person can edit the initial marking and re-analyze in the page; if that script cannot load, the page keeps the baked verdicts and says so. " +
+			"\"wasm-inline\" embeds the same engine as base64 instead (about 450 KB, loads nothing); most chat clients truncate a tool result that large, so prefer \"wasm\". Single-colour nets only.",
 		InputSchema: obj(map[string]any{
 			"net":        netArg,
+			"cid":        map[string]any{"type": "string", "description": "a stored net's CID, instead of net"},
 			"title":      map[string]any{"type": "string", "description": "page title (default: the net's name)"},
 			"max_states": map[string]any{"type": "integer", "description": "reachability budget (default 2000, ≤ 20000)"},
-			"engine":     map[string]any{"type": "string", "enum": []any{"baked", "wasm"}, "description": "baked (default) or wasm"},
-		}, "net"),
+			"engine":     map[string]any{"type": "string", "enum": []any{"baked", "wasm", "wasm-inline"}, "description": "baked (default; verdicts fixed), wasm (re-analyze in the page; loads the pinned engine script from cdn.jsdelivr.net) or wasm-inline (the engine embedded, ~450 KB: most chat clients truncate it)"},
+		}),
 		run: mcpArtifact,
 	}
 }
@@ -121,6 +164,30 @@ func ontologyClasses(complete bool, live, deadlockFree, bounded any) []string {
 }
 
 func mcpArtifact(s *Server, r *http.Request, args map[string]any) (any, error) {
+	cidArg, _ := args["cid"].(string)
+	cidArg = strings.TrimSpace(cidArg)
+	if cidArg != "" {
+		if args["net"] != nil {
+			return nil, errors.New("give net or cid, not both")
+		}
+		got, err := mcpGet(s, r, map[string]any{"cid": cidArg})
+		if err != nil {
+			return nil, err
+		}
+		g := got.(map[string]any)
+		if k, ok := g["kind"]; ok {
+			return nil, fmt.Errorf("pflow_artifact draws nets; %s is a %v (flatten it with pflow_bundle_flatten, or open it with pflow_links)", cidArg, k)
+		}
+		next := map[string]any{"net": g["net"]}
+		for _, k := range []string{"title", "max_states", "engine"} {
+			if v, ok := args[k]; ok {
+				next[k] = v
+			}
+		}
+		args = next
+	} else if args["net"] == nil {
+		return nil, errors.New("give a net, or the cid of a stored one")
+	}
 	raw, doc, err := netBytes(args)
 	if err != nil {
 		return nil, err
@@ -129,8 +196,8 @@ func mcpArtifact(s *Server, r *http.Request, args map[string]any) (any, error) {
 	if engine == "" {
 		engine = "baked"
 	}
-	if engine != "baked" && engine != "wasm" {
-		return nil, errors.New(`engine: "baked" or "wasm"`)
+	if engine != "baked" && engine != "wasm" && engine != "wasm-inline" {
+		return nil, errors.New(`engine: "baked", "wasm" or "wasm-inline"`)
 	}
 	maxStates, err := numArg(args, "max_states", 2000, 1, maxMCPStates)
 	if err != nil {
@@ -199,16 +266,20 @@ func mcpArtifact(s *Server, r *http.Request, args map[string]any) (any, error) {
 	if err != nil {
 		return nil, fmt.Errorf("does not seal: %v", err)
 	}
+	cid := id.CID
 	base := s.getRequestScheme(r) + "://" + r.Host
 	stored := false
-	if s.storage != nil {
-		if _, err := s.storage.GetObject(id.CID); err == nil {
+	if cidArg != "" {
+		// Read from the store under this CID: the link names what was asked for.
+		cid, stored = cidArg, true
+	} else if s.storage != nil {
+		if _, err := s.storage.GetObject(cid); err == nil {
 			stored = true
 		}
 	}
 	editor := base + "/?data=" + url.QueryEscape(url.QueryEscape(string(raw)))
 	if stored {
-		editor = base + "/?cid=" + url.QueryEscape(id.CID)
+		editor = base + "/?cid=" + url.QueryEscape(cid)
 	}
 
 	title, _ := args["title"].(string)
@@ -226,10 +297,10 @@ func mcpArtifact(s *Server, r *http.Request, args map[string]any) (any, error) {
 
 	classes := ontologyClasses(complete, reach["live"], reach["deadlock_free"], reach["bounded"])
 	data := map[string]any{
-		"title": title, "cid": id.CID, "editor": editor, "stored": stored, "engine": engine,
+		"title": title, "cid": cid, "editor": editor, "stored": stored, "engine": engine,
 		"net": page, "analysis": analysis, "invariants": invs,
 	}
-	if engine == "wasm" {
+	if engine == "wasm" || engine == "wasm-inline" {
 		data["source"] = doc
 	}
 	blob, err := json.Marshal(data) // escapes <, > and &, so the blob cannot close its script
@@ -238,7 +309,10 @@ func mcpArtifact(s *Server, r *http.Request, args map[string]any) (any, error) {
 	}
 	// The engine goes before the page script, which reads it as it runs.
 	eng := ""
-	if engine == "wasm" {
+	switch engine {
+	case "wasm":
+		eng = artifactCDN.scriptTag()
+	case "wasm-inline":
 		eng = `<script type="application/octet-stream" id="pflow-engine">` + base64.StdEncoding.EncodeToString(artifactEngine) + "</script>\n"
 	}
 	// One pass over the template: a Replacer never re-scans text it has inserted,
@@ -254,7 +328,7 @@ func mcpArtifact(s *Server, r *http.Request, args map[string]any) (any, error) {
 		iris = append(iris, map[string]string{"class": c, "iri": ontologyNS + c})
 	}
 	summary := map[string]any{
-		"title": title, "cid": id.CID, "editor": editor, "stored": stored, "engine": engine,
+		"title": title, "cid": cid, "editor": editor, "stored": stored, "engine": engine,
 		"html_bytes": len(out), "classes": iris,
 		"verdicts": map[string]any{"states": reach["states"], "edges": reach["edges"], "complete": complete,
 			"deadlock_free": reach["deadlock_free"], "live": reach["live"], "quasi_live": reach["quasi_live"], "bounded": reach["bounded"]},
@@ -263,6 +337,9 @@ func mcpArtifact(s *Server, r *http.Request, args map[string]any) (any, error) {
 	}
 	if w, ok := reach["witness"]; ok && w != nil {
 		summary["witness"] = w
+	}
+	if engine == "wasm" {
+		summary["engine_script"] = artifactCDN.URL()
 	}
 	if len(out)+4096 > maxArtifactResultBytes {
 		return nil, fmt.Errorf("the page would be %d bytes, over %d; use engine \"baked\" or a smaller net", len(out), maxArtifactResultBytes)
