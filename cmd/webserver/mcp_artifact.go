@@ -45,7 +45,12 @@ import (
 )
 
 //go:embed artifact/page.html
-var artifactPage string
+var artifactPageSource string
+
+// artifactPage is what pflow_artifact fills in: the template with its script
+// compacted. The source stays commented and indented; the client copies the
+// bytes, so the page does not carry them.
+var artifactPage = compactScript(artifactPageSource)
 
 //go:embed artifact/engine.wasm
 var artifactEngine []byte

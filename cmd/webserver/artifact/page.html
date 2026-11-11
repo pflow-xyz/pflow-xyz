@@ -229,6 +229,8 @@ __PFLOW_ENGINE__<script>
   let trace = [];
   let analysis = D.analysis;
   let invariants = D.invariants;
+  // What the net's own arcs and the latest analysis say about it; recomputed (derive) after an edit or a re-analysis.
+  let derived = { structural: D.structural || [], creators: D.creators || [], destroyers: D.destroyers || [] };
   let replaying = false;
   let engineCall = null;
 
@@ -456,7 +458,7 @@ __PFLOW_ENGINE__<script>
     else if (a.deadlock_free === true) out.push("DeadlockFreeNet");
     else out.push("PetriNet");
     if (a.complete && a.bounded === true) out.push("BoundedNet");
-    for (const c of D.structural || []) out.push(c);
+    for (const c of derived.structural) out.push(c);
     return out;
   }
   function renderClasses() {
@@ -485,8 +487,8 @@ __PFLOW_ENGINE__<script>
       const li = document.createElement("li");
       const mk = (ids) => ids.map((i) => name(T.get(i))).join(", ");
       const why = [];
-      if ((D.creators || []).length) why.push(`${mk(D.creators)} ${D.creators.length === 1 ? "creates" : "create"} tokens from nothing`);
-      if ((D.destroyers || []).length) why.push(`${mk(D.destroyers)} ${D.destroyers.length === 1 ? "removes" : "remove"} tokens without a trace`);
+      if (derived.creators.length) why.push(`${mk(derived.creators)} ${derived.creators.length === 1 ? "creates" : "create"} tokens from nothing`);
+      if (derived.destroyers.length) why.push(`${mk(derived.destroyers)} ${derived.destroyers.length === 1 ? "removes" : "remove"} tokens without a trace`);
       li.textContent = "No weighted token count is conserved" + (why.length ? ": " + why.join("; ") + "." : ".");
       ul.appendChild(li);
       return;
@@ -570,11 +572,6 @@ __PFLOW_ENGINE__<script>
       return out;
     };
   }
-  function netWith(mk) {
-    const src = JSON.parse(JSON.stringify(D.source));
-    for (const id in mk) if (src.places && src.places[id]) src.places[id].initial = [mk[id]];
-    return src;
-  }
   function setupMarkingEditor() {
     $("pf-marking-card").hidden = false;
     const tb = $("pf-mk");
@@ -598,17 +595,20 @@ __PFLOW_ENGINE__<script>
         if (!Number.isInteger(v) || v < 0) { $("pf-analyze-msg").textContent = `${inp.dataset.place}: a whole number, 0 or more`; return; }
         mk[inp.dataset.place] = v;
       }
+      const before = { ...initial };
       try {
         const t0 = performance.now();
-        const a = engineCall("analyze", { net: netWith(mk), max_states: D.analysis.max_states });
-        analysis = normalize(a);
-        invariants = (a.p_invariants || []).map((i) => ({ coefficients: i.coefficients, value: i.value, equation: i.render }));
-        initial = mk;
+        Object.assign(initial, mk);
+        markEdited();
+        const a = engineCall("analyze", { net: JSON.parse(JSON.stringify(currentNet())), max_states: D.analysis.max_states });
+        applyAnalysis(a);
         $("pf-engine").textContent = `Re-analyzed in this page by ${a.engine} in ${Math.round(performance.now() - t0)} ms.`;
         $("pf-analyze-msg").textContent = "";
-        renderVerdicts();
         reset();
+        syncInputs();
       } catch (e) {
+        Object.assign(initial, before);
+        markEdited();
         $("pf-analyze-msg").textContent = "Engine error: " + e.message;
       }
     });
@@ -677,7 +677,71 @@ __PFLOW_ENGINE__<script>
   function markEdited() {
     edited = JSON.stringify([initial, rates, net.arcs.map((a) => a.weight)]) !== JSON.stringify([orig.initial, orig.rates, orig.weights]);
     // Verdicts depend on the marking and the arc weights, not on rates.
-    $("pf-stale").hidden = JSON.stringify([initial, net.arcs.map((a) => a.weight)]) === JSON.stringify([orig.initial, orig.weights]);
+    $("pf-stale").hidden = !isStale();
+    derive();
+    renderClasses();
+  }
+  const sig = () => JSON.stringify([initial, net.arcs.map((a) => a.weight)]);
+  let analysedSig = sig();
+  const isStale = () => sig() !== analysedSig;
+  const usedPlaces = () => {
+    const s = new Set();
+    for (const a of net.arcs) { if (P.has(a.source)) s.add(a.source); if (P.has(a.target)) s.add(a.target); }
+    return s;
+  };
+  // Drop the invariants that only say an unused colour slot stays empty, as the server does.
+  function meaningful(list) {
+    const used = usedPlaces();
+    return list.filter((inv) => {
+      const c = inv.coefficients;
+      if (!c || Array.isArray(c)) return true;
+      return Object.keys(c).some((id) => c[id] !== 0 && used.has(id));
+    });
+  }
+  function isStateMachineNet() {
+    if (!tids.length) return false;
+    const i = {}, o = {};
+    for (const a of net.arcs) {
+      if (a.inhibit || a.weight !== 1) return false;
+      if (T.has(a.target)) i[a.target] = (i[a.target] || 0) + 1;
+      else if (T.has(a.source)) o[a.source] = (o[a.source] || 0) + 1;
+    }
+    return tids.every((t) => i[t] === 1 && o[t] === 1);
+  }
+  function isMarkedGraphNet() {
+    if (!net.places.length) return false;
+    const i = {}, o = {};
+    for (const a of net.arcs) {
+      if (a.inhibit || a.weight !== 1) return false;
+      if (P.has(a.target)) i[a.target] = (i[a.target] || 0) + 1;
+      else if (P.has(a.source)) o[a.source] = (o[a.source] || 0) + 1;
+    }
+    return net.places.every((p) => i[p.id] === 1 && o[p.id] === 1);
+  }
+  function isConservativeNet() {
+    const used = [...usedPlaces()];
+    return used.length > 0 && invariants.some((inv) => inv.coefficients && !Array.isArray(inv.coefficients) && used.every((id) => (inv.coefficients[id] || 0) > 0));
+  }
+  // The shape of the net as it is now (arcs), and what the last analysis said (only while it still describes this net).
+  function derive() {
+    const stale = isStale(), has = new Set(), outs = new Set(), s = [];
+    for (const a of net.arcs) if (!a.inhibit) { has.add(a.target); outs.add(a.source); }
+    if (COLORED) s.push("ColoredNet");
+    if (isStateMachineNet()) s.push("StateMachineNet");
+    if (isMarkedGraphNet()) s.push("MarkedGraphNet");
+    if (!stale && isConservativeNet()) s.push("ConservativeNet");
+    if (!stale && analysis.bounded === false) s.push("UnboundedNet");
+    derived = { structural: s, creators: tids.filter((x) => !has.has(x)), destroyers: tids.filter((x) => !outs.has(x)) };
+  }
+  // A fresh analysis from the in-page engine: verdicts, invariants and everything derived from them.
+  function applyAnalysis(raw) {
+    analysis = normalize(raw);
+    invariants = meaningful((raw.p_invariants || []).map((i) => ({ coefficients: i.coefficients, value: i.value, equation: i.render })));
+    analysedSig = sig();
+    $("pf-stale").hidden = true;
+    derive();
+    renderVerdicts();
+    render();
   }
   function field(box, id, label, value, step, onSet, min) {
     const l = document.createElement("label");
@@ -689,6 +753,7 @@ __PFLOW_ENGINE__<script>
     l.append(sp, i); box.appendChild(l);
   }
   function syncInputs() {
+    for (const i of document.querySelectorAll("#pf-mk input")) if (document.activeElement !== i) i.value = String(initial[i.dataset.place]);
     for (const i of document.querySelectorAll("input[data-bind]")) {
       const [kind, key] = i.dataset.bind.split("|");
       if (document.activeElement === i) continue;
@@ -924,11 +989,8 @@ __PFLOW_ENGINE__<script>
     if (!engineCall) { out.textContent = inPage ? "The in-page engine has not started (yet)." : "This page was made without the in-page engine. Ask for engine “wasm”."; return; }
     try {
       const src = JSON.parse(JSON.stringify(currentNet()));
-      const a = normalize(engineCall("analyze", { net: src, max_states: D.analysis.max_states }));
-      analysis = a;
-      renderVerdicts();
-      $("pf-stale").hidden = true;
-      out.textContent = "Verdicts recomputed for the edited net.";
+      applyAnalysis(engineCall("analyze", { net: src, max_states: D.analysis.max_states }));
+      out.textContent = "Verdicts, invariants and classes recomputed for the edited net.";
     } catch (e) { out.textContent = "Engine error: " + e.message; }
   });
 
@@ -948,6 +1010,7 @@ __PFLOW_ENGINE__<script>
   });
   $("pf-reset").addEventListener("click", reset);
   $("pf-replay").addEventListener("click", replay);
+  derive();
   renderVerdicts();
   render();
   applyViews();

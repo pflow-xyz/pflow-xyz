@@ -364,3 +364,25 @@ func fallbackTitle(places []artPlace, cmap *petri.ColorMap) (string, string) {
 	}
 	return t, "places"
 }
+
+// compactScript drops the full-line comments, blank lines and leading
+// indentation of the page's script. It touches nothing else: no line is joined
+// to another, so automatic semicolon insertion reads the same code, and the
+// script has no multi-line template literal for the indentation to change.
+func compactScript(page string) string {
+	i := strings.Index(page, "<script>\n(() => {")
+	j := strings.LastIndex(page, "</script>")
+	if i < 0 || j < i {
+		return page
+	}
+	var b strings.Builder
+	for _, line := range strings.Split(page[i:j], "\n") {
+		s := strings.TrimLeft(line, " \t")
+		if s == "" || strings.HasPrefix(s, "//") {
+			continue
+		}
+		b.WriteString(s)
+		b.WriteByte('\n')
+	}
+	return page[:i] + b.String() + page[j:]
+}

@@ -564,3 +564,41 @@ func TestArtifactTitles(t *testing.T) {
 		t.Errorf("the net's name: %v", sum)
 	}
 }
+
+// Re-analysing in the page goes through one function, so the invariants are
+// filtered the way the server filters them and the classes are recomputed from
+// the edited arcs. (The behaviour itself was run with the real engine in a DOM;
+// this holds the wiring: both re-analysis buttons call applyAnalysis, and the
+// old unfiltered path is gone.)
+func TestArtifactReanalysisWiring(t *testing.T) {
+	_, page := artifactCall(t, `{"net":`+artRingNet+`,"engine":"wasm-inline"}`)
+	if n := strings.Count(page, "applyAnalysis("); n < 3 { // definition + dialog + marking card
+		t.Errorf("applyAnalysis used %d times", n)
+	}
+	for _, want := range []string{"function meaningful(", "function derive(", "derived.structural", "derived.creators"} {
+		if !strings.Contains(page, want) {
+			t.Errorf("page lacks %q", want)
+		}
+	}
+	for _, gone := range []string{"function netWith(", "for (const c of D.structural", "(D.creators || [])"} {
+		if strings.Contains(page, gone) {
+			t.Errorf("page still has %q", gone)
+		}
+	}
+}
+
+// Compacting the script must not change what it does: no line joined to
+// another, and the page still parses.
+func TestCompactScript(t *testing.T) {
+	if len(artifactPage) >= len(artifactPageSource) {
+		t.Errorf("compacted %d >= source %d", len(artifactPage), len(artifactPageSource))
+	}
+	in := "x<script>\n(() => {\n  // a comment\n  const a = 1;\n\n    const b = `x ${a}`;\n})();\n</script>y"
+	want := "x<script>\n(() => {\nconst a = 1;\nconst b = `x ${a}`;\n})();\n</script>y"
+	if got := compactScript(in); got != want {
+		t.Errorf("compactScript = %q", got)
+	}
+	if got := compactScript("no script here"); got != "no script here" {
+		t.Errorf("a page without the script is left alone: %q", got)
+	}
+}
