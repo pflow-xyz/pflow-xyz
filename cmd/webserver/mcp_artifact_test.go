@@ -175,14 +175,9 @@ func TestArtifactPlaceholderText(t *testing.T) {
 }
 
 func TestArtifactRefusals(t *testing.T) {
-	colored := `{"@context":"https://pflow.xyz/schema","@type":"PetriNet","token":["https://pflow.xyz/tokens/red","https://pflow.xyz/tokens/blue"],
-	 "places":{"a":{"initial":[1,1],"x":0,"y":0}},"transitions":{"t":{"x":0,"y":0}},"arcs":[{"source":"a","target":"t","weight":[1,0]}]}`
 	for name, args := range map[string]string{
 		"engine": `{"net":` + artRingNet + `,"engine":"native"}`,
-		// A coloured net is drawn from its unfolding (TestArtifactColoredNet); the
-		// in-page engine reads single-colour nets only.
-		"colours with the in-page engine": `{"net":` + colored + `,"engine":"wasm"}`,
-		"no net":                          `{}`,
+		"no net": `{}`,
 	} {
 		_, out := mcpCall(t, &Server{}, toolCall("pflow_artifact", args))
 		if res, _ := out["result"].(map[string]any); res == nil || res["isError"] != true {
@@ -527,8 +522,45 @@ func TestArtifactColoredNet(t *testing.T) {
 	if sum["views"].(map[string]any)["lead"] != "dynamics" {
 		t.Errorf("4 base places and 5 transitions lead with the graph: %v", sum["views"])
 	}
-	_, out := mcpCall(t, &Server{}, toolCall("pflow_artifact", `{"net":`+string(raw)+`,"engine":"wasm"}`))
-	if b, _ := json.Marshal(out); !strings.Contains(string(b), "single-colour") {
-		t.Errorf("engine wasm on a coloured net should say why not: %s", b)
+	// The in-page engine reads single-colour nets, so it is given the unfolding.
+	_, wpage := artifactCall(t, `{"net":`+string(raw)+`,"engine":"wasm"}`)
+	wd := pageData(t, wpage)
+	src, _ := wd["source"].(map[string]any)
+	if src == nil || len(src["places"].(map[string]any)) != 12 || src["token"] != nil {
+		t.Errorf("wasm source should be the 12-place unfolding: %v", wd["source"])
+	}
+	// Capacities bound the markings (11 x 11 x 11 x 6 here), so the default
+	// search finishes and the verdicts are real; the unused colour slots add no
+	// invariants, and the reasons nothing is conserved are named.
+	v := sum["verdicts"].(map[string]any)
+	if v["complete"] != true || v["bounded"] != true || sum["budget_note"] == nil {
+		t.Errorf("verdicts = %v, budget_note %v", v, sum["budget_note"])
+	}
+	if d["invariants"] == nil || len(d["invariants"].([]any)) != 0 {
+		t.Errorf("only slot-is-empty invariants should be dropped: %v", d["invariants"])
+	}
+	if len(d["creators"].([]any)) == 0 || sum["save_hint"] == nil {
+		t.Errorf("creators %v, save_hint %v", d["creators"], sum["save_hint"])
+	}
+}
+
+// A page is named after what the caller said, then the net's name, then its
+// places; "Petri net" is the last resort, and the summary flags every fallback.
+func TestArtifactTitles(t *testing.T) {
+	raw, err := os.ReadFile("../../examples/landing/coffee-shop.jsonld") // no name
+	if err != nil {
+		t.Fatal(err)
+	}
+	sum, page := artifactCall(t, `{"net":`+string(raw)+`}`)
+	if !strings.HasPrefix(page, "<title>Coffee Beans, Empty Cups, Served Coffee +1</title>") || sum["title_source"] != "places" || sum["title_is_default"] != true || sum["title_hint"] == nil {
+		t.Errorf("fallback from the places: %v / %.80s", sum["title_source"], page)
+	}
+	sum, page = artifactCall(t, `{"net":`+string(raw)+`,"title":"Coffee shop"}`)
+	if !strings.HasPrefix(page, "<title>Coffee shop</title>") || sum["title_is_default"] != nil || sum["title_source"] != "title" {
+		t.Errorf("explicit title: %v / %.60s", sum["title_source"], page)
+	}
+	sum, _ = artifactCall(t, `{"net":`+artRingNet+`}`)
+	if sum["title"] != "ring" || sum["title_source"] != "name" || sum["title_is_default"] != nil {
+		t.Errorf("the net's name: %v", sum)
 	}
 }

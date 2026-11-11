@@ -95,14 +95,14 @@ func artifactTool() mcpTool {
 			"replays the deadlock or livelock witness, tags the net with the ontology.pflow.xyz classes it earns (behaviour: LiveNet ⊂ DeadlockFreeNet ⊂ PetriNet, BoundedNet, UnboundedNet; shape: StateMachineNet, MarkedGraphNet, ConservativeNet), and links the editor. " +
 			"The page chooses what to lead with from the net (the summary's views.lead says which): a few places and transitions, or an unbounded net, lead with the graph, the populations over time and the phase plane, because there the dynamics are the point; a small bounded net leads with the token game and verdicts; a net of about 60 nodes or more leads with verdicts and P-invariants. " +
 			"Every view stays available: Explore this model, at the bottom of every page, exposes the hidden ones and lets the person edit the marking, the transition rates (the net's optional per-transition rate, default 1) and the arc weights in the page. Read views.lead before telling the person what the page shows first. " +
-			"The html is a fragment (no doctype/html/head/body: the host wraps it). Give the net inline as net, or a stored net by cid (then the editor link is ?cid= rather than the net inline, and the net need not pass through the conversation). " +
+			"The html is a fragment (no doctype/html/head/body: the host wraps it). Always pass title, a short specific name for the model: the page's <title> is the artifact's name in the browser tab and the gallery, so \"Petri net\" makes every page look alike (the summary says title_is_default when you left it out). Give the net inline as net, or a stored net by cid (then the editor link is ?cid= rather than the net inline, and the net need not pass through the conversation). " +
 			"engine \"baked\" (default, tens of KB, loads nothing) fixes the verdicts at the net's marking. " +
 			"\"wasm\" (about the size of baked) also loads the pflow-rs engine as one script pinned to an exact version on cdn.jsdelivr.net (@pflow-xyz/engine, " + artifactCDN.Version + "), so the person can edit the initial marking and re-analyze in the page; if that script cannot load, the page keeps the baked verdicts and says so. " +
-			"\"wasm-inline\" embeds the same engine as base64 instead (about 450 KB, loads nothing); most chat clients truncate a tool result that large, so prefer \"wasm\". Coloured nets (more than one token colour) are drawn too: the page plays the net's unfolding, one place per colour with the transitions shared, so a firing moves every colour its arcs name together, and it draws each colour in its own colour (tokens, arcs and graph lines; the summary's classes include ColoredNet). The in-page engine reads single-colour nets only, so a coloured net needs engine \"baked\".",
+			"\"wasm-inline\" embeds the same engine as base64 instead (about 450 KB, loads nothing); most chat clients truncate a tool result that large, so prefer \"wasm\". Coloured nets (more than one token colour) are drawn too: the page plays the net's unfolding, one place per colour with the transitions shared, so a firing moves every colour its arcs name together, and it draws each colour in its own colour (tokens, arcs and graph lines; the summary's classes include ColoredNet). With engine \"wasm\" the in-page engine is given the same unfolding. max_states defaults to 2000, or to the number of possible markings when every place has a capacity (up to 20000), so a capacity-bounded net gets real verdicts.",
 		InputSchema: obj(map[string]any{
 			"net":        netArg,
 			"cid":        map[string]any{"type": "string", "description": "a stored net's CID, instead of net"},
-			"title":      map[string]any{"type": "string", "description": "page title (default: the net's name)"},
+			"title":      map[string]any{"type": "string", "description": "page title and the name to publish it under: two to four words naming the model (\"Coffee shop\", \"Dining philosophers\"), never \"Petri net\". Default: the net's name, else its place labels"},
 			"max_states": map[string]any{"type": "integer", "description": "reachability budget (default 2000, ≤ 20000)"},
 			"engine":     map[string]any{"type": "string", "enum": []any{"baked", "wasm", "wasm-inline"}, "description": "baked (default; verdicts fixed), wasm (re-analyze in the page; loads the pinned engine script from cdn.jsdelivr.net) or wasm-inline (the engine embedded, ~450 KB: most chat clients truncate it)"},
 		}),
@@ -232,13 +232,11 @@ func mcpArtifact(s *Server, r *http.Request, args map[string]any) (any, error) {
 	// A coloured net is played as its unfolding: one place per colour, the
 	// transitions shared, so a firing moves every colour atomically. That is the
 	// net the verdict handlers analyse, and the page draws the colours of one
-	// place together. The in-page engine reads single-colour nets only.
+	// place together. The in-page engine reads single-colour nets, so it is given
+	// the unfolding as well (data.source).
 	var colors []artColor
 	var cmap *petri.ColorMap
 	if len(norm.Token) > 1 {
-		if engine != "baked" {
-			return nil, fmt.Errorf("this net has %d token colours; the in-page engine reads single-colour nets, so use engine \"baked\" (the verdicts are still go-pflow's, on the unfolded net)", len(norm.Token))
-		}
 		for _, tk := range norm.Token {
 			colors = append(colors, tokenColor(tk))
 		}
@@ -293,6 +291,19 @@ func mcpArtifact(s *Server, r *http.Request, args map[string]any) (any, error) {
 		arcs = append(arcs, aa)
 	}
 	page["places"], page["transitions"], page["arcs"] = places, trans, arcs
+	// A net whose every place has a capacity has at most the product of
+	// (capacity+1) markings: size the search to finish rather than stop at 2000.
+	budgetNote := ""
+	if _, given := args["max_states"]; !given {
+		if b := capacityBound(places, arcs); b > int(maxStates) {
+			want := float64(b)
+			if want > maxMCPStates {
+				want = maxMCPStates
+			}
+			maxStates = want
+			budgetNote = fmt.Sprintf("Every place has a capacity, so at most %d markings are possible; the search was given %d states.", b, int(want))
+		}
+	}
 
 	// The verdicts: pflow_reachability's and pflow_invariants' own handlers.
 	ra, err := mcpReachability(s, r, map[string]any{"net": doc, "max_states": maxStates})
@@ -317,6 +328,10 @@ func mcpArtifact(s *Server, r *http.Request, args map[string]any) (any, error) {
 		}
 	}
 
+	touched := touchedPlaces(arcs)
+	invs = meaningfulInvariants(invs, touched)
+	creators, destroyers := tokenSources(trans, arcs)
+
 	id, err := model.Identify(raw)
 	if err != nil {
 		return nil, fmt.Errorf("does not seal: %v", err)
@@ -339,12 +354,14 @@ func mcpArtifact(s *Server, r *http.Request, args map[string]any) (any, error) {
 
 	title, _ := args["title"].(string)
 	title = strings.TrimSpace(title)
+	titleSource := "title"
 	if title == "" {
 		title, _ = doc["name"].(string)
 		title = strings.TrimSpace(title)
+		titleSource = "name"
 	}
 	if title == "" {
-		title = "Petri net"
+		title, titleSource = fallbackTitle(places, cmap)
 	}
 	if r := []rune(title); len(r) > 120 {
 		title = string(r[:120])
@@ -364,9 +381,15 @@ func mcpArtifact(s *Server, r *http.Request, args map[string]any) (any, error) {
 		"title": title, "cid": cid, "editor": editor, "stored": stored, "engine": engine,
 		"net": page, "analysis": analysis, "invariants": invs,
 	}
-	if engine == "wasm" || engine == "wasm-inline" || cmap != nil {
+	if engine == "wasm" || engine == "wasm-inline" {
 		data["source"] = doc
+		if cmap != nil {
+			data["source"] = unfoldedDoc(title, places, trans, arcs, rates)
+		}
+	} else if cmap != nil {
+		data["source"] = unfoldedDoc(title, places, trans, arcs, rates)
 	}
+	data["creators"], data["destroyers"] = creators, destroyers
 	if cmap != nil {
 		data["colors"] = colors
 	}
@@ -396,7 +419,7 @@ func mcpArtifact(s *Server, r *http.Request, args map[string]any) (any, error) {
 	}
 	summary := map[string]any{
 		"title": title, "cid": cid, "editor": editor, "stored": stored, "engine": engine,
-		"html_bytes": len(out), "classes": iris,
+		"html_bytes": len(out), "classes": iris, "title_source": titleSource,
 		"verdicts": map[string]any{"states": reach["states"], "edges": reach["edges"], "complete": complete,
 			"deadlock_free": reach["deadlock_free"], "live": reach["live"], "quasi_live": reach["quasi_live"], "bounded": reach["bounded"]},
 		"p_invariants": len(invs),
@@ -408,6 +431,18 @@ func mcpArtifact(s *Server, r *http.Request, args map[string]any) (any, error) {
 	}
 	if engine == "wasm" {
 		summary["engine_script"] = artifactCDN.URL()
+	}
+	if budgetNote != "" {
+		summary["budget_note"] = budgetNote
+	}
+	if !stored {
+		summary["save_hint"] = "Not stored on pflow.xyz: the editor link carries the whole net. pflow_save (needs a sign-in) stores it, then pass the cid for a short link."
+	}
+	if titleSource != "title" && titleSource != "name" {
+		// The page is named after the net's places, or "Petri net": tab titles and
+		// the gallery would all read alike. Say so, so the caller can name it.
+		summary["title_is_default"] = true
+		summary["title_hint"] = "No title and no name on the net, so the page is called " + `"` + title + `"` + ". Publish it under a short specific name (two to four words for the model, for example \"Coffee shop\"); pass title to pflow_artifact to have it in the page too."
 	}
 	if len(out)+4096 > maxArtifactResultBytes {
 		return nil, fmt.Errorf("the page would be %d bytes, over %d; use engine \"baked\" or a smaller net", len(out), maxArtifactResultBytes)

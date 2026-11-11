@@ -483,7 +483,11 @@ __PFLOW_ENGINE__<script>
     ul.replaceChildren();
     if (!invariants.length) {
       const li = document.createElement("li");
-      li.textContent = "No semi-positive P-invariant: no weighted token count is conserved.";
+      const mk = (ids) => ids.map((i) => name(T.get(i))).join(", ");
+      const why = [];
+      if ((D.creators || []).length) why.push(`${mk(D.creators)} ${D.creators.length === 1 ? "creates" : "create"} tokens from nothing`);
+      if ((D.destroyers || []).length) why.push(`${mk(D.destroyers)} ${D.destroyers.length === 1 ? "removes" : "remove"} tokens without a trace`);
+      li.textContent = "No weighted token count is conserved" + (why.length ? ": " + why.join("; ") + "." : ".");
       ul.appendChild(li);
       return;
     }

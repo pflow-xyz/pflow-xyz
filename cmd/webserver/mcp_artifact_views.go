@@ -2,7 +2,10 @@ package main
 
 import (
 	"encoding/json"
+	"strconv"
 	"strings"
+
+	"github.com/pflow-xyz/go-pflow/petri"
 )
 
 // What a pflow_artifact page leads with, and what else the ontology can say
@@ -86,7 +89,7 @@ func structuralClasses(places []artPlace, trans []artTransition, arcs []artArc, 
 	if isMarkedGraph(places, arcs) {
 		out = append(out, "MarkedGraphNet")
 	}
-	if isConservative(len(places), invs) {
+	if isConservative(touchedPlaces(arcs), invs) {
 		out = append(out, "ConservativeNet")
 	}
 	if bounded == false {
@@ -152,34 +155,128 @@ func isMarkedGraph(places []artPlace, arcs []artArc) bool {
 // isConservative: some P-invariant has a positive coefficient on every place,
 // so the weighted token count never changes. The coefficients arrive as a
 // list or a place-keyed map depending on the handler; read either.
-func isConservative(nPlaces int, invs []map[string]any) bool {
-	if nPlaces == 0 {
+func isConservative(touched map[string]bool, invs []map[string]any) bool {
+	if len(touched) == 0 {
 		return false
 	}
 	for _, inv := range invs {
-		raw, err := json.Marshal(inv["coefficients"])
-		if err != nil {
-			continue
+		co := coefficientMap(inv)
+		ok := true
+		for id := range touched {
+			if co[id] <= 0 {
+				ok = false
+				break
+			}
 		}
-		var list []float64
-		if json.Unmarshal(raw, &list) == nil {
-			if len(list) == nPlaces && allPositive(list) {
-				return true
-			}
-			continue
-		}
-		var m map[string]float64
-		if json.Unmarshal(raw, &m) == nil && len(m) == nPlaces {
-			vals := make([]float64, 0, len(m))
-			for _, v := range m {
-				vals = append(vals, v)
-			}
-			if allPositive(vals) {
-				return true
-			}
+		if ok {
+			return true
 		}
 	}
 	return false
+}
+
+// coefficientMap reads an invariant's coefficients, place id to weight.
+func coefficientMap(inv map[string]any) map[string]float64 {
+	raw, err := json.Marshal(inv["coefficients"])
+	if err != nil {
+		return nil
+	}
+	m := map[string]float64{}
+	_ = json.Unmarshal(raw, &m)
+	return m
+}
+
+// touchedPlaces are the places some arc names. In an unfolded coloured net the
+// others are colour slots that never hold a token.
+func touchedPlaces(arcs []artArc) map[string]bool {
+	out := map[string]bool{}
+	for _, a := range arcs {
+		out[a.Source], out[a.Target] = true, true
+	}
+	return out
+}
+
+// meaningfulInvariants drops the invariants that only say an unused colour
+// slot stays empty ("no brown tokens in Waiting Customers"): a conservation law
+// has to involve a place the net actually uses.
+func meaningfulInvariants(invs []map[string]any, touched map[string]bool) []map[string]any {
+	out := []map[string]any{}
+	for _, inv := range invs {
+		for id, c := range coefficientMap(inv) {
+			if c != 0 && touched[id] {
+				out = append(out, inv)
+				break
+			}
+		}
+	}
+	return out
+}
+
+// tokenSources names the transitions that create tokens from nothing (no
+// input arc) and those that destroy them (no output arc), the usual reason
+// nothing is conserved.
+func tokenSources(trans []artTransition, arcs []artArc) (creators, destroyers []string) {
+	creators, destroyers = []string{}, []string{}
+	in, out := map[string]bool{}, map[string]bool{}
+	for _, a := range arcs {
+		if a.Inhibit {
+			continue
+		}
+		in[a.Target], out[a.Source] = true, true
+	}
+	for _, t := range trans {
+		if !in[t.ID] {
+			creators = append(creators, t.ID)
+		}
+		if !out[t.ID] {
+			destroyers = append(destroyers, t.ID)
+		}
+	}
+	return
+}
+
+// capacityBound is the number of markings a net can have when every place it
+// uses has a capacity, else 0 (no bound from capacities alone).
+func capacityBound(places []artPlace, arcs []artArc) int {
+	touched := touchedPlaces(arcs)
+	b := 1
+	for _, p := range places {
+		if !touched[p.ID] {
+			continue
+		}
+		if p.Capacity <= 0 {
+			return 0
+		}
+		b *= p.Capacity + 1
+		if b > 1<<30 {
+			return 1 << 30
+		}
+	}
+	return b
+}
+
+// unfoldedDoc is a coloured net's unfolding as a single-colour net document,
+// the form the in-page engine and the editor read.
+func unfoldedDoc(title string, places []artPlace, trans []artTransition, arcs []artArc, rates map[string]float64) map[string]any {
+	pl, tr, ar := map[string]any{}, map[string]any{}, []any{}
+	for _, p := range places {
+		pl[p.ID] = map[string]any{"initial": []int{p.Initial}, "capacity": []int{p.Capacity}, "x": p.X, "y": p.Y, "label": p.Label}
+	}
+	for _, t := range trans {
+		o := map[string]any{"x": t.X, "y": t.Y}
+		if r, ok := rates[t.ID]; ok {
+			o["rate"] = r
+		}
+		tr[t.ID] = o
+	}
+	for _, a := range arcs {
+		o := map[string]any{"source": a.Source, "target": a.Target, "weight": []int{a.Weight}}
+		if a.Inhibit {
+			o["inhibitTransition"] = true
+		}
+		ar = append(ar, o)
+	}
+	return map[string]any{"@context": "https://pflow.xyz/schema", "@type": "PetriNet", "name": title, "places": pl, "transitions": tr, "arcs": ar}
 }
 
 func allPositive(v []float64) bool {
@@ -229,4 +326,35 @@ func tokenColor(url string) artColor {
 		css = "#" + name
 	}
 	return artColor{Name: name, CSS: css}
+}
+
+// fallbackTitle names a page whose caller gave no title and whose net has no
+// name: its first three place labels ("Coffee Beans, Empty Cups, Served
+// Coffee +1"), one entry per place as written even when the net is coloured.
+// "Petri net" remains only for a net with no usable labels.
+func fallbackTitle(places []artPlace, cmap *petri.ColorMap) (string, string) {
+	var labels []string
+	seen := map[string]bool{}
+	for _, p := range places {
+		l, key := p.Label, p.ID
+		if cmap != nil {
+			l, key = p.BaseLabel, p.Base
+		}
+		if l == "" {
+			l = key
+		}
+		if seen[key] || strings.TrimSpace(l) == "" {
+			continue
+		}
+		seen[key] = true
+		labels = append(labels, strings.TrimSpace(l))
+	}
+	if len(labels) == 0 {
+		return "Petri net", "default"
+	}
+	t := strings.Join(labels[:min(3, len(labels))], ", ")
+	if len(labels) > 3 {
+		t += " +" + strconv.Itoa(len(labels)-3)
+	}
+	return t, "places"
 }
