@@ -172,16 +172,16 @@ func ontologyClasses(complete bool, live, deadlockFree, bounded any) []string {
 	var out []string
 	switch {
 	case !complete:
-		out = append(out, "PetriNet")
+		out = append(out, classPetriNet)
 	case live == true:
-		out = append(out, "LiveNet")
+		out = append(out, classLiveNet)
 	case deadlockFree == true:
-		out = append(out, "DeadlockFreeNet")
+		out = append(out, classDeadlockFreeNet)
 	default:
-		out = append(out, "PetriNet")
+		out = append(out, classPetriNet)
 	}
 	if complete && bounded == true {
-		out = append(out, "BoundedNet")
+		out = append(out, classBoundedNet)
 	}
 	return out
 }
@@ -376,7 +376,7 @@ func mcpArtifact(s *Server, r *http.Request, args map[string]any) (any, error) {
 	structural := structuralClasses(places, trans, arcs, invs, reach["bounded"])
 	nBase := len(places)
 	if cmap != nil {
-		structural = append([]string{"ColoredNet"}, structural...)
+		structural = append([]string{classColoredNet}, structural...)
 		nBase = len(cmap.Expanded)
 	}
 	classes = append(classes, structural...)
