@@ -26,6 +26,29 @@ const (
 	viewInv      = "inv"
 )
 
+// The ontology classes pflow_artifact can return. Each must be declared in
+// ontology.pflow.xyz (ns/core.ttl in ontology-pflow-xyz, with a label and a
+// comment, and in its embedded release). testdata/ontology-net-classes.txt
+// records the list, and TestArtifactClassesAreInTheOntologyList holds this file
+// to it; ontology-pflow-xyz's classes_guard_test.go holds the ontology to the
+// same names. Add a class here, add it to the file, and declare it there first.
+const (
+	classPetriNet        = "PetriNet"
+	classLiveNet         = "LiveNet"
+	classDeadlockFreeNet = "DeadlockFreeNet"
+	classBoundedNet      = "BoundedNet"
+	classUnboundedNet    = "UnboundedNet"
+	classStateMachineNet = "StateMachineNet"
+	classMarkedGraphNet  = "MarkedGraphNet"
+	classConservativeNet = "ConservativeNet"
+	classColoredNet      = "ColoredNet"
+)
+
+var allArtifactClasses = []string{
+	classPetriNet, classLiveNet, classDeadlockFreeNet, classBoundedNet, classUnboundedNet,
+	classStateMachineNet, classMarkedGraphNet, classConservativeNet, classColoredNet,
+}
+
 var allViews = []string{viewGame, viewGraph, viewVerdicts, viewClass, viewInv}
 
 // viewAdvice is what the page gets as D.views.
@@ -84,16 +107,16 @@ func recommendViews(nPlaces, nTrans int, complete bool, bounded any) viewAdvice 
 func structuralClasses(places []artPlace, trans []artTransition, arcs []artArc, invs []map[string]any, bounded any) []string {
 	var out []string
 	if isStateMachine(trans, arcs) {
-		out = append(out, "StateMachineNet")
+		out = append(out, classStateMachineNet)
 	}
 	if isMarkedGraph(places, arcs) {
-		out = append(out, "MarkedGraphNet")
+		out = append(out, classMarkedGraphNet)
 	}
 	if isConservative(touchedPlaces(places, arcs), invs) {
-		out = append(out, "ConservativeNet")
+		out = append(out, classConservativeNet)
 	}
 	if bounded == false {
-		out = append(out, "UnboundedNet")
+		out = append(out, classUnboundedNet)
 	}
 	return out
 }

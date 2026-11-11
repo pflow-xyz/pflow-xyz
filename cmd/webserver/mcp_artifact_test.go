@@ -602,3 +602,68 @@ func TestCompactScript(t *testing.T) {
 		t.Errorf("a page without the script is left alone: %q", got)
 	}
 }
+
+// pflow_artifact names ontology classes; one that the ontology does not declare
+// would be a dead link on the page and in the summary. The list is a contract
+// file shared by name with ontology-pflow-xyz's classes_guard_test.go.
+func ontologyClassFile(t *testing.T) map[string]bool {
+	t.Helper()
+	b, err := os.ReadFile("testdata/ontology-net-classes.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	out := map[string]bool{}
+	for _, l := range strings.Split(string(b), "\n") {
+		if l = strings.TrimSpace(l); l != "" && !strings.HasPrefix(l, "#") {
+			out[l] = true
+		}
+	}
+	return out
+}
+
+func TestArtifactClassesAreInTheOntologyList(t *testing.T) {
+	file := ontologyClassFile(t)
+	code := map[string]bool{}
+	for _, c := range allArtifactClasses {
+		code[c] = true
+		if !file[c] {
+			t.Errorf("%s is returned by pflow_artifact but is not in testdata/ontology-net-classes.txt: declare it in ontology-pflow-xyz first", c)
+		}
+	}
+	for c := range file {
+		if !code[c] {
+			t.Errorf("%s is in testdata/ontology-net-classes.txt but pflow_artifact cannot return it", c)
+		}
+	}
+	// No class name is spelled as a literal in the code that emits them.
+	re := regexp.MustCompile(`"([A-Z][A-Za-z]*Net)"`)
+	for _, f := range []string{"mcp_artifact.go", "mcp_artifact_views.go"} {
+		b, err := os.ReadFile(f)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, m := range re.FindAllStringSubmatch(string(b), -1) {
+			if !code[m[1]] {
+				t.Errorf("%s spells the class %q, which is not in allArtifactClasses", f, m[1])
+			}
+		}
+	}
+	// And whatever the tool returns for a spread of nets is on the list.
+	coffee, err := os.ReadFile("../../examples/landing/coffee-shop.jsonld")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for name, args := range map[string]string{
+		"ring":         `{"net":` + artRingNet + `}`,
+		"philosophers": `{"net":` + philosophers3(t) + `}`,
+		"coloured":     `{"net":` + string(coffee) + `}`,
+		"unbounded":    `{"net":{"@context":"https://pflow.xyz/schema","@type":"PetriNet","places":{"p":{"initial":[1],"capacity":[0],"x":0,"y":0}},"transitions":{"t":{"x":50,"y":0}},"arcs":[{"source":"p","target":"t","weight":[1]},{"source":"t","target":"p","weight":[2]}]}}`,
+	} {
+		sum, _ := artifactCall(t, args)
+		for _, c := range sum["classes"].([]any) {
+			if k := c.(map[string]any)["class"].(string); !file[k] {
+				t.Errorf("%s: returned class %q is not on the ontology list", name, k)
+			}
+		}
+	}
+}

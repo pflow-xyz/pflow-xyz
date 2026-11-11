@@ -1,0 +1,12 @@
+# Ontology classes pflow_artifact can return (ontology.pflow.xyz, ns:).
+# Kept equal to allArtifactClasses in mcp_artifact_views.go, and to the list in
+# ontology-pflow-xyz classes_guard_test.go. PopulationNet is declared there but never returned here.
+PetriNet
+LiveNet
+DeadlockFreeNet
+BoundedNet
+UnboundedNet
+StateMachineNet
+MarkedGraphNet
+ConservativeNet
+ColoredNet
