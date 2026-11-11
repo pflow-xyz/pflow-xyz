@@ -91,7 +91,9 @@ func artifactTool() mcpTool {
 		Name: "pflow_artifact",
 		Description: "One net as a self-contained interactive HTML page, for the person to see, play or share: publish the returned html as a page (an Artifact) as it is, without rewriting it. " +
 			"The page draws the net from its own x/y, plays the token game (click or press Enter on an enabled transition, random step, reset), shows the verdicts of pflow_reachability and the P-invariants of pflow_invariants (re-checked after every firing), " +
-			"replays the deadlock or livelock witness, tags the net with the ontology.pflow.xyz class its verdicts earn (LiveNet ⊂ DeadlockFreeNet ⊂ PetriNet, BoundedNet), and links the editor. " +
+			"replays the deadlock or livelock witness, tags the net with the ontology.pflow.xyz classes it earns (behaviour: LiveNet ⊂ DeadlockFreeNet ⊂ PetriNet, BoundedNet, UnboundedNet; shape: StateMachineNet, MarkedGraphNet, ConservativeNet), and links the editor. " +
+			"The page chooses what to lead with from the net (the summary's views.lead says which): a few places and transitions, or an unbounded net, lead with the graph, the populations over time and the phase plane, because there the dynamics are the point; a small bounded net leads with the token game and verdicts; a net of about 60 nodes or more leads with verdicts and P-invariants. " +
+			"Every view stays available: Explore this model, at the bottom of every page, exposes the hidden ones and lets the person edit the marking, the transition rates (the net's optional per-transition rate, default 1) and the arc weights in the page. Read views.lead before telling the person what the page shows first. " +
 			"The html is a fragment (no doctype/html/head/body: the host wraps it). Give the net inline as net, or a stored net by cid (then the editor link is ?cid= rather than the net inline, and the net need not pass through the conversation). " +
 			"engine \"baked\" (default, tens of KB, loads nothing) fixes the verdicts at the net's marking. " +
 			"\"wasm\" (about the size of baked) also loads the pflow-rs engine as one script pinned to an exact version on cdn.jsdelivr.net (@pflow-xyz/engine, " + artifactCDN.Version + "), so the person can edit the initial marking and re-analyze in the page; if that script cannot load, the page keeps the baked verdicts and says so. " +
@@ -125,6 +127,7 @@ type artTransition struct {
 	Label string  `json:"label,omitempty"`
 	X     float64 `json:"x"`
 	Y     float64 `json:"y"`
+	Rate  float64 `json:"rate"`
 }
 
 type artArc struct {
@@ -225,9 +228,14 @@ func mcpArtifact(s *Server, r *http.Request, args map[string]any) (any, error) {
 		places = append(places, artPlace{ID: id, Label: p.Label, X: p.X, Y: p.Y, Initial: sumInts(p.Initial), Capacity: sumInts(p.Capacity)})
 	}
 	var trans []artTransition
+	rates := transitionRates(doc)
 	for _, id := range sortedKeys(norm.Transitions) {
 		t := norm.Transitions[id]
-		trans = append(trans, artTransition{ID: id, Label: t.Label, X: t.X, Y: t.Y})
+		rate := 1.0
+		if r, ok := rates[id]; ok {
+			rate = r
+		}
+		trans = append(trans, artTransition{ID: id, Label: t.Label, X: t.X, Y: t.Y, Rate: rate})
 	}
 	arcs := []artArc{}
 	for _, a := range norm.Arcs {
@@ -296,7 +304,11 @@ func mcpArtifact(s *Server, r *http.Request, args map[string]any) (any, error) {
 	}
 
 	classes := ontologyClasses(complete, reach["live"], reach["deadlock_free"], reach["bounded"])
+	structural := structuralClasses(places, trans, arcs, invs, reach["bounded"])
+	classes = append(classes, structural...)
+	views := recommendViews(len(places), len(trans), complete, reach["bounded"])
 	data := map[string]any{
+		"views": views, "structural": structural,
 		"title": title, "cid": cid, "editor": editor, "stored": stored, "engine": engine,
 		"net": page, "analysis": analysis, "invariants": invs,
 	}
@@ -333,6 +345,7 @@ func mcpArtifact(s *Server, r *http.Request, args map[string]any) (any, error) {
 		"verdicts": map[string]any{"states": reach["states"], "edges": reach["edges"], "complete": complete,
 			"deadlock_free": reach["deadlock_free"], "live": reach["live"], "quasi_live": reach["quasi_live"], "bounded": reach["bounded"]},
 		"p_invariants": len(invs),
+		"views":        map[string]any{"lead": views.Lead, "shown": views.Shown, "reason": views.Reason},
 		"publish":      "The second content block is the page: publish it as an HTML page (an Artifact) exactly as given. It is a fragment; the host adds the document around it.",
 	}
 	if w, ok := reach["witness"]; ok && w != nil {

@@ -48,14 +48,40 @@ body{font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 .pf table.mk input{width:5em;font:inherit;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:2px 6px}
 .pf .muted{color:var(--muted)}
 .pf .mt8{margin-top:8px}.pf .note{margin:4px 0 0}.pf .intro{margin:0 0 6px}.pf .flush{margin:0}.pf #pf-engine{margin:8px 0 0}
-.pf svg.net{max-width:100%}.pf .card{min-width:0;overflow-wrap:anywhere}
+.pf svg.net{max-width:100%}
+.pf h3.sub{font-size:.85rem;margin:14px 0 6px;color:var(--muted)}
+.pf .numin,.pf .ratebox input,.pf select{font:inherit;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:3px 6px}
+.pf .numin{width:5.5em}
+.pf .ratebox{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:6px 14px}
+.pf .ratebox label{display:grid;grid-template-columns:minmax(0,1fr) 6.5em;gap:8px;align-items:center;overflow-wrap:anywhere}
+.pf .ratebox input{width:100%;text-align:right;font-variant-numeric:tabular-nums}
+.pf svg.plot{width:100%;height:auto;display:block;margin-top:8px}
+.pf svg.plot text{fill:var(--muted);font-size:11px}
+.pf svg.plot .gl{stroke:var(--line);stroke-width:1}.pf svg.plot .ax{stroke:var(--muted);stroke-width:1}
+.pf svg.plot .ln{fill:none;stroke-width:2;stroke-linejoin:round}
+.pf svg.plot .fld{stroke:var(--muted);opacity:.5}
+.pf .legend{display:flex;flex-wrap:wrap;gap:4px 14px;color:var(--muted);font-size:12.5px;margin-top:6px}
+.pf .stale{color:var(--warn);font-weight:600;margin:8px 0 0}
+.pf .col{display:flex;flex-direction:column;gap:8px}
+.pf dialog{width:min(720px,calc(100vw - 24px));max-height:calc(100vh - 24px);padding:0;border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--ink);overflow:hidden}
+.pf dialog[open]{display:flex;flex-direction:column}
+.pf dialog::backdrop{background:rgba(0,0,0,.45)}
+.pf .dlg-head{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-bottom:1px solid var(--line)}
+.pf .dlg-head h2{margin:0}
+.pf .tabs{display:flex;flex-wrap:wrap;gap:4px;padding:8px 14px 0;border-bottom:1px solid var(--line)}
+.pf .tabs button{border-radius:8px 8px 0 0;border-bottom-color:transparent;min-height:34px}
+.pf .tabs button[aria-selected=true]{background:var(--bg);border-color:var(--accent);border-bottom-color:var(--bg);font-weight:600}
+.pf .pane{padding:12px 14px;overflow:auto}
+.pf textarea.export{width:100%;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:6px;margin-top:8px}
+.pf .vt{display:flex;gap:8px;align-items:center}
+.pf .vt small{color:var(--muted)}.pf .card{min-width:0;overflow-wrap:anywhere}
 </style>
 <div class="pf">
   <header>
     <h1 id="pf-title"></h1>
     <p class="lede" id="pf-lede"></p>
   </header>
-  <section class="card" aria-labelledby="pf-game-h">
+  <section class="card" id="pf-sec-game" aria-labelledby="pf-game-h">
     <h2 id="pf-game-h">Token game</h2>
     <svg class="net" id="pf-svg" role="group" aria-label="The net: places are circles holding tokens, transitions are squares; a filled square is enabled and fires when you click it or press Enter on it."></svg>
     <p class="status" id="pf-status" aria-live="polite"></p>
@@ -68,17 +94,36 @@ body{font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
     </div>
     <p class="log" id="pf-log" aria-label="Firing sequence"></p>
   </section>
-  <section class="card" aria-labelledby="pf-verdict-h">
+  <section class="card" id="pf-sec-graph" aria-labelledby="pf-graph-h" hidden>
+    <h2 id="pf-graph-h">Graph</h2>
+    <p class="muted intro" id="pf-graph-note"></p>
+    <div class="row">
+      <label for="pf-g-t">Time</label><input class="numin" id="pf-g-t" type="number" min="0.1" step="any" value="20">
+      <label for="pf-g-x">Phase plane</label>
+      <select id="pf-g-x" aria-label="Phase plane horizontal axis"></select>
+      <select id="pf-g-y" aria-label="Phase plane vertical axis"></select>
+      <button type="button" id="pf-g-run" class="primary">Run</button>
+    </div>
+    <p class="muted note" id="pf-g-blow" role="status"></p>
+    <svg class="plot" id="pf-g-ts" role="img" aria-label="Place values over time" viewBox="0 0 640 240"></svg>
+    <svg class="plot" id="pf-g-pp" role="img" aria-label="Phase plane of two places" viewBox="0 0 640 380"></svg>
+    <div class="legend" id="pf-g-legend"></div>
+    <h3 class="sub">Rates</h3>
+    <div class="ratebox" id="pf-g-rates"></div>
+    <p class="muted note">Flux of a transition = its rate times the value of each place feeding it, as in the editor's ODE solver; arc weights say how many each firing moves. Inhibitor arcs are ignored. Starts from the marking in Explore this model.</p>
+  </section>
+  <section class="card" id="pf-sec-verdicts" aria-labelledby="pf-verdict-h">
     <h2 id="pf-verdict-h">Verdicts</h2>
     <div class="grid" id="pf-verdicts"></div>
     <p class="muted" id="pf-engine"></p>
+    <p class="stale" id="pf-stale" hidden>You edited this model in the page. The verdicts above describe the net as it was when the page was made.</p>
   </section>
-  <section class="card" aria-labelledby="pf-class-h">
+  <section class="card" id="pf-sec-class" aria-labelledby="pf-class-h">
     <h2 id="pf-class-h">Ontology class</h2>
     <div id="pf-classes"></div>
     <p class="muted note">From <a href="https://ontology.pflow.xyz/" target="_blank" rel="noopener">ontology.pflow.xyz</a>: LiveNet ⊂ DeadlockFreeNet ⊂ PetriNet, and BoundedNet ⊂ PetriNet. A class is earned by a verdict above, never assumed.</p>
   </section>
-  <section class="card" aria-labelledby="pf-inv-h">
+  <section class="card" id="pf-sec-inv" aria-labelledby="pf-inv-h">
     <h2 id="pf-inv-h">P-invariants</h2>
     <p class="muted intro">Conservation laws, re-checked against the current marking after every firing.</p>
     <ul class="inv" id="pf-inv"></ul>
@@ -89,11 +134,54 @@ body{font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
     <table class="mk" id="pf-mk"></table>
     <div class="row mt8"><button type="button" class="primary" id="pf-analyze">Analyze this marking</button><span class="muted" id="pf-analyze-msg" aria-live="polite"></span></div>
   </section>
-  <footer class="card">
-    <h2>Model</h2>
+  <section class="card" id="pf-sec-model" aria-labelledby="pf-model-h">
+    <h2 id="pf-model-h">Model</h2>
     <p class="intro">CID <code id="pf-cid"></code></p>
     <p class="flush"><a id="pf-editor" target="_blank" rel="noopener">Open in the pflow.xyz editor</a> <span class="muted" id="pf-stored"></span></p>
-  </footer>
+    <h3 class="sub">Views</h3>
+    <div class="row" id="pf-view-toggles" role="group" aria-label="Show or hide views"></div>
+    <p class="muted note" id="pf-view-reason"></p>
+    <div class="row mt8"><button type="button" class="primary" id="pf-explore" aria-haspopup="dialog">Explore this model</button></div>
+  </section>
+  <dialog id="pf-dlg" aria-labelledby="pf-dlg-h">
+    <div class="dlg-head"><h2 id="pf-dlg-h">Explore this model</h2><button type="button" id="pf-dlg-x" aria-label="Close">&times;</button></div>
+    <div class="tabs" role="tablist" aria-label="Tools">
+      <button type="button" role="tab" id="tab-views" aria-controls="pn-views" aria-selected="true">Views</button>
+      <button type="button" role="tab" id="tab-edit" aria-controls="pn-edit" aria-selected="false" tabindex="-1">Edit</button>
+      <button type="button" role="tab" id="tab-analyze" aria-controls="pn-analyze" aria-selected="false" tabindex="-1">Analyze</button>
+      <button type="button" role="tab" id="tab-export" aria-controls="pn-export" aria-selected="false" tabindex="-1">Export</button>
+      <button type="button" role="tab" id="tab-editor" aria-controls="pn-editor" aria-selected="false" tabindex="-1">Editor</button>
+    </div>
+    <div class="pane" role="tabpanel" id="pn-views" aria-labelledby="tab-views">
+      <p class="muted intro">Every page can show every view. The page opened with the ones that suit this net.</p>
+      <div class="col" id="pf-dlg-toggles"></div>
+      <div class="row mt8"><button type="button" id="pf-views-all">Show everything</button><button type="button" id="pf-views-rec">Back to recommended</button></div>
+    </div>
+    <div class="pane" role="tabpanel" id="pn-edit" aria-labelledby="tab-edit" hidden>
+      <p class="muted intro">Changes apply to the token game and the graph at once. Verdicts are not recomputed unless you re-analyze (Analyze tab).</p>
+      <h3 class="sub">Initial marking</h3><div class="ratebox" id="pf-e-mk"></div>
+      <h3 class="sub">Transition rates</h3><div class="ratebox" id="pf-e-rates"></div>
+      <h3 class="sub">Arc weights</h3><div class="ratebox" id="pf-e-arcs"></div>
+      <div class="row mt8"><button type="button" id="pf-e-reset">Undo all edits</button><span class="muted" id="pf-e-msg" aria-live="polite"></span></div>
+    </div>
+    <div class="pane" role="tabpanel" id="pn-analyze" aria-labelledby="tab-analyze" hidden>
+      <div class="col">
+        <div><button type="button" id="pf-a-walk">Random walk: 200 firings</button> <span class="muted" id="pf-a-walk-out" aria-live="polite"></span></div>
+        <div><button type="button" id="pf-a-engine">Re-analyze the edited net</button> <span class="muted" id="pf-a-engine-out" aria-live="polite"></span></div>
+        <p class="muted note">Re-analysis uses the in-page engine, which only a page made with engine &ldquo;wasm&rdquo; carries. Structure, SSA/SDE runs, what-if, optimise and the rest of the command registry are in the editor&rsquo;s Tools (Ctrl or Cmd + K), opened from the Editor tab.</p>
+      </div>
+    </div>
+    <div class="pane" role="tabpanel" id="pn-export" aria-labelledby="tab-export" hidden>
+      <div class="row"><button type="button" id="pf-x-json">Copy net as JSON-LD</button><button type="button" id="pf-x-cid">Copy CID</button><button type="button" id="pf-x-mcp">Copy pflow_artifact call</button><span class="muted" id="pf-x-msg" aria-live="polite"></span></div>
+      <textarea id="pf-x-text" class="export" readonly rows="8" aria-label="Exported text" hidden></textarea>
+      <p class="muted note" id="pf-x-note"></p>
+    </div>
+    <div class="pane" role="tabpanel" id="pn-editor" aria-labelledby="tab-editor" hidden>
+      <p class="intro">The full editor has every tool: layout, structure analysis, simulation, what-if, optimisation and composition.</p>
+      <p class="flush"><a id="pf-dlg-editor" target="_blank" rel="noopener">Open this model in the pflow.xyz editor</a></p>
+      <p class="muted note" id="pf-dlg-editor-note"></p>
+    </div>
+  </dialog>
 </div>
 <script type="application/json" id="pflow-data">__PFLOW_DATA__</script>
 __PFLOW_ENGINE__<script>
@@ -185,19 +273,30 @@ __PFLOW_ENGINE__<script>
     return { x: from.x + (dx / len) * d, y: from.y + (dy / len) * d };
   }
   const arcLayer = el("g", {}, svg);
+  const arcLabels = new Map();
   for (const a of net.arcs) {
     const src = P.get(a.source) || T.get(a.source);
     const t = P.get(a.target) || T.get(a.target);
     if (!src || !t) continue;
     const sp = P.has(a.source), tp = P.has(a.target);
-    const p1 = trim(src, t, sp, 0), p2 = trim(t, src, tp, 2);
-    const read = a.inhibit && !sp; // transition -> place inhibit: the editor's read (test) arc
-    const line = el("line", { x1: p1.x, y1: p1.y, x2: p2.x, y2: p2.y, class: "arc" + (read ? " read" : "") }, arcLayer);
-    line.setAttribute("marker-end", a.inhibit && sp ? "url(#pf-inhib)" : "url(#pf-arrow)");
-    if (a.weight !== 1) {
-      const t2 = el("text", { x: (p1.x + p2.x) / 2 + 6, y: (p1.y + p2.y) / 2 - 6, class: "wt" }, arcLayer);
-      t2.textContent = String(a.weight);
+    // Two arcs between the same pair, one each way, would lie on one line:
+    // each bows to its own left (looking along the arc), so they part.
+    const both = net.arcs.some((b) => b !== a && b.source === a.target && b.target === a.source);
+    let ctrl = null;
+    if (both) {
+      const dx = t.x - src.x, dy = t.y - src.y, len = Math.hypot(dx, dy) || 1;
+      ctrl = { x: (src.x + t.x) / 2 - (dy / len) * 26, y: (src.y + t.y) / 2 + (dx / len) * 26 };
     }
+    const p1 = trim(src, ctrl || t, sp, 0), p2 = trim(t, ctrl || src, tp, 2);
+    const read = a.inhibit && !sp; // transition -> place inhibit: the editor's read (test) arc
+    const line = ctrl
+      ? el("path", { d: `M${p1.x} ${p1.y}Q${ctrl.x} ${ctrl.y} ${p2.x} ${p2.y}`, class: "arc" + (read ? " read" : "") }, arcLayer)
+      : el("line", { x1: p1.x, y1: p1.y, x2: p2.x, y2: p2.y, class: "arc" + (read ? " read" : "") }, arcLayer);
+    line.setAttribute("marker-end", a.inhibit && sp ? "url(#pf-inhib)" : "url(#pf-arrow)");
+    const lx = ctrl ? 0.25 * p1.x + 0.5 * ctrl.x + 0.25 * p2.x : (p1.x + p2.x) / 2, ly = ctrl ? 0.25 * p1.y + 0.5 * ctrl.y + 0.25 * p2.y : (p1.y + p2.y) / 2;
+    const t2 = el("text", { x: lx + 6, y: ly - 6, class: "wt" }, arcLayer);
+    t2.textContent = a.weight !== 1 ? String(a.weight) : "";
+    arcLabels.set(a, t2);
   }
   const placeG = new Map(), transG = new Map();
   for (const p of net.places) {
@@ -303,6 +402,7 @@ __PFLOW_ENGINE__<script>
     else if (a.deadlock_free === true) out.push("DeadlockFreeNet");
     else out.push("PetriNet");
     if (a.complete && a.bounded === true) out.push("BoundedNet");
+    for (const c of D.structural || []) out.push(c);
     return out;
   }
   function renderClasses() {
@@ -470,6 +570,299 @@ __PFLOW_ENGINE__<script>
     }
   }
 
+
+  // ---- views: which sections are open, and the panel that exposes the rest ----
+  const VIEW_DEFS = [
+    ["game", "pf-sec-game", "Token game"],
+    ["graph", "pf-sec-graph", "Graph"],
+    ["verdicts", "pf-sec-verdicts", "Verdicts"],
+    ["class", "pf-sec-class", "Ontology class"],
+    ["inv", "pf-sec-inv", "P-invariants"],
+  ];
+  const advice = D.views || { shown: ["game", "verdicts", "class", "inv"], reason: "", lead: "play" };
+  let shownViews = new Set(advice.shown);
+  function applyViews() {
+    const model = $("pf-sec-model");
+    for (const v of advice.shown) { const s = $(VIEW_DEFS.find((d) => d[0] === v)[1]); model.parentNode.insertBefore(s, model); }
+    for (const [v, id] of VIEW_DEFS) $(id).hidden = !shownViews.has(v);
+    for (const c of document.querySelectorAll("input[data-view]")) c.checked = shownViews.has(c.dataset.view);
+    if (shownViews.has("graph")) runGraph();
+  }
+  function buildToggles(box, withHint) {
+    box.replaceChildren();
+    for (const [v, , label] of VIEW_DEFS) {
+      const l = document.createElement("label");
+      l.className = "vt";
+      const c = document.createElement("input");
+      c.type = "checkbox"; c.dataset.view = v;
+      c.addEventListener("change", () => { c.checked ? shownViews.add(v) : shownViews.delete(v); applyViews(); });
+      l.append(c, label);
+      if (withHint && advice.shown.includes(v)) { const s = document.createElement("small"); s.textContent = v === advice.shown[0] ? "leads" : "opened"; l.appendChild(s); }
+      box.appendChild(l);
+    }
+  }
+  buildToggles($("pf-view-toggles"), false);
+  buildToggles($("pf-dlg-toggles"), true);
+  $("pf-view-reason").textContent = advice.reason || "";
+  $("pf-views-all").addEventListener("click", () => { shownViews = new Set(VIEW_DEFS.map((d) => d[0])); applyViews(); });
+  $("pf-views-rec").addEventListener("click", () => { shownViews = new Set(advice.shown); applyViews(); });
+
+  // ---- editing the model in the page ----
+  const rates = Object.fromEntries(net.transitions.map((t) => [t.id, t.rate > 0 ? t.rate : 1]));
+  const orig = {
+    initial: { ...initial },
+    rates: { ...rates },
+    weights: net.arcs.map((a) => a.weight),
+  };
+  let edited = false;
+  const num = (s) => (s.trim() === "" ? NaN : Number(s));
+  function markEdited() {
+    edited = JSON.stringify([initial, rates, net.arcs.map((a) => a.weight)]) !== JSON.stringify([orig.initial, orig.rates, orig.weights]);
+    // Verdicts depend on the marking and the arc weights, not on rates.
+    $("pf-stale").hidden = JSON.stringify([initial, net.arcs.map((a) => a.weight)]) === JSON.stringify([orig.initial, orig.weights]);
+  }
+  function field(box, id, label, value, step, onSet, min) {
+    const l = document.createElement("label");
+    const sp = document.createElement("span"); sp.textContent = label;
+    const i = document.createElement("input");
+    i.type = "number"; i.step = step; i.min = String(min); i.value = String(+Number(value).toPrecision(6));
+    i.dataset.bind = id;
+    i.addEventListener("input", () => { const v = num(i.value); if (!Number.isFinite(v) || v < min) return; onSet(v); });
+    l.append(sp, i); box.appendChild(l);
+  }
+  function syncInputs() {
+    for (const i of document.querySelectorAll("input[data-bind]")) {
+      const [kind, key] = i.dataset.bind.split("|");
+      if (document.activeElement === i) continue;
+      const v = kind === "mk" ? initial[key] : kind === "rate" ? rates[key] : net.arcs[Number(key)].weight;
+      i.value = String(+Number(v).toPrecision(6));
+    }
+  }
+  function setMarking(id, v) { if (!Number.isInteger(v)) return; initial[id] = v; m = { ...initial }; trace = []; markEdited(); render(); runGraph(); syncInputs(); }
+  function setRate(id, v) { if (v <= 0) return; rates[id] = v; markEdited(); runGraph(); syncInputs(); }
+  function setWeight(i, v) {
+    if (!Number.isInteger(v) || v < 1) return;
+    const a = net.arcs[i]; a.weight = v;
+    const lab = arcLabels.get(a); if (lab) lab.textContent = v !== 1 ? String(v) : "";
+    m = { ...initial }; trace = []; markEdited(); render(); runGraph(); syncInputs();
+  }
+  function buildRateInputs(box, prefix) {
+    box.replaceChildren();
+    for (const t of net.transitions) field(box, "rate|" + t.id, name(t), rates[t.id], "any", (v) => setRate(t.id, v), 1e-9);
+  }
+  function buildEditPane() {
+    const mk = $("pf-e-mk"); mk.replaceChildren();
+    for (const p of net.places) field(mk, "mk|" + p.id, name(p), initial[p.id], "1", (v) => setMarking(p.id, v), 0);
+    buildRateInputs($("pf-e-rates"));
+    const ab = $("pf-e-arcs"); ab.replaceChildren();
+    net.arcs.forEach((a, i) => {
+      const s = (P.get(a.source) || T.get(a.source) || { id: a.source }), d = (P.get(a.target) || T.get(a.target) || { id: a.target });
+      field(ab, "arc|" + i, `${name(s)} → ${name(d)}${a.inhibit ? " (inhibitor)" : ""}`, a.weight, "1", (v) => setWeight(i, v), 1);
+    });
+  }
+  $("pf-e-reset").addEventListener("click", () => {
+    Object.assign(initial, orig.initial);
+    Object.assign(rates, orig.rates);
+    net.arcs.forEach((a, i) => { a.weight = orig.weights[i]; const lab = arcLabels.get(a); if (lab) lab.textContent = a.weight !== 1 ? String(a.weight) : ""; });
+    m = { ...initial }; trace = []; markEdited(); render(); runGraph(); syncInputs();
+    $("pf-e-msg").textContent = "Back to the net as it was.";
+  });
+
+  // ---- graph: mass-action flow of the net ----
+  const GCOL = ["var(--accent)", "var(--bad)", "var(--ok)", "var(--warn)", "#a371f7", "#db61a2", "#39c5cf", "var(--ink)"];
+  function flow(x) {
+    const du = {};
+    for (const p of net.places) du[p.id] = 0;
+    for (const t of tids) {
+      let f = rates[t];
+      for (const a of net.arcs) {
+        if (a.target !== t || a.inhibit || !P.has(a.source)) continue;
+        if (x[a.source] <= 0) { f = 0; break; }
+        f *= x[a.source];
+      }
+      if (f <= 0) continue;
+      for (const a of net.arcs) {
+        if (a.inhibit) continue;
+        if (a.target === t && P.has(a.source)) du[a.source] -= f * a.weight;
+        else if (a.source === t && P.has(a.target)) du[a.target] += f * a.weight;
+      }
+    }
+    return du;
+  }
+  function rk4(x, h) {
+    const add = (b, k, s) => { const o = {}; for (const p in b) o[p] = b[p] + s * k[p]; return o; };
+    const k1 = flow(x), k2 = flow(add(x, k1, h / 2)), k3 = flow(add(x, k2, h / 2)), k4 = flow(add(x, k3, h));
+    const o = {};
+    for (const p in x) o[p] = x[p] + (h / 6) * (k1[p] + 2 * k2[p] + 2 * k3[p] + k4[p]);
+    return o;
+  }
+  function simulate(x0, T) {
+    const steps = 1200, h = T / steps, pts = [{ t: 0, x: { ...x0 } }];
+    let x = { ...x0 }, blown = null;
+    for (let i = 1; i <= steps; i++) {
+      x = rk4(x, h);
+      if (Object.values(x).some((v) => !isFinite(v) || Math.abs(v) > 1e9)) { blown = i * h; break; }
+      pts.push({ t: i * h, x });
+    }
+    return { pts, blown };
+  }
+  const gfmt = (v) => { const a = Math.abs(v); return a === 0 ? "0" : a >= 100 ? v.toFixed(0) : a >= 10 ? v.toFixed(1) : a >= 1 ? v.toFixed(2) : v.toPrecision(2); };
+  function nice(range, n) { const raw = range / n, p = Math.pow(10, Math.floor(Math.log10(raw))), f = raw / p; return (f < 1.5 ? 1 : f < 3.5 ? 2 : f < 7.5 ? 5 : 10) * p; }
+  function gtext(svgEl, x, y, s, anchor) { const e = el("text", { x, y, "text-anchor": anchor || "middle" }, svgEl); e.textContent = s; return e; }
+  function frame(svgEl, W, Hh, L, B, xmax, ymax, xlab, ylab) {
+    svgEl.replaceChildren();
+    const X = (v) => L + (v / xmax) * (W - L - 12), Y = (v) => Hh - B - (v / ymax) * (Hh - B - 10);
+    const gx = nice(xmax, 6), gy = nice(ymax, 4);
+    for (let v = 0; v <= xmax + 1e-9; v += gx) { el("line", { class: "gl", x1: X(v), x2: X(v), y1: 10, y2: Hh - B }, svgEl); gtext(svgEl, X(v), Hh - B + 15, gfmt(v)); }
+    for (let v = 0; v <= ymax + 1e-9; v += gy) { el("line", { class: "gl", x1: L, x2: W - 12, y1: Y(v), y2: Y(v) }, svgEl); gtext(svgEl, L - 6, Y(v) + 4, gfmt(v), "end"); }
+    el("line", { class: "ax", x1: L, x2: W - 12, y1: Hh - B, y2: Hh - B }, svgEl);
+    el("line", { class: "ax", x1: L, x2: L, y1: 10, y2: Hh - B }, svgEl);
+    gtext(svgEl, (L + W - 12) / 2, Hh - 3, xlab);
+    const yl = gtext(svgEl, 12, (10 + Hh - B) / 2, ylab); yl.setAttribute("transform", `rotate(-90 12 ${(10 + Hh - B) / 2})`);
+    return { X, Y };
+  }
+  let gSel = { x: null, y: null };
+  function fillSelects(order) {
+    for (const [id, key] of [["pf-g-x", "x"], ["pf-g-y", "y"]]) {
+      const s = $(id);
+      if (s.options.length === 0) {
+        for (const p of net.places) { const o = document.createElement("option"); o.value = p.id; o.textContent = name(p); s.appendChild(o); }
+        s.addEventListener("change", () => { gSel[key] = s.value; runGraph(); });
+      }
+    }
+    if (!gSel.x) { gSel.x = order[0]; gSel.y = order[1] || order[0]; }
+    $("pf-g-x").value = gSel.x; $("pf-g-y").value = gSel.y;
+  }
+  function runGraph() {
+    if ($("pf-sec-graph").hidden) return;
+    const T = Math.max(0.1, num($("pf-g-t").value) || 20);
+    const sim = simulate(initial, T), pts = sim.pts;
+    const last = pts[pts.length - 1];
+    $("pf-g-blow").textContent = sim.blown ? `The values passed 10^9 at time ${gfmt(sim.blown)}; the plot stops there.` : "";
+    const range = {};
+    for (const p of net.places) { const vs = pts.map((q) => q.x[p.id]); range[p.id] = Math.max(...vs) - Math.min(...vs); }
+    const order = net.places.map((p) => p.id).sort((a, b) => range[b] - range[a]);
+    $("pf-graph-note").textContent = `${net.places.length} place${net.places.length === 1 ? "" : "s"} and ${net.transitions.length} transition${net.transitions.length === 1 ? "" : "s"} as continuous flow: how each place's value changes with time, and how two of them move against each other.`;
+    // time series: every place with some change, at most 8
+    const shownP = order.filter((id) => range[id] > 1e-12).slice(0, 8);
+    const plotP = shownP.length ? shownP : order.slice(0, 1);
+    let ymax = 1e-9;
+    for (const id of plotP) for (const q of pts) ymax = Math.max(ymax, q.x[id]);
+    ymax *= 1.08;
+    const tmax = last.t || T;
+    const ts = $("pf-g-ts");
+    const { X, Y } = frame(ts, 640, 240, 46, 28, tmax, ymax, "time", "value");
+    plotP.forEach((id, k) => {
+      const d = pts.map((q, i) => (i ? "L" : "M") + X(q.t).toFixed(1) + " " + Y(q.x[id]).toFixed(1)).join("");
+      el("path", { class: "ln", d, stroke: GCOL[k % GCOL.length] }, ts);
+    });
+    const lg = $("pf-g-legend"); lg.replaceChildren();
+    plotP.forEach((id, k) => { const s = document.createElement("span"); s.style.color = GCOL[k % GCOL.length]; s.textContent = "■ " + name(P.get(id)); lg.appendChild(s); });
+    // phase plane
+    const pp = $("pf-g-pp");
+    pp.hidden = net.places.length < 2;
+    if (net.places.length >= 2) {
+      fillSelects(order);
+      const ax = gSel.x, ay = gSel.y;
+      let xm = 1e-9, ym = 1e-9;
+      for (const q of pts) { xm = Math.max(xm, q.x[ax]); ym = Math.max(ym, q.x[ay]); }
+      xm *= 1.1; ym *= 1.1;
+      const f2 = frame(pp, 640, 380, 46, 30, xm, ym, name(P.get(ax)), name(P.get(ay)));
+      // field with the other places held at their value at the end of the run
+      const base = { ...last.x };
+      const nx = 15, ny = 9;
+      for (let i = 0; i < nx; i++) for (let j = 0; j < ny; j++) {
+        const x = { ...base, [ax]: ((i + 0.5) / nx) * xm, [ay]: ((j + 0.5) / ny) * ym };
+        const d = flow(x), dx = (d[ax] / xm) * (640 - 58), dy = -(d[ay] / ym) * (380 - 40), mag = Math.hypot(dx, dy);
+        if (mag < 1e-12) continue;
+        const ux = dx / mag, uy = dy / mag, cx = f2.X(x[ax]), cy = f2.Y(x[ay]);
+        el("line", { class: "fld", x1: cx - ux * 6, y1: cy - uy * 6, x2: cx + ux * 6, y2: cy + uy * 6 }, pp);
+        el("path", { class: "fld", d: `M${cx + ux * 6} ${cy + uy * 6}L${cx + ux * 2 - uy * 2.5} ${cy + uy * 2 + ux * 2.5}M${cx + ux * 6} ${cy + uy * 6}L${cx + ux * 2 + uy * 2.5} ${cy + uy * 2 - ux * 2.5}`, fill: "none" }, pp);
+      }
+      const d = pts.map((q, i) => (i ? "L" : "M") + f2.X(q.x[ax]).toFixed(1) + " " + f2.Y(q.x[ay]).toFixed(1)).join("");
+      el("path", { class: "ln", d, stroke: "var(--accent)" }, pp);
+      el("circle", { cx: f2.X(pts[0].x[ax]), cy: f2.Y(pts[0].x[ay]), r: 4.5, fill: "var(--accent)" }, pp);
+      el("circle", { cx: f2.X(last.x[ax]), cy: f2.Y(last.x[ay]), r: 4.5, fill: "var(--surface)", stroke: "var(--accent)", "stroke-width": 2 }, pp);
+    }
+  }
+  buildRateInputs($("pf-g-rates"));
+  $("pf-g-run").addEventListener("click", runGraph);
+  $("pf-g-t").addEventListener("change", runGraph);
+
+  // ---- the Explore this model dialog ----
+  const dlg = $("pf-dlg");
+  const TABS = ["views", "edit", "analyze", "export", "editor"];
+  function showTab(name_) {
+    for (const k of TABS) {
+      const on = k === name_;
+      $("tab-" + k).setAttribute("aria-selected", on ? "true" : "false");
+      $("tab-" + k).tabIndex = on ? 0 : -1;
+      $("pn-" + k).hidden = !on;
+    }
+    if (name_ === "edit") buildEditPane();
+    if (name_ === "export") renderExport(false);
+    if (name_ === "editor") setEditorLink();
+  }
+  for (const k of TABS) {
+    $("tab-" + k).addEventListener("click", () => showTab(k));
+    $("tab-" + k).addEventListener("keydown", (e) => {
+      const i = TABS.indexOf(k), j = e.key === "ArrowRight" ? (i + 1) % TABS.length : e.key === "ArrowLeft" ? (i + TABS.length - 1) % TABS.length : -1;
+      if (j >= 0) { e.preventDefault(); showTab(TABS[j]); $("tab-" + TABS[j]).focus(); }
+    });
+  }
+  $("pf-explore").addEventListener("click", () => {
+    showTab("views");
+    if (typeof dlg.showModal === "function") dlg.showModal(); else dlg.setAttribute("open", "");
+  });
+  $("pf-dlg-x").addEventListener("click", () => (dlg.close ? dlg.close() : dlg.removeAttribute("open")));
+  dlg.addEventListener("click", (e) => { if (e.target === dlg) dlg.close(); });
+
+  function currentNet() {
+    if (!edited && D.source) return D.source;
+    const o = { "@context": "https://pflow.xyz/schema", "@type": "PetriNet", name: D.title, places: {}, transitions: {}, arcs: [] };
+    for (const p of net.places) o.places[p.id] = { initial: [initial[p.id]], capacity: [p.capacity], x: p.x, y: p.y, ...(p.label ? { label: p.label } : {}) };
+    for (const t of net.transitions) o.transitions[t.id] = { x: t.x, y: t.y, rate: rates[t.id], ...(t.label ? { label: t.label } : {}) };
+    for (const a of net.arcs) o.arcs.push({ source: a.source, target: a.target, weight: [a.weight], ...(a.inhibit ? { inhibitTransition: true } : {}) });
+    return o;
+  }
+  async function copy(text, msgId) {
+    const msg = $(msgId);
+    try { await navigator.clipboard.writeText(text); msg.textContent = "Copied."; }
+    catch (e) { const ta = $("pf-x-text"); ta.hidden = false; ta.value = text; ta.select(); msg.textContent = "Select and copy the text below."; }
+  }
+  function renderExport() {
+    $("pf-x-note").textContent = edited
+      ? "Exports the edited net. Its CID is not computed here, so the CID button copies the original model’s."
+      : "Exports the net as it was when the page was made.";
+  }
+  $("pf-x-json").addEventListener("click", () => copy(JSON.stringify(currentNet(), null, 2), "pf-x-msg"));
+  $("pf-x-cid").addEventListener("click", () => copy(D.cid, "pf-x-msg"));
+  $("pf-x-mcp").addEventListener("click", () => copy(JSON.stringify({ name: "pflow_artifact", arguments: D.stored ? { cid: D.cid, engine: D.engine } : { net: currentNet(), engine: D.engine } }, null, 2), "pf-x-msg"));
+  function setEditorLink() {
+    const a = $("pf-dlg-editor"), note = $("pf-dlg-editor-note");
+    if (edited) { a.href = D.editor.replace(/[?].*$/, "") + "?" + new URLSearchParams({ data: encodeURIComponent(JSON.stringify(currentNet())) }); note.textContent = "Opens your edited net; the link carries the net itself."; }
+    else { a.href = D.editor; note.textContent = ""; }
+  }
+  $("pf-a-walk").addEventListener("click", () => {
+    let x = { ...initial }, n = 0, last = null;
+    for (; n < 200; n++) { const en = enabledIn(x); if (!en.length) break; last = en[Math.floor(Math.random() * en.length)]; x = fire(last, x); }
+    const dead = enabledIn(x).length === 0;
+    m = x; trace = []; render();
+    $("pf-a-walk-out").textContent = dead ? `Stopped after ${n} firings: nothing enabled.` : `${n} firings, still running. The board shows where it ended.`;
+  });
+  $("pf-a-engine").addEventListener("click", () => {
+    const out = $("pf-a-engine-out");
+    if (!engineCall) { out.textContent = inPage ? "The in-page engine has not started (yet)." : "This page was made without the in-page engine. Ask for engine “wasm”."; return; }
+    try {
+      const src = JSON.parse(JSON.stringify(currentNet()));
+      const a = normalize(engineCall("analyze", { net: src, max_states: D.analysis.max_states }));
+      analysis = a;
+      renderVerdicts();
+      $("pf-stale").hidden = true;
+      out.textContent = "Verdicts recomputed for the edited net.";
+    } catch (e) { out.textContent = "Engine error: " + e.message; }
+  });
+
   // ---- boot ----
   $("pf-title").textContent = D.title;
   $("pf-lede").textContent = `${net.places.length} places, ${net.transitions.length} transitions. Fire enabled transitions and watch the conservation laws hold.`;
@@ -486,6 +879,7 @@ __PFLOW_ENGINE__<script>
   $("pf-replay").addEventListener("click", replay);
   renderVerdicts();
   render();
+  applyViews();
   if (inPage) startWasm();
 })();
 </script>

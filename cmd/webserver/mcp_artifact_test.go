@@ -276,7 +276,10 @@ func TestArtifactSizes(t *testing.T) {
 	_, baked := artifactCall(t, `{"net":`+philosophers3(t)+`}`)
 	_, wasm := artifactCall(t, `{"net":`+philosophers3(t)+`,"engine":"wasm"}`)
 	_, inline := artifactCall(t, `{"net":`+philosophers3(t)+`,"engine":"wasm-inline"}`)
-	if len(baked) > 40<<10 {
+	// The page template carries the graph, the views and the Explore dialog, so
+	// it is bigger than the token game it began as. The budget that matters for
+	// clients is the "wasm" one below.
+	if len(baked) > 72<<10 {
 		t.Errorf("baked page is %d bytes", len(baked))
 	}
 	// The point of engine "wasm": a page a chat client does not truncate.
@@ -423,5 +426,72 @@ func TestArtifactByCID(t *testing.T) {
 	}
 	if _, _, e := call(`{}`); e == nil {
 		t.Error("neither net nor cid must be refused")
+	}
+}
+
+// What a page leads with is a rule over size and verdicts, not a judgement.
+func TestRecommendViews(t *testing.T) {
+	cases := []struct {
+		name            string
+		places, trans   int
+		complete        bool
+		bounded         any
+		wantLead, first string
+	}{
+		{"predator and prey: two places, three transitions", 2, 3, true, true, "dynamics", "graph"},
+		{"unbounded growth", 3, 4, true, false, "dynamics", "graph"},
+		{"search past its budget, mid size", 20, 20, false, "unknown", "dynamics", "graph"},
+		{"dining philosophers: 12 places, 9 transitions", 12, 9, true, true, "play", "game"},
+		{"tic-tac-toe: 31 places, 34 transitions, search incomplete", 31, 34, false, "unknown", "analysis", "verdicts"},
+	}
+	for _, c := range cases {
+		a := recommendViews(c.places, c.trans, c.complete, c.bounded)
+		if a.Lead != c.wantLead || a.Shown[0] != c.first {
+			t.Errorf("%s: lead %q first %q, want %q %q", c.name, a.Lead, a.Shown[0], c.wantLead, c.first)
+		}
+		if len(a.All) != len(allViews) || a.Reason == "" {
+			t.Errorf("%s: every view must stay available, with a reason: %+v", c.name, a)
+		}
+	}
+}
+
+func TestStructuralClasses(t *testing.T) {
+	_, page := artifactCall(t, `{"net":`+artRingNet+`}`)
+	d := pageData(t, page)
+	got, _ := json.Marshal(d["structural"])
+	if string(got) != `["StateMachineNet","MarkedGraphNet","ConservativeNet"]` {
+		t.Errorf("ring structural classes = %s", got)
+	}
+	sum, _ := artifactCall(t, `{"net":`+philosophers3(t)+`}`)
+	for _, c := range sum["classes"].([]any) {
+		if k := c.(map[string]any)["class"]; k == "StateMachineNet" || k == "MarkedGraphNet" {
+			t.Errorf("philosophers are neither a state machine nor a marked graph, got %v", k)
+		}
+	}
+}
+
+// Every page exposes every view, rates travel with the net, and two arcs
+// between one pair, one each way, are drawn curved.
+func TestArtifactExploreAndRates(t *testing.T) {
+	net := strings.Replace(artRingNet, `"go":{"x":200,"y":50}`, `"go":{"x":200,"y":50,"rate":2.5}`, 1)
+	_, page := artifactCall(t, `{"net":`+net+`}`)
+	for _, want := range []string{`id="pf-explore"`, `Explore this model`, `id="pf-sec-graph"`, `id="pf-view-toggles"`, `role="tablist"`, `Q${ctrl.x}`} {
+		if !strings.Contains(page, want) {
+			t.Errorf("page lacks %q", want)
+		}
+	}
+	d := pageData(t, page)
+	trs := d["net"].(map[string]any)["transitions"].([]any)
+	rates := map[string]float64{}
+	for _, x := range trs {
+		m := x.(map[string]any)
+		rates[m["id"].(string)] = m["rate"].(float64)
+	}
+	if rates["go"] != 2.5 || rates["back"] != 1 {
+		t.Errorf("rates = %v, want go 2.5 and back 1 (the default)", rates)
+	}
+	v := d["views"].(map[string]any)
+	if v["lead"] != "dynamics" || len(v["all"].([]any)) != 5 {
+		t.Errorf("views = %v", v)
 	}
 }

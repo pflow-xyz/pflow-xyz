@@ -163,7 +163,7 @@ For parts that must work together, build a composition rather than one big net: 
 {{end}}{{if eq .Focus "artifact"}}
 ## Focus: artifact
 
-{{if .Has "pflow_artifact"}}Finish by calling pflow_artifact so the person gets a page, not a JSON blob.{{else}}This server has no artifact tool yet; finish with the editor link from pflow_links, and offer to describe the net in a short diagram of your own if the client can render one.{{end}}
+{{if .Has "pflow_artifact"}}Finish by calling pflow_artifact so the person gets a page, not a JSON blob. Publish the page as given. It chooses what to lead with from the net (read views.lead in the summary): a few places and transitions, or a net that grows without bound, lead with the graph (values over time and a phase plane), because the dynamics are the point; a small bounded net leads with the token game and verdicts; a net of about 60 nodes or more leads with verdicts and P-invariants. Every view stays available at the bottom of the page, and Explore this model edits the marking, rates and arc weights in place. For a rate model, put a rate on each transition in the net (default 1) before you ask for the page. Say what the page leads with when you hand it over, so the person knows to look for the others.{{else}}This server has no artifact tool yet; finish with the editor link from pflow_links, and offer to describe the net in a short diagram of your own if the client can render one.{{end}}
 {{end}}
 ## Tools on this server
 
