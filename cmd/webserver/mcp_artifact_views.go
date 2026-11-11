@@ -89,7 +89,7 @@ func structuralClasses(places []artPlace, trans []artTransition, arcs []artArc, 
 	if isMarkedGraph(places, arcs) {
 		out = append(out, "MarkedGraphNet")
 	}
-	if isConservative(touchedPlaces(arcs), invs) {
+	if isConservative(touchedPlaces(places, arcs), invs) {
 		out = append(out, "ConservativeNet")
 	}
 	if bounded == false {
@@ -188,10 +188,16 @@ func coefficientMap(inv map[string]any) map[string]float64 {
 
 // touchedPlaces are the places some arc names. In an unfolded coloured net the
 // others are colour slots that never hold a token.
-func touchedPlaces(arcs []artArc) map[string]bool {
-	out := map[string]bool{}
+func touchedPlaces(places []artPlace, arcs []artArc) map[string]bool {
+	ends := map[string]bool{}
 	for _, a := range arcs {
-		out[a.Source], out[a.Target] = true, true
+		ends[a.Source], ends[a.Target] = true, true
+	}
+	out := map[string]bool{}
+	for _, p := range places {
+		if ends[p.ID] {
+			out[p.ID] = true
+		}
 	}
 	return out
 }
@@ -238,7 +244,7 @@ func tokenSources(trans []artTransition, arcs []artArc) (creators, destroyers []
 // capacityBound is the number of markings a net can have when every place it
 // uses has a capacity, else 0 (no bound from capacities alone).
 func capacityBound(places []artPlace, arcs []artArc) int {
-	touched := touchedPlaces(arcs)
+	touched := touchedPlaces(places, arcs)
 	b := 1
 	for _, p := range places {
 		if !touched[p.ID] {

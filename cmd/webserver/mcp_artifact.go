@@ -328,7 +328,7 @@ func mcpArtifact(s *Server, r *http.Request, args map[string]any) (any, error) {
 		}
 	}
 
-	touched := touchedPlaces(arcs)
+	touched := touchedPlaces(places, arcs)
 	invs = meaningfulInvariants(invs, touched)
 	creators, destroyers := tokenSources(trans, arcs)
 
