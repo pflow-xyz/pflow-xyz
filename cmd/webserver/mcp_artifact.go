@@ -40,6 +40,7 @@ import (
 	"strings"
 
 	"github.com/pflow-xyz/go-pflow/parser"
+	"github.com/pflow-xyz/go-pflow/petri"
 	"github.com/pflow-xyz/pflow-xyz/internal/model"
 )
 
@@ -97,7 +98,7 @@ func artifactTool() mcpTool {
 			"The html is a fragment (no doctype/html/head/body: the host wraps it). Give the net inline as net, or a stored net by cid (then the editor link is ?cid= rather than the net inline, and the net need not pass through the conversation). " +
 			"engine \"baked\" (default, tens of KB, loads nothing) fixes the verdicts at the net's marking. " +
 			"\"wasm\" (about the size of baked) also loads the pflow-rs engine as one script pinned to an exact version on cdn.jsdelivr.net (@pflow-xyz/engine, " + artifactCDN.Version + "), so the person can edit the initial marking and re-analyze in the page; if that script cannot load, the page keeps the baked verdicts and says so. " +
-			"\"wasm-inline\" embeds the same engine as base64 instead (about 450 KB, loads nothing); most chat clients truncate a tool result that large, so prefer \"wasm\". Single-colour nets only.",
+			"\"wasm-inline\" embeds the same engine as base64 instead (about 450 KB, loads nothing); most chat clients truncate a tool result that large, so prefer \"wasm\". Coloured nets (more than one token colour) are drawn too: the page plays the net's unfolding, one place per colour with the transitions shared, so a firing moves every colour its arcs name together, and it draws each colour in its own colour (tokens, arcs and graph lines; the summary's classes include ColoredNet). The in-page engine reads single-colour nets only, so a coloured net needs engine \"baked\".",
 		InputSchema: obj(map[string]any{
 			"net":        netArg,
 			"cid":        map[string]any{"type": "string", "description": "a stored net's CID, instead of net"},
@@ -120,6 +121,13 @@ type artPlace struct {
 	Y        float64 `json:"y"`
 	Initial  int     `json:"initial"`
 	Capacity int     `json:"capacity"`
+	// Coloured nets only: the page plays the unfolding (one place per colour),
+	// and draws the colours of one place together at its position.
+	Base      string `json:"base,omitempty"`      // the place in the net as written
+	BaseLabel string `json:"baseLabel,omitempty"` // its label
+	Color     string `json:"color,omitempty"`     // CSS colour of the tokens
+	ColorName string `json:"colorName,omitempty"`
+	ColorIx   int    `json:"colorIx,omitempty"`
 }
 
 type artTransition struct {
@@ -135,6 +143,13 @@ type artArc struct {
 	Target  string `json:"target"`
 	Weight  int    `json:"weight"`
 	Inhibit bool   `json:"inhibit"`
+	ColorIx int    `json:"colorIx,omitempty"` // coloured nets: which colour this arc carries
+}
+
+// artColor is one token colour of a coloured net.
+type artColor struct {
+	Name string `json:"name"`
+	CSS  string `json:"css"`
 }
 
 func sumInts(v []float64) int {
@@ -214,8 +229,22 @@ func mcpArtifact(s *Server, r *http.Request, args map[string]any) (any, error) {
 		return nil, fmt.Errorf("go-pflow cannot read the net: %v", err)
 	}
 	norm := parser.Normalize(pn)
+	// A coloured net is played as its unfolding: one place per colour, the
+	// transitions shared, so a firing moves every colour atomically. That is the
+	// net the verdict handlers analyse, and the page draws the colours of one
+	// place together. The in-page engine reads single-colour nets only.
+	var colors []artColor
+	var cmap *petri.ColorMap
 	if len(norm.Token) > 1 {
-		return nil, fmt.Errorf("pflow_artifact plays single-colour nets; this one has %d token colours", len(norm.Token))
+		if engine != "baked" {
+			return nil, fmt.Errorf("this net has %d token colours; the in-page engine reads single-colour nets, so use engine \"baked\" (the verdicts are still go-pflow's, on the unfolded net)", len(norm.Token))
+		}
+		for _, tk := range norm.Token {
+			colors = append(colors, tokenColor(tk))
+		}
+		var exp *petri.PetriNet
+		exp, cmap = pn.ExpandColors()
+		norm = parser.Normalize(exp)
 	}
 	if len(norm.Places) == 0 || len(norm.Transitions) == 0 {
 		return nil, errors.New("the net needs at least one place and one transition to draw a token game")
@@ -225,7 +254,17 @@ func mcpArtifact(s *Server, r *http.Request, args map[string]any) (any, error) {
 	var places []artPlace
 	for _, id := range sortedKeys(norm.Places) {
 		p := norm.Places[id]
-		places = append(places, artPlace{ID: id, Label: p.Label, X: p.X, Y: p.Y, Initial: sumInts(p.Initial), Capacity: sumInts(p.Capacity)})
+		ap := artPlace{ID: id, Label: p.Label, X: p.X, Y: p.Y, Initial: sumInts(p.Initial), Capacity: sumInts(p.Capacity)}
+		if cmap != nil {
+			ref := cmap.Base[id]
+			c := colors[ref.Color]
+			ap.Base, ap.BaseLabel, ap.Color, ap.ColorName, ap.ColorIx = ref.Place, p.Label, c.CSS, c.Name, ref.Color
+			if ap.BaseLabel == "" {
+				ap.BaseLabel = ref.Place
+			}
+			ap.Label = ap.BaseLabel + " (" + c.Name + ")"
+		}
+		places = append(places, ap)
 	}
 	var trans []artTransition
 	rates := transitionRates(doc)
@@ -243,7 +282,15 @@ func mcpArtifact(s *Server, r *http.Request, args map[string]any) (any, error) {
 		if len(a.Weight) == 0 {
 			w = 1
 		}
-		arcs = append(arcs, artArc{Source: a.Source, Target: a.Target, Weight: w, Inhibit: a.Inhibit})
+		aa := artArc{Source: a.Source, Target: a.Target, Weight: w, Inhibit: a.Inhibit}
+		if cmap != nil {
+			if ref, ok := cmap.Base[a.Source]; ok {
+				aa.ColorIx = ref.Color
+			} else if ref, ok := cmap.Base[a.Target]; ok {
+				aa.ColorIx = ref.Color
+			}
+		}
+		arcs = append(arcs, aa)
 	}
 	page["places"], page["transitions"], page["arcs"] = places, trans, arcs
 
@@ -305,15 +352,23 @@ func mcpArtifact(s *Server, r *http.Request, args map[string]any) (any, error) {
 
 	classes := ontologyClasses(complete, reach["live"], reach["deadlock_free"], reach["bounded"])
 	structural := structuralClasses(places, trans, arcs, invs, reach["bounded"])
+	nBase := len(places)
+	if cmap != nil {
+		structural = append([]string{"ColoredNet"}, structural...)
+		nBase = len(cmap.Expanded)
+	}
 	classes = append(classes, structural...)
-	views := recommendViews(len(places), len(trans), complete, reach["bounded"])
+	views := recommendViews(nBase, len(trans), complete, reach["bounded"])
 	data := map[string]any{
 		"views": views, "structural": structural,
 		"title": title, "cid": cid, "editor": editor, "stored": stored, "engine": engine,
 		"net": page, "analysis": analysis, "invariants": invs,
 	}
-	if engine == "wasm" || engine == "wasm-inline" {
+	if engine == "wasm" || engine == "wasm-inline" || cmap != nil {
 		data["source"] = doc
+	}
+	if cmap != nil {
+		data["colors"] = colors
 	}
 	blob, err := json.Marshal(data) // escapes <, > and &, so the blob cannot close its script
 	if err != nil {

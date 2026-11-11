@@ -108,7 +108,7 @@ Only `pflow_save` needs a sign-in. [Setup and every tool](https://pflow.xyz/mcp.
   verdicts for a small bounded net, verdicts and P-invariants for ~60+ nodes. Every
   view can be exposed from the bottom of the page, and "Explore this model" opens
   a dialog to edit marking, rates and arc weights, re-analyze, export and open the
-  editor. The summary's `views.lead` says what it led with)
+  editor. The summary's `views.lead` says what it led with. Coloured nets are drawn in their colours via their unfolding; engine "baked" only)
 - Two-sided games, solved exactly by alpha-beta search over the firing rule. The
   net's marking is the position. Both tools need `net`, `sides` (transition-id
   prefix to sign, `{"x_": 1, "o_": -1}`) and `reward` (place to weight, read from

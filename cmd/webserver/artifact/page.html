@@ -19,6 +19,7 @@ body{font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 .pf svg.net{width:100%;height:auto;max-height:70vh;display:block;touch-action:manipulation}
 .pf .pl circle{fill:var(--surface);stroke:var(--ink);stroke-width:2}
 .pf .tok{fill:var(--token)}
+.pf .cnt2{font-size:12px;font-weight:700;text-anchor:middle;dominant-baseline:central;stroke:var(--surface);stroke-width:2.5px;paint-order:stroke}
 .pf .cnt{fill:var(--token);font-size:14px;font-weight:600;text-anchor:middle;dominant-baseline:central}
 .pf .lbl{fill:var(--muted);font-size:11px;text-anchor:middle}
 .pf .tr rect{fill:var(--surface);stroke:var(--ink);stroke-width:2}
@@ -206,6 +207,23 @@ __PFLOW_ENGINE__<script>
   const P = new Map(net.places.map((p) => [p.id, p]));
   const T = new Map(net.transitions.map((t) => [t.id, t]));
   const tids = net.transitions.map((t) => t.id).sort();
+  // Coloured net: the page plays its unfolding (one place per colour). Tokens,
+  // arcs and graph lines take their colour; the colours of one place are drawn together.
+  const COLORED = Array.isArray(D.colors) && D.colors.length > 1;
+  // A pale token colour (white, ivory) would vanish on a light page: lines and counts use the muted ink instead.
+  const PALE = new Set(["white", "#fff", "#ffffff", "snow", "ivory", "ghostwhite", "whitesmoke", "floralwhite", "azure", "mintcream", "honeydew", "seashell", "lightyellow", "lightcyan"]);
+  const inkFor = (c) => (PALE.has(String(c).toLowerCase()) ? "var(--muted)" : c);
+  const slotOf = new Map(); // unfolded place id -> {i, k} among the colours that touch its base place
+  if (COLORED) {
+    const touched = new Set(net.arcs.flatMap((a) => [a.source, a.target]));
+    const byBase = new Map();
+    for (const p of net.places) {
+      if (!(p.initial > 0 || touched.has(p.id))) continue;
+      if (!byBase.has(p.base)) byBase.set(p.base, []);
+      byBase.get(p.base).push(p.id);
+    }
+    for (const ids of byBase.values()) ids.forEach((id, i) => slotOf.set(id, { i, k: ids.length }));
+  }
   let initial = Object.fromEntries(net.places.map((p) => [p.id, p.initial]));
   let m = { ...initial };
   let trace = [];
@@ -263,6 +281,10 @@ __PFLOW_ENGINE__<script>
   const defs = el("defs", {}, svg);
   const mA = el("marker", { id: "pf-arrow", viewBox: "0 0 10 10", refX: "9", refY: "5", markerWidth: "8", markerHeight: "8", orient: "auto-start-reverse" }, defs);
   el("path", { d: "M0 0 L10 5 L0 10 z", class: "mk-arrow" }, mA);
+  if (COLORED) D.colors.forEach((c, i) => {
+    const mc = el("marker", { id: "pf-arrow-" + i, viewBox: "0 0 10 10", refX: "9", refY: "5", markerWidth: "8", markerHeight: "8", orient: "auto-start-reverse" }, defs);
+    el("path", { d: "M0 0 L10 5 L0 10 z", fill: c.css }, mc);
+  });
   const mI = el("marker", { id: "pf-inhib", viewBox: "0 0 10 10", refX: "9", refY: "5", markerWidth: "8", markerHeight: "8" }, defs);
   el("circle", { cx: "5", cy: "5", r: "4", class: "mk-inhib" }, mI);
 
@@ -281,31 +303,46 @@ __PFLOW_ENGINE__<script>
     const sp = P.has(a.source), tp = P.has(a.target);
     // Two arcs between the same pair, one each way, would lie on one line:
     // each bows to its own left (looking along the arc), so they part.
-    const both = net.arcs.some((b) => b !== a && b.source === a.target && b.target === a.source);
+    const both = net.arcs.some((b) => b !== a && b.source === a.target && b.target === a.source && (!COLORED || (b.colorIx || 0) === ((a.colorIx || 0))));
     let ctrl = null;
     if (both) {
       const dx = t.x - src.x, dy = t.y - src.y, len = Math.hypot(dx, dy) || 1;
       ctrl = { x: (src.x + t.x) / 2 - (dy / len) * 26, y: (src.y + t.y) / 2 + (dx / len) * 26 };
     }
-    const p1 = trim(src, ctrl || t, sp, 0), p2 = trim(t, ctrl || src, tp, 2);
+    let p1 = trim(src, ctrl || t, sp, 0), p2 = trim(t, ctrl || src, tp, 2);
+    let col = null;
+    if (COLORED) {
+      // One arc per colour between the same two nodes: fan them out, side by side, in their colours.
+      col = D.colors[(a.colorIx || 0)].css;
+      const dx = t.x - src.x, dy = t.y - src.y, len = Math.hypot(dx, dy) || 1, off = ((a.colorIx || 0) - (D.colors.length - 1) / 2) * 3.6;
+      const sx = (-dy / len) * off, sy = (dx / len) * off;
+      p1 = { x: p1.x + sx, y: p1.y + sy }; p2 = { x: p2.x + sx, y: p2.y + sy };
+      if (ctrl) { ctrl.x += sx; ctrl.y += sy; }
+    }
     const read = a.inhibit && !sp; // transition -> place inhibit: the editor's read (test) arc
     const line = ctrl
       ? el("path", { d: `M${p1.x} ${p1.y}Q${ctrl.x} ${ctrl.y} ${p2.x} ${p2.y}`, class: "arc" + (read ? " read" : "") }, arcLayer)
       : el("line", { x1: p1.x, y1: p1.y, x2: p2.x, y2: p2.y, class: "arc" + (read ? " read" : "") }, arcLayer);
-    line.setAttribute("marker-end", a.inhibit && sp ? "url(#pf-inhib)" : "url(#pf-arrow)");
+    line.setAttribute("marker-end", a.inhibit && sp ? "url(#pf-inhib)" : col ? "url(#pf-arrow-" + (a.colorIx || 0) + ")" : "url(#pf-arrow)");
+    if (col) line.setAttribute("stroke", col);
     const lx = ctrl ? 0.25 * p1.x + 0.5 * ctrl.x + 0.25 * p2.x : (p1.x + p2.x) / 2, ly = ctrl ? 0.25 * p1.y + 0.5 * ctrl.y + 0.25 * p2.y : (p1.y + p2.y) / 2;
     const t2 = el("text", { x: lx + 6, y: ly - 6, class: "wt" }, arcLayer);
     t2.textContent = a.weight !== 1 ? String(a.weight) : "";
+    if (col) t2.setAttribute("fill", col);
     arcLabels.set(a, t2);
   }
   const placeG = new Map(), transG = new Map();
+  const baseDrawn = new Set();
   for (const p of net.places) {
     const g = el("g", { class: "pl" }, svg);
-    el("circle", { cx: p.x, cy: p.y, r: R }, g);
-    const tk = el("g", {}, g);
-    const lb = el("text", { x: p.x, y: p.y + R + 14, class: "lbl" }, g);
-    lb.textContent = name(p);
-    placeG.set(p.id, tk);
+    const key = COLORED ? p.base : p.id;
+    if (!baseDrawn.has(key)) {
+      baseDrawn.add(key);
+      el("circle", { cx: p.x, cy: p.y, r: R }, g);
+      const lb = el("text", { x: p.x, y: p.y + R + 14, class: "lbl" }, g);
+      lb.textContent = COLORED ? p.baseLabel : name(p);
+    }
+    placeG.set(p.id, el("g", {}, g));
   }
   for (const t of net.transitions) {
     const g = el("g", { class: "tr", tabindex: "-1", role: "button" }, svg);
@@ -317,7 +354,24 @@ __PFLOW_ENGINE__<script>
     transG.set(t.id, g);
   }
   const DOTS = { 1: [[0, 0]], 2: [[-6, 0], [6, 0]], 3: [[-6, 5], [6, 5], [0, -6]], 4: [[-6, -6], [6, -6], [-6, 6], [6, 6]], 5: [[-7, -7], [7, -7], [0, 0], [-7, 7], [7, 7]] };
+  function drawColoredTokens() {
+    for (const p of net.places) {
+      const g = placeG.get(p.id);
+      g.replaceChildren();
+      const s = slotOf.get(p.id), n = m[p.id];
+      if (!s || !(n > 0)) continue;
+      const ang = -Math.PI / 2 + (2 * Math.PI * s.i) / s.k, rr = s.k === 1 ? 0 : 9.5;
+      const cx = p.x + rr * Math.cos(ang), cy = p.y + rr * Math.sin(ang);
+      if (n <= 3) {
+        for (let j = 0; j < n; j++) el("circle", { cx: cx + (j - (n - 1) / 2) * 6.5, cy, r: 3.4, fill: p.color, stroke: "var(--ink)", "stroke-width": 0.7 }, g);
+      } else {
+        const tx = el("text", { x: cx, y: cy, class: "cnt2", fill: inkFor(p.color) }, g);
+        tx.textContent = String(n);
+      }
+    }
+  }
   function drawTokens() {
+    if (COLORED) return drawColoredTokens();
     for (const p of net.places) {
       const g = placeG.get(p.id);
       g.replaceChildren();
@@ -752,12 +806,23 @@ __PFLOW_ENGINE__<script>
     const tmax = last.t || T;
     const ts = $("pf-g-ts");
     const { X, Y } = frame(ts, 640, 240, 46, 28, tmax, ymax, "time", "value");
+    const DASH = ["", "7 3", "2 3", "8 3 2 3", "1 2"];
+    const bases = COLORED ? [...new Set(net.places.map((q) => q.base))] : [];
+    const look = (id, k) => COLORED
+      ? { c: inkFor(P.get(id).color), dash: DASH[bases.indexOf(P.get(id).base) % DASH.length] }
+      : { c: GCOL[k % GCOL.length], dash: "" };
     plotP.forEach((id, k) => {
       const d = pts.map((q, i) => (i ? "L" : "M") + X(q.t).toFixed(1) + " " + Y(q.x[id]).toFixed(1)).join("");
-      el("path", { class: "ln", d, stroke: GCOL[k % GCOL.length] }, ts);
+      const lk = look(id, k);
+      const ln = el("path", { class: "ln", d, stroke: lk.c }, ts);
+      if (lk.dash) ln.setAttribute("stroke-dasharray", lk.dash);
     });
     const lg = $("pf-g-legend"); lg.replaceChildren();
-    plotP.forEach((id, k) => { const s = document.createElement("span"); s.style.color = GCOL[k % GCOL.length]; s.textContent = "■ " + name(P.get(id)); lg.appendChild(s); });
+    plotP.forEach((id, k) => {
+      const s = document.createElement("span"), sw = document.createElement("i");
+      sw.style.cssText = "display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;border:1px solid var(--ink);background:" + (COLORED ? P.get(id).color : look(id, k).c);
+      s.append(sw, name(P.get(id))); lg.appendChild(s);
+    });
     // phase plane
     const pp = $("pf-g-pp");
     pp.hidden = net.places.length < 2;
@@ -865,7 +930,9 @@ __PFLOW_ENGINE__<script>
 
   // ---- boot ----
   $("pf-title").textContent = D.title;
-  $("pf-lede").textContent = `${net.places.length} places, ${net.transitions.length} transitions. Fire enabled transitions and watch the conservation laws hold.`;
+  $("pf-lede").textContent = COLORED
+    ? `${new Set(net.places.map((p) => p.base)).size} places holding ${D.colors.length} colours of token (${D.colors.map((c) => c.name).join(", ")}), ${net.transitions.length} transitions. A firing moves every colour its arcs name, together.`
+    : `${net.places.length} places, ${net.transitions.length} transitions. Fire enabled transitions and watch the conservation laws hold.`;
   $("pf-cid").textContent = D.cid;
   $("pf-editor").href = D.editor;
   $("pf-stored").textContent = D.stored ? "(stored on pflow.xyz)" : "(the net travels in the link)";

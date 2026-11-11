@@ -178,9 +178,11 @@ func TestArtifactRefusals(t *testing.T) {
 	colored := `{"@context":"https://pflow.xyz/schema","@type":"PetriNet","token":["https://pflow.xyz/tokens/red","https://pflow.xyz/tokens/blue"],
 	 "places":{"a":{"initial":[1,1],"x":0,"y":0}},"transitions":{"t":{"x":0,"y":0}},"arcs":[{"source":"a","target":"t","weight":[1,0]}]}`
 	for name, args := range map[string]string{
-		"engine":  `{"net":` + artRingNet + `,"engine":"native"}`,
-		"colours": `{"net":` + colored + `}`,
-		"no net":  `{}`,
+		"engine": `{"net":` + artRingNet + `,"engine":"native"}`,
+		// A coloured net is drawn from its unfolding (TestArtifactColoredNet); the
+		// in-page engine reads single-colour nets only.
+		"colours with the in-page engine": `{"net":` + colored + `,"engine":"wasm"}`,
+		"no net":                          `{}`,
 	} {
 		_, out := mcpCall(t, &Server{}, toolCall("pflow_artifact", args))
 		if res, _ := out["result"].(map[string]any); res == nil || res["isError"] != true {
@@ -493,5 +495,40 @@ func TestArtifactExploreAndRates(t *testing.T) {
 	v := d["views"].(map[string]any)
 	if v["lead"] != "dynamics" || len(v["all"].([]any)) != 5 {
 		t.Errorf("views = %v", v)
+	}
+}
+
+// A coloured net is played as its unfolding and drawn in its colours; the
+// verdicts are go-pflow's on the unfolded net. The in-page engine reads
+// single-colour nets only, so engine "wasm" refuses with the reason.
+func TestArtifactColoredNet(t *testing.T) {
+	raw, err := os.ReadFile("../../examples/landing/coffee-shop.jsonld")
+	if err != nil {
+		t.Fatal(err)
+	}
+	sum, page := artifactCall(t, `{"net":`+string(raw)+`}`)
+	d := pageData(t, page)
+	cols, _ := d["colors"].([]any)
+	if len(cols) != 3 || cols[0].(map[string]any)["name"] != "red" || cols[1].(map[string]any)["css"] != "brown" {
+		t.Errorf("colors = %v", d["colors"])
+	}
+	pl := d["net"].(map[string]any)["places"].([]any)
+	if len(pl) != 12 {
+		t.Errorf("%d unfolded places, want 4 places x 3 colours", len(pl))
+	}
+	p0 := pl[0].(map[string]any)
+	if p0["base"] == nil || p0["color"] == nil || p0["baseLabel"] == nil {
+		t.Errorf("an unfolded place names its base place and colour: %v", p0)
+	}
+	classes, _ := json.Marshal(sum["classes"])
+	if !strings.Contains(string(classes), `"ColoredNet"`) {
+		t.Errorf("classes = %s", classes)
+	}
+	if sum["views"].(map[string]any)["lead"] != "dynamics" {
+		t.Errorf("4 base places and 5 transitions lead with the graph: %v", sum["views"])
+	}
+	_, out := mcpCall(t, &Server{}, toolCall("pflow_artifact", `{"net":`+string(raw)+`,"engine":"wasm"}`))
+	if b, _ := json.Marshal(out); !strings.Contains(string(b), "single-colour") {
+		t.Errorf("engine wasm on a coloured net should say why not: %s", b)
 	}
 }

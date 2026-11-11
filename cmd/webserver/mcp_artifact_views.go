@@ -1,6 +1,9 @@
 package main
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"strings"
+)
 
 // What a pflow_artifact page leads with, and what else the ontology can say
 // about the net. Both are rules over the net's size, shape and verdicts, so a
@@ -201,4 +204,29 @@ func transitionRates(doc map[string]any) map[string]float64 {
 		}
 	}
 	return out
+}
+
+// tokenColor reads a token colour from its URL (https://pflow.xyz/tokens/red,
+// or a bare hex such as .../tokens/ff0000) into a name and a CSS colour. The
+// name is cut to letters and digits, so it is safe as an attribute value.
+func tokenColor(url string) artColor {
+	name := url
+	if i := strings.LastIndex(url, "/"); i >= 0 {
+		name = url[i+1:]
+	}
+	clean := make([]rune, 0, len(name))
+	for _, r := range name {
+		if r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9' {
+			clean = append(clean, r)
+		}
+	}
+	name = string(clean)
+	if name == "" {
+		name = "black"
+	}
+	css := name
+	if (len(name) == 6 || len(name) == 3) && strings.Trim(name, "0123456789abcdefABCDEF") == "" {
+		css = "#" + name
+	}
+	return artColor{Name: name, CSS: css}
 }
