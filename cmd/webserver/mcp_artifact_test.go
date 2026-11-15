@@ -69,7 +69,7 @@ func philosophers3(t *testing.T) string {
 // The three philosophers deadlock: the page carries the engine's verdicts,
 // the witness, the invariants and the class those verdicts earn.
 func TestArtifactPhilosophersBaked(t *testing.T) {
-	sum, page := artifactCall(t, `{"net":`+philosophers3(t)+`,"title":"Three philosophers"}`)
+	sum, page := artifactCall(t, `{"net":`+philosophers3(t)+`,"title":"Three philosophers","engine":"baked"}`)
 	low := strings.ToLower(page)
 	for _, banned := range []string{"<!doctype", "<html", "<head>", "<head ", "<body", "<link", " src=", "fetch(", "@import"} {
 		if strings.Contains(low, banned) {
@@ -270,7 +270,7 @@ process.exit(JSON.stringify(got) === JSON.stringify(want) ? 0 : 1);
 
 // Every byte the client must copy is reported, per engine.
 func TestArtifactSizes(t *testing.T) {
-	_, baked := artifactCall(t, `{"net":`+philosophers3(t)+`}`)
+	_, baked := artifactCall(t, `{"net":`+philosophers3(t)+`,"engine":"baked"}`)
 	_, wasm := artifactCall(t, `{"net":`+philosophers3(t)+`,"engine":"wasm"}`)
 	_, inline := artifactCall(t, `{"net":`+philosophers3(t)+`,"engine":"wasm-inline"}`)
 	// The page template carries the graph, the views and the Explore dialog, so

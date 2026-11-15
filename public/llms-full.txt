@@ -220,10 +220,9 @@ pflow_optimize, pflow_cid, pflow_get, pflow_export, pflow_links, pflow_save,
 pflow_skill (a ready-to-save Claude skill: the model-check-show procedure with
 this server's tool list filled in live), pflow_artifact (an interactive page of
 the net, to publish as an Artifact; `net` or a stored net's `cid`, which makes
-the editor link `?cid=`; engine "baked" (default, about 40 KB, verdicts fixed),
-"wasm" (about 45 KB: the page loads @pflow-xyz/engine, pinned to an exact
+the editor link `?cid=`; engine "wasm" (default, about 45 KB: the page loads @pflow-xyz/engine, pinned to an exact
 version on cdn.jsdelivr.net, to re-analyze an edited marking, and keeps the
-baked verdicts if it cannot) or "wasm-inline" (the engine embedded, about
+baked verdicts if it cannot), "baked" (about 40 KB, verdicts fixed, loads nothing) or "wasm-inline" (the engine embedded, about
 470 KB, which most chat clients truncate)).
 
 **Two-sided games:** exact alpha-beta search over the firing rule, on a net whose

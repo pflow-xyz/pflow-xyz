@@ -101,15 +101,15 @@ func artifactTool() mcpTool {
 			"The page chooses what to lead with from the net (the summary's views.lead says which): a few places and transitions, or an unbounded net, lead with the graph, the populations over time and the phase plane, because there the dynamics are the point; a small bounded net leads with the token game and verdicts; a net of about 60 nodes or more leads with verdicts and P-invariants. " +
 			"Every view stays available: Explore this model, at the bottom of every page, exposes the hidden ones and lets the person edit the marking, the transition rates (the net's optional per-transition rate, default 1) and the arc weights in the page. Read views.lead before telling the person what the page shows first. " +
 			"The html is a fragment (no doctype/html/head/body: the host wraps it). Always pass title, a short specific name for the model: the page's <title> is the artifact's name in the browser tab and the gallery, so \"Petri net\" makes every page look alike (the summary says title_is_default when you left it out). Give the net inline as net, or a stored net by cid (then the editor link is ?cid= rather than the net inline, and the net need not pass through the conversation). " +
-			"engine \"baked\" (default, tens of KB, loads nothing) fixes the verdicts at the net's marking. " +
-			"\"wasm\" (about the size of baked) also loads the pflow-rs engine as one script pinned to an exact version on cdn.jsdelivr.net (@pflow-xyz/engine, " + artifactCDN.Version + "), so the person can edit the initial marking and re-analyze in the page; if that script cannot load, the page keeps the baked verdicts and says so. " +
+			"engine \"wasm\" (default, about the size of baked) loads the pflow-rs engine as one script pinned to an exact version on cdn.jsdelivr.net (@pflow-xyz/engine, " + artifactCDN.Version + "), so the person can edit the initial marking and re-analyze in the page; if that script cannot load, the page keeps the baked verdicts and says so. " +
+			"\"baked\" (tens of KB, loads nothing) fixes the verdicts at the net's marking, for hosts that block scripts from cdn.jsdelivr.net. " +
 			"\"wasm-inline\" embeds the same engine as base64 instead (about 450 KB, loads nothing); most chat clients truncate a tool result that large, so prefer \"wasm\". Coloured nets (more than one token colour) are drawn too: the page plays the net's unfolding, one place per colour with the transitions shared, so a firing moves every colour its arcs name together, and it draws each colour in its own colour (tokens, arcs and graph lines; the summary's classes include ColoredNet). With engine \"wasm\" the in-page engine is given the same unfolding. max_states defaults to 2000, or to the number of possible markings when every place has a capacity (up to 20000), so a capacity-bounded net gets real verdicts.",
 		InputSchema: obj(map[string]any{
 			"net":        netArg,
 			"cid":        map[string]any{"type": "string", "description": "a stored net's CID, instead of net"},
 			"title":      map[string]any{"type": "string", "description": "page title and the name to publish it under: two to four words naming the model (\"Coffee shop\", \"Dining philosophers\"), never \"Petri net\". Default: the net's name, else its place labels"},
 			"max_states": map[string]any{"type": "integer", "description": "reachability budget (default 2000, ≤ 20000)"},
-			"engine":     map[string]any{"type": "string", "enum": []any{"baked", "wasm", "wasm-inline"}, "description": "baked (default; verdicts fixed), wasm (re-analyze in the page; loads the pinned engine script from cdn.jsdelivr.net) or wasm-inline (the engine embedded, ~450 KB: most chat clients truncate it)"},
+			"engine":     map[string]any{"type": "string", "enum": []any{"baked", "wasm", "wasm-inline"}, "description": "wasm (default; re-analyze in the page; loads the pinned engine script from cdn.jsdelivr.net), baked (verdicts fixed, loads nothing) or wasm-inline (the engine embedded, ~450 KB: most chat clients truncate it)"},
 		}),
 		run: mcpArtifact,
 	}
@@ -217,7 +217,7 @@ func mcpArtifact(s *Server, r *http.Request, args map[string]any) (any, error) {
 	}
 	engine, _ := args["engine"].(string)
 	if engine == "" {
-		engine = "baked"
+		engine = "wasm"
 	}
 	if engine != "baked" && engine != "wasm" && engine != "wasm-inline" {
 		return nil, errors.New(`engine: "baked", "wasm" or "wasm-inline"`)

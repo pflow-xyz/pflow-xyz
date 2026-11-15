@@ -100,8 +100,8 @@ Only `pflow_save` needs a sign-in. [Setup and every tool](https://pflow.xyz/mcp.
   the model-check-show procedure with this tool list filled in live),
   pflow_artifact (an interactive page of the net, to publish as an Artifact;
   `net` or a stored net's `cid`; always pass `title`, a short specific name for the
-  model (the artifact's name in the tab and gallery); engine "baked" (default, ~50 KB and up with
-  the net), "wasm" (about 1 KB more, loads the pinned @pflow-xyz/engine script from
+  model (the artifact's name in the tab and gallery); engine "wasm" (default, ~50 KB and up with
+  the net; loads the pinned @pflow-xyz/engine script from
   cdn.jsdelivr.net to re-analyze in the page) or "wasm-inline" (~500 KB, most
   clients truncate it). The page leads with what suits the net: the graph (values
   over time, phase plane; mass-action flow with the net's optional per-transition
