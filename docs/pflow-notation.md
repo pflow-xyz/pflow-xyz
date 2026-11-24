@@ -1486,13 +1486,13 @@ info: deadlock-free, live, l4-live: unknown, the search stopped at 2000 markings
 warning: unbounded: place(s) Prey.blue grow without bound               on line 6, `place Prey`; related: line 7
   = help: add a capacity, or let the net give the token back (fire prey_birth)
 
-coffee-shop.pnet   at 2000 markings:  one info, "bounded, deadlock-free, live, l4-live: unknown, the search stopped at 2001 markings"
+coffee-shop.pnet   at 2000 markings:  info: bounded (by declared capacity); one info, "deadlock-free, live, l4-live: unknown, the search stopped at 2001 markings"
 coffee-shop.pnet   at 20000:          info: bounded across all 2706 reachable states; info: no deadlock among all 2706 reachable states
 ```
 
 Four things the real output taught:
 
-1. **Unknown is a first-class answer.** At 2,000 markings the coffee shop is neither proved nor refuted, though every place has a finite capacity and the state space is 2,706 markings. The advisor says unknown once and offers the bound (as `pflow_verify` does: default 2,000, at most 20,000); it never turns "I stopped" into "fine". (The verifier does not use capacities to bound a place structurally; that is a verifier improvement, not an advisor one.)
+1. **Unknown is a first-class answer.** At 2,000 markings the coffee shop is neither proved nor refuted, though every place has a finite capacity and the state space is 2,706 markings. The advisor says unknown once and offers the bound (as `pflow_verify` does: default 2,000, at most 20,000); it never turns "I stopped" into "fine". (Bounded was unknown here too until go-pflow c31ded6 taught the verifier to use capacities; see finding 6 in section 8.)
 2. **A law with value 0 is dropped.** `Prey.red == 0` only says a colour copy no arc touches stays empty. The unfolded names are mapped back (`Prey.blue` is the place `Prey`, colour `blue`) so the squiggle lands on the declaration.
 3. **A refutation is not always a bug.** `knapsack` reports `deadlock-free is refuted: 3 deadlock state(s) reachable`: a search plan *ends*. The warning is right and the author may mean it. What must not happen is silencing it by a comment that changes the advisor's behaviour: comments are trivia (L4), and a switch that is not a statement is a habit, not structure. The answer is §1.10's `expect` (`expect deadlock`), compiled to the `ModelContent` sidecar and not into the CID; the advisor reads it from there.
 4. **The mutual exclusion in `readers-writers` is not found by default.** "A reader and a writer are never active together" is a property the author states (`verify`'s `mutual-exclusion`, `unreachable{target}`), not one the four default questions ask. Same fix: it is an `expect`.
@@ -1593,14 +1593,14 @@ Each is a choice with a recommendation; the first three are the ones that are ex
 
 ## 8. Findings in code that already exists
 
-Nothing below is changed here. They came out of running real nets through the real tools.
+Nothing below was changed by the notation work. They came out of running real nets through the real tools. Status as of 2026-11-24: 1 and 6 are fixed; 2 waits on approval because it moves editor CIDs (docs/model-identity.md, "Sealing contract versions").
 
-1. **Check net rejects the net type the landing page ships.** `public/petri-validate.js:82` makes any `@type` but `PetriNet` an error, and `examples/landing/producer-consumer.jsonld` is a `ResourceNet`: `node scripts/check-nets.mjs examples/landing/producer-consumer.jsonld` reports `@type: is "ResourceNet", not "PetriNet"`. (sim, the ontology and the Bundle's `net_type` use `ResourceNet`.) The notation warns on any other kind for that reason.
+1. **Check net rejected the net type the landing page ships** (fixed: go-pflow's net types are valid `@type`s). `public/petri-validate.js:82` makes any `@type` but `PetriNet` an error, and `examples/landing/producer-consumer.jsonld` is a `ResourceNet`: `node scripts/check-nets.mjs examples/landing/producer-consumer.jsonld` reports `@type: is "ResourceNet", not "PetriNet"`. (sim, the ontology and the Bundle's `net_type` use `ResourceNet`.) The notation warns on any other kind for that reason.
 2. **The sealer drops a `null` inside a list**, so `capacity: [null, 3]` and `capacity: [3]` are one CID and mean different things in a two-colour net: the editor writes `Infinity` as `null`, so a net unbounded in its first colour and capped at 3 in its second seals as one capped at 3 in its first. A collision between two different nets; probably rare. `TestSealingEquivalencesTheDesignRelies` pins the behaviour.
 3. **`capacity: [0]` and `[null]` mean the same to every engine (0 is unbounded) and seal differently.** Not a bug; the notation keeps them distinguishable (a sum writes zeros, nothing writes null).
 4. **`author` is the commonest thing the core subset lacks** (six of the twelve nets that did not carry). It is stamped at save, so a hand-written net and the saved copy have different CIDs for that reason alone. `ext author` can carry it; the recommendation is that the save path owns it.
 5. **A weight of `[0]` is read three ways**: "no requirement" by `petri-sim.js`, weight 1 by go-pflow and pflow-rs (the check's own warning says so; `producer-consumer.jsonld` has one). The notation writes `*0`, warns on it, and does not decide.
-6. **`verify`'s `bounded` does not use capacities.** The coffee shop has a finite capacity on every colour of every place and the verifier says `unknown` at 2,001 markings; at 20,000 it finishes and proves it. A structural rule ("every place has a capacity on every colour") would prove it with no search.
+6. **`verify`'s `bounded` did not use capacities** (fixed in go-pflow c31ded6: a capacity, a P-invariant or a place nothing adds to proves it structurally). The coffee shop has a finite capacity on every colour of every place and the verifier says `unknown` at 2,001 markings; at 20,000 it finishes and proves it. A structural rule ("every place has a capacity on every colour") would prove it with no search.
 
 ## 9. Neighbouring notations
 

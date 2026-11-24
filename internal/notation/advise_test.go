@@ -98,11 +98,15 @@ func TestAdviseUnbounded(t *testing.T) {
 	}
 }
 
-// Unknown is not a pass: at the default bound the coffee shop is unknown, at the bound pflow_verify allows it is proved.
+// Unknown is not a pass: at the default bound the coffee shop's search is unknown, at the bound pflow_verify allows it is proved.
+// Bounded needs no search: every place has a capacity, which go-pflow's verify uses since c31ded6.
 func TestAdviseUnknownThenProved(t *testing.T) {
 	_, ds := adviseExample(t, "coffee-shop", 2000)
-	if find(ds, "search", "unknown") == nil || find(ds, "bounded", "proved") != nil {
-		t.Errorf("2000 markings are not enough for the coffee shop, and it must say so: %v", ds)
+	if find(ds, "search", "unknown") == nil {
+		t.Errorf("2000 markings are not enough for the coffee shop's deadlock and liveness, and it must say so: %v", ds)
+	}
+	if find(ds, "bounded", "proved") == nil {
+		t.Errorf("the capacities bound the coffee shop at any search limit: %v", ds)
 	}
 	_, ds = adviseExample(t, "coffee-shop", 20000)
 	if find(ds, "bounded", "proved") == nil || find(ds, "deadlock-free", "proved") == nil || find(ds, "search", "unknown") != nil {
