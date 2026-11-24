@@ -1,0 +1,33 @@
+{
+  "doc": "Sequences of hub operations and the answers they must give. The same shape is meant to be replayed by BeatScript's hub (beatscript-serve src/hub/state.rs); see docs/design/tab-push.md.",
+  "cases": [
+    {"name": "owner drives own tab, stranger gets no_tab",
+     "steps": [
+       {"op": "create", "owner": "github:1", "as": "t1"},
+       {"op": "subscribe", "owner": "github:1", "tab": "t1", "as": "s1", "expect": {"first": "hello"}},
+       {"op": "push", "owner": "github:1", "tab": "t1", "event": {"type": "show", "view": "canvas"}, "expect": {"delivered": 1}},
+       {"op": "recv", "sub": "s1", "expect": {"type": "show", "view": "canvas"}},
+       {"op": "push", "owner": "github:2", "tab": "t1", "event": {"type": "stop"}, "expect": {"error": "no_tab"}}
+     ]},
+    {"name": "push with no tab named reaches every live tab of the owner only",
+     "steps": [
+       {"op": "create", "owner": "github:1", "as": "a"},
+       {"op": "create", "owner": "github:1", "as": "b"},
+       {"op": "create", "owner": "github:2", "as": "c"},
+       {"op": "subscribe", "owner": "github:1", "tab": "a", "as": "sa"},
+       {"op": "subscribe", "owner": "github:2", "tab": "c", "as": "sc"},
+       {"op": "push", "owner": "github:1", "event": {"type": "stop"}, "expect": {"delivered": 1}}
+     ]},
+    {"name": "get round trip answers from the page",
+     "steps": [
+       {"op": "create", "owner": "github:1", "as": "t"},
+       {"op": "subscribe", "owner": "github:1", "tab": "t", "as": "s"},
+       {"op": "recv", "sub": "s", "expect": {"type": "hello"}},
+       {"op": "state", "owner": "github:1", "tab": "t", "answerWith": {"view": "plot"}, "expect": {"fresh": true, "report": {"view": "plot"}}}
+     ]},
+    {"name": "anonymous tabs are refused",
+     "steps": [
+       {"op": "create", "owner": "", "expect": {"error": "auth_required"}}
+     ]}
+  ]
+}

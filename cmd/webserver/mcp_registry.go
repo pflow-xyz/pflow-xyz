@@ -143,6 +143,13 @@ func toolDescriptor(t mcpTool) map[string]any {
 // composition and canvas tools (and the composition tools that read a composite
 // as a net: mcp_model_composite.go).
 func allMCPTools() []mcpTool {
+	if tabPushOn.Load() {
+		return append(baseMCPTools(), tabTools()...)
+	}
+	return baseMCPTools()
+}
+
+func baseMCPTools() []mcpTool {
 	return append(append(append(append(append(append(append(append(mcpTools(), registryTools()...), workbenchTools()...), gameTools()...), modelTools()...), compositeTools()...), canvasTools()...), skillTools()...), artifactTool())
 }
 

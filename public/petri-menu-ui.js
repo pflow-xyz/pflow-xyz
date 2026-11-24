@@ -58,6 +58,7 @@ export const METHOD_OF = {
     layout: '_showLayoutAlgorithmsDialog',
     display: '_showDisplaySettingsDialog',
     app: '_openAppView',
+    'tab-link': '_toggleTabLink',
     help: '_showHelpDialog',
 };
 
@@ -155,6 +156,8 @@ export function mountAppBar(view) {
         filesEnabled: view._filesEnabled === true,
         backend: true,
         version: view.constructor?.VERSION,
+        tabEnabled: view._tabEnabled === true,
+        tabLinked: !!view._tabLink,
     });
     const entriesFor = (id) => (id === 'more' ? flattenMenus(state()) : state()[id] || []);
 

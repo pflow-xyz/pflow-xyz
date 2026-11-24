@@ -384,7 +384,7 @@ Deno.test("menuModel: none of the removed entries is a menu entry any more", () 
 });
 
 Deno.test("every action a menu entry runs is one the bar can run, and the view has the method", async () => {
-    const entries = [SIGNED_OUT, SIGNED_IN, { ...SIGNED_IN, filesEnabled: false }].flatMap((o) => { const m = menuModel(o); return [...m.file, ...m.view, ...m.help]; });
+    const entries = [SIGNED_OUT, SIGNED_IN, { ...SIGNED_IN, filesEnabled: false }, { ...SIGNED_IN, tabEnabled: true }].flatMap((o) => { const m = menuModel(o); return [...m.file, ...m.view, ...m.help]; });
     const items = new Set(entries.filter((e: any) => e.kind === "item").map((e: any) => e.id));
     for (const id of items) assert(ACTION_IDS.includes(id as string), `${id} has no action in petri-menu-ui.js`);
     for (const id of ACTION_IDS) assert(items.has(id), `${id} is an action no menu entry names`);
@@ -495,4 +495,12 @@ Deno.test("triggerKey and isFocusable", () => {
     assertEquals(triggerKey("a"), null);
     assertEquals(triggerKey("Escape"), null);
     assertEquals([{ kind: "item" }, { kind: "link" }, { kind: "info" }, { kind: "separator" }, { kind: "heading" }, null].map(isFocusable), [true, true, false, false, false, false]);
+});
+
+Deno.test("menuModel: Link to Claude is offered only to a signed-in page whose server has tab push on", () => {
+    const label = (o: any) => menuModel(o).file.find((e: any) => e.id === "tab-link")?.label;
+    assertEquals(label(SIGNED_IN), undefined); // the server did not say enabled: the menu is what it was
+    assertEquals(label({ ...SIGNED_IN, tabEnabled: true }), "Link to Claude");
+    assertEquals(label({ ...SIGNED_IN, tabEnabled: true, tabLinked: true }), "Unlink from Claude");
+    assertEquals(label({ ...SIGNED_OUT, tabEnabled: true }), undefined); // a tab belongs to an account
 });

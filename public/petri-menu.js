@@ -136,11 +136,12 @@ const SEP = Object.freeze({ kind: 'separator' });
  * `backend` false is what a standalone component could offer (no account, no server files, no Compose, no way back to
  * a menu it never left): that component keeps the old hamburger, so this is the contract rather than a second UI.
  *
- * @param {{authenticated?: boolean, user?: any, filesEnabled?: boolean, backend?: boolean, version?: string}} [o]
- *   authenticated: signed in (petri-view's _authInitialized && _user); filesEnabled: /api/files/status said enabled
+ * @param {{authenticated?: boolean, user?: any, filesEnabled?: boolean, backend?: boolean, version?: string, tabEnabled?: boolean, tabLinked?: boolean}} [o]
+ *   authenticated: signed in (petri-view's _authInitialized && _user); filesEnabled: /api/files/status said enabled;
+ *   tabEnabled: /api/tab/status said enabled (tab push, docs/design/tab-push.md), which adds Link to Claude to File
  * @returns {{file: any[], view: any[], help: any[]}}
  */
-export function menuModel({ authenticated = false, user = null, filesEnabled = false, backend = false, version = '' } = {}) {
+export function menuModel({ authenticated = false, user = null, filesEnabled = false, backend = false, version = '', tabEnabled = false, tabLinked = false } = {}) {
     const file = [];
     if (backend) {
         file.push(item('save', authenticated ? 'Save to Server' : 'Save Permalink', '💾'));
@@ -154,6 +155,7 @@ export function menuModel({ authenticated = false, user = null, filesEnabled = f
             file.push(item('gist', 'Save As Gist', '📝'));
             file.push(item('diagrams', 'My Diagrams', '📂'));
             file.push(item('details', 'Edit Details', '✏️'));
+            if (tabEnabled) file.push(item('tab-link', tabLinked ? 'Unlink from Claude' : 'Link to Claude', '🔗', { title: 'Let a Claude session connected to pflow.xyz show nets and views in this page' }));
         }
     }
     file.push(item('download', 'Download JSON', '📥'));

@@ -272,6 +272,7 @@ PetriView = class PetriView extends HTMLElement {
 
             this._authInitialized = true;
             this._updateMenuForAuth();
+            this._tabInit(); // tab push (docs/design/tab-push.md): asks the server, connects only if it is on and the person has opted in
         } catch (err) {
             console.error('Failed to initialize authentication:', err);
             // Clear invalid token
@@ -7311,6 +7312,153 @@ PetriView = class PetriView extends HTMLElement {
                 document.body.removeChild(overlay);
             }
         });
+    }
+
+    // ---------------- tab push (docs/design/tab-push.md) ----------------
+    // A signed-in page can be linked to a Claude session connected to /mcp: pflow_show pushes a net or a view here,
+    // pflow_tab_get reads back what is shown, pflow_tab_stop clears it. Off unless the server runs with PFLOW_TAB_PUSH
+    // (/api/tab/status says so) AND the person chose "Link to Claude" (remembered in localStorage; ?tab=1 for one
+    // visit). The protocol, the planner and the reconnecting reader are petri-tab.js; this is the editor around them.
+
+    async _tabInit() {
+        try {
+            if (!this.hasAttribute('data-backend') || !this._authToken || !this._user) return;
+            const res = await fetch('/api/tab/status');
+            if (!res.ok) return;
+            this._tabEnabled = (await res.json()).enabled === true;
+            this._updateMenuForAuth();
+            const want = new URLSearchParams(window.location.search).get('tab') === '1' || localStorage.getItem('pflow_tab_link') === 'on';
+            if (this._tabEnabled && want) await this._startTabLink();
+        } catch { /* an older server has no /api/tab: nothing to link */ }
+    }
+
+    async _toggleTabLink() {
+        if (this._tabLink) {
+            try { localStorage.setItem('pflow_tab_link', 'off'); } catch { /* private mode */ }
+            const link = this._tabLink;
+            this._tabLink = null;
+            await link.stop();
+            this._showLinkNotice('This tab is no longer linked to Claude.');
+            return;
+        }
+        try { localStorage.setItem('pflow_tab_link', 'on'); } catch { /* private mode */ }
+        await this._startTabLink();
+    }
+
+    async _startTabLink() {
+        if (this._tabLink || !this._authToken) return;
+        const T = await import('./petri-tab.js');
+        this._tabGen = (this._tabGen || 0) + 1;
+        this._tabLink = new T.TabLink({ host: this._tabHost(), token: this._authToken, origin: window.location.origin });
+        if (!(await this._tabLink.start())) this._tabLink = null;
+        this._updateMenuForAuth();
+    }
+
+    /** What petri-tab.js asks of the editor. Nothing here lets a push run a command outside the link-replay sandbox. */
+    _tabHost() {
+        const view = this;
+        return {
+            shellOpen: (ev) => { const sh = window.pflowShell; if (!sh || typeof sh.open !== 'function') return false; sh.open(ev); return true; },
+            shellClose: (id) => { const sh = window.pflowShell; if (!sh || typeof sh.close !== 'function') return false; sh.close(id); return true; },
+            snapshot: () => ({
+                ...(window.pflowShell?.state ? { panels: window.pflowShell.state()?.panels } : {}),
+                model: view._model, cid: view._savedNetCid(), view: view._tabView || 'canvas', dirty: !view._savedNetCid(),
+                results: view._lastResult?.result ? [{ title: view._lastResult.result.title || 'Result' }] : [],
+            }),
+            loadNet: (net, { cid }) => {
+                // The replaced net is kept (never readable by Claude) and the notice offers it back.
+                try {
+                    if (view._model && Object.keys(view._model.places || {}).length) localStorage.setItem('pflow_tab_prev', JSON.stringify(view._model));
+                } catch { /* too big or private mode: Edit > Undo still has it */ }
+                view.setModel(net);
+                view._originalCid = cid || null;
+                view._netSource = cid ? 'cid' : 'data';
+                try {
+                    const url = new URL(window.location.href);
+                    url.searchParams.delete('data');
+                    if (cid) url.searchParams.set('cid', cid); else url.searchParams.delete('cid');
+                    url.hash = '';
+                    window.history.replaceState({}, document.title, url.toString());
+                } catch { /* the address is cosmetic */ }
+                view._tabView = 'canvas';
+                view._showLinkNotice('Claude pushed a net here' + (cid ? ' (a saved one).' : ' (not saved anywhere).'));
+                const b = document.createElement('button');
+                b.type = 'button';
+                b.className = 'pv-link-notice-close';
+                b.textContent = 'Restore mine';
+                b.addEventListener('click', () => view._tabRestore());
+                view._linkNotice?.appendChild(b);
+            },
+            runSpec: async (spec) => {
+                const gen = view._tabGen;
+                const V = await import('./petri-viewspec.js');
+                const L = await import('./petri-link-open.js');
+                const P = await import('./petri-provenance.js');
+                const payload = await V.encodeView(spec);
+                const opening = await L.openLinkedView({
+                    location: { search: '?data=pushed', hash: `#view=${payload}` }, model: view._model, registry: await view.commands(), replay: V.replayInWorker,
+                    getVersions: async () => P.defaultVersions({ app: await view._appRevision() }), goals: await view._goalsCatalog(),
+                });
+                if (gen !== view._tabGen) return; // stopped while it ran
+                if (opening.kind === 'none') return;
+                if (opening.kind === 'notice') { view._showLinkNotice(opening.text); return; }
+                const { Registry, createHeadlessHost } = await import('./petri-commands.js');
+                const arts = opening.result.artifacts;
+                opening.result.registry = new Registry(createHeadlessHost(structuredClone(view._model)), undefined, { store: { items: arts.slice(), next: arts.length + 1 } });
+                const handle = await view._showResult(opening.result);
+                view._decorateLinkResult(handle, opening.opening, L);
+                view._tabView = spec.view;
+                (view._tabHandles ||= []).push(handle);
+            },
+            openOverlay: (url) => {
+                view._tabCloseOverlay();
+                const box = document.createElement('div');
+                box.dataset.tabOverlay = '1';
+                box.style.cssText = 'position:fixed;inset:4%;z-index:2147483000;background:#fff;border:1px solid #888;border-radius:8px;box-shadow:0 8px 40px rgba(0,0,0,.5);display:flex;flex-direction:column';
+                const bar = document.createElement('div');
+                bar.style.cssText = 'display:flex;justify-content:flex-end;padding:4px 8px';
+                const x = document.createElement('button');
+                x.type = 'button'; x.textContent = 'Close'; x.addEventListener('click', () => view._tabCloseOverlay());
+                bar.appendChild(x);
+                const frame = document.createElement('iframe');
+                frame.src = url; frame.title = 'Composition view'; frame.style.cssText = 'flex:1;border:0;width:100%';
+                box.append(bar, frame);
+                document.body.appendChild(box);
+                view._tabOverlay = box;
+                view._tabView = 'categorical';
+            },
+            setNotation: (source, net) => {
+                view._notationSource = source;
+                view.dispatchEvent(new CustomEvent('pflow-notation', { detail: { source, net }, bubbles: true }));
+                view._tabView = 'notation';
+            },
+            closeViews: () => {
+                view._tabGen = (view._tabGen || 0) + 1;
+                view._tabCloseOverlay();
+                for (const h of view._tabHandles || []) { try { h.close(); } catch { /* already closed */ } }
+                view._tabHandles = [];
+                view._hideLinkNotice();
+                view._tabView = 'canvas';
+            },
+            notice: (text) => view._showLinkNotice(text),
+            onState: (state, info) => {
+                view._tabState = state;
+                if (state === 'linked') view._showLinkNotice(`Linked to Claude (tab ${String(info?.id || '').slice(0, 6)}). Claude can show nets and views here; Link to Claude in the File menu turns it off.`);
+                view._updateMenuForAuth();
+            },
+        };
+    }
+
+    _tabCloseOverlay() {
+        if (this._tabOverlay) this._tabOverlay.remove();
+        this._tabOverlay = null;
+    }
+
+    _tabRestore() {
+        try {
+            const prev = JSON.parse(localStorage.getItem('pflow_tab_prev') || 'null');
+            if (prev) { this.setModel(prev); this._hideLinkNotice(); }
+        } catch { /* nothing kept */ }
     }
 
     // ---------------- Account files (file.save / file.open …) ----------------

@@ -1,0 +1,15 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "tabhub",
+    srcs = ["tabhub.go"],
+    importpath = "github.com/pflow-xyz/pflow-xyz/internal/tabhub",
+    visibility = ["//:__subpackages__"],
+)
+
+go_test(
+    name = "tabhub_test",
+    srcs = ["tabhub_test.go"],
+    data = glob(["testdata/**"]),
+    embed = [":tabhub"],
+)

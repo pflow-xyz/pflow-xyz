@@ -182,6 +182,7 @@ type Server struct {
 	llm               *llmService   // nil when no GEMINI_API_KEY: the LLM routes report disabled
 	mcpVerifier       auth.Verifier // /mcp's pflow_save sign-in check (mcp.go); built on first use
 	mcpOAuth          *mcpOAuth     // /mcp's OAuth authorization server (mcp_oauth.go); nil when off
+	tabs              *tabService   // tab push (tabs.go); nil unless PFLOW_TAB_PUSH=1 or -tab-push
 }
 
 // handleCORS handles CORS preflight requests
@@ -1050,6 +1051,12 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		s.handlePostSVG(w, r)
 		return
 	}
+	// Tab push (tabs.go): signed-in page <-> MCP link; nothing unless turned on.
+	if r.URL.Path == tabPrefix || strings.HasPrefix(r.URL.Path, tabPrefix+"/") {
+		s.handleTab(w, r)
+		return
+	}
+
 	// Account files (files.go): signed-in, same-origin only, no handleCORS.
 	if r.URL.Path == filesPrefix || strings.HasPrefix(r.URL.Path, filesPrefix+"/") {
 		s.handleFiles(w, r)
@@ -1179,6 +1186,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func main() {
 	port := flag.Int("port", 8080, "Port to listen on")
 	dataDir := flag.String("data", "./data", "Data directory for storage")
+	tabPush := flag.Bool("tab-push", false, "let a Claude session drive linked pflow.xyz pages over /mcp (also PFLOW_TAB_PUSH=1)")
 	flag.Parse()
 
 	// Create storage
@@ -1206,6 +1214,7 @@ func main() {
 	}
 
 	server.configureFiles(*dataDir)
+	server.configureTabs(os.Getenv, *tabPush)
 	configureDeploy(*dataDir)
 
 	// Start server

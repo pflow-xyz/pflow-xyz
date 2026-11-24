@@ -169,6 +169,8 @@ PUBLIC_FILES = [
     "petri-layout_test.ts",
     "petri-ssa.js",
     "petri-ssa_test.ts",
+    "petri-tab.js",
+    "petri-tab_test.ts",
     "petri-tools.js",
     "petri-tools_test.ts",
     "petri-validate.js",

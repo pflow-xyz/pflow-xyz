@@ -403,7 +403,7 @@ func callsProtectedTool(body []byte) bool {
 		var p struct {
 			Name string `json:"name"`
 		}
-		if json.Unmarshal(m.Params, &p) == nil && mcpProtectedTools[p.Name] {
+		if json.Unmarshal(m.Params, &p) == nil && (mcpProtectedTools[p.Name] || (tabPushOn.Load() && tabToolNames[p.Name])) {
 			return true
 		}
 	}

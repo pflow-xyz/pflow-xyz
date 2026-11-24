@@ -39,6 +39,7 @@ go_library(
         "sitemap.go",
         "static_assets.go",
         "static_pages.go",
+        "tabs.go",
         "wasm.go",
     ] + select({
         "@io_bazel_rules_go//go/platform:aix": [
@@ -105,6 +106,7 @@ go_library(
         "//internal/static",
         "//internal/store",
         "//internal/svg",
+        "//internal/tabhub",
         "//internal/userfiles",
         "@com_github_fogleman_gg//:gg",
         "@com_github_pflow_xyz_go_pflow//composite",
@@ -173,6 +175,7 @@ go_test(
         "sitemap_test.go",
         "static_assets_test.go",
         "static_pages_test.go",
+        "tabs_test.go",
         "wasm_test.go",
     ],
     # keep: share_card_test.go renders a stored example model from //examples.
@@ -205,6 +208,7 @@ go_test(
         "//internal/model",
         "//internal/seal",
         "//internal/static",
+        "//internal/tabhub",
         "//internal/userfiles",
         "@com_github_pflow_xyz_go_pflow//composite",
         "@com_github_pflow_xyz_go_pflow//metamodel",
