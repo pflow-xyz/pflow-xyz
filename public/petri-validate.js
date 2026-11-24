@@ -25,6 +25,13 @@ import { normalizeModel, enabledTransitions } from './petri-sim.js';
 const NET_KEYS = new Set(['@context', '@id', '@type', '@version', 'name', 'description', 'author',
     'token', 'places', 'transitions', 'arcs', 'parents', 'goals', 'views']);
 
+// The net's @type: PetriNet, or one of the net types go-pflow's metamodel
+// classifies a net by (metamodel.NetType; a composition's subnets carry the
+// same names as net_type). A typed net reads exactly like a PetriNet: the
+// type says what the net models, not how it fires. examples/landing/
+// producer-consumer.jsonld is a ResourceNet.
+export const NET_TYPES = ['PetriNet', 'WorkflowNet', 'ResourceNet', 'GameNet', 'ComputationNet', 'ClassificationNet'];
+
 // sim's view roles (pkg/modelstore/store.go viewRoles) and keys.
 export const VIEW_ROLES = ['board', 'dashboard', 'controls', 'advisor', 'trust', 'log'];
 const VIEW_KEYS = new Set(['id', 'role', 'title', 'prompt', 'places', 'transitions', 'links']);
@@ -79,7 +86,9 @@ export function validateNet(doc, opts = {}) {
     // ---- the net ----
     if (!('@context' in doc)) warn('@context', 'missing; read as https://pflow.xyz/schema');
     if (!('@type' in doc)) warn('@type', 'missing; read as PetriNet');
-    else if (doc['@type'] !== 'PetriNet') err('@type', `is ${JSON.stringify(doc['@type'])}, not "PetriNet"`);
+    else if (!NET_TYPES.includes(doc['@type'])) {
+        err('@type', `is ${JSON.stringify(doc['@type'])}, not "PetriNet" or a net type (${NET_TYPES.slice(1).join(', ')})`);
+    }
     for (const k of ['name', 'description']) {
         if (k in doc && typeof doc[k] !== 'string') err(k, 'must be a string');
     }

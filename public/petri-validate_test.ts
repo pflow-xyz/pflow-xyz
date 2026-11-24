@@ -189,3 +189,23 @@ Deno.test("smokeCheck: the engines accept a valid net, and it seals", async () =
     assertEquals(r.errors, []);
     assert(r.cid && r.cid.startsWith("z"));
 });
+
+// Regression: Check net refused every @type but PetriNet, so the landing
+// example examples/landing/producer-consumer.jsonld, a ResourceNet, failed
+// the editor's own check. A go-pflow net type reads like a PetriNet.
+Deno.test("validateNet: a go-pflow net type is a valid @type", async () => {
+    for (const type of ["WorkflowNet", "ResourceNet", "GameNet", "ComputationNet", "ClassificationNet"]) {
+        const n = net();
+        n["@type"] = type;
+        const r = validateNet(n);
+        assertEquals(r.errors, [], type);
+    }
+    const doc = JSON.parse(await Deno.readTextFile("examples/landing/producer-consumer.jsonld"));
+    assertEquals(doc["@type"], "ResourceNet");
+    assertEquals(validateNet(doc).errors, []);
+
+    const n = net();
+    n["@type"] = "Petrinet";
+    const r = validateNet(n);
+    assertEquals(r.errors.map((e: any) => e.path), ["@type"]);
+});
