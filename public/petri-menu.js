@@ -93,7 +93,6 @@ export const MENU_LABELS = { file: 'File', view: 'View', help: 'Help' };
 export const ASK_PLACEHOLDER = 'Ask about this net, or say what to change...';
 
 export const LINKS = {
-    sim: 'https://sim.pflow.xyz',
     book: 'https://book.pflow.xyz',
     native: 'https://github.com/pflow-xyz/pflow-native',
     github: 'https://github.com/pflow-xyz/pflow-xyz',
@@ -183,7 +182,6 @@ export function menuModel({ authenticated = false, user = null, filesEnabled = f
 
     const help = [
         item('help', 'Help', '❓'),
-        link('sim', 'Sim — Run & Check', '📊', LINKS.sim),
         link('book', 'Book', '📖', LINKS.book),
         link('native', 'Native App', '🖥', LINKS.native),
         link('github', 'GitHub', 'github', LINKS.github),

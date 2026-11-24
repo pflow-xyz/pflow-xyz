@@ -1,22 +1,45 @@
 # pflow-xyz
 
-**Interactive web component for authoring, visualizing, and simulating Petri nets.**
+**Understand a system by modeling it with Claude.**
 
 [![](https://data.jsdelivr.com/v1/package/gh/pflow-xyz/pflow-xyz/badge)](https://www.jsdelivr.com/package/gh/pflow-xyz/pflow-xyz)
 
+pflow.xyz is a modeling tool that teaches. You describe a system and talk it
+through with Claude: Claude builds the model with you, explains each concept as
+it comes up, and answers your questions from data the engine computed, not from
+a guess. A model is shown from several views (the outcome in plain words, the
+model itself, the math underneath, its text notation and a simulation), much as
+a CAD drawing shows one part as plan, elevation and section. Every view is
+computed from the same net, so the views cannot drift apart the way hand-drawn
+diagrams do.
+
+The engine is a Petri net. You don't need to know that to start; the views and
+Claude's explanations introduce it when it helps.
+
 ## Try It Live
 
-**Editor:** [pflow.xyz](https://pflow.xyz) | **Models you can run and check:** [sim.pflow.xyz](https://sim.pflow.xyz) | **Book:** [book.pflow.xyz](https://book.pflow.xyz)
+**Editor:** [pflow.xyz](https://pflow.xyz) | **Claude connector:** [pflow.xyz/mcp.html](https://pflow.xyz/mcp.html) | **Book:** [book.pflow.xyz](https://book.pflow.xyz)
 
-### Models on sim.pflow.xyz
+### Working with Claude: the IDE preview
 
-Describe a decision, process or mechanism to your AI assistant and get back a model you can run and check. Open one to see how it behaves:
+The IDE shell is on main behind a flag: open [pflow.xyz/?shell=1](https://pflow.xyz/?shell=1).
+It arranges the editor's results as panels at three levels of detail: **outcome**
+(answers and plots, no Petri-net terms), **model** (the canvas, the notation, an
+outline and checks) and **math** (invariants, reachability, categorical views).
+Choose *Link to Claude* in the page, add the [connector](https://pflow.xyz/mcp.html),
+and Claude can drive the page while you watch:
 
-| Model | What it shows | Link |
-|-------|---------------|------|
-| **Second car or ride-share?** | A household decision with its spread shown | [Open](https://sim.pflow.xyz/second-car/) |
-| **Cold-chain attack** | How many technicians it takes to beat a freezer defrost attack | [Open](https://sim.pflow.xyz/whatif/?id=7d736018c17edd5d7b083444) |
-| **Baggage hall** | Conveyor health against sorter headcount | [Open](https://sim.pflow.xyz/whatif/?id=3741e97f8256ab15e7a28aed) |
+| Tool | What Claude does with it |
+|------|--------------------------|
+| `pflow_show` | Put a net on the canvas or open a view (plot, reachability, invariants, notation, categorical) |
+| `pflow_level` | Set the level of detail: outcome, model or math |
+| `pflow_highlight` | Point at places, transitions or notation lines |
+| `pflow_annotate` | Add a line of narration, optionally at a target |
+| `pflow_focus` | Bring a node, line or panel into view |
+| `pflow_tour` | Walk through a model step by step; you move with Back / Next |
+
+The design and contract are in [`docs/ide-shell.md`](docs/ide-shell.md); the
+notation is [`docs/pflow-notation.md`](docs/pflow-notation.md).
 
 ---
 
@@ -28,14 +51,13 @@ Describe a decision, process or mechanism to your AI assistant and get back a mo
 | **[go-pflow](https://github.com/pflow-xyz/go-pflow)** | Core library — ODE/SSA/SDE engines, fitting, reachability & verification | Go |
 | **[pflow-rs](https://github.com/pflow-xyz/pflow-rs)** | Rust port — ODE solvers, token-model DSL, ZK provers | Rust |
 | **[pflow-jl](https://github.com/pflow-xyz/pflow-jl)** | Julia port, bridged to AlgebraicPetri.jl for categorical composition | Julia |
-| **[sim.pflow.xyz](https://sim.pflow.xyz)** | Describe a process, get a model you can run and check (hosted, MCP; source not public) | Go |
 | **[book-pflow-xyz](https://github.com/pflow-xyz/book-pflow-xyz)** | "Petri Nets as a Universal Abstraction" — practitioner's guide | mdBook |
 
 ```
-JSON-LD Model ──▶ go-pflow (engines) ──▶ sim.pflow.xyz (run + check)
-      ▲                                          │
-      └──── pflow-xyz (visual editor) ◀──────────┘
-            book-pflow-xyz (guide)
+   you ◀──talk──▶ Claude ──MCP──▶ pflow.xyz/mcp ──▶ go-pflow (engines)
+                     │                  │
+                     └──── drives ────▶ IDE shell: outcome · model · math views
+                                        (one JSON-LD net, every view computed from it)
 ```
 
 ### Design Philosophy
@@ -121,22 +143,13 @@ const sol = Solver.solve(prob, Solver.Tsit5(), { dt: 0.01 });
 
 ## AI-Assisted Development (MCP)
 
-pflow.xyz serves its own MCP server at `https://pflow.xyz/mcp` (`pflow_*` tools: check, simulate, explore, prove and publish a net; see [pflow.xyz/mcp.html](https://pflow.xyz/mcp.html)). Its source is this repo (`cmd/webserver`, over go-pflow). The same tools run offline, with no account, as [`@pflow-xyz/pflow-mcp`](https://www.npmjs.com/package/@pflow-xyz/pflow-mcp) from pflow-rs.
-
-[sim.pflow.xyz](https://sim.pflow.xyz) provides an MCP server for AI assistants to build, run and check models. This repo ships a `.mcp.json` pointing at the hosted server, so Claude Code picks it up automatically (in the terminal and on the web). To add it to other clients:
+pflow.xyz serves its own MCP server at `https://pflow.xyz/mcp` (`pflow_*` tools: build, check, simulate, explore, prove and publish a net, and the teaching tools above that drive a linked IDE page; see [pflow.xyz/mcp.html](https://pflow.xyz/mcp.html)). Its source is this repo (`cmd/webserver`, over go-pflow). This repo's `.mcp.json` points Claude Code at it. To add it elsewhere:
 
 ```bash
-claude mcp add --transport http sim https://sim.pflow.xyz/mcp
+claude mcp add --transport http pflow https://pflow.xyz/mcp
 ```
 
-| Tool | Description |
-|------|-------------|
-| `sim_create_model` | Store a model from a description or net |
-| `sim_scenario` | Seeded what-if runs |
-| `sim_invariants` | Conservation laws |
-| `sim_reach` | Reachability and deadlocks |
-| `sim_verify` | Check properties of a model |
-| `sim_code_to_flow` | Turn code into a flow model |
+The model tools also run offline, with no account, as [`@pflow-xyz/pflow-mcp`](https://www.npmjs.com/package/@pflow-xyz/pflow-mcp) from pflow-rs.
 
 ---
 
@@ -159,7 +172,7 @@ pv.importJSON(jsonData);
 | Resource | URL |
 |----------|-----|
 | **Live Editor** | [pflow.xyz](https://pflow.xyz) |
-| **Sim** | [sim.pflow.xyz](https://sim.pflow.xyz) |
+| **Claude connector** | [pflow.xyz/mcp.html](https://pflow.xyz/mcp.html) |
 | **Book** | [book.pflow.xyz](https://book.pflow.xyz) |
 | **go-pflow** | [github.com/pflow-xyz/go-pflow](https://github.com/pflow-xyz/go-pflow) |
 | **CDN** | [jsdelivr.com/package/gh/pflow-xyz/pflow-xyz](https://www.jsdelivr.com/package/gh/pflow-xyz/pflow-xyz) |
@@ -189,9 +202,6 @@ a result from pflow.xyz can be re-run instead of trusted:
   engine, `@pflow-xyz/engine`, pinned to an exact version with an SRI hash.
 - **A hosted answer.** The `pflow_*` tools are in `cmd/webserver`, over go-pflow;
   pflow-rs replays captured answers from them in its tests.
-
-What this does not cover: sim.pflow.xyz, which this page links to, is a separate
-hosted service whose source is not public.
 
 ## Contributing
 

@@ -61,6 +61,13 @@ one (design 16.2). pflow and sim are one product with two surfaces:
   hero and the examples is clutter; the gallery's one line carries the distinction instead.
 - Not decided here, and not on the page: whether the two share a sign-in or a quota.
 
+**Update 2026-11-24: sim.pflow.xyz is being retired**, so the page no longer links to it. The nav and footer
+link the connector page (`/mcp.html`) instead; the `Calibrated what-ifs` gallery is replaced by `One model, every
+view` (`id="views"`: the outcome, model and math levels of the IDE shell, the `?shell=1` preview and the teaching
+tools); the `Run` card goes to the connector. The hero leads with the teaching pitch: talk a system through with
+Claude, see it from every side, every view computed from one net. `petri-landing_test.ts` and
+`scripts/landing-smoke.ts` hold this.
+
 The page's static content stays in the HTML (the script writes the hero's words with `textContent` and flips
 `hidden`, never markup), the head's meta tags and structured data are untouched, and every link the page had is still
 there except the removed button; `petri-landing_test.ts` holds each of those to the source of `index.html`.

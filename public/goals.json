@@ -140,7 +140,7 @@
       "inputs": [],
       "plan": [],
       "answer": "Fitness (how many recorded cases the net can replay), the worst traces, and rates learned from the timings.",
-      "caveat": "Not in the browser yet: conformance and calibration need an event-log import. pflow-native (data.conformance, data.calibrate) and sim.pflow.xyz (sim_conformance, sim_calibrate) have them.",
+      "caveat": "Not in the browser yet: conformance and calibration need an event-log import. pflow-native (data.conformance, data.calibrate) has them.",
       "followUps": []
     },
     {

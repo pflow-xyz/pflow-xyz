@@ -25,6 +25,7 @@ td:first-child{white-space:nowrap}nav a{margin-right:1rem}.lede{font-size:1.1rem
 
 <h2>What it does</h2>
 <ul>
+<li><b>Learn it as you build it.</b> Claude explains each idea as it comes up and shows the model from the side that answers your question: the outcome in plain words, the model, the math underneath, its notation or a simulation. Every view is computed from the same model, so they cannot disagree. With a pflow.xyz page linked (below), Claude can open those views, point at parts and walk you through a model while you watch.</li>
 <li><b>Snap parts together.</b> Start from a catalog of parts (a bounded queue, a resource pool, a two-step saga) or your own models. Ask which connections are legal, join the parts, and run scenarios on the result.</li>
 <li><b>Find out whether it holds.</b> Can it deadlock? What does it conserve? What changes when one rate moves? The answers come from an engine, not an estimate, with a replayable counterexample when a property fails.</li>
 <li><b>Cite what you built.</b> Every model has a content ID (CID): the same model always gets the same ID. The CID is computed from the model's content by <a href="https://github.com/pflow-xyz/pflow-xyz">open-source code</a>, so whoever you send it to can recompute it.</li>
@@ -46,7 +47,10 @@ td:first-child{white-space:nowrap}nav a{margin-right:1rem}.lede{font-size:1.1rem
 <p>Details, SPARQL endpoint and downloads: <a href="https://ontology.pflow.xyz">ontology.pflow.xyz</a>.</p>
 
 <h2>Signing in</h2>
-<p>Every tool works without an account except <code>pflow_save</code>. The first time you save, your client opens a pflow.xyz page where you sign in with GitHub or Google. The saved model is then recorded as yours. Saved models are public, so don't save anything private. pflow.xyz keeps only your account id (and your GitHub username), never a password; see the <a href="/privacy.html">privacy policy</a>.</p>
+<p>Every tool works without an account except <code>pflow_save</code> and the teaching tools. The first time you save, your client opens a pflow.xyz page where you sign in with GitHub or Google. The saved model is then recorded as yours. Saved models are public, so don't save anything private. pflow.xyz keeps only your account id (and your GitHub username), never a password; see the <a href="/privacy.html">privacy policy</a>.</p>
+
+<h2>Teaching in a linked page</h2>
+<p>Open <a href="/?shell=1">pflow.xyz/?shell=1</a>, the IDE preview, and choose <b>Link to Claude</b> while signed in to the same account as your connector. The page shows one model at three levels of detail: <b>outcome</b> (answers and plots, no Petri-net terms), <b>model</b> (the canvas, the notation, an outline and checks) and <b>math</b> (invariants, reachability, categorical views). Claude drives it with <code>pflow_show</code>, <code>pflow_level</code>, <code>pflow_highlight</code>, <code>pflow_annotate</code>, <code>pflow_focus</code> and <code>pflow_tour</code>; you can change the level yourself, and a tour moves when you press Next.</p>
 
 <h2>Try asking</h2>
 <ul>
@@ -94,6 +98,15 @@ td:first-child{white-space:nowrap}nav a{margin-right:1rem}.lede{font-size:1.1rem
 <tr><td><code>pflow_get</code></td><td>Fetch a stored model by its content id: a net, or a composition or plan as stored.</td></tr>
 <tr><td><code>pflow_skill</code></td><td>A ready-to-save Claude skill (SKILL.md) for modelling, checking and showing a process with pflow: the procedure, this server's tool list filled in live, and install notes for Claude Code, claude.ai or any client. Optional <code>client</code> and <code>focus</code> (artifact, verify, compose). Saved only if you agree.</td></tr>
 <tr><td><code>pflow_save</code></td><td>Store a net on pflow.xyz as yours (needs sign-in; stored nets are public).</td></tr>
+<tr><td><code>pflow_tabs</code></td><td>The pflow.xyz pages you have linked (Link to Claude), with whether each is connected and what it last reported. Needs sign-in as the same account.</td></tr>
+<tr><td><code>pflow_show</code></td><td>In a linked page: put a net on the canvas (the page keeps what it replaced and offers Restore) or open a view: plot, reachability, invariants, notation, or a stored composition's categorical view.</td></tr>
+<tr><td><code>pflow_level</code></td><td>Set a linked page's level of detail: outcome, model or math. The page shows only views at or below its level, so set it before showing a view above it.</td></tr>
+<tr><td><code>pflow_highlight</code></td><td>Highlight places, transitions or notation lines in a linked page; an empty list clears.</td></tr>
+<tr><td><code>pflow_annotate</code></td><td>Put a line of narration in a linked page, optionally pointing at a part. The page labels it as the assistant's.</td></tr>
+<tr><td><code>pflow_focus</code></td><td>Bring a node, a notation line or a panel into view in a linked page.</td></tr>
+<tr><td><code>pflow_tour</code></td><td>A guided tour in a linked page: up to 30 steps, each showing a view, setting the level, highlighting or narrating, with a line to say. The person moves with Back, Next and End tour.</td></tr>
+<tr><td><code>pflow_tab_get</code></td><td>What a linked page shows: its net's size and marking, the open view and level, the results on screen, unsaved edits.</td></tr>
+<tr><td><code>pflow_tab_stop</code></td><td>Close what <code>pflow_show</code> opened in your linked pages. It never touches the net on the canvas.</td></tr>
 </table>
 
 <h2>Limits</h2>

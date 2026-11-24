@@ -253,7 +253,7 @@ try {
     ok(same(await menuItems(p), ["Layout Algorithms", "Display Settings", "Toggle JSON editor", "Open as app", "Compose"]), "View lists its five entries", (await menuItems(p)).join());
     await press(p, "ArrowRight");
     ok((await expanded(p, "help")) === "true", "and again: Help");
-    ok(same(await menuItems(p), ["Help", "Sim — Run & Check", "Book", "Native App", "GitHub", "Classic menu (this release)", `v${await p.eval(`document.querySelector('petri-view').constructor.VERSION`)}`]), "Help lists its entries and the version", (await menuItems(p)).join());
+    ok(same(await menuItems(p), ["Help", "Book", "Native App", "GitHub", "Classic menu (this release)", `v${await p.eval(`document.querySelector('petri-view').constructor.VERSION`)}`]), "Help lists its entries and the version", (await menuItems(p)).join());
     await press(p, "ArrowRight");
     ok((await expanded(p, "file")) === "true", "ArrowRight wraps round to File");
     await press(p, "ArrowLeft");
@@ -338,7 +338,7 @@ try {
     ok(had !== flipped && (await p.eval(`document.querySelector('petri-view').hasAttribute('data-json-editor')`)) === had, "View > Toggle JSON editor turns the editor off and on", `${had} ${flipped}`);
     // links
     for (const [menu, label, href, features] of [
-      ["help", "Sim — Run & Check", "https://sim.pflow.xyz", "noopener,noreferrer"], ["help", "Book", "https://book.pflow.xyz", "noopener,noreferrer"],
+      ["help", "Book", "https://book.pflow.xyz", "noopener,noreferrer"],
       ["help", "Native App", "https://github.com/pflow-xyz/pflow-native", "noopener,noreferrer"], ["help", "GitHub", "https://github.com/pflow-xyz/pflow-xyz", "noopener,noreferrer"],
       ["view", "Compose", "/compose.html", "noopener"],
     ]) {
@@ -852,7 +852,7 @@ try {
       "💾 Save Permalink", "🗑️ Delete", "☁️ Save to my account…", "🗂️ Open from my account…", "✨ Describe a process…", "💬 Assistant",
       "🧮 Analysis (ODE, scans, phase)", "📱 App view", "🧩 Components", "❓ What do you want to know?", "🎲 Simulate (stochastic, influence, what-if)",
       "🔬 Structure (invariants, verify, reach)", "✅ Check net", "📊 Results", "🎨 Layout Algorithms", "📝 Toggle Editor", "⚙️ Display Settings",
-      "📥 Download JSON", "❓ Help", "📊 Sim — Run & Check", "📖 Book ↗", "🖥 Native App ↗", "🧩 Composition Views ↗", "GitHub",
+      "📥 Download JSON", "❓ Help", "📖 Book ↗", "🖥 Native App ↗", "🧩 Composition Views ↗", "GitHub",
     ];
     for (const w of want) ok(all.includes(w), `the old hamburger still has "${w}"`, all.join(" | "));
     ok(await p.eval(`!!document.querySelector('.pv-hamburger-content .pv-menu-version')`), "and its version footer");
@@ -895,7 +895,7 @@ try {
     const dd = await p.eval(`(() => { const d = document.querySelector('#solo .pv-hamburger-dropdown'); return d && getComputedStyle(d).display !== 'none' ? [...d.querySelectorAll('.pv-menu-item')].map((e) => e.textContent.trim()) : null; })()`);
     ok(dd, "it opens a dropdown (not the left-hand panel)");
     if (dd) {
-      for (const w of ["🧮 Analysis (ODE, scans, phase)", "📱 App view", "🧩 Components", "❓ What do you want to know?", "🎲 Simulate (stochastic, influence, what-if)", "🔬 Structure (invariants, verify, reach)", "✅ Check net", "📊 Results", "🎨 Layout Algorithms", "📝 Toggle Editor", "⚙️ Display Settings", "📥 Download JSON", "❓ Help", "📊 Sim — Run & Check", "📖 Book ↗", "🖥 Native App ↗", "GitHub"]) ok(dd.includes(w), `standalone: "${w}"`, dd.join(" | "));
+      for (const w of ["🧮 Analysis (ODE, scans, phase)", "📱 App view", "🧩 Components", "❓ What do you want to know?", "🎲 Simulate (stochastic, influence, what-if)", "🔬 Structure (invariants, verify, reach)", "✅ Check net", "📊 Results", "🎨 Layout Algorithms", "📝 Toggle Editor", "⚙️ Display Settings", "📥 Download JSON", "❓ Help", "📖 Book ↗", "🖥 Native App ↗", "GitHub"]) ok(dd.includes(w), `standalone: "${w}"`, dd.join(" | "));
       ok(!dd.some((t: string) => /Save Permalink|Login|Composition Views/.test(t)), "and none of the server's entries (no account, no Compose)");
     }
     await p.eval(`[...document.querySelectorAll('#solo .pv-menu-item')].find((e) => e.textContent.includes('Help')).click()`);

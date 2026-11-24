@@ -290,8 +290,8 @@ Deno.test("menuModel: signed out, no server files", () => {
     assertEquals(labels(m.file), ["Save Permalink", "Delete", "Download JSON", "Login with GitHub"]);
     assertEquals(ids(m.view), ["layout", "display", "json-editor", "app", "compose"]);
     assertEquals(labels(m.view), ["Layout Algorithms", "Display Settings", "Toggle JSON editor", "Open as app", "Compose"]);
-    assertEquals(ids(m.help), ["help", "sim", "book", "native", "github", "classic", "version"]);
-    assertEquals(labels(m.help), ["Help", "Sim — Run & Check", "Book", "Native App", "GitHub", "Classic menu (this release)", "v1.2.3"]);
+    assertEquals(ids(m.help), ["help", "book", "native", "github", "classic", "version"]);
+    assertEquals(labels(m.help), ["Help", "Book", "Native App", "GitHub", "Classic menu (this release)", "v1.2.3"]);
     assertEquals(m.file.some((e: any) => e.kind === "info"), false, "no account line when nobody is signed in");
 });
 
@@ -344,14 +344,14 @@ Deno.test("menuModel: a standalone component's contract has no account, no serve
     const m = menuModel({ backend: false, authenticated: true, user: { email: "x@y" }, filesEnabled: true, version: "1.2.3" });
     assertEquals(ids(m.file), ["download"]);
     assertEquals(ids(m.view), ["layout", "display", "json-editor", "app"]);
-    assertEquals(ids(m.help), ["help", "sim", "book", "native", "github", "version"]);
+    assertEquals(ids(m.help), ["help", "book", "native", "github", "version"]);
     assertEquals(menuModel().file.map((e: any) => e.id), ["download"]);
 });
 
 Deno.test("menuModel: links carry their address, the classic link is an action, the version links to its release", () => {
     const m = menuModel(SIGNED_OUT);
     const by = (list: any[], id: string) => list.find((e: any) => e.id === id);
-    assertEquals(by(m.help, "sim").href, "https://sim.pflow.xyz");
+    assertEquals(by(m.help, "sim"), undefined, "sim.pflow.xyz is being retired");
     assertEquals(by(m.help, "book").href, "https://book.pflow.xyz");
     assertEquals(by(m.help, "native").href, "https://github.com/pflow-xyz/pflow-native");
     assertEquals(by(m.help, "github").href, "https://github.com/pflow-xyz/pflow-xyz");
