@@ -1,0 +1,23 @@
+#! pflow 1
+net "coffee shop (with rates)"
+color red, brown, blue
+
+place WaitingCustomers = 2 red cap 10 red label "Waiting Customers" @ 200, 150
+place CoffeeBeans = 5 brown cap 10 brown label "Coffee Beans" @ 200, 300
+place EmptyCups = 5 blue cap 10 blue label "Empty Cups" @ 200, 450
+place ServedCoffee cap 5 red label "Served Coffee" @ 500, 300
+
+transition CustomerArrives rate 2 label "Customer Arrives" @ 50, 150
+transition BrewCoffee rate 0.25 label "Brew Coffee" @ 350, 300
+transition CustomerLeaves rate 0.001 label "Customer Leaves" @ 650, 300
+transition RestockBeans rate 720 label "Restock Beans" @ 50, 300
+transition RestockCups rate 0 label "Restock Cups" @ 50, 450
+
+WaitingCustomers*1 red -> BrewCoffee
+CoffeeBeans*1 brown -> BrewCoffee
+EmptyCups*1 blue -> BrewCoffee
+BrewCoffee -> ServedCoffee*1 red
+ServedCoffee*1 red -> CustomerLeaves
+CustomerArrives -> WaitingCustomers*1 red
+RestockBeans -> CoffeeBeans*3 brown
+RestockCups -> EmptyCups*3 blue

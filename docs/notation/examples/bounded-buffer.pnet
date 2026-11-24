@@ -1,0 +1,15 @@
+#! pflow 1
+net "Bounded buffer"
+about "A producer fills three slots and a consumer empties them. slots + items is always 3."
+color black
+
+# positions are what the editor's own layout pass (petri-layout.js, auto) gives the draft with none
+place slots = 3 cap 3 @ 100, 100
+place items cap 3 @ 100, 183
+
+transition produce @ 365, 113
+transition consume @ 365, 170
+
+# a chain is the arcs between neighbours, in order
+slots -> produce -> items
+items -> consume -> slots

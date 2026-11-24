@@ -1,0 +1,16 @@
+CC0 1.0 Universal (CC0 1.0) Public Domain Dedication
+
+The files in this directory (pflow.ebnf, and the programs and JSON-LD documents in examples/) are
+dedicated to the public domain. To the extent possible under law, the authors have waived all
+copyright and related or neighboring rights to this work.
+
+You can copy, modify, distribute and perform the work, even for commercial purposes, all without
+asking permission. The full legal code is at
+https://creativecommons.org/publicdomain/zero/1.0/legalcode and governs this dedication.
+
+The two nets in examples/ that come from pflow.xyz's own fixtures (coffee-shop, knapsack) are the
+repository's parity fixtures written in the notation; the notation's text of them is CC0 like the
+rest.
+
+The Go prototype in internal/notation, and docs/pflow-notation.md, are the repository's code and
+text, under its MIT licence (see the LICENSE file at the root).

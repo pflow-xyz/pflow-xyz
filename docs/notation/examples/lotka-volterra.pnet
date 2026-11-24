@@ -1,0 +1,18 @@
+#! pflow 1
+net "Lotka-Volterra"
+about "Prey breed, predators eat prey to breed, predators die. Rates are mass-action."
+color blue, red
+
+place Prey = 40 blue @ 630, 350
+place Predator = 8 red @ 930, 350
+
+transition prey_birth rate 0.5 label "prey birth" @ 750, 290
+transition predation rate 0.02 label "predation" @ 780, 410
+transition predator_death rate 0.4 label "predator death" @ 1050, 350
+
+Prey*1 blue -> prey_birth
+prey_birth -> Prey*2 blue
+Prey*1 blue -> predation
+Predator*1 red -> predation
+predation -> Predator*2 red
+Predator*1 red -> predator_death

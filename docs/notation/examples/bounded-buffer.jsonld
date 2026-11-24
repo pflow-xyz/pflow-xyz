@@ -1,0 +1,68 @@
+{
+  "@context": "https://pflow.xyz/schema",
+  "@type": "PetriNet",
+  "@version": "1.1",
+  "arcs": [
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "slots",
+      "target": "produce",
+      "weight": [1]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "produce",
+      "target": "items",
+      "weight": [1]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "items",
+      "target": "consume",
+      "weight": [1]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "consume",
+      "target": "slots",
+      "weight": [1]
+    }
+  ],
+  "description": "A producer fills three slots and a consumer empties them. slots + items is always 3.",
+  "name": "Bounded buffer",
+  "places": {
+    "slots": {
+      "@type": "Place",
+      "capacity": [3],
+      "initial": [3],
+      "offset": 0,
+      "x": 100,
+      "y": 100
+    },
+    "items": {
+      "@type": "Place",
+      "capacity": [3],
+      "initial": [0],
+      "offset": 0,
+      "x": 100,
+      "y": 183
+    }
+  },
+  "token": ["https://pflow.xyz/tokens/black"],
+  "transitions": {
+    "produce": {
+      "@type": "Transition",
+      "x": 365,
+      "y": 113
+    },
+    "consume": {
+      "@type": "Transition",
+      "x": 365,
+      "y": 170
+    }
+  }
+}

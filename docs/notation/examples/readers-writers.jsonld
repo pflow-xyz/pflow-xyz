@@ -1,0 +1,222 @@
+{
+  "@context": "https://pflow.xyz/schema",
+  "@type": "PetriNet",
+  "@version": "1.1",
+  "arcs": [
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "readers",
+      "target": "start_read",
+      "weight": [1]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "start_read",
+      "target": "reading",
+      "weight": [1]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "reading",
+      "target": "end_read",
+      "weight": [1]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "end_read",
+      "target": "readers",
+      "weight": [1]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "writers",
+      "target": "start_write",
+      "weight": [1]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "start_write",
+      "target": "writing",
+      "weight": [1]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "writing",
+      "target": "end_write",
+      "weight": [1]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "end_write",
+      "target": "writers",
+      "weight": [1]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": true,
+      "source": "writing",
+      "target": "start_read",
+      "weight": [1]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": true,
+      "source": "reading",
+      "target": "start_write",
+      "weight": [1]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": true,
+      "source": "start_read",
+      "target": "online",
+      "weight": [1]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": true,
+      "source": "start_write",
+      "target": "online",
+      "weight": [1]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": true,
+      "source": "reading",
+      "target": "shutdown",
+      "weight": [1]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": true,
+      "source": "writing",
+      "target": "shutdown",
+      "weight": [1]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "online",
+      "target": "shutdown",
+      "weight": [1]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "shutdown",
+      "target": "offline",
+      "weight": [1]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "offline",
+      "target": "restart",
+      "weight": [1]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "restart",
+      "target": "online",
+      "weight": [1]
+    }
+  ],
+  "description": "Readers share the database, a writer needs it alone. -o says 'only while empty', <-> says 'only while there is a token'.",
+  "name": "Readers and writers",
+  "places": {
+    "readers": {
+      "@type": "Place",
+      "capacity": [null],
+      "initial": [2],
+      "label": "Idle readers",
+      "offset": 0,
+      "x": 120,
+      "y": 120
+    },
+    "reading": {
+      "@type": "Place",
+      "capacity": [null],
+      "initial": [0],
+      "label": "Reading",
+      "offset": 0,
+      "x": 360,
+      "y": 120
+    },
+    "writers": {
+      "@type": "Place",
+      "capacity": [null],
+      "initial": [1],
+      "label": "Idle writers",
+      "offset": 0,
+      "x": 120,
+      "y": 320
+    },
+    "writing": {
+      "@type": "Place",
+      "capacity": [null],
+      "initial": [0],
+      "label": "Writing",
+      "offset": 0,
+      "x": 360,
+      "y": 320
+    },
+    "online": {
+      "@type": "Place",
+      "capacity": [null],
+      "initial": [1],
+      "offset": 0,
+      "x": 600,
+      "y": 220
+    },
+    "offline": {
+      "@type": "Place",
+      "capacity": [null],
+      "initial": [0],
+      "offset": 0,
+      "x": 840,
+      "y": 220
+    }
+  },
+  "token": [],
+  "transitions": {
+    "start_read": {
+      "@type": "Transition",
+      "x": 240,
+      "y": 120
+    },
+    "end_read": {
+      "@type": "Transition",
+      "x": 240,
+      "y": 40
+    },
+    "start_write": {
+      "@type": "Transition",
+      "x": 240,
+      "y": 320
+    },
+    "end_write": {
+      "@type": "Transition",
+      "x": 240,
+      "y": 400
+    },
+    "shutdown": {
+      "@type": "Transition",
+      "x": 720,
+      "y": 160
+    },
+    "restart": {
+      "@type": "Transition",
+      "x": 720,
+      "y": 280
+    }
+  }
+}

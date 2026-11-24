@@ -1,0 +1,32 @@
+#! pflow 1
+net
+
+place capacity = 15 @ 730, 541
+place item0 = 1 @ 351, 140
+place item1 = 1 @ 353, 265
+place item2 = 1 @ 351, 417
+place item3 = 1 @ 350, 543
+place value = [] @ 765, 145
+place weight = [] @ 880, 320
+
+transition txn0 role default offset 0 @ 465, 139
+transition txn1 role default offset 0 @ 466, 264
+transition txn2 role default offset 0 @ 462, 418
+transition txn3 role default offset 0 @ 464, 542
+
+txn0 -> weight*2
+txn0 -> value*10
+txn1 -> weight*4
+item0 -> txn0
+txn1 -> value*10
+item1 -> txn1
+item2 -> txn2
+item3 -> txn3
+txn2 -> weight*6
+txn2 -> value*12
+txn3 -> value*18
+txn3 -> weight*9
+capacity*2 -> txn0
+capacity*4 -> txn1
+capacity*6 -> txn2
+capacity*9 -> txn3

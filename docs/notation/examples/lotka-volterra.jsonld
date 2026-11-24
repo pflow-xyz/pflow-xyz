@@ -1,0 +1,93 @@
+{
+  "@context": "https://pflow.xyz/schema",
+  "@type": "PetriNet",
+  "@version": "1.1",
+  "arcs": [
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "Prey",
+      "target": "prey_birth",
+      "weight": [1, 0]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "prey_birth",
+      "target": "Prey",
+      "weight": [2, 0]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "Prey",
+      "target": "predation",
+      "weight": [1, 0]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "Predator",
+      "target": "predation",
+      "weight": [0, 1]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "predation",
+      "target": "Predator",
+      "weight": [0, 2]
+    },
+    {
+      "@type": "Arrow",
+      "inhibitTransition": false,
+      "source": "Predator",
+      "target": "predator_death",
+      "weight": [0, 1]
+    }
+  ],
+  "description": "Prey breed, predators eat prey to breed, predators die. Rates are mass-action.",
+  "name": "Lotka-Volterra",
+  "places": {
+    "Prey": {
+      "@type": "Place",
+      "capacity": [null, null],
+      "initial": [40, 0],
+      "offset": 0,
+      "x": 630,
+      "y": 350
+    },
+    "Predator": {
+      "@type": "Place",
+      "capacity": [null, null],
+      "initial": [0, 8],
+      "offset": 0,
+      "x": 930,
+      "y": 350
+    }
+  },
+  "token": ["https://pflow.xyz/tokens/blue", "https://pflow.xyz/tokens/red"],
+  "transitions": {
+    "prey_birth": {
+      "@type": "Transition",
+      "label": "prey birth",
+      "rate": 0.5,
+      "x": 750,
+      "y": 290
+    },
+    "predation": {
+      "@type": "Transition",
+      "label": "predation",
+      "rate": 0.02,
+      "x": 780,
+      "y": 410
+    },
+    "predator_death": {
+      "@type": "Transition",
+      "label": "predator death",
+      "rate": 0.4,
+      "x": 1050,
+      "y": 350
+    }
+  }
+}
