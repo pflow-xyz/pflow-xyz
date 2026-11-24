@@ -1,0 +1,146 @@
+/* petri-shell.css — the IDE shell's layout (docs/ide-shell.md). Inert unless #editor-wrapper has .pf-shell, which
+   petri-shell-boot.js adds behind ?shell=1. Tokens only (petri-view.css owns every colour, light and dark), and no
+   rule here needs an inline style: the one thing script sets is a custom property per dock size, through the CSSOM. */
+
+/* #editor-wrapper's own inline display (none, then block, set by index.html) must not beat the grid. */
+.pf-shell:not([style*="display: none"]) {
+    display: grid !important;
+    height: 100vh;
+    height: 100svh;
+    grid-template-columns: var(--pf-left, 0px) minmax(0, 1fr) minmax(0, 0px) var(--pf-right, 0px);
+    grid-template-rows: auto auto minmax(0, 1fr) var(--pf-bottom, 0px);
+    grid-template-areas:
+        "left cbar   cbar  right"
+        "left narr   narr  right"
+        "left canvas split right"
+        "left bottom bottom right";
+    background: var(--pv-surface);
+    color: var(--pv-ink);
+    font-family: var(--pv-font);
+}
+.pf-shell[data-split="1"] { grid-template-columns: var(--pf-left, 0px) minmax(0, 1fr) minmax(0, 1fr) var(--pf-right, 0px) !important; }
+
+/* The editor stays where it is in the DOM; the grid gives it the canvas cell. */
+.pf-shell > petri-view { grid-area: canvas; height: auto; min-height: 0; border: 0; }
+.pf-shell[data-canvas="hidden"] > petri-view { display: none; }
+.pf-shell > .fixed-title { display: none; }
+.pf-shell .pv-appbar { left: 10px; }
+
+.pf-dock { position: relative; display: flex; flex-direction: column; min-width: 0; min-height: 0; background: var(--pv-surface); }
+.pf-dock[hidden] { display: none; }
+.pf-dock[data-dock="left"] { grid-area: left; border-right: 1px solid var(--pv-border); }
+.pf-dock[data-dock="right"] { grid-area: right; border-left: 1px solid var(--pv-border); }
+.pf-dock[data-dock="bottom"] { grid-area: bottom; border-top: 1px solid var(--pv-border); }
+/* The center dock has no box of its own: its tab bar takes the top row and its panels the canvas cell (or the split cell). */
+.pf-dock[data-dock="center"], .pf-dock[data-dock="center"] > .pf-bodies { display: contents; }
+.pf-dock[data-dock="center"] > .pf-bar { grid-area: cbar; }
+.pf-dock[data-dock="center"] .pf-panel { grid-area: canvas; }
+.pf-shell[data-split="1"] .pf-dock[data-dock="center"] .pf-panel { grid-area: split; border-left: 1px solid var(--pv-border); }
+
+.pf-bar { display: flex; align-items: center; gap: 4px; min-height: 34px; padding: 0 6px; border-bottom: 1px solid var(--pv-border); background: var(--pv-panel); }
+.pf-tabs { display: flex; gap: 2px; min-width: 0; overflow-x: auto; flex: 1; }
+.pf-tabwrap { display: inline-flex; align-items: center; }
+.pf-tab, .pf-tabclose, .pf-pbtn, .pf-btn, .pf-link {
+    font: inherit; color: var(--pv-ink); background: transparent; border: 0; cursor: pointer; border-radius: 4px;
+}
+.pf-tab { padding: 6px 10px; border-bottom: 2px solid transparent; white-space: nowrap; }
+.pf-tab[aria-selected="true"] { border-bottom-color: var(--pv-accent); font-weight: 600; }
+.pf-tabclose { padding: 2px 6px; color: var(--pv-ink-secondary); }
+.pf-tab:hover, .pf-tabclose:hover, .pf-pbtn:hover, .pf-link:hover { background: var(--pv-hover-soft); }
+.pf-btn { padding: 4px 10px; border: 1px solid var(--pv-border); background: var(--pv-surface); text-decoration: none; display: inline-block; }
+.pf-link { padding: 0; text-align: left; color: var(--pv-accent); }
+:is(.pf-tab, .pf-tabclose, .pf-pbtn, .pf-btn, .pf-link, .pf-node, .pf-sep, .pf-input, .pf-code):focus-visible { outline: 2px solid var(--pv-focus-ring); outline-offset: 1px; }
+.pf-center-tools { display: flex; align-items: center; gap: 8px; margin-left: auto; font-size: 13px; }
+.pf-notice { margin: 0; color: var(--pv-ink-secondary); }
+.pf-notice[hidden] { display: none; }
+
+.pf-bodies { flex: 1; min-height: 0; overflow: auto; }
+.pf-panel { min-width: 0; min-height: 0; overflow: auto; padding: 8px 10px; background: var(--pv-surface); }
+.pf-panel:not([data-shown]) { display: none; }
+
+/* Splitters sit on the dock's inner edge. */
+.pf-sep { position: absolute; z-index: 2; background: transparent; }
+.pf-sep:hover, .pf-sep:focus-visible { background: var(--pv-accent); }
+.pf-sep-left { top: 0; bottom: 0; right: -3px; width: 6px; cursor: col-resize; }
+.pf-sep-right { top: 0; bottom: 0; left: -3px; width: 6px; cursor: col-resize; }
+.pf-sep-bottom { left: 0; right: 0; top: -3px; height: 6px; cursor: row-resize; }
+
+/* Content of the built-in views */
+.pf-h { margin: 8px 0 4px; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--pv-ink-secondary); }
+.pf-list, .pf-diag { list-style: none; margin: 0; padding: 0; }
+.pf-node { font: inherit; color: var(--pv-ink); background: transparent; border: 0; padding: 3px 6px; width: 100%; text-align: left; cursor: pointer; border-radius: 4px; }
+.pf-node:hover { background: var(--pv-hover-soft); }
+.pf-node.transition { font-style: italic; }
+.pf-status { margin: 0 0 6px; color: var(--pv-ink-secondary); font-size: 13px; }
+.pf-status.pf-err, .pf-err { color: var(--pv-danger); }
+.pf-empty, .pf-note { color: var(--pv-ink-muted); font-size: 13px; margin: 6px 0; }
+.pf-toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: end; margin-bottom: 8px; }
+.pf-fields { display: flex; flex-wrap: wrap; gap: 8px; }
+.pf-field { display: flex; flex-direction: column; font-size: 12px; gap: 2px; color: var(--pv-ink-secondary); }
+.pf-input { font: inherit; padding: 4px 6px; border: 1px solid var(--pv-border); border-radius: 4px; background: var(--pv-surface); color: var(--pv-ink); }
+.pf-diag-item { display: grid; grid-template-columns: 4.5em 1fr auto; gap: 8px; padding: 3px 0; border-bottom: 1px solid var(--pv-border); font-size: 13px; }
+.pf-sev { font-size: 11px; text-transform: uppercase; color: var(--pv-ink-secondary); }
+.pf-error .pf-sev { color: var(--pv-danger); }
+.pf-warn .pf-sev { color: var(--pv-warning); }
+.pf-src { color: var(--pv-ink-muted); font-size: 12px; }
+.pf-code { margin: 0; padding: 8px; overflow: auto; background: var(--pv-panel); border: 1px solid var(--pv-border); border-radius: 4px; font-size: 13px; white-space: pre-wrap; }
+.pf-artifact svg { max-width: 100%; height: auto; }
+
+/* Modal window and palette: the platform's <dialog> gives the focus trap, Escape and the backdrop. */
+.pf-modal, .pf-palette {
+    color: var(--pv-ink); background: var(--pv-surface); border: 1px solid var(--pv-border); border-radius: 8px;
+    box-shadow: 0 12px 40px var(--pv-shadow-lg); padding: 0; font-family: var(--pv-font);
+}
+.pf-modal { width: min(920px, 94vw); height: min(640px, 86vh); }
+.pf-modal[open] { display: flex; flex-direction: column; }
+.pf-modal::backdrop, .pf-palette::backdrop { background: var(--pv-scrim); }
+.pf-modal-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 12px; border-bottom: 1px solid var(--pv-border); }
+.pf-modal-title { margin: 0; font-size: 16px; }
+.pf-modal-body { flex: 1; min-height: 0; overflow: auto; padding: 10px 12px; }
+.pf-frame { width: 100%; height: 100%; min-height: 420px; border: 0; }
+.pf-palette { width: min(560px, 94vw); margin-top: 12vh; }
+.pf-pinput { width: 100%; box-sizing: border-box; border: 0; border-bottom: 1px solid var(--pv-border); border-radius: 0; padding: 12px; font-size: 15px; }
+.pf-plist { list-style: none; margin: 0; padding: 4px; max-height: 50vh; overflow: auto; }
+.pf-pitem { display: flex; justify-content: space-between; gap: 12px; padding: 7px 10px; border-radius: 4px; cursor: pointer; }
+.pf-pitem[aria-selected="true"], .pf-pitem:hover { background: var(--pv-hover-soft); }
+.pf-pgroup { color: var(--pv-ink-muted); font-size: 12px; }
+
+/* The phone bar is hidden on a wide screen. */
+.pf-phonebar { display: none; }
+
+/* A phone: every dock folds into one tab bar at the bottom; one view fills the screen. The same number as PHONE_MAX
+   in petri-shell.js, and petri-shell-ui.js also switches on the media query, so the two cannot disagree. */
+@media (max-width: 760px) {
+    .pf-shell:not([style*="display: none"]) {
+        grid-template-columns: minmax(0, 1fr) !important;
+        grid-template-rows: auto minmax(0, 1fr) auto;
+        grid-template-areas: "narr" "main" "phone";
+    }
+    .pf-shell > petri-view, .pf-dock .pf-panel { grid-area: main !important; border: 0 !important; }
+    .pf-dock { display: contents !important; border: 0 !important; }
+    .pf-dock .pf-bar, .pf-sep { display: none; }
+    .pf-dock[data-dock="center"] > .pf-bar { display: none; }
+    .pf-dock .pf-bodies { display: contents; }
+    .pf-phonebar { grid-area: phone; display: flex; gap: 2px; overflow-x: auto; padding: 4px; border-top: 1px solid var(--pv-border); background: var(--pv-panel); }
+    .pf-pbtn { padding: 10px 12px; white-space: nowrap; min-height: 44px; }
+    .pf-pbtn[aria-current="page"] { border-bottom: 2px solid var(--pv-accent); font-weight: 600; }
+    .pf-shell .pv-appbar { top: 10px; }
+}
+
+/* Level of detail: a three-button radio group in the centre bar. */
+.pf-levels { display: inline-flex; border: 1px solid var(--pv-border); border-radius: 6px; overflow: hidden; }
+.pf-lvl { font: inherit; font-size: 12px; padding: 3px 9px; color: var(--pv-ink); background: var(--pv-surface); border: 0; cursor: pointer; }
+.pf-lvl + .pf-lvl { border-left: 1px solid var(--pv-border); }
+.pf-lvl[aria-checked="true"] { background: var(--pv-accent); color: var(--pv-accent-ink); }
+.pf-lvl:focus-visible { outline: 2px solid var(--pv-focus-ring); outline-offset: -2px; }
+
+/* The narration strip sits under the centre bar, over the canvas cell's top. */
+.pf-narration { grid-area: narr; display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; padding: 6px 12px; background: var(--pv-info-surface); color: var(--pv-info-ink); border-bottom: 1px solid var(--pv-info-border); font-size: 14px; }
+.pf-narration[hidden] { display: none; }
+.pf-nar-text { margin: 0; flex: 1 1 240px; }
+.pf-nar-ctl { display: flex; gap: 6px; align-items: center; }
+.pf-nar-step { font-size: 12px; }
+.pf-say { font-size: 18px; line-height: 1.4; margin: 10px 0; }
+.pf-hl { background: var(--pv-warning-glow); border-radius: 2px; }
+.pf-line { white-space: pre-wrap; }
+.pf-shell[data-level="outcome"] .pf-dock[data-dock="left"] { display: none; }
