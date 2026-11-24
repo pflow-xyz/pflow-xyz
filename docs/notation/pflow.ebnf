@@ -60,7 +60,7 @@ arrow       = "->"                                            (* consume or prod
             | "-o"                                            (* inhibitor: the place must hold fewer than the weight *)
             | "<->" ;                                         (* read: the place must hold the weight, nothing moves *)
 
-(* == Composition == [next] *)
+(* == Composition [next] == *)
 compose     = "compose" [ STRING ] { cattr } ;                (* a file composes the nets it names into one model *)
 cattr       = "namespace" | "arc_merge" ( "sum" | "max" ) ;
 part        = "part" NAME [ KIND ] "=" ( CID | NAME ) ;       (* a subnet, by the CID of a stored net or by a name in this file *)
@@ -70,5 +70,5 @@ link        = "link" [ NAME ] lkind endpoint "~" endpoint [ "when" STRING ] [ "l
 lkind       = "token" | "data" | "event" | "guard" ;          (* place fusion, observation, transition fusion, a gate *)
 endpoint    = [ "port" | "place" | "transition" ] NAME "." NAME ;
 
-(* == Anything else the document holds == [next] *)
+(* == Anything else the document holds [next] == *)
 ext         = "ext" [ ( "place" | "transition" ) id ] STRING "=" JSON ;   (* a key the notation has no word for, kept as JSON *)

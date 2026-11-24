@@ -91,6 +91,8 @@ func TestCheckTier(t *testing.T) {
 		{"unconnected", "net\nplace a\nplace lonely\ntransition t\na -> t\n", "has no arcs", 3, Warning},
 		{"zero weight", "net\nplace a\ntransition t\na*0 -> t\n", "weight 0", 4, Warning},
 		{"negative rate", "net\nplace a\ntransition t rate -1\na -> t\n", "cannot be negative", 3, Error},
+		{"empty label", "net\nplace a label \"  \"\ntransition t\na -> t\n", "label cannot be empty", 2, Error},
+		{"two-line label", "net\nplace a label \"x\\ny\"\ntransition t\na -> t\n", "single line", 2, Error},
 		{"names colour twice", "net\ncolor red, red\n", "declared twice", 2, Error},
 	}
 	for _, c := range cases {
