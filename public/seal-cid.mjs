@@ -12,6 +12,16 @@
 //   3. SHA-256 the N-Quads bytes.
 //   4. Wrap as CIDv1: 0x01 | varint(0x0129 dag-json) | 0x12 (sha2-256) | 0x20 | hash.
 //   5. base58btc encode, prefixed with 'z'.
+//
+// Sealing contract version 2 (SEAL_VERSION, 2026-11-24) adds one step before
+// 2: in a document whose @context is the pflow schema, a null that comes
+// before a value in a list term (arcs, token, weight, capacity, initial,
+// parents) is sealed as the IRI NULL_IRI. JSON-LD drops every null in a
+// @list, so under version 1 capacity [null,3] and [3] had one CID. Trailing
+// nulls are still dropped ([3,null] and [3] read the same, and [null] is how
+// the editor writes an unbounded place), so only a document with a null
+// before a value gets a new CID; none was stored when the change was made
+// (docs/model-identity.md, "Sealing contract versions").
 import jsonld from './vendor/jsonld.bundle.mjs';
 
 // EXACT context preloaded by internal/seal/seal.go's caching document loader.
@@ -71,10 +81,53 @@ async function sha256(str) {
   return new Uint8Array(buf);
 }
 
+export const SEAL_VERSION = 2;
+
+// NULL_IRI stands for a null that a list term keeps (version 2).
+export const NULL_IRI = 'https://pflow.xyz/schema#null';
+
+const LIST_TERMS = new Set(['arcs', 'token', 'weight', 'capacity', 'initial', 'parents']);
+
+const isPflowDoc = (doc) => doc !== null && typeof doc === 'object' && !Array.isArray(doc)
+  && (doc['@context'] === 'https://pflow.xyz/schema' || doc['@context'] === 'https://pflow.xyz/schema#');
+
+// Copy v with version 2's list rule applied; changed.v is set when it did anything.
+function keepListNulls(v, changed) {
+  if (Array.isArray(v)) return v.map((e) => keepListNulls(e, changed));
+  if (v === null || typeof v !== 'object') return v;
+  const out = {};
+  for (const [k, val] of Object.entries(v)) {
+    let x = val;
+    if (LIST_TERMS.has(k) && Array.isArray(val)) {
+      let last = -1;
+      val.forEach((e, i) => { if (e !== null) last = i; });
+      x = val.map((e, i) => {
+        if (e === null && i < last) { changed.v = true; return { '@id': NULL_IRI }; }
+        return e;
+      });
+    }
+    out[k] = keepListNulls(x, changed);
+  }
+  return out;
+}
+
+// changedByV2 says whether doc's CID differs between versions 1 and 2: a pflow
+// document with a null before a value in a list term.
+export function changedByV2(doc) {
+  if (!isPflowDoc(doc)) return false;
+  const changed = { v: false };
+  keepListNulls(doc, changed);
+  return changed.v;
+}
+
 // computeCid returns the canonical CIDv1 string for a JSON-LD Petri net document.
 // The top-level @id is removed before hashing (see contract above).
-export async function computeCid(doc) {
-  const { '@id': _ignored, ...docForCid } = doc;
+// opts.version 1 seals under the old contract, to check a CID minted before
+// version 2; the default is SEAL_VERSION.
+export async function computeCid(doc, opts = {}) {
+  const { '@id': _ignored, ...stripped } = doc;
+  const version = opts.version ?? SEAL_VERSION;
+  const docForCid = version >= 2 && isPflowDoc(stripped) ? keepListNulls(stripped, { v: false }) : stripped;
 
   const nquads = await jsonld.canonize(docForCid, {
     algorithm: 'URDNA2015',

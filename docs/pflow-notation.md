@@ -1339,7 +1339,8 @@ The notation's freedom, and its obligations, are exactly this table. Every row w
 | `offset` absent vs `0` | different | writes `offset: 0` on every place |
 | a place's `initial: []` vs `[0]` | different | `= []` is a list; nothing said is `[0]` |
 | an arc's `weight` absent vs `[1]` | different | always writes `weight` |
-| **`capacity: [null, 3]` vs `[3]`** | **same** | a hazard, §8 |
+| `capacity: [null, 3]` vs `[3]` | different (sealing contract version 2; under version 1 the same, §8) | keeps the null |
+| `capacity: [3, null]` vs `[3]` | same | a trailing null is an absent entry |
 
 ### 3.4 The editor's profile
 
@@ -1593,10 +1594,10 @@ Each is a choice with a recommendation; the first three are the ones that are ex
 
 ## 8. Findings in code that already exists
 
-Nothing below was changed by the notation work. They came out of running real nets through the real tools. Status as of 2026-11-24: 1 and 6 are fixed; 2 waits on approval because it moves editor CIDs (docs/model-identity.md, "Sealing contract versions").
+Nothing below was changed by the notation work. They came out of running real nets through the real tools. Status as of 2026-11-24: 1, 2 and 6 are fixed.
 
 1. **Check net rejected the net type the landing page ships** (fixed: go-pflow's net types are valid `@type`s). `public/petri-validate.js:82` makes any `@type` but `PetriNet` an error, and `examples/landing/producer-consumer.jsonld` is a `ResourceNet`: `node scripts/check-nets.mjs examples/landing/producer-consumer.jsonld` reports `@type: is "ResourceNet", not "PetriNet"`. (sim, the ontology and the Bundle's `net_type` use `ResourceNet`.) The notation warns on any other kind for that reason.
-2. **The sealer drops a `null` inside a list**, so `capacity: [null, 3]` and `capacity: [3]` are one CID and mean different things in a two-colour net: the editor writes `Infinity` as `null`, so a net unbounded in its first colour and capped at 3 in its second seals as one capped at 3 in its first. A collision between two different nets; probably rare. `TestSealingEquivalencesTheDesignRelies` pins the behaviour.
+2. **The sealer dropped a `null` inside a list** (fixed by sealing contract version 2, docs/model-identity.md; a null before a value now keeps its place), so `capacity: [null, 3]` and `capacity: [3]` are one CID and mean different things in a two-colour net: the editor writes `Infinity` as `null`, so a net unbounded in its first colour and capped at 3 in its second seals as one capped at 3 in its first. A collision between two different nets; probably rare. `TestSealingEquivalencesTheDesignRelies` pins the behaviour.
 3. **`capacity: [0]` and `[null]` mean the same to every engine (0 is unbounded) and seal differently.** Not a bug; the notation keeps them distinguishable (a sum writes zeros, nothing writes null).
 4. **`author` is the commonest thing the core subset lacks** (six of the twelve nets that did not carry). It is stamped at save, so a hand-written net and the saved copy have different CIDs for that reason alone. `ext author` can carry it; the recommendation is that the save path owns it.
 5. **A weight of `[0]` is read three ways**: "no requirement" by `petri-sim.js`, weight 1 by go-pflow and pflow-rs (the check's own warning says so; `producer-consumer.jsonld` has one). The notation writes `*0`, warns on it, and does not decide.

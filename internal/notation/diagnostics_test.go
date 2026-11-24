@@ -206,9 +206,13 @@ func TestSealingEquivalencesTheDesignRelies(t *testing.T) {
 	if !same(`"capacity":[3],`, `"capacity":[3.0],`) || !same(`"capacity":[100],`, `"capacity":[1e2],`) {
 		t.Error("1, 1.0 and 1e0 are one number")
 	}
-	// the hazard: a null inside a list is dropped, so [null, 3] is [3]
-	if !same(`"capacity":[null,3],`, `"capacity":[3],`) {
-		t.Error("expected the sealer to drop an inner null: [null, 3] seals as [3]")
+	// sealing contract version 2: a null before a value keeps its place, so
+	// [null, 3] is not [3]; a trailing null is still an absent entry
+	if same(`"capacity":[null,3],`, `"capacity":[3],`) {
+		t.Error("[null, 3] and [3] are different nets and must seal differently")
+	}
+	if !same(`"capacity":[3,null],`, `"capacity":[3],`) {
+		t.Error("a trailing null is an absent entry: [3, null] seals as [3]")
 	}
 }
 

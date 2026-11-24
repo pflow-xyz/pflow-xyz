@@ -27,6 +27,7 @@ import { assert, assertEquals } from "https://deno.land/std@0.224.0/assert/mod.t
 import { loadEngine } from "../../public/petri-wasm.js";
 import { Registry, createHeadlessHost } from "../../public/petri-commands.js";
 import { diff } from "./diff.ts";
+import { computeCid, changedByV2 } from "../../public/seal-cid.mjs";
 
 const gz = await Deno.readFile(new URL("../../public/vendor/pflow-native-wasm/pflow_native_wasm_bg.wasm.gz", import.meta.url));
 const wasm = new Uint8Array(await new Response(new Blob([gz as BufferSource]).stream().pipeThrough(new DecompressionStream("gzip"))).arrayBuffer());
@@ -85,6 +86,18 @@ for (const f of FIXTURES) {
     Deno.test(`js == wasm: file.cid, ${f}`, async () => {
         const { reg, nat } = await both(f);
         const js = await reg.execute("file.cid");
+        const model = JSON.parse(JSON.stringify(reg.host.getModel()));
+        if (changedByV2(model)) {
+            // Sealing contract version 2 (docs/model-identity.md): the page seals a
+            // null before a value in a list, the vendored pflow-native wasm still
+            // drops it. Its version 1 CID must still be the page's version 1 CID;
+            // once the wasm follows version 2 the first assertion fails, and this
+            // exception goes.
+            const native = nat("file.cid").cid;
+            assert(js.cid !== native, `${f}: the wasm now seals version 2; drop this exception`);
+            assertEquals(await computeCid(model, { version: 1 }), native);
+            return;
+        }
         assertEquals(js.cid, nat("file.cid").cid);
     });
 

@@ -15,7 +15,76 @@ the sealing contract and every existing CID, and adds a model that is more than 
 `crates/core/src/cid.rs` (Rust) still do exactly this, and nothing here edits
 them: drop the top-level `@id`, canonicalise with URDNA2015 under the preloaded
 pflow.xyz context, sha-256, CIDv1 dag-json base58btc. No context term is added.
-The rule decides only **what is sealed**.
+The rule decides only **what is sealed**. (The one later change to the sealing
+contract itself, version 2, is below.)
+
+### Sealing contract versions
+
+**Version 2 (2026-11-24).** JSON-LD drops a `null` inside a `@list`, so under
+version 1 a place with `capacity: [null, 3]` (colour 0 unbounded, colour 1
+capped at 3) and one with `capacity: [3]` (colour 0 capped at 3) sealed to the
+same CID, although they are different nets. Version 2 adds one step after the
+`@id` is dropped: in a document whose `@context` is `https://pflow.xyz/schema`,
+a `null` that comes **before a value** in a list term (`arcs`, `token`,
+`weight`, `capacity`, `initial`, `parents`) is sealed as the IRI
+`https://pflow.xyz/schema#null` (`seal.NullIRI`, `NULL_IRI`). The stored
+document is not changed; only the preimage is.
+
+Trailing nulls are still dropped, on purpose. A `null` and an absent entry read
+the same in every engine (unbounded capacity, 0 tokens, weight 0), so
+`[3, null]` and `[3]` are one net and keep one CID, and so are `[null]` and
+`[]`. `[null]` is how the editor writes an unbounded place (`JSON.stringify`
+turns `Infinity` into `null`), so this is what keeps nearly every stored CID
+unchanged: **a CID changes only for a document with a null before a value in a
+list term.**
+
+Which CIDs it changes. **No stored document's own CID**: the 29 objects in
+pflow.xyz's store (`data/o/` on pflow.dev) and its `data/files/`, the 69 JSON
+blobs on cdn.stackdump.com, and every JSON fixture and golden in pflow-xyz,
+go-pflow and pflow-rs (6013 files there) were scanned, and none has a null
+before a value (the only hit, in `parity/ask/goal-cases.json`, is a
+`pflow_info` answer, never sealed). `TestSealV2ChangesNoOtherCheckedInDocument`
+keeps that so for this repo.
+
+**But the editor's CID of a colour net does change** when the net has an
+unbounded colour before a capped one. The editor reads capacity 0 as unbounded
+(`normalizeModel` makes it `Infinity`), and `file.cid`, Save and share links
+seal the model after a JSON round trip, which writes `Infinity` as `null`:
+coffee-shop's `CoffeeBeans` capacity `[0, 10, 0]` is sealed as
+`[null, 10, null]`. Under version 1 that is the CID of `[10]`, a different
+net: the collision this change fixes happens in the editor today. Under
+version 2 the editor's CID for such a net moves. On 2026-11-24 that was 5 of
+the 29 stored objects and the coffee-shop landing example (each object's own
+CID is unchanged; this is the CID the editor computes after opening it):
+
+| Opened in the editor | Editor CID, version 1 | Editor CID, version 2 |
+|---|---|---|
+| `examples/landing/coffee-shop.jsonld` and stored `z4EBG9j3NhEnaxZBEpXXCvyMbR9utkgUZoPBQFxS99qSehUwuBL` | `z4EBG9j6TVXvW1hhdDZrfYyr6asCVahVkxB4iqDKCr2McVgARAC` | `z4EBG9jDJ9FfK4orksYF7KLUtVztYuhDoDArAkcwrDhYYHNRex6` |
+| stored `z4EBG9j7whsK3rkT5aTWFEEhcTzeKDUpJ2iL8yDf8m3VKF8b9sH` | `z4EBG9jBgXtQGJ9Kjp1tjUU936yQP4uxw1fmR279nXwLpJVmy9o` | `z4EBG9j8yEfxoMSWaLkqvWoDWAznAtNF1fZ9XWv3cTbZjE2mV3a` |
+| stored `z4EBG9j9uCZSBEstYX25HFvFY8muRfiwJPAGA5jd2Cm7ryWSat1` | `z4EBG9j8SPJp65hHKuvmTLf7XcspRCjjL59CiEzCZkaqGAWp9fX` | `z4EBG9j27cgrVE2F3Zs3rEFrxf3oTimzfgLUgjgHMdDb2Penoqh` |
+| stored `z4EBG9jCvC89xYLuuK5iWBhV2ziuJgAVobb6PFAP3MbL2TgZpi2` | `z4EBG9jFeCz4S5taNzrYA6ZFyv375DLRcApHSYwFvVUCmcqfvsB` | `z4EBG9jBFJKRT9btnsFNcjwSqCh4h1ZeTTAcKxUe7DTXdgW2LX8` |
+| stored `z4EBG9jH7urcC8fntxgfeUkNnLiGLBFE3y8ikcUvpxFNg2QPVfr` | `z4EBG9j541aE5CxjNm95PqbL5pGxmYCxig7TaAwv3TS68ZF9AQp` | `z4EBG9j7oroqtzsAwdv1PMnPjTgbfbyE5vvtw8c9b47tV5HmNAa` |
+
+None of the version 1 editor CIDs is itself in the store. Of the repo's
+fixtures, the same shape is in `examples/showcase/cafe.jsonld`,
+`parity/fixtures/coffee-shop.jsonld` and `with-rates.jsonld`, and
+`parity/editor-shape/coffee-shop.json` / `cafe-showcase.json`.
+
+pflow-native's `file.cid` (the vendored wasm) still seals version 1, so for
+those nets the page's two engines disagree until it follows:
+`parity/native/js_vs_wasm_test.ts` names that divergence and checks the
+version 1 halves still agree, and fails once the wasm adopts version 2, so the
+exception is removed then.
+
+Where it lives: `internal/seal` (`SealVersion`, `SealJSONLD`; `SealJSONLDV1`
+reproduces a version 1 CID; `ChangedByV2(raw)` says whether a document's CID
+moved), `public/seal-cid.mjs` (`SEAL_VERSION`, `computeCid(doc, {version: 1})`,
+`changedByV2`) and go-pflow's `composite.SealNet` (`composite.SealVersion`).
+`parity/fixtures/null-before-value.jsonld` and its twin hold Go and JS to the
+same two CIDs. Not yet followed: pflow-native's `cid.rs` and pflow-rs's
+sealers, and the vendored `seal-cid.mjs` in bitwrap-io and modeldao-org (their
+locks still pin version 1's bytes). They agree with version 2 on every document
+except one with a null before a value.
 
 ## The rule
 

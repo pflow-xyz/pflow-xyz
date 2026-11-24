@@ -1,0 +1,16 @@
+{
+  "@context": "https://pflow.xyz/schema",
+  "@type": "PetriNet",
+  "@version": "1.1",
+  "name": "Two colours, one capped",
+  "token": ["https://pflow.xyz/tokens/red", "https://pflow.xyz/tokens/blue"],
+  "places": {
+    "p": {"@type": "Place", "initial": [0, 0], "capacity": [3, null], "x": 100, "y": 100}
+  },
+  "transitions": {
+    "t": {"@type": "Transition", "x": 200, "y": 100}
+  },
+  "arcs": [
+    {"@type": "Arrow", "source": "t", "target": "p", "weight": [0, 1], "inhibitTransition": false}
+  ]
+}

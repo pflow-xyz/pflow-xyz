@@ -5,5 +5,7 @@
   "net-a.jsonld": "z4EBG9jGDZ27fhNuuxmc1HpUZRKZtCrfHzCTP8h4stbsA6u24Qx",
   "net-b.jsonld": "z4EBG9j4KsBV5WWdHXkpBM6jKMEm13ZiW53oXY5BpYxi2SxWAJj",
   "with-parents.jsonld": "z4EBG9j8Y5JUjbd6ZiaG9DkTSHHFf8tiNTUat5coaYBXVVVEngB",
-  "with-rates.jsonld": "z4EBG9jA7f4q9yx4QjzH3RDPQXiqjnNTz3ALdpjHD3CRTbNrcCD"
+  "with-rates.jsonld": "z4EBG9jA7f4q9yx4QjzH3RDPQXiqjnNTz3ALdpjHD3CRTbNrcCD",
+  "null-before-value.jsonld": "z4EBG9jFshwdkWcoLpyugYmXfK7ZJyNv1jQTXwCzTfC6kgaSEbc",
+  "null-before-value-twin.jsonld": "z4EBG9j7aezNS7vzFh5bmn6wxXH1eMLTjNMo9Dm99pytv5Qb1r3"
 }

@@ -269,6 +269,12 @@ itself, so it's excluded from its own preimage — this makes CIDs idempotent).
   the top-level `@id`, so it IS part of the CID, and because it's a list its order
   is significant. Adding a context term means updating BOTH CID contexts
   (`seal.go` + `seal-cid.mjs`) and `public/schema` in lockstep.
+- **Sealing contract version 2** (`SealVersion`/`SEAL_VERSION`): a `null` before a
+  value in a `@list` term is sealed as `https://pflow.xyz/schema#null`, so
+  `capacity: [null,3]` and `[3]` no longer share a CID; trailing nulls are still
+  dropped (`[null]` is the editor's unbounded place, unchanged). No stored CID moved.
+  Why, what was scanned and what has not followed yet: `docs/model-identity.md`,
+  "Sealing contract versions".
 - Contract is locked by `make test-parity`: shared fixtures in `parity/fixtures/`
   + golden CIDs in `parity/golden.json`, checked from Go
   (`internal/seal/parity_test.go`) and JS (`parity/parity_check.mjs`). Any

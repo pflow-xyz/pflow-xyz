@@ -1,6 +1,8 @@
 package seal
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -172,5 +174,87 @@ func TestSealJSONLD_DeterministicWithRemoteContext(t *testing.T) {
 	// Verify the CID has the expected format
 	if !strings.HasPrefix(cid1, "z4E") {
 		t.Errorf("Expected CID to start with 'z4E', got: %s", cid1[:4])
+	}
+}
+
+// Regression (sealing contract version 2): JSON-LD drops a null inside a
+// @list, so under version 1 capacity [null,3] (colour 0 unbounded, colour 1
+// capped at 3) and capacity [3] (colour 0 capped) sealed to one CID.
+func TestSealNullBeforeValueInList(t *testing.T) {
+	net := func(capacity string) []byte {
+		return []byte(`{"@context":"https://pflow.xyz/schema","@type":"PetriNet",
+			"token":["https://pflow.xyz/tokens/red","https://pflow.xyz/tokens/blue"],
+			"places":{"p":{"@type":"Place","initial":[0,0],"capacity":` + capacity + `,"x":0,"y":0}},
+			"transitions":{},"arcs":[]}`)
+	}
+	cid := func(capacity string) string {
+		c, _, err := SealJSONLD(net(capacity))
+		if err != nil {
+			t.Fatalf("%s: %v", capacity, err)
+		}
+		return c
+	}
+	if cid("[null,3]") == cid("[3]") {
+		t.Errorf("capacity [null,3] and [3] share a CID")
+	}
+	if cid("[null,null,3]") == cid("[null,3]") {
+		t.Errorf("capacity [null,null,3] and [null,3] share a CID")
+	}
+	// A trailing null reads as an absent entry, so these stay one net, one CID,
+	// and so does [null], the editor's unbounded place.
+	if cid("[3,null]") != cid("[3]") {
+		t.Errorf("capacity [3,null] and [3] differ")
+	}
+	if cid("[null]") != cid("[]") {
+		t.Errorf("capacity [null] and [] differ")
+	}
+	// Version 1 is kept to check old CIDs, and reproduces the collision.
+	v1, _, err := SealJSONLDV1(net("[null,3]"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if v1 != cid("[3]") {
+		t.Errorf("SealJSONLDV1([null,3]) = %s, want the version 1 CID %s", v1, cid("[3]"))
+	}
+	if !ChangedByV2(net("[null,3]")) || ChangedByV2(net("[3,null]")) || ChangedByV2(net("[null]")) {
+		t.Errorf("ChangedByV2 should hold only for a null before a value")
+	}
+	// Only pflow documents: another context's arrays are not touched.
+	other := []byte(`{"@context":{"@vocab":"https://example.org/"},"capacity":[null,3]}`)
+	a, _, _ := SealJSONLD(other)
+	b, _, _ := SealJSONLDV1(other)
+	if a != b || ChangedByV2(other) {
+		t.Errorf("a non-pflow document changed CID under version 2")
+	}
+}
+
+// Version 2 changes the CID only of a document with a null before a value in
+// a list term. This holds every checked-in document to the list of those
+// (only the fixture made for it), so a new one cannot slip in unnoticed.
+func TestSealV2ChangesNoOtherCheckedInDocument(t *testing.T) {
+	want := map[string]bool{filepath.Join("parity", "fixtures", "null-before-value.jsonld"): true}
+	root := filepath.Join("..", "..")
+	for _, dir := range []string{"examples", "parity", "public"} {
+		if _, err := os.Stat(filepath.Join(root, dir)); err != nil {
+			t.Logf("%s: not here (a Bazel sandbox holds only //parity:golden); skipped", dir)
+			continue
+		}
+		err := filepath.WalkDir(filepath.Join(root, dir), func(path string, d os.DirEntry, err error) error {
+			if err != nil || d.IsDir() || !(strings.HasSuffix(path, ".json") || strings.HasSuffix(path, ".jsonld")) {
+				return err
+			}
+			raw, err := os.ReadFile(path)
+			if err != nil {
+				return err
+			}
+			rel, _ := filepath.Rel(root, path)
+			if ChangedByV2(raw) != want[rel] {
+				t.Errorf("%s: ChangedByV2 = %v, want %v", rel, !want[rel], want[rel])
+			}
+			return nil
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
 	}
 }
