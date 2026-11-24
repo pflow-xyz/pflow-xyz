@@ -1,8 +1,8 @@
 {
   "mcpServers": {
-    "sim": {
+    "pflow": {
       "type": "http",
-      "url": "https://sim.pflow.xyz/mcp"
+      "url": "https://pflow.xyz/mcp"
     }
   }
 }

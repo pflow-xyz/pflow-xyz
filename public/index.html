@@ -7,12 +7,12 @@
          so its own pan/zoom gestures are unaffected. -->
     <meta content="width=device-width, initial-scale=1" name="viewport"/>
     <title>pflow - Explanations you can run</title>
-    <meta name="description" content="LLM-written code got good. Understanding it didn't get faster. pflow turns each model into something you can see, run and check."/>
+    <meta name="description" content="Talk a system through with Claude. pflow builds the model with you, explains it as you go, and shows it as outcome, model, math, notation and a run, every view computed from one net."/>
     <meta name="author" content="Matt York">
     <link rel="me" href="https://github.com/stackdump">
     <link rel="me" href="https://blog.stackdump.com/">
     <meta property="og:title" content="pflow - Explanations you can run"/>
-    <meta property="og:description" content="LLM-written code got good. Understanding it didn't get faster. pflow turns each model into something you can see, run and check."/>
+    <meta property="og:description" content="Talk a system through with Claude. pflow builds the model with you, explains it as you go, and shows it as outcome, model, math, notation and a run, every view computed from one net."/>
     <meta property="og:type" content="website"/>
     <link rel="canonical" href="https://pflow.xyz/"/>
     <meta property="og:url" content="https://pflow.xyz/"/>
@@ -21,7 +21,7 @@
     <meta property="og:image:height" content="640"/>
     <meta name="twitter:card" content="summary_large_image"/>
     <meta name="twitter:title" content="pflow - Explanations you can run"/>
-    <meta name="twitter:description" content="LLM-written code got good. Understanding it didn't get faster. pflow turns each model into something you can see, run and check."/>
+    <meta name="twitter:description" content="Talk a system through with Claude. pflow builds the model with you, explains it as you go, and shows it as outcome, model, math, notation and a run, every view computed from one net."/>
     <meta name="twitter:image" content="https://pflow.xyz/banner.png"/>
     <link href="petri-view.css" rel="stylesheet"/>
     <link href="petri-shell.css" rel="stylesheet"/>
@@ -391,6 +391,12 @@
             transform: translateY(-2px);
         }
 
+        /* A card that is not a link (the views section) does not lift on hover. */
+        div.pipeline-card:hover {
+            border-color: var(--pf-border);
+            transform: none;
+        }
+
         .pipeline-icon {
             margin-bottom: 16px;
         }
@@ -586,7 +592,7 @@
     <nav class="landing-nav">
         <a href="/"><img alt="pflow" src="title.svg"/></a>
         <div class="landing-nav-links">
-            <a href="https://sim.pflow.xyz">Sim</a>
+            <a href="/mcp.html">Connector</a>
             <a href="https://book.pflow.xyz">Book</a>
             <a href="/compose.html">Compose</a>
             <a href="https://github.com/pflow-xyz/pflow-xyz">GitHub</a>
@@ -602,7 +608,7 @@
         <div class="landing-hero-content">
             <form id="landing-chat" class="landing-chat" onsubmit="event.preventDefault()">
                 <h1 id="landing-chat-q">Explanations you can run.</h1>
-                <p>LLM-written code got good in the last year. Understanding it didn't get faster. You can only move as fast as you comprehend what you've built. pflow turns each model into something you can see, run and check. <span id="landing-chat-ask">What are you working on?</span></p>
+                <p>Talk a system through with Claude. pflow builds the model with you, explains each idea as it comes up, and shows the answer from every side: what happens, the model, the math, the notation, a run. Every view is computed from the same net, so they never disagree. <span id="landing-chat-ask">What are you working on?</span></p>
                 <textarea id="landing-chat-input" rows="2" aria-labelledby="landing-chat-ask" placeholder="A coffee shop with one barista and a queue. Where does it jam?"></textarea>
                 <button type="submit" id="landing-chat-send" class="btn-primary">Ask</button>
                 <p id="landing-chat-state" class="landing-chat-small" role="status"></p>
@@ -617,7 +623,7 @@
 
     <section class="landing-section">
         <h2>Example models, open in the editor</h2>
-        <p class="landing-pipeline-sub" style="text-align:center;margin:-16px 0 32px">Each one is a saved net with a content-addressed ID. A card opens the net together with one recorded question about it, computed in your browser with no model call; <em>Open the canvas</em> opens the net alone. The same kind of model is what <a href="https://sim.pflow.xyz" style="color:var(--pf-accent)">sim.pflow.xyz</a> builds from a description.</p>
+        <p class="landing-pipeline-sub" style="text-align:center;margin:-16px 0 32px">Each one is a saved net with a content-addressed ID. A card opens the net together with one recorded question about it, computed in your browser with no model call; <em>Open the canvas</em> opens the net alone.</p>
         <div class="model-grid">
             <!-- examples:cards:begin (generated by scripts/gen-example-cards.mjs from public/examples.json; do not edit by hand) -->
             <div class="model-card" data-example="coffee-shop" data-cid="z4EBG9j3NhEnaxZBEpXXCvyMbR9utkgUZoPBQFxS99qSehUwuBL" data-title="Coffee Shop">
@@ -702,14 +708,15 @@
         </div>
     </section>
 
-    <section class="landing-pipeline" id="calibrated-what-ifs">
-        <h2>Calibrated what-ifs (sim.pflow.xyz)</h2>
-        <p class="landing-pipeline-sub">Models already tuned to a known kind of system: open one, turn the knobs and see which one binds. No editor needed. To model your own, start at the top of the page.</p>
+    <section class="landing-pipeline" id="views">
+        <h2>One model, every view</h2>
+        <p class="landing-pipeline-sub">A CAD drawing shows one part as plan, elevation and section. pflow does the same for a system, and since each view is computed from the one net rather than drawn beside it, the views cannot drift apart the way hand-kept diagrams do. Call it LLM-aided modeling: Claude picks the view that answers your question, points at the part that matters and explains it, and the numbers come from the engine.</p>
         <div class="pipeline-grid">
-            <a href="https://sim.pflow.xyz/second-car/" class="pipeline-card"><h3>Second car or ride-share?</h3><p>A household decision with the spread shown, free with no sign-up.</p><span class="pipeline-link">Open &rarr;</span></a>
-            <a href="https://sim.pflow.xyz/whatif/?id=7d736018c17edd5d7b083444" class="pipeline-card"><h3>Cold-chain attack</h3><p>How many technicians does it take to beat a freezer defrost attack?</p><span class="pipeline-link">Open &rarr;</span></a>
-            <a href="https://sim.pflow.xyz/whatif/?id=3741e97f8256ab15e7a28aed" class="pipeline-card"><h3>Baggage hall</h3><p>Conveyor health against sorter headcount, and which one moves missed bags.</p><span class="pipeline-link">Open &rarr;</span></a>
+            <div class="pipeline-card"><h3>Outcome</h3><p>The answer in plain words, with a plot of what happens over time. No Petri-net terms.</p></div>
+            <div class="pipeline-card"><h3>Model</h3><p>The net on a canvas, the same net as text in the pflow notation, an outline and the checks that run as you edit.</p></div>
+            <div class="pipeline-card"><h3>Math</h3><p>What stays constant (invariants), every state the system can reach, and the categorical views of a composition.</p></div>
         </div>
+        <p class="landing-pipeline-sub" style="text-align:center;margin:24px 0 0">Try the <a href="/?shell=1" style="color:var(--pf-accent)">IDE preview</a>: choose Link to Claude, add the <a href="/mcp.html" style="color:var(--pf-accent)">connector</a>, and Claude can open views (<code>pflow_show</code>), set the level of detail (<code>pflow_level</code>), point at parts (<code>pflow_highlight</code>) and walk you through a model (<code>pflow_tour</code>) while you watch.</p>
     </section>
 
     <section class="landing-pipeline">
@@ -732,7 +739,7 @@
                 <p>Build state machines visually. Places, transitions, arcs: the model is a directed graph stored as JSON-LD with content-addressed identity.</p>
                 <span class="pipeline-link">Open the editor &rarr;</span>
             </a>
-            <a href="https://sim.pflow.xyz" class="pipeline-card">
+            <a href="/mcp.html" class="pipeline-card">
                 <div class="pipeline-icon">
                     <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <rect x="4" y="6" width="40" height="30" rx="2" stroke="#EBFF00" stroke-width="2" fill="none"/>
@@ -744,8 +751,8 @@
                     </svg>
                 </div>
                 <h3>Run</h3>
-                <p>Run a calibrated what-if and see which knob binds. The model is seeded and repeatable, so the answer is checked knob by knob instead of being a confident guess.</p>
-                <span class="pipeline-link">sim.pflow.xyz &rarr;</span>
+                <p>Simulate it, in the editor or by asking Claude: ODE, seeded stochastic runs, what-ifs and reachability. Runs are seeded and repeatable, so a result is reported from data, with how it was computed.</p>
+                <span class="pipeline-link">Run it from Claude &rarr;</span>
             </a>
             <a href="https://blog.stackdump.com/posts/zk-petri-nets" class="pipeline-card">
                 <div class="pipeline-icon">
@@ -808,20 +815,20 @@
 
     <div class="landing-about">
         <p>
-            Like a list comprehension, pflow starts from a description: say what
-            the system is, and get a model you can run. Then ask it how it is
-            put together, what happens over time, what
-            can't change, what an agent should do, whether reality matches, and
-            whether it is provably right. Under the hood, every model is a Petri
-            net, so runs replay and proofs check.
+            pflow is a modeling tool that teaches. Say what the system is, and
+            Claude builds a model with you, then answers what you ask of it: how
+            it is put together, what happens over time, what can't change, and
+            whether it is provably right. Each answer comes with the view that
+            shows it and the concept behind it. Under the hood, every model is a
+            Petri net, so runs replay and proofs check.
         </p>
-        <a href="https://sim.pflow.xyz">Try a model on sim.pflow.xyz &rarr;</a>
+        <a href="/mcp.html">Add pflow to Claude &rarr;</a>
     </div>
 
     <footer class="landing-footer">
         <div class="landing-footer-content">
             <div class="landing-footer-links">
-                <a href="https://sim.pflow.xyz">Sim</a>
+                <a href="/mcp.html">Connector</a>
                 <a href="https://book.pflow.xyz">Book</a>
                 <a href="https://blog.stackdump.com">Blog</a>
                 <a href="https://ontology.pflow.xyz">Ontology</a>

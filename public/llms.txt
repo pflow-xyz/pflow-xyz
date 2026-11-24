@@ -1,14 +1,13 @@
 # pflow.xyz
 
-> Explanations you can run. LLM-written code got good in the last year, and
-> understanding it didn't get faster. You can only move as fast as you
-> comprehend what you've built. pflow turns each model into something you can
-> see, run and check, with proofs and provenance attached. Under the hood every
-> model is a Petri net, so runs replay and proofs check.
->
-> A comprehension, in the programmer's sense, builds a thing from its
-> description. pflow does that for systems: describe it, and get a model you
-> can run, check and understand.
+> Explanations you can run. pflow is a modeling tool that teaches: a person
+> describes a system and talks it through with an assistant, which builds the
+> model, explains each concept as it comes up, and reports results the engine
+> computed. One model is shown from several views (the outcome in plain words,
+> the model, the math, the pflow notation and a simulation), like a CAD
+> drawing's plan, elevation and section, except that every view is computed
+> from the same net, so they cannot disagree. Under the hood every model is a
+> Petri net, so runs replay and proofs check.
 >
 > The visual editor comes with an embeddable, dependency-free ES module
 > library for discrete simulation and continuous (ODE) analysis. All modules
@@ -91,7 +90,15 @@ Full rules: `docs/engine-selection.md` (vendored from go-pflow,
 `https://pflow.xyz/mcp` runs these tools on the server, on the net or
 composition passed in the call. It is stateless Streamable HTTP: POST JSON-RPC,
 no event stream. `claude mcp add --transport http pflow https://pflow.xyz/mcp`.
-Only `pflow_save` needs a sign-in. [Setup and every tool](https://pflow.xyz/mcp.html).
+Only `pflow_save` and the teaching tools need a sign-in. [Setup and every tool](https://pflow.xyz/mcp.html).
+
+- Teaching, on a page the person is watching (the IDE shell, `https://pflow.xyz/?shell=1`,
+  linked with its Link to Claude button; these need a sign-in as the same account):
+  pflow_show (put a net on the canvas or open a view: plot, reachability,
+  invariants, notation, categorical), pflow_level (outcome, model or math),
+  pflow_highlight, pflow_annotate, pflow_focus, pflow_tour (a guided sequence of
+  those steps), plus pflow_tabs, pflow_tab_get and pflow_tab_stop. Set the level
+  before showing a view above it; the page refuses and says which level it needs.
 
 - Nets: pflow_edit, pflow_info, pflow_check, pflow_validate, pflow_verify,
   pflow_fire, pflow_reachability, pflow_invariants, pflow_incidence,
@@ -145,15 +152,8 @@ that cannot fire.
 
 ## Services
 
-- [Sim MCP server](https://sim.pflow.xyz/mcp): JSON-RPC tools to build,
-  run and check models (sim_create_model, sim_scenario, sim_invariants,
-  sim_reach, sim_verify, …)
 - [Server-side SVG rendering](https://pflow.xyz/api/svg): POST a model,
   get an SVG
-- [sim.pflow.xyz](https://sim.pflow.xyz/mcp): describe a process, get a
-  model you can run and check — seeded scenarios, invariant and
-  reachability proofs, calibration, and diagnostics that rank every knob by
-  measured effect on the objective
 - [pflow-native](https://github.com/pflow-xyz/pflow-native): native desktop
   editor and simulator for the same models, with a CLI and an MCP server
 

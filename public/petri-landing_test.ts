@@ -317,42 +317,42 @@ Deno.test("a deep link that names a session skips the landing: the page knows ev
   assertEquals(inPage, inModule);
 });
 
-Deno.test("one AI door: the hero has no second box to sim, and sim's gallery says what sim is", () => {
+Deno.test("one AI door, and no link to sim.pflow.xyz, which is being retired", () => {
   const hero = section('<section class="landing-hero">');
   assertEquals(HTML.includes("Describe it instead"), false);
-  assertEquals(/sim\.pflow\.xyz/.test(hero), false, "the hero does not link to sim");
   assertEquals(HTML.includes("Or start from a description"), false);
-
-  const what = section('<section class="landing-pipeline" id="calibrated-what-ifs">');
-  assertEquals(/<h2>Calibrated what-ifs \(sim\.pflow\.xyz\)<\/h2>/.test(what), true, "titled as sim's");
-  const cards = [...what.matchAll(/<a href="(https:\/\/sim\.pflow\.xyz\/[^"]+)" class="pipeline-card">/g)].map((m) => m[1]);
-  assertEquals(cards, [
-    "https://sim.pflow.xyz/second-car/",
-    "https://sim.pflow.xyz/whatif/?id=7d736018c17edd5d7b083444",
-    "https://sim.pflow.xyz/whatif/?id=3741e97f8256ab15e7a28aed",
-  ]);
-  const words = textOf(what);
-  for (const said of ["already tuned", "turn the knobs", "No editor needed"]) assertEquals(words.includes(said), true, `the gallery does not say "${said}"`);
-  assertEquals(words.includes("Describe a decision"), false, "it is not a second place to describe");
-  assertEquals(HTML.indexOf("Example models, open in the editor") < HTML.indexOf('id="calibrated-what-ifs"'), true, "under the examples");
+  assertEquals(/sim\.pflow\.xyz/.test(HTML), false, "the page still names sim.pflow.xyz");
+  assertEquals(HTML.includes('id="calibrated-what-ifs"'), false, "the sim gallery is gone");
+  const words = textOf(hero);
+  for (const said of ["Talk a system through with Claude", "Every view is computed from the same net"]) {
+    assertEquals(words.includes(said), true, `the hero does not say "${said}"`);
+  }
 });
 
-Deno.test("Check is not a product name here: the card that went to sim says what sim is", () => {
+Deno.test("the views section: one net, three levels, and the teaching tools that exist", () => {
+  const views = section('<section class="landing-pipeline" id="views">');
+  assertEquals(/<h2>One model, every view<\/h2>/.test(views), true);
+  for (const level of ["Outcome", "Model", "Math"]) assertEquals(views.includes(`<h3>${level}</h3>`), true, `no ${level} card`);
+  for (const tool of ["pflow_show", "pflow_level", "pflow_highlight", "pflow_tour"]) assertEquals(views.includes(`<code>${tool}</code>`), true, `no ${tool}`);
+  assertEquals(views.includes('href="/?shell=1"'), true, "it links the IDE preview");
+  assertEquals((HTML.match(/LLM-aided modeling/g) || []).length, 1, "the tagline is used once, not as a slogan");
+  assertEquals(HTML.indexOf("Example models, open in the editor") < HTML.indexOf('id="views"'), true, "under the examples");
+});
+
+Deno.test("Check is not a product name here, and the Run card goes to the connector", () => {
   const pipeline = section("<h2>Draw &rarr; Run &rarr; Prove</h2>");
   assertEquals(/<h3>Check<\/h3>/.test(HTML), false);
   assertEquals(HTML.includes("Draw &rarr; Check"), false);
-  const card = pipeline.slice(pipeline.indexOf('<a href="https://sim.pflow.xyz" class="pipeline-card">'));
-  assertEquals(card.startsWith('<a href="https://sim.pflow.xyz" class="pipeline-card">'), true, "the middle card still goes to sim");
-  assertEquals(textOf(card.slice(0, card.indexOf("</a>"))).includes("Run a calibrated what-if and see which knob binds"), true);
+  const card = pipeline.slice(pipeline.indexOf('<a href="/mcp.html" class="pipeline-card">'));
+  assertEquals(card.startsWith('<a href="/mcp.html" class="pipeline-card">'), true, "the middle card goes to the connector");
   assertEquals(/<h3>Run<\/h3>/.test(card), true);
 });
 
-Deno.test("every link the page had is still there, except the removed second door", () => {
+Deno.test("every link the page had is still there, except sim's", () => {
   const hrefs = new Set([...HTML.matchAll(/\shref="([^"#][^"]*)"/g)].map((m) => m[1].replace(/&amp;/g, "&")));
   const kept = [
-    "/", "/compose.html", "/mcp.html", "https://sim.pflow.xyz", "https://book.pflow.xyz", "https://blog.stackdump.com",
-    "https://github.com/pflow-xyz/pflow-xyz", "https://blog.stackdump.com/posts/zk-petri-nets", "https://sim.pflow.xyz/second-car/",
-    "https://sim.pflow.xyz/whatif/?id=7d736018c17edd5d7b083444", "https://sim.pflow.xyz/whatif/?id=3741e97f8256ab15e7a28aed",
+    "/", "/compose.html", "/mcp.html", "/?shell=1", "https://book.pflow.xyz", "https://blog.stackdump.com",
+    "https://github.com/pflow-xyz/pflow-xyz", "https://blog.stackdump.com/posts/zk-petri-nets",
     "/?cid=z4EBG9j3NhEnaxZBEpXXCvyMbR9utkgUZoPBQFxS99qSehUwuBL&title=Coffee+Shop",
     "/?cid=z4EBG9j1YQFZEQBpCn3ZjdpAuXpPnrKSDF5YXsW3q86znPztEoh&title=Tic-Tac-Toe",
     "/?cid=z4EBG9j1aMiBny6hgTAKFXfXxTASCD5vT6NVY3opfQx4FfBf42a&title=Enzyme+Kinetics",
@@ -362,10 +362,10 @@ Deno.test("every link the page had is still there, except the removed second doo
   ];
   for (const href of kept) assertEquals(hrefs.has(href), true, `index.html lost ${href}`);
   const nav = HTML.slice(HTML.indexOf('<nav class="landing-nav">'), HTML.indexOf("</nav>"));
-  for (const href of ["https://sim.pflow.xyz", "https://book.pflow.xyz", "/compose.html", "https://github.com/pflow-xyz/pflow-xyz"]) {
+  for (const href of ["/mcp.html", "https://book.pflow.xyz", "/compose.html", "https://github.com/pflow-xyz/pflow-xyz"]) {
     assertEquals(nav.includes(`href="${href}"`), true, `the nav lost ${href}`);
   }
-  assertEquals(/>\s*Sim\s*<\/a>/.test(nav), true, "and Sim is still a link in the nav");
+  assertEquals(/>\s*Connector\s*<\/a>/.test(nav), true, "the connector is a link in the nav");
 });
 
 Deno.test("the page stays crawlable and its metadata valid: static copy, no content written by the script", async () => {
@@ -376,7 +376,7 @@ Deno.test("the page stays crawlable and its metadata valid: static copy, no cont
   ]) assertEquals(head.includes(needle), true, `the head lost ${needle}`);
   for (const block of HTML.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)) JSON.parse(block[1]); // throws if invalid
   assertEquals(/<h1[^>]*>Explanations you can run\.<\/h1>/.test(HTML), true);
-  for (const heading of ["Example models, open in the editor", "Calibrated what-ifs (sim.pflow.xyz)", "Draw &rarr; Run &rarr; Prove", "Go deeper"]) {
+  for (const heading of ["Example models, open in the editor", "One model, every view", "Draw &rarr; Run &rarr; Prove", "Go deeper"]) {
     assertEquals(HTML.includes(`<h2>${heading}</h2>`), true, `the static page lost the heading ${heading}`);
   }
   // The script writes state words with textContent and flips hidden; it never injects markup.

@@ -1,14 +1,14 @@
 # pflow.xyz — Explanations you can run
 
-LLM-written code got good in the last year, and understanding it didn't get
-faster. You can only move as fast as you comprehend what you've built. pflow
-turns each model into something you can see, run and check, with proofs and
-provenance attached. Under the hood every model is a Petri net, so runs replay
-and proofs check.
-
-A comprehension, in the programmer's sense, builds a thing from its description.
-pflow does that for systems: describe it, and get a model you can run, check and
-understand.
+pflow is a modeling tool that teaches. A person describes a system and talks it
+through with an assistant (Claude, over the MCP server below), which builds the
+model with them, explains each concept as it comes up, and reports results the
+engine computed rather than estimates. One model is shown from several views:
+the outcome in plain words, the model (canvas and outline), the math
+(invariants, reachability), the pflow notation and a simulation. It is like a
+CAD drawing's plan, elevation and section, except that every view is computed
+from the same net, so they cannot drift apart. Under the hood every model is a
+Petri net, so runs replay and proofs check.
 
 pflow.xyz is a visual editor and simulator with an embeddable, dependency-free ES
 module library for discrete simulation and continuous (ODE) analysis. All
@@ -204,8 +204,8 @@ claude mcp add --transport http pflow https://pflow.xyz/mcp
 ```
 
 Any other client: it is stateless Streamable HTTP, so POST JSON-RPC to the URL;
-there is no event stream. Only `pflow_save` needs a sign-in, and saved nets are
-public.
+there is no event stream. Only `pflow_save` and the teaching tools (below) need
+a sign-in, and saved nets are public.
 
 ```bash
 curl -s https://pflow.xyz/mcp -H 'Content-Type: application/json' \
@@ -224,6 +224,18 @@ the editor link `?cid=`; engine "wasm" (default, about 45 KB: the page loads @pf
 version on cdn.jsdelivr.net, to re-analyze an edited marking, and keeps the
 baked verdicts if it cannot), "baked" (about 40 KB, verdicts fixed, loads nothing) or "wasm-inline" (the engine embedded, about
 470 KB, which most chat clients truncate)).
+
+**Teaching, on a page the person is watching:** the IDE shell
+(`https://pflow.xyz/?shell=1`, linked with its Link to Claude button) shows one
+net at three levels of detail: outcome (answers and plots, no Petri-net terms),
+model (canvas, notation, outline, checks) and math (invariants, reachability,
+categorical views). These tools drive it and need a sign-in as the same account:
+pflow_show (put a net on the canvas or open a view: plot, reachability,
+invariants, notation, categorical), pflow_level, pflow_highlight,
+pflow_annotate, pflow_focus, pflow_tour (a guided sequence of those steps; the
+person moves with Back / Next), plus pflow_tabs, pflow_tab_get and
+pflow_tab_stop. Set the level before showing a view above it: the page refuses
+and says which level it needs.
 
 **Two-sided games:** exact alpha-beta search over the firing rule, on a net whose
 moves belong to two sides. The net's marking is the position.
@@ -312,15 +324,7 @@ pool, and its `second-order` stops at a transition that cannot fire.
   glossary concepts and the pflow software components. Downloads
   (Turtle, JSON-LD, N-Triples, RDF/XML, with SHA256SUMS), a read-only SPARQL
   endpoint at `/sparql` and an MCP server at `/mcp`.
-- https://sim.pflow.xyz/mcp — sim MCP server (JSON-RPC): build, run and
-  check models (sim_create_model, sim_scenario, sim_invariants, sim_reach,
-  sim_verify, …).
 - https://book.pflow.xyz — the book on modeling with Petri nets.
-- https://sim.pflow.xyz — describe a process, get a model you can run
-  and check: store a model with one POST, then seeded scenario comparison,
-  invariants and reachability proofs, calibration against event logs, and
-  diagnostics that rank every knob by measured influence on the objective.
-  MCP server at `https://sim.pflow.xyz/mcp`.
 - https://github.com/pflow-xyz/pflow-native — native desktop editor and
   simulator for the same JSON-LD models (pflow-rs), with a CLI and an MCP
   server (`pflow-native-cli mcp`).
