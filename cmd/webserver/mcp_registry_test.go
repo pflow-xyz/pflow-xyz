@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -299,5 +300,25 @@ func TestMCPBusyWhenSlotsAreFull(t *testing.T) {
 	}
 	if len(mcpSlots) != 0 {
 		t.Fatalf("%d slot(s) still held after the call", len(mcpSlots))
+	}
+}
+
+// Regression: go-pflow's bounded ignored declared capacities, so the
+// coffee-shop landing example (every place capped, three colours, 2706
+// reachable states) came back unknown at the tool's default 2000-state
+// limit. With go-pflow c31ded6 the capacities prove it structurally.
+func TestMCPVerifyBoundedUsesCapacities(t *testing.T) {
+	raw, err := os.ReadFile("../../examples/z4EBG9jDsuUdvVN4bUXRHxoDG3p274FfhcJd8BiruRcE1jLCHi8.jsonld" /* coffee-shop, in //examples */)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ver := call(t, "pflow_verify", `{"net":`+string(raw)+`,"properties":[{"kind":"bounded"}]}`)
+	verdicts, _ := ver["verdicts"].([]any)
+	if len(verdicts) != 1 {
+		t.Fatalf("verify %v", ver)
+	}
+	v := verdicts[0].(map[string]any)
+	if v["status"] != "proved" || v["method"] != "structural" {
+		t.Fatalf("coffee-shop bounded at the default limit: %v, want proved (structural)", v)
 	}
 }
