@@ -1,0 +1,32 @@
+#! pflow 1
+net "Readers and writers"
+about "Readers share the database, a writer needs it alone. -o says 'only while empty', <-> says 'only while there is a token'."
+
+place readers = 2 label "Idle readers" @ 120, 120
+place reading label "Reading" @ 360, 120
+place writers = 1 label "Idle writers" @ 120, 320
+place writing label "Writing" @ 360, 320
+place online = 1 @ 600, 220
+place offline @ 840, 220
+
+transition start_read @ 240, 120
+transition end_read @ 240, 40
+transition start_write @ 240, 320
+transition end_write @ 240, 400
+transition shutdown @ 720, 160
+transition restart @ 720, 280
+
+readers -> start_read -> reading -> end_read -> readers
+writers -> start_write -> writing -> end_write -> writers
+
+# no reader starts while a writer writes, no writer while anyone reads
+writing -o start_read
+reading -o start_write
+
+# both need the database online; neither takes the token
+online <-> start_read
+online <-> start_write
+
+# it can only go offline while nobody is using it
+reading, writing -o shutdown
+online -> shutdown -> offline -> restart -> online

@@ -1,0 +1,74 @@
+(* SPDX-License-Identifier: CC0-1.0
+
+   The grammar of the pflow notation: the one source of truth. A net written as text, one statement to a line, that
+   compiles to the JSON-LD document pflow.xyz seals (docs/pflow-notation.md). The Grammar page, the grammar block of the
+   spec and the editor's highlighter are meant to be generated from this file, and internal/notation/grammar_test.go holds it
+   to the parser both ways: every example is a sentence of it, and every sentence it writes for the core statements is a
+   program the parser reads.
+
+   Notation (ISO 14977, the subset BeatScript's grammar.ebnf uses, so one reader reads both):
+   name = ... ;   "text" a terminal   [ x ] optional   { x } none or more   ( x ) a group   x | y one of
+   and comments between round brackets and stars. An UPPER-CASE name that is no production is a token class of the lexer:
+   NEWLINE NAME KIND INT NUMBER STRING URI CID JSON (lex.go says what each matches; NEWLINE also ends the text).
+   Comments go away before the grammar is read: `#` to the end of the line, except `#!` at the start of a line.
+   A production whose note says [next] is in the grammar and not yet in the prototype's parser: the sentence writer of the
+   drift test leaves it out, and the example that uses it (pipeline.pnet) is only recognised, not compiled. *)
+
+(* == Programs and lines == *)
+program     = { line } ;
+line        = [ statement ] NEWLINE ;                         (* an empty line and a comment line are lines *)
+statement   = pragma | net | about | color | parents | place | transition | arcs
+            | ext | compose | part | port | link ;
+
+(* == The header == *)
+pragma      = "#!" "pflow" INT ;                              (* #! pflow 1: the notation's version, the first line *)
+net         = "net" [ KIND ] [ STRING ] ;                     (* net ResourceNet "Bounded buffer": the @type and the name *)
+about       = "about" STRING ;                                (* the net's description *)
+color       = "color" cdecl { "," cdecl } ;                   (* the token colours, in the order of every vector *)
+cdecl       = NAME [ "=" URI ] ;                              (* red   or   prey = <https://pflow.xyz/tokens/blue> *)
+parents     = "parents" CID { "," CID } ;                     (* the nets this one was made from, newest first *)
+
+(* == Places and transitions == *)
+place       = "place" id [ "=" marking ] { pattr } ;          (* place slots = 3 cap 3 @ 200, 100 *)
+pattr       = "cap" marking                                   (* the capacity: nothing said is unbounded *)
+            | "label" STRING                                  (* the name the editor shows *)
+            | "about" STRING                                  (* the description *)
+            | "offset" NUMBER                                 (* the editor writes 0; only another value is written out *)
+            | at ;
+transition  = "transition" id { tattr } ;                     (* transition brew rate 0.25 @ 350, 300 *)
+tattr       = "rate" NUMBER                                   (* the mass-action rate the ODE and SSA engines read *)
+            | "label" STRING
+            | "about" STRING
+            | "role" NAME                                     (* the editor's role: default, ... *)
+            | "offset" NUMBER
+            | at ;
+at          = "@" NUMBER "," NUMBER ;                         (* where the editor draws it: part of the document, so part of its CID *)
+id          = NAME | STRING ;                                 (* a reserved word, or a name with odd characters, is quoted *)
+
+(* == Markings, capacities and weights == *)
+marking     = list | sum ;
+list        = "[" [ item { "," item } ] "]" ;                 (* the vector as the document holds it: [1, 0, 2]  [null] *)
+item        = NUMBER | "null" ;
+sum         = term { "+" term } ;                             (* 2 red + 1 blue: the vector, a zero for every colour not named *)
+term        = NUMBER [ NAME ] ;                               (* 3 brown   or just 3 in a net with no more than one colour *)
+
+(* == Arcs == *)
+arcs        = group arrow group { arrow group } ;             (* one statement, as many arcs as its hops pair up, in order *)
+group       = operand { "," operand } ;
+operand     = id [ "*" marking ] ;                            (* the weight is written on the place: beans*2 brown *)
+arrow       = "->"                                            (* consume or produce, by the direction *)
+            | "-o"                                            (* inhibitor: the place must hold fewer than the weight *)
+            | "<->" ;                                         (* read: the place must hold the weight, nothing moves *)
+
+(* == Composition == [next] *)
+compose     = "compose" [ STRING ] { cattr } ;                (* a file composes the nets it names into one model *)
+cattr       = "namespace" | "arc_merge" ( "sum" | "max" ) ;
+part        = "part" NAME [ KIND ] "=" ( CID | NAME ) ;       (* a subnet, by the CID of a stored net or by a name in this file *)
+port        = "port" NAME "." NAME pkind [ "place" | "transition" ] id ;
+pkind       = "in" | "out" | "inout" | "observe" ;            (* the boundary point a part shows, and which way it faces *)
+link        = "link" [ NAME ] lkind endpoint "~" endpoint [ "when" STRING ] [ "lowering" NAME ] ;
+lkind       = "token" | "data" | "event" | "guard" ;          (* place fusion, observation, transition fusion, a gate *)
+endpoint    = [ "port" | "place" | "transition" ] NAME "." NAME ;
+
+(* == Anything else the document holds == [next] *)
+ext         = "ext" [ ( "place" | "transition" ) id ] STRING "=" JSON ;   (* a key the notation has no word for, kept as JSON *)

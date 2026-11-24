@@ -1,0 +1,46 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "notation",
+    srcs = [
+        "advise.go",
+        "ast.go",
+        "check.go",
+        "compile.go",
+        "diag.go",
+        "lex.go",
+        "ojson.go",
+        "parse.go",
+        "print.go",
+    ],
+    importpath = "github.com/pflow-xyz/pflow-xyz/internal/notation",
+    visibility = ["//:__subpackages__"],
+    deps = [
+        "//internal/seal",
+        "@com_github_pflow_xyz_go_pflow//parser",
+        "@com_github_pflow_xyz_go_pflow//reachability",
+        "@com_github_pflow_xyz_go_pflow//verify",
+    ],
+)
+
+go_test(
+    name = "notation_test",
+    srcs = [
+        "advise_test.go",
+        "composition_test.go",
+        "coverage_test.go",
+        "diagnostics_test.go",
+        "examples_test.go",
+        "grammar_test.go",
+    ],
+    # keep: the tests read docs/notation (the grammar and the examples), parity/golden.json and its
+    # fixtures, and walk the repository for pflow.xyz JSON-LD, which under Bazel is what the data
+    # below puts in the runfiles.
+    data = [
+        "//docs/notation",
+        "//examples",
+        "//parity:golden",
+    ],
+    embed = [":notation"],
+    deps = ["//internal/model"],
+)

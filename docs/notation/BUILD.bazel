@@ -1,0 +1,6 @@
+# The pflow notation's grammar and examples: data for //internal/notation:notation_test.
+filegroup(
+    name = "notation",
+    srcs = ["pflow.ebnf"] + glob(["examples/*"]),
+    visibility = ["//:__subpackages__"],
+)

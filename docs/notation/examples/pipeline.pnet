@@ -1,0 +1,8 @@
+#! pflow 1
+compose "Two buffers in series" namespace arc_merge sum
+about "The consumer of the first buffer and the producer of the second are one event: an item moves across."
+
+part first ResourceNet = z4EBG9jH9s6PYwJmBooUjcs85bYCBFfaCfhBDjaTZ8nk41ZBExS
+part second ResourceNet = z4EBG9jH9s6PYwJmBooUjcs85bYCBFfaCfhBDjaTZ8nk41ZBExS
+
+link handoff event first.consume ~ second.produce

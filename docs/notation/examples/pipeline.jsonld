@@ -1,0 +1,36 @@
+{
+  "@context": "https://pflow.xyz/schema",
+  "@type": "PetriNetBundle",
+  "arc_merge": "sum",
+  "description": "The consumer of the first buffer and the producer of the second are one event: an item moves across.",
+  "links": [
+    {
+      "from": {
+        "subnet": "first",
+        "transition": "consume"
+      },
+      "id": "handoff",
+      "kind": "event",
+      "to": {
+        "subnet": "second",
+        "transition": "produce"
+      }
+    }
+  ],
+  "name": "Two buffers in series",
+  "namespace": true,
+  "subnets": [
+    {
+      "@type": "PetriNet",
+      "cid": "z4EBG9jH9s6PYwJmBooUjcs85bYCBFfaCfhBDjaTZ8nk41ZBExS",
+      "id": "first",
+      "net_type": "ResourceNet"
+    },
+    {
+      "@type": "PetriNet",
+      "cid": "z4EBG9jH9s6PYwJmBooUjcs85bYCBFfaCfhBDjaTZ8nk41ZBExS",
+      "id": "second",
+      "net_type": "ResourceNet"
+    }
+  ]
+}
