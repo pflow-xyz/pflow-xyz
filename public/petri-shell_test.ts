@@ -170,20 +170,23 @@ Deno.test("palette: filter ranks prefix, then substring, then subsequence", () =
     assertEquals(filterCommands(cmds, "invari")[0].id, "view.open.invariants");
 });
 
-Deno.test("flag: ?shell=1 turns it on and remembers, ?shell=0 turns it off, otherwise the remembered choice", () => {
+Deno.test("flag: on by default; ?shell=0 opts out and remembers, ?shell=1 opts back in", () => {
     const mem = new Map<string, string>();
     const store = { getItem: (k: string) => mem.get(k) ?? null, setItem: (k: string, v: string) => void mem.set(k, v), removeItem: (k: string) => void mem.delete(k) };
-    assertFalse(shellEnabled("", store));
-    assert(shellEnabled("?shell=1", store));
-    assert(shellEnabled("", store));
+    assert(shellEnabled("", store), "a first visit opens the IDE");
     assertFalse(shellEnabled("?shell=0", store));
-    assertFalse(shellEnabled("", store));
-    assert(shellEnabled("?shell=1", null));       // no storage: this visit only
-    assertFalse(shellEnabled("", null));
+    assertFalse(shellEnabled("", store), "the opt-out is remembered");
+    assert(shellEnabled("?shell=1", store));
+    assert(shellEnabled("", store), "and so is the opt back in");
+    assert(shellEnabled("", null));               // no storage: the default, this visit
+    assertFalse(shellEnabled("?shell=0", null));  // no storage: the query alone decides
+    assert(shellEnabled("?shell=1", null));
+    mem.set("pflow_shell", "1");                   // a browser that opted in under the old flag stays in
+    assert(shellEnabled("", store));
 });
 
 Deno.test("strict CSP: the shell's modules use no inline handler, inline style, eval or document.write", async () => {
-    for (const f of ["petri-shell.js", "petri-shell-views.js", "petri-shell-ui.js", "petri-shell-boot.js", "petri-shell-notation.js"]) {
+    for (const f of ["petri-shell.js", "petri-shell-views.js", "petri-shell-ui.js", "petri-shell-boot.js", "petri-shell-notation.js", "petri-shell-guide.js"]) {
         const src = await Deno.readTextFile(new URL(`./${f}`, import.meta.url));
         const code = src.replace(/\/\*[\s\S]*?\*\//g, "").split("\n").filter((l) => !l.trim().startsWith("//")).join("\n");
         for (const [re, why] of [
@@ -285,4 +288,18 @@ Deno.test("tour: steps run in order, say is narration, controls move, a tour in 
     assertEquals(s.dispatch({ type: "tour_control", action: "end" }).ok, true);
     assertEquals(s.tour, null);
     assertEquals(s.state().tour, null);
+});
+
+Deno.test("guide: Examples and Connect are modal views in the registry, in the palette, and refused for nothing at any level", async () => {
+    const { registerGuide, LINKS, CONNECT_STEPS } = await import("./petri-shell-guide.js");
+    const reg = registerGuide(new ViewRegistry());
+    for (const t of ["examples", "connect"]) {
+        assertEquals(reg.get(t).kind, "modal");
+        assertEquals(reg.get(t).level, "outcome", "reachable at every level");
+    }
+    const shell = new Shell({ registry: reg });
+    const ids = shell.commands().map((c: { id: string }) => c.id);
+    assert(ids.includes("view.open.examples") && ids.includes("view.open.connect"));
+    assertEquals(LINKS.map((l: { title: string }) => l.title).slice(0, 4), ["The book", "The blog", "The ontology", "GitHub"]);
+    assert(CONNECT_STEPS.some((s: { copy: string }) => s.copy === "https://pflow.xyz/mcp"));
 });

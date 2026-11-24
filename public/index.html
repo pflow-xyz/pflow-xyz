@@ -6,13 +6,13 @@
          first gesture people try on a diagram. The canvas sets touch-action:none
          so its own pan/zoom gestures are unaffected. -->
     <meta content="width=device-width, initial-scale=1" name="viewport"/>
-    <title>pflow - Explanations you can run</title>
-    <meta name="description" content="LLM-written code got good. Understanding it didn't get faster. pflow turns each model into something you can see, run and check."/>
+    <title>pflow - a Petri-net IDE for Claude</title>
+    <meta name="description" content="A Petri-net IDE you drive with your own Claude: draw a model, run it, check it, and have your assistant open panels, point at things and teach with it over MCP."/>
     <meta name="author" content="Matt York">
     <link rel="me" href="https://github.com/stackdump">
     <link rel="me" href="https://blog.stackdump.com/">
-    <meta property="og:title" content="pflow - Explanations you can run"/>
-    <meta property="og:description" content="LLM-written code got good. Understanding it didn't get faster. pflow turns each model into something you can see, run and check."/>
+    <meta property="og:title" content="pflow - a Petri-net IDE for Claude"/>
+    <meta property="og:description" content="A Petri-net IDE you drive with your own Claude: draw a model, run it, check it, and have your assistant open panels, point at things and teach with it over MCP."/>
     <meta property="og:type" content="website"/>
     <link rel="canonical" href="https://pflow.xyz/"/>
     <meta property="og:url" content="https://pflow.xyz/"/>
@@ -20,14 +20,13 @@
     <meta property="og:image:width" content="1280"/>
     <meta property="og:image:height" content="640"/>
     <meta name="twitter:card" content="summary_large_image"/>
-    <meta name="twitter:title" content="pflow - Explanations you can run"/>
-    <meta name="twitter:description" content="LLM-written code got good. Understanding it didn't get faster. pflow turns each model into something you can see, run and check."/>
+    <meta name="twitter:title" content="pflow - a Petri-net IDE for Claude"/>
+    <meta name="twitter:description" content="A Petri-net IDE you drive with your own Claude: draw a model, run it, check it, and have your assistant open panels, point at things and teach with it over MCP."/>
     <meta name="twitter:image" content="https://pflow.xyz/banner.png"/>
     <link href="petri-view.css" rel="stylesheet"/>
     <link href="petri-shell.css" rel="stylesheet"/>
     <script src="petri-view.js" type="module"></script>
     <script src="petri-shell-boot.js" type="module"></script>
-    <script src="petri-landing.js" type="module"></script>
     <style>
         :root {
             /* Aliases onto the shared brand palette in petri-view.css. The
@@ -44,212 +43,7 @@
             --pf-radius: 4px;
         }
 
-        /* Override petri-view.css html/body lock when landing is visible.
-           Only the root scrolls: if body were also overflow:auto it would be a
-           scroll container of its own, and with petri-view.css's
-           overscroll-behavior:none the wheel would stop at body and never
-           chain to the viewport (keyboard scrolling still worked). */
-        html.landing-active,
-        html.landing-active body {
-            height: auto !important;
-            touch-action: auto !important;
-            overscroll-behavior: auto !important;
-        }
-        html.landing-active { overflow: auto !important; }
-        html.landing-active body { overflow: visible !important; }
-
-        /* Landing page styles */
-        #landing {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background: var(--pf-bg);
-            color: var(--pf-text);
-            min-height: 100vh;
-        }
-
-        #landing * { box-sizing: border-box; }
-
-        .landing-nav {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 16px 32px;
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            z-index: 10;
-        }
-
-        .landing-nav img {
-            height: 30px;
-            width: auto;
-            filter: brightness(0) invert(1);
-        }
-
-        .landing-nav-links {
-            display: flex;
-            gap: 16px;
-            align-items: center;
-        }
-
-        .landing-nav-links a {
-            color: var(--pf-text);
-            text-decoration: none;
-            font-size: 15px;
-            font-weight: 500;
-            padding: 6px 10px;
-            border-radius: 6px;
-            background: color-mix(in srgb, black 45%, transparent);
-            text-shadow: 0 1px 2px color-mix(in srgb, black 60%, transparent);
-            transition: color 0.2s, background 0.2s;
-        }
-
-        .landing-nav-links a:hover {
-            color: var(--pf-text);
-        }
-
-        /* Hero section */
-        .landing-hero {
-            position: relative;
-            width: 100%;
-            height: 80vh;
-            min-height: 480px;
-            max-height: 720px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            overflow: hidden;
-        }
-
-        .landing-hero video {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            z-index: 1;
-        }
-
-        .landing-hero-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: var(--pv-brand-scrim);
-            z-index: 2;
-        }
-
-        /* A dark gradient behind the hero's words: the dithered video is high-contrast, and body copy, radio labels and
-           the quota line sat straight on it. Strongest where the text is (the middle), clear at the edges. */
-        .landing-hero-overlay::after {
-            content: '';
-            position: absolute;
-            inset: 0;
-            background:
-                radial-gradient(ellipse 70% 60% at 50% 50%, color-mix(in srgb, black 72%, transparent) 0%, color-mix(in srgb, black 55%, transparent) 55%, transparent 100%),
-                linear-gradient(to bottom, color-mix(in srgb, black 55%, transparent) 0%, transparent 22%);
-        }
-        .landing-hero-content p, .landing-hero-content label, .landing-hero-content small { text-shadow: 0 1px 3px color-mix(in srgb, black 70%, transparent); }
-
-        .landing-hero-content {
-            position: relative;
-            z-index: 3;
-            text-align: center;
-            padding: 0 24px;
-            max-width: 640px;
-        }
-
-        .landing-hero h1 {
-            font-size: 2.5rem;
-            font-weight: 700;
-            margin: 0 0 16px;
-            letter-spacing: -0.02em;
-        }
-
-        .landing-hero p {
-            font-size: 1.15rem;
-            color: var(--pf-text-muted);
-            margin: 0 0 32px;
-            line-height: 1.6;
-        }
-
-        .landing-chat { display: flex; flex-direction: column; align-items: center; gap: 10px; margin-bottom: 18px; }
-        .landing-chat h1 { margin-bottom: 4px; }
-        .landing-chat p { margin: 0; font-size: 1rem; color: var(--pf-text); }
-        .landing-chat .landing-chat-small { font-size: 0.875rem; }
-        .landing-chat textarea {
-            width: 100%;
-            box-sizing: border-box;
-            font: inherit;
-            color: var(--pf-text);
-            background: var(--pf-bg-card);
-            border: 1px solid var(--pf-border);
-            border-radius: var(--pf-radius);
-            padding: 10px 12px;
-            resize: vertical;
-        }
-        .landing-chat [hidden] { display: none; } /* no chat for this visitor: no box (petri-landing.js) */
-        .landing-chat a { color: var(--pf-accent); }
-        .landing-hero-buttons {
-            display: flex;
-            gap: 16px;
-            justify-content: center;
-            flex-wrap: wrap;
-        }
-
-        .btn-primary {
-            background: var(--pf-accent);
-            color: var(--pf-bg);
-            border: none;
-            padding: 12px 32px;
-            font-size: 1rem;
-            font-weight: 600;
-            border-radius: var(--pf-radius);
-            cursor: pointer;
-            text-decoration: none;
-            display: inline-block;
-            transition: background 0.2s;
-        }
-
-        .btn-primary:hover {
-            background: var(--pf-accent-hover);
-        }
-
-        .btn-secondary {
-            background: transparent;
-            color: var(--pf-text);
-            border: 1px solid var(--pf-border);
-            padding: 12px 32px;
-            font-size: 1rem;
-            font-weight: 500;
-            border-radius: var(--pf-radius);
-            cursor: pointer;
-            text-decoration: none;
-            display: inline-block;
-            transition: border-color 0.2s, color 0.2s;
-        }
-
-        .btn-secondary:hover {
-            border-color: var(--pf-accent);
-            color: var(--pf-accent);
-        }
-
-        /* Example models section */
-        .landing-section {
-            padding: 64px 32px;
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-
-        .landing-section h2 {
-            font-size: 1.5rem;
-            font-weight: 600;
-            margin: 0 0 32px;
-            text-align: center;
-        }
-
+        /* Example cards: drawn from the #pf-examples template by the shell's Examples window (petri-shell-guide.js). */
         .model-grid {
             display: grid;
             /* three across: six examples fill two rows (four across left two orphans) */
@@ -347,150 +141,8 @@
             line-height: 1.4;
         }
 
-        /* Pipeline section */
-        .landing-pipeline {
-            padding: 64px 32px;
-            max-width: 1200px;
-            margin: 0 auto;
-            text-align: center;
-            border-top: 1px solid var(--pf-border);
-        }
-
-        .landing-pipeline h2 {
-            font-size: 1.5rem;
-            font-weight: 600;
-            margin: 0 0 8px;
-        }
-
-        .landing-pipeline-sub {
-            color: var(--pf-text-muted);
-            font-size: 1rem;
-            margin: 0 0 40px;
-        }
-
-        .pipeline-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 24px;
-            text-align: left;
-        }
-
-        .pipeline-card {
-            background: var(--pf-bg-card);
-            border: 1px solid var(--pf-border);
-            border-radius: var(--pf-radius);
-            padding: 28px 24px;
-            text-decoration: none;
-            color: var(--pf-text);
-            display: block;
-            transition: border-color 0.2s, transform 0.15s;
-        }
-
-        .pipeline-card:hover {
-            border-color: var(--pf-accent);
-            transform: translateY(-2px);
-        }
-
-        .pipeline-icon {
-            margin-bottom: 16px;
-        }
-
-        .pipeline-card h3 {
-            font-size: 1.15rem;
-            font-weight: 600;
-            margin: 0 0 10px;
-        }
-
-        .pipeline-card p {
-            font-size: 0.9rem;
-            color: var(--pf-text-muted);
-            line-height: 1.6;
-            margin: 0 0 16px;
-        }
-
-        .pipeline-link {
-            font-size: 0.85rem;
-            color: var(--pf-accent);
-        }
-
-        .ecosystem-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 24px;
-            text-align: left;
-            max-width: 480px;
-            margin: 0 auto;
-        }
-
-        @media (max-width: 768px) {
-            .pipeline-grid {
-                grid-template-columns: 1fr;
-            }
-        }
-
-        /* About section */
-        .landing-about {
-            text-align: center;
-            padding: 48px 32px;
-            max-width: 640px;
-            margin: 0 auto;
-            border-top: 1px solid var(--pf-border);
-        }
-
-        .landing-about p {
-            color: var(--pf-text-muted);
-            line-height: 1.7;
-            margin: 0 0 20px;
-            font-size: 1rem;
-        }
-
-        .landing-about a {
-            color: var(--pf-accent);
-            text-decoration: none;
-        }
-
-        .landing-about a:hover {
-            text-decoration: underline;
-        }
-
-        /* Footer */
-        .landing-footer {
-            border-top: 1px solid var(--pf-border);
-            background: var(--pf-bg);
-        }
-
-        .landing-footer-content {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 24px 32px;
-            max-width: 1200px;
-            margin: 0 auto;
-            flex-wrap: wrap;
-            gap: 16px;
-        }
-
-        .landing-footer-links {
-            display: flex;
-            gap: 24px;
-            flex-wrap: wrap;
-        }
-
-        .landing-footer-links a {
-            color: var(--pf-text-muted);
-            text-decoration: none;
-            font-size: 0.85rem;
-        }
-
-        .landing-footer-links a:hover {
-            color: var(--pf-accent);
-        }
-
-        .landing-footer-copy {
-            color: var(--pf-text-muted);
-            font-size: 0.8rem;
-        }
-
+        .model-grid { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+        @media (max-width: 640px) { .model-grid { grid-template-columns: 1fr; } }
 
         /* Editor chrome (when visible) */
         .fixed-title {
@@ -519,105 +171,13 @@
             z-index: 1000;
             pointer-events: none;
         }
-
-        /* Reduced motion */
-        @media (prefers-reduced-motion: reduce) {
-            .landing-hero video {
-                display: none;
-            }
-            .landing-hero {
-                background: var(--pf-bg);
-            }
-        }
-
-        /* Mobile */
-        @media (max-width: 640px) {
-            .landing-hero h1 {
-                font-size: 1.75rem;
-            }
-            .landing-hero p {
-                font-size: 1rem;
-            }
-            .landing-hero {
-                height: 70vh;
-                min-height: 400px;
-            }
-            .landing-nav {
-                padding: 12px 16px;
-            }
-            .landing-section {
-                padding: 48px 16px;
-            }
-            .model-grid {
-                grid-template-columns: 1fr;
-            }
-        }
-        /* The links carry a backing pill now (readable over the video): tighten it on a phone so the row still fits. */
-        @media (max-width: 480px) {
-            .landing-nav-links { gap: 6px; }
-            .landing-nav-links a { padding: 4px 6px; font-size: 14px; }
-        }
-        /* The narrowest phones: the logo and four links are 331px of 288. Shrunk, they fit on a line; any narrower, they
-           wrap, and two lines still clear the hero's 76px. */
-        @media (max-width: 380px) {
-            .landing-nav {
-                flex-wrap: wrap;
-                row-gap: 4px;
-            }
-            .landing-nav img {
-                height: 22px;
-            }
-            .landing-nav-links {
-                gap: 4px;
-            }
-            .landing-nav-links a {
-                font-size: 13px;
-                padding: 3px 4px;
-            }
-        }
-        /* The prompt, its routes and its words are taller than the old hero: grow with them, below the nav. */
-        .landing-hero { height: auto; max-height: none; min-height: 80vh; padding: 76px 0 32px; box-sizing: border-box; }
     </style>
 </head>
 <body>
 
-<!-- Landing Page -->
-<div id="landing">
-    <nav class="landing-nav">
-        <a href="/"><img alt="pflow" src="title.svg"/></a>
-        <div class="landing-nav-links">
-            <a href="https://sim.pflow.xyz">Sim</a>
-            <a href="https://book.pflow.xyz">Book</a>
-            <a href="/compose.html">Compose</a>
-            <a href="https://github.com/pflow-xyz/pflow-xyz">GitHub</a>
-        </div>
-    </nav>
-
-    <section class="landing-hero">
-        <video autoplay loop muted playsinline>
-            <source src="p-flower.webm" type="video/webm"/>
-            <source src="p-flower.mp4" type="video/mp4"/>
-        </video>
-        <div class="landing-hero-overlay"></div>
-        <div class="landing-hero-content">
-            <form id="landing-chat" class="landing-chat" onsubmit="event.preventDefault()">
-                <h1 id="landing-chat-q">Explanations you can run.</h1>
-                <p>LLM-written code got good in the last year. Understanding it didn't get faster. You can only move as fast as you comprehend what you've built. pflow turns each model into something you can see, run and check. <span id="landing-chat-ask">What are you working on?</span></p>
-                <textarea id="landing-chat-input" rows="2" aria-labelledby="landing-chat-ask" placeholder="A coffee shop with one barista and a queue. Where does it jam?"></textarea>
-                <button type="submit" id="landing-chat-send" class="btn-primary">Ask</button>
-                <p id="landing-chat-state" class="landing-chat-small" role="status"></p>
-                <p id="landing-chat-connector" class="landing-chat-small" hidden>Using Claude or another MCP client? <a href="/mcp.html">Add pflow as a connector</a> and chat there.</p>
-            </form>
-            <div class="landing-hero-buttons">
-                <a class="btn-secondary" href="#" id="open-editor-btn">Open the editor</a>
-                <a class="btn-secondary" href="/compose.html">Compose</a>
-            </div>
-        </div>
-    </section>
-
-    <section class="landing-section">
-        <h2>Example models, open in the editor</h2>
-        <p class="landing-pipeline-sub" style="text-align:center;margin:-16px 0 32px">Each one is a saved net with a content-addressed ID. A card opens the net together with one recorded question about it, computed in your browser with no model call; <em>Open the canvas</em> opens the net alone. The same kind of model is what <a href="https://sim.pflow.xyz" style="color:var(--pf-accent)">sim.pflow.xyz</a> builds from a description.</p>
+<!-- The example models, kept as plain HTML for crawlers and for scripts-off readers; the shell's Examples window clones them.
+     Generated from public/examples.json by scripts/gen-example-cards.mjs. -->
+<template id="pf-examples">
         <div class="model-grid">
             <!-- examples:cards:begin (generated by scripts/gen-example-cards.mjs from public/examples.json; do not edit by hand) -->
             <div class="model-card" data-example="coffee-shop" data-cid="z4EBG9j3NhEnaxZBEpXXCvyMbR9utkgUZoPBQFxS99qSehUwuBL" data-title="Coffee Shop">
@@ -700,140 +260,10 @@
             </div>
             <!-- examples:cards:end -->
         </div>
-    </section>
+</template>
 
-    <section class="landing-pipeline" id="calibrated-what-ifs">
-        <h2>Calibrated what-ifs (sim.pflow.xyz)</h2>
-        <p class="landing-pipeline-sub">Models already tuned to a known kind of system: open one, turn the knobs and see which one binds. No editor needed. To model your own, start at the top of the page.</p>
-        <div class="pipeline-grid">
-            <a href="https://sim.pflow.xyz/second-car/" class="pipeline-card"><h3>Second car or ride-share?</h3><p>A household decision with the spread shown, free with no sign-up.</p><span class="pipeline-link">Open &rarr;</span></a>
-            <a href="https://sim.pflow.xyz/whatif/?id=7d736018c17edd5d7b083444" class="pipeline-card"><h3>Cold-chain attack</h3><p>How many technicians does it take to beat a freezer defrost attack?</p><span class="pipeline-link">Open &rarr;</span></a>
-            <a href="https://sim.pflow.xyz/whatif/?id=3741e97f8256ab15e7a28aed" class="pipeline-card"><h3>Baggage hall</h3><p>Conveyor health against sorter headcount, and which one moves missed bags.</p><span class="pipeline-link">Open &rarr;</span></a>
-        </div>
-    </section>
-
-    <section class="landing-pipeline">
-        <h2>Draw &rarr; Run &rarr; Prove</h2>
-        <p class="landing-pipeline-sub">One model, three questions: what is it, what does it do, can it be audited.</p>
-        <div class="pipeline-grid">
-            <a href="#" id="pipeline-draw" class="pipeline-card">
-                <div class="pipeline-icon">
-                    <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <circle cx="14" cy="14" r="10" stroke="#EBFF00" stroke-width="2" fill="none"/>
-                        <circle cx="14" cy="14" r="3" fill="#EBFF00"/>
-                        <rect x="30" y="8" width="12" height="12" stroke="#EBFF00" stroke-width="2" fill="none"/>
-                        <circle cx="14" cy="38" r="10" stroke="#EBFF00" stroke-width="2" fill="none"/>
-                        <line x1="24" y1="14" x2="30" y2="14" stroke="#EBFF00" stroke-width="2"/>
-                        <line x1="36" y1="20" x2="36" y2="28" stroke="#EBFF00" stroke-width="2"/>
-                        <line x1="36" y1="28" x2="24" y2="38" stroke="#EBFF00" stroke-width="2"/>
-                    </svg>
-                </div>
-                <h3>Draw</h3>
-                <p>Build state machines visually. Places, transitions, arcs: the model is a directed graph stored as JSON-LD with content-addressed identity.</p>
-                <span class="pipeline-link">Open the editor &rarr;</span>
-            </a>
-            <a href="https://sim.pflow.xyz" class="pipeline-card">
-                <div class="pipeline-icon">
-                    <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <rect x="4" y="6" width="40" height="30" rx="2" stroke="#EBFF00" stroke-width="2" fill="none"/>
-                        <line x1="10" y1="14" x2="22" y2="14" stroke="#EBFF00" stroke-width="2"/>
-                        <line x1="10" y1="20" x2="32" y2="20" stroke="#EBFF00" stroke-width="2"/>
-                        <line x1="10" y1="26" x2="28" y2="26" stroke="#EBFF00" stroke-width="2"/>
-                        <path d="M24 42L20 38H28L24 42Z" fill="#EBFF00"/>
-                        <line x1="24" y1="36" x2="24" y2="39" stroke="#EBFF00" stroke-width="2"/>
-                    </svg>
-                </div>
-                <h3>Run</h3>
-                <p>Run a calibrated what-if and see which knob binds. The model is seeded and repeatable, so the answer is checked knob by knob instead of being a confident guess.</p>
-                <span class="pipeline-link">sim.pflow.xyz &rarr;</span>
-            </a>
-            <a href="https://blog.stackdump.com/posts/zk-petri-nets" class="pipeline-card">
-                <div class="pipeline-icon">
-                    <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M24 4L42 14V34L24 44L6 34V14L24 4Z" stroke="#EBFF00" stroke-width="2" fill="none"/>
-                        <path d="M24 16L32 21V31L24 36L16 31V21L24 16Z" stroke="#EBFF00" stroke-width="1.5" fill="none"/>
-                        <circle cx="24" cy="26" r="3" fill="#EBFF00"/>
-                    </svg>
-                </div>
-                <h3>Prove</h3>
-                <p>ZK circuits verify every transition is valid without revealing state. Groth16 proofs from net topology, so the model carries its own audit trail.</p>
-                <span class="pipeline-link">Further reading: ZK Petri nets &rarr;</span>
-            </a>
-        </div>
-    </section>
-
-    <section class="landing-pipeline">
-        <h2>Take it with you</h2>
-        <p class="landing-pipeline-sub">The engine and the editor are open source and saved nets are public. Run them on your own machine, with no account and no network, and re-run any result instead of trusting it.</p>
-        <div class="pipeline-grid">
-            <a href="https://www.npmjs.com/package/@pflow-xyz/pflow-mcp" class="pipeline-card">
-                <h3>The engine, offline</h3>
-                <p>Simulate, check and explore a net on your own machine. It runs as an MCP server for Claude, and as a WebAssembly package for the browser. The same engine runs in both.</p>
-                <span class="pipeline-link">@pflow-xyz/pflow-mcp &rarr;</span>
-            </a>
-            <a href="https://ontology.pflow.xyz" class="pipeline-card">
-                <h3>The ontology</h3>
-                <p>The terms, patterns and definitions behind the models, as open data (CC0) you can browse, query and reuse.</p>
-                <span class="pipeline-link">ontology.pflow.xyz &rarr;</span>
-            </a>
-            <a href="https://github.com/pflow-xyz/pflow-xyz#check-it-yourself" class="pipeline-card">
-                <h3>Check it yourself</h3>
-                <p>A saved net is public JSON-LD at its CID, and the CID is computed from its content, so it can be recomputed and compared (the linked page says which saved nets do not match yet). Seeded runs give the same numbers in Go, Rust and the browser. The code is MIT on GitHub.</p>
-                <span class="pipeline-link">What can be re-run, and how &rarr;</span>
-            </a>
-        </div>
-    </section>
-
-    <section class="landing-pipeline">
-        <h2>Go deeper</h2>
-        <p class="landing-pipeline-sub">The editor is the hands-on part. These explain why it works.</p>
-        <div class="pipeline-grid">
-            <a href="https://book.pflow.xyz" class="pipeline-card">
-                <h3>The book</h3>
-                <p>A worked introduction to Petri nets: the formalism, the solvers, and the models above taken apart step by step.</p>
-                <span class="pipeline-link">book.pflow.xyz &rarr;</span>
-            </a>
-            <a href="https://blog.stackdump.com" class="pipeline-card">
-                <h3>The blog</h3>
-                <p>Technical notes on Petri nets and the systems built on them.</p>
-                <span class="pipeline-link">blog.stackdump.com &rarr;</span>
-            </a>
-            <a href="https://blog.stackdump.com/posts/zk-petri-nets" class="pipeline-card">
-                <h3>ZK Petri nets</h3>
-                <p>How a net's topology becomes a circuit, and what a proof of a valid transition does and does not show.</p>
-                <span class="pipeline-link">Read the post &rarr;</span>
-            </a>
-        </div>
-    </section>
-
-    <div class="landing-about">
-        <p>
-            Like a list comprehension, pflow starts from a description: say what
-            the system is, and get a model you can run. Then ask it how it is
-            put together, what happens over time, what
-            can't change, what an agent should do, whether reality matches, and
-            whether it is provably right. Under the hood, every model is a Petri
-            net, so runs replay and proofs check.
-        </p>
-        <a href="https://sim.pflow.xyz">Try a model on sim.pflow.xyz &rarr;</a>
-    </div>
-
-    <footer class="landing-footer">
-        <div class="landing-footer-content">
-            <div class="landing-footer-links">
-                <a href="https://sim.pflow.xyz">Sim</a>
-                <a href="https://book.pflow.xyz">Book</a>
-                <a href="https://blog.stackdump.com">Blog</a>
-                <a href="https://ontology.pflow.xyz">Ontology</a>
-                <a href="https://github.com/pflow-xyz/pflow-xyz">GitHub</a>
-            </div>
-            <span class="landing-footer-copy">&copy; Stackdump.com LLC</span>
-        </div>
-    </footer>
-</div>
-
-<!-- Editor (hidden until activated) -->
-<div id="editor-wrapper" style="display: none;">
+<!-- The IDE: the editor, and the shell (petri-shell-boot.js) that docks panels around it. -->
+<div id="editor-wrapper">
     <div class="hamburger-placeholder"></div>
     <a class="fixed-title" href="/" id="editor-home-btn">
         <img alt="Title" src="title.svg"/>
@@ -929,76 +359,12 @@
     </petri-view>
 </div>
 
-<script>
-(function() {
-    const landing = document.getElementById('landing');
-    const editor = document.getElementById('editor-wrapper');
-    const params = new URLSearchParams(window.location.search);
-
-    function showEditor() {
-        landing.style.display = 'none';
-        editor.style.display = 'block';
-        document.documentElement.classList.remove('landing-active');
-        localStorage.setItem('pflow_skip_landing', '1');
-    }
-
-    function showLanding() {
-        landing.style.display = 'block';
-        editor.style.display = 'none';
-        document.documentElement.classList.add('landing-active');
-    }
-
-    window.pflowShowEditor = showEditor; // petri-landing.js
-
-    // Editor logo -> back to landing (must bind before early returns)
-    var homeBtn = document.getElementById('editor-home-btn');
-    if (homeBtn) {
-        homeBtn.addEventListener('click', function(e) {
-            e.preventDefault();
-            localStorage.removeItem('pflow_skip_landing');
-            window.location.href = '/';
-        });
-    }
-
-    // Deep link: skip landing if ?cid= or ?data= present, or the URL names a chat session (petri-landing.js)
-    if (params.has('cid') || params.has('data') || ['auto', 'build', 'design', 'analyse', 'explain'].includes(params.get('route'))) {
-        showEditor();
-        return;
-    }
-
-    // Back from GitHub with something typed on this page: petri-landing.js sends it.
-    try {
-        if (sessionStorage.getItem('pflow_landing_pending') !== null) {
-            showEditor();
-            return;
-        }
-    } catch (e) { /* no storage: nothing can be pending */ }
-
-    // Returning user preference
-    if (localStorage.getItem('pflow_skip_landing') === '1') {
-        showEditor();
-        return;
-    }
-
-    // Show landing by default
-    showLanding();
-
-    // "Open Editor" button
-    document.getElementById('open-editor-btn').addEventListener('click', function(e) {
-        e.preventDefault();
-        showEditor();
-    });
-
-    // "Draw" pipeline card — open editor
-    document.getElementById('pipeline-draw').addEventListener('click', function(e) {
-        e.preventDefault();
-        showEditor();
-    });
-
-    // Model cards are plain links (/?cid=...#view=... and /?cid=...): the browser navigates and keeps the #view=
-    // the card carries, which a script that rebuilt the URL from data-cid dropped. Nothing to bind here.
-})();
-</script>
+<noscript>
+    <p>pflow is a Petri-net editor and simulator that needs JavaScript. Models, the book and the MCP connector:
+        <a href="https://book.pflow.xyz">book</a>, <a href="https://blog.stackdump.com">blog</a>,
+        <a href="https://ontology.pflow.xyz">ontology</a>, <a href="/mcp.html">connect your Claude</a>,
+        <a href="https://github.com/pflow-xyz/pflow-xyz">GitHub</a>.</p>
+</noscript>
 
 </body>
 </html>

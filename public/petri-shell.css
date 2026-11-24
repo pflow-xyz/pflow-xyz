@@ -153,3 +153,10 @@
 .pf-line-warn { box-shadow: inset 3px 0 0 var(--pv-warning); }
 .pf-notation-edit { width: 100%; min-height: 16em; box-sizing: border-box; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; resize: vertical; }
 .pf-inline { display: inline-flex; flex-direction: row; align-items: center; gap: 4px; }
+
+/* The Examples and Connect windows (petri-shell-guide.js) */
+.pf-copyrow { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 4px 0 10px; }
+.pf-copyrow code { padding: 4px 8px; background: var(--pv-surface, transparent); border: 1px solid var(--pv-border); border-radius: 4px; overflow-wrap: anywhere; }
+.pf-modal-body .model-grid { margin-top: 8px; }
+.pf-modal-body a.pf-btn { display: inline-block; text-decoration: none; }
+.pf-guide { white-space: nowrap; }

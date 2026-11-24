@@ -64,7 +64,7 @@ const OFF_STATUS = { enabled: false };
 const STUB = (cfg: Cfg) => `
   window.__turns = []; window.__drafts = []; window.__script = []; window.__draft = null; window.__logins = 0;
   window.__status = ${JSON.stringify(cfg.status)};
-  try { ${cfg.signedIn === false ? "" : "localStorage.setItem('pflow_auth_token', 'smoke-token');"} localStorage.setItem('pflow_skip_landing', '1'); } catch {}
+  try { ${cfg.signedIn === false ? "" : "localStorage.setItem('pflow_auth_token', 'smoke-token');"} localStorage.setItem('pflow_shell', '0'); } catch {} // these checks measure the classic editor layout; the IDE shell has its own smoke (shell-smoke.ts)
   const real = window.fetch;
   const json = (o, status = 200) => new Response(JSON.stringify(o), { status, headers: { 'Content-Type': 'application/json' } });
   window.fetch = async (u, opts) => {

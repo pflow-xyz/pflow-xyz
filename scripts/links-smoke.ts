@@ -219,13 +219,20 @@ let baseline: string[] = [];
   await p.close();
 }
 
+/** Open the IDE's Examples window (the cards live in it, since there is no landing page). */
+async function openExamples(p: any) {
+  await p.waitFor("!!window.pflowShell", 20000);
+  await p.eval(`(async () => { await pflowShell.ready; pflowShell.dispatch({ view: 'examples' }); })()`);
+}
+
 // ---- 2. each card opens its view, from a click ----------------------------------------------------------------------------
 
 for (const e of examples) {
   const label = `card ${e.id}`;
   const p = await open(hrefTo(""), { width: 1280, height: 800 });
+  await openExamples(p);
   await p.waitFor(`!!document.querySelector('.model-card[data-example=${q(e.id)}] .model-card-main')`, 20000);
-  ok(await p.eval(`getComputedStyle(document.getElementById('landing')).display !== 'none'`), `${label}: the landing page shows`);
+  ok(await p.eval(`!document.getElementById('landing') && !!document.querySelector('dialog.pf-modal[open] .model-card')`), `${label}: the IDE's Examples window shows the card`);
   if (e.id === coffee.id) { await p.eval(`document.querySelector('.model-grid').scrollIntoView({ block: 'start' })`); await shot(p, "cards-1280"); }
   const href = await p.eval(`document.querySelector('.model-card[data-example=${q(e.id)}] .model-card-main').href`);
   ok(href.includes(`#view=${e.payload}`), `${label}: its link carries the recorded view`);
@@ -235,7 +242,7 @@ for (const e of examples) {
   const got = await settled(p);
   ok(got, `${label}: a result opens`);
   ok((await p.eval(`location.hash`)).startsWith("#view="), `${label}: the click kept the #view= in the URL`);
-  ok(await p.eval(`getComputedStyle(document.getElementById('landing')).display === 'none'`), `${label}: the landing hero is skipped for a ?cid= link`);
+  ok(await p.eval(`!document.getElementById('landing') && !document.querySelector('dialog.pf-modal[open]')`), `${label}: the Examples window is not showing on the opened net`);
   const r = await pane(p);
   ok(r, `${label}: a result card in the Ask pane`);
   if (r) {
@@ -264,6 +271,7 @@ for (const e of examples) {
 // 'Open the canvas' is the old behaviour: the net alone.
 {
   const p = await open(hrefTo(""));
+  await openExamples(p);
   await p.waitFor(`!!document.querySelector('.model-card[data-example="usdc-bridge"] .model-card-canvas')`, 20000);
   const xy = await p.eval(`(() => { const a = document.querySelector('.model-card[data-example="usdc-bridge"] .model-card-canvas'); a.scrollIntoView({ block: 'center' }); const r = a.getBoundingClientRect(); return [r.left + 20, r.top + r.height / 2]; })()`);
   await sleep(150);
@@ -646,8 +654,9 @@ const topmost = (p: any, x: number, y: number) => p.eval(`(() => { const e = doc
 
 {
   const p = await open(hrefTo(""), { width: 390, height: 844, phone: true });
+  await openExamples(p);
   await p.waitFor(`!!document.querySelector('.model-card[data-example]')`, 20000);
-  ok(await noOverflow(p), "phone: the landing page does not scroll sideways");
+  ok(await noOverflow(p), "phone: the Examples window does not scroll the page sideways");
   const cards = await p.eval(`[...document.querySelectorAll('.model-card')].map((c) => { const r = c.getBoundingClientRect(); return [Math.round(r.left), Math.round(r.right)]; })`);
   ok(cards.every(([l, r]: number[]) => l >= 0 && r <= 390), "phone: every card is inside the screen", JSON.stringify(cards));
   await p.eval(`document.querySelector('.model-card[data-example]').scrollIntoView({ block: 'start' })`);

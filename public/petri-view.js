@@ -5958,16 +5958,6 @@ PetriView = class PetriView extends HTMLElement {
                 Read it at <a href="https://book.pflow.xyz" target="_blank" style="color: #4a90d9;">book.pflow.xyz</a>.
             </p>
 
-            <h3>📊 Sim — Run & Check</h3>
-            <p>
-                <strong>sim.pflow.xyz</strong> runs and checks this model: describe a
-                process to your AI assistant (it has an MCP server) or store this net,
-                then compare seeded what-if scenarios, prove invariants and reachability,
-                calibrate rates against your own event logs, and see which knobs move
-                the outcome. Try it at
-                <a href="https://sim.pflow.xyz" target="_blank" style="color: #4a90d9;">sim.pflow.xyz</a>.
-            </p>
-
             <h3>🖥 Native App</h3>
             <p>
                 <strong>pflow-native</strong> is a desktop editor and simulator for the same
@@ -8235,11 +8225,6 @@ PetriView = class PetriView extends HTMLElement {
             this._showHelpDialog();
         });
         menuContainer._menuContent.appendChild(helpItem);
-
-        const simItem = makeMenuItem('📊 Sim — Run & Check', () => {
-            window.open('https://sim.pflow.xyz', '_blank', 'noopener,noreferrer');
-        });
-        menuContainer._menuContent.appendChild(simItem);
 
         const bookItem = makeMenuItem('📖 Book ↗', () => {
             window.open('https://book.pflow.xyz', '_blank', 'noopener,noreferrer');

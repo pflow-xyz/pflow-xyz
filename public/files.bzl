@@ -160,6 +160,7 @@ PUBLIC_FILES = [
     "petri-schema-form.js",
     "petri-schema-form_test.ts",
     "petri-shell-boot.js",
+    "petri-shell-guide.js",
     "petri-shell-notation.js",
     "petri-shell-notation_test.ts",
     "petri-shell-ui.js",

@@ -118,9 +118,9 @@ Deno.test("index.html: a card opens its view; 'Open the canvas' opens the net al
     }
 });
 
-Deno.test("index.html: no script rebuilds a card's URL (it would drop the #view=); a deep link still skips the landing", () => {
+Deno.test("index.html: no script rebuilds a card's URL (it would drop the #view=); the cards sit in a template the Examples window clones", () => {
     assert(!html.includes("querySelectorAll('.model-card')"), "the old click handler built /?cid=... from data-cid and dropped the hash");
-    assert(html.includes("params.has('cid')"), "?cid= (with or without a hash) skips the hero");
+    assert(/<template id="pf-examples">[\s\S]*examples:cards:begin[\s\S]*examples:cards:end[\s\S]*<\/template>/.test(html), "the cards are in #pf-examples");
 });
 
 Deno.test("generate: patch is idempotent, refuses a page without the markers, and the cards escape what they print", async () => {

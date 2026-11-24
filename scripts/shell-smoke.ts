@@ -3,7 +3,7 @@
 //   deno run -A scripts/shell-smoke.ts http://127.0.0.1:8080/ [--chrome /path/to/chrome]
 //
 // In headless Chrome:
-//   the flag        without ?shell=1 the page is the classic editor (no .pf-shell); with it the grid is on, and ?shell=0 turns it off
+//   the flag        on by default (/ is the IDE, no landing page, Examples and Connect in the bar); ?shell=0 gives the classic editor (no .pf-shell) and is remembered
 //   the docks       outline (left), diagnostics, simulation, invariants, reachability (bottom) open from window.pflowShell.open(),
 //                   each draws a result or says why not; tabs switch, one panel shown per dock; a closed panel is gone
 //   modals          a categorical push and an unregistered view type each open a <dialog> (the second as the generic result);
@@ -69,10 +69,26 @@ const noise = (p: any) => p.problems.filter((x: string) => !/\/img\/z\w+\.svg|fa
 
 // ---------------------------------------------------------------- the flag
 {
-  const p = await open("");
+  const p = await open("?shell=0");
   await sleep(600);
-  ok(!(await p.eval(`document.getElementById('editor-wrapper').classList.contains('pf-shell')`)), "flag off: the classic editor, no .pf-shell");
-  ok(!(await p.eval(`!!window.pflowShell`)), "flag off: no window.pflowShell");
+  ok(!(await p.eval(`document.getElementById('editor-wrapper').classList.contains('pf-shell')`)), "?shell=0: the classic editor, no .pf-shell");
+  ok(!(await p.eval(`!!window.pflowShell`)), "?shell=0: no window.pflowShell");
+  await p.close();
+}
+
+// ---------------------------------------------------------------- on by default: the IDE, with Examples and Connect
+{
+  const p = await open("");
+  ok(await ready(p), "no query: the shell mounts by itself");
+  ok(await p.eval(`!document.getElementById('landing') && getComputedStyle(document.getElementById('editor-wrapper')).display === 'grid'`), "there is no landing page; the IDE is the page");
+  ok(await p.eval(`!/sim\\.pflow\\.xyz|gemini|model calls left/i.test(document.body.innerText)`), "no sim, Gemini or quota text on the page");
+  await p.eval(`document.querySelector('.pf-guide[data-view=examples]').click()`);
+  ok(await p.waitFor(`document.querySelectorAll('dialog.pf-modal[open] .model-card').length === 6`), "the Examples button opens six example cards");
+  ok(await p.eval(`[...document.querySelectorAll('dialog.pf-modal[open] .model-card-main')].every((a) => a.getAttribute('href').startsWith('/?cid=') && a.getAttribute('href').includes('#view='))`), "each card is a plain link to its net and recorded view");
+  await p.press("Escape");
+  await p.eval(`document.querySelector('.pf-guide[data-view=connect]').click()`);
+  ok(await p.waitFor(`/claude mcp add --transport http pflow https:\\/\\/pflow\\.xyz\\/mcp/.test(document.querySelector('dialog.pf-modal[open]')?.textContent || '')`), "the Connect button shows how to connect your own Claude");
+  ok(await p.eval(`['https://book.pflow.xyz','https://blog.stackdump.com','https://ontology.pflow.xyz','https://github.com/pflow-xyz/pflow-xyz','/mcp.html'].every((h) => !!document.querySelector('dialog.pf-modal[open] a[href="' + h + '"]'))`), "and links the book, blog, ontology, GitHub and the connector page");
   await p.close();
 }
 
@@ -329,7 +345,7 @@ for (const [w, split] of [[1400, true], [1000, false]] as const) {
 
 // ---------------------------------------------------------------- ?shell=0 turns it off again
 {
-  const p = await open("?shell=1");
+  const p = await open("");
   await ready(p);
   await p.goto(new URL("?shell=0", url).href);
   await sleep(500);

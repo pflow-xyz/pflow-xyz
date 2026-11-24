@@ -519,20 +519,21 @@ export function filterCommands(commands, query) {
 }
 
 // ---------------------------------------------------------------------------
-// Whether the shell is on (a flag, off by default)
+// Whether the shell is on (a flag, on by default)
 // ---------------------------------------------------------------------------
 
 /**
- * `?shell=1` turns it on for this browser (remembered), `?shell=0` turns it off again; with neither, the remembered
- * choice. `store` is localStorage or null (no storage: the query alone decides, for this visit).
+ * On unless this browser opted out: `?shell=0` turns it off (remembered), `?shell=1` turns it back on; with neither, the
+ * remembered choice. `store` is localStorage or null (no storage: the query alone decides, for this visit).
  */
 export function shellEnabled(search, store) {
+    // On by default: / opens straight into the IDE. ?shell=0 opts out (remembered as '0'), ?shell=1 opts back in.
     const q = new URLSearchParams(search).get('shell');
     try {
         if (q === '1') { store?.setItem('pflow_shell', '1'); return true; }
-        if (q === '0') { store?.removeItem('pflow_shell'); return false; }
-        return store?.getItem('pflow_shell') === '1';
+        if (q === '0') { store?.setItem('pflow_shell', '0'); return false; }
+        return store?.getItem('pflow_shell') !== '0';
     } catch {
-        return q === '1';
+        return q !== '0';
     }
 }

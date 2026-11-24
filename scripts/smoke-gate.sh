@@ -4,7 +4,7 @@
 #   scripts/smoke-gate.sh                       build this checkout, serve it on a scratch port and data dir, smoke it
 #   scripts/smoke-gate.sh https://pflow.xyz/    smoke a server that is already running
 #
-# SMOKES (default "landing views menu palette links ask canvas shell") picks which. CHROME overrides the browser.
+# SMOKES (default "views menu palette links ask canvas shell") picks which. CHROME overrides the browser.
 #
 # Why this exists: a hand-written `deno run ... | tail -3 || exit 1` tests tail, which always succeeds, so a smoke
 # that crashed let a push through. Here nothing stands between a smoke and the line that reads its status, the full
@@ -21,7 +21,7 @@ if [ -z "$base" ]; then
   make build >"$logs/build.log" 2>&1 || { cat "$logs/build.log"; echo "smoke-gate: the build failed"; exit 1; }
   port=$((20000 + RANDOM % 20000))
   # The key only turns the chat on, so the signed-out wording shows: the smoke answers every model call in the page.
-  GEMINI_API_KEY=smoke-not-a-key ./bin/webserver -port "$port" -data "$logs/data" >"$logs/server.log" 2>&1 &
+  PFLOW_LLM=1 GEMINI_API_KEY=smoke-not-a-key ./bin/webserver -port "$port" -data "$logs/data" >"$logs/server.log" 2>&1 &
   server=$!
   trap 'kill "$server" 2>/dev/null' EXIT
   base="http://127.0.0.1:$port/"
@@ -30,9 +30,8 @@ if [ -z "$base" ]; then
 fi
 
 status=0
-for smoke in ${SMOKES:-landing views menu palette links ask canvas shell}; do
+for smoke in ${SMOKES:-views menu palette links ask canvas shell}; do
   case "$smoke" in
-    landing) target="$base" ;;
     views) target="${base}compose.html" ;;
     menu) target="$base" ;;
     palette) target="$base" ;;

@@ -20,6 +20,7 @@
 import { DOCKS, LAYOUT_KEY, LEVELS, PHONE_MAX, Shell, ViewRegistry, emptyLayout, filterCommands, parseTarget } from './petri-shell.js';
 import { h, registerBuiltins } from './petri-shell-views.js';
 import { notationView } from './petri-shell-notation.js';
+import { registerGuide } from './petri-shell-guide.js';
 
 const WIDE_SPLIT = '(min-width: 1100px)';
 const PHONE = `(max-width: ${PHONE_MAX}px)`;
@@ -72,6 +73,7 @@ export async function mountShell(wrapper, { storage = globalThis.localStorage, v
     await customElements.whenDefined('petri-view');
     const registry = registerBuiltins(new ViewRegistry());
     registry.register(notationView); // the real notation panel over the stand-in (POST /api/notation)
+    registerGuide(registry); // the Examples and Connect windows, in the place of the old landing page
     let stored = null;
     try { stored = JSON.parse(storage?.getItem(LAYOUT_KEY) || 'null'); } catch { /* a bad value is the default layout */ }
     const shell = new Shell({ registry, layout: stored });
@@ -152,7 +154,9 @@ export async function mountShell(wrapper, { storage = globalThis.localStorage, v
     const cmdBtn = h('button', { class: 'pf-btn pf-cmd', type: 'button', title: 'Command palette (Ctrl+Shift+P)', text: 'Commands', on: { click: () => openPalette() } });
     const levelBtns = LEVELS.map((lv) => h('button', { class: 'pf-lvl', type: 'button', role: 'radio', 'data-level': lv, text: lv[0].toUpperCase() + lv.slice(1), title: lv === 'outcome' ? 'Plain-language answers only' : lv === 'model' ? 'The net, its notation and simulation' : 'Invariants, reachability, categorical views', on: { click: () => shell.setLevel(lv) } }));
     const levelBar = h('div', { class: 'pf-levels', role: 'radiogroup', 'aria-label': 'Level of detail' }, ...levelBtns);
-    docks.center.querySelector('.pf-bar').append(h('div', { class: 'pf-center-tools' }, notice, levelBar, cmdBtn));
+    const guideBtn = (view, text, title) => h('button', { class: 'pf-btn pf-guide', type: 'button', 'data-view': view, title, text, on: { click: () => api.open({ view }) } });
+    docks.center.querySelector('.pf-bar').append(h('div', { class: 'pf-center-tools' }, notice, levelBar,
+        guideBtn('examples', 'Examples', 'Open an example model'), guideBtn('connect', 'Connect Claude', 'Connect your own Claude, and where to read more'), cmdBtn));
     // The narration strip: what an agent says (a tour step, an annotation), with the tour's controls.
     const narText = h('p', { class: 'pf-nar-text', role: 'status' });
     const narCtl = h('span', { class: 'pf-nar-ctl' });

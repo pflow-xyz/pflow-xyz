@@ -145,15 +145,8 @@ that cannot fire.
 
 ## Services
 
-- [Sim MCP server](https://sim.pflow.xyz/mcp): JSON-RPC tools to build,
-  run and check models (sim_create_model, sim_scenario, sim_invariants,
-  sim_reach, sim_verify, …)
 - [Server-side SVG rendering](https://pflow.xyz/api/svg): POST a model,
   get an SVG
-- [sim.pflow.xyz](https://sim.pflow.xyz/mcp): describe a process, get a
-  model you can run and check — seeded scenarios, invariant and
-  reachability proofs, calibration, and diagnostics that rank every knob by
-  measured effect on the objective
 - [pflow-native](https://github.com/pflow-xyz/pflow-native): native desktop
   editor and simulator for the same models, with a CLI and an MCP server
 

@@ -179,7 +179,7 @@ type Server struct {
 	files             *fileService // /api/files, each account's own files (files.go)
 	googleAnalyticsID string
 	schemaCache       schemaCache
-	llm               *llmService   // nil when no GEMINI_API_KEY: the LLM routes report disabled
+	llm               *llmService   // nil unless PFLOW_LLM=1 and GEMINI_API_KEY: the LLM routes report disabled
 	mcpVerifier       auth.Verifier // /mcp's pflow_save sign-in check (mcp.go); built on first use
 	mcpOAuth          *mcpOAuth     // /mcp's OAuth authorization server (mcp_oauth.go); nil when off
 	tabs              *tabService   // tab push (tabs.go); nil when PFLOW_TAB_PUSH=0
@@ -1209,7 +1209,13 @@ func main() {
 		publicFS: publicFS,
 	}
 
-	server.configureLLM(*dataDir)
+	// The server makes no model calls unless the operator opts in with PFLOW_LLM=1 (a GEMINI_API_KEY alone no longer
+	// turns the proxy on): people bring their own AI and drive the page over /mcp (docs/design/tab-push.md).
+	if os.Getenv("PFLOW_LLM") == "1" {
+		server.configureLLM(*dataDir)
+	} else {
+		log.Printf("LLM proxy: off (no server-side model calls; PFLOW_LLM=1 opts in)")
+	}
 	server.configureMCPOAuth(*dataDir)
 
 	// Configure Google Analytics if set
