@@ -1,5 +1,7 @@
 import { assert, assertEquals, assertStringIncludes } from "https://deno.land/std@0.224.0/assert/mod.ts";
-import { COMPOSE_VIEWS, MAX_NET_BYTES, TabLink, VIEWS, buildReport, checkParams, netOk, overlayUrl, parseFrames, planShow, viewCalls } from "./petri-tab.js";
+import { COMPOSE_VIEWS, MAX_NET_BYTES, TEACH_TYPES, TabLink, VIEWS, buildReport, checkParams, clampResult, netOk, overlayUrl, parseFrames, planShow, teachEvent, viewCalls } from "./petri-tab.js";
+import { Shell, ViewRegistry } from "./petri-shell.js";
+import { registerBuiltins } from "./petri-shell-views.js";
 import { replayViewSpec, validateViewSpec } from "./petri-viewspec.js";
 import { Registry, createHeadlessHost } from "./petri-commands.js";
 import { loadEngine } from "./petri-wasm.js";
@@ -217,5 +219,77 @@ Deno.test("TabLink: an IDE shell takes the event unchanged; stop goes to it; pan
     assertEquals(seen, [["open", "plot", "q1"], ["close", "q2"]]);
     assertEquals(host.calls.filter((c: any) => c[0] === "loadNet" || c[0] === "runSpec" || c[0] === "close"), []); // the page's own path did not run
     await settle(() => srv.log.some((e) => e.url.endsWith("/report") && e.body.panels));
+    await link.stop();
+});
+
+// ---- the teaching verbs: the frames the Go server sends (testdata/tab-teach/frames.json, written by
+// cmd/webserver/tabs_teach_test.go TestTabTeachEndToEnd) replayed through TabLink into the real shell core ----
+
+Deno.test("teachEvent: a verb's params become the shell event, the type and request id win", () => {
+    assertEquals(teachEvent({ type: "level", request_id: "r", params: { level: "math", type: "show", request_id: "x" } }), { level: "math", type: "level", request_id: "r" });
+    assertEquals(teachEvent({ type: "tour_control", params: { action: "next" } }), { action: "next", type: "tour_control" });
+    assertEquals(teachEvent({ type: "show", view: "plot" }), null);
+    assertEquals(teachEvent({ type: "level", params: [1] }), { type: "level" });
+    assert(TEACH_TYPES.includes("tour"));
+});
+
+Deno.test("clampResult: plain fields only, ok is a boolean", () => {
+    assertEquals(clampResult({ ok: true, id: "plot", nested: { a: 1 }, n: 2 }), { ok: true, id: "plot", n: 2 });
+    assertEquals(clampResult({ ok: "yes" }), { ok: false });
+    assertEquals(clampResult(null), { ok: false });
+});
+
+Deno.test("end to end: the server's push of a net, level math, a highlight and a two-step tour land in a shell", async () => {
+    const golden = JSON.parse(await Deno.readTextFile(new URL("../testdata/tab-teach/frames.json", import.meta.url)));
+    assertEquals(golden.map((e: any) => [e.type, e.view]), [["show", "canvas"], ["level", undefined], ["show", "notation"], ["highlight", undefined], ["tour", undefined], ["tour_control", undefined]]);
+    const shell = new Shell({ registry: registerBuiltins(new ViewRegistry()) });
+    const srv = fakeServer();
+    const host: any = fakeHost();
+    host.shellOpen = (ev: any) => shell.dispatch(ev);
+    host.shellDispatch = (ev: any) => shell.dispatch(ev);
+    host.shellClose = (id: any) => shell.close(id);
+    host.snapshot = () => ({ model: net(), view: "canvas", panels: shell.state().panels, shell: shell.state() });
+    const link = new TabLink({ host, token: "t", fetchImpl: srv.fetchImpl as any, wait: async () => {} });
+    await link.start();
+    await settle(() => srv.streams.length === 1);
+    const replies = () => srv.log.filter((e) => e.url.endsWith("/reply"));
+    const states: any[] = [];
+    for (const [i, ev] of golden.entries()) {
+        srv.streams[0](frame(ev));
+        await settle(() => replies().length === i + 1);
+        states.push(structuredClone(shell.state()));
+    }
+    const res = replies().map((e) => [e.body.request_id, e.body.state.result.ok]);
+    assertEquals(res, [["r1", true], ["r2", true], ["r3", true], ["r4", true], ["r5", true], ["r6", true]]);
+    // after the push the shell shows the canvas, at the default level
+    assertEquals(states[0].level, "model");
+    // level math
+    assertEquals(states[1].level, "math");
+    assertEquals(replies()[1].body.state.shell.level, "math");
+    // the notation panel opens in the centre
+    assert(states[2].panels.some((p: any) => p.type === "notation" && p.dock === "center"), JSON.stringify(states[2].panels));
+    // the transition is highlighted
+    assertEquals(states[3].highlights, ["node:move"]);
+    // the tour's first step highlights pushedA and says so
+    assertEquals(states[4].tour, { title: "How tokens move", step: 1, of: 2 });
+    assertEquals(states[4].highlights, ["node:pushedA"]);
+    // next: step 2 opens the invariants panel, which the math level allows
+    assertEquals(states[5].tour, { title: "How tokens move", step: 2, of: 2 });
+    assert(states[5].panels.some((p: any) => p.type === "invariants"), JSON.stringify(states[5].panels));
+    assertEquals(host.calls.filter((c: any) => c[0] === "notice"), []);
+    await link.stop();
+});
+
+Deno.test("a teaching verb on a page without the shell is answered, not dropped", async () => {
+    const srv = fakeServer();
+    const host: any = fakeHost();
+    const link = new TabLink({ host, token: "t", fetchImpl: srv.fetchImpl as any, wait: async () => {} });
+    await link.start();
+    await settle(() => srv.streams.length === 1);
+    srv.streams[0](frame({ type: "level", request_id: "q9", params: { level: "math" } }));
+    await settle(() => srv.log.some((e) => e.url.endsWith("/reply")));
+    const r = srv.log.find((e) => e.url.endsWith("/reply"));
+    assertEquals([r.body.request_id, r.body.state.result.ok], ["q9", false]);
+    assertStringIncludes(r.body.state.result.error, "?shell=1");
     await link.stop();
 });

@@ -1552,7 +1552,7 @@ Where shared code lives: three honest choices.
 
 ## 6. The prototype
 
-`internal/notation` (MIT, about 2,700 lines of Go and 1,450 of tests): `lex.go`, `parse.go` (a line at a time, with recovery), `ast.go`, `check.go`, `compile.go`, `print.go`, `ojson.go` (an order-preserving JSON reader and writer, because key order and number text matter), `diag.go`, `advise.go`, `cmd/pflowtext`. Imports only `internal/seal` and go-pflow (`parser`, `reachability`, `verify`); nothing imports it.
+`internal/notation` (MIT, about 2,700 lines of Go and 1,450 of tests): `lex.go`, `parse.go` (a line at a time, with recovery), `ast.go`, `check.go`, `compile.go`, `print.go`, `ojson.go` (an order-preserving JSON reader and writer, because key order and number text matter), `diag.go`, `advise.go`, `cmd/pflowtext`. Imports only `internal/seal` and go-pflow (`parser`, `reachability`, `verify`); served by `POST /api/notation` (`cmd/webserver/notation.go`) for the IDE shell's notation panel.
 
 | subset | in | out |
 |---|---|---|

@@ -1,7 +1,9 @@
 # The IDE shell
 
-Status: prototype, behind `?shell=1` (off by default, remembered in `localStorage.pflow_shell`; `?shell=0` clears it).
-Nothing of it loads without the flag, so it merges inert. Branch `feat/ide-shell`.
+Status: on main, behind `?shell=1` (off by default, remembered in `localStorage.pflow_shell`; `?shell=0` clears it).
+That one flag turns on the shell, the page side of tab push (Link to Claude, the teaching verbs) and the notation panel;
+nothing of them loads or links without it, so other visitors see the editor they always did. Wired together from PRs
+#132 (tab push), #133 (notation) and #134 (this shell); section 5 says how.
 
 pflow.xyz is a Petri-net editor that grew some twenty-five dialogs, panes and menus (counted below). Matt's direction: make it resemble an IDE that **opens panels
 and modal windows to show data and results**, controlled by one idea, the **level of abstraction** the person is looking
@@ -102,7 +104,7 @@ Built in now:
 | type | kind | dock | level | notes |
 |---|---|---|---|---|
 | `canvas` | panel (pinned) | center | model | the editor, already on the page; opening it reveals it |
-| `notation` | panel | center | model | **stand-in** (a read-only listing); replaced by run 19a75ca7's panel |
+| `notation` | panel | center | model | the net as pflow notation, editable, with line diagnostics (`petri-shell-notation.js`, section 5); the built-in entry is a stand-in it replaces |
 | `answer` | panel | center | outcome | the plain-language narration; the center when there is no canvas |
 | `outline` | panel | left | model | places and transitions; a click highlights on the canvas |
 | `diagnostics` | panel | bottom | model | `analysis.check` and `analysis.behaviour`, plus anything published to `ctx.diagnostics` |
@@ -193,21 +195,49 @@ At 760 px and below every dock folds into one bottom tab bar (Canvas, each open 
 fills the screen; tab buttons are at least 44 px. The narration strip stays on top. The same media query drives the CSS
 and the script (`matchMedia`), so they cannot disagree.
 
-## 5. What each run on this pivot needs from the others
+## 5. How the three pieces are wired
 
-Three runs, one flag, one registry. All three are PRs, none merged.
+Three PRs, one flag, one registry, landed together: #132 tab push, #133 the notation, #134 this shell.
 
-| | what it is | what it needs |
+**One flag.** `?shell=1` (remembered per browser) is the switch for all three on the page. Without it the shell does not
+load, the editor never offers Link to Claude, and the notation panel does not exist. On the server, tab push is **on by
+default** (`PFLOW_TAB_PUSH=0` turns it off): its routes and tools are inert until a person links a page, and only a
+shell page offers the link. `/api/notation` is pure computation and always on.
+
+**Tab push forwards every verb to `pflowShell.dispatch`.** `petri-tab.js` hands `show` to the shell unchanged, and the
+teaching verbs as events whose fields travel in `params` (so `internal/tabhub`'s event shape, shared with BeatScript,
+did not change). The page answers every pushed event on `/api/tab/{id}/reply` under the event's `request_id` with its
+report plus `result`, the shell's answer; the MCP tool waits for it briefly (`tabhub.PushAwait`, 1.5 s) and passes it
+back, so a refused view (`{ok:false, needs:'math'}`) reaches the agent as "send pflow_level math first".
+
+| MCP tool | event | shell verb |
 |---|---|---|
-| **#132 tab push** (31ead7e7, `feat/tab-push`, `PFLOW_TAB_PUSH=1`) | an MCP client pushes `show` events into an open page | already calls `window.pflowShell.open(evt)` / `.close(id)` / `.state()` when present (`shellOpen`, `shellClose` in `petri-view.js`). **Needs to add:** forward every unknown event type to `pflowShell.dispatch`; MCP tools for the new verbs (`pflow_level`, `pflow_highlight`, `pflow_annotate`, `pflow_tour`, or one `pflow_teach` taking `events: []`); surface a refused `show` (`{ok:false, needs}`) to the MCP caller; take its `hello` `views` from `registry.types()` instead of a hard-coded list |
-| **#133 notation** (19a75ca7, `design/pflow-notation`) | the language: grammar, Go compiler and advisor | a JS or wasm entry point (none yet). **Then:** register `notation` over the stand-in (`pflowShell.registry.register({type:'notation', …})`), publish parse errors and advisor output with `ctx.diagnostics.set('notation', …)`, take `line:`/`range:`/`node:` targets with `ctx.on('highlight')` |
-| **this PR** | the shell, the registry, levels, targets, verbs | nothing from the others to merge; it is inert without `?shell=1` |
+| `pflow_show` | `show` | open a view (`canvas`, `plot`, `reachability`, `invariants`, `categorical`, `notation`) |
+| `pflow_level` | `level` | set the level: `outcome`, `model`, `math` |
+| `pflow_highlight` | `highlight` | mark `node:`, `line:`, `range:` targets; `[]` clears |
+| `pflow_annotate` | `annotate` | narrate, optionally at a target |
+| `pflow_focus` | `focus` | `panel:` / `view:` open or activate, `node:` / `line:` highlight |
+| `pflow_tour` | `tour` or `tour_control` | a guided sequence (`steps`), or `action: next/back/end` |
+| `pflow_tab_stop` | `stop` | close what a push opened |
+| `pflow_tabs`, `pflow_tab_get` | | list linked pages; read one (`shell` in the report: level, tour, modal, highlights) |
 
-Merge order does not matter: without the flag the shell does not load; without the shell #132 falls back to its own path;
-without #132 or #133 the shell has its stand-ins. When all three are in, one flag turns on the whole experience.
+A tour step does not carry a net: the agent puts the net on the canvas with `pflow_show` first, then tours it. Both
+the server (`cmd/webserver/tabs_teach.go`) and the shell check every field again.
 
-Both peers had finished when I tried to send them the verbs and levels (the messages are kept in
-`~/val/inbox/31ead7e7/` and `~/val/inbox/19a75ca7/`), so the "Needs" column above is the hand-off.
+**The notation panel** (`public/petri-shell-notation.js`) registers over the stand-in. It renders through
+`POST /api/notation` (`cmd/webserver/notation.go`), which is #133's Go package, the notation's executable spec, so the
+page carries no second parser: `{net}` gives `{text, lossy, nodes, diagnostics}` and `{text}` gives `{net, cid, nodes,
+diagnostics}`. The panel shows the canvas's net as text, lights every line that names a `node:` target (and scrolls to
+its declaration), takes `line:` and `range:` targets, and publishes parse, check and (opt-in) advisor verdicts to the
+Diagnostics list on their lines. **Edit** turns it into a text box; **Apply** compiles and loads the net through the
+strict gate, and a text with an error is not applied. An MCP `show` of `notation` with `params.source` shows that text
+instead, until the canvas changes. The endpoint stores and logs nothing, so a private push stays private.
+
+**One recording, two halves.** `cmd/webserver/tabs_teach_test.go` drives the real `/mcp` tools (a net push, level
+math, a notation push, a highlight of a transition, a two-step tour and its next step) against a stand-in page, checks
+what came back, and records the frames the page received in `testdata/tab-teach/frames.json`. `petri-tab_test.ts`
+replays that file through `TabLink` into the real shell core, and `scripts/shell-smoke.ts` replays it into a real page
+in headless Chrome. A change on either side that breaks the other fails a test (`UPDATE_GOLDEN=1` rewrites the file).
 
 ## 6. Strict CSP
 
@@ -237,6 +267,8 @@ which a CSP does not execute, so crawlers keep it.
 
 | | |
 |---|---|
+| `cmd/webserver/tabs_teach_test.go`, `notation_test.go` (in `make test`) | the teaching tools end to end over `/mcp` against a stand-in page (delivery, answers, a refusal surfaced as "send pflow_level"), their argument checks, tab push on by default; `/api/notation` round-trips an example to its CID and puts errors on their lines. The end-to-end test records `testdata/tab-teach/frames.json` |
+| `public/petri-tab_test.ts`, `petri-shell-notation_test.ts` (in `make test-js`) | those recorded frames through `TabLink` into the real shell core (level, notation panel, highlight, tour, next); a verb on a page without the shell is answered; the notation panel's line targets, diagnostics shape and request |
 | `public/petri-shell_test.ts` (in `make test-js`) | 20 tests: registry validation, event planning and caps, the unknown-view fallback, singleton and modal rules, pinned canvas, stop, layout sanitising and the privacy rule, levels and refusal, targets, every verb, tours, the palette filter, the flag, and the CSP source scan |
 | `scripts/shell-smoke.ts` (in `scripts/smoke-gate.sh`, needs Chrome and a server) | 73 checks in headless Chrome: flag off and on; every built-in view opens and draws; tabs, splitter by keyboard; both modals and Escape; the palette; a pushed net, Undo, `stop`; persistence; the level control, refusal and step-down; highlight; a tour; the outcome level; split at 1400 px and tabs at 1000; a 390 px phone; no CSP violation; no console error |
 

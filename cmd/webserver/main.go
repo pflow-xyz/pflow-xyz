@@ -182,7 +182,7 @@ type Server struct {
 	llm               *llmService   // nil when no GEMINI_API_KEY: the LLM routes report disabled
 	mcpVerifier       auth.Verifier // /mcp's pflow_save sign-in check (mcp.go); built on first use
 	mcpOAuth          *mcpOAuth     // /mcp's OAuth authorization server (mcp_oauth.go); nil when off
-	tabs              *tabService   // tab push (tabs.go); nil unless PFLOW_TAB_PUSH=1 or -tab-push
+	tabs              *tabService   // tab push (tabs.go); nil when PFLOW_TAB_PUSH=0
 }
 
 // handleCORS handles CORS preflight requests
@@ -1051,7 +1051,12 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		s.handlePostSVG(w, r)
 		return
 	}
-	// Tab push (tabs.go): signed-in page <-> MCP link; nothing unless turned on.
+	// The pflow notation (notation.go): a net as text and back, for the shell's notation panel.
+	if r.URL.Path == "/api/notation" {
+		s.handleNotation(w, r)
+		return
+	}
+	// Tab push (tabs.go): signed-in page <-> MCP link; on unless PFLOW_TAB_PUSH=0.
 	if r.URL.Path == tabPrefix || strings.HasPrefix(r.URL.Path, tabPrefix+"/") {
 		s.handleTab(w, r)
 		return
@@ -1186,7 +1191,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func main() {
 	port := flag.Int("port", 8080, "Port to listen on")
 	dataDir := flag.String("data", "./data", "Data directory for storage")
-	tabPush := flag.Bool("tab-push", false, "let a Claude session drive linked pflow.xyz pages over /mcp (also PFLOW_TAB_PUSH=1)")
+	tabPush := flag.Bool("tab-push", false, "let a Claude session drive linked pflow.xyz pages over /mcp (on by default; PFLOW_TAB_PUSH=0 turns it off, this flag forces it on)")
 	flag.Parse()
 
 	// Create storage

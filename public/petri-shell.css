@@ -144,3 +144,12 @@
 .pf-hl { background: var(--pv-warning-glow); border-radius: 2px; }
 .pf-line { white-space: pre-wrap; }
 .pf-shell[data-level="outcome"] .pf-dock[data-dock="left"] { display: none; }
+
+/* The notation panel (petri-shell-notation.js) */
+.pf-notation .pf-line { display: flex; gap: 10px; }
+.pf-lnum { flex: 0 0 2.5em; text-align: right; color: var(--pv-ink-muted); user-select: none; }
+.pf-ltext { flex: 1 1 auto; min-width: 0; }
+.pf-line-error { box-shadow: inset 3px 0 0 var(--pv-danger); }
+.pf-line-warn { box-shadow: inset 3px 0 0 var(--pv-warning); }
+.pf-notation-edit { width: 100%; min-height: 16em; box-sizing: border-box; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; resize: vertical; }
+.pf-inline { display: inline-flex; flex-direction: row; align-items: center; gap: 4px; }

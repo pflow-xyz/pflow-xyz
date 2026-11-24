@@ -7316,13 +7316,19 @@ PetriView = class PetriView extends HTMLElement {
 
     // ---------------- tab push (docs/design/tab-push.md) ----------------
     // A signed-in page can be linked to a Claude session connected to /mcp: pflow_show pushes a net or a view here,
-    // pflow_tab_get reads back what is shown, pflow_tab_stop clears it. Off unless the server runs with PFLOW_TAB_PUSH
-    // (/api/tab/status says so) AND the person chose "Link to Claude" (remembered in localStorage; ?tab=1 for one
-    // visit). The protocol, the planner and the reconnecting reader are petri-tab.js; this is the editor around them.
+    // pflow_tab_get reads back what is shown, pflow_tab_stop clears it, and the teaching verbs (pflow_level,
+    // pflow_highlight, pflow_annotate, pflow_focus, pflow_tour) drive the IDE shell. Offered only with the IDE shell on
+    // (?shell=1, remembered per browser: the one flag for the shell, tab push and the notation panel), when the server
+    // has tab push (/api/tab/status), AND the person chose "Link to Claude" (remembered; ?tab=1 for one visit). The
+    // protocol, the planner and the reconnecting reader are petri-tab.js; this is the editor around them.
 
     async _tabInit() {
         try {
             if (!this.hasAttribute('data-backend') || !this._authToken || !this._user) return;
+            const { shellEnabled } = await import('./petri-shell.js');
+            let store = null;
+            try { store = window.localStorage; } catch { /* blocked: the query alone decides */ }
+            if (!shellEnabled(window.location.search, store)) return;
             const res = await fetch('/api/tab/status');
             if (!res.ok) return;
             this._tabEnabled = (await res.json()).enabled === true;
@@ -7347,6 +7353,13 @@ PetriView = class PetriView extends HTMLElement {
 
     async _startTabLink() {
         if (this._tabLink || !this._authToken) return;
+        // Let the shell mount first, so the first pushed event lands in it rather than in the classic path.
+        if (!window.pflowShell) {
+            await new Promise((res) => {
+                const t = setTimeout(res, 5000);
+                document.addEventListener('pflow-shell-ready', () => { clearTimeout(t); res(); }, { once: true });
+            });
+        }
         const T = await import('./petri-tab.js');
         this._tabGen = (this._tabGen || 0) + 1;
         this._tabLink = new T.TabLink({ host: this._tabHost(), token: this._authToken, origin: window.location.origin });
@@ -7358,10 +7371,12 @@ PetriView = class PetriView extends HTMLElement {
     _tabHost() {
         const view = this;
         return {
-            shellOpen: (ev) => { const sh = window.pflowShell; if (!sh || typeof sh.open !== 'function') return false; sh.open(ev); return true; },
+            // The IDE shell's one entry (docs/ide-shell.md): its answer goes back to the MCP caller; false = no shell here.
+            shellOpen: (ev) => { const sh = window.pflowShell; if (!sh || typeof sh.dispatch !== 'function') return false; return sh.dispatch(ev) || { ok: false }; },
+            shellDispatch: (evt) => { const sh = window.pflowShell; if (!sh || typeof sh.dispatch !== 'function') return false; return sh.dispatch(evt) || { ok: false }; },
             shellClose: (id) => { const sh = window.pflowShell; if (!sh || typeof sh.close !== 'function') return false; sh.close(id); return true; },
             snapshot: () => ({
-                ...(window.pflowShell?.state ? { panels: window.pflowShell.state()?.panels } : {}),
+                ...(window.pflowShell?.state ? { panels: window.pflowShell.state()?.panels, shell: window.pflowShell.state() } : {}),
                 model: view._model, cid: view._savedNetCid(), view: view._tabView || 'canvas', dirty: !view._savedNetCid(),
                 results: view._lastResult?.result ? [{ title: view._lastResult.result.title || 'Result' }] : [],
             }),

@@ -4,9 +4,11 @@ package main
 // a tab and listens on a stream; MCP tools push a net or a view into it, read
 // back what it shows, and clear it. BeatScript's hub, carried over.
 //
-// Off unless PFLOW_TAB_PUSH=1 (or -tab-push). When off the routes answer as if
-// they did not exist, status says disabled, and the four tools are neither
-// listed nor callable, so a server without the flag is unchanged.
+// On by default since the IDE shell landed (docs/ide-shell.md); PFLOW_TAB_PUSH=0
+// turns it off. A page links only when the person opts in (the shell, ?shell=1,
+// and then Link to Claude or ?tab=1), so a visitor who does neither sees no
+// change. When off the routes answer as if they did not exist, status says
+// disabled, and the tools are neither listed nor callable.
 //
 // Page routes (same-origin only, bearer = the editor's GitHub token, the same
 // sign-in /api/files uses; the stream is SSE framing read with fetch, because
@@ -19,7 +21,9 @@ package main
 //	POST /api/tab/{id}/reply    {request_id, state}
 //	DELETE /api/tab/{id}        unlink
 //
-// MCP tools: pflow_tabs, pflow_show, pflow_tab_get, pflow_tab_stop.
+// MCP tools: pflow_tabs, pflow_show, pflow_tab_get, pflow_tab_stop, and the
+// teaching verbs the IDE shell takes (window.pflowShell.dispatch): pflow_level,
+// pflow_highlight, pflow_annotate, pflow_focus, pflow_tour (tabs_teach.go).
 
 import (
 	"bytes"
@@ -54,35 +58,42 @@ const (
 	maxTabNoteBytes = 1000
 	maxTabSource    = 64 << 10
 	tabPingEvery    = 20 * time.Second
+	// A shell page answers a pushed event at once (dispatch is synchronous), so
+	// the wait is short; a page without the shell may not answer at all.
+	tabReplyWait = 1500 * time.Millisecond
 )
 
 // tabPushOn gates the MCP tools (a package-level switch because the tool list is
 // built without a Server). configureTabs sets it; tests set it directly.
 var tabPushOn atomic.Bool
 
-var tabToolNames = map[string]bool{"pflow_tabs": true, "pflow_show": true, "pflow_tab_get": true, "pflow_tab_stop": true}
+var tabToolNames = map[string]bool{"pflow_tabs": true, "pflow_show": true, "pflow_tab_get": true, "pflow_tab_stop": true,
+	"pflow_level": true, "pflow_highlight": true, "pflow_annotate": true, "pflow_focus": true, "pflow_tour": true}
 
 // tabService is the hub and the page-side sign-in check.
 type tabService struct {
-	hub      *tabhub.Hub
-	accounts fileAccountResolver // page's bearer token → "provider:subject"
-	ping     time.Duration
+	hub       *tabhub.Hub
+	accounts  fileAccountResolver // page's bearer token → "provider:subject"
+	ping      time.Duration
+	replyWait time.Duration // how long a push waits for the page to say what it did (tabReplyWait)
 }
 
-// configureTabs turns tab push on when asked (flag or PFLOW_TAB_PUSH). The page
-// sign-in is account files' resolver, so it also needs the GitHub OAuth app.
+// configureTabs turns tab push on unless PFLOW_TAB_PUSH says off (0, false,
+// no, off); the -tab-push flag forces it on. The page sign-in is account
+// files' resolver, so it also needs the GitHub OAuth app.
 func (s *Server) configureTabs(getenv func(string) string, flagOn bool) {
-	on := flagOn
+	on := true
 	switch strings.ToLower(strings.TrimSpace(getenv("PFLOW_TAB_PUSH"))) {
-	case "1", "true", "yes", "on":
-		on = true
+	case "0", "false", "no", "off":
+		on = false
 	}
+	on = on || flagOn
 	if !on {
 		s.tabs = nil
 		setTabPush(false)
 		return
 	}
-	svc := &tabService{hub: tabhub.New(nil), ping: tabPingEvery}
+	svc := &tabService{hub: tabhub.New(nil), ping: tabPingEvery, replyWait: tabReplyWait}
 	if s.files != nil {
 		svc.accounts = s.files.accounts
 	} else {
@@ -294,10 +305,15 @@ func (svc *tabService) serveEvents(w http.ResponseWriter, r *http.Request, id st
 func setTabPush(on bool) {
 	tabPushOn.Store(on)
 	for name, a := range map[string]mcpAnnotation{
-		"pflow_tabs":     {"List the pflow.xyz pages you have linked", true, false, true},
-		"pflow_show":     {"Show a net or a view in a linked page", false, false, false},
-		"pflow_tab_get":  {"Read what a linked page shows", true, false, true},
-		"pflow_tab_stop": {"Clear views in a linked page", false, false, true},
+		"pflow_tabs":      {"List the pflow.xyz pages you have linked", true, false, true},
+		"pflow_show":      {"Show a net or a view in a linked page", false, false, false},
+		"pflow_tab_get":   {"Read what a linked page shows", true, false, true},
+		"pflow_tab_stop":  {"Clear views in a linked page", false, false, true},
+		"pflow_level":     {"Set the level of detail a linked page shows", false, false, true},
+		"pflow_highlight": {"Highlight nodes or notation lines in a linked page", false, false, true},
+		"pflow_annotate":  {"Narrate a line in a linked page", false, false, false},
+		"pflow_focus":     {"Bring a node, line or panel into view in a linked page", false, false, true},
+		"pflow_tour":      {"Run a guided tour in a linked page", false, false, false},
 	} {
 		if on {
 			mcpAnnotations[name] = a
@@ -310,7 +326,7 @@ func setTabPush(on bool) {
 var tabArg = map[string]any{"type": "string", "description": "A tab id from pflow_tabs. Leave out to use every live tab of yours (pflow_tab_get: the most recently seen)."}
 
 func tabTools() []mcpTool {
-	return []mcpTool{
+	return append([]mcpTool{
 		{
 			Name:        "pflow_tabs",
 			Description: "The pflow.xyz pages you have open and linked (menu: Link to Claude), most recently seen first, each with whether its stream is connected and what it last reported. A tab belongs to the account that opened it: sign in here as the same GitHub account. Needs you signed in.",
@@ -319,7 +335,7 @@ func tabTools() []mcpTool {
 		},
 		{
 			Name: "pflow_show",
-			Description: "Show a net or a view in one of your linked pflow.xyz pages, which the person is watching in another window. view: canvas (load the net into the editor; the page keeps what it replaced and offers Restore), plot (simulate: ODE, or params.engine \"ssa\"), reachability, invariants, categorical (a stored composition cid on the composition page; params.name is its view, e.g. cospan), notation (reserved). " +
+			Description: "Show a net or a view in one of your linked pflow.xyz pages, which the person is watching in another window. view: canvas (load the net into the editor; the page keeps what it replaced and offers Restore), plot (simulate: ODE, or params.engine \"ssa\"), reachability, invariants, categorical (a stored composition cid on the composition page; params.name is its view, e.g. cospan), notation (the net as pflow notation text; params.source shows given text instead). " +
 				"Give net (a PRIVATE push: sent to the page and never stored, no CID made, nothing queued if the page is not connected) or cid (a stored net or composition, which is public). A view runs on the page's own engines in a sandbox, exactly as an opened #view= link does. The answer says how many pages received it; 0 means none had a live stream.",
 			InputSchema: obj(map[string]any{
 				"view":   map[string]any{"type": "string", "enum": tabViews},
@@ -343,7 +359,7 @@ func tabTools() []mcpTool {
 			InputSchema: obj(map[string]any{"tab": tabArg}),
 			run:         mcpTabStop,
 		},
-	}
+	}, teachTools()...)
 }
 
 // tabCaller is the account key of the MCP caller: the same "provider:subject"
@@ -530,7 +546,7 @@ func mcpShow(s *Server, r *http.Request, args map[string]any) (any, error) {
 			ev.Net = raw
 		}
 	}
-	n, err := s.tabs.hub.Push(owner, tabID, ev)
+	n, answer, err := s.tabs.hub.PushAwait(r.Context(), owner, tabID, ev, s.tabs.replyWait)
 	if err != nil {
 		return nil, hubMessage(err)
 	}
@@ -541,6 +557,7 @@ func mcpShow(s *Server, r *http.Request, args map[string]any) (any, error) {
 		out["note"] = "No linked page had a live stream, so nothing was sent and nothing was kept. Check pflow_tabs; the person turns the link on in the page (Link to Claude)."
 	} else {
 		out["note"] = "Sent. Call pflow_tab_get to see what the page shows."
+		pageAnswer(out, answer)
 	}
 	return out, nil
 }

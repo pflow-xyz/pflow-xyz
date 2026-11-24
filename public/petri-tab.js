@@ -2,7 +2,10 @@
 //
 // A signed-in page registers as a tab (POST /api/tab), reads a stream of events (GET /api/tab/{id}/events: SSE
 // framing read with fetch, because EventSource cannot send the bearer token), and reports what it shows. A Claude
-// client connected to /mcp pushes `show`, `stop` and `get` events with pflow_show, pflow_tab_stop and pflow_tab_get.
+// client connected to /mcp pushes `show`, `stop` and `get` events with pflow_show, pflow_tab_stop and pflow_tab_get,
+// and the teaching verbs (`level`, `highlight`, `annotate`, `focus`, `tour`, `tour_control`) with pflow_level,
+// pflow_highlight, pflow_annotate, pflow_focus and pflow_tour. Those go to the IDE shell's one entry,
+// window.pflowShell.dispatch (docs/ide-shell.md); the page answers each pushed event on /reply with what it did.
 //
 //   parseFrames   SSE bytes in, events out (the same ~40 lines BeatScript's site has: a candidate for one shared module)
 //   viewCalls     a view name and its params in, the registry calls that make the view out
@@ -27,6 +30,20 @@ const MAX_MARKING_PLACES = 200;
 const CID_RE = /^[A-Za-z0-9]{8,200}$/;
 
 const isObj = (x) => x !== null && typeof x === 'object' && !Array.isArray(x);
+
+/** The event types the server sends for the shell's teaching verbs (cmd/webserver/tabs_teach.go). */
+export const TEACH_TYPES = Object.freeze(['level', 'highlight', 'annotate', 'focus', 'tour', 'tour_control']);
+
+/**
+ * The shell event a teaching push stands for: the server carries the verb's fields in `params` (the hub's event
+ * shape is shared with BeatScript and unchanged), the shell takes them at the top level. Null for anything else.
+ */
+export function teachEvent(ev) {
+    if (!isObj(ev) || !TEACH_TYPES.includes(ev.type)) return null;
+    const p = isObj(ev.params) ? ev.params : {};
+    const { type: _t, request_id: _r, ...fields } = p;
+    return { ...fields, type: ev.type, ...(typeof ev.request_id === 'string' ? { request_id: ev.request_id } : {}) };
+}
 
 /**
  * Split SSE text into events. Feed it the decoded chunks as they arrive: it returns the complete events and the
@@ -182,11 +199,33 @@ export async function buildReport(snap, { includeNet = false } = {}) {
     };
     if (snap.note) r.note = String(snap.note).slice(0, MAX_NOTE);
     if (Array.isArray(snap.panels)) r.panels = snap.panels.slice(0, 50);
+    if (isObj(snap.shell)) {
+        // The shell's state(): ids and types only, never a net (petri-shell.js), so it may travel.
+        const sh = snap.shell;
+        r.shell = { level: String(sh.level || ''), tour: isObj(sh.tour) ? { title: String(sh.tour.title || '').slice(0, 80), step: Number(sh.tour.step) || 0, of: Number(sh.tour.of) || 0 } : null, modal: isObj(sh.modal) ? { id: String(sh.modal.id), type: String(sh.modal.type) } : null, highlights: Array.isArray(sh.highlights) ? sh.highlights.slice(0, 50).map(String) : [] };
+    }
     if (includeNet) {
         r.net = m;
         if (JSON.stringify(r).length > MAX_REPORT_BYTES - 1024) { delete r.net; r.net_omitted = 'over the report limit'; }
     }
     return r;
+}
+
+/**
+ * What the shell answered, bounded and plain (never a payload).
+ * @param {any} res
+ * @returns {Record<string, any>}
+ */
+export function clampResult(res) {
+    if (!isObj(res)) return { ok: false };
+    /** @type {Record<string, any>} */
+    const out = {};
+    for (const [k, v] of Object.entries(res).slice(0, 20)) {
+        if (typeof v === 'string') out[k] = v.slice(0, 300);
+        else if (typeof v === 'number' || typeof v === 'boolean' || v === null) out[k] = v;
+    }
+    out.ok = res.ok === true;
+    return out;
 }
 
 // ---------------------------------------------------------------------------
@@ -202,7 +241,9 @@ export const BACKOFF_MS = Object.freeze([1000, 2000, 5000, 15000]);
  *   runSpec(spec, net)              Promise: replay a ViewSpec through openLinkedView and show the result card
  *   openOverlay(url)                show the composition page over the editor
  *   setNotation(source, net)        hand text to the notation panel, if there is one
- *   shellOpen(ev) / shellClose(id)  optional: an IDE shell takes the event as it is (true = handled); snapshot() may add `panels`
+ *   shellOpen(ev) / shellClose(id)  optional: an IDE shell takes the event as it is (its answer, or false when there is no
+ *                                   shell); snapshot() may add `panels` and `shell` (the shell's state(): ids and types)
+ *   shellDispatch(evt)              optional: the shell's dispatch for a teaching verb (its answer, or false: no shell)
  *   closeViews()                    close result cards and overlays, cancel a running replay
  *   notice(text, {kind})            one line for the person
  *   onState(state)                  'linking' | 'linked' | 'reconnecting' | 'off' | 'refused'
@@ -301,7 +342,11 @@ export class TabLink {
                 case 'show': await this._show(ev); break;
                 case 'stop': if (!this.host.shellClose?.(ev.request_id)) this.host.closeViews?.(); await this.report(); break;
                 case 'get': await this._reply(ev); break;
-                default: break; // hello, ping, and anything a later server adds
+                default: {
+                    const evt = teachEvent(ev);
+                    if (evt) await this._teach(ev, evt);
+                    break; // hello, ping, and anything a later server adds
+                }
             }
         } catch (e) {
             this.host.notice?.(`A pushed view failed (${e && e.message ? e.message : e}).`, { kind: 'warn' });
@@ -309,19 +354,39 @@ export class TabLink {
     }
 
     async _show(ev) {
-        // An IDE shell (window.pflowShell, run a861c41d's contract) takes the unchanged event; without one the page's own path runs.
-        if (this.host.shellOpen?.(ev)) { await this.report(); return; }
+        // An IDE shell (window.pflowShell, docs/ide-shell.md) takes the unchanged event; without one the page's own path runs.
+        const shown = this.host.shellOpen?.(ev);
+        if (shown) { await this.answer(ev.request_id, isObj(shown) ? shown : { ok: true }); return; }
         const plan = planShow(ev, { origin: this.origin });
         if (!plan.ok) {
             this.host.notice?.(`Claude pushed something this page cannot show: ${plan.error}.`, { kind: 'warn' });
-            await this.report({ note: `refused: ${plan.error}` });
+            await this.answer(ev.request_id, { ok: false, error: plan.error }, { note: `refused: ${plan.error}` });
             return;
         }
         if (plan.loadNet) this.host.loadNet(plan.net, { cid: plan.cid });
         if (plan.source) this.host.setNotation?.(plan.source, plan.net);
         if (plan.overlay) this.host.openOverlay(plan.overlay);
+        await this.answer(ev.request_id, { ok: true, view: plan.view }); // before the replay, which may take a while
         if (plan.spec) await this.host.runSpec(plan.spec, plan.net);
         await this.report();
+    }
+
+    async _teach(ev, evt) {
+        const res = this.host.shellDispatch?.(evt);
+        const result = isObj(res) ? res : { ok: false, error: 'this page has no IDE shell: open pflow.xyz with ?shell=1' };
+        if (!isObj(res)) this.host.notice?.('Claude sent a step of a walkthrough, which needs the IDE shell (?shell=1).', { kind: 'warn' });
+        await this.answer(ev.request_id, result);
+    }
+
+    /**
+     * Answer a pushed event: the report, plus `result` (what the shell or the page did with it), posted on /reply under
+     * the event's request_id, which is where the MCP tool waits (tabhub PushAwait). With no request_id, a plain report.
+     */
+    async answer(requestId, result, extra = {}) {
+        if (this.stopped || !this.id) return;
+        if (typeof requestId !== 'string' || !requestId) { await this.report(extra); return; }
+        const state = { ...(await buildReport(this.host.snapshot())), ...extra, result: clampResult(result) };
+        await this.f(`${this.base}/api/tab/${this.id}/reply`, { method: 'POST', headers: this._h({ 'Content-Type': 'application/json' }), body: JSON.stringify({ request_id: requestId, state }) });
     }
 
     async _reply(ev) {

@@ -14,6 +14,10 @@
 //   persistence     the stored layout holds panel ids and sizes, never a net
 //   split and tabs  at 1400 px the notation panel sits beside the canvas; at 1000 px it is a tab and the canvas hides
 //   a phone         390 px: the docks fold into one tab bar, one view fills the screen, the canvas is a tab
+//   notation        the real notation panel (POST /api/notation): the canvas as text, a bad edit refused on its line,
+//                   a good edit applied, the advisor's verdicts as line diagnostics
+//   e2e             the frames the Go server sent for real MCP calls (testdata/tab-teach/frames.json) through the page's
+//                   TabLink: a net push, level math, a notation push, a highlight, a two-step tour and its next step
 //   CSP             with script-src-attr and style-src-attr set to 'none' while all of the above runs, the shell's own elements
 //                   cause no violation (it uses no inline handler and no style attribute)
 //
@@ -193,6 +197,93 @@ const noise = (p: any) => p.problems.filter((x: string) => !/\/img\/z\w+\.svg|fa
   await p.goto(new URL("?shell=1", url).href);
   ok(await ready(p), "after a reload the shell mounts again");
   ok(await p.waitFor(`document.querySelectorAll('.pf-panel[data-id=outline] .pf-node').length >= 5`), "the outline is back after a reload, filled from the canvas");
+  await p.close();
+}
+
+// ---------------------------------------------------------------- the notation panel (POST /api/notation)
+{
+  const p = await open("?shell=1");
+  await ready(p);
+  await p.eval(`pflowShell.open({view:'notation'})`);
+  const lines = `[...document.querySelectorAll('.pf-panel[data-id=notation] .pf-line .pf-ltext')].map(x => x.textContent)`;
+  ok(await p.waitFor(`(${lines})[0] === '#! pflow 1' && (${lines}).some(l => l.startsWith('place '))`, 15000), "notation: the canvas's net is shown as pflow notation from the server", await p.eval(`JSON.stringify((${lines}).slice(0, 4))`));
+  // An edit with an error is not applied, and the error sits on its line.
+  const placesBefore = await p.eval(`Object.keys(document.querySelector('petri-view').exportJSON().places).length`);
+  await p.eval(`[...document.querySelectorAll('.pf-panel[data-id=notation] button')].find(b => b.textContent === 'Edit').click()`);
+  await p.eval(`(() => { const a = document.querySelector('.pf-notation-edit'); a.value = a.value + 'nowhere -> alsoNowhere\\n'; })()`);
+  await p.eval(`[...document.querySelectorAll('.pf-panel[data-id=notation] button')].find(b => b.textContent === 'Apply').click()`);
+  ok(await p.waitFor(`/Not applied/.test(document.querySelector('.pf-panel[data-id=notation] .pf-status')?.textContent)`, 10000), "notation: a text with an error is not applied", await p.eval(`document.querySelector('.pf-panel[data-id=notation] .pf-status')?.textContent`));
+  ok(await p.eval(`pflowShell.diagnostics.get().some(d => d.source === 'notation' && d.severity === 'error' && d.line > 1)`), "notation: its error is in the Diagnostics list, with a line", await p.eval(`JSON.stringify(pflowShell.diagnostics.get())`));
+  ok(await p.eval(`Object.keys(document.querySelector('petri-view').exportJSON().places).length`) === placesBefore, "notation: the canvas is unchanged by a bad edit");
+  // A good edit compiles and lands on the canvas through the strict gate.
+  await p.eval(`(() => { const a = document.querySelector('.pf-notation-edit'); a.value = a.value.replace('nowhere -> alsoNowhere\\n', '') + 'place smokeAdded @ 40, 40\\n'; })()`);
+  await p.eval(`[...document.querySelectorAll('.pf-panel[data-id=notation] button')].find(b => b.textContent === 'Apply').click()`);
+  ok(await p.waitFor(`Object.keys(document.querySelector('petri-view').exportJSON().places).includes('smokeAdded')`, 15000), "notation: Apply puts the edited net on the canvas");
+  ok(await p.waitFor(`(${lines}).some(l => l.startsWith('place smokeAdded'))`, 10000), "notation: the panel re-prints the canvas after the edit");
+  // The advisor: go-pflow's verifier on the server, verdicts on lines.
+  await p.eval(`document.querySelector('.pf-panel[data-id=notation] input[type=checkbox]').click()`);
+  ok(await p.waitFor(`pflowShell.diagnostics.get().some(d => d.source === 'notation' && Number.isInteger(d.line))`, 15000), "notation: the advisor's verdicts arrive as line diagnostics", await p.eval(`JSON.stringify(pflowShell.diagnostics.get().slice(0, 3))`));
+  ok((await p.eval(`window.__csp.length`)) === 0, "notation: no CSP violation", await p.eval(`window.__csp.join(' | ')`));
+  ok(noise(p).length === 0, "notation: no console errors", noise(p).join(" | "));
+  await p.close();
+}
+
+// ---------------------------------------------------------------- an MCP push, end to end
+// testdata/tab-teach/frames.json is what the Go server's stream sent for real MCP calls (pflow_show of a net,
+// pflow_level math, pflow_show notation, pflow_highlight of a transition, a two-step pflow_tour and its next step:
+// cmd/webserver/tabs_teach_test.go). The page's real TabLink and editor host take those exact frames here, so this
+// checks the page half of the same recording the Go test checks the server half of.
+{
+  const golden = JSON.parse(await Deno.readTextFile(new URL("../testdata/tab-teach/frames.json", import.meta.url)));
+  const p = await open("?shell=1");
+  await ready(p);
+  await p.eval(`window.__strict()`);
+  await p.eval(`(async () => {
+    const T = await import('/petri-tab.js');
+    const view = document.querySelector('petri-view');
+    const replies = [];
+    let push = null;
+    const enc = new TextEncoder();
+    const fetchImpl = async (u, init = {}) => {
+      if (u.endsWith('/api/tab') && init.method === 'POST') return new Response(JSON.stringify({ id: 'tabE2E' }), { status: 200 });
+      if (u.endsWith('/events')) return new Response(new ReadableStream({ start(c) { push = (s) => c.enqueue(enc.encode(s)); } }), { status: 200 });
+      if (u.endsWith('/reply')) replies.push(JSON.parse(init.body));
+      return new Response(null, { status: 204 });
+    };
+    const link = new T.TabLink({ host: view._tabHost(), token: 'smoke', fetchImpl });
+    await link.start();
+    for (let i = 0; i < 100 && !push; i++) await new Promise((r) => setTimeout(r, 20));
+    window.__e2e = { replies, send: (ev) => push('event: ' + ev.type + '\\ndata: ' + JSON.stringify(ev) + '\\n\\n'), link };
+  })()`);
+  ok(await p.eval(`!!window.__e2e`), "e2e: the page's TabLink is streaming");
+  const send = async (i: number) => {
+    await p.eval(`__e2e.send(${JSON.stringify(golden[i])})`);
+    return await p.waitFor(`__e2e.replies.length === ${i + 1}`, 15000);
+  };
+  const lastOk = `__e2e.replies.at(-1).state.result.ok === true`;
+  // 1. pflow_show canvas with a net
+  ok(await send(0) && await p.eval(lastOk), "e2e: the net push is answered ok", await p.eval(`JSON.stringify(__e2e.replies.at(-1)?.state?.result)`));
+  ok(await p.waitFor(`Object.keys(document.querySelector('petri-view').exportJSON().places).includes('pushedA')`, 20000), "e2e: the pushed net is on the canvas");
+  // 2. pflow_level math
+  ok(await send(1) && await p.eval(lastOk), "e2e: level is answered ok");
+  ok(await p.waitFor(`document.getElementById('editor-wrapper').dataset.level === 'math' && __e2e.replies.at(-1).state.shell.level === 'math'`), "e2e: the shell is at the math level, and the answer says so");
+  // 3. pflow_show notation: the real notation panel prints the pushed net
+  ok(await send(2) && await p.eval(lastOk), "e2e: the notation push is answered ok");
+  ok(await p.waitFor(`[...document.querySelectorAll('.pf-panel[data-id=notation] .pf-ltext')].some(x => x.textContent.startsWith('transition move'))`, 15000), "e2e: the notation panel shows the pushed net as text");
+  // 4. pflow_highlight node:move
+  ok(await send(3) && await p.eval(lastOk), "e2e: highlight is answered ok");
+  ok(await p.waitFor(`pflowShell.state().highlights.join() === 'node:move' && [...document.querySelectorAll('.pf-panel[data-id=notation] .pf-line.pf-hl .pf-ltext')].map(x => x.textContent).every(t => /\\bmove\\b/.test(t)) && document.querySelectorAll('.pf-panel[data-id=notation] .pf-line.pf-hl').length >= 2`), "e2e: the transition is highlighted, and every notation line naming it is lit", await p.eval(`JSON.stringify([...document.querySelectorAll('.pf-panel[data-id=notation] .pf-line.pf-hl')].map(x => x.textContent))`));
+  // 5. pflow_tour: two steps
+  ok(await send(4) && await p.eval(lastOk), "e2e: the tour is answered ok");
+  ok(await p.waitFor(`/Three tokens wait in pushedA/.test(document.querySelector('.pf-narration')?.textContent) && /step 1 of 2/.test(document.querySelector('.pf-narration').textContent)`), "e2e: the tour's first step is narrated, step 1 of 2");
+  ok(await p.eval(`pflowShell.state().highlights.join() === 'node:pushedA'`), "e2e: the first step highlighted pushedA");
+  // 6. pflow_tour action next
+  ok(await send(5) && await p.eval(lastOk), "e2e: next is answered ok");
+  ok(await p.waitFor(`/always 3/.test(document.querySelector('.pf-narration').textContent) && /step 2 of 2/.test(document.querySelector('.pf-narration').textContent) && !!document.querySelector('.pf-panel[data-id=invariants]')`, 15000), "e2e: step 2 is narrated and opened the invariants panel");
+  ok(await p.eval(`__e2e.replies.every(r => r.state.result.ok === true && !JSON.stringify(r.state).includes('pushedB":{'))`), "e2e: every push was answered ok, and no answer carries the net");
+  ok((await p.eval(`window.__csp.length`)) === 0, "e2e: no CSP violation", await p.eval(`window.__csp.join(' | ')`));
+  ok(noise(p).length === 0, "e2e: no console errors", noise(p).join(" | "));
+  await p.eval(`__e2e.link.stop()`);
   await p.close();
 }
 

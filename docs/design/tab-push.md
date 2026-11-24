@@ -1,6 +1,7 @@
 # Tab push: a Claude session drives an open pflow.xyz page
 
-Status: implemented behind `PFLOW_TAB_PUSH=1` (or `-tab-push`), off by default. Branch `feat/tab-push`.
+Status: on main. On by default on the server (`PFLOW_TAB_PUSH=0` turns it off); a page offers the link only with the
+IDE shell on (`?shell=1`, docs/ide-shell.md), which is also what the teaching verbs below drive.
 
 A Claude client connected to `/mcp` can list the pflow.xyz pages its signed-in person has open, push a net or a
 view into one, read back what the page shows, and clear it. The person keeps chatting in one window and watches the
@@ -63,8 +64,7 @@ the canvas net in the reply (still within the cap).
 
 ## MCP tools
 
-All four are listed only when the flag is on, need a signed-in caller, and are annotated (not read-only, not
-destructive).
+Listed unless `PFLOW_TAB_PUSH=0`; each needs a signed-in caller and is annotated.
 
 | tool | arguments | notes |
 |---|---|---|
@@ -72,19 +72,32 @@ destructive).
 | `pflow_show` | `view`, one of `net` or `cid`, `tab?`, `params?`, `note?` | `tab` omitted: every live tab of the caller. Answer: `{sent, tabs, private}`. |
 | `pflow_tab_get` | `tab?`, `net?` | The latest report, asking the page when stale. Omitted `tab`: the most recently seen. |
 | `pflow_tab_stop` | `tab?` | The page closes result cards and overlays and cancels a running replay. It does not touch the net on the canvas. |
+| `pflow_level` | `level`, `tab?` | `outcome`, `model` or `math`: the IDE shell's level of detail. |
+| `pflow_highlight` | `targets`, `label?`, `tab?` | `node:<id>`, `line:<n>`, `range:<a>-<b>`; `[]` clears. |
+| `pflow_annotate` | `text`, `target?`, `id?`, `tab?` | A line of narration; `text: ""` with an `id` removes it. |
+| `pflow_focus` | `target`, `tab?` | `panel:<id>`, `view:<type>`, `node:<id>`, `line:<n>`. |
+| `pflow_tour` | `steps` and `title?`, or `action`; `tab?` | Up to 30 steps, each a `show` (no net), `level`, `highlight`, `annotate` or `focus` with `say`; `action` is `next`, `back` or `end`. |
+
+The teaching verbs (`cmd/webserver/tabs_teach.go`) send events whose fields are in `params`; the page spreads them into
+the event it gives `window.pflowShell.dispatch`. Every pushed event with a `request_id` (all of them but `get`'s own) is
+answered on `/reply` with the report plus `result`, the shell's answer, and `pflow_show` and the verbs wait up to 1.5 s
+for it (`tabhub.PushAwait`): the answer carries `answered`, `result`, the shell's `level` and `tour`, and a note when
+the page refused (for a view above its level: send `pflow_level` first). A page without the shell answers a verb with
+`ok:false`.
 
 ## Page side
 
 `public/petri-tab.js` is DOM-free (parser, channel with reconnect, the event-to-ViewSpec planner, the report
 builder) and has its own deno tests. `petri-view.js` has about a hundred lines of wiring (`_tabLink*`): after sign-in
-it asks `GET /api/tab/status`; when the server says enabled **and** the person has switched the link on (menu item
+and with the IDE shell on (`?shell=1`) it asks `GET /api/tab/status`; when the server says enabled **and** the person
+has switched the link on (menu item
 "Link to Claude", remembered in `localStorage`; `?tab=1` switches it on for that visit) it registers a tab and
 shows its id in a one-line notice. Nothing connects by default.
 
 ## IDE shell
 
-Run a861c41d's IDE shell (branch `feat/ide-shell`) hosts panels and modals. The agreed hook: when
-`window.pflowShell.open` exists, the page hands it the `show` event unchanged (`{view, net|cid, params, note,
+The IDE shell (docs/ide-shell.md) hosts panels and modals. When `window.pflowShell.dispatch` exists, the page hands it
+the `show` event unchanged (`{view, net|cid, params, note,
 request_id}`), `stop` goes to `pflowShell.close(request_id)`, and `pflowShell.state().panels` is merged into the
 report. Without a shell the page's own path (result card, overlay) runs. The view names above are the shell's
 registry types, so an MCP push and a menu click open the same panel. A pushed net is private: a shell must not

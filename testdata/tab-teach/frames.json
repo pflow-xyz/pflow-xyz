@@ -1,0 +1,183 @@
+[
+  {
+    "net": {
+      "@context": "https://pflow.xyz/schema",
+      "@type": "PetriNet",
+      "@version": "1.1",
+      "arcs": [
+        {
+          "@type": "Arrow",
+          "inhibitTransition": false,
+          "source": "pushedA",
+          "target": "move",
+          "weight": [
+            1
+          ]
+        },
+        {
+          "@type": "Arrow",
+          "inhibitTransition": false,
+          "source": "move",
+          "target": "pushedB",
+          "weight": [
+            1
+          ]
+        }
+      ],
+      "places": {
+        "pushedA": {
+          "@type": "Place",
+          "capacity": [
+            0
+          ],
+          "initial": [
+            3
+          ],
+          "offset": 0,
+          "x": 100,
+          "y": 100
+        },
+        "pushedB": {
+          "@type": "Place",
+          "capacity": [
+            0
+          ],
+          "initial": [
+            0
+          ],
+          "offset": 0,
+          "x": 300,
+          "y": 100
+        }
+      },
+      "token": [
+        "https://pflow.xyz/tokens/black"
+      ],
+      "transitions": {
+        "move": {
+          "@type": "Transition",
+          "x": 200,
+          "y": 100
+        }
+      }
+    },
+    "note": "a two-place net",
+    "request_id": "r1",
+    "type": "show",
+    "view": "canvas"
+  },
+  {
+    "params": {
+      "level": "math"
+    },
+    "request_id": "r2",
+    "type": "level"
+  },
+  {
+    "net": {
+      "@context": "https://pflow.xyz/schema",
+      "@type": "PetriNet",
+      "@version": "1.1",
+      "arcs": [
+        {
+          "@type": "Arrow",
+          "inhibitTransition": false,
+          "source": "pushedA",
+          "target": "move",
+          "weight": [
+            1
+          ]
+        },
+        {
+          "@type": "Arrow",
+          "inhibitTransition": false,
+          "source": "move",
+          "target": "pushedB",
+          "weight": [
+            1
+          ]
+        }
+      ],
+      "places": {
+        "pushedA": {
+          "@type": "Place",
+          "capacity": [
+            0
+          ],
+          "initial": [
+            3
+          ],
+          "offset": 0,
+          "x": 100,
+          "y": 100
+        },
+        "pushedB": {
+          "@type": "Place",
+          "capacity": [
+            0
+          ],
+          "initial": [
+            0
+          ],
+          "offset": 0,
+          "x": 300,
+          "y": 100
+        }
+      },
+      "token": [
+        "https://pflow.xyz/tokens/black"
+      ],
+      "transitions": {
+        "move": {
+          "@type": "Transition",
+          "x": 200,
+          "y": 100
+        }
+      }
+    },
+    "request_id": "r3",
+    "type": "show",
+    "view": "notation"
+  },
+  {
+    "params": {
+      "label": "this fires",
+      "targets": [
+        "node:move"
+      ]
+    },
+    "request_id": "r4",
+    "type": "highlight"
+  },
+  {
+    "params": {
+      "steps": [
+        {
+          "say": "Three tokens wait in pushedA.",
+          "targets": [
+            "node:pushedA"
+          ],
+          "type": "highlight"
+        },
+        {
+          "params": {
+            "kind": "p"
+          },
+          "say": "pushedA + pushedB is always 3.",
+          "type": "show",
+          "view": "invariants"
+        }
+      ],
+      "title": "How tokens move"
+    },
+    "request_id": "r5",
+    "type": "tour"
+  },
+  {
+    "params": {
+      "action": "next"
+    },
+    "request_id": "r6",
+    "type": "tour_control"
+  }
+]

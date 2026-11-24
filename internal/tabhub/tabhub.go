@@ -280,6 +280,71 @@ func (h *Hub) Push(owner, tabID string, ev Event) (int, error) {
 	return n, nil
 }
 
+// PushAwait is Push that also waits, up to wait, for a page to answer the
+// event: a page answers an event by POSTing /reply with the event's request_id
+// (the same route a "get" uses), and the answer is its report with what the
+// event did. The answer is taken from tabID's tab, or with tabID empty from
+// the most recently seen tab that received the event. A nil report means no
+// page answered in time (an older page, or a slow one): the push still went.
+func (h *Hub) PushAwait(ctx context.Context, owner, tabID string, ev Event, wait time.Duration) (int, Report, error) {
+	if ev.RequestID == "" {
+		ev.RequestID = NewID()
+	}
+	h.mu.Lock()
+	if owner == "" {
+		h.mu.Unlock()
+		return 0, nil, &Error{401, "auth_required", "driving a tab needs a signed-in caller"}
+	}
+	var targets []*tab
+	if tabID != "" {
+		t := h.owned(tabID, owner)
+		if t == nil {
+			h.mu.Unlock()
+			return 0, nil, ErrNoTab()
+		}
+		targets = []*tab{t}
+	} else {
+		for _, t := range h.tabs {
+			if t.owner == owner {
+				targets = append(targets, t)
+			}
+		}
+	}
+	n := 0
+	var waiter *tab
+	for _, t := range targets {
+		if h.deliver(t, ev) {
+			n++
+			if waiter == nil || t.seen.After(waiter.seen) {
+				waiter = t
+			}
+		}
+	}
+	if waiter == nil || wait <= 0 {
+		h.mu.Unlock()
+		return n, nil, nil
+	}
+	// Registered before the lock is released, so a reply cannot arrive first.
+	ch := make(chan Report, 1)
+	waiter.pending[ev.RequestID] = ch
+	id := waiter.id
+	h.mu.Unlock()
+	timer := time.NewTimer(wait)
+	defer timer.Stop()
+	var got Report
+	select {
+	case got = <-ch:
+	case <-timer.C:
+	case <-ctx.Done():
+	}
+	h.mu.Lock()
+	if t := h.tabs[id]; t != nil {
+		delete(t.pending, ev.RequestID)
+	}
+	h.mu.Unlock()
+	return n, got, nil
+}
+
 func (h *Hub) setReport(t *tab, r Report) {
 	h.bytes += len(r) - len(t.report)
 	t.report, t.reportAt, t.seen = r, h.clock(), h.clock()
@@ -319,7 +384,10 @@ func (h *Hub) Reply(id, owner, requestID string, r Report) error {
 	if t := h.tabs[id]; t != nil {
 		if ch, ok := t.pending[requestID]; ok {
 			delete(t.pending, requestID)
-			ch <- r
+			select { // buffered 1 and one waiter, so this never drops; never block holding the lock
+			case ch <- r:
+			default:
+			}
 		}
 	}
 	return nil

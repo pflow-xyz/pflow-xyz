@@ -30,6 +30,7 @@ func tabServer(t *testing.T) (*Server, *httptest.Server) {
 	}, false)
 	t.Cleanup(func() { setTabPush(false) })
 	s.tabs.ping = 50 * time.Millisecond
+	s.tabs.replyWait = 300 * time.Millisecond // a fake page that answers does so at once; one that does not costs this much per push
 	srv := httptest.NewServer(s)
 	t.Cleanup(srv.Close)
 	return s, srv
@@ -137,7 +138,12 @@ func tabTool(t *testing.T, srv *httptest.Server, token, name, args string) (map[
 
 func TestTabPushOffChangesNothing(t *testing.T) {
 	s := &Server{}
-	s.configureTabs(func(string) string { return "" }, false)
+	s.configureTabs(func(k string) string {
+		if k == "PFLOW_TAB_PUSH" {
+			return "0"
+		}
+		return ""
+	}, false)
 	rec := httptest.NewRecorder()
 	s.ServeHTTP(rec, httptest.NewRequest("GET", "/api/tab/status", nil))
 	var st map[string]any

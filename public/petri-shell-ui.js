@@ -19,6 +19,7 @@
 
 import { DOCKS, LAYOUT_KEY, LEVELS, PHONE_MAX, Shell, ViewRegistry, emptyLayout, filterCommands, parseTarget } from './petri-shell.js';
 import { h, registerBuiltins } from './petri-shell-views.js';
+import { notationView } from './petri-shell-notation.js';
 
 const WIDE_SPLIT = '(min-width: 1100px)';
 const PHONE = `(max-width: ${PHONE_MAX}px)`;
@@ -70,6 +71,7 @@ if (!customElements.get('pf-dock')) customElements.define('pf-dock', PfDock);
 export async function mountShell(wrapper, { storage = globalThis.localStorage, view = wrapper.querySelector('petri-view') } = {}) {
     await customElements.whenDefined('petri-view');
     const registry = registerBuiltins(new ViewRegistry());
+    registry.register(notationView); // the real notation panel over the stand-in (POST /api/notation)
     let stored = null;
     try { stored = JSON.parse(storage?.getItem(LAYOUT_KEY) || 'null'); } catch { /* a bad value is the default layout */ }
     const shell = new Shell({ registry, layout: stored });

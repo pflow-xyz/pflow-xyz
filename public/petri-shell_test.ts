@@ -183,7 +183,7 @@ Deno.test("flag: ?shell=1 turns it on and remembers, ?shell=0 turns it off, othe
 });
 
 Deno.test("strict CSP: the shell's modules use no inline handler, inline style, eval or document.write", async () => {
-    for (const f of ["petri-shell.js", "petri-shell-views.js", "petri-shell-ui.js", "petri-shell-boot.js"]) {
+    for (const f of ["petri-shell.js", "petri-shell-views.js", "petri-shell-ui.js", "petri-shell-boot.js", "petri-shell-notation.js"]) {
         const src = await Deno.readTextFile(new URL(`./${f}`, import.meta.url));
         const code = src.replace(/\/\*[\s\S]*?\*\//g, "").split("\n").filter((l) => !l.trim().startsWith("//")).join("\n");
         for (const [re, why] of [

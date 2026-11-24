@@ -466,7 +466,7 @@ export class Shell {
     /** What an agent may read back (merged into a tab push's `report`): ids and types only, never payloads. */
     state() {
         const panels = Object.entries(this.layout.docks).flatMap(([dock, list]) => list.map((p) => ({ id: p.id, type: p.type, dock, active: this.layout.active[dock] === p.id })));
-        return { shell: 1, level: this.level, tour: this.tour ? { title: this.tour.title, step: this.tour.i + 1, of: this.tour.steps.length } : null, panels, modal: this.modal ? { id: this.modal.id, type: this.modal.type } : null, views: this.registry.types().map((v) => v.type) };
+        return { shell: 1, level: this.level, tour: this.tour ? { title: this.tour.title, step: this.tour.i + 1, of: this.tour.steps.length } : null, panels, modal: this.modal ? { id: this.modal.id, type: this.modal.type } : null, highlights: this.highlights.slice(), views: this.registry.types().map((v) => v.type) };
     }
 
     /** The layout as it may be stored: ids, types, docks, sizes. No payload is in it, so no pushed net can be. */
