@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"flag"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -154,5 +155,29 @@ func TestExamples(t *testing.T) {
 		if want[name] != cids[name] {
 			t.Errorf("%s: cids.json says %s, the example seals to %s", name, want[name], cids[name])
 		}
+	}
+}
+
+// The editor's own strict check (public/petri-validate.js, what Check net runs) finds nothing
+// to say about any compiled example: no error, and no warning that a default was filled in.
+func TestExamplesPassTheEditorsOwnCheck(t *testing.T) {
+	node, err := exec.LookPath("node")
+	if err != nil {
+		t.Skip("node is not installed")
+	}
+	files, _ := filepath.Glob(filepath.Join(examplesDir, "*.jsonld"))
+	var nets []string
+	for _, f := range files {
+		if filepath.Base(f) != "pipeline.jsonld" { // a composition is not a net
+			nets = append(nets, f)
+		}
+	}
+	args := append([]string{"../../scripts/check-nets.mjs"}, nets...)
+	out, err := exec.Command(node, args...).CombinedOutput()
+	if err != nil {
+		t.Fatalf("Check net: %v\n%s", err, out)
+	}
+	if strings.Count(string(out), "0 error(s), 0 warning(s)") != len(nets) {
+		t.Errorf("Check net has something to say:\n%s", out)
 	}
 }

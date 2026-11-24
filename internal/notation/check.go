@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"sort"
 	"strconv"
+	"strings"
 )
 
 // ColourList returns the net's colours in declaration order with their token URIs.
@@ -141,6 +142,27 @@ func (f *File) Check() []Diagnostic {
 				add(Error, t.Rate.Span, "a rate cannot be negative", nil, t.Rate.Text, "")
 			}
 		}
+	}
+
+	// the label rule of the editor's label box (public/petri-validate.js labelProblem)
+	label := func(l *Str) {
+		if l == nil {
+			return
+		}
+		switch {
+		case strings.TrimSpace(l.Value) == "":
+			add(Error, l.Span, "a label cannot be empty", nil, "", "leave `label` out to show the id")
+		case runeCount(l.Value) > 100:
+			add(Error, l.Span, "a label is 100 characters or fewer", nil, "", "")
+		case strings.ContainsAny(l.Value, "\r\n"):
+			add(Error, l.Span, "a label is a single line", nil, "", "")
+		}
+	}
+	for _, p := range f.Places {
+		label(p.Label)
+	}
+	for _, t := range f.Transitions {
+		label(t.Label)
 	}
 
 	touched := map[string]bool{}
