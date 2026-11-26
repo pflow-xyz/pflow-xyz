@@ -99,6 +99,12 @@ func pkce() (verifier, challenge string) {
 // the token response.
 func signIn(t *testing.T, s *Server, provider, providerCode string) map[string]any {
 	t.Helper()
+	return signInScope(t, s, provider, providerCode, mcpScopeSave)
+}
+
+// signInScope is signIn asking for the given scope (space-separated).
+func signInScope(t *testing.T, s *Server, provider, providerCode, scope string) map[string]any {
+	t.Helper()
 	const redirect = "https://claude.ai/api/mcp/auth_callback"
 	rec := serve(t, s, httptest.NewRequest("POST", mcpRegisterPath, strings.NewReader(`{"redirect_uris":["`+redirect+`"],"client_name":"Claude"}`)))
 	if rec.Code != 201 {
@@ -110,7 +116,7 @@ func signIn(t *testing.T, s *Server, provider, providerCode string) map[string]a
 
 	verifier, challenge := pkce()
 	q := url.Values{"response_type": {"code"}, "client_id": {clientID}, "redirect_uri": {redirect}, "code_challenge": {challenge},
-		"code_challenge_method": {"S256"}, "state": {"xyz"}, "scope": {mcpScopeSave}, "resource": {testOrigin + "/mcp"}}
+		"code_challenge_method": {"S256"}, "state": {"xyz"}, "scope": {scope}, "resource": {testOrigin + "/mcp"}}
 	rec = serve(t, s, httptest.NewRequest("GET", mcpAuthorizePath+"?"+q.Encode(), nil))
 	if rec.Code != 200 || !strings.Contains(rec.Body.String(), "Continue with GitHub") || !strings.Contains(rec.Body.String(), "Continue with Google") {
 		t.Fatalf("consent page: %d %s", rec.Code, rec.Body)

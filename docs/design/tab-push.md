@@ -17,7 +17,7 @@ canvas in another. This is BeatScript's MCP-to-display setup (`beatscript/crates
 | MCP `eval`/`load`/`stop` push an event to the caller's live tabs (one named by `session`, else all); the answer says how many pages received it. | `pflow_show` / `pflow_tab_stop`, same `tab` argument and same count. |
 | MCP `get` returns the last report; if it is older than 1.5 s the hub pushes `{type:"get", request_id}` and waits up to 3 s for the page's `reply`. | `pflow_tab_get`, same round trip and the same two constants (`STATE_FRESH`, `GET_WAIT`). |
 | MCP `devices` lists paired phones; pairing is a QR code claimed by the phone. | `pflow_tabs` lists open tabs. There is no pairing step: the page proves the account with its own bearer token when it registers, and the MCP caller proves the same account through OAuth. **The account is the pairing.** Both sides must resolve to the same `provider:subject`. |
-| MCP OAuth (`oauth.rs`): the tools need a token, the first call answers 401 with `WWW-Authenticate`. | pflow already has this (`mcp_oauth.go`, PKCE, GitHub or Google). The four tab tools join `mcpProtectedTools`, so a connector is asked to sign in on first use. A Google-only MCP identity has no tab, because pflow's page signs in with GitHub only; `pflow_tabs` says so rather than listing nothing silently. |
+| MCP OAuth (`oauth.rs`): the tools need a token, the first call answers 401 with `WWW-Authenticate`. | pflow already has this (`mcp_oauth.go`, PKCE, GitHub or Google). The four tab tools need a signed-in caller holding the `pflow:tabs` scope (see Taste calls, 6), so a connector is asked to sign in on first use. A Google-only MCP identity has no tab, because pflow's page signs in with GitHub only; `pflow_tabs` says so rather than listing nothing silently. |
 | `load` sends a stored program by CID (public). `eval` sends the text (not stored). `push_private` seals text for one phone and keeps nothing. | `pflow_show` with `cid` is a **public** push: the net is a stored one and the tab opens it by that address. `pflow_show` with `net` is a **private** push: the net travels in the event, is held in memory only for delivery, is never stored, never given a CID, never logged, and a tab that is not connected receives nothing (no queue). The server logs only the event's size and the tab id. |
 | `queue` (up next). | Not carried over. A queue makes sense for audio that plays through; a net on a canvas has no "next". |
 | Caps: 20 sessions per user, 5000 total, 4 streams per session, 40 streams per address, 256 KiB report, 128 MiB report budget, 10 min idle TTL. | Same numbers (`internal/tabhub`), except the total report budget, which is 32 MiB: pflow's reports are small. |
@@ -128,7 +128,13 @@ write it to localStorage or the server.
 4. **Accounts, not tab ids, are the security boundary.** A tab id is 22 random characters but is never accepted
    without the matching account (a push to someone else's tab answers "no such tab", not "forbidden").
 5. **GitHub-only tabs for now.** The page signs in with GitHub; a Google-only OAuth identity cannot own a tab.
-6. **One OAuth scope.** The tab tools reuse `pflow:save`: adding a scope means new consent copy and a connector re-approval. Worth doing before the tools are on by default.
+6. **Its own OAuth scope, `pflow:tabs`.** The four tab tools and the teaching verbs need it; `pflow_save` keeps
+   `pflow:save`. The consent page says what each scope lets the app do. A client that asks for no scope still gets
+   `pflow:save` alone, so nothing already connected gains the right to drive a page. A token without `pflow:tabs`
+   that calls a tab tool gets HTTP 403 `insufficient_scope` with `scope="pflow:save pflow:tabs"`, which is the
+   client's cue to sign in again; the first call with no token at all asks for `scope="pflow:tabs"`. The scope is
+   advertised in both discovery documents only while tab push is on. A bare GitHub bearer token (the pre-OAuth way
+   in) is the person's own credential and is not scoped. Tests: `cmd/webserver/tabs_scope_test.go`.
 
 ## What should move into shared code
 

@@ -381,6 +381,11 @@ func tabCaller(s *Server, r *http.Request) (string, *mcpIdentity, error) {
 			return "", nil, errors.New("that sign-in was not accepted (the token is invalid or expired)")
 		}
 	}
+	// The gate (mcpAuthGate) already answered 403 for a token without the
+	// scope; this holds if a tool is ever reached some other way.
+	if !id.allows(mcpScopeTabs) {
+		return "", nil, errors.New("this sign-in does not include the " + mcpScopeTabs + " permission; sign in again and allow it")
+	}
 	return id.Provider + ":" + id.ID, id, nil
 }
 
