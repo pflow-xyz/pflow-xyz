@@ -11,6 +11,8 @@ package main
 // The flow, as Claude's client runs it:
 //  1. tools/call pflow_save with no valid token → HTTP 401 with
 //     WWW-Authenticate: Bearer resource_metadata=…, scope="pflow:save".
+//     (The tab push tools ask for scope="pflow:tabs" instead; a token that
+//     has pflow:save but not pflow:tabs gets HTTP 403 insufficient_scope.)
 //  2. Claude reads /.well-known/oauth-protected-resource/mcp, then this
 //     server's /.well-known/oauth-authorization-server.
 //  3. Claude identifies itself with a Client ID Metadata Document (an https
@@ -68,29 +70,53 @@ import (
 )
 
 const (
-	mcpScopeSave       = "pflow:save"
-	mcpAccessTokenTTL  = time.Hour
-	mcpRefreshTokenTTL = 30 * 24 * time.Hour
-	mcpCodeTTL         = 2 * time.Minute
-	mcpPendingTTL      = 10 * time.Minute
-	mcpAuthCookie      = "pflow_mcp_auth"
-	maxClientMetadata  = 64 << 10
-	maxRedirectURIs    = 10
-	maxRedirectURILen  = 512
-	mcpProviderTimeout = 10 * time.Second
-	githubCallbackPath = "/auth/github/callback/mcp"
-	googleCallbackPath = "/auth/google/callback"
-	mcpAuthorizePath   = "/auth/mcp/authorize"
-	mcpLoginPath       = "/auth/mcp/login"
-	mcpTokenPath       = "/auth/mcp/token"
-	mcpRegisterPath    = "/auth/mcp/register"
-	protectedMetaPath  = "/.well-known/oauth-protected-resource"
-	authServerMetaPath = "/.well-known/oauth-authorization-server"
-	mcpSignInRequired  = "Signing in to pflow.xyz is required to save a net"
+	mcpScopeSave          = "pflow:save"
+	mcpScopeTabs          = "pflow:tabs" // tab push: drive the pages the person has linked (docs/design/tab-push.md)
+	mcpAccessTokenTTL     = time.Hour
+	mcpRefreshTokenTTL    = 30 * 24 * time.Hour
+	mcpCodeTTL            = 2 * time.Minute
+	mcpPendingTTL         = 10 * time.Minute
+	mcpAuthCookie         = "pflow_mcp_auth"
+	maxClientMetadata     = 64 << 10
+	maxRedirectURIs       = 10
+	maxRedirectURILen     = 512
+	mcpProviderTimeout    = 10 * time.Second
+	githubCallbackPath    = "/auth/github/callback/mcp"
+	googleCallbackPath    = "/auth/google/callback"
+	mcpAuthorizePath      = "/auth/mcp/authorize"
+	mcpLoginPath          = "/auth/mcp/login"
+	mcpTokenPath          = "/auth/mcp/token"
+	mcpRegisterPath       = "/auth/mcp/register"
+	protectedMetaPath     = "/.well-known/oauth-protected-resource"
+	authServerMetaPath    = "/.well-known/oauth-authorization-server"
+	mcpSignInRequired     = "Signing in to pflow.xyz is required to save a net"
+	mcpTabsSignInRequired = "Signing in to pflow.xyz is required to drive a linked page"
 )
 
 // mcpProtectedTools need a signed-in person; every other tool is open.
 var mcpProtectedTools = map[string]bool{"pflow_save": true}
+
+// mcpSupportedScopes is what the authorization server advertises and grants.
+// pflow:tabs exists only while tab push is on: with it off there are no tools
+// for the scope to gate.
+func mcpSupportedScopes() []string {
+	if tabPushOn.Load() {
+		return []string{mcpScopeSave, mcpScopeTabs}
+	}
+	return []string{mcpScopeSave}
+}
+
+// mcpToolScope is the scope a tool needs: pflow_save needs pflow:save, every
+// tab push tool needs pflow:tabs, and the rest need none.
+func mcpToolScope(tool string) string {
+	switch {
+	case tool == "pflow_save":
+		return mcpScopeSave
+	case tabPushOn.Load() && tabToolNames[tool]:
+		return mcpScopeTabs
+	}
+	return ""
+}
 
 // oauthProvider is GitHub or Google, as the person picks on the consent page.
 type oauthProvider struct {
@@ -109,6 +135,31 @@ type mcpIdentity struct {
 	Provider string `json:"prov"`
 	ID       string `json:"sub"`
 	Name     string `json:"name,omitempty"`
+
+	// What the token grants, set by mcpIdentityFor (never part of a signed
+	// claim: the claims carry their own Scope). A bare GitHub token has no
+	// scopes: it is the person's own credential, so it is allowed everything.
+	scope    string
+	anyScope bool
+}
+
+// allows reports whether the token carries scope. A token issued before
+// scopes were granted one at a time has an empty scope and was always
+// pflow:save.
+func (id *mcpIdentity) allows(scope string) bool {
+	if scope == "" || id.anyScope {
+		return true
+	}
+	granted := strings.Fields(id.scope)
+	if len(granted) == 0 {
+		granted = []string{mcpScopeSave}
+	}
+	for _, g := range granted {
+		if g == scope {
+			return true
+		}
+	}
+	return false
 }
 
 // mcpOAuth is the authorization server's configuration and its small state.
@@ -353,6 +404,7 @@ func (s *Server) mcpIdentityFor(r *http.Request) (*mcpIdentity, error) {
 			return nil, errBadToken
 		}
 		id := c.mcpIdentity
+		id.scope = c.Scope
 		return &id, nil
 	}
 	verifier := s.mcpVerifier
@@ -367,7 +419,7 @@ func (s *Server) mcpIdentityFor(r *http.Request) (*mcpIdentity, error) {
 	case err != nil:
 		return nil, errBadToken
 	}
-	return &mcpIdentity{Provider: "github", ID: u.GitHubID, Name: u.UserName}, nil
+	return &mcpIdentity{Provider: "github", ID: u.GitHubID, Name: u.UserName, anyScope: true}, nil
 }
 
 type mcpIdentityKey struct{}
@@ -381,21 +433,23 @@ func mcpIdentityOf(r *http.Request) *mcpIdentity {
 	return id
 }
 
-// callsProtectedTool reports whether a JSON-RPC body (one message or a batch)
-// calls a tool that needs sign-in.
-func callsProtectedTool(body []byte) bool {
+// requiredScopes lists the scopes the tools called by a JSON-RPC body (one
+// message or a batch) need, in the order the server advertises them; empty
+// when every tool it calls is open.
+func requiredScopes(body []byte) []string {
 	var msgs []rpcRequest
 	if t := strings.TrimSpace(string(body)); strings.HasPrefix(t, "[") {
 		if json.Unmarshal(body, &msgs) != nil {
-			return false
+			return nil
 		}
 	} else {
 		var m rpcRequest
 		if json.Unmarshal(body, &m) != nil {
-			return false
+			return nil
 		}
 		msgs = []rpcRequest{m}
 	}
+	need := map[string]bool{}
 	for _, m := range msgs {
 		if m.Method != "tools/call" {
 			continue
@@ -403,32 +457,72 @@ func callsProtectedTool(body []byte) bool {
 		var p struct {
 			Name string `json:"name"`
 		}
-		if json.Unmarshal(m.Params, &p) == nil && (mcpProtectedTools[p.Name] || (tabPushOn.Load() && tabToolNames[p.Name])) {
-			return true
+		if json.Unmarshal(m.Params, &p) != nil {
+			continue
+		}
+		if sc := mcpToolScope(p.Name); sc != "" {
+			need[sc] = true
 		}
 	}
-	return false
+	var out []string
+	for _, sc := range []string{mcpScopeSave, mcpScopeTabs} {
+		if need[sc] {
+			out = append(out, sc)
+		}
+	}
+	return out
 }
 
 // mcpAuthGate runs before dispatch. A call to a protected tool without a
 // valid token gets HTTP 401 and a WWW-Authenticate challenge, which is what
-// makes Claude show its sign-in prompt and retry; a tool error would not.
+// makes Claude show its sign-in prompt and retry; a tool error would not. A
+// valid token that lacks a scope the call needs gets HTTP 403
+// insufficient_scope, which asks the client to sign in again for that scope.
 // It returns the request (carrying the identity, if any) and whether the
 // caller should go on.
 func (s *Server) mcpAuthGate(w http.ResponseWriter, r *http.Request, body []byte) (*http.Request, bool) {
-	if s.mcpOAuth == nil || !callsProtectedTool(body) {
+	if s.mcpOAuth == nil {
+		return r, true
+	}
+	need := requiredScopes(body)
+	if len(need) == 0 {
 		return r, true
 	}
 	id, err := s.mcpIdentityFor(r)
 	if err == nil {
-		return withMCPIdentity(r, id), true
+		var missing []string
+		for _, sc := range need {
+			if !id.allows(sc) {
+				missing = append(missing, sc)
+			}
+		}
+		if len(missing) == 0 {
+			return withMCPIdentity(r, id), true
+		}
+		// Ask for what the token has plus what it lacks, so the new grant
+		// replaces the old one rather than narrowing it.
+		var ask []string
+		for _, sc := range mcpSupportedScopes() {
+			if id.allows(sc) || contains(missing, sc) {
+				ask = append(ask, sc)
+			}
+		}
+		o := s.mcpOAuth
+		desc := "This sign-in does not include the " + strings.Join(missing, " ") + " permission; sign in again and allow it"
+		w.Header().Set("WWW-Authenticate", fmt.Sprintf(`Bearer error="insufficient_scope", error_description="%s", scope="%s", resource_metadata="%s%s/mcp"`,
+			desc, strings.Join(ask, " "), o.origin(r), protectedMetaPath))
+		writeJSON(w, http.StatusForbidden, map[string]string{"error": "insufficient_scope", "error_description": desc, "scope": strings.Join(ask, " ")})
+		return r, false
 	}
 	if errors.Is(err, errAuthUnavailable) {
-		return r, true // pflow_save reports the outage as a tool error
+		return r, true // the tool reports the outage as a tool error
 	}
 	o := s.mcpOAuth
 	desc := mcpSignInRequired
-	challenge := fmt.Sprintf(`Bearer resource_metadata="%s%s/mcp", scope="%s"`, o.origin(r), protectedMetaPath, mcpScopeSave)
+	if contains(need, mcpScopeTabs) {
+		desc = mcpTabsSignInRequired
+	}
+	challenge := fmt.Sprintf(`Bearer resource_metadata="%s%s/mcp", scope="%s"`, o.origin(r), protectedMetaPath, strings.Join(need, " "))
 	if errors.Is(err, errBadToken) {
 		desc = "The pflow.xyz sign-in has expired or is invalid"
 		challenge = `Bearer error="invalid_token", error_description="` + desc + `", ` + strings.TrimPrefix(challenge, "Bearer ")
@@ -452,7 +546,7 @@ func (s *Server) handleProtectedResourceMetadata(w http.ResponseWriter, r *http.
 		"resource_name":            "pflow.xyz",
 		"authorization_servers":    []string{o.origin(r)},
 		"bearer_methods_supported": []string{"header"},
-		"scopes_supported":         []string{mcpScopeSave},
+		"scopes_supported":         mcpSupportedScopes(),
 	})
 }
 
@@ -469,7 +563,7 @@ func (s *Server) handleAuthServerMetadata(w http.ResponseWriter, r *http.Request
 		"authorization_endpoint":                         base + mcpAuthorizePath,
 		"token_endpoint":                                 base + mcpTokenPath,
 		"registration_endpoint":                          base + mcpRegisterPath,
-		"scopes_supported":                               []string{mcpScopeSave},
+		"scopes_supported":                               mcpSupportedScopes(),
 		"response_types_supported":                       []string{"code"},
 		"grant_types_supported":                          []string{"authorization_code", "refresh_token"},
 		"token_endpoint_auth_methods_supported":          []string{"none"},
@@ -670,17 +764,38 @@ func (s *Server) handleAuthorize(w http.ResponseWriter, r *http.Request) {
 		fail("invalid_target", "this server issues tokens only for "+aud)
 		return
 	}
+	// Grant what was asked for, and nothing more. Asking for nothing keeps the
+	// old meaning (pflow:save), so a client that never heard of pflow:tabs is
+	// not given it. offline_access is accepted and ignored: refresh tokens are
+	// always issued.
+	supported := mcpSupportedScopes()
+	var granted []string
 	for _, sc := range strings.Fields(q.Get("scope")) {
-		if sc != mcpScopeSave && sc != "offline_access" {
-			fail("invalid_scope", "the only scope is "+mcpScopeSave)
+		switch {
+		case sc == "offline_access":
+		case contains(supported, sc):
+			if !contains(granted, sc) {
+				granted = append(granted, sc)
+			}
+		default:
+			fail("invalid_scope", "the scopes are "+strings.Join(supported, " "))
 			return
+		}
+	}
+	if len(granted) == 0 {
+		granted = []string{mcpScopeSave}
+	}
+	var scope []string // in the order the server advertises them
+	for _, sc := range supported {
+		if contains(granted, sc) {
+			scope = append(scope, sc)
 		}
 	}
 	nonce := randomID()
 	http.SetCookie(w, &http.Cookie{Name: mcpAuthCookie, Value: nonce, Path: "/auth/", MaxAge: int(mcpPendingTTL.Seconds()),
 		HttpOnly: true, Secure: strings.HasPrefix(o.origin(r), "https://"), SameSite: http.SameSiteLaxMode})
 	pending := pendingRequest{Client: clientID, Redirect: redirect, Challenge: challenge, State: q.Get("state"),
-		Scope: mcpScopeSave, Aud: aud, Nonce: nonce, Exp: o.now().Add(mcpPendingTTL).Unix()}
+		Scope: strings.Join(scope, " "), Aud: aud, Nonce: nonce, Exp: o.now().Add(mcpPendingTTL).Unix()}
 	redirectHost := redirect
 	if u, err := url.Parse(redirect); err == nil {
 		redirectHost = u.Host
@@ -698,12 +813,19 @@ func (s *Server) handleAuthorize(w http.ResponseWriter, r *http.Request) {
 	if privacy == "" {
 		privacy = o.origin(r) + "/privacy.html"
 	}
+	var asks strings.Builder
+	if contains(scope, mcpScopeSave) {
+		fmt.Fprintf(&asks, `<p><b>%s</b> is asking to save Petri nets to pflow.xyz in your name. Saved nets are public and show who saved them.</p>`, html.EscapeString(client.display))
+	}
+	if contains(scope, mcpScopeTabs) {
+		fmt.Fprintf(&asks, `<p><b>%s</b> is asking to show nets and views in the pflow.xyz pages you have linked to Claude, and to read what those pages show. It never sees pages you have not linked. Nets it shows you are not saved.</p>`, html.EscapeString(client.display))
+	}
 	consentPage(w, http.StatusOK, fmt.Sprintf(`<h1>Sign in to pflow.xyz</h1>
-<p><b>%s</b> is asking to save Petri nets to pflow.xyz in your name. Saved nets are public and show who saved them.</p>
+%s
 <p>After you sign in you will be sent back to <b>%s</b>. Only continue if you started this from an app you trust.</p>
 <div class="btns">%s</div>
 <p class="small">pflow.xyz keeps only your account id from GitHub or Google (and your GitHub username), never a password. By continuing you agree to the <a href="%s">terms</a> and <a href="%s">privacy policy</a>.</p>`,
-		html.EscapeString(client.display), html.EscapeString(redirectHost), buttons.String(), html.EscapeString(terms), html.EscapeString(privacy)))
+		asks.String(), html.EscapeString(redirectHost), buttons.String(), html.EscapeString(terms), html.EscapeString(privacy)))
 }
 
 // handleLogin sends the person to the provider they picked.
@@ -818,7 +940,7 @@ func (o *mcpOAuth) identify(ctx context.Context, prov *oauthProvider, code, redi
 		if err != nil {
 			return nil, err
 		}
-		return &mcpIdentity{Provider: "github", ID: u.GitHubID, Name: u.UserName}, nil
+		return &mcpIdentity{Provider: "github", ID: u.GitHubID, Name: u.UserName, anyScope: true}, nil
 	}
 	ureq, _ := http.NewRequestWithContext(ctx, http.MethodGet, prov.userURL, nil)
 	ureq.Header.Set("Authorization", "Bearer "+tok.AccessToken)
